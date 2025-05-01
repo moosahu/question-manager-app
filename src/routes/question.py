@@ -1,6 +1,7 @@
 """
-Modifies the add_question route in src/routes/question.py to check for duplicate questions
-(same text and same lesson_id) before adding a new one.
+Modifies question.py to handle dynamic options from the updated form.
+- Loops through form data to find all submitted options.
+- Adjusts logic for adding and editing questions based on dynamic options.
 """
 
 import os
@@ -99,7 +100,7 @@ def add_question():
         question_text = request.form.get("text")
         lesson_id = request.form.get("lesson_id")
         explanation = request.form.get("explanation")
-        correct_option_index_str = request.form.get("correct_option")
+        correct_option_index_str = request.form.get("correct_option") # This is the dynamic index (0, 1, 2...)
 
         # Basic validation
         if not question_text or not lesson_id or correct_option_index_str is None:
@@ -112,32 +113,26 @@ def add_question():
             flash("اختيار الإجابة الصحيحة غير صالح.", "danger")
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
-        # *** START: Duplicate Question Check ***
+        # Duplicate Question Check
         try:
             existing_question = Question.query.filter_by(text=question_text, lesson_id=lesson_id).first()
             if existing_question:
-                current_app.logger.warning(f"Attempt to add duplicate question (Text: '{question_text}', Lesson ID: {lesson_id}).")
+                current_app.logger.warning(f"Attempt to add duplicate question (Text: 	{question_text}	, Lesson ID: {lesson_id}).")
                 flash("هذا السؤال موجود بالفعل لهذا الدرس. لم يتم الحفظ.", "warning")
                 return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
         except Exception as query_error:
             current_app.logger.exception("Error during duplicate question check.")
             flash(f"حدث خطأ أثناء التحقق من تكرار السؤال: {query_error}", "danger")
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-        # *** END: Duplicate Question Check ***
 
-        # File uploads (continue only if not duplicate)
+        # File uploads
         q_image_file = request.files.get("question_image")
         e_image_file = request.files.get("explanation_image")
-        current_app.logger.info("Attempting to save question image...")
         q_image_path = save_upload(q_image_file, subfolder="questions")
-        current_app.logger.info(f"Question image path: {q_image_path}")
-        current_app.logger.info("Attempting to save explanation image...")
         e_image_path = save_upload(e_image_file, subfolder="explanations")
-        current_app.logger.info(f"Explanation image path: {e_image_path}")
 
         # Database Operations
         try:
-            current_app.logger.info("Creating Question object...")
             new_question = Question(
                 text=question_text,
                 lesson_id=lesson_id,
@@ -149,56 +144,68 @@ def add_question():
             db.session.flush() # Get new_question.id
             current_app.logger.info(f"New question ID obtained: {new_question.id}")
 
-            # Options processing
+            # --- Dynamic Options Processing --- #
             options_data = []
-            options_added = 0
-            for i in range(4):
-                option_text = request.form.get(f"option_text_{i}")
-                if option_text:
-                    option_image_file = request.files.get(f"option_image_{i}")
+            option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
+            actual_correct_option_text = None # Store text of the marked correct option
+
+            for i, key in enumerate(option_keys):
+                index_str = key.split("_")[-1]
+                option_text = request.form.get(f"option_text_{index_str}")
+
+                if option_text and option_text.strip(): # Process only if text is not empty
+                    option_image_file = request.files.get(f"option_image_{index_str}")
                     option_image_path = save_upload(option_image_file, subfolder="options")
+                    # The submitted correct_option_index corresponds to the index in the *dynamic* list (0, 1, 2...)
                     is_correct = (i == correct_option_index)
+
                     options_data.append({
-                        "text": option_text,
+                        "text": option_text.strip(),
                         "image_path": option_image_path,
                         "is_correct": is_correct,
                         "question_id": new_question.id
                     })
-                    options_added += 1
+                    if is_correct:
+                        actual_correct_option_text = option_text.strip()
 
-            if options_added < 2:
-                 current_app.logger.warning("Less than 2 options provided. Rolling back implicitly.")
-                 flash("يجب إضافة خيارين على الأقل.", "danger")
-                 # No explicit rollback needed here as commit hasn't happened
+            if len(options_data) < 2:
+                 current_app.logger.warning("Less than 2 valid options provided. Rolling back implicitly.")
+                 flash("يجب إضافة خيارين على الأقل بنص غير فارغ.", "danger")
                  return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-            else:
-                current_app.logger.info(f"Adding {len(options_data)} options to the session...")
-                for opt_data in options_data:
-                    option = Option(**opt_data)
-                    db.session.add(option)
 
-                # Commit transaction
-                current_app.logger.info("Attempting to commit transaction...")
-                try:
-                    db.session.commit()
-                    current_app.logger.info("Transaction committed successfully.")
-                    flash("تمت إضافة السؤال بنجاح!", "success")
-                    return redirect(url_for("question.list_questions"))
-                except Exception as commit_error:
-                    orig_error = getattr(commit_error, 'orig', None)
-                    current_app.logger.exception(f"CRITICAL ERROR during commit: {commit_error}. Original error: {orig_error}")
-                    db.session.rollback()
-                    flash(f"حدث خطأ فادح أثناء حفظ السؤال في قاعدة البيانات: {commit_error}", "danger")
-                    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+            # Ensure the marked correct option index is valid for the actual options added
+            if correct_option_index >= len(options_data):
+                current_app.logger.error(f"Invalid correct_option_index {correct_option_index} for {len(options_data)} options.")
+                flash("حدث خطأ في تحديد الخيار الصحيح. يرجى المحاولة مرة أخرى.", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+
+            current_app.logger.info(f"Adding {len(options_data)} options to the session...")
+            for opt_data in options_data:
+                option = Option(**opt_data)
+                db.session.add(option)
+            # --- End Dynamic Options Processing --- #
+
+            # Commit transaction
+            try:
+                db.session.commit()
+                current_app.logger.info("Transaction committed successfully.")
+                flash("تمت إضافة السؤال بنجاح!", "success")
+                return redirect(url_for("question.list_questions"))
+            except Exception as commit_error:
+                orig_error = getattr(commit_error, 'orig', None)
+                current_app.logger.exception(f"CRITICAL ERROR during commit: {commit_error}. Original error: {orig_error}")
+                db.session.rollback()
+                flash(f"حدث خطأ فادح أثناء حفظ السؤال في قاعدة البيانات: {commit_error}", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
         except (IntegrityError, DBAPIError) as db_error:
             db.session.rollback()
-            current_app.logger.exception(f"Database Error adding question (before commit attempt): {db_error}")
+            current_app.logger.exception(f"Database Error adding question: {db_error}")
             flash(f"خطأ في قاعدة البيانات أثناء إضافة السؤال: {db_error}", "danger")
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error adding question (before commit attempt): {e}")
+            current_app.logger.exception(f"Generic Error adding question: {e}")
             flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال: {e}", "danger")
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
@@ -220,7 +227,7 @@ def edit_question(question_id):
         question_text = request.form.get("text")
         lesson_id = request.form.get("lesson_id")
         explanation = request.form.get("explanation")
-        correct_option_index_str = request.form.get("correct_option")
+        correct_option_index_str = request.form.get("correct_option") # Dynamic index
 
         if not question_text or not lesson_id or correct_option_index_str is None:
             flash("يرجى ملء جميع الحقول المطلوبة.", "danger")
@@ -232,27 +239,26 @@ def edit_question(question_id):
             flash("اختيار الإجابة الصحيحة غير صالح.", "danger")
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
-        # *** START: Duplicate Check (for edit - slightly different logic might be needed if text/lesson changes) ***
-        # Check if the text/lesson combination already exists for *another* question.
+        # Duplicate Check (for edit)
         try:
             existing_question = Question.query.filter(
                 Question.text == question_text,
                 Question.lesson_id == lesson_id,
-                Question.id != question_id # Exclude the current question being edited
+                Question.id != question_id
             ).first()
             if existing_question:
-                current_app.logger.warning(f"Attempt to edit question ID {question_id} to duplicate another question (Text: '{question_text}', Lesson ID: {lesson_id}).")
+                current_app.logger.warning(f"Attempt to edit question ID {question_id} to duplicate another question.")
                 flash("يوجد سؤال آخر بنفس النص والدرس. لا يمكن حفظ التعديل.", "warning")
-                # Re-render with original question data before modification attempt
-                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id) # Re-fetch original
+                # Re-render with original data before modification attempt
+                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
         except Exception as query_error:
             current_app.logger.exception("Error during duplicate check in edit_question.")
             flash(f"حدث خطأ أثناء التحقق من تكرار السؤال عند التعديل: {query_error}", "danger")
-            question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id) # Re-fetch original
+            question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
-        # *** END: Duplicate Check (for edit) ***
 
+        # File uploads
         q_image_file = request.files.get("question_image")
         e_image_file = request.files.get("explanation_image")
 
@@ -260,6 +266,7 @@ def edit_question(question_id):
         if q_image_file:
             new_q_path = save_upload(q_image_file, subfolder="questions")
             if new_q_path:
+                # TODO: Delete old image if needed
                 q_image_path = new_q_path
             else:
                 flash("فشل تحميل صورة السؤال الجديدة.", "warning")
@@ -268,65 +275,99 @@ def edit_question(question_id):
         if e_image_file:
             new_e_path = save_upload(e_image_file, subfolder="explanations")
             if new_e_path:
+                # TODO: Delete old image if needed
                 e_image_path = new_e_path
             else:
                 flash("فشل تحميل صورة الشرح الجديدة.", "warning")
 
         try:
+            # Update question details first
             question.text = question_text
             question.lesson_id = lesson_id
             question.image_path = q_image_path
             question.explanation = explanation
             question.explanation_image_path = e_image_path
 
-            existing_options = {opt.id: opt for opt in question.options}
-            options_to_keep = set()
-            options_updated = 0
+            # --- Dynamic Options Processing for Edit --- #
+            existing_options_map = {opt.id: opt for opt in question.options}
+            submitted_option_ids = set()
+            options_to_process = [] # Store valid submitted options
 
-            for i in range(4):
-                option_id_str = request.form.get(f"option_id_{i}")
-                option_text = request.form.get(f"option_text_{i}")
-                option_image_file = request.files.get(f"option_image_{i}")
-                is_correct = (i == correct_option_index)
+            option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
 
-                if option_text:
-                    options_updated += 1
+            for i, key in enumerate(option_keys):
+                index_str = key.split("_")[-1]
+                option_text = request.form.get(f"option_text_{index_str}")
+
+                if option_text and option_text.strip(): # Process only valid text
+                    option_id_str = request.form.get(f"option_id_{index_str}")
                     option_id = int(option_id_str) if option_id_str else None
-                    option = existing_options.get(option_id) if option_id else None
+                    option_image_file = request.files.get(f"option_image_{index_str}")
+                    is_correct = (i == correct_option_index)
 
-                    opt_image_path = option.image_path if option else None
-                    if option_image_file:
-                        new_opt_path = save_upload(option_image_file, subfolder="options")
-                        if new_opt_path:
-                            opt_image_path = new_opt_path
-                        else:
-                            flash(f"فشل تحميل صورة الخيار {i+1} الجديدة.", "warning")
+                    options_to_process.append({
+                        "index": i, # Keep track of original submitted order for is_correct
+                        "id": option_id,
+                        "text": option_text.strip(),
+                        "image_file": option_image_file,
+                        "is_correct": is_correct
+                    })
+                    if option_id:
+                        submitted_option_ids.add(option_id)
 
-                    if option:
-                        option.text = option_text
-                        option.image_path = opt_image_path
-                        option.is_correct = is_correct
-                        options_to_keep.add(option_id)
-                    else:
-                        new_option = Option(
-                            text=option_text,
-                            image_path=opt_image_path,
-                            is_correct=is_correct,
-                            question_id=question_id
-                        )
-                        db.session.add(new_option)
-
-            options_to_delete = set(existing_options.keys()) - options_to_keep
-            if options_to_delete:
-                for opt_id in options_to_delete:
-                    db.session.delete(existing_options[opt_id])
-
-            if options_updated < 2:
-                 db.session.rollback()
-                 flash("يجب توفير خيارين على الأقل.", "danger")
+            if len(options_to_process) < 2:
+                 db.session.rollback() # Rollback question detail changes
+                 flash("يجب توفير خيارين على الأقل بنص غير فارغ.", "danger")
                  question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
                  return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
+            # Ensure the marked correct option index is valid
+            if correct_option_index >= len(options_to_process):
+                db.session.rollback()
+                current_app.logger.error(f"Invalid correct_option_index {correct_option_index} for {len(options_to_process)} options during edit.")
+                flash("حدث خطأ في تحديد الخيار الصحيح. يرجى المحاولة مرة أخرى.", "danger")
+                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+                return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+
+            # Process Adds/Updates
+            for opt_data in options_to_process:
+                option = existing_options_map.get(opt_data["id"]) if opt_data["id"] else None
+                opt_image_path = option.image_path if option else None
+
+                if opt_data["image_file"]:
+                    new_opt_path = save_upload(opt_data["image_file"], subfolder="options")
+                    if new_opt_path:
+                        # TODO: Delete old image if needed
+                        opt_image_path = new_opt_path
+                    else:
+                        flash(f"فشل تحميل صورة الخيار \'{opt_data['text']}\' الجديدة.", "warning")
+
+                if option: # Update existing option
+                    current_app.logger.info(f"Updating existing option ID: {opt_data['id']}")
+                    option.text = opt_data["text"]
+                    option.image_path = opt_image_path
+                    option.is_correct = opt_data["is_correct"]
+                else: # Add new option
+                    current_app.logger.info(f"Adding new option for question ID: {question_id}")
+                    new_option = Option(
+                        text=opt_data["text"],
+                        image_path=opt_image_path,
+                        is_correct=opt_data["is_correct"],
+                        question_id=question_id
+                    )
+                    db.session.add(new_option)
+
+            # Process Deletes
+            options_to_delete_ids = set(existing_options_map.keys()) - submitted_option_ids
+            if options_to_delete_ids:
+                current_app.logger.info(f"Deleting options with IDs: {options_to_delete_ids}")
+                for opt_id in options_to_delete_ids:
+                    option_to_delete = existing_options_map[opt_id]
+                    # TODO: Delete associated image files
+                    db.session.delete(option_to_delete)
+            # --- End Dynamic Options Processing for Edit --- #
+
+            # Commit transaction
             try:
                 db.session.commit()
                 flash("تم تعديل السؤال بنجاح!", "success")
@@ -341,7 +382,7 @@ def edit_question(question_id):
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error editing question ID {question_id} (before commit attempt): {e}")
+            current_app.logger.exception(f"Generic Error editing question ID {question_id}: {e}")
             flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال: {e}", "danger")
             question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
@@ -351,9 +392,10 @@ def edit_question(question_id):
         question.image_path = sanitize_path(question.image_path)
     if question.explanation_image_path:
         question.explanation_image_path = sanitize_path(question.explanation_image_path)
-    for option in question.options:
-        if option.image_path:
-            option.image_path = sanitize_path(option.image_path)
+    if question.options:
+        for option in question.options:
+            if option.image_path:
+                option.image_path = sanitize_path(option.image_path)
 
     return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
@@ -364,6 +406,9 @@ def delete_question(question_id):
     try:
         current_app.logger.info(f"Attempting to delete question ID: {question_id}")
         # TODO: Delete associated image files
+        # Consider deleting options explicitly first if cascade delete is not set up
+        # for option in question.options:
+        #     db.session.delete(option)
         db.session.delete(question)
         db.session.commit()
         flash("تم حذف السؤال بنجاح!", "success")
@@ -373,7 +418,4 @@ def delete_question(question_id):
         flash(f"حدث خطأ أثناء حذف السؤال: {e}", "danger")
     return redirect(url_for("question.list_questions"))
 
-"""
-Note: I also added a similar duplicate check within the edit_question route
-to prevent editing a question in a way that makes it a duplicate of *another* existing question.
-"""
+
