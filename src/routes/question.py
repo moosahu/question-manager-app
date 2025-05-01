@@ -1,7 +1,6 @@
 """
-Modifies question.py to handle dynamic options from the updated form.
-- Loops through form data to find all submitted options.
-- Adjusts logic for adding and editing questions based on dynamic options.
+Modifies question.py to handle dynamic options and fixes the ORDER BY clause
+in the lesson query by explicitly joining the related tables.
 """
 
 import os
@@ -12,6 +11,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError, DBAPIError
+from sqlalchemy.orm import joinedload, contains_eager # Import contains_eager
 
 from src.models.user import db
 from src.models.question import Question, Option
@@ -59,9 +59,10 @@ def list_questions():
     current_app.logger.info(f"Requesting page {page} with {per_page} items per page.")
 
     try:
+        # Use joinedload for efficiency here as order is on Question.id
         questions_pagination = (Question.query.options(
-                db.joinedload(Question.options),
-                db.joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+                joinedload(Question.options),
+                joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
             ).order_by(Question.id.desc())
             .paginate(page=page, per_page=per_page, error_out=False))
         current_app.logger.info(f"Database query successful. Found {len(questions_pagination.items)} questions on this page (total: {questions_pagination.total}).")
@@ -86,11 +87,36 @@ def list_questions():
         flash(f"حدث خطأ غير متوقع أثناء عرض قائمة الأسئلة. التفاصيل: {sanitize_path(str(e))}", "danger")
         return redirect(url_for("dashboard"))
 
+# Helper function to get sorted lessons
+def get_sorted_lessons():
+    try:
+        # Explicitly join and use contains_eager for ordering on joined tables
+        lessons = (
+            Lesson.query
+            .join(Lesson.unit)
+            .join(Unit.course)
+            .options(
+                contains_eager(Lesson.unit).contains_eager(Unit.course)
+            )
+            .order_by(Course.name, Unit.name, Lesson.name)
+            .all()
+        )
+        return lessons
+    except Exception as e:
+        current_app.logger.exception("Error fetching sorted lessons.")
+        # Raise the error to be handled by the route
+        raise e
+
 @question_bp.route("/add", methods=["GET", "POST"])
 @login_required
 def add_question():
-    lessons = (Lesson.query.options(db.joinedload(Lesson.unit).joinedload(Unit.course))
-                      .order_by(Course.name, Unit.name, Lesson.name).all())
+    try:
+        lessons = get_sorted_lessons()
+    except Exception as e:
+        flash(f"حدث خطأ أثناء تحميل قائمة الدروس: {e}", "danger")
+        # Redirect to a safe place, maybe dashboard or curriculum list
+        return redirect(url_for("dashboard"))
+
     if not lessons:
         flash("الرجاء إضافة المناهج (دورات، وحدات، دروس) أولاً قبل إضافة الأسئلة.", "warning")
         return redirect(url_for("curriculum.list_courses"))
@@ -100,7 +126,7 @@ def add_question():
         question_text = request.form.get("text")
         lesson_id = request.form.get("lesson_id")
         explanation = request.form.get("explanation")
-        correct_option_index_str = request.form.get("correct_option") # This is the dynamic index (0, 1, 2...)
+        correct_option_index_str = request.form.get("correct_option") # Dynamic index
 
         # Basic validation
         if not question_text or not lesson_id or correct_option_index_str is None:
@@ -147,16 +173,15 @@ def add_question():
             # --- Dynamic Options Processing --- #
             options_data = []
             option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
-            actual_correct_option_text = None # Store text of the marked correct option
+            actual_correct_option_text = None
 
             for i, key in enumerate(option_keys):
                 index_str = key.split("_")[-1]
                 option_text = request.form.get(f"option_text_{index_str}")
 
-                if option_text and option_text.strip(): # Process only if text is not empty
+                if option_text and option_text.strip():
                     option_image_file = request.files.get(f"option_image_{index_str}")
                     option_image_path = save_upload(option_image_file, subfolder="options")
-                    # The submitted correct_option_index corresponds to the index in the *dynamic* list (0, 1, 2...)
                     is_correct = (i == correct_option_index)
 
                     options_data.append({
@@ -173,7 +198,6 @@ def add_question():
                  flash("يجب إضافة خيارين على الأقل بنص غير فارغ.", "danger")
                  return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
-            # Ensure the marked correct option index is valid for the actual options added
             if correct_option_index >= len(options_data):
                 current_app.logger.error(f"Invalid correct_option_index {correct_option_index} for {len(options_data)} options.")
                 flash("حدث خطأ في تحديد الخيار الصحيح. يرجى المحاولة مرة أخرى.", "danger")
@@ -215,12 +239,17 @@ def add_question():
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
 @login_required
 def edit_question(question_id):
+    # Fetch question with related data eagerly
     question = Question.query.options(
-        db.joinedload(Question.options),
-        db.joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+        joinedload(Question.options),
+        joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
     ).get_or_404(question_id)
-    lessons = (Lesson.query.options(db.joinedload(Lesson.unit).joinedload(Unit.course))
-                      .order_by(Course.name, Unit.name, Lesson.name).all())
+
+    try:
+        lessons = get_sorted_lessons()
+    except Exception as e:
+        flash(f"حدث خطأ أثناء تحميل قائمة الدروس: {e}", "danger")
+        return redirect(url_for("question.list_questions")) # Redirect to list on error
 
     if request.method == "POST":
         current_app.logger.info(f"POST request received for edit_question ID: {question_id}")
@@ -250,12 +279,11 @@ def edit_question(question_id):
                 current_app.logger.warning(f"Attempt to edit question ID {question_id} to duplicate another question.")
                 flash("يوجد سؤال آخر بنفس النص والدرس. لا يمكن حفظ التعديل.", "warning")
                 # Re-render with original data before modification attempt
-                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+                # No need to re-fetch, question object is already loaded
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
         except Exception as query_error:
             current_app.logger.exception("Error during duplicate check in edit_question.")
             flash(f"حدث خطأ أثناء التحقق من تكرار السؤال عند التعديل: {query_error}", "danger")
-            question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         # File uploads
@@ -291,7 +319,7 @@ def edit_question(question_id):
             # --- Dynamic Options Processing for Edit --- #
             existing_options_map = {opt.id: opt for opt in question.options}
             submitted_option_ids = set()
-            options_to_process = [] # Store valid submitted options
+            options_to_process = []
 
             option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
 
@@ -299,14 +327,14 @@ def edit_question(question_id):
                 index_str = key.split("_")[-1]
                 option_text = request.form.get(f"option_text_{index_str}")
 
-                if option_text and option_text.strip(): # Process only valid text
+                if option_text and option_text.strip():
                     option_id_str = request.form.get(f"option_id_{index_str}")
                     option_id = int(option_id_str) if option_id_str else None
                     option_image_file = request.files.get(f"option_image_{index_str}")
                     is_correct = (i == correct_option_index)
 
                     options_to_process.append({
-                        "index": i, # Keep track of original submitted order for is_correct
+                        "index": i,
                         "id": option_id,
                         "text": option_text.strip(),
                         "image_file": option_image_file,
@@ -316,17 +344,17 @@ def edit_question(question_id):
                         submitted_option_ids.add(option_id)
 
             if len(options_to_process) < 2:
-                 db.session.rollback() # Rollback question detail changes
+                 db.session.rollback()
                  flash("يجب توفير خيارين على الأقل بنص غير فارغ.", "danger")
-                 question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+                 # Re-fetch might be needed if relationships were modified before rollback
+                 question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
                  return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
-            # Ensure the marked correct option index is valid
             if correct_option_index >= len(options_to_process):
                 db.session.rollback()
                 current_app.logger.error(f"Invalid correct_option_index {correct_option_index} for {len(options_to_process)} options during edit.")
                 flash("حدث خطأ في تحديد الخيار الصحيح. يرجى المحاولة مرة أخرى.", "danger")
-                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+                question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
             # Process Adds/Updates
@@ -377,17 +405,18 @@ def edit_question(question_id):
                 current_app.logger.exception(f"CRITICAL ERROR during commit while editing question ID {question_id}: {commit_error}. Original error: {orig_error}")
                 db.session.rollback()
                 flash(f"حدث خطأ فادح أثناء حفظ تعديلات السؤال: {commit_error}", "danger")
-                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+                question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         except Exception as e:
             db.session.rollback()
             current_app.logger.exception(f"Generic Error editing question ID {question_id}: {e}")
             flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال: {e}", "danger")
-            question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
+            question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
     # GET request
+    # Sanitize paths before rendering
     if question.image_path:
         question.image_path = sanitize_path(question.image_path)
     if question.explanation_image_path:
@@ -406,9 +435,8 @@ def delete_question(question_id):
     try:
         current_app.logger.info(f"Attempting to delete question ID: {question_id}")
         # TODO: Delete associated image files
-        # Consider deleting options explicitly first if cascade delete is not set up
-        # for option in question.options:
-        #     db.session.delete(option)
+        # Explicitly delete options first if cascade delete is not configured or reliable
+        Option.query.filter_by(question_id=question_id).delete()
         db.session.delete(question)
         db.session.commit()
         flash("تم حذف السؤال بنجاح!", "success")
