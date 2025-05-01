@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">إدارة الأسئلة</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for(\'question.add_question\') }}" class="btn btn-sm btn-outline-primary">
+        <a href="{{ url_for('question.add_question') }}" class="btn btn-sm btn-outline-primary">
             <span data-feather="plus-circle" class="align-text-bottom"></span>
             إضافة سؤال جديد
         </a>
@@ -40,7 +40,7 @@
                 </td>
                 <td>{{ question.options | length }}</td>
                 <td>
-                    <a href="{{ url_for(\'question.edit_question\', question_id=question.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="تعديل">
+                    <a href="{{ url_for('question.edit_question', question_id=question.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="تعديل">
                         <span data-feather="edit-2" class="align-text-bottom"></span>
                     </a>
                     {# Placeholder for delete button - functionality to be added later #}
@@ -64,14 +64,14 @@
     <ul class="pagination justify-content-center">
         {# Previous Page Link #}
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for(\'question.list_questions\', page=pagination.prev_num) if pagination.has_prev else \'#\' }}">السابق</a>
+            <a class="page-link" href="{{ url_for('question.list_questions', page=pagination.prev_num) if pagination.has_prev else '#' }}">السابق</a>
         </li>
 
         {# Page Numbers #}
         {% for page_num in pagination.iter_pages() %}
             {% if page_num %}
                 {% if page_num != pagination.page %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for(\'question.list_questions\', page=page_num) }}">{{ page_num }}</a></li>
+                    <li class="page-item"><a class="page-link" href="{{ url_for('question.list_questions', page=page_num) }}">{{ page_num }}</a></li>
                 {% else %}
                     <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
                 {% endif %}
@@ -82,7 +82,7 @@
 
         {# Next Page Link #}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for(\'question.list_questions\', page=pagination.next_num) if pagination.has_next else \'#\' }}">التالي</a>
+            <a class="page-link" href="{{ url_for('question.list_questions', page=pagination.next_num) if pagination.has_next else '#' }}">التالي</a>
         </li>
     </ul>
 </nav>
