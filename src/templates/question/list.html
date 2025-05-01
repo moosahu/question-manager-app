@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة الأسئلة (مبسط){% endblock %}
+
+{% block content %}
+<h1>إدارة الأسئلة (نسخة مبسطة جداً للتشخيص)</h1>
+
+{# Flash messages are handled in base.html #}
+
+<p>قائمة معرفات الأسئلة:</p>
+<ul>
+    {% for q in questions %}
+    <li>معرف السؤال: {{ q.id }}</li>
+    {% else %}
+    <li>لا توجد أسئلة لعرضها.</li>
+    {% endfor %}
+</ul>
+
+<p><a href="{{ url_for('question.add_question') }}">إضافة سؤال جديد (قد لا يعمل بشكل كامل)</a></p>
+
+{% endblock %}
+

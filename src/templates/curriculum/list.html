@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة المنهج{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">إدارة المنهج</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('curriculum.add_course') }}" class="btn btn-sm btn-outline-secondary">إضافة دورة جديدة</a>
+    </div>
+</div>
+
+{# Flash messages are handled in base.html #}
+
+{% if courses %}
+    {% for course in courses %}
+    <div class="accordion mb-2" id="accordionCourse{{ course.id }}">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingCourse{{ course.id }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCourse{{ course.id }}" aria-expanded="false" aria-controls="collapseCourse{{ course.id }}">
+                    <strong>{{ course.name }}</strong>
+                </button>
+            </h2>
+            <div id="collapseCourse{{ course.id }}" class="accordion-collapse collapse" aria-labelledby="headingCourse{{ course.id }}" data-bs-parent="#accordionCourse{{ course.id }}">
+                <div class="accordion-body">
+                    <div class="d-flex justify-content-end mb-2 tex2jax_ignore"> {# Ignore action links #}
+                        <a href="{{ url_for('curriculum.edit_course', course_id=course.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الدورة</a>
+                        <a href="{{ url_for('curriculum.delete_course', course_id=course.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذه الدورة سيؤدي أيضًا إلى حذف جميع الوحدات والدروس والأسئلة التابعة لها. هل أنت متأكد؟')">حذف الدورة</a>
+                    </div>
+
+                    <h5>الوحدات</h5>
+                    {% for unit in course.units %}
+                    <div class="card card-body mb-2">
+                        <div class="d-flex justify-content-between align-items-center tex2jax_ignore"> {# Ignore action links #}
+                            <span>{{ unit.name }}</span>
+                            <div>
+                                <a href="{{ url_for('curriculum.edit_unit', unit_id=unit.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الوحدة</a>
+                                <a href="{{ url_for('curriculum.delete_unit', unit_id=unit.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذه الوحدة سيؤدي أيضًا إلى حذف جميع الدروس والأسئلة التابعة لها. هل أنت متأكد؟')">حذف الوحدة</a>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6>الدروس</h6>
+                        <ul class="list-group list-group-flush">
+                            {% for lesson in unit.lessons %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center tex2jax_ignore"> {# Ignore action links #}
+                                {{ lesson.name }}
+                                <div>
+                                    <a href="{{ url_for('curriculum.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الدرس</a>
+                                    <a href="{{ url_for('curriculum.delete_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذا الدرس سيؤدي أيضًا إلى حذف جميع الأسئلة التابعة له. هل أنت متأكد؟')">حذف الدرس</a>
+                                </div>
+                            </li>
+                            {% endfor %}
+                            <li class="list-group-item tex2jax_ignore"> {# Ignore action links #}
+                                <a href="{{ url_for('curriculum.add_lesson', unit_id=unit.id) }}" class="btn btn-sm btn-outline-success">+ إضافة درس</a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endfor %}
+                    <div class="tex2jax_ignore"> {# Ignore action links #}
+                        <a href="{{ url_for('curriculum.add_unit', course_id=course.id) }}" class="btn btn-sm btn-outline-success">+ إضافة وحدة</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info" role="alert">
+        لا توجد دورات حتى الآن. ابدأ بإضافة دورة جديدة.
+    </div>
+{% endif %}
+
+{% endblock %}
+

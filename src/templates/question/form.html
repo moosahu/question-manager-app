@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ title }}</h1>
+</div>
+
+{# Flash messages are handled in base.html #}
+
+<form method="post" enctype="multipart/form-data">
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">تفاصيل السؤال</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
+                        <select name="lesson_id" id="lesson_id" class="form-select" required>
+                            <option value="" disabled {% if not question %}selected{% endif %}>-- اختر الدرس --</option>
+                            {% for lesson in lessons %}
+                            <option value="{{ lesson.id }}" {% if question and question.lesson_id == lesson.id %}selected{% endif %}>
+                                {{ lesson.unit.course.name }} / {{ lesson.unit.name }} / {{ lesson.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
+                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" required>{{ question.text if question else request.form.get('text', '') }}</textarea>
+                        <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
+                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
+                        <input type="file" name="question_image" id="question_image" class="form-control" accept="image/*">
+                        {% if question and question.image_path %}
+                        <div class="mt-2 tex2jax_ignore"> {# Ignore image display for MathJax #}
+                            <img src="{{ url_for('static', filename=question.image_path) }}" alt="Question Image" style="max-width: 200px; max-height: 150px;">
+                            <small class="d-block">الصورة الحالية</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">الخيارات (خياران على الأقل، حدد الصحيح) <span class="text-danger">*</span></div>
+                <div class="card-body">
+                    {% set options = question.options if question else [] %}
+                    {% for i in range(4) %} {# Assuming max 4 options #}
+                    <div class="border p-3 mb-3 rounded {% if question and i < options|length and options[i].is_correct %}border-success{% endif %}">
+                        <h5>الخيار {{ i+1 }}</h5>
+                        <div class="mb-3">
+                            <label for="option_text_{{ i }}" class="form-label">نص الخيار</label>
+                            <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].text if i < options|length else request.form.get(f'option_text_{i}', '') }}">
+                            <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
+                            <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control" accept="image/*">
+                            {% if i < options|length and options[i].image_path %}
+                            <div class="mt-2 tex2jax_ignore"> {# Ignore image display for MathJax #}
+                                <img src="{{ url_for('static', filename=options[i].image_path) }}" alt="Option {{ i+1 }} Image" style="max-width: 100px; max-height: 75px;">
+                                <small class="d-block">الصورة الحالية</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
+                            <label class="form-check-label" for="correct_option_{{ i }}">
+                                هذا هو الخيار الصحيح
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">الشرح (اختياري)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="explanation" class="form-label">نص الشرح</label>
+                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get('explanation', '') }}</textarea>
+                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
+                        <input type="file" name="explanation_image" id="explanation_image" class="form-control" accept="image/*">
+                        {% if question and question.explanation_image_path %}
+                        <div class="mt-2 tex2jax_ignore"> {# Ignore image display for MathJax #}
+                            <img src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="Explanation Image" style="max-width: 150px; max-height: 100px;">
+                            <small class="d-block">الصورة الحالية</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body tex2jax_ignore"> {# Ignore action links #}
+                    <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
+                    <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary w-100">إلغاء</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function updatePreview(inputId, previewId) {
+        const inputElement = document.getElementById(inputId);
+        const previewElement = document.getElementById(previewId);
+        if (inputElement && previewElement) {
+            previewElement.innerHTML = inputElement.value;
+            // Use MathJax.typesetPromise() for dynamic content
+            // Ensure MathJax is available before calling typesetPromise
+            if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
+            } else {
+                console.log("MathJax not ready for preview update.");
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Wait for MathJax to be fully loaded and ready
+        if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.promise) {
+            MathJax.startup.promise.then(() => {
+                console.log("MathJax is ready.");
+                const mathjaxInputs = document.querySelectorAll(".mathjax-input");
+                mathjaxInputs.forEach(input => {
+                    const previewId = input.id + "-preview";
+                    // Initial preview update
+                    updatePreview(input.id, previewId);
+                    // Update preview on input change
+                    input.addEventListener("input", () => updatePreview(input.id, previewId));
+                });
+            }).catch((err) => console.error("MathJax Startup Error: ", err));
+        } else {
+             console.error("MathJax startup promise not found. Preview might not work.");
+             // Fallback for initial render if MathJax isn't ready (less ideal)
+             const mathjaxInputs = document.querySelectorAll(".mathjax-input");
+             mathjaxInputs.forEach(input => {
+                 const previewId = input.id + "-preview";
+                 updatePreview(input.id, previewId);
+                 input.addEventListener("input", () => updatePreview(input.id, previewId));
+             });
+        }
+    });
+</script>
+{% endblock %}
+
