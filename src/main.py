@@ -33,11 +33,13 @@ os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'questions'), exist_ok=Tru
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'options'), exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'explanations'), exist_ok=True)
 
-# Database Configuration - Prioritize Heroku DATABASE_URL
+# Database Configuration - Prioritize Render/Heroku DATABASE_URL
 database_url = os.getenv("DATABASE_URL")
-if database_url and database_url.startswith("postgres://"):
-    # Heroku provides postgres:// but SQLAlchemy needs postgresql://
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+# Check if DATABASE_URL exists and starts with postgresql:// or postgres://
+if database_url and (database_url.startswith("postgresql://") or database_url.startswith("postgres://")):
+    # Ensure it uses postgresql:// for SQLAlchemy compatibility
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     # Fallback for local development (using MySQL as previously configured)
