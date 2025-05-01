@@ -45,14 +45,22 @@ def save_upload(file, subfolder="questions"):
         os.makedirs(upload_dir, exist_ok=True) # Ensure subfolder exists
         file_path = os.path.join(upload_dir, filename)
         try:
+            current_app.logger.info(f"Attempting to save file to: {file_path}") # LOG: Before save
             file.save(file_path)
+            current_app.logger.info(f"File saved successfully to: {file_path}") # LOG: After save
             # Return the relative path to be stored in DB (relative to static folder)
             # Use forward slashes for URL paths
             relative_path = f"uploads/{subfolder}/{filename}"
-            return sanitize_path(relative_path) # Sanitize path before returning
+            sanitized_relative_path = sanitize_path(relative_path) # Sanitize path before returning
+            current_app.logger.info(f"Returning sanitized relative path: {sanitized_relative_path}") # LOG: Return path
+            return sanitized_relative_path
         except Exception as e:
-            current_app.logger.error(f"Error saving file {filename} to {file_path}: {e}")
+            current_app.logger.exception(f"CRITICAL ERROR saving file {filename} to {file_path}: {e}") # LOG: Exception on save
             return None # Return None if saving fails
+    elif file:
+        current_app.logger.warning(f"File upload failed: Invalid file type or name for {file.filename}") # LOG: Invalid file
+    else:
+        current_app.logger.info("No file provided for upload.") # LOG: No file
     return None
 
 # --- Routes for Question Management ---
@@ -148,129 +156,179 @@ def list_questions():
 @question_bp.route("/add", methods=["GET", "POST"])
 @login_required
 def add_question():
-    # RESTORED ORIGINAL FULL FUNCTION
-    lessons = (Lesson.query.options(db.joinedload(Lesson.unit).joinedload(Unit.course))
-                      .order_by(Course.name, Unit.name, Lesson.name).all())
-    if not lessons:
-        flash("الرجاء إضافة المناهج (دورات، وحدات، دروس) أولاً قبل إضافة الأسئلة.", "warning")
-        return redirect(url_for("curriculum.list_courses"))
+    # RESTORED ORIGINAL FULL FUNCTION with ENHANCED LOGGING
+    current_app.logger.info("--- Entering add_question route ---") # LOG: Start add_question
+    lessons = []
+    try:
+        current_app.logger.info("Querying lessons for the form...") # LOG: Before lesson query
+        lessons = (Lesson.query.options(db.joinedload(Lesson.unit).joinedload(Unit.course))
+                          .order_by(Course.name, Unit.name, Lesson.name).all())
+        current_app.logger.info(f"Found {len(lessons)} lessons.") # LOG: After lesson query
+        if not lessons:
+            current_app.logger.warning("No lessons found. Redirecting to curriculum management.") # LOG: No lessons warning
+            flash("الرجاء إضافة المناهج (دورات، وحدات، دروس) أولاً قبل إضافة الأسئلة.", "warning")
+            return redirect(url_for("curriculum.list_courses"))
+    except Exception as lesson_query_error:
+        current_app.logger.exception("Error querying lessons in add_question.") # LOG: Lesson query error
+        flash(f"حدث خطأ أثناء تحميل الدروس: {lesson_query_error}", "danger")
+        return redirect(url_for("dashboard")) # Redirect to dashboard on error
 
     if request.method == "POST":
-        current_app.logger.info("POST request received for FULL add_question.")
-        question_text = request.form.get("text")
-        lesson_id = request.form.get("lesson_id")
-        explanation = request.form.get("explanation")
-        correct_option_index_str = request.form.get("correct_option")
-
-        # Full validation
-        if not question_text or not lesson_id or correct_option_index_str is None:
-            flash("يرجى ملء جميع الحقول المطلوبة (نص السؤال، الدرس، تحديد الإجابة الصحيحة).", "danger")
-            # Use the original form template
-            return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-
+        current_app.logger.info("--- POST request received for add_question ---") # LOG: POST start
         try:
-            correct_option_index = int(correct_option_index_str)
-        except ValueError:
-            flash("اختيار الإجابة الصحيحة غير صالح.", "danger")
+            # --- Form Data Retrieval --- #
+            current_app.logger.info("Retrieving form data...") # LOG: Form data start
+            question_text = request.form.get("text")
+            lesson_id = request.form.get("lesson_id")
+            explanation = request.form.get("explanation")
+            correct_option_index_str = request.form.get("correct_option")
+            current_app.logger.info(f"Form data retrieved: lesson_id={lesson_id}, correct_option={correct_option_index_str}") # LOG: Form data retrieved
+            current_app.logger.debug(f"Question Text: {question_text[:100]}..." if question_text else "None") # LOG: Debug question text
+            current_app.logger.debug(f"Explanation: {explanation[:100]}..." if explanation else "None") # LOG: Debug explanation
+
+            # --- Basic Validation --- #
+            current_app.logger.info("Performing basic validation...") # LOG: Validation start
+            if not question_text or not lesson_id or correct_option_index_str is None:
+                current_app.logger.warning("Basic validation failed: Missing required fields.") # LOG: Validation failed
+                flash("يرجى ملء جميع الحقول المطلوبة (نص السؤال، الدرس، تحديد الإجابة الصحيحة).", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+
+            try:
+                correct_option_index = int(correct_option_index_str)
+                current_app.logger.info(f"Correct option index parsed: {correct_option_index}") # LOG: Correct option parsed
+            except ValueError:
+                current_app.logger.warning("Validation failed: Invalid correct_option index.") # LOG: Invalid index
+                flash("اختيار الإجابة الصحيحة غير صالح.", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+
+            # --- File Uploads --- #
+            current_app.logger.info("Processing file uploads...") # LOG: File upload start
+            q_image_file = request.files.get("question_image")
+            e_image_file = request.files.get("explanation_image")
+            current_app.logger.info(f"Question image file received: {q_image_file.filename if q_image_file else 'None'}") # LOG: Q image file
+            current_app.logger.info(f"Explanation image file received: {e_image_file.filename if e_image_file else 'None'}") # LOG: E image file
+
+            q_image_path = save_upload(q_image_file, subfolder="questions")
+            current_app.logger.info(f"Result of saving question image: {q_image_path}") # LOG: Q image save result
+            e_image_path = save_upload(e_image_file, subfolder="explanations")
+            current_app.logger.info(f"Result of saving explanation image: {e_image_path}") # LOG: E image save result
+
+            # --- Database Operations Start --- #
+            current_app.logger.info("--- Starting database operations --- ") # LOG: DB Ops Start
+            try:
+                current_app.logger.info("Creating Question object...") # LOG: Create Q obj
+                new_question = Question(
+                    text=question_text,
+                    lesson_id=lesson_id,
+                    image_path=q_image_path,
+                    explanation=explanation,
+                    explanation_image_path=e_image_path
+                )
+                current_app.logger.info(f"Question object created: ID={new_question.id}, LessonID={new_question.lesson_id}") # LOG: Q obj created
+
+                current_app.logger.info("Adding Question object to session...") # LOG: Add Q to session
+                db.session.add(new_question)
+                current_app.logger.info("Question object added to session.") # LOG: Q added to session
+
+                # Need to flush to get the new_question.id for options
+                current_app.logger.info("Attempting to flush session to get new question ID...") # LOG: Before flush
+                db.session.flush()
+                current_app.logger.info(f"Session flushed. New question ID obtained: {new_question.id}") # LOG: After flush
+
+                # --- Options Processing --- #
+                current_app.logger.info("--- Starting options processing --- ") # LOG: Options start
+                options_data = []
+                options_added = 0
+                for i in range(4): # Assuming max 4 options
+                    option_text = request.form.get(f"option_text_{i}")
+                    current_app.logger.debug(f"Checking option {i}: Text=\"{option_text}\"") # LOG: Check option i
+                    if option_text:
+                        current_app.logger.info(f"Processing option {i} (Text found)...") # LOG: Process option i
+                        option_image_file = request.files.get(f"option_image_{i}")
+                        current_app.logger.info(f"Option {i} image file received: {option_image_file.filename if option_image_file else 'None'}") # LOG: Option i image file
+
+                        option_image_path = save_upload(option_image_file, subfolder="options")
+                        current_app.logger.info(f"Result of saving option {i} image: {option_image_path}") # LOG: Option i save result
+
+                        is_correct = (i == correct_option_index)
+                        current_app.logger.info(f"Option {i} is_correct: {is_correct}") # LOG: Option i is_correct
+
+                        opt_data_entry = {
+                            "text": option_text,
+                            "image_path": option_image_path,
+                            "is_correct": is_correct,
+                            "question_id": new_question.id
+                        }
+                        options_data.append(opt_data_entry)
+                        current_app.logger.debug(f"Option {i} data prepared: {opt_data_entry}") # LOG: Option i data prepared
+                        options_added += 1
+                    else:
+                        current_app.logger.debug(f"Skipping option {i}: No text provided.") # LOG: Skip option i
+
+                current_app.logger.info(f"Finished processing options loop. Total options added: {options_added}") # LOG: Options loop end
+
+                if options_added < 2:
+                     current_app.logger.warning("Validation failed: Less than 2 options provided. Rolling back implicitly (no commit). Redirecting.") # LOG: Options validation fail
+                     flash("يجب إضافة خيارين على الأقل.", "danger")
+                     return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+                else:
+                    current_app.logger.info(f"Adding {len(options_data)} Option objects to the session...") # LOG: Add options to session
+                    for opt_data in options_data:
+                        option = Option(**opt_data)
+                        current_app.logger.debug(f"Adding option object to session: Text=\"{option.text}\", Correct={option.is_correct}, QID={option.question_id}") # LOG: Adding option obj
+                        db.session.add(option)
+                    current_app.logger.info("All Option objects added to session.") # LOG: Options added
+
+                    # --- CRITICAL COMMIT STEP --- #
+                    current_app.logger.info("--- Attempting final commit --- ") # LOG: Before commit
+                    try:
+                        db.session.commit()
+                        current_app.logger.info("--- COMMIT SUCCESSFUL --- ") # LOG: Commit success
+                        flash("تمت إضافة السؤال بنجاح!", "success")
+                        return redirect(url_for("question.list_questions"))
+                    except Exception as commit_error:
+                        # Log the specific commit error, including original exception if available
+                        orig_error = getattr(commit_error, 'orig', None)
+                        current_app.logger.exception(f"--- CRITICAL ERROR DURING COMMIT --- : {commit_error}. Original error: {orig_error}") # LOG: Commit exception
+                        try:
+                            current_app.logger.info("Attempting to rollback session due to commit error...") # LOG: Before rollback
+                            db.session.rollback()
+                            current_app.logger.info("Session rolled back successfully.") # LOG: Rollback success
+                        except Exception as rollback_error:
+                            current_app.logger.exception(f"--- CRITICAL ERROR DURING ROLLBACK --- : {rollback_error}") # LOG: Rollback exception
+                        flash(f"حدث خطأ فادح أثناء حفظ السؤال في قاعدة البيانات: {commit_error}", "danger")
+                        return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+                    # --- END CRITICAL COMMIT STEP --- #
+
+            except IntegrityError as ie:
+                current_app.logger.exception(f"Database Integrity Error adding question (before commit attempt): {ie}") # LOG: IntegrityError
+                db.session.rollback()
+                current_app.logger.info("Session rolled back due to IntegrityError.") # LOG: Rollback IntegrityError
+                flash(f"خطأ في تكامل قاعدة البيانات أثناء إضافة السؤال (قد يكون بسبب بيانات مكررة أو غير صالحة): {ie}", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+            except DBAPIError as dbe:
+                current_app.logger.exception(f"Database API Error adding question (before commit attempt): {dbe}") # LOG: DBAPIError
+                db.session.rollback()
+                current_app.logger.info("Session rolled back due to DBAPIError.") # LOG: Rollback DBAPIError
+                flash(f"خطأ في واجهة برمجة تطبيقات قاعدة البيانات أثناء إضافة السؤال: {dbe}", "danger")
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+            except Exception as e:
+                current_app.logger.exception(f"Generic Error adding question (before commit attempt): {e}") # LOG: Generic Error pre-commit
+                db.session.rollback()
+                current_app.logger.info("Session rolled back due to Generic Error.") # LOG: Rollback Generic Error
+                flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال: {e}", "danger")
+                # Re-render form with submitted data
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
+            # --- Database Operations End --- #
+
+        except Exception as outer_e:
+            # Catch any unexpected errors during the POST request processing
+            current_app.logger.exception(f"--- UNHANDLED EXCEPTION IN add_question POST --- : {outer_e}") # LOG: Unhandled POST exception
+            flash(f"حدث خطأ عام غير متوقع أثناء معالجة الطلب: {outer_e}", "danger")
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
-        # File uploads
-        q_image_file = request.files.get("question_image")
-        e_image_file = request.files.get("explanation_image")
-        current_app.logger.info("Attempting to save question image...")
-        q_image_path = save_upload(q_image_file, subfolder="questions")
-        current_app.logger.info(f"Question image path: {q_image_path}")
-        current_app.logger.info("Attempting to save explanation image...")
-        e_image_path = save_upload(e_image_file, subfolder="explanations")
-        current_app.logger.info(f"Explanation image path: {e_image_path}")
-
-        # --- Database Operations (with Enhanced Logging) ---
-        try:
-            current_app.logger.info("Creating Question object...")
-            new_question = Question(
-                text=question_text,
-                lesson_id=lesson_id,
-                image_path=q_image_path,
-                explanation=explanation,
-                explanation_image_path=e_image_path
-            )
-            current_app.logger.info("Adding Question object to session...")
-            db.session.add(new_question)
-            current_app.logger.info("Question object added to session.")
-
-            # Need to flush to get the new_question.id for options
-            current_app.logger.info("Flushing session to get new question ID...")
-            db.session.flush()
-            current_app.logger.info(f"New question ID obtained: {new_question.id}")
-
-            # Options processing
-            options_data = []
-            options_added = 0
-            for i in range(4): # Assuming max 4 options
-                option_text = request.form.get(f"option_text_{i}")
-                if option_text:
-                    current_app.logger.info(f"Processing option {i}...")
-                    option_image_file = request.files.get(f"option_image_{i}")
-                    current_app.logger.info(f"Attempting to save option {i} image...")
-                    option_image_path = save_upload(option_image_file, subfolder="options")
-                    current_app.logger.info(f"Option {i} image path: {option_image_path}")
-                    is_correct = (i == correct_option_index)
-                    options_data.append({
-                        "text": option_text,
-                        "image_path": option_image_path,
-                        "is_correct": is_correct,
-                        "question_id": new_question.id
-                    })
-                    options_added += 1
-
-            if options_added < 2:
-                 current_app.logger.warning("Less than 2 options provided. Rolling back.")
-                 # No need to rollback here as commit hasn't happened, just flash and re-render
-                 flash("يجب إضافة خيارين على الأقل.", "danger")
-                 return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-            else:
-                current_app.logger.info(f"Adding {len(options_data)} options to the session...")
-                for opt_data in options_data:
-                    option = Option(**opt_data)
-                    db.session.add(option)
-                current_app.logger.info("Options added to session.")
-
-                # --- CRITICAL COMMIT STEP --- #
-                current_app.logger.info("Attempting to commit transaction...")
-                try:
-                    db.session.commit()
-                    current_app.logger.info("Transaction committed successfully.")
-                    flash("تمت إضافة السؤال بنجاح!", "success")
-                    return redirect(url_for("question.list_questions"))
-                except Exception as commit_error:
-                    # Log the specific commit error, including original exception if available
-                    orig_error = getattr(commit_error, 'orig', None)
-                    current_app.logger.exception(f"CRITICAL ERROR during commit: {commit_error}. Original error: {orig_error}")
-                    db.session.rollback()
-                    current_app.logger.info("Session rolled back due to commit error.")
-                    flash(f"حدث خطأ فادح أثناء حفظ السؤال في قاعدة البيانات: {commit_error}", "danger")
-                    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-                # --- END CRITICAL COMMIT STEP --- #
-
-        except IntegrityError as ie:
-            db.session.rollback()
-            current_app.logger.exception(f"Database Integrity Error adding question (before commit attempt): {ie}")
-            flash(f"خطأ في تكامل قاعدة البيانات أثناء إضافة السؤال (قد يكون بسبب بيانات مكررة أو غير صالحة): {ie}", "danger")
-            return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-        except DBAPIError as dbe:
-            db.session.rollback()
-            current_app.logger.exception(f"Database API Error adding question (before commit attempt): {dbe}")
-            flash(f"خطأ في واجهة برمجة تطبيقات قاعدة البيانات أثناء إضافة السؤال: {dbe}", "danger")
-            return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.exception(f"Generic Error adding question (before commit attempt): {e}") # Log full traceback
-            flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال: {e}", "danger")
-            # Re-render form with submitted data
-            return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
-
-    # GET request
-    # Use the original form template
+    # --- GET request --- #
+    current_app.logger.info("--- GET request received for add_question. Rendering form. ---") # LOG: GET request
     return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=None, submit_text="إضافة سؤال")
 
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
@@ -285,149 +343,113 @@ def edit_question(question_id):
                       .order_by(Course.name, Unit.name, Lesson.name).all())
 
     if request.method == "POST":
-        current_app.logger.info(f"POST request received for edit_question ID: {question_id}")
-        question_text = request.form.get("text")
-        lesson_id = request.form.get("lesson_id")
-        explanation = request.form.get("explanation")
+        # Update question fields
+        question.text = request.form.get("text")
+        question.lesson_id = request.form.get("lesson_id")
+        question.explanation = request.form.get("explanation")
         correct_option_index_str = request.form.get("correct_option")
 
-        if not question_text or not lesson_id or correct_option_index_str is None:
-            flash("يرجى ملء جميع الحقول المطلوبة.", "danger")
-            return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+        # Basic validation
+        if not question.text or not question.lesson_id or correct_option_index_str is None:
+            flash("يرجى ملء جميع الحقول المطلوبة (نص السؤال، الدرس، تحديد الإجابة الصحيحة).", "danger")
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         try:
             correct_option_index = int(correct_option_index_str)
         except ValueError:
             flash("اختيار الإجابة الصحيحة غير صالح.", "danger")
-            return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
+        # File uploads (handle potential overwrites or new uploads)
         q_image_file = request.files.get("question_image")
-        e_image_file = request.files.get("explanation_image")
-
-        q_image_path = question.image_path # Keep existing if no new file
         if q_image_file:
-            current_app.logger.info("Attempting to save new question image...")
-            new_q_path = save_upload(q_image_file, subfolder="questions")
-            if new_q_path:
-                # TODO: Delete old image if needed
-                q_image_path = new_q_path
+            q_image_path = save_upload(q_image_file, subfolder="questions")
+            if q_image_path: # Only update if save was successful
+                question.image_path = q_image_path
             else:
-                flash("فشل تحميل صورة السؤال الجديدة.", "warning")
+                flash("حدث خطأ أثناء حفظ صورة السؤال الجديدة.", "warning")
 
-        e_image_path = question.explanation_image_path # Keep existing if no new file
+        e_image_file = request.files.get("explanation_image")
         if e_image_file:
-            current_app.logger.info("Attempting to save new explanation image...")
-            new_e_path = save_upload(e_image_file, subfolder="explanations")
-            if new_e_path:
-                # TODO: Delete old image if needed
-                e_image_path = new_e_path
+            e_image_path = save_upload(e_image_file, subfolder="explanations")
+            if e_image_path:
+                question.explanation_image_path = e_image_path
             else:
-                flash("فشل تحميل صورة الشرح الجديدة.", "warning")
+                flash("حدث خطأ أثناء حفظ صورة الشرح الجديدة.", "warning")
+
+        # Options processing (Update existing, add new, handle deletion implicitly if needed)
+        options_count = 0
+        correct_option_found = False
+        for i in range(4):
+            option_text = request.form.get(f"option_text_{i}")
+            option_id_str = request.form.get(f"option_id_{i}") # Get existing option ID if available
+            option_image_file = request.files.get(f"option_image_{i}")
+            is_correct = (i == correct_option_index)
+
+            if option_text:
+                options_count += 1
+                if is_correct:
+                    correct_option_found = True
+
+                option = None
+                if option_id_str:
+                    try:
+                        option_id = int(option_id_str)
+                        # Find the existing option associated with this question
+                        option = next((opt for opt in question.options if opt.id == option_id), None)
+                    except ValueError:
+                        pass # Ignore invalid ID
+
+                if option: # Update existing option
+                    option.text = option_text
+                    option.is_correct = is_correct
+                    if option_image_file:
+                        opt_image_path = save_upload(option_image_file, subfolder="options")
+                        if opt_image_path:
+                            option.image_path = opt_image_path
+                        else:
+                             flash(f"حدث خطأ أثناء حفظ صورة الخيار {i+1} الجديدة.", "warning")
+                else: # Add as new option if text provided but no valid existing ID found
+                    opt_image_path = save_upload(option_image_file, subfolder="options")
+                    new_option = Option(
+                        text=option_text,
+                        image_path=opt_image_path,
+                        is_correct=is_correct,
+                        question_id=question.id
+                    )
+                    db.session.add(new_option) # Add new option to session
+                    # We might need to add it to question.options list manually if relationship is not back-populating immediately
+                    # question.options.append(new_option)
+            elif option_id_str: # If text is empty but ID exists, consider it for deletion
+                 try:
+                     option_id = int(option_id_str)
+                     option_to_delete = next((opt for opt in question.options if opt.id == option_id), None)
+                     if option_to_delete:
+                         db.session.delete(option_to_delete)
+                 except ValueError:
+                     pass # Ignore invalid ID
+
+        if options_count < 2:
+            flash("يجب توفير خيارين على الأقل.", "danger")
+            # Don't commit yet, re-render form
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+        if not correct_option_found:
+             flash("يجب تحديد أحد الخيارات المتوفرة كإجابة صحيحة.", "danger")
+             return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         try:
-            current_app.logger.info(f"Updating Question object ID: {question_id}")
-            question.text = question_text
-            question.lesson_id = lesson_id
-            question.image_path = q_image_path
-            question.explanation = explanation
-            question.explanation_image_path = e_image_path
-
-            current_app.logger.info("Processing options for update...")
-            # Update existing options or add new ones
-            existing_options = {opt.id: opt for opt in question.options}
-            options_to_keep = set()
-            options_updated = 0
-
-            for i in range(4):
-                option_id_str = request.form.get(f"option_id_{i}")
-                option_text = request.form.get(f"option_text_{i}")
-                option_image_file = request.files.get(f"option_image_{i}")
-                is_correct = (i == correct_option_index)
-
-                if option_text: # Only process if text is provided
-                    options_updated += 1
-                    option_id = int(option_id_str) if option_id_str else None
-                    option = existing_options.get(option_id) if option_id else None
-
-                    opt_image_path = None
-                    if option:
-                        opt_image_path = option.image_path # Keep existing if no new file
-
-                    if option_image_file:
-                        current_app.logger.info(f"Attempting to save new/updated option {i} image...")
-                        new_opt_path = save_upload(option_image_file, subfolder="options")
-                        if new_opt_path:
-                            # TODO: Delete old image if needed
-                            opt_image_path = new_opt_path
-                        else:
-                            flash(f"فشل تحميل صورة الخيار {i+1} الجديدة.", "warning")
-
-                    if option: # Update existing option
-                        current_app.logger.info(f"Updating existing option ID: {option_id}")
-                        option.text = option_text
-                        option.image_path = opt_image_path
-                        option.is_correct = is_correct
-                        options_to_keep.add(option_id)
-                    else: # Add new option
-                        current_app.logger.info(f"Adding new option for question ID: {question_id}")
-                        new_option = Option(
-                            text=option_text,
-                            image_path=opt_image_path,
-                            is_correct=is_correct,
-                            question_id=question_id
-                        )
-                        db.session.add(new_option)
-                        # We don't get the ID immediately, but it will be linked
-
-            # Delete options that were removed from the form
-            options_to_delete = set(existing_options.keys()) - options_to_keep
-            if options_to_delete:
-                current_app.logger.info(f"Deleting options with IDs: {options_to_delete}")
-                for opt_id in options_to_delete:
-                    # TODO: Delete associated image files
-                    db.session.delete(existing_options[opt_id])
-
-            if options_updated < 2:
-                 current_app.logger.warning("Less than 2 options provided during edit. Rolling back.")
-                 db.session.rollback() # Rollback changes made so far
-                 flash("يجب توفير خيارين على الأقل.", "danger")
-                 # Re-fetch question data as rollback occurred
-                 question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
-                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
-
-            # --- CRITICAL COMMIT STEP --- #
-            current_app.logger.info(f"Attempting to commit transaction for editing question ID: {question_id}")
-            try:
-                db.session.commit()
-                current_app.logger.info("Transaction committed successfully.")
-                flash("تم تعديل السؤال بنجاح!", "success")
-                return redirect(url_for("question.list_questions"))
-            except Exception as commit_error:
-                orig_error = getattr(commit_error, 'orig', None)
-                current_app.logger.exception(f"CRITICAL ERROR during commit while editing question ID {question_id}: {commit_error}. Original error: {orig_error}")
-                db.session.rollback()
-                current_app.logger.info("Session rolled back due to commit error.")
-                flash(f"حدث خطأ فادح أثناء حفظ تعديلات السؤال: {commit_error}", "danger")
-                # Re-fetch question data as rollback occurred
-                question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
-                return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
-            # --- END CRITICAL COMMIT STEP --- #
-
+            db.session.commit()
+            flash("تم تعديل السؤال بنجاح!", "success")
+            return redirect(url_for("question.list_questions"))
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error editing question ID {question_id} (before commit attempt): {e}")
-            flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال: {e}", "danger")
-            # Re-fetch question data as rollback occurred
-            question = Question.query.options(db.joinedload(Question.options)).get_or_404(question_id)
-            return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+            current_app.logger.exception(f"Error committing changes for question {question_id}: {e}")
+            flash(f"حدث خطأ أثناء حفظ التعديلات: {e}", "danger")
+            # Re-render form with potentially modified (but uncommitted) question object
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
     # GET request
-    # Ensure options are loaded for the template
-    if not question.options:
-        current_app.logger.warning(f"Question {question_id} has no options when rendering edit form.")
-        # You might want to add placeholder options if the form expects them
-
-    # Sanitize paths before sending to template
+    # Sanitize paths before rendering
     if question.image_path:
         question.image_path = sanitize_path(question.image_path)
     if question.explanation_image_path:
@@ -436,22 +458,23 @@ def edit_question(question_id):
         if option.image_path:
             option.image_path = sanitize_path(option.image_path)
 
-    return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+    return render_template("question/form.html", title=f"تعديل السؤال #{question.id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
 @login_required
 def delete_question(question_id):
+    # Keep the original delete function
     question = Question.query.get_or_404(question_id)
     try:
-        current_app.logger.info(f"Attempting to delete question ID: {question_id}")
-        # TODO: Delete associated image files (question, explanation, options)
+        # Delete associated options first if cascade delete is not set up
+        Option.query.filter_by(question_id=question.id).delete()
+        # Then delete the question
         db.session.delete(question)
         db.session.commit()
-        current_app.logger.info(f"Question ID: {question_id} deleted successfully.")
         flash("تم حذف السؤال بنجاح!", "success")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.exception(f"Error deleting question ID {question_id}: {e}")
+        current_app.logger.exception(f"Error deleting question {question_id}: {e}")
         flash(f"حدث خطأ أثناء حذف السؤال: {e}", "danger")
     return redirect(url_for("question.list_questions"))
 
