@@ -1,22 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}إدارة الأسئلة (مبسط){% endblock %}
+{% block title %}إدارة الأسئلة{% endblock %}
 
 {% block content %}
-<h1>إدارة الأسئلة (نسخة مبسطة جداً للتشخيص)</h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">إدارة الأسئلة</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for(\'question.add_question\') }}" class="btn btn-sm btn-outline-primary">
+            <span data-feather="plus-circle" class="align-text-bottom"></span>
+            إضافة سؤال جديد
+        </a>
+    </div>
+</div>
 
 {# Flash messages are handled in base.html #}
 
-<p>قائمة معرفات الأسئلة:</p>
-<ul>
-    {% for q in questions %}
-    <li>معرف السؤال: {{ q.id }}</li>
-    {% else %}
-    <li>لا توجد أسئلة لعرضها.</li>
-    {% endfor %}
-</ul>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">نص السؤال (مقتطف)</th>
+                <th scope="col">الدرس</th>
+                <th scope="col">عدد الخيارات</th>
+                <th scope="col">إجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for question in questions %}
+            <tr>
+                <td>{{ question.id }}</td>
+                <td>{{ question.text | truncate(80, True) }}</td> {# Show first 80 chars #}
+                <td>
+                    {% if question.lesson %}
+                        {{ question.lesson.unit.course.name }} / {{ question.lesson.unit.name }} / {{ question.lesson.name }}
+                    {% else %}
+                        <span class="text-muted">غير محدد</span>
+                    {% endif %}
+                </td>
+                <td>{{ question.options | length }}</td>
+                <td>
+                    <a href="{{ url_for(\'question.edit_question\', question_id=question.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="تعديل">
+                        <span data-feather="edit-2" class="align-text-bottom"></span>
+                    </a>
+                    {# Placeholder for delete button - functionality to be added later #}
+                    <button type="button" class="btn btn-sm btn-outline-danger" title="حذف (غير مفعل)" disabled>
+                        <span data-feather="trash-2" class="align-text-bottom"></span>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">لا توجد أسئلة لعرضها.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-<p><a href="{{ url_for('question.add_question') }}">إضافة سؤال جديد (قد لا يعمل بشكل كامل)</a></p>
+{# Pagination #}
+{% if pagination %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {# Previous Page Link #}
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(\'question.list_questions\', page=pagination.prev_num) if pagination.has_prev else \'#\' }}">السابق</a>
+        </li>
+
+        {# Page Numbers #}
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for(\'question.list_questions\', page=page_num) }}">{{ page_num }}</a></li>
+                {% else %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {# Next Page Link #}
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(\'question.list_questions\', page=pagination.next_num) if pagination.has_next else \'#\' }}">التالي</a>
+        </li>
+    </ul>
+</nav>
+<p class="text-center text-muted small">عرض {{ questions | length }} من {{ pagination.total }} سؤال</p>
+{% endif %}
 
 {% endblock %}
 
