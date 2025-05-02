@@ -49,7 +49,7 @@
 
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>الخيارات (خياران على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
+                    <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
                     <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
                 </div>
                 <div class="card-body" id="options-container">
@@ -69,7 +69,7 @@
                             <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times; إزالة</button>
                         </div>
                         <div class="mb-3">
-                            <label for="option_text_{{ i }}" class="form-label">نص الخيار</label>
+                            <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
                             <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].text if i < options|length else request.form.get("option_text_" ~ i, "") }}">
                             <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
                         </div>
@@ -136,7 +136,7 @@
             <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times; إزالة</button>
         </div>
         <div class="mb-3">
-            <label for="option_text___INDEX__" class="form-label">نص الخيار</label>
+            <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
             <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
             <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
         </div>
@@ -190,13 +190,15 @@
         }
 
         // Store the initial src from the HTML (set by Jinja) if it exists and is a real URL
-        const initialSrc = (previewElement.src && !previewElement.src.endsWith("#")) ? previewElement.src : null;
-        if (initialSrc) {
+        // Use getAttribute to ensure we get the value set by Jinja, not the resolved URL
+        const initialSrc = previewElement.getAttribute("src");
+        const hasInitialImage = initialSrc && initialSrc !== "#";
+
+        if (hasInitialImage) {
             previewElement.setAttribute("data-initial-src", initialSrc);
-            // Ensure it's displayed if src is valid
-            previewElement.style.display = "block";
+            previewElement.style.display = "block"; // Ensure display is block if there's an initial image
         } else {
-            previewElement.style.display = "none";
+            previewElement.style.display = "none"; // Hide if no initial image
         }
 
         inputElement.addEventListener("change", function(event) {
@@ -212,8 +214,7 @@
                 reader.readAsDataURL(file);
             } else {
                 // This case handles when the user clears the file input or selects a non-image file
-                // Check if the input value is empty (cleared)
-                if (!inputElement.value) {
+                if (!inputElement.value) { // Check if the input value is empty (cleared)
                     const storedInitialSrc = previewElement.getAttribute("data-initial-src");
                     if (storedInitialSrc) {
                         // Restore the original image if it existed
@@ -225,9 +226,8 @@
                         previewElement.style.display = "none";
                     }
                 }
-                // If inputElement.value is not empty, it means the user might have cancelled
-                // the dialog or selected a non-image file. We don't change the preview in this case,
-                // leaving the existing (either original or previously selected new) image visible.
+                // If inputElement.value is not empty (user cancelled or selected non-image),
+                // leave the current preview (either original or newly selected) visible.
             }
         });
     }
@@ -334,6 +334,10 @@
                 });
                 // Initial index update for existing options
                 updateOptionIndices();
+                // Initialize image previews AFTER indices are updated
+                document.querySelectorAll(".image-input").forEach(input => {
+                    initializeImagePreview(input);
+                });
             }).catch((err) => console.error("MathJax Startup Error: ", err));
         } else {
              console.error("MathJax startup promise not found. MathJax Preview might not work.");
@@ -341,15 +345,15 @@
                  initializeMathJaxPreview(input);
              });
              updateOptionIndices();
+             // Initialize image previews AFTER indices are updated
+             document.querySelectorAll(".image-input").forEach(input => {
+                 initializeImagePreview(input);
+             });
         }
 
-        // Initial Image Preview setup for all image inputs (static and dynamic)
-        // Needs to run after updateOptionIndices for dynamic options in edit mode
-        document.querySelectorAll(".image-input").forEach(input => {
-            initializeImagePreview(input);
-        });
-
-        // Form validation: Ensure at least two options have text
+        // REMOVED: Frontend validation requiring text for options.
+        // Backend will handle validation (at least 2 valid options needed).
+        /*
         const form = document.getElementById("question-form");
         form.addEventListener("submit", function(event) {
             const optionTextInputs = optionsContainer.querySelectorAll("input[name^=\"option_text_\"]");
@@ -365,6 +369,7 @@
                 event.preventDefault(); // Prevent form submission
             }
         });
+        */
     });
 </script>
 {% endblock %}
