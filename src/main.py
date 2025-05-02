@@ -15,6 +15,7 @@ from src.models.question import Question, Option # Import question models
 from src.routes.auth import auth_bp # Auth blueprint
 from src.routes.question import question_bp # Question management blueprint
 from src.routes.curriculum import curriculum_bp # Curriculum management blueprint
+from src.routes.user import user_bp # User settings blueprint
 
 # Configure static folder relative to the application root (src)
 static_dir = os.path.join(os.path.dirname(__file__), 'static')
@@ -33,19 +34,15 @@ os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'questions'), exist_ok=Tru
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'options'), exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'explanations'), exist_ok=True)
 
-# Database Configuration - Prioritize Render/Heroku DATABASE_URL
+# Database Configuration - Prioritize Heroku DATABASE_URL
 database_url = os.getenv("DATABASE_URL")
-# Check if DATABASE_URL exists and starts with postgresql:// or postgres://
-if database_url and (database_url.startswith("postgresql://") or database_url.startswith("postgres://")):
-    # Ensure it uses postgresql:// for SQLAlchemy compatibility
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
+if database_url and database_url.startswith("postgres://"):
+    # Heroku provides postgres:// but SQLAlchemy needs postgresql://
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     # Fallback for local development (using MySQL as previously configured)
-    # Indentation added here for the next line
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{os.getenv('DB_USERNAME', 'root')}:{os.getenv('DB_PASSWORD', 'password')}@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'mydb')}"
-
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{os.getenv("DB_USERNAME", "root")}:{os.getenv("DB_PASSWORD", "password")}@{os.getenv("DB_HOST", "localhost")}:{os.getenv("DB_PORT", "3306")}/{os.getenv("DB_NAME", "mydb")}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
@@ -61,10 +58,9 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Register Blueprints
-app.register_blueprint(auth_bp, url_prefix='/auth')
-app.register_blueprint(question_bp, url_prefix='/questions')
-app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
-
+app.register_blueprint(auth_bp, url_prefixapp.register_blueprint(question_bp, url_prefix=\"/questions\")
+app.register_blueprint(curriculum_bp, url_prefix=\"/curriculum\")
+app.register_blueprint(user_bp, url_prefix=\"/user\") # Register user settings blueprint
 # Create database tables within app context
 with app.app_context():
     db.create_all()
