@@ -57,13 +57,11 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
 
-    # --- THIS IS THE CORRECTED INDEX ROUTE --- #
     @app.route("/")
     @login_required
     def index():
         # Render the index.html template which extends base.html
         return render_template("index.html")
-    # --- END OF CORRECTED INDEX ROUTE --- #
 
     # Error Handling
     @app.errorhandler(404)
@@ -83,5 +81,6 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host=\'0.0.0.0\', port=5000, debug=True)
+    # --- Ensure NO backslashes here --- #
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
