@@ -25,7 +25,7 @@ def load_user(user_id):
 
 def create_app():
     # Ensuring standard single quotes are used here
-    app = Flask(__name__, template_folder=\'templates\', static_folder=\'static\')
+    app = Flask(__name__, template_folder='templates', static_folder='static')
 
     # Configuration
     app.config[\'SECRET_KEY\'] = os.getenv(\'SECRET_KEY\', \'fallback_secret_key_12345\')
