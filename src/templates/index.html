@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>مرحباً, {{ current_user.username }}!</h1>
+    <p>هذه هي لوحة التحكم الرئيسية.</p>
+    {# يمكنك إضافة المزيد من محتوى لوحة التحكم هنا لاحقًا, مثل روابط سريعة أو إحصائيات #}
+    <p>
+        <a href="{{ url_for(\'question.list_questions\') }}" class="btn btn-primary">إدارة الأسئلة</a>
+        <a href="{{ url_for(\'curriculum.list_courses\') }}" class="btn btn-secondary">إدارة المنهج</a>
+    </p>
+</div>
+{% endblock %}
