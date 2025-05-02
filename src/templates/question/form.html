@@ -189,6 +189,16 @@
             return;
         }
 
+        // Store the initial src from the HTML (set by Jinja) if it exists and is a real URL
+        const initialSrc = (previewElement.src && !previewElement.src.endsWith("#")) ? previewElement.src : null;
+        if (initialSrc) {
+            previewElement.setAttribute("data-initial-src", initialSrc);
+            // Ensure it's displayed if src is valid
+            previewElement.style.display = "block";
+        } else {
+            previewElement.style.display = "none";
+        }
+
         inputElement.addEventListener("change", function(event) {
             const file = event.target.files[0];
             if (file && file.type.startsWith("image/")) {
@@ -196,29 +206,30 @@
                 reader.onload = function(e) {
                     previewElement.src = e.target.result;
                     previewElement.style.display = "block";
+                    // Remove initial src data attribute as we now have a new preview
+                    previewElement.removeAttribute("data-initial-src");
                 }
                 reader.readAsDataURL(file);
             } else {
-                // If no file or not an image, hide the preview (unless it was showing an existing image)
-                // Keep existing image visible if user cancels file selection
-                if (!inputElement.value) { // Only hide if input is cleared
-                     // Check if there was an initial src (from existing image)
-                     const initialSrc = previewElement.getAttribute("data-initial-src");
-                     if (initialSrc && initialSrc !== "#") {
-                         previewElement.src = initialSrc;
-                         previewElement.style.display = "block";
-                     } else {
-                         previewElement.src = "#";
-                         previewElement.style.display = "none";
-                     }
+                // This case handles when the user clears the file input or selects a non-image file
+                // Check if the input value is empty (cleared)
+                if (!inputElement.value) {
+                    const storedInitialSrc = previewElement.getAttribute("data-initial-src");
+                    if (storedInitialSrc) {
+                        // Restore the original image if it existed
+                        previewElement.src = storedInitialSrc;
+                        previewElement.style.display = "block";
+                    } else {
+                        // No original image, just hide the preview
+                        previewElement.src = "#";
+                        previewElement.style.display = "none";
+                    }
                 }
+                // If inputElement.value is not empty, it means the user might have cancelled
+                // the dialog or selected a non-image file. We don't change the preview in this case,
+                // leaving the existing (either original or previously selected new) image visible.
             }
         });
-
-        // Store initial src if it exists (for reset on cancel)
-        if (previewElement.src && previewElement.src !== window.location.href && !previewElement.src.startsWith("data:")) {
-             previewElement.setAttribute("data-initial-src", previewElement.src);
-        }
     }
 
     // Function to update option numbers and remove button states
@@ -234,12 +245,20 @@
 
             // Update IDs, names, fors, and preview targets
             group.querySelectorAll("[id*=\"__INDEX__\"], [name*=\"__INDEX__\"], [for*=\"__INDEX__\"], [data-preview-target*=\"__INDEX__\"]").forEach(el => {
-                if (el.id) el.id = el.id.replace(/__INDEX__/g, index);
-                if (el.name) el.name = el.name.replace(/__INDEX__/g, index);
-                if (el.htmlFor) el.htmlFor = el.htmlFor.replace(/__INDEX__/g, index);
-                if (el.dataset.previewTarget) el.dataset.previewTarget = el.dataset.previewTarget.replace(/__INDEX__/g, index);
+                const id = el.id;
+                const name = el.name;
+                const htmlFor = el.htmlFor;
+                const previewTarget = el.dataset.previewTarget;
+
+                if (id) el.id = id.replace(/__INDEX__/g, index);
+                if (name) el.name = name.replace(/__INDEX__/g, index);
+                if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
+                if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
+
                 // Update alt text for preview image
-                if (el.tagName === "IMG" && el.alt) el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
+                if (el.tagName === "IMG" && el.alt) {
+                    el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
+                }
             });
 
             const radio = group.querySelector(".correct-option-radio");
@@ -285,6 +304,7 @@
                  }
             }
             if (newImageInput) {
+                // Ensure the newly added image input gets its preview initialized
                 initializeImagePreview(newImageInput);
             }
         });
@@ -324,6 +344,7 @@
         }
 
         // Initial Image Preview setup for all image inputs (static and dynamic)
+        // Needs to run after updateOptionIndices for dynamic options in edit mode
         document.querySelectorAll(".image-input").forEach(input => {
             initializeImagePreview(input);
         });
