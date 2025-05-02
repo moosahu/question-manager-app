@@ -11,14 +11,14 @@
         <form method="post" class="card p-4">
             {{ form.hidden_tag() }} {# Includes CSRF token and other hidden fields #}
             <div class="mb-3">
-                {# Removed backslashes from class attribute #}
+                {# Make sure there are NO backslashes here #}
                 {{ render_field(form.username, class='form-control') }}
             </div>
             <div class="mb-3">
-                {# Removed backslashes from class attribute #}
+                {# Make sure there are NO backslashes here #}
                 {{ render_field(form.password, class='form-control') }}
             </div>
-            {# Removed backslashes from class attribute #}
+            {# Make sure there are NO backslashes here #}
             {{ form.submit(class='btn btn-primary') }}
         </form>
     </div>
