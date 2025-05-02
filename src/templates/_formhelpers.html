@@ -1,6 +1,7 @@
-{% macro render_field(field, **kwargs) %}
+{% macro render_field(field, css_class="") %}
   {{ field.label(class="form-label") }}
-  {{ field(**kwargs) }}
+  {# Pass the class attribute directly #}
+  {{ field(class=css_class) }}
   {% if field.errors %}
     <div class="invalid-feedback d-block">
       {% for error in field.errors %}
