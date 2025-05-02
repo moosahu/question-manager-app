@@ -428,27 +428,6 @@ def edit_question(question_id):
 
     return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
-@question_bp.route("/delete/<int:question_id>", methods=["POST"])
-@login_required
-def delete_question(question_id):
-    question = Question.query.get_or_404(question_id)
-    try:
-        current_app.logger.info(f"Attempting to delete question ID: {question_id}")
-        # TODO: Delete associated image files
-        # Explicitly delete options first if cascade delete is not configured or reliable
-        Option.query.filter_by(question_id=question_id).delete()
-        db.session.delete(question)
-        db.session.commit()
-        flash("تم حذف السؤال بنجاح!", "success")
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception(f"Error deleting question ID {question_id}: {e}")
-        flash(f"حدث خطأ أثناء حذف السؤال: {e}", "danger")
-    return redirect(url_for("question.list_questions"))
-
-
-
-
 
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
 @login_required
