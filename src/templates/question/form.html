@@ -55,19 +55,25 @@
                 <div class="card-body" id="options-container">
                     {# Container for dynamic options #}
                     {% set options = question.options if question else [] %}
-                    {# Determine initial number of options to show: existing options or at least 2 #}
-                    {% set initial_option_count = options|length if options|length > 1 else 2 %}
+                    {# MODIFIED: Show 4 options for new questions, existing count (min 2) for edits #}
+                    {% if question %}
+                        {# Editing: Show existing options, but ensure at least 2 fields are visible #}
+                        {% set initial_option_count = options|length if options|length > 1 else 2 %}
+                    {% else %}
+                        {# Adding: Default to 4 option fields #}
+                        {% set initial_option_count = 4 %}
+                    {% endif %}
 
                     {% for i in range(initial_option_count) %}
                     <div class="option-group border p-3 mb-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
                         <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].id if i < options|length else '' }}">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="mb-0">الخيار <span class="option-number">{{ i+1 }}</span></h5>
+                            {# Disable remove button if fewer than 3 options are currently shown #}
                             <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times; إزالة</button>
                         </div>
                         <div class="mb-3">
                             <label for="option_text_{{ i }}" class="form-label">نص الخيار</label>
-                            {# Corrected line: Use ~ for concatenation in Jinja2 #}
                             <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].text if i < options|length else request.form.get('option_text_' ~ i, '') }}">
                             <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
                         </div>
