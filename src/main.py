@@ -58,7 +58,8 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Register Blueprints
-app.register_blueprint(auth_bp, url_prefixapp.register_blueprint(question_bp, url_prefix=\"/questions\")
+app.register_blueprint(auth_bp) # Assuming auth_bp doesn't need a prefix or has it defined internally
+app.register_blueprint(question_bp, url_prefix=\"/questions\")
 app.register_blueprint(curriculum_bp, url_prefix=\"/curriculum\")
 app.register_blueprint(user_bp, url_prefix=\"/user\") # Register user settings blueprint
 # Create database tables within app context
