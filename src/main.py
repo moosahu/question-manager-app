@@ -1,6 +1,7 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, current_app # Added current_app import
 from werkzeug.security import generate_password_hash
+from flask_login import current_user # Added current_user import
 
 # Import db and login_manager from the new extensions file
 from src.extensions import db, login_manager
@@ -35,10 +36,13 @@ def create_app():
         basedir = os.path.abspath(os.path.dirname(__file__))
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "instance", "app.db")
         # Ensure the instance folder exists
-        try:
-            os.makedirs(os.path.join(basedir, "instance"))
-        except OSError:
-            pass # Folder already exists
+        instance_path = os.path.join(basedir, "instance")
+        if not os.path.exists(instance_path):
+             try:
+                 os.makedirs(instance_path)
+                 print(f"Created instance folder: {instance_path}")
+             except OSError as e:
+                 print(f"Error creating instance folder {instance_path}: {e}")
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -53,6 +57,9 @@ def create_app():
     # --- User Loader for Flask-Login --- 
     @login_manager.user_loader
     def load_user(user_id):
+        # Ensure this runs within an app context or handles it properly
+        # Using User.query might require an app context if called outside a request
+        # However, Flask-Login usually handles this correctly.
         return User.query.get(int(user_id))
 
     # --- Register Blueprints --- 
@@ -64,49 +71,62 @@ def create_app():
 
     # --- Create Database Tables and Default User (within app context) --- 
     with app.app_context():
-        print("Creating database tables...")
-        db.create_all()
-        print("Database tables created (if they didn't exist).")
+        print("Attempting to create database tables...")
+        try:
+            db.create_all()
+            print("Database tables created successfully (if they didn't exist).")
+        except Exception as e:
+            print(f"Error creating database tables: {e}")
 
         # Create a default admin user if none exists
-        if not User.query.filter_by(username="admin").first():
-            print("Creating default admin user...")
-            admin_password = os.environ.get("ADMIN_PASSWORD", "password") # Get password from env or use default
-            hashed_password = generate_password_hash(admin_password)
-            admin_user = User(username="admin", password_hash=hashed_password, is_admin=True)
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Default admin user created.")
-        else:
-            print("Admin user already exists.")
+        try:
+            if not User.query.filter_by(username="admin").first():
+                print("Creating default admin user...")
+                admin_password = os.environ.get("ADMIN_PASSWORD", "password") # Get password from env or use default
+                hashed_password = generate_password_hash(admin_password)
+                admin_user = User(username="admin", password_hash=hashed_password, is_admin=True)
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Default admin user created.")
+            else:
+                print("Admin user already exists.")
+        except Exception as e:
+            print(f"Error checking or creating admin user: {e}")
+            db.session.rollback() # Rollback in case of error during commit
 
     # --- Routes --- 
     @app.route("/")
     def index():
         # Redirect to login page if not authenticated, otherwise show a simple dashboard
-        # You might want to create a proper dashboard template later
         if not current_user.is_authenticated:
              return redirect(url_for('auth.login'))
-        # For now, just render a simple welcome message or redirect to another blueprint
-        # return render_template("dashboard.html") # Assuming you have a dashboard template
-        # Or redirect to a specific management page, e.g.:
-        # return redirect(url_for('question.list_questions')) 
-        return f"Welcome, {current_user.username}! (Placeholder Index Page)" # Simple placeholder
+        # Simple placeholder for authenticated users
+        return f"Welcome, {current_user.username}! (Placeholder Index Page)" 
 
     # Error Handling (Optional but recommended)
+    # Make sure you have templates/errors/404.html and templates/errors/500.html
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template("errors/404.html"), 404
+        # return render_template("errors/404.html"), 404
+        return "Page Not Found", 404 # Placeholder if template doesn't exist
 
     @app.errorhandler(500)
     def internal_server_error(e):
         # Log the error e
-        return render_template("errors/500.html"), 500
+        print(f"Internal Server Error: {e}") # Print error to logs
+        db.session.rollback() # Rollback any potential failed DB transactions
+        # return render_template("errors/500.html"), 500
+        return "Internal Server Error", 500 # Placeholder if template doesn't exist
 
     return app
 
+# Create the app instance for Gunicorn to find
+# This line MUST be outside the if __name__ == "__main__" block
+app = create_app()
+
 # This block allows running the app directly using `python src/main.py` for local development
-# Gunicorn will call create_app() directly when deploying
 if __name__ == "__main__":
-    app = create_app()
-    app.run(debug=True) # debug=True is helpful for development, disable for production
+    # Use the app instance created above for local execution
+    # Host='0.0.0.0' makes it accessible on your network, port 5000 is default for Flask
+    app.run(host='0.0.0.0', port=5000, debug=True) # debug=True is helpful for development
+
