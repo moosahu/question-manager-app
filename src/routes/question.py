@@ -1,4 +1,5 @@
-# ... (imports remain the same) ...
+# src/routes/question.py
+
 import os
 import logging
 import time
@@ -17,15 +18,9 @@ except ImportError:
 from src.models.question import Question, Option
 from src.models.curriculum import Lesson, Unit, Course
 
-# --- FIX: Ensure question_bp is defined HERE --- #
 question_bp = Blueprint("question", __name__, template_folder="../templates/question")
-# --------------------------------------------- #
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
-
-# ... (rest of the file, including allowed_file, sanitize_path, save_upload, list_questions, get_sorted_lessons, add_question, edit_question, delete_question remains the same as the previous version where explanation fields were commented out) ...
-
-# Make sure the rest of the file content from the previous version is included below
 
 def allowed_file(filename):
     return ("." in filename and
@@ -64,6 +59,7 @@ def list_questions():
     per_page = 10
     current_app.logger.info(f"Requesting page {page} with {per_page} items per page.")
     try:
+        # Query adjusted to reflect model changes (no option image_path)
         questions_pagination = (Question.query.options(
                 joinedload(Question.options),
                 joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
@@ -79,10 +75,12 @@ def list_questions():
                 # if question.explanation_image_path:
                 #     question.explanation_image_path = sanitize_path(question.explanation_image_path)
                 # ------------------------------------- #
-                if question.options:
-                    for option in question.options:
-                        if option.image_path:
-                            option.image_path = sanitize_path(option.image_path)
+                # --- FIX: Removed loop for option image path --- #
+                # if question.options:
+                #     for option in question.options:
+                #         if option.image_path:
+                #             option.image_path = sanitize_path(option.image_path)
+                # --------------------------------------------- #
 
         rendered_template = render_template("question/list.html", questions=questions_pagination.items, pagination=questions_pagination)
         current_app.logger.info("Template rendering successful.")
@@ -127,9 +125,6 @@ def add_question():
         current_app.logger.info("POST request received for add_question.")
         question_text = request.form.get("question_text")
         lesson_id = request.form.get("lesson_id")
-        # --- Temporarily Commented Out --- #
-        # explanation = request.form.get("explanation")
-        # --------------------------------- #
         correct_option_index_str = request.form.get("correct_option")
 
         if not question_text or not lesson_id or correct_option_index_str is None:
@@ -154,23 +149,13 @@ def add_question():
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=request.form, submit_text="إضافة سؤال")
 
         q_image_file = request.files.get("question_image")
-        # --- Temporarily Commented Out --- #
-        # e_image_file = request.files.get("explanation_image")
-        # --------------------------------- #
         q_image_path = save_upload(q_image_file, subfolder="questions")
-        # --- Temporarily Commented Out --- #
-        # e_image_path = save_upload(e_image_file, subfolder="explanations")
-        # --------------------------------- #
 
         try:
             new_question = Question(
                 question_text=question_text,
                 lesson_id=lesson_id,
                 image_url=q_image_path,
-                # --- Temporarily Commented Out --- #
-                # explanation=explanation,
-                # explanation_image_path=e_image_path,
-                # --------------------------------- #
                 # quiz_id=... 
             )
             db.session.add(new_question)
@@ -186,13 +171,15 @@ def add_question():
                 option_text = request.form.get(f"option_text_{index_str}")
 
                 if option_text and option_text.strip():
-                    option_image_file = request.files.get(f"option_image_{index_str}")
-                    option_image_path = save_upload(option_image_file, subfolder="options")
+                    # --- FIX: Removed option image handling --- #
+                    # option_image_file = request.files.get(f"option_image_{index_str}")
+                    # option_image_path = save_upload(option_image_file, subfolder="options")
+                    # ---------------------------------------- #
                     is_correct = (i == correct_option_index)
 
                     options_data.append({
-                        "text": option_text.strip(),
-                        "image_path": option_image_path,
+                        "option_text": option_text.strip(),
+                        # "image_path": option_image_path, # Removed
                         "is_correct": is_correct,
                         "question_id": new_question.question_id
                     })
@@ -260,9 +247,6 @@ def edit_question(question_id):
         current_app.logger.info(f"POST request received for edit_question ID: {question_id}")
         question_text = request.form.get("question_text")
         lesson_id = request.form.get("lesson_id")
-        # --- Temporarily Commented Out --- #
-        # explanation = request.form.get("explanation")
-        # --------------------------------- #
         correct_option_index_str = request.form.get("correct_option")
 
         if not question_text or not lesson_id or correct_option_index_str is None:
@@ -291,10 +275,6 @@ def edit_question(question_id):
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         q_image_file = request.files.get("question_image")
-        # --- Temporarily Commented Out --- #
-        # e_image_file = request.files.get("explanation_image")
-        # --------------------------------- #
-        
         q_image_path = question.image_url
         if q_image_file:
             new_q_path = save_upload(q_image_file, subfolder="questions")
@@ -303,27 +283,13 @@ def edit_question(question_id):
             else:
                 flash("فشل تحميل صورة السؤال الجديدة.", "warning")
 
-        # --- Temporarily Commented Out --- #
-        # e_image_path = question.explanation_image_path
-        # if e_image_file:
-        #     new_e_path = save_upload(e_image_file, subfolder="explanations")
-        #     if new_e_path:
-        #         e_image_path = new_e_path
-        #     else:
-        #         flash("فشل تحميل صورة الشرح الجديدة.", "warning")
-        # --------------------------------- #
-
         try:
             question.question_text = question_text
             question.lesson_id = lesson_id
             question.image_url = q_image_path
-            # --- Temporarily Commented Out --- #
-            # question.explanation = explanation
-            # question.explanation_image_path = e_image_path
-            # --------------------------------- #
             # question.quiz_id = ...
 
-            existing_options_map = {opt.id: opt for opt in question.options}
+            existing_options_map = {opt.option_id: opt for opt in question.options} # Use option_id
             submitted_option_ids = set()
             options_to_process = [] 
 
@@ -333,11 +299,15 @@ def edit_question(question_id):
                 index_str = key.split("_")[-1]
                 option_text = request.form.get(f"option_text_{index_str}")
                 option_id_str = request.form.get(f"option_id_{index_str}")
-                option_image_file = request.files.get(f"option_image_{index_str}")
+                # --- FIX: Removed option image handling --- #
+                # option_image_file = request.files.get(f"option_image_{index_str}")
+                # ---------------------------------------- #
                 is_correct = (i == correct_option_index)
 
                 if option_text and option_text.strip():
-                    option_image_path = None 
+                    # --- FIX: Removed option image path --- #
+                    # option_image_path = None 
+                    # ------------------------------------ #
                     existing_option = None
 
                     if option_id_str:
@@ -345,21 +315,25 @@ def edit_question(question_id):
                             option_id = int(option_id_str)
                             if option_id in existing_options_map:
                                 existing_option = existing_options_map[option_id]
-                                option_image_path = existing_option.image_path
+                                # --- FIX: Removed option image path --- #
+                                # option_image_path = existing_option.image_path
+                                # ------------------------------------ #
                                 submitted_option_ids.add(option_id)
                         except ValueError:
                             pass 
-
-                    if option_image_file:
-                        new_opt_img_path = save_upload(option_image_file, subfolder="options")
-                        if new_opt_img_path:
-                            option_image_path = new_opt_img_path
-                        else:
-                            flash(f"فشل تحميل صورة الخيار \'{option_text}\'.", "warning")
+                    
+                    # --- FIX: Removed option image handling --- #
+                    # if option_image_file:
+                    #     new_opt_img_path = save_upload(option_image_file, subfolder="options")
+                    #     if new_opt_img_path:
+                    #         option_image_path = new_opt_img_path
+                    #     else:
+                    #         flash(f"فشل تحميل صورة الخيار \'{option_text}\'.", "warning")
+                    # ---------------------------------------- #
 
                     option_data = {
-                        "text": option_text.strip(),
-                        "image_path": option_image_path,
+                        "option_text": option_text.strip(),
+                        # "image_path": option_image_path, # Removed
                         "is_correct": is_correct,
                         "question_id": question.question_id
                     }
@@ -378,14 +352,16 @@ def edit_question(question_id):
             current_app.logger.info(f"Processing {len(options_to_process)} options for edit...")
             for existing_opt, data_dict in options_to_process:
                 if existing_opt:
-                    existing_opt.text = data_dict["text"]
-                    existing_opt.image_path = data_dict["image_path"]
+                    existing_opt.option_text = data_dict["option_text"]
+                    # --- FIX: Removed option image path --- #
+                    # existing_opt.image_path = data_dict["image_path"]
+                    # ------------------------------------ #
                     existing_opt.is_correct = data_dict["is_correct"]
-                    current_app.logger.info(f"Updating option ID: {existing_opt.id}")
+                    current_app.logger.info(f"Updating option ID: {existing_opt.option_id}") # Use option_id
                 else:
                     new_option = Option(**data_dict)
                     db.session.add(new_option)
-                    current_app.logger.info(f"Adding new option with text: {data_dict['text']}")
+                    current_app.logger.info(f"Adding new option with text: {data_dict['option_text']}")
 
             options_to_delete = [opt for opt_id, opt in existing_options_map.items() if opt_id not in submitted_option_ids]
             if options_to_delete:
