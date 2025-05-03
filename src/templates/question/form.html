@@ -38,8 +38,8 @@
                         <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
                         <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
                         <div class="mt-2 tex2jax_ignore">
-                            <img id="question_image_preview" src="{{ url_for("static", filename=question.image_path) if question and question.image_path else "#" }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: {{ "block" if question and question.image_path else "none" }};" class="img-thumbnail mt-1">
-                            {% if question and question.image_path %}
+                            <img id="question_image_preview" src="{{ url_for("static", filename=question.image_url) if question and question.image_url else "#" }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: {{ "block" if question and question.image_url else "none" }};" class="img-thumbnail mt-1">
+                            {% if question and question.image_url %}
                                 <small class="d-block">الصورة الحالية</small>
                             {% endif %}
                         </div>
@@ -77,8 +77,8 @@
                             <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
                             <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
                             <div class="mt-2 tex2jax_ignore">
-                                <img id="option_image_{{ i }}_preview" src="{{ url_for("static", filename=options[i].image_path) if i < options|length and options[i].image_path else "#" }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: {{ "block" if i < options|length and options[i].image_path else "none" }};" class="img-thumbnail mt-1">
-                                {% if i < options|length and options[i].image_path %}
+                                <img id="option_image_{{ i }}_preview" src="{{ url_for("static", filename=options[i].image_url) if i < options|length and options[i].image_url else "#" }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: {{ "block" if i < options|length and options[i].image_url else "none" }};" class="img-thumbnail mt-1">
+                                {% if i < options|length and options[i].image_url %}
                                     <small class="d-block">الصورة الحالية</small>
                                 {% endif %}
                             </div>
