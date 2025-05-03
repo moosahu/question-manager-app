@@ -1,5 +1,10 @@
-from .user import db # Import db
-from .curriculum import Lesson # Import Lesson for ForeignKey
+# src/models/question.py
+
+try:
+    from src.extensions import db
+except ImportError:
+    # Fallback for direct execution or different structure
+    from src.main import db
 
 class Question(db.Model):
     __tablename__ = 'questions'
@@ -7,28 +12,35 @@ class Question(db.Model):
     question_id = db.Column(db.Integer, primary_key=True)
     question_text = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(255), nullable=True)
-    quiz_id = db.Column(db.Integer, nullable=True)
-    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
-    
     # --- Temporarily Commented Out --- #
-    # explanation = db.Column(db.Text, nullable=True) 
+    # explanation = db.Column(db.Text, nullable=True)
     # explanation_image_path = db.Column(db.String(255), nullable=True)
     # --------------------------------- #
-    
-    options = db.relationship("Option", foreign_keys="Option.question_id", backref="question", lazy=True, cascade="all, delete-orphan")
+    quiz_id = db.Column(db.Integer, nullable=True) # Assuming nullable, adjust if needed
+
+    # Foreign Key to Lesson
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
+
+    # Relationships
+    options = db.relationship("Option", backref="question", lazy=True, cascade="all, delete-orphan")
+    lesson = db.relationship("Lesson", backref="questions", lazy=True)
 
     def __repr__(self):
-        return f"<Question {self.question_id}>"
+        return f"<Question {self.question_id}: {self.question_text[:30]}...>"
 
 class Option(db.Model):
     __tablename__ = 'options'
 
-    id = db.Column(db.Integer, primary_key=True)
+    # --- FIX: Changed primary key name from 'id' to 'option_id' --- #
+    option_id = db.Column(db.Integer, primary_key=True)
+    # ------------------------------------------------------------- #
     text = db.Column(db.Text, nullable=True) 
-    image_path = db.Column(db.String(255), nullable=True)
+    image_path = db.Column(db.String(255), nullable=True) 
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Foreign Key to Question (referencing the correct table and column name)
     question_id = db.Column(db.Integer, db.ForeignKey("questions.question_id"), nullable=False)
 
     def __repr__(self):
-        return f"<Option {self.id} for Question {self.question_id}>"
+        return f"<Option {self.option_id} for Question {self.question_id}>"
 
