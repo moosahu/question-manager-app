@@ -23,7 +23,9 @@ class Question(db.Model):
 
     # Relationships
     options = db.relationship("Option", backref="question", lazy=True, cascade="all, delete-orphan")
-    lesson = db.relationship("Lesson", backref="questions", lazy=True)
+    # --- FIX: Removed conflicting backref --- #
+    lesson = db.relationship("Lesson", lazy=True)
+    # ---------------------------------------- #
 
     def __repr__(self):
         return f"<Question {self.question_id}: {self.question_text[:30]}...>"
@@ -31,9 +33,7 @@ class Question(db.Model):
 class Option(db.Model):
     __tablename__ = 'options'
 
-    # --- FIX: Changed primary key name from 'id' to 'option_id' --- #
     option_id = db.Column(db.Integer, primary_key=True)
-    # ------------------------------------------------------------- #
     text = db.Column(db.Text, nullable=True) 
     image_path = db.Column(db.String(255), nullable=True) 
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
