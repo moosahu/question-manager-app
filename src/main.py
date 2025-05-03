@@ -8,7 +8,7 @@ from flask_login import current_user, login_required # Added login_required
 from src.extensions import db, login_manager
 
 # Import blueprints AFTER defining db and login_manager
-from src.routes.auth import authِ_bp
+from src.routes.auth import auth_bp # <<< Corrected import name
 from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
@@ -94,7 +94,8 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
+    # <<< Corrected indentation for the block below
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False) # <<< Corrected host quote and indentation
 
