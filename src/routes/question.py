@@ -1,4 +1,3 @@
-```python
 # src/routes/question.py (Updated)
 
 import os
@@ -559,4 +558,3 @@ def get_options_for_form(question):
         })
     return options_list
 
-```
