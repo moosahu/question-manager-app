@@ -59,7 +59,6 @@ def list_questions():
     per_page = 10
     current_app.logger.info(f"Requesting page {page} with {per_page} items per page.")
     try:
-        # Query adjusted to reflect model changes (no option image_path)
         questions_pagination = (Question.query.options(
                 joinedload(Question.options),
                 joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
@@ -123,7 +122,9 @@ def add_question():
 
     if request.method == "POST":
         current_app.logger.info("POST request received for add_question.")
-        question_text = request.form.get("question_text")
+        # --- FIX: Changed field name from 'question_text' to 'text' --- #
+        question_text = request.form.get("text")
+        # ------------------------------------------------------------- #
         lesson_id = request.form.get("lesson_id")
         correct_option_index_str = request.form.get("correct_option")
 
@@ -245,7 +246,9 @@ def edit_question(question_id):
 
     if request.method == "POST":
         current_app.logger.info(f"POST request received for edit_question ID: {question_id}")
-        question_text = request.form.get("question_text")
+        # --- FIX: Changed field name from 'question_text' to 'text' --- #
+        question_text = request.form.get("text")
+        # ------------------------------------------------------------- #
         lesson_id = request.form.get("lesson_id")
         correct_option_index_str = request.form.get("correct_option")
 
@@ -271,130 +274,99 @@ def edit_question(question_id):
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
         except Exception as query_error:
             current_app.logger.exception("Error during duplicate check in edit_question.")
-            flash(f"حدث خطأ أثناء التحقق من تكرار السؤال عند التعديل: {query_error}", "danger")
+            flash(f"حدث خطأ أثناء التحقق من تكرار السؤال: {query_error}", "danger")
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         q_image_file = request.files.get("question_image")
-        q_image_path = question.image_url
-        if q_image_file:
-            new_q_path = save_upload(q_image_file, subfolder="questions")
-            if new_q_path:
-                q_image_path = new_q_path
-            else:
-                flash("فشل تحميل صورة السؤال الجديدة.", "warning")
+        q_image_path = save_upload(q_image_file, subfolder="questions")
 
         try:
             question.question_text = question_text
             question.lesson_id = lesson_id
-            question.image_url = q_image_path
-            # question.quiz_id = ...
+            if q_image_path:
+                # TODO: Delete old image if replaced?
+                question.image_url = q_image_path
+            elif request.form.get("remove_question_image"): # Checkbox to remove image
+                 question.image_url = None
 
-            existing_options_map = {opt.option_id: opt for opt in question.options} # Use option_id
-            submitted_option_ids = set()
-            options_to_process = [] 
-
+            # --- Handle Options --- #
+            options_data = []
             option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
+            option_ids_submitted = {request.form.get(f"option_id_{key.split('_')[-1]}") for key in option_keys if request.form.get(f"option_id_{key.split('_')[-1]}")}
 
             for i, key in enumerate(option_keys):
                 index_str = key.split("_")[-1]
                 option_text = request.form.get(f"option_text_{index_str}")
-                option_id_str = request.form.get(f"option_id_{index_str}")
-                # --- FIX: Removed option image handling --- #
-                # option_image_file = request.files.get(f"option_image_{index_str}")
-                # ---------------------------------------- #
-                is_correct = (i == correct_option_index)
+                option_id = request.form.get(f"option_id_{index_str}")
 
                 if option_text and option_text.strip():
-                    # --- FIX: Removed option image path --- #
-                    # option_image_path = None 
-                    # ------------------------------------ #
-                    existing_option = None
-
-                    if option_id_str:
-                        try:
-                            option_id = int(option_id_str)
-                            if option_id in existing_options_map:
-                                existing_option = existing_options_map[option_id]
-                                # --- FIX: Removed option image path --- #
-                                # option_image_path = existing_option.image_path
-                                # ------------------------------------ #
-                                submitted_option_ids.add(option_id)
-                        except ValueError:
-                            pass 
-                    
-                    # --- FIX: Removed option image handling --- #
-                    # if option_image_file:
-                    #     new_opt_img_path = save_upload(option_image_file, subfolder="options")
-                    #     if new_opt_img_path:
-                    #         option_image_path = new_opt_img_path
-                    #     else:
-                    #         flash(f"فشل تحميل صورة الخيار \'{option_text}\'.", "warning")
-                    # ---------------------------------------- #
-
-                    option_data = {
+                    is_correct = (i == correct_option_index)
+                    options_data.append({
+                        "option_id": int(option_id) if option_id else None,
                         "option_text": option_text.strip(),
-                        # "image_path": option_image_path, # Removed
                         "is_correct": is_correct,
                         "question_id": question.question_id
-                    }
-                    options_to_process.append((existing_option, option_data))
+                    })
 
-            if len(options_to_process) < 2:
-                flash("يجب أن يحتوي السؤال على خيارين على الأقل بنص غير فارغ.", "danger")
-                db.session.rollback()
-                return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
+            if len(options_data) < 2:
+                 current_app.logger.warning("Less than 2 valid options provided during edit. Rolling back implicitly.")
+                 flash("يجب أن يحتوي السؤال على خيارين على الأقل بنص غير فارغ.", "danger")
+                 db.session.rollback() # Rollback changes made to question object
+                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
-            if correct_option_index >= len(options_to_process):
+            if correct_option_index >= len(options_data):
+                current_app.logger.error(f"Invalid correct_option_index {correct_option_index} for {len(options_data)} options during edit.")
                 flash("حدث خطأ في تحديد الخيار الصحيح. يرجى المحاولة مرة أخرى.", "danger")
                 db.session.rollback()
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
-            current_app.logger.info(f"Processing {len(options_to_process)} options for edit...")
-            for existing_opt, data_dict in options_to_process:
-                if existing_opt:
-                    existing_opt.option_text = data_dict["option_text"]
-                    # --- FIX: Removed option image path --- #
-                    # existing_opt.image_path = data_dict["image_path"]
-                    # ------------------------------------ #
-                    existing_opt.is_correct = data_dict["is_correct"]
-                    current_app.logger.info(f"Updating option ID: {existing_opt.option_id}") # Use option_id
-                else:
-                    new_option = Option(**data_dict)
-                    db.session.add(new_option)
-                    current_app.logger.info(f"Adding new option with text: {data_dict['option_text']}")
+            # Update existing options and add new ones
+            existing_options_map = {opt.option_id: opt for opt in question.options}
+            updated_option_ids = set()
 
-            options_to_delete = [opt for opt_id, opt in existing_options_map.items() if opt_id not in submitted_option_ids]
-            if options_to_delete:
-                current_app.logger.info(f"Deleting {len(options_to_delete)} options...")
-                for opt in options_to_delete:
-                    db.session.delete(opt)
-            
+            for opt_data in options_data:
+                opt_id = opt_data.pop("option_id")
+                if opt_id and opt_id in existing_options_map:
+                    # Update existing option
+                    existing_option = existing_options_map[opt_id]
+                    existing_option.option_text = opt_data["option_text"]
+                    existing_option.is_correct = opt_data["is_correct"]
+                    # Update image if needed (not implemented here)
+                    updated_option_ids.add(opt_id)
+                else:
+                    # Add new option
+                    new_option = Option(**opt_data)
+                    question.options.append(new_option) # Associate with question
+
+            # Remove options that were deleted in the form
+            options_to_delete = [opt for opt_id, opt in existing_options_map.items() if opt_id not in updated_option_ids and str(opt_id) not in option_ids_submitted]
+            for opt_to_delete in options_to_delete:
+                db.session.delete(opt_to_delete)
+
             try:
                 db.session.commit()
-                current_app.logger.info("Transaction committed successfully for edit.")
-                flash("تم تعديل السؤال بنجاح!", "success")
+                current_app.logger.info(f"Question ID {question_id} updated successfully.")
+                flash("تم حفظ التعديلات بنجاح!", "success")
                 return redirect(url_for("question.list_questions"))
             except Exception as commit_error:
                 orig_error = getattr(commit_error, 'orig', None)
-                current_app.logger.exception(f"CRITICAL ERROR during commit on edit: {commit_error}. Original error: {orig_error}")
+                current_app.logger.exception(f"CRITICAL ERROR during commit for edit_question ID {question_id}: {commit_error}. Original error: {orig_error}")
                 db.session.rollback()
                 flash(f"حدث خطأ فادح أثناء حفظ التعديلات: {commit_error}", "danger")
                 return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         except (IntegrityError, DBAPIError) as db_error:
             db.session.rollback()
-            current_app.logger.exception(f"Database Error editing question: {db_error}")
+            current_app.logger.exception(f"Database Error editing question ID {question_id}: {db_error}")
             flash(f"خطأ في قاعدة البيانات أثناء تعديل السؤال: {db_error}", "danger")
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error editing question: {e}")
+            current_app.logger.exception(f"Generic Error editing question ID {question_id}: {e}")
             flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال: {e}", "danger")
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
     # GET request
-    if not question.options:
-         question.options = []
     return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
