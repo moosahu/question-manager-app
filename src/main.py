@@ -1,7 +1,8 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, current_app
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request # Added request for API URL formatting
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required # Added login_required
+
 
 # Import db and login_manager from the new extensions file
 from src.extensions import db, login_manager
@@ -11,6 +12,7 @@ from src.routes.auth import auth_bp
 from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
+from src.routes.api import api_bp # <<< Added API blueprint import
 
 # Import User model AFTER defining db
 from src.models.user import User
@@ -23,6 +25,9 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///instance/mydatabase.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
+    # Configure SERVER_NAME for external URL generation in API (adjust if needed)
+    # Example: app.config["SERVER_NAME"] = "your-app-name.onrender.com"
+    # Or rely on request context (might be sufficient)
 
     # Initialize extensions
     db.init_app(app)
@@ -56,6 +61,7 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
+    app.register_blueprint(api_bp) # <<< Registered API blueprint (prefix is in api.py)
 
     @app.route("/")
     @login_required
@@ -67,13 +73,20 @@ def create_app():
     @app.errorhandler(404)
     def page_not_found(e):
         # You might want to render a custom 404 template later
-        return "Page Not Found", 404
+        # Check if the request path starts with /api/ for JSON response
+        if request.path.startswith("/api/"):
+            return jsonify(error="Not Found"), 404
+        return render_template("404.html"), 404 # Or a simple string
+        
     @app.errorhandler(500)
     def internal_server_error(e):
         print(f"Internal Server Error: {e}")
         db.session.rollback()
+        # Check if the request path starts with /api/ for JSON response
+        if request.path.startswith("/api/"):
+             return jsonify(error="Internal Server Error"), 500
         # You might want to render a custom 500 template later
-        return "Internal Server Error", 500
+        return render_template("500.html"), 500 # Or a simple string
 
     return app
 
@@ -81,6 +94,7 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    # --- Ensure NO backslashes here --- #
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
+    # Debug should be False in production
+    app.run(host=\'0.0.0.0\', port=int(os.environ.get("PORT", 5000)), debug=False)
 
