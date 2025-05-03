@@ -36,7 +36,7 @@
                     <tr>
                         <td>{{ loop.index }}</td>
                         {# --- FIX: Use question.question_text instead of question.text --- #}
-                        <td>{{ question.question_text | truncate(100) }}</td>
+                        <td>{{ (question.question_text | truncate(100)) if question.question_text else '[سؤال بصورة فقط]' }}</td>
                         <td>{{ question.lesson.name if question.lesson else 'N/A' }}</td>
                         <td>{{ question.lesson.unit.name if question.lesson and question.lesson.unit else 'N/A' }}</td>
                         <td>{{ question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else 'N/A' }}</td>
