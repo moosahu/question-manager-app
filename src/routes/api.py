@@ -1,7 +1,7 @@
-# src/routes/api.py (Updated)
+# src/routes/api.py (Updated with /courses endpoint)
 
 import logging
-from flask import Blueprint, jsonify, current_app, url_for
+from flask import Blueprint, jsonify, current_app, url_for, request # Added request
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -41,17 +41,42 @@ def format_image_url(image_path):
         # Use url_for to generate the correct URL for static files
         # Assumes 'static' is the endpoint for your static folder
         try:
-            # The filename should be relative to the static folder, 
+            # The filename should be relative to the static folder,
             # e.g., 'uploads/questions/image.png'
-            return url_for('static', filename=image_path, _external=True)
+            # Ensure we are in an application context with a request
+            # Use request.host_url as a fallback if SERVER_NAME is not set
+            server_name = current_app.config.get('SERVER_NAME')
+            # Prefer request.host_url if available and looks like a domain
+            host_url = request.host_url if request and hasattr(request, 'host_url') else None
+            base_url = f"https://{server_name}" if server_name else host_url
+            
+            if not base_url:
+                 logger.warning("Could not determine base URL for image path generation.")
+                 # Fallback to relative path if no base URL can be determined
+                 static_url_path = url_for('static', filename='').lstrip('/')
+                 return f"/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
+
+            if not base_url.endswith('/'):
+                base_url += '/'
+            # Construct the URL manually relative to the static path
+            static_url_path = url_for('static', filename='').lstrip('/') # Get base static path
+            full_url = f"{base_url.rstrip('/')}/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
+            return full_url
+
+            # return url_for('static', filename=image_path, _external=True) # _external=True can be tricky without SERVER_NAME
         except RuntimeError:
-            # This can happen if url_for is called outside of an application context
-            # Fallback to simple concatenation (less robust)
-            # You might need to configure SERVER_NAME in Flask for _external=True to work reliably
-            base_url = current_app.config.get('SERVER_NAME') or request.host_url
-            if base_url.endswith('/'):
-                base_url = base_url[:-1]
-            return f"{base_url}/static/{image_path}"
+            # Fallback if still outside context (should not happen with test_request_context)
+            logger.warning("Could not generate external URL for image, possibly outside request context.")
+            # Return relative path as a last resort
+            try:
+                 static_url_path = url_for('static', filename='').lstrip('/')
+                 return f"/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
+            except RuntimeError:
+                 logger.error("Could not even generate relative static path.")
+                 return None # Indicate error
+        except Exception as e:
+             logger.error(f"Error generating image URL for {image_path}: {e}")
+             return None # Indicate error
     return image_path # Return as is if it's already absolute or None
 
 # --- Helper Function to Format Questions --- #
@@ -71,9 +96,29 @@ def format_question(question):
                 "is_correct": opt.is_correct
             }
             # Sort options by ID for consistency
-            for opt in sorted(question.options, key=lambda o: o.option_id) 
+            for opt in sorted(question.options, key=lambda o: o.option_id)
         ]
     }
+
+# +++ NEW API Endpoint for Listing Courses +++ #
+@api_bp.route("/courses", methods=["GET"])
+def get_all_courses():
+    """Returns a list of all available courses."""
+    logger.info("API request received for listing all courses.")
+    try:
+        courses = Course.query.order_by(Course.id).all()
+        logger.info(f"Found {len(courses)} courses.")
+
+        formatted_courses = [{"id": c.id, "name": c.name} for c in courses]
+
+        return jsonify(formatted_courses)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching courses: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching courses: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 # --- API Endpoint for Questions by Lesson --- #
 @api_bp.route("/lessons/<int:lesson_id>/questions", methods=["GET"])
@@ -173,5 +218,4 @@ def get_course_questions(course_id):
     except Exception as e:
         logger.exception(f"Unexpected error while fetching questions for course {course_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
-
 
