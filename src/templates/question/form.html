@@ -29,7 +29,7 @@
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" required>{{ question.question_text if question else request.form.get("text", "") }}</textarea>
+                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
                         <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
                     </div>
