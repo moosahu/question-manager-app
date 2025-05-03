@@ -556,5 +556,22 @@ def get_options_for_form(question):
             'is_correct': option.is_correct,
             'index': i # Index for radio button value
         })
-    return options_list
+    # --- GET Request --- 
+# (This code should be outside the 'if request.method == "POST":' block, 
+# usually at the very end of the edit_question function)
+
+# Find the index of the correct option to pre-select the radio button
+correct_option_index = -1
+for i, option in enumerate(question.options):
+    if option.is_correct:
+        correct_option_index = i
+        break
+
+    return render_template("question/form.html", 
+                       title=f"تعديل السؤال #{question.question_id}", 
+                       lessons=lessons, 
+                       question=question, # Pass the fetched question object
+                       correct_option_index=correct_option_index, # Pass the index for radio button
+                       submit_text="حفظ التعديلات")
+
 
