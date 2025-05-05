@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated with ImageKit.io integration - v3 - Using Options Class)
+# src/routes/question.py (Updated with ImageKit.io integration - v4 - Forced DEBUG Logging)
 
 import os
 import logging
@@ -39,6 +39,27 @@ except ImportError:
         raise
 
 question_bp = Blueprint("question", __name__, template_folder="../templates/question")
+
+# --- Force DEBUG Logging --- #
+@question_bp.before_app_first_request
+def setup_logging():
+    # Ensure the app logger is set to DEBUG level
+    # This might be overridden by Gunicorn/Render settings, but worth trying
+    if not current_app.debug: # Only set level if not in Flask debug mode (which might already set it)
+        current_app.logger.setLevel(logging.DEBUG)
+        current_app.logger.info("Logger level explicitly set to DEBUG by blueprint.")
+    else:
+        current_app.logger.info("Flask debug mode is ON, logger level should already be DEBUG.")
+    # Add a handler to ensure logs go somewhere (e.g., stderr, which Render should capture)
+    # Check if a handler for stderr already exists to avoid duplicates
+    if not any(isinstance(h, logging.StreamHandler) and h.stream.name == '<stderr>' for h in current_app.logger.handlers):
+        handler = logging.StreamHandler() # Defaults to stderr
+        handler.setLevel(logging.DEBUG)
+        # Use a simple formatter or Flask's default
+        # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        # handler.setFormatter(formatter)
+        current_app.logger.addHandler(handler)
+        current_app.logger.info("StreamHandler added to logger to ensure output.")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
@@ -113,7 +134,7 @@ def save_upload(file, subfolder="questions"):
         current_app.logger.debug(f"Upload options created: {upload_options.__dict__}")
 
         # Upload the file to ImageKit using the options parameter
-        current_app.logger.debug(f"Attempting to upload \'{unique_filename}\' to ImageKit...")
+        current_app.logger.debug(f"Attempting to upload '{unique_filename}' to ImageKit...")
         upload_response = imagekit.upload(
             file=file_content,
             file_name=unique_filename,
@@ -150,7 +171,6 @@ def save_upload(file, subfolder="questions"):
 @question_bp.route("/")
 @login_required
 def list_questions():
-    # ... (keep existing code) ...
     current_app.logger.info("Entering list_questions route.")
     page = request.args.get("page", 1, type=int)
     per_page = 10
@@ -166,7 +186,6 @@ def list_questions():
             .paginate(page=page, per_page=per_page, error_out=False)
         )
         current_app.logger.info(f"Database query successful. Found {len(questions_pagination.items)} questions on this page (total: {questions_pagination.total}).")
-        # Pass the original question objects to the template
         rendered_template = render_template("question/list.html", questions=questions_pagination.items, pagination=questions_pagination)
         current_app.logger.info("Template rendering successful.")
         return rendered_template
@@ -176,7 +195,6 @@ def list_questions():
         return redirect(url_for("index")) # Redirect to a safe page like index
 
 def get_sorted_lessons():
-    # ... (keep existing code) ...
     try:
         lessons = (
             Lesson.query
@@ -196,21 +214,23 @@ def get_sorted_lessons():
 @question_bp.route("/add", methods=["GET", "POST"])
 @login_required
 def add_question():
-    # ... (keep existing code, including call to save_upload) ...
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
-        # Redirect to curriculum management if no lessons exist
         return redirect(url_for("curriculum.list_courses"))
 
     if request.method == "POST":
-        current_app.logger.info("POST request received for add_question.")
+        # ***** TEST DEBUG MESSAGE *****
+        current_app.logger.debug("*****************************************************")
+        current_app.logger.debug("***** ENTERING add_question POST request handler *****")
+        current_app.logger.debug("*****************************************************")
+        # *****************************
+
         question_text = request.form.get("text", "").strip()
         lesson_id = request.form.get("lesson_id")
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
 
-        # Use the updated save_upload function
         q_image_path = save_upload(q_image_file, subfolder="questions")
 
         error_messages = []
@@ -219,7 +239,6 @@ def add_question():
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
         if correct_option_index_str is None:
-            # Check if any options were actually submitted before requiring a correct one
             option_keys_check = [key for key in request.form if key.startswith("option_text_")]
             option_files_check = [key for key in request.files if key.startswith("option_image_")]
             if option_keys_check or option_files_check:
@@ -235,7 +254,6 @@ def add_question():
                 error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
         options_data_from_form = []
-        # Determine the highest index submitted to iterate correctly
         max_submitted_index = -1
         for key in list(request.form.keys()) + list(request.files.keys()):
             if key.startswith(("option_text_", "option_image_")):
@@ -250,7 +268,6 @@ def add_question():
             option_text = request.form.get(f"option_text_{index_str}", "").strip()
             option_image_file = request.files.get(f"option_image_{index_str}")
             
-            # Use the updated save_upload function
             option_image_path = save_upload(option_image_file, subfolder="options")
 
             if option_text or option_image_path:
@@ -264,51 +281,44 @@ def add_question():
 
         if len(options_data_from_form) < 2:
             error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
-        # Adjust validation: Check if correct_option_index is valid within the *processed* options
         if correct_option_index_str is not None and correct_option_index >= len(options_data_from_form):
              error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
 
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
-            # Repopulate form data correctly for rendering
             form_data = request.form.to_dict()
-            # Reconstruct options with potential image URLs for display
             repop_options = []
             for i in range(max_submitted_index + 1):
                  idx_str = str(i)
                  opt_text = request.form.get(f"option_text_{idx_str}", "")
-                 # Find if this option was processed and has an image URL
                  processed_opt = next((opt for opt in options_data_from_form if opt["index"] == i), None)
                  img_url = processed_opt["image_url"] if processed_opt else None
-                 repop_options.append({"option_text": opt_text, "image_url": img_url}) # Add image_url here
-            form_data["options_repop"] = repop_options # Use a different key to avoid conflicts
-            form_data["correct_option_repop"] = correct_option_index_str # Pass the raw string back
-            form_data["question_image_url_repop"] = q_image_path # Pass question image URL
+                 repop_options.append({"option_text": opt_text, "image_url": img_url})
+            form_data["options_repop"] = repop_options
+            form_data["correct_option_repop"] = correct_option_index_str
+            form_data["question_image_url_repop"] = q_image_path
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال")
 
-        # --- Database Operations --- #
         try:
             new_question = Question(
                 question_text=question_text if question_text else None,
                 lesson_id=lesson_id,
-                image_url=q_image_path # URL from ImageKit or None
+                image_url=q_image_path
             )
             db.session.add(new_question)
-            # Flush to get the new_question.question_id for options
             db.session.flush()
             current_app.logger.info(f"New question added (pending commit) with ID: {new_question.question_id}")
 
             for opt_data in options_data_from_form:
                 option = Option(
                     option_text=opt_data["option_text"] if opt_data["option_text"] else None,
-                    image_url=opt_data["image_url"], # URL from ImageKit or None
+                    image_url=opt_data["image_url"],
                     is_correct=opt_data["is_correct"],
                     question_id=new_question.question_id
                 )
                 db.session.add(option)
             
-            # Commit the transaction
             db.session.commit()
             current_app.logger.info("Transaction committed successfully. Question and options saved.")
             flash("تمت إضافة السؤال بنجاح!", "success")
@@ -323,7 +333,6 @@ def add_question():
             current_app.logger.exception(f"Generic Error adding question: {e}")
             flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال.", "danger")
         
-        # If errors occurred, repopulate form data for rendering
         form_data = request.form.to_dict()
         repop_options = []
         for i in range(max_submitted_index + 1):
@@ -338,14 +347,11 @@ def add_question():
         return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال")
 
     # GET request
-    # Pass an empty dictionary or None for 'question' on GET
-    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=None, submit_text="إضافة سؤال")
-
+    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question={}, submit_text="إضافة سؤال")
 
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
 @login_required
 def edit_question(question_id):
-    # ... (keep existing code, including call to save_upload) ...
     question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
     lessons = get_sorted_lessons()
     if not lessons:
@@ -358,22 +364,32 @@ def edit_question(question_id):
         lesson_id = request.form.get("lesson_id")
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
-        delete_q_image = request.form.get("delete_question_image") == "1"
+        delete_q_image = request.form.get("delete_question_image")
 
         q_image_path = question.image_url # Keep existing image by default
         if delete_q_image:
-            # TODO: Implement actual deletion from ImageKit if needed
             current_app.logger.info(f"Request to delete question image for question {question_id}")
+            # Attempt to delete from ImageKit (best effort, needs file_id for reliability)
+            if q_image_path and q_image_path.startswith("http"):
+                # We need the file_id from the URL or stored separately to delete reliably
+                # This is a placeholder - proper deletion needs file_id management
+                current_app.logger.warning(f"ImageKit deletion skipped for {q_image_path} - file_id needed.")
+                # try:
+                #     imagekit.delete_file(file_id=...) # Requires file_id
+                # except Exception as del_err:
+                #     current_app.logger.error(f"Error deleting old ImageKit file: {del_err}")
             q_image_path = None
         elif q_image_file and q_image_file.filename:
-            # Use the updated save_upload function
+            # Upload new image, potentially replacing old one
             new_q_image_path = save_upload(q_image_file, subfolder="questions")
             if new_q_image_path:
-                # TODO: Delete old image from ImageKit if needed
+                # Attempt to delete old image if replaced (best effort)
+                if q_image_path and q_image_path != new_q_image_path and q_image_path.startswith("http"):
+                     current_app.logger.warning(f"ImageKit deletion skipped for old image {q_image_path} - file_id needed.")
                 q_image_path = new_q_image_path
             else:
-                # Upload failed, keep existing image and flash message handled in save_upload
-                pass
+                # Upload failed, keep old image path but flash error
+                flash("فشل رفع صورة السؤال الجديدة. تم الاحتفاظ بالصورة القديمة إن وجدت.", "warning")
 
         error_messages = []
         if not question_text and not q_image_path:
@@ -396,9 +412,12 @@ def edit_question(question_id):
                 error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
         options_data_from_form = []
+        existing_options = {opt.option_id: opt for opt in question.options}
+        processed_option_ids = set()
+
         max_submitted_index = -1
         for key in list(request.form.keys()) + list(request.files.keys()):
-            if key.startswith(("option_text_", "option_image_", "option_id_", "delete_option_image_")):
+            if key.startswith(("option_text_", "option_image_", "option_id_")):
                 try:
                     index_str = key.split("_")[-1]
                     max_submitted_index = max(max_submitted_index, int(index_str))
@@ -407,40 +426,42 @@ def edit_question(question_id):
 
         for i in range(max_submitted_index + 1):
             index_str = str(i)
+            option_id_str = request.form.get(f"option_id_{index_str}")
             option_text = request.form.get(f"option_text_{index_str}", "").strip()
             option_image_file = request.files.get(f"option_image_{index_str}")
-            option_id = request.form.get(f"option_id_{index_str}") # Get existing option ID if present
-            delete_opt_image = request.form.get(f"delete_option_image_{index_str}") == "1"
+            delete_option_image = request.form.get(f"delete_option_image_{index_str}")
 
-            # Find existing option data if ID is provided
+            option_id = None
             existing_option = None
-            if option_id:
+            if option_id_str:
                 try:
-                    existing_option = next((opt for opt in question.options if opt.option_id == int(option_id)), None)
+                    option_id = int(option_id_str)
+                    existing_option = existing_options.get(option_id)
+                    processed_option_ids.add(option_id)
                 except ValueError:
-                    pass # Invalid option_id format
-            
-            option_image_path = existing_option.image_url if existing_option else None # Keep existing image
+                    pass # Invalid ID, treat as new option
 
-            if delete_opt_image:
-                # TODO: Implement actual deletion from ImageKit if needed
-                current_app.logger.info(f"Request to delete option image for option ID {option_id} (index {i})")
+            option_image_path = existing_option.image_url if existing_option else None
+
+            if delete_option_image:
+                current_app.logger.info(f"Request to delete option image for option index {i} (ID: {option_id})")
+                if option_image_path and option_image_path.startswith("http"):
+                    current_app.logger.warning(f"ImageKit deletion skipped for option image {option_image_path} - file_id needed.")
                 option_image_path = None
             elif option_image_file and option_image_file.filename:
-                # Use the updated save_upload function
                 new_opt_image_path = save_upload(option_image_file, subfolder="options")
                 if new_opt_image_path:
-                    # TODO: Delete old image from ImageKit if needed
+                    if option_image_path and option_image_path != new_opt_image_path and option_image_path.startswith("http"):
+                        current_app.logger.warning(f"ImageKit deletion skipped for old option image {option_image_path} - file_id needed.")
                     option_image_path = new_opt_image_path
                 else:
-                    # Upload failed, keep existing image
-                    pass
+                    flash(f"فشل رفع الصورة الجديدة للخيار رقم {i+1}. تم الاحتفاظ بالصورة القديمة إن وجدت.", "warning")
 
             if option_text or option_image_path:
                 is_correct = (i == correct_option_index)
                 options_data_from_form.append({
                     "index": i,
-                    "option_id": int(option_id) if option_id else None, # Store ID for update/delete
+                    "option_id": option_id, # Keep track of existing options
                     "option_text": option_text,
                     "image_url": option_image_path,
                     "is_correct": is_correct
@@ -469,78 +490,70 @@ def edit_question(question_id):
             form_data["options_repop"] = repop_options
             form_data["correct_option_repop"] = correct_option_index_str
             form_data["question_image_url_repop"] = q_image_path
-            # Important: Pass the original question object too for IDs etc.
-            form_data["question_id"] = question.question_id
-            form_data["lesson_id"] = question.lesson_id # Ensure lesson_id is passed back
-            form_data["question_text"] = question.question_text # Ensure original text is available
-            # We need to pass the structure expected by the template
-            # Let's rebuild a structure similar to the original question object
-            rebuilt_question_data = {
-                "question_id": question.question_id,
-                "question_text": request.form.get("text", question.question_text), # Use form value if present
-                "image_url": q_image_path,
-                "lesson_id": request.form.get("lesson_id", question.lesson_id),
-                "options": repop_options, # Use the reconstructed options
-                "correct_option": correct_option_index_str # Pass the raw string
+            # We need to pass the original question object structure for the template
+            # Merge form_data into a structure resembling the original question object
+            display_question = {
+                "question_id": question_id,
+                "question_text": request.form.get("text", ""),
+                "image_url": q_image_path, # Use the potentially updated path
+                "lesson_id": request.form.get("lesson_id"),
+                "options": repop_options # Use the reconstructed options
             }
-            return render_template("question/form.html", title=f"تعديل السؤال #{question_id}", lessons=lessons, question=rebuilt_question_data, submit_text="حفظ التعديلات")
+            return render_template("question/form.html", title=f"تعديل السؤال رقم {question_id}", lessons=lessons, question=display_question, submit_text="حفظ التعديلات", correct_option_index=correct_option_index_str) # Pass correct_option_index too
 
         # --- Database Operations --- #
         try:
-            # Update question fields
             question.question_text = question_text if question_text else None
             question.lesson_id = lesson_id
             question.image_url = q_image_path
 
-            # Process options: Update existing, add new, delete removed
-            existing_option_ids = {opt.option_id for opt in question.options}
-            processed_option_ids = set()
-
+            # Update existing options and add new ones
+            updated_option_ids = set()
             for opt_data in options_data_from_form:
                 option_id = opt_data["option_id"]
-                if option_id and option_id in existing_option_ids:
+                if option_id and option_id in existing_options:
                     # Update existing option
-                    opt_to_update = next(opt for opt in question.options if opt.option_id == option_id)
-                    opt_to_update.option_text = opt_data["option_text"] if opt_data["option_text"] else None
-                    opt_to_update.image_url = opt_data["image_url"]
-                    opt_to_update.is_correct = opt_data["is_correct"]
-                    processed_option_ids.add(option_id)
+                    option = existing_options[option_id]
+                    option.option_text = opt_data["option_text"] if opt_data["option_text"] else None
+                    option.image_url = opt_data["image_url"]
+                    option.is_correct = opt_data["is_correct"]
+                    updated_option_ids.add(option_id)
+                    current_app.logger.debug(f"Updating existing option ID: {option_id}")
                 else:
                     # Add new option
                     new_option = Option(
                         option_text=opt_data["option_text"] if opt_data["option_text"] else None,
                         image_url=opt_data["image_url"],
                         is_correct=opt_data["is_correct"],
-                        question_id=question.question_id
+                        question_id=question_id
                     )
                     db.session.add(new_option)
-                    # We don't have the ID yet, but it will be handled by SQLAlchemy
+                    current_app.logger.debug(f"Adding new option for question ID: {question_id}")
             
             # Delete options that were removed from the form
-            options_to_delete_ids = existing_option_ids - processed_option_ids
-            if options_to_delete_ids:
-                for opt_id in options_to_delete_ids:
-                    opt_to_delete = next(opt for opt in question.options if opt.option_id == opt_id)
-                    # TODO: Delete image from ImageKit if needed
-                    current_app.logger.info(f"Deleting option ID {opt_id} for question {question_id}")
-                    db.session.delete(opt_to_delete)
+            options_to_delete = [opt for opt_id, opt in existing_options.items() if opt_id not in updated_option_ids and opt_id in processed_option_ids]
+            for opt in options_to_delete:
+                current_app.logger.info(f"Deleting option ID: {opt.option_id} for question ID: {question_id}")
+                # Attempt to delete image from ImageKit (best effort)
+                if opt.image_url and opt.image_url.startswith("http"):
+                    current_app.logger.warning(f"ImageKit deletion skipped for deleted option image {opt.image_url} - file_id needed.")
+                db.session.delete(opt)
 
-            # Commit the transaction
             db.session.commit()
-            current_app.logger.info(f"Transaction committed successfully. Question {question_id} and options updated.")
+            current_app.logger.info(f"Transaction committed successfully. Question {question_id} updated.")
             flash("تم تعديل السؤال بنجاح!", "success")
             return redirect(url_for("question.list_questions"))
 
         except (IntegrityError, DBAPIError) as db_error:
             db.session.rollback()
-            current_app.logger.exception(f"Database Error editing question {question_id}: {db_error}")
+            current_app.logger.exception(f"Database Error updating question {question_id}: {db_error}")
             flash(f"خطأ في قاعدة البيانات أثناء تعديل السؤال.", "danger")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error editing question {question_id}: {e}")
+            current_app.logger.exception(f"Generic Error updating question {question_id}: {e}")
             flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال.", "danger")
 
-        # If errors occurred, repopulate form data for rendering (similar to error block above)
+        # If errors occurred, repopulate form data for rendering
         form_data = request.form.to_dict()
         repop_options = []
         for i in range(max_submitted_index + 1):
@@ -553,62 +566,94 @@ def edit_question(question_id):
         form_data["options_repop"] = repop_options
         form_data["correct_option_repop"] = correct_option_index_str
         form_data["question_image_url_repop"] = q_image_path
-        rebuilt_question_data = {
-            "question_id": question.question_id,
-            "question_text": request.form.get("text", question.question_text),
+        display_question = {
+            "question_id": question_id,
+            "question_text": request.form.get("text", ""),
             "image_url": q_image_path,
-            "lesson_id": request.form.get("lesson_id", question.lesson_id),
-            "options": repop_options,
-            "correct_option": correct_option_index_str
+            "lesson_id": request.form.get("lesson_id"),
+            "options": repop_options
         }
-        return render_template("question/form.html", title=f"تعديل السؤال #{question_id}", lessons=lessons, question=rebuilt_question_data, submit_text="حفظ التعديلات")
+        return render_template("question/form.html", title=f"تعديل السؤال رقم {question_id}", lessons=lessons, question=display_question, submit_text="حفظ التعديلات", correct_option_index=correct_option_index_str)
 
     # GET request
-    # Prepare data structure similar to what's expected on POST error for consistency
-    options_for_template = []
-    correct_option_get_index = -1
-    for i, opt in enumerate(question.options):
-        options_for_template.append({
-            "option_id": opt.option_id,
-            "option_text": opt.option_text,
-            "image_url": opt.image_url
-        })
-        if opt.is_correct:
-            correct_option_get_index = i
-    
-    question_data_for_template = {
+    # Prepare data for the template, ensuring options have image_url
+    question_data = {
         "question_id": question.question_id,
         "question_text": question.question_text,
         "image_url": question.image_url,
         "lesson_id": question.lesson_id,
-        "options": options_for_template,
-        "correct_option": str(correct_option_get_index) if correct_option_get_index != -1 else None
+        "options": [
+            {
+                "option_id": opt.option_id,
+                "option_text": opt.option_text,
+                "image_url": opt.image_url,
+                "is_correct": opt.is_correct
+            } for opt in sorted(question.options, key=lambda o: o.option_id) # Ensure consistent order
+        ]
     }
-    return render_template("question/form.html", title=f"تعديل السؤال #{question_id}", lessons=lessons, question=question_data_for_template, submit_text="حفظ التعديلات")
-
+    # Find the index of the correct option for the template
+    correct_option_index = -1
+    for i, opt in enumerate(sorted(question.options, key=lambda o: o.option_id)):
+        if opt.is_correct:
+            correct_option_index = i
+            break
+    
+    current_app.logger.debug(f"Rendering edit form for question {question_id} with data: {question_data}")
+    return render_template("question/form.html", title=f"تعديل السؤال رقم {question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات", correct_option_index=str(correct_option_index))
 
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
 @login_required
 def delete_question(question_id):
-    # ... (keep existing code, add ImageKit deletion logic if possible) ...
-    current_app.logger.info(f"POST request received for delete_question ID: {question_id}")
+    current_app.logger.info(f"Received request to delete question ID: {question_id}")
     question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
+    
+    # --- Attempt to delete images from ImageKit (Best Effort) --- #
+    # Initialize ImageKit client if needed (consider initializing once per app context)
+    private_key = os.environ.get("IMAGEKIT_PRIVATE_KEY")
+    public_key = os.environ.get("IMAGEKIT_PUBLIC_KEY")
+    url_endpoint = os.environ.get("IMAGEKIT_URL_ENDPOINT")
+    imagekit = None
+    if all([private_key, public_key, url_endpoint]):
+        try:
+            imagekit = ImageKit(private_key=private_key, public_key=public_key, url_endpoint=url_endpoint)
+        except Exception as init_err:
+            current_app.logger.error(f"Failed to initialize ImageKit for deletion: {init_err}")
+
+    def delete_imagekit_file_by_url(url):
+        if not imagekit or not url or not url.startswith(url_endpoint):
+            return
+        # Basic attempt to extract file_id or path - THIS IS UNRELIABLE
+        # A robust solution requires storing file_id during upload.
+        try:
+            # This part is highly dependent on your URL structure and might not work
+            path_part = url.replace(url_endpoint, "").lstrip("/")
+            # ImageKit Python SDK delete_file needs file_id, not path.
+            # We cannot reliably get file_id from URL alone.
+            current_app.logger.warning(f"Cannot delete ImageKit file by URL ({url}). File ID is required.")
+            # If you stored file_id during upload, use it here:
+            # file_id_to_delete = get_file_id_from_storage(url) 
+            # if file_id_to_delete:
+            #     imagekit.delete_file(file_id=file_id_to_delete)
+            #     current_app.logger.info(f"Attempted deletion of ImageKit file ID associated with URL: {url}")
+        except Exception as del_err:
+            current_app.logger.error(f"Error attempting to delete ImageKit file for URL {url}: {del_err}")
+
+    # Delete question image
+    if question.image_url:
+        delete_imagekit_file_by_url(question.image_url)
+
+    # Delete option images
+    for option in question.options:
+        if option.image_url:
+            delete_imagekit_file_by_url(option.image_url)
+    # ------------------------------------------------------------ #
 
     try:
-        # TODO: Implement deletion from ImageKit for question image and all option images
-        # This might require storing file IDs from ImageKit upon upload
-        # For now, we just delete from DB
-        if question.image_url:
-            current_app.logger.warning(f"ImageKit deletion for question image {question.image_url} not implemented.")
-        for opt in question.options:
-            if opt.image_url:
-                current_app.logger.warning(f"ImageKit deletion for option image {opt.image_url} not implemented.")
-            db.session.delete(opt)
-        
+        # Deleting the question will cascade delete options due to relationship settings
         db.session.delete(question)
         db.session.commit()
-        current_app.logger.info(f"Question {question_id} and its options deleted successfully from DB.")
-        flash("تم حذف السؤال بنجاح.", "success")
+        current_app.logger.info(f"Successfully deleted question ID: {question_id} and associated options from DB.")
+        flash("تم حذف السؤال بنجاح!", "success")
     except (IntegrityError, DBAPIError) as db_error:
         db.session.rollback()
         current_app.logger.exception(f"Database Error deleting question {question_id}: {db_error}")
