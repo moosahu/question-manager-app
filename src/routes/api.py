@@ -218,3 +218,54 @@ def get_course_questions(course_id):
         logger.exception(f"Unexpected error while fetching questions for course {course_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
+
+
+import random # Added for shuffling if needed
+from sqlalchemy import func # Added for random ordering in DB
+
+
+
+
+# --- API Endpoint for Random Questions --- #
+@api_bp.route("/questions/random", methods=["GET"])
+def get_random_questions():
+    """Returns a list of random questions, optionally limited by count."""
+    logger.info("API request received for random questions.")
+    try:
+        count = request.args.get("count", 10, type=int)
+        if count <= 0:
+            count = 10 # Default to 10 if count is invalid
+        logger.info(f"Requesting {count} random questions.")
+
+        # Use database-specific random function (func.random() for SQLite/PostgreSQL)
+        # For other DBs, adjust accordingly (e.g., RAND() for MySQL)
+        questions = (
+            Question.query
+            .options(joinedload(Question.options))
+            .order_by(func.random()) # Order randomly
+            .limit(count) # Limit the number of results
+            .all()
+        )
+        
+        # Alternative if func.random() isn't suitable or for large datasets:
+        # Fetch all IDs, shuffle in Python, then query by selected IDs.
+        # This can be less efficient for the DB but avoids DB-specific functions.
+        # all_ids = [q.question_id for q in Question.query.with_entities(Question.question_id).all()]
+        # if len(all_ids) < count:
+        #     selected_ids = all_ids
+        # else:
+        #     selected_ids = random.sample(all_ids, count)
+        # questions = Question.query.options(joinedload(Question.options)).filter(Question.question_id.in_(selected_ids)).all()
+        # random.shuffle(questions) # Shuffle the final list if order matters
+
+        logger.info(f"Found {len(questions)} random questions.")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching random questions: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching random questions: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
