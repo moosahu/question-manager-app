@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated with Import & Template Download)
+# src/routes/question.py (Modified for Cloudinary, Import & Template Download)
 
 import os
 import logging
@@ -15,8 +15,10 @@ from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.orm import joinedload, contains_eager
 
-# Import ImageKit
-from imagekitio.client import ImageKit
+# Import Cloudinary
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 try:
     from src.extensions import db
@@ -67,10 +69,9 @@ def allowed_import_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_IMPORT_EXTENSIONS)
 
-# --- save_upload function (keep as is) --- #
+# --- save_upload function (Modified for Cloudinary) --- #
 def save_upload(file, subfolder="questions"):
-    # ... (existing save_upload code remains unchanged) ...
-    current_app.logger.debug(f"Entering save_upload for subfolder: {subfolder}")
+    current_app.logger.debug(f"Entering save_upload for Cloudinary, subfolder: {subfolder}")
     if not file or not file.filename:
         current_app.logger.debug("No file or filename provided to save_upload.")
         return None
@@ -83,75 +84,75 @@ def save_upload(file, subfolder="questions"):
     
     current_app.logger.debug(f"Image file type allowed for: {file.filename}")
 
-    private_key = os.environ.get("IMAGEKIT_PRIVATE_KEY")
-    public_key = os.environ.get("IMAGEKIT_PUBLIC_KEY")
-    url_endpoint = os.environ.get("IMAGEKIT_URL_ENDPOINT")
+    # Configure Cloudinary (should ideally be done once at app startup)
+    # Ensure CLOUDINARY_URL or individual CLOUD_NAME, API_KEY, API_SECRET are set in environment
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+    api_key = os.environ.get("CLOUDINARY_API_KEY")
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET")
 
-    current_app.logger.debug(f"IMAGEKIT_PRIVATE_KEY exists: {bool(private_key)}")
-    current_app.logger.debug(f"IMAGEKIT_PUBLIC_KEY exists: {bool(public_key)}")
-    current_app.logger.debug(f"IMAGEKIT_URL_ENDPOINT exists: {bool(url_endpoint)}")
-
-    if not all([private_key, public_key, url_endpoint]):
-        current_app.logger.error("ImageKit environment variables are missing or incomplete.")
-        return None
-    
-    current_app.logger.debug("All ImageKit environment variables seem to be present.")
+    if not all([cloud_name, api_key, api_secret]):
+         current_app.logger.error("Cloudinary environment variables (CLOUD_NAME, API_KEY, API_SECRET) are missing or incomplete.")
+         # Attempt to configure from CLOUDINARY_URL as a fallback
+         if os.environ.get("CLOUDINARY_URL"):
+             current_app.logger.info("Attempting to configure Cloudinary from CLOUDINARY_URL.")
+             try:
+                 cloudinary.config()
+                 current_app.logger.info("Cloudinary configured from URL.")
+             except Exception as config_err:
+                 current_app.logger.error(f"Failed to configure Cloudinary from URL: {config_err}")
+                 return None
+         else:
+             current_app.logger.error("CLOUDINARY_URL is also missing.")
+             return None
+    else:
+        try:
+            cloudinary.config(
+                cloud_name=cloud_name,
+                api_key=api_key,
+                api_secret=api_secret
+            )
+            current_app.logger.debug("Cloudinary configured from individual variables.")
+        except Exception as config_err:
+            current_app.logger.error(f"Failed to configure Cloudinary from individual variables: {config_err}")
+            return None
 
     try:
-        current_app.logger.debug("Initializing ImageKit client...")
-        imagekit = ImageKit(
-            private_key=private_key,
-            public_key=public_key,
-            url_endpoint=url_endpoint
-        )
-        current_app.logger.debug("ImageKit client initialized successfully.")
-
         original_filename = secure_filename(file.filename)
-        unique_filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{original_filename}"
-        safe_subfolder = secure_filename(subfolder) if subfolder else "default"
-        current_app.logger.debug(f"Generated unique filename: {unique_filename} for folder: /{safe_subfolder}/")
+        # Generate a unique public_id using timestamp and UUID
+        public_id = f"{subfolder}/{int(time.time())}_{uuid.uuid4().hex[:8]}_{os.path.splitext(original_filename)[0]}"
+        current_app.logger.debug(f"Generated Cloudinary public_id: {public_id}")
 
-        current_app.logger.debug("Reading file content...")
-        file_content = file.read()
-        file_size = len(file_content)
-        current_app.logger.debug(f"File content read. Size: {file_size} bytes.")
+        current_app.logger.debug(f"Attempting to upload to Cloudinary with public_id: {public_id}")
+        
+        # Ensure file pointer is at the beginning
         file.seek(0)
-
-        current_app.logger.debug(f"Attempting to upload '{unique_filename}' to ImageKit folder '/{safe_subfolder}/'...")
-        upload_response = imagekit.upload(
-            file=file_content,
-            file_name=unique_filename,
-            **{
-                "folder": f"/{safe_subfolder}/",
-                "is_private_file": False,
-                "use_unique_file_name": False
-            }
+        
+        upload_result = cloudinary.uploader.upload(
+            file.stream, # Pass the file stream
+            public_id=public_id,
+            folder=subfolder, # Optional: Organize within Cloudinary folders
+            resource_type="auto" # Automatically detect resource type (image/video/raw)
         )
-        current_app.logger.debug("ImageKit upload call completed.")
+        current_app.logger.debug("Cloudinary upload call completed.")
 
-        if upload_response and upload_response.response_metadata:
-            current_app.logger.debug(f"ImageKit Response Status Code: {upload_response.response_metadata.http_status_code}")
-            current_app.logger.debug(f"ImageKit Response Headers: {upload_response.response_metadata.headers}")
-        else:
-            current_app.logger.error("ImageKit response or response_metadata is missing.")
-
-        if upload_response.response_metadata.http_status_code == 200 and upload_response.url:
-            image_url = upload_response.url
-            current_app.logger.info(f"File uploaded successfully to ImageKit: {image_url}")
+        if upload_result and upload_result.get("secure_url"):
+            image_url = upload_result["secure_url"]
+            current_app.logger.info(f"File uploaded successfully to Cloudinary: {image_url}")
             return image_url
         else:
-            current_app.logger.error(f"ImageKit upload failed. Status: {upload_response.response_metadata.http_status_code}")
+            error_message = upload_result.get("error", {}).get("message", "Unknown error") if upload_result else "No response"
+            current_app.logger.error(f"Cloudinary upload failed: {error_message}")
+            current_app.logger.debug(f"Cloudinary upload response: {upload_result}")
             return None
 
     except Exception as e:
-        current_app.logger.error(f"Exception during ImageKit upload process: {e}", exc_info=True)
+        current_app.logger.error(f"Exception during Cloudinary upload process: {e}", exc_info=True)
         return None
 
 # --- list_questions route (keep as is) --- #
 @question_bp.route("/")
 @login_required
 def list_questions():
-    # ... (existing list_questions code remains unchanged) ...
     current_app.logger.info("Entering list_questions route.")
     page = request.args.get("page", 1, type=int)
     per_page = 10
@@ -177,7 +178,6 @@ def list_questions():
 
 # --- get_sorted_lessons function (keep as is) --- #
 def get_sorted_lessons():
-    # ... (existing get_sorted_lessons code remains unchanged) ...
     try:
         lessons = (
             Lesson.query
@@ -194,11 +194,10 @@ def get_sorted_lessons():
         current_app.logger.exception("Error fetching sorted lessons.")
         return []
 
-# --- add_question route (keep as is) --- #
+# --- add_question route (Uses modified save_upload) --- #
 @question_bp.route("/add", methods=["GET", "POST"])
 @login_required
 def add_question():
-    # ... (existing add_question code remains unchanged) ...
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
@@ -216,9 +215,10 @@ def add_question():
              if not allowed_image_file(q_image_file.filename):
                  flash("نوع ملف صورة السؤال غير مسموح به.", "danger")
              else:
+                 # Uses the Cloudinary-compatible save_upload function
                  q_image_path = save_upload(q_image_file, subfolder="questions")
                  if q_image_path is None:
-                     flash("فشل رفع صورة السؤال. تحقق من الإعدادات والسجلات.", "danger")
+                     flash("فشل رفع صورة السؤال. تحقق من إعدادات Cloudinary والسجلات.", "danger")
 
         error_messages = []
         if not question_text and not q_image_path:
@@ -260,9 +260,10 @@ def add_question():
                 if not allowed_image_file(option_image_file.filename):
                     error_messages.append(f"نوع ملف صورة الخيار رقم {i+1} غير مسموح به.")
                 else:
+                    # Uses the Cloudinary-compatible save_upload function
                     option_image_path = save_upload(option_image_file, subfolder="options")
                     if option_image_path is None:
-                        error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من الإعدادات والسجلات.")
+                        error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
 
             if option_text or option_image_path:
                 is_correct = (i == correct_option_index)
@@ -344,7 +345,7 @@ def add_question():
     # GET request
     return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=None, submit_text="إضافة سؤال")
 
-# --- START: Import Questions Route --- #
+# --- START: Import Questions Route (Integrated) --- #
 @question_bp.route("/import", methods=["GET", "POST"])
 @login_required
 def import_questions():
@@ -505,7 +506,7 @@ def import_questions():
 
 # --- END: Import Questions Route --- #
 
-# --- START: Download Template Route --- #
+# --- START: Download Template Route (Integrated) --- #
 @question_bp.route("/download_template/<format>")
 @login_required
 def download_template(format):
@@ -550,11 +551,10 @@ def download_template(format):
 # --- END: Download Template Route --- #
 
 
-# --- edit_question route (keep as is) --- #
+# --- edit_question route (Uses modified save_upload) --- #
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
 @login_required
 def edit_question(question_id):
-    # ... (existing edit_question code remains unchanged) ...
     question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
     lessons = get_sorted_lessons()
     if not lessons:
@@ -579,12 +579,13 @@ def edit_question(question_id):
             if not allowed_image_file(q_image_file.filename):
                 flash("نوع ملف صورة السؤال غير مسموح به.", "danger")
             else:
+                # Uses the Cloudinary-compatible save_upload function
                 new_q_image_path = save_upload(q_image_file, subfolder="questions")
                 if new_q_image_path:
                     q_image_path = new_q_image_path
                     current_app.logger.info(f"New question image uploaded for ID: {question_id}")
                 else:
-                    flash("فشل رفع صورة السؤال الجديدة. تحقق من الإعدادات والسجلات.", "danger")
+                    flash("فشل رفع صورة السؤال الجديدة. تحقق من إعدادات Cloudinary والسجلات.", "danger")
 
         error_messages = []
         if not question_text and not q_image_path:
@@ -647,12 +648,13 @@ def edit_question(question_id):
                 if not allowed_image_file(option_image_file.filename):
                     error_messages.append(f"نوع ملف صورة الخيار في الموضع {i+1} غير مسموح به.")
                 else:
+                    # Uses the Cloudinary-compatible save_upload function
                     new_opt_image_path = save_upload(option_image_file, subfolder="options")
                     if new_opt_image_path:
                         option_image_path = new_opt_image_path
                         current_app.logger.info(f"New option image uploaded for index {i}, existing ID: {existing_option_id}")
                     else:
-                        error_messages.append(f"فشل رفع صورة الخيار الجديدة في الموضع {i+1}. تحقق من الإعدادات والسجلات.")
+                        error_messages.append(f"فشل رفع صورة الخيار الجديدة في الموضع {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
             
             if option_text or option_image_path:
                 is_correct = (i == correct_option_index)
@@ -726,7 +728,6 @@ def edit_question(question_id):
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
 @login_required
 def delete_question(question_id):
-    # ... (existing delete_question code remains unchanged) ...
     current_app.logger.info(f"Received request to delete question ID: {question_id}")
     question = Question.query.get_or_404(question_id)
     try:
