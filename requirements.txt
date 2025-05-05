@@ -20,3 +20,6 @@ python-dotenv
 cloudinary
 gunicorn
 psycopg2-binary
+
+pandas
+openpyxl
