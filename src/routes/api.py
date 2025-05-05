@@ -1,4 +1,4 @@
-# src/routes/api.py (Updated with /courses endpoint)
+# src/routes/api.py (Updated with /courses/<id>/units endpoint)
 
 import logging
 from flask import Blueprint, jsonify, current_app, url_for, request # Added request
@@ -38,46 +38,33 @@ logger = logging.getLogger(__name__)
 def format_image_url(image_path):
     """Prepends the base URL if the path is relative."""
     if image_path and not image_path.startswith(('http://', 'https://')):
-        # Use url_for to generate the correct URL for static files
-        # Assumes 'static' is the endpoint for your static folder
         try:
-            # The filename should be relative to the static folder,
-            # e.g., 'uploads/questions/image.png'
-            # Ensure we are in an application context with a request
-            # Use request.host_url as a fallback if SERVER_NAME is not set
             server_name = current_app.config.get('SERVER_NAME')
-            # Prefer request.host_url if available and looks like a domain
             host_url = request.host_url if request and hasattr(request, 'host_url') else None
             base_url = f"https://{server_name}" if server_name else host_url
             
             if not base_url:
                  logger.warning("Could not determine base URL for image path generation.")
-                 # Fallback to relative path if no base URL can be determined
                  static_url_path = url_for('static', filename='').lstrip('/')
                  return f"/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
 
             if not base_url.endswith('/'):
                 base_url += '/'
-            # Construct the URL manually relative to the static path
-            static_url_path = url_for('static', filename='').lstrip('/') # Get base static path
+            static_url_path = url_for('static', filename='').lstrip('/') 
             full_url = f"{base_url.rstrip('/')}/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
             return full_url
-
-            # return url_for('static', filename=image_path, _external=True) # _external=True can be tricky without SERVER_NAME
         except RuntimeError:
-            # Fallback if still outside context (should not happen with test_request_context)
             logger.warning("Could not generate external URL for image, possibly outside request context.")
-            # Return relative path as a last resort
             try:
                  static_url_path = url_for('static', filename='').lstrip('/')
                  return f"/{static_url_path.rstrip('/')}/{image_path.lstrip('/')}"
             except RuntimeError:
                  logger.error("Could not even generate relative static path.")
-                 return None # Indicate error
+                 return None 
         except Exception as e:
              logger.error(f"Error generating image URL for {image_path}: {e}")
-             return None # Indicate error
-    return image_path # Return as is if it's already absolute or None
+             return None 
+    return image_path 
 
 # --- Helper Function to Format Questions --- #
 def format_question(question):
@@ -85,22 +72,19 @@ def format_question(question):
     return {
         "question_id": question.question_id,
         "question_text": question.question_text,
-        # Format question image URL
         "image_url": format_image_url(question.image_url),
         "options": [
             {
                 "option_id": opt.option_id,
                 "option_text": opt.option_text,
-                # Add and format option image URL
                 "image_url": format_image_url(opt.image_url),
                 "is_correct": opt.is_correct
             }
-            # Sort options by ID for consistency
             for opt in sorted(question.options, key=lambda o: o.option_id)
         ]
     }
 
-# +++ NEW API Endpoint for Listing Courses +++ #
+# --- API Endpoint for Listing Courses --- #
 @api_bp.route("/courses", methods=["GET"])
 def get_all_courses():
     """Returns a list of all available courses."""
@@ -108,16 +92,46 @@ def get_all_courses():
     try:
         courses = Course.query.order_by(Course.id).all()
         logger.info(f"Found {len(courses)} courses.")
-
         formatted_courses = [{"id": c.id, "name": c.name} for c in courses]
-
         return jsonify(formatted_courses)
-
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching courses: {e}")
         return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         logger.exception(f"Unexpected error while fetching courses: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# +++ NEW API Endpoint for Units by Course +++ #
+@api_bp.route("/courses/<int:course_id>/units", methods=["GET"])
+def get_course_units(course_id):
+    """Returns a list of units for a specific course."""
+    logger.info(f"API request received for units of course_id: {course_id}")
+    try:
+        # Check if course exists
+        course = Course.query.get(course_id)
+        if not course:
+            logger.warning(f"Course with id {course_id} not found.")
+            return jsonify({"error": "Course not found"}), 404
+
+        # Query units for the course
+        units = (
+            Unit.query
+            .filter(Unit.course_id == course_id)
+            .order_by(Unit.id) # Optional: order units
+            .all()
+        )
+        logger.info(f"Found {len(units)} units for course_id: {course_id}")
+
+        # Format units for JSON response
+        formatted_units = [{"id": u.id, "name": u.name} for u in units]
+
+        return jsonify(formatted_units)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching units for course {course_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching units for course {course_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 # --- API Endpoint for Questions by Lesson --- #
@@ -126,27 +140,20 @@ def get_lesson_questions(lesson_id):
     """Returns a list of questions for a specific lesson."""
     logger.info(f"API request received for questions of lesson_id: {lesson_id}")
     try:
-        # Check if lesson exists
         lesson = Lesson.query.get(lesson_id)
         if not lesson:
             logger.warning(f"Lesson with id {lesson_id} not found.")
             return jsonify({"error": "Lesson not found"}), 404
-
-        # Query questions for the lesson, eagerly loading options
         questions = (
             Question.query
             .options(joinedload(Question.options))
             .filter(Question.lesson_id == lesson_id)
-            .order_by(Question.question_id) # Optional: order questions
+            .order_by(Question.question_id)
             .all()
         )
         logger.info(f"Found {len(questions)} questions for lesson_id: {lesson_id}")
-
-        # Format questions for JSON response using the updated helper
         formatted_questions = [format_question(q) for q in questions]
-
         return jsonify(formatted_questions)
-
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching questions for lesson {lesson_id}: {e}")
         return jsonify({"error": "Database error occurred"}), 500
@@ -164,8 +171,6 @@ def get_unit_questions(unit_id):
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
-
-        # Query questions belonging to lessons within this unit
         questions = (
             Question.query
             .join(Question.lesson)
@@ -175,10 +180,8 @@ def get_unit_questions(unit_id):
             .all()
         )
         logger.info(f"Found {len(questions)} questions for unit_id: {unit_id}")
-
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
-
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching questions for unit {unit_id}: {e}")
         return jsonify({"error": "Database error occurred"}), 500
@@ -196,8 +199,6 @@ def get_course_questions(course_id):
         if not course:
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
-
-        # Query questions belonging to lessons within units within this course
         questions = (
             Question.query
             .join(Question.lesson)
@@ -208,10 +209,8 @@ def get_course_questions(course_id):
             .all()
         )
         logger.info(f"Found {len(questions)} questions for course_id: {course_id}")
-
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
-
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching questions for course {course_id}: {e}")
         return jsonify({"error": "Database error occurred"}), 500
