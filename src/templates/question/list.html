@@ -32,9 +32,12 @@
                 </tr>
             </thead>
             <tbody>
+                {# Calculate the starting number for the current page #}
+                {% set start_num = pagination.per_page * (pagination.page - 1) + 1 %}
                 {% for question in questions %}
                     <tr>
-                        <td>{{ loop.index }}</td>
+                        {# Display sequential number across pages #}
+                        <td>{{ start_num + loop.index0 }}</td>
                         {# --- FIX: Use question.question_text instead of question.text --- #}
                         <td>{{ (question.question_text | truncate(100)) if question.question_text else '[سؤال بصورة فقط]' }}</td>
                         <td>{{ question.lesson.name if question.lesson else 'N/A' }}</td>
@@ -52,8 +55,43 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {# --- START: Pagination Links --- #}
+        {% if pagination %}
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center">
+            {# Previous Page Link #}
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('question.list_questions', page=pagination.prev_num) if pagination.has_prev else '#' }}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
+            {# Page Number Links #}
+            {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=3, right_edge=1) %}
+              {% if page_num %}
+                {% if page_num != pagination.page %}
+                  <li class="page-item"><a class="page-link" href="{{ url_for('question.list_questions', page=page_num) }}">{{ page_num }}</a></li>
+                {% else %}
+                  <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
+                {% endif %}
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+              {% endif %}
+            {% endfor %}
+            {# Next Page Link #}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('question.list_questions', page=pagination.next_num) if pagination.has_next else '#' }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+        {% endif %}
+        {# --- END: Pagination Links --- #}
+
     {% else %}
         <p>No questions found. <a href="{{ url_for('question.add_question') }}">Add one now!</a></p>
     {% endif %}
 </div>
 {% endblock %}
+
