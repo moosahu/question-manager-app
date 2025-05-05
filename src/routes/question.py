@@ -105,7 +105,8 @@ def save_upload(file, subfolder="questions"):
         upload_response = imagekit.upload(
             file=file_content,
             file_name=unique_filename,
-            options={
+            # ** Unpack the options dictionary here **
+            **{
                 "folder": f"/{safe_subfolder}/", # Specify the folder in ImageKit
                 "is_private_file": False, # Make files public by default
                 "use_unique_file_name": False # We are generating a unique name
