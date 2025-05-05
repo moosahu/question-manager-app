@@ -51,15 +51,13 @@ ALLOWED_IMPORT_EXTENSIONS = {"xlsx", "csv"}
 
 # Define expected columns for import template (used in import and download)
 EXPECTED_IMPORT_COLUMNS = [
-    \'Question Text\', \'Question Image URL\',
-    \'Option 1 Text\', \'Option 1 Image URL\',
-    \'Option 2 Text\', \'Option 2 Image URL\',
-    \'Option 3 Text\', \'Option 3 Image URL\',
-    \'Option 4 Text\', \'Option 4 Image URL\',
-    \'Correct Option Number\'
-]
-
-def allowed_image_file(filename):
+    "Question Text", "Question Image URL",
+    "Option 1 Text", "Option 1 Image URL",
+    "Option 2 Text", "Option 2 Image URL",
+    "Option 3 Text", "Option 3 Image URL",
+    "Option 4 Text", "Option 4 Image URL",
+    "Correct Option Number"
+]le(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS)
 
