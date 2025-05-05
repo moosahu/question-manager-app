@@ -383,11 +383,10 @@ def import_questions():
                     file_content.seek(0)
                     df = pd.read_csv(file_content, encoding='cp1256')           
             current_app.logger.info(f"Successfully read file into DataFrame. Shape: {df.shape}")
-            df.columns = [str(col).strip().lower().replace(\' \', \'_\') for col in df.columns]
+            df.columns = [str(col).strip().lower().replace(" ", "_") for col in df.columns]
             current_app.logger.debug(f"Standardized columns: {df.columns.tolist()}")
-
             # Use the globally defined expected columns
-            expected_columns_lower = [col.lower().replace(\' \', \'_\') for col in EXPECTED_IMPORT_COLUMNS]
+            expected_columns_lower = [col.lower().replace(" ", "_") for col in EXPECTED_IMPORT_COLUMNS]
             missing_cols = [col for col in expected_columns_lower if col not in df.columns]
             if missing_cols:
                 # Find original case names for missing columns for user message
