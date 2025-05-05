@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated to use os.environ directly and fix edit POST error handling)
+# src/routes/question.py (Reintegrated ImageKit + Fixes into Original Structure)
 
 import os
 import logging
@@ -17,7 +17,7 @@ try:
     IMAGEKIT_ENABLED = True
 except ImportError:
     IMAGEKIT_ENABLED = False
-    print("Warning: imagekitio library not found. Image uploads will be disabled or fallback to local.")
+    print("Warning: imagekitio library not found. Image uploads will be disabled.")
 # --- End ImageKit.io Integration --- #
 
 try:
@@ -52,12 +52,11 @@ def allowed_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS)
 
-# --- Updated save_upload function to use os.environ directly --- #
+# --- Replaced save_upload function with ImageKit version using os.environ --- #
 def save_upload(file, subfolder="questions"):
     if not IMAGEKIT_ENABLED:
         current_app.logger.error("ImageKit.io SDK not loaded. Cannot upload file.")
-        # Avoid flashing here if the goal is just to return None and let the route handle feedback
-        # flash("خطأ في إعدادات رفع الصور. يرجى مراجعة المسؤول.", "danger")
+        # Flash message moved to route handlers to avoid duplicate messages
         return None
 
     if file and file.filename and allowed_file(file.filename):
@@ -116,7 +115,6 @@ def save_upload(file, subfolder="questions"):
                 current_app.logger.info(f"File uploaded successfully to ImageKit: {image_url}")
                 return image_url
             else:
-                # Log the raw response for detailed debugging
                 raw_response = upload_response.response_metadata.raw if upload_response and upload_response.response_metadata else 'No response metadata'
                 current_app.logger.error(f"ImageKit upload failed. Raw Response: {raw_response}")
                 flash("حدث خطأ أثناء رفع الصورة إلى خدمة التخزين.", "danger")
@@ -131,7 +129,7 @@ def save_upload(file, subfolder="questions"):
         current_app.logger.warning(f"File type not allowed: {file.filename}")
         flash(f"نوع الملف غير مسموح به: {file.filename}", "warning")
     return None
-# --- End Updated save_upload function --- #
+# --- End Replaced save_upload function --- #
 
 @question_bp.route("/")
 @login_required
@@ -155,9 +153,13 @@ def list_questions():
         current_app.logger.info("Template rendering successful.")
         return rendered_template
     except Exception as e:
+        # This is where the error from the screenshot likely originates
         current_app.logger.exception("Error occurred in list_questions.")
         flash(f"حدث خطأ غير متوقع أثناء عرض قائمة الأسئلة.", "danger")
-        return redirect(url_for("index")) # Redirect to a safe page like index
+        # Redirecting to index might hide the error message, consider rendering a simple error page or the dashboard
+        # return redirect(url_for("index"))
+        # Render the dashboard template but include the flash message
+        return render_template("dashboard.html") # Assuming you have a dashboard template
 
 def get_sorted_lessons():
     try:
@@ -182,6 +184,7 @@ def add_question():
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
+        # Redirect to a more appropriate page if curriculum management exists
         return redirect(url_for("curriculum.list_courses") if "curriculum" in current_app.blueprints else url_for("index"))
 
     if request.method == "POST":
@@ -190,6 +193,8 @@ def add_question():
         lesson_id = request.form.get("lesson_id")
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
+        explanation_text = request.form.get("explanation", "").strip()
+        # Call the updated save_upload function
         q_image_url = save_upload(q_image_file, subfolder="questions")
 
         error_messages = []
@@ -213,10 +218,17 @@ def add_question():
 
         options_data_from_form = []
         max_submitted_index = -1
-        # Iterate through potential indices based on submitted keys
+        # Determine the highest index present in the form submission
         indices_submitted = set()
         for key in request.form:
-            if key.startswith("option_text_") or key.startswith("option_image_"):
+            if key.startswith("option_text_"):
+                try:
+                    index_str = key.split("_")[-1]
+                    indices_submitted.add(int(index_str))
+                except (ValueError, IndexError):
+                    continue
+        for key in request.files:
+             if key.startswith("option_image_"):
                 try:
                     index_str = key.split("_")[-1]
                     indices_submitted.add(int(index_str))
@@ -228,8 +240,8 @@ def add_question():
         else:
              max_submitted_index = max(indices_submitted)
 
+        # Iterate through all possible indices up to the max submitted
         for current_index in range(max_submitted_index + 1):
-            # Check if this index was actually submitted (might have gaps if user deletes)
             option_text_key = f"option_text_{current_index}"
             option_image_key = f"option_image_{current_index}"
 
@@ -237,6 +249,7 @@ def add_question():
             if option_text_key in request.form or option_image_key in request.files:
                 option_text = request.form.get(option_text_key, "").strip()
                 option_image_file = request.files.get(option_image_key)
+                # Call the updated save_upload function
                 option_image_url = save_upload(option_image_file, subfolder="options")
 
                 if option_text or option_image_url:
@@ -244,7 +257,7 @@ def add_question():
                     options_data_from_form.append({
                         "index": current_index,
                         "option_text": option_text,
-                        "image_url": option_image_url,
+                        "image_url": option_image_url, # Use the URL from ImageKit
                         "is_correct": is_correct
                     })
 
@@ -253,6 +266,7 @@ def add_question():
         if correct_option_index > max_submitted_index and correct_option_index_str is not None:
              error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
 
+        # --- Handle Validation Errors --- #
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
@@ -261,7 +275,7 @@ def add_question():
                 'question_text': question_text,
                 'lesson_id': int(lesson_id) if lesson_id else None,
                 'image_url': q_image_url, # Pass potentially uploaded question image URL
-                'explanation': request.form.get("explanation", ""),
+                'explanation': explanation_text,
                 'options': [],
                 'correct_option_index': correct_option_index # Pass the integer index
             }
@@ -269,29 +283,66 @@ def add_question():
                 found_in_processed = False
                 for opt in options_data_from_form:
                     if opt['index'] == i:
+                        # Use the processed data which includes the potentially uploaded image URL
                         form_data_rebuilt['options'].append(opt)
                         found_in_processed = True
                         break
                 if not found_in_processed:
                     # Add placeholder for indices that were submitted but maybe invalid
-                    # Use request.form to get the original input value
+                    # Use request.form to get the original input value for text
                     form_data_rebuilt['options'].append({
                         'index': i,
                         'option_text': request.form.get(f'option_text_{i}', ''),
-                        'image_url': None, # Image wasn't saved if error occurred
+                        'image_url': None, # Image wasn't saved if error occurred or wasn't processed
                         'is_correct': (str(i) == correct_option_index_str)
                     })
-            # Ensure options list has at least 4 items for consistent display if adding
+            # Ensure options list has at least 4 items for consistent display in add mode
             while len(form_data_rebuilt['options']) < 4:
                  form_data_rebuilt['options'].append({'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
 
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data_rebuilt, submit_text="إضافة سؤال")
 
+        # --- Duplicate Check (Optional - kept from original) --- #
+        if question_text:
+            try:
+                existing_question = Question.query.filter_by(question_text=question_text, lesson_id=lesson_id).first()
+                if existing_question:
+                    flash("هذا السؤال (بنفس النص والدرس) موجود بالفعل. لم يتم الحفظ.", "warning")
+                    # Rebuild form data again for rendering
+                    form_data_rebuilt = {
+                        'question_text': question_text,
+                        'lesson_id': int(lesson_id) if lesson_id else None,
+                        'image_url': q_image_url,
+                        'explanation': explanation_text,
+                        'options': options_data_from_form, # Use processed data
+                        'correct_option_index': correct_option_index
+                    }
+                    while len(form_data_rebuilt['options']) < 4:
+                         form_data_rebuilt['options'].append({'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
+                    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data_rebuilt, submit_text="إضافة سؤال")
+            except Exception as query_error:
+                current_app.logger.exception("Error during duplicate question check.")
+                flash("حدث خطأ أثناء التحقق من تكرار السؤال.", "danger")
+                # Rebuild form data again for rendering
+                form_data_rebuilt = {
+                    'question_text': question_text,
+                    'lesson_id': int(lesson_id) if lesson_id else None,
+                    'image_url': q_image_url,
+                    'explanation': explanation_text,
+                    'options': options_data_from_form,
+                    'correct_option_index': correct_option_index
+                }
+                while len(form_data_rebuilt['options']) < 4:
+                     form_data_rebuilt['options'].append({'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
+                return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data_rebuilt, submit_text="إضافة سؤال")
+
+        # --- Save to Database --- #
         try:
             new_question = Question(
                 question_text=question_text if question_text else None,
                 lesson_id=lesson_id,
-                image_url=q_image_url
+                image_url=q_image_url, # Use the URL from ImageKit
+                explanation=explanation_text if explanation_text else None
             )
             db.session.add(new_question)
             db.session.flush() # Get the ID for options
@@ -300,7 +351,7 @@ def add_question():
             for opt_data in options_data_from_form:
                 option = Option(
                     option_text=opt_data["option_text"] if opt_data["option_text"] else None,
-                    image_url=opt_data["image_url"],
+                    image_url=opt_data["image_url"], # Use the URL from ImageKit
                     is_correct=opt_data["is_correct"],
                     question_id=new_question.question_id
                 )
@@ -320,29 +371,28 @@ def add_question():
             current_app.logger.exception(f"Generic Error adding question: {e}")
             flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال.", "danger")
 
-        # Re-render form on error after attempting DB operations
+        # Re-render form on DB error
         form_data_rebuilt = {
             'question_text': question_text,
             'lesson_id': int(lesson_id) if lesson_id else None,
             'image_url': q_image_url,
-            'explanation': request.form.get("explanation", ""),
+            'explanation': explanation_text,
             'options': options_data_from_form, # Use the processed data
             'correct_option_index': correct_option_index
         }
-        # Ensure options list has at least 4 items for consistent display if adding
         while len(form_data_rebuilt['options']) < 4:
              form_data_rebuilt['options'].append({'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
-
         return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data_rebuilt, submit_text="إضافة سؤال")
 
-    # GET request
-    # Prepare empty structure for the template in add mode
+    # --- GET Request --- #
+    # Prepare empty structure for the template in add mode, matching edit structure
     empty_question_data = {
+        'question_id': None,
         'question_text': '',
         'lesson_id': None,
         'image_url': None,
         'explanation': '',
-        'options': [{'index': i, 'option_text': '', 'image_url': None, 'is_correct': False} for i in range(4)],
+        'options': [{'id': None, 'index': i, 'option_text': '', 'image_url': None, 'is_correct': False} for i in range(4)],
         'correct_option_index': -1
     }
     return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=empty_question_data, submit_text="إضافة سؤال")
@@ -373,12 +423,12 @@ def edit_question(question_id):
 
         # --- Handle Question Image --- #
         new_q_image_url = save_upload(q_image_file, subfolder="questions")
-        final_q_image_url = question.image_url
+        final_q_image_url = question.image_url # Start with original URL
         if new_q_image_url:
-            # TODO: Optionally delete old image from ImageKit
+            # TODO: Optionally delete old image from ImageKit (need file_id or path)
             final_q_image_url = new_q_image_url
         elif remove_question_image:
-            # TODO: Optionally delete old image from ImageKit
+            # TODO: Optionally delete old image from ImageKit (need file_id or path)
             final_q_image_url = None
 
         # --- Basic Validation --- #
@@ -441,7 +491,7 @@ def edit_question(question_id):
                 original_image_url = existing_options_map[option_id].image_url
 
             new_option_image_url = save_upload(option_image_file, subfolder="options")
-            final_option_image_url = original_image_url
+            final_option_image_url = original_image_url # Start with original
 
             if new_option_image_url:
                 # TODO: Optionally delete old image from ImageKit
@@ -451,7 +501,8 @@ def edit_question(question_id):
                 final_option_image_url = None
 
             # Consider the option valid if it has text or an image URL (new or existing)
-            if option_text or final_option_image_url:
+            # AND if its index was actually part of the submission (to handle deleted rows)
+            if current_index in indices_submitted and (option_text or final_option_image_url):
                 is_correct = (current_index == correct_option_index)
                 options_data_from_form.append({
                     "id": option_id,
@@ -462,20 +513,19 @@ def edit_question(question_id):
                 })
                 if option_id:
                     option_ids_submitted.add(option_id)
-            elif option_id: # If it had an ID but now has no text/image, it might be marked for deletion implicitly
-                 pass # Handled later by checking option_ids_submitted vs existing_options_map
+            elif option_id and current_index not in indices_submitted:
+                 # This option existed but its row was removed from the form
+                 option_ids_submitted.discard(option_id) # Ensure it's not considered submitted
 
-        # Determine options to delete (existing options not submitted)
+        # Determine options to delete (existing options not present in the final valid submitted data)
         options_to_delete_ids = set(existing_options_map.keys()) - option_ids_submitted
 
         # --- Final Validation --- #
         if len(options_data_from_form) < 2:
             error_messages.append("يجب أن يحتوي السؤال على خيارين صالحين على الأقل (بنص أو صورة).")
-        if correct_option_index > max_submitted_index and correct_option_index_str is not None:
-            # This check might be redundant if the loop goes up to max_submitted_index
-            # Check if the selected correct index corresponds to a valid processed option
-            if not any(opt['index'] == correct_option_index for opt in options_data_from_form):
-                 error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
+        # Check if the selected correct index corresponds to a valid processed option
+        if correct_option_index_str is not None and not any(opt['index'] == correct_option_index for opt in options_data_from_form):
+             error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
 
         # --- Handle Errors: Re-render Form --- #
         if error_messages:
@@ -494,14 +544,16 @@ def edit_question(question_id):
                 'correct_option_index': correct_option_index # Pass the integer index
             }
 
-            # Populate options based on processed data and original form input
+            # Populate options based on processed data and original form input for submitted indices
             for i in range(max_submitted_index + 1):
+                if i not in indices_submitted: continue # Skip indices that were removed
+
                 processed_opt = next((opt for opt in options_data_from_form if opt['index'] == i), None)
                 if processed_opt:
                     # Use the data already processed (handles images correctly)
                     form_data_rebuilt['options'].append(processed_opt)
                 else:
-                    # This index might have been invalid or intentionally skipped
+                    # This index was submitted but resulted in an invalid option (e.g., only text was spaces)
                     # Reconstruct from original form input for display consistency
                     option_id_str = request.form.get(f"option_id_{i}")
                     original_image_url_for_render = None
@@ -514,7 +566,7 @@ def edit_question(question_id):
                             pass
 
                     form_data_rebuilt['options'].append({
-                        'id': option_id_str,
+                        'id': option_id_str, # Keep original ID string for hidden input
                         'index': i,
                         'option_text': request.form.get(f'option_text_{i}', ''),
                         'image_url': original_image_url_for_render, # Show original image if not removed/replaced
@@ -524,6 +576,9 @@ def edit_question(question_id):
             # Ensure at least 2 options are available for display in edit mode
             while len(form_data_rebuilt['options']) < 2:
                  form_data_rebuilt['options'].append({'id': None, 'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
+
+            # Re-sort options by index just in case reconstruction messed up order
+            form_data_rebuilt['options'].sort(key=lambda x: x['index'])
 
             return render_template("question/form.html",
                                    title="تعديل السؤال",
@@ -536,7 +591,7 @@ def edit_question(question_id):
             # Update Question
             question.question_text = question_text if question_text else None
             question.lesson_id = lesson_id
-            question.image_url = final_q_image_url
+            question.image_url = final_q_image_url # Use ImageKit URL
             question.explanation = explanation_text if explanation_text else None
             # Update explanation image if needed
             current_app.logger.info(f"Updating question ID: {question_id}")
@@ -547,14 +602,14 @@ def edit_question(question_id):
                     # Update existing option
                     option_to_update = existing_options_map[opt_data["id"]]
                     option_to_update.option_text = opt_data["option_text"] if opt_data["option_text"] else None
-                    option_to_update.image_url = opt_data["image_url"]
+                    option_to_update.image_url = opt_data["image_url"] # Use ImageKit URL
                     option_to_update.is_correct = opt_data["is_correct"]
                     current_app.logger.info(f"Updating option ID: {opt_data['id']}")
                 elif opt_data["id"] is None: # Only add if ID is None (truly new option)
                     # Add new option
                     new_option = Option(
                         option_text=opt_data["option_text"] if opt_data["option_text"] else None,
-                        image_url=opt_data["image_url"],
+                        image_url=opt_data["image_url"], # Use ImageKit URL
                         is_correct=opt_data["is_correct"],
                         question_id=question.question_id
                     )
@@ -594,8 +649,9 @@ def edit_question(question_id):
             'options': [],
             'correct_option_index': correct_option_index
         }
-        # Populate options based on processed data and original form input
+        # Populate options based on processed data and original form input for submitted indices
         for i in range(max_submitted_index + 1):
+            if i not in indices_submitted: continue
             processed_opt = next((opt for opt in options_data_from_form if opt['index'] == i), None)
             if processed_opt:
                 form_data_rebuilt['options'].append(processed_opt)
@@ -618,6 +674,7 @@ def edit_question(question_id):
                 })
         while len(form_data_rebuilt['options']) < 2:
              form_data_rebuilt['options'].append({'id': None, 'index': len(form_data_rebuilt['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
+        form_data_rebuilt['options'].sort(key=lambda x: x['index'])
 
         return render_template("question/form.html",
                                title="تعديل السؤال",
@@ -626,24 +683,25 @@ def edit_question(question_id):
                                submit_text="حفظ التعديلات")
 
     # --- GET Request --- #
-    # Prepare data structure for the template, ensuring options are structured correctly
+    # Prepare data structure for the template, ensuring options are structured correctly as dicts
     question_data_for_template = {
         'question_id': question.question_id,
         'question_text': question.question_text,
         'lesson_id': question.lesson_id,
-        'image_url': question.image_url,
+        'image_url': question.image_url, # Use ImageKit URL
         'explanation': question.explanation,
         # 'explanation_image_path': question.explanation_image_path, # Add if exists
         'options': [],
         'correct_option_index': -1
     }
     # Convert Option objects to dictionaries for consistent template handling
-    for i, opt in enumerate(question.options):
+    db_options = sorted(question.options, key=lambda opt: opt.option_id) # Sort by ID for consistency
+    for i, opt in enumerate(db_options):
         question_data_for_template['options'].append({
             'id': opt.option_id,
-            'index': i, # Assign index based on order from DB
+            'index': i, # Assign index based on sorted order
             'option_text': opt.option_text,
-            'image_url': opt.image_url,
+            'image_url': opt.image_url, # Use ImageKit URL
             'is_correct': opt.is_correct
         })
         if opt.is_correct:
@@ -651,7 +709,8 @@ def edit_question(question_id):
 
     # Ensure at least 2 options are available for display in edit mode
     while len(question_data_for_template['options']) < 2:
-        question_data_for_template['options'].append({'id': None, 'index': len(question_data_for_template['options']), 'option_text': '', 'image_url': None, 'is_correct': False})
+        current_len = len(question_data_for_template['options'])
+        question_data_for_template['options'].append({'id': None, 'index': current_len, 'option_text': '', 'image_url': None, 'is_correct': False})
 
     return render_template("question/form.html",
                            title="تعديل السؤال",
@@ -659,13 +718,16 @@ def edit_question(question_id):
                            question=question_data_for_template, # Pass the structured dict
                            submit_text="حفظ التعديلات")
 
-# Add delete route if needed
+# --- Delete Route (Kept from original, needs ImageKit integration if used) --- #
 # @question_bp.route("/delete/<int:question_id>", methods=["POST"])
 # @login_required
 # def delete_question(question_id):
 #     question = Question.query.get_or_404(question_id)
 #     try:
 #         # TODO: Delete associated images from ImageKit first!
+#         # Need to get file IDs/paths for question.image_url and all option.image_url
+#         # imagekit.delete_file(...) for each image
+#
 #         # Delete options first due to foreign key constraints
 #         Option.query.filter_by(question_id=question.question_id).delete()
 #         db.session.delete(question)
