@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Import Questions{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Import Questions from File</h1>
+    <p class="text-muted">Upload an Excel (.xlsx) or CSV (.csv) file with questions to add them to a specific lesson.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message | safe }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+        <div class="mb-3">
+            <label for="lesson_id" class="form-label">Select Lesson *</label>
+            <select class="form-select" id="lesson_id" name="lesson_id" required>
+                <option value="" disabled selected>-- Select a Lesson --</option>
+                {% set current_course = None %}
+                {% set current_unit = None %}
+                {% for lesson in lessons %}
+                    {% if lesson.unit.course.name != current_course %}
+                        {% if current_course is not none %}</optgroup>{% endif %}
+                        {% if current_unit is not none %}</optgroup>{% endif %}
+                        <optgroup label="{{ lesson.unit.course.name }}">
+                        {% set current_course = lesson.unit.course.name %}
+                        {% set current_unit = None %} {# Reset unit when course changes #}
+                    {% endif %}
+                    {% if lesson.unit.name != current_unit %}
+                        {% if current_unit is not none %}</optgroup>{% endif %}
+                        <optgroup label="&nbsp;&nbsp;&nbsp;{{ lesson.unit.name }}">
+                        {% set current_unit = lesson.unit.name %}
+                    {% endif %}
+                    <option value="{{ lesson.id }}" {% if request.form.lesson_id == lesson.id|string %}selected{% endif %}>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ lesson.name }}
+                    </option>
+                {% endfor %}
+                {% if current_unit is not none %}</optgroup>{% endif %}
+                {% if current_course is not none %}</optgroup>{% endif %}
+            </select>
+            <div class="invalid-feedback">
+                Please select a lesson.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="question_file" class="form-label">Upload File (.xlsx or .csv) *</label>
+            <input class="form-control" type="file" id="question_file" name="question_file" accept=".xlsx,.csv" required>
+            <div class="invalid-feedback">
+                Please select a .xlsx or .csv file to upload.
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <h5 class="alert-heading">File Format Requirements</h5>
+            <p>The file must contain the following columns in order:</p>
+            <ol>
+                <li><code>Question Text</code> (Optional if image provided)</li>
+                <li><code>Question Image URL</code> (Optional)</li>
+                <li><code>Option 1 Text</code> (Optional if image provided)</li>
+                <li><code>Option 1 Image URL</code> (Optional)</li>
+                <li><code>Option 2 Text</code> (Optional if image provided)</li>
+                <li><code>Option 2 Image URL</code> (Optional)</li>
+                <li><code>Option 3 Text</code> (Optional)</li>
+                <li><code>Option 3 Image URL</code> (Optional)</li>
+                <li><code>Option 4 Text</code> (Optional)</li>
+                <li><code>Option 4 Image URL</code> (Optional)</li>
+                <li><code>Correct Option Number</code> (Required: 1, 2, 3, or 4)</li>
+            </ol>
+            <p><strong>Important:</strong></p>
+            <ul>
+                <li>The first row should contain the header names exactly as listed above.</li>
+                <li>At least two options (text or image) are required per question.</li>
+                <li>Ensure image URLs are valid and publicly accessible.</li>
+            </ul>
+            <hr>
+            <p><strong>Download Template:</strong>
+                <a href="{{ url_for('question.download_template', format='xlsx') }}" class="btn btn-sm btn-outline-success">Download Excel Template (.xlsx)</a>
+                <a href="{{ url_for('question.download_template', format='csv') }}" class="btn btn-sm btn-outline-secondary">Download CSV Template (.csv)</a>
+            </p>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Import Questions</button>
+        <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+
+</div>
+
+{# Add basic Bootstrap validation script #}
+<script>
+(function () {
+  'use strict'
+  var forms = document.querySelectorAll('.needs-validation')
+  Array.prototype.slice.call(forms)
+    .forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+})()
+</script>
+
+{% endblock %}
+
