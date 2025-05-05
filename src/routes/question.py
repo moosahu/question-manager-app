@@ -391,7 +391,8 @@ def import_questions():
             if missing_cols:
                 # Find original case names for missing columns for user message
                 original_missing_names = [EXPECTED_IMPORT_COLUMNS[expected_columns_lower.index(mc)] for mc in missing_cols]
-                flash(f"الملف المرفوع يفتقد للأعمدة المطلوبة: {\', \'.join(original_missing_names)}. يرجى التأكد من تنسيق الملف أو تنزيل القالب.", "danger")
+                missing_cols_str = ', '.join(original_missing_names)
+                flash(f"الملف المرفوع يفتقد للأعمدة المطلوبة: {missing_cols_str}. يرجى التأكد من تنسيق الملف أو تنزيل القالب.", "danger")
                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
 
         except Exception as e:
