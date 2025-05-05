@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated with ImageKit.io integration and Detailed Logging - v2)
+# src/routes/question.py (Updated with ImageKit.io integration - v3 - Using Options Class)
 
 import os
 import logging
@@ -10,8 +10,9 @@ from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.orm import joinedload, contains_eager
 
-# Import ImageKit
+# Import ImageKit and necessary options class
 from imagekitio.client import ImageKit
+from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions # Correct import
 
 try:
     from src.extensions import db
@@ -45,7 +46,7 @@ def allowed_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS)
 
-# --- Updated save_upload function with Correct Options Passing --- #
+# --- Updated save_upload function with Correct Options Passing via Class --- #
 def save_upload(file, subfolder="questions"):
     current_app.logger.debug(f"Entering save_upload for subfolder: {subfolder}")
     if not file or not file.filename:
@@ -61,9 +62,9 @@ def save_upload(file, subfolder="questions"):
     current_app.logger.debug(f"File type allowed for: {file.filename}")
 
     # Read ImageKit credentials from environment variables
-    private_key = os.environ.get('IMAGEKIT_PRIVATE_KEY')
-    public_key = os.environ.get('IMAGEKIT_PUBLIC_KEY')
-    url_endpoint = os.environ.get('IMAGEKIT_URL_ENDPOINT')
+    private_key = os.environ.get("IMAGEKIT_PRIVATE_KEY")
+    public_key = os.environ.get("IMAGEKIT_PUBLIC_KEY")
+    url_endpoint = os.environ.get("IMAGEKIT_URL_ENDPOINT")
 
     # Log existence of keys (avoid logging the actual keys)
     current_app.logger.debug(f"IMAGEKIT_PRIVATE_KEY exists: {bool(private_key)}")
@@ -91,7 +92,8 @@ def save_upload(file, subfolder="questions"):
         original_filename = secure_filename(file.filename)
         unique_filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{original_filename}"
         safe_subfolder = secure_filename(subfolder) if subfolder else "default"
-        current_app.logger.debug(f"Generated unique filename: {unique_filename} for folder: /{safe_subfolder}/")
+        imagekit_folder_path = f"/{safe_subfolder}/" # Define folder path
+        current_app.logger.debug(f"Generated unique filename: {unique_filename} for folder: {imagekit_folder_path}")
 
         # Read file content for upload
         current_app.logger.debug("Reading file content...")
@@ -100,14 +102,22 @@ def save_upload(file, subfolder="questions"):
         current_app.logger.debug(f"File content read. Size: {file_size} bytes.")
         file.seek(0) # Reset file pointer if needed elsewhere
 
-        # Upload the file to ImageKit - Pass options as direct keyword arguments
-        current_app.logger.debug(f"Attempting to upload '{unique_filename}' to ImageKit folder '/{safe_subfolder}/'...")
+        # --- Correctly create and pass UploadFileRequestOptions --- #
+        current_app.logger.debug("Creating UploadFileRequestOptions...")
+        upload_options = UploadFileRequestOptions(
+            folder=imagekit_folder_path,
+            is_private_file=False,
+            use_unique_file_name=False # We handle unique name generation ourselves
+            # Add other options here if needed, e.g., tags=["tag1", "tag2"]
+        )
+        current_app.logger.debug(f"Upload options created: {upload_options.__dict__}")
+
+        # Upload the file to ImageKit using the options parameter
+        current_app.logger.debug(f"Attempting to upload \'{unique_filename}\' to ImageKit...")
         upload_response = imagekit.upload(
             file=file_content,
             file_name=unique_filename,
-            folder=f"/{safe_subfolder}/",       # Pass folder directly
-            is_private_file=False,          # Pass is_private_file directly
-            use_unique_file_name=False      # Pass use_unique_file_name directly
+            options=upload_options # Pass the options object here
         )
         current_app.logger.debug("ImageKit upload call completed.")
 
