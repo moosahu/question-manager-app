@@ -35,7 +35,7 @@ class Lesson(db.Model):
     name = db.Column(db.String(100), nullable=False)
     unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=False)
     # --- FIX: Removed conflicting backref --- #
-    questions = db.relationship('Question', lazy=True) # Relationship to Question
+    questions = db.relationship("Question", back_populates="lesson", lazy=True) # Relationship to Question
     # ---------------------------------------- #
 
     def __repr__(self):

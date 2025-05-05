@@ -26,7 +26,7 @@ class Question(db.Model):
 
     # Cascade delete ensures options are deleted when a question is deleted
     options = db.relationship("Option", backref="question", lazy=True, cascade="all, delete-orphan")
-    lesson = db.relationship("Lesson", lazy=True) # Eager loading might be better if lesson is always accessed
+    lesson = db.relationship("Lesson", back_populates='questions', lazy=True) # Eager loading might be better if lesson is always accessed
 
     def __repr__(self):
         text_preview = self.question_text[:30] + '...' if self.question_text and len(self.question_text) > 30 else self.question_text
