@@ -17,7 +17,7 @@ Werkzeug==3.1.3
 Flask-Migrate==4.1.0
 Flask-WTF
 python-dotenv
-imagekitio
+imagekitio>=3.2.0,<4.0.0
 
 gunicorn
 
