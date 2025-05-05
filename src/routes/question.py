@@ -57,7 +57,9 @@ EXPECTED_IMPORT_COLUMNS = [
     "Option 3 Text", "Option 3 Image URL",
     "Option 4 Text", "Option 4 Image URL",
     "Correct Option Number"
-]le(filename):
+]
+
+def allowed_image_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS)
 
