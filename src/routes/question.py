@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated for ImageKit.io + Debug Logging)
+# src/routes/question.py (Updated to use os.environ directly)
 
 import os
 import logging
@@ -52,7 +52,7 @@ def allowed_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS)
 
-# --- Updated save_upload function for ImageKit.io + Debug Logging --- #
+# --- Updated save_upload function to use os.environ directly --- #
 def save_upload(file, subfolder="questions"):
     if not IMAGEKIT_ENABLED:
         current_app.logger.error("ImageKit.io SDK not loaded. Cannot upload file.")
@@ -60,32 +60,31 @@ def save_upload(file, subfolder="questions"):
         return None
 
     if file and file.filename and allowed_file(file.filename):
-        # Initialize ImageKit client (ensure these config keys are set in your Flask app)
+        # Initialize ImageKit client using environment variables directly
         try:
-            # --- Add Debug Logging --- #
-            private_key = current_app.config.get('IMAGEKIT_PRIVATE_KEY')
-            public_key = current_app.config.get('IMAGEKIT_PUBLIC_KEY')
-            url_endpoint = current_app.config.get('IMAGEKIT_URL_ENDPOINT')
-            current_app.logger.debug(f"Attempting to initialize ImageKit. Private Key found: {'Yes' if private_key else 'No'}, Public Key found: {'Yes' if public_key else 'No'}, URL Endpoint found: {'Yes' if url_endpoint else 'No'}")
-            # Log the actual values for debugging (be cautious in production)
-            current_app.logger.debug(f"IMAGEKIT_PRIVATE_KEY from config: {private_key}")
-            current_app.logger.debug(f"IMAGEKIT_PUBLIC_KEY from config: {public_key}")
-            current_app.logger.debug(f"IMAGEKIT_URL_ENDPOINT from config: {url_endpoint}")
-            # --- End Debug Logging --- #
+            private_key = os.environ.get('IMAGEKIT_PRIVATE_KEY')
+            public_key = os.environ.get('IMAGEKIT_PUBLIC_KEY')
+            url_endpoint = os.environ.get('IMAGEKIT_URL_ENDPOINT')
 
-            # Use the values directly now, which will raise KeyError if None/missing
+            if not all([private_key, public_key, url_endpoint]):
+                missing_keys = []
+                if not private_key: missing_keys.append('IMAGEKIT_PRIVATE_KEY')
+                if not public_key: missing_keys.append('IMAGEKIT_PUBLIC_KEY')
+                if not url_endpoint: missing_keys.append('IMAGEKIT_URL_ENDPOINT')
+                current_app.logger.error(f"ImageKit configuration missing from environment variables: {', '.join(missing_keys)}. Please ensure they are set correctly in Render.")
+                flash("خطأ في إعدادات رفع الصور. يرجى مراجعة المسؤول.", "danger")
+                return None
+
+            current_app.logger.debug("Attempting to initialize ImageKit using os.environ values.")
             imagekit = ImageKit(
-                private_key=current_app.config['IMAGEKIT_PRIVATE_KEY'],
-                public_key=current_app.config['IMAGEKIT_PUBLIC_KEY'],
-                url_endpoint=current_app.config['IMAGEKIT_URL_ENDPOINT']
+                private_key=private_key,
+                public_key=public_key,
+                url_endpoint=url_endpoint
             )
-        except KeyError as e:
-            # Log the specific missing key
-            current_app.logger.error(f"ImageKit configuration missing: Key '{e}' not found in Flask config. Please ensure IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, and IMAGEKIT_URL_ENDPOINT are set correctly as environment variables in Render and loaded into Flask config.")
-            flash("خطأ في إعدادات رفع الصور. يرجى مراجعة المسؤول.", "danger")
-            return None
+            current_app.logger.debug("ImageKit client initialized successfully using os.environ.")
+
         except Exception as e:
-             current_app.logger.error(f"Failed to initialize ImageKit client: {e}")
+             current_app.logger.error(f"Failed to initialize ImageKit client using os.environ: {e}")
              flash("خطأ في إعدادات رفع الصور. يرجى مراجعة المسؤول.", "danger")
              return None
 
@@ -116,7 +115,9 @@ def save_upload(file, subfolder="questions"):
                 current_app.logger.info(f"File uploaded successfully to ImageKit: {image_url}")
                 return image_url
             else:
-                current_app.logger.error(f"ImageKit upload failed. Response: {upload_response}")
+                # Log the raw response for detailed debugging
+                raw_response = upload_response.response_metadata.raw if upload_response and upload_response.response_metadata else 'No response metadata'
+                current_app.logger.error(f"ImageKit upload failed. Raw Response: {raw_response}")
                 flash("حدث خطأ أثناء رفع الصورة إلى خدمة التخزين.", "danger")
                 return None
 
@@ -157,7 +158,7 @@ def list_questions():
     except Exception as e:
         current_app.logger.exception("Error occurred in list_questions.")
         flash(f"حدث خطأ غير متوقع أثناء عرض قائمة الأسئلة.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("index")) # Redirect to a safe page like index
 
 def get_sorted_lessons():
     try:
@@ -182,7 +183,8 @@ def add_question():
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
-        return redirect(url_for("curriculum.list_courses"))
+        # Redirect to a more appropriate page if curriculum management exists
+        return redirect(url_for("curriculum.list_courses") if "curriculum" in current_app.blueprints else url_for("index"))
 
     if request.method == "POST":
         current_app.logger.info("POST request received for add_question.")
@@ -198,7 +200,9 @@ def add_question():
             error_messages.append("يجب توفير نص للسؤال أو رفع صورة له.")
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
-        if correct_option_index_str is None:
+        # Check only if options were submitted
+        option_keys_submitted = [key for key in request.form if key.startswith("option_text_")]
+        if correct_option_index_str is None and option_keys_submitted:
             error_messages.append("يجب تحديد الإجابة الصحيحة.")
 
         correct_option_index = -1
@@ -211,19 +215,26 @@ def add_question():
                 error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
         options_data_from_form = []
-        option_keys = sorted([key for key in request.form if key.startswith("option_text_")], key=lambda x: int(x.split("_")[-1]))
+        option_keys = sorted(option_keys_submitted, key=lambda x: int(x.split("_")[-1]))
+        max_submitted_index = -1
 
         for i, key in enumerate(option_keys):
             index_str = key.split("_")[-1]
+            try:
+                current_index = int(index_str)
+                max_submitted_index = max(max_submitted_index, current_index)
+            except ValueError:
+                continue # Skip malformed keys
+
             option_text = request.form.get(f"option_text_{index_str}", "").strip()
             option_image_file = request.files.get(f"option_image_{index_str}")
             # Call the updated save_upload function
             option_image_url = save_upload(option_image_file, subfolder="options")
 
             if option_text or option_image_url:
-                is_correct = (i == correct_option_index)
+                is_correct = (current_index == correct_option_index)
                 options_data_from_form.append({
-                    "index": i,
+                    "index": current_index, # Use actual index from form
                     "option_text": option_text,
                     "image_url": option_image_url, # Use the URL from ImageKit
                     "is_correct": is_correct
@@ -231,16 +242,28 @@ def add_question():
 
         if len(options_data_from_form) < 2:
             error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
-        if correct_option_index >= len(options_data_from_form) and correct_option_index_str is not None:
+        # Check against the highest index actually submitted
+        if correct_option_index > max_submitted_index and correct_option_index_str is not None:
              error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
 
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
             form_data = request.form.to_dict()
-            form_data['options'] = options_data_from_form
-            # Pass the potentially uploaded question image URL back to the template if validation fails
-            form_data['image_url'] = q_image_url
+            # Reconstruct options state for template
+            form_data['options'] = []
+            for i in range(max_submitted_index + 1):
+                found = False
+                for opt in options_data_from_form:
+                    if opt['index'] == i:
+                        form_data['options'].append(opt)
+                        found = True
+                        break
+                if not found:
+                    # Add placeholder for template if needed
+                    form_data['options'].append({'index': i, 'option_text': request.form.get(f'option_text_{i}',''), 'image_url': None, 'is_correct': False})
+            
+            form_data['image_url'] = q_image_url # Pass potentially uploaded question image URL
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال")
 
         # Duplicate check (optional, consider if needed with image URLs)
@@ -253,7 +276,7 @@ def add_question():
                 image_url=q_image_url # Use the URL from ImageKit
             )
             db.session.add(new_question)
-            db.session.flush()
+            db.session.flush() # Get the ID for options
             current_app.logger.info(f"New question added (pending commit) with ID: {new_question.question_id}")
 
             for opt_data in options_data_from_form:
@@ -279,9 +302,9 @@ def add_question():
             current_app.logger.exception(f"Generic Error adding question: {e}")
             flash(f"حدث خطأ غير متوقع أثناء إضافة السؤال.", "danger")
 
+        # Re-render form on error after attempting DB operations
         form_data = request.form.to_dict()
-        form_data['options'] = options_data_from_form
-        # Pass the potentially uploaded question image URL back to the template if error occurs after upload
+        form_data['options'] = options_data_from_form # Use the processed data
         form_data['image_url'] = q_image_url
         return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال")
 
@@ -326,8 +349,9 @@ def edit_question(question_id):
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
 
-        submitted_options_count = len([key for key in request.form if key.startswith("option_text_")])
-        if correct_option_index_str is None and submitted_options_count > 0:
+        # Check only if options were submitted
+        option_keys_submitted = [key for key in request.form if key.startswith("option_text_")]
+        if correct_option_index_str is None and option_keys_submitted:
              error_messages.append("يجب تحديد الإجابة الصحيحة.")
 
         correct_option_index = -1
@@ -395,6 +419,7 @@ def edit_question(question_id):
 
         if len(options_data_from_form) < 2:
             error_messages.append("يجب أن يحتوي السؤال على خيارين صالحين على الأقل (بنص أو صورة).")
+        # Check against the highest index actually submitted
         if correct_option_index > max_option_index and correct_option_index_str is not None:
             error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
 
@@ -409,7 +434,7 @@ def edit_question(question_id):
                 'image_url': final_q_image_url,
                 'options': []
             }
-            # Reconstruct options as they would appear in the form
+            # Reconstruct options state for template
             current_options_state = []
             for i in range(max_option_index + 1):
                 found = False
@@ -419,8 +444,13 @@ def edit_question(question_id):
                         found = True
                         break
                 if not found:
-                     # Add placeholder for removed/empty options if needed for template logic
-                     pass 
+                    # Try to find original data for this index if it wasn't submitted for deletion
+                    original_opt = None
+                    for opt_id, opt_obj in existing_options_map.items():
+                        # This logic might need refinement based on how indices map to IDs
+                        pass # Complex to map index back to potentially deleted original option
+                    current_options_state.append({'index': i, 'option_text': request.form.get(f'option_text_{i}',''), 'image_url': request.form.get(f'existing_image_url_{i}'), 'is_correct': False})
+            
             form_data['options'] = current_options_state
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=form_data, submit_text="حفظ التعديلات")
 
