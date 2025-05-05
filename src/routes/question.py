@@ -1,4 +1,4 @@
-# src/routes/question.py (Updated with ImageKit.io integration - v4 - Forced DEBUG Logging)
+# src/routes/question.py (Updated with ImageKit.io integration - v5 - Removed faulty decorator)
 
 import os
 import logging
@@ -40,26 +40,7 @@ except ImportError:
 
 question_bp = Blueprint("question", __name__, template_folder="../templates/question")
 
-# --- Force DEBUG Logging --- #
-@question_bp.before_app_first_request
-def setup_logging():
-    # Ensure the app logger is set to DEBUG level
-    # This might be overridden by Gunicorn/Render settings, but worth trying
-    if not current_app.debug: # Only set level if not in Flask debug mode (which might already set it)
-        current_app.logger.setLevel(logging.DEBUG)
-        current_app.logger.info("Logger level explicitly set to DEBUG by blueprint.")
-    else:
-        current_app.logger.info("Flask debug mode is ON, logger level should already be DEBUG.")
-    # Add a handler to ensure logs go somewhere (e.g., stderr, which Render should capture)
-    # Check if a handler for stderr already exists to avoid duplicates
-    if not any(isinstance(h, logging.StreamHandler) and h.stream.name == '<stderr>' for h in current_app.logger.handlers):
-        handler = logging.StreamHandler() # Defaults to stderr
-        handler.setLevel(logging.DEBUG)
-        # Use a simple formatter or Flask's default
-        # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        # handler.setFormatter(formatter)
-        current_app.logger.addHandler(handler)
-        current_app.logger.info("StreamHandler added to logger to ensure output.")
+# Removed the faulty @question_bp.before_app_first_request decorator
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
@@ -69,6 +50,12 @@ def allowed_file(filename):
 
 # --- Updated save_upload function with Correct Options Passing via Class --- #
 def save_upload(file, subfolder="questions"):
+    # Ensure logger is available and potentially set level if needed (though Render setting should prevail)
+    if current_app.logger.level > logging.DEBUG:
+         current_app.logger.warning("Logger level is higher than DEBUG, detailed logs might be suppressed.")
+         # Optionally force level here if Render setting isn't working, but be cautious
+         # current_app.logger.setLevel(logging.DEBUG)
+
     current_app.logger.debug(f"Entering save_upload for subfolder: {subfolder}")
     if not file or not file.filename:
         current_app.logger.debug("No file or filename provided to save_upload.")
@@ -134,7 +121,7 @@ def save_upload(file, subfolder="questions"):
         current_app.logger.debug(f"Upload options created: {upload_options.__dict__}")
 
         # Upload the file to ImageKit using the options parameter
-        current_app.logger.debug(f"Attempting to upload '{unique_filename}' to ImageKit...")
+        current_app.logger.debug(f"Attempting to upload \'{unique_filename}\' to ImageKit...")
         upload_response = imagekit.upload(
             file=file_content,
             file_name=unique_filename,
