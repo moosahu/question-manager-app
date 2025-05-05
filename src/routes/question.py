@@ -361,7 +361,7 @@ def import_questions():
             flash("يجب اختيار درس لاستيراد الأسئلة إليه.", "danger")
             return render_template("question/import_questions.html", lessons=lessons)
 
-        if not file or file.filename == ":
+        if not file or file.filename == "":
             flash("يجب اختيار ملف للاستيراد.", "danger")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
 
