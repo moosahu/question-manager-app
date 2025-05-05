@@ -374,15 +374,14 @@ def import_questions():
             current_app.logger.info(f"Attempting to read uploaded file: {file.filename}")
             file_content = io.BytesIO(file.read())
             if file.filename.endswith(".xlsx"):
-                df = pd.read_excel(file_content, engine=\'openpyxl\')
+                df = pd.read_excel(file_content, engine='openpyxl')
             else:
                 try:
-                    df = pd.read_csv(file_content, encoding=\'utf-8\')
+                    df = pd.read_csv(file_content, encoding='utf-8')
                 except UnicodeDecodeError:
                     current_app.logger.warning("UTF-8 decoding failed, trying cp1256 for CSV.")
                     file_content.seek(0)
-                    df = pd.read_csv(file_content, encoding=\'cp1256\')
-            
+                    df = pd.read_csv(file_content, encoding='cp1256')           
             current_app.logger.info(f"Successfully read file into DataFrame. Shape: {df.shape}")
             df.columns = [str(col).strip().lower().replace(\' \', \'_\') for col in df.columns]
             current_app.logger.debug(f"Standardized columns: {df.columns.tolist()}")
