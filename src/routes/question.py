@@ -356,7 +356,7 @@ def import_questions():
 
     if request.method == "POST":
         lesson_id = request.form.get("lesson_id")
-        file = request.files.get("import_file")
+        file = request.files.get("question_file")
 
         if not lesson_id:
             flash("يجب اختيار درس لاستيراد الأسئلة إليه.", "danger")
