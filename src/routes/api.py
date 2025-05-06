@@ -1,4 +1,4 @@
-# src/routes/api.py (Updated with /courses/<id>/units endpoint)
+# src/routes/api.py (Updated with /units/<id>/lessons endpoint)
 
 import logging
 from flask import Blueprint, jsonify, current_app, url_for, request # Added request
@@ -101,30 +101,25 @@ def get_all_courses():
         logger.exception(f"Unexpected error while fetching courses: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-# +++ NEW API Endpoint for Units by Course +++ #
+# --- API Endpoint for Units by Course --- #
 @api_bp.route("/courses/<int:course_id>/units", methods=["GET"])
 def get_course_units(course_id):
     """Returns a list of units for a specific course."""
     logger.info(f"API request received for units of course_id: {course_id}")
     try:
-        # Check if course exists
         course = Course.query.get(course_id)
         if not course:
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
 
-        # Query units for the course
         units = (
             Unit.query
             .filter(Unit.course_id == course_id)
-            .order_by(Unit.id) # Optional: order units
+            .order_by(Unit.id)
             .all()
         )
         logger.info(f"Found {len(units)} units for course_id: {course_id}")
-
-        # Format units for JSON response
         formatted_units = [{"id": u.id, "name": u.name} for u in units]
-
         return jsonify(formatted_units)
 
     except SQLAlchemyError as e:
@@ -132,6 +127,39 @@ def get_course_units(course_id):
         return jsonify({"error": "Database error occurred"}), 500
     except Exception as e:
         logger.exception(f"Unexpected error while fetching units for course {course_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# +++ NEW API Endpoint for Lessons by Unit +++ #
+@api_bp.route("/units/<int:unit_id>/lessons", methods=["GET"])
+def get_unit_lessons(unit_id):
+    """Returns a list of lessons for a specific unit."""
+    logger.info(f"API request received for lessons of unit_id: {unit_id}")
+    try:
+        # Check if unit exists
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            logger.warning(f"Unit with id {unit_id} not found.")
+            return jsonify({"error": "Unit not found"}), 404
+
+        # Query lessons for the unit
+        lessons = (
+            Lesson.query
+            .filter(Lesson.unit_id == unit_id)
+            .order_by(Lesson.id) # Optional: order lessons
+            .all()
+        )
+        logger.info(f"Found {len(lessons)} lessons for unit_id: {unit_id}")
+
+        # Format lessons for JSON response
+        formatted_lessons = [{"id": l.id, "name": l.name} for l in lessons]
+
+        return jsonify(formatted_lessons)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching lessons for unit {unit_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching lessons for unit {unit_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 # --- API Endpoint for Questions by Lesson --- #
