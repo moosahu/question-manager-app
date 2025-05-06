@@ -1,4 +1,4 @@
-# src/routes/api.py (Updated with /units/<id>/lessons endpoint)
+# src/routes/api.py (Updated with nested /courses/<cid>/units/<uid>/questions endpoint)
 
 import logging
 from flask import Blueprint, jsonify, current_app, url_for, request # Added request
@@ -129,30 +129,25 @@ def get_course_units(course_id):
         logger.exception(f"Unexpected error while fetching units for course {course_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-# +++ NEW API Endpoint for Lessons by Unit +++ #
+# --- API Endpoint for Lessons by Unit --- #
 @api_bp.route("/units/<int:unit_id>/lessons", methods=["GET"])
 def get_unit_lessons(unit_id):
     """Returns a list of lessons for a specific unit."""
     logger.info(f"API request received for lessons of unit_id: {unit_id}")
     try:
-        # Check if unit exists
         unit = Unit.query.get(unit_id)
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
 
-        # Query lessons for the unit
         lessons = (
             Lesson.query
             .filter(Lesson.unit_id == unit_id)
-            .order_by(Lesson.id) # Optional: order lessons
+            .order_by(Lesson.id)
             .all()
         )
         logger.info(f"Found {len(lessons)} lessons for unit_id: {unit_id}")
-
-        # Format lessons for JSON response
         formatted_lessons = [{"id": l.id, "name": l.name} for l in lessons]
-
         return jsonify(formatted_lessons)
 
     except SQLAlchemyError as e:
@@ -189,9 +184,9 @@ def get_lesson_questions(lesson_id):
         logger.exception(f"Unexpected error while fetching questions for lesson {lesson_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-# --- API Endpoint for Questions by Unit --- #
+# --- API Endpoint for Questions by Unit (Direct) --- #
 @api_bp.route("/units/<int:unit_id>/questions", methods=["GET"])
-def get_unit_questions(unit_id):
+def get_unit_questions_direct(unit_id): # Renamed to avoid conflict if we add the nested one
     """Returns a list of questions for a specific unit."""
     logger.info(f"API request received for questions of unit_id: {unit_id}")
     try:
@@ -217,9 +212,9 @@ def get_unit_questions(unit_id):
         logger.exception(f"Unexpected error while fetching questions for unit {unit_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-# --- API Endpoint for Questions by Course --- #
+# --- API Endpoint for Questions by Course (Direct) --- #
 @api_bp.route("/courses/<int:course_id>/questions", methods=["GET"])
-def get_course_questions(course_id):
+def get_course_questions_direct(course_id): # Renamed for clarity
     """Returns a list of questions for a specific course."""
     logger.info(f"API request received for questions of course_id: {course_id}")
     try:
@@ -246,13 +241,52 @@ def get_course_questions(course_id):
         logger.exception(f"Unexpected error while fetching questions for course {course_id}: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
+# +++ NEW Nested API Endpoint for Questions by Unit within a Course +++ #
+@api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/questions", methods=["GET"])
+def get_course_unit_questions(course_id, unit_id):
+    """Returns a list of questions for a specific unit within a specific course."""
+    logger.info(f"API request for questions of unit_id: {unit_id} within course_id: {course_id}")
+    try:
+        # Check if course exists
+        course = Course.query.get(course_id)
+        if not course:
+            logger.warning(f"Course with id {course_id} not found.")
+            return jsonify({"error": "Course not found"}), 404
 
+        # Check if unit exists and belongs to the course
+        unit = Unit.query.filter_by(id=unit_id, course_id=course_id).first()
+        if not unit:
+            logger.warning(f"Unit with id {unit_id} not found within course {course_id}.")
+            # Differentiate if unit exists but not in this course, or doesn't exist at all
+            existing_unit_elsewhere = Unit.query.get(unit_id)
+            if existing_unit_elsewhere:
+                return jsonify({"error": f"Unit {unit_id} found, but it does not belong to course {course_id}"}), 404 # Or 400 Bad Request
+            else:
+                return jsonify({"error": f"Unit {unit_id} not found"}), 404
 
-import random # Added for shuffling if needed
-from sqlalchemy import func # Added for random ordering in DB
+        # Query questions for the unit
+        questions = (
+            Question.query
+            .join(Question.lesson)
+            .options(joinedload(Question.options))
+            .filter(Lesson.unit_id == unit_id) # unit_id is already validated to be in course_id
+            .order_by(Question.question_id)
+            .all()
+        )
+        logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} in course_id: {course_id}")
+        
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
 
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching questions for unit {unit_id} in course {course_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
-
+import random
+from sqlalchemy import func
 
 # --- API Endpoint for Random Questions --- #
 @api_bp.route("/questions/random", methods=["GET"])
@@ -265,27 +299,14 @@ def get_random_questions():
             count = 10 # Default to 10 if count is invalid
         logger.info(f"Requesting {count} random questions.")
 
-        # Use database-specific random function (func.random() for SQLite/PostgreSQL)
-        # For other DBs, adjust accordingly (e.g., RAND() for MySQL)
         questions = (
             Question.query
             .options(joinedload(Question.options))
-            .order_by(func.random()) # Order randomly
-            .limit(count) # Limit the number of results
+            .order_by(func.random())
+            .limit(count)
             .all()
         )
         
-        # Alternative if func.random() isn't suitable or for large datasets:
-        # Fetch all IDs, shuffle in Python, then query by selected IDs.
-        # This can be less efficient for the DB but avoids DB-specific functions.
-        # all_ids = [q.question_id for q in Question.query.with_entities(Question.question_id).all()]
-        # if len(all_ids) < count:
-        #     selected_ids = all_ids
-        # else:
-        #     selected_ids = random.sample(all_ids, count)
-        # questions = Question.query.options(joinedload(Question.options)).filter(Question.question_id.in_(selected_ids)).all()
-        # random.shuffle(questions) # Shuffle the final list if order matters
-
         logger.info(f"Found {len(questions)} random questions.")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
