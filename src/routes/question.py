@@ -307,8 +307,15 @@ def add_question():
             current_app.logger.info(f"New question added (pending commit) with ID: {new_question.question_id}")
 
             for opt_data in options_data_from_form:
+                # --- Logic to set option_text to image_url if option_text is empty and image_url exists ---
+                option_text_to_save = opt_data["option_text"]
+                if not option_text_to_save and opt_data["image_url"]:
+                    option_text_to_save = opt_data["image_url"] # Set option_text to the image_url
+                elif not option_text_to_save: # If option_text is still empty (and no image_url or image_url was not used)
+                    option_text_to_save = None
+
                 option = Option(
-                    option_text=opt_data["option_text"] if opt_data["option_text"] else None,
+                    option_text=option_text_to_save,
                     image_url=opt_data["image_url"],
                     is_correct=opt_data["is_correct"],
                     question_id=new_question.question_id
