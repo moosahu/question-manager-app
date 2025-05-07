@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # --- Helper Function to Format Image URLs --- #
 def format_image_url(image_path):
     """Prepends the base URL if the path is relative."""
+    # Assuming logger, current_app, url_for, request are in scope from top-level imports
     if image_path and not image_path.startswith(("http://", "https://")):
         try:
             server_name = current_app.config.get("SERVER_NAME")
@@ -44,27 +45,34 @@ def format_image_url(image_path):
             base_url = f"https://{server_name}" if server_name else host_url
             
             if not base_url:
-                 logger.warning("Could not determine base URL for image path generation.")
-                 static_url_path = url_for("static", filename="").lstrip("/")
-                 return f"/{static_url_path.rstrip("/")}/{image_path.lstrip("/")}"
+                logger.warning("Could not determine base URL for image path generation.")
+                _static_url_path = url_for("static", filename="").lstrip("/")
+                _image_path = image_path.lstrip("/")
+                return f"/{_static_url_path.rstrip('/')}/{_image_path}"
 
-            if not base_url.endswith("/"):
-                base_url += "/"
-            static_url_path = url_for("static", filename="").lstrip("/") 
-            full_url = f"{base_url.rstrip("/")}/{static_url_path.rstrip("/")}/{image_path.lstrip("/")}"
+            _base_url_processed = base_url.rstrip("/")
+            _static_path_processed = url_for("static", filename="").lstrip("/").rstrip("/")
+            _image_path = image_path.lstrip("/")
+            
+            full_url = f"{_base_url_processed}/{_static_path_processed}/{_image_path}"
             return full_url
+            
         except RuntimeError:
             logger.warning("Could not generate external URL for image, possibly outside request context.")
             try:
-                 static_url_path = url_for("static", filename="").lstrip("/")
-                 return f"/{static_url_path.rstrip("/")}/{image_path.lstrip("/")}"
+                _static_url_path = url_for("static", filename="").lstrip("/")
+                _image_path = image_path.lstrip("/")
+                return f"/{_static_url_path.rstrip('/')}/{_image_path}"
             except RuntimeError:
-                 logger.error("Could not even generate relative static path.")
-                 return None 
+                logger.error("Could not even generate relative static path for image.")
+                return image_path # Return original image_path as a fallback
+            except Exception as e_inner:
+                logger.error(f"Inner error generating relative image URL for {image_path}: {e_inner}")
+                return image_path # Return original image_path as a fallback
         except Exception as e:
-             logger.error(f"Error generating image URL for {image_path}: {e}")
-             return None 
-    return image_path 
+            logger.error(f"Error generating image URL for {image_path}: {e}")
+            return image_path # Return original image_path as a fallback
+    return image_path
 
 # --- Helper Function to Format Questions --- #
 def format_question(question):
