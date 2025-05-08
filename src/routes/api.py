@@ -1,4 +1,4 @@
-# src/routes/api.py (Updated with /questions/all and nested /courses/<cid>/units/<uid>/questions endpoint)
+# src/routes/api.py (Updated with /questions/all and nested /courses/<cid>/units/<uid>/questions endpoint, and correct_option_id)
 
 import logging
 from flask import Blueprint, jsonify, current_app, url_for, request # Added request
@@ -37,15 +37,14 @@ logger = logging.getLogger(__name__)
 # --- Helper Function to Format Image URLs --- #
 def format_image_url(image_path):
     """Prepends the base URL if the path is relative."""
-    # Assuming logger, current_app, url_for, request are in scope from top-level imports
-    if image_path and not image_path.startswith(("http://", "https://")):
+    if image_path and not image_path.startswith(("http://", "https://") ):
         try:
             server_name = current_app.config.get("SERVER_NAME")
             host_url = request.host_url if request and hasattr(request, "host_url") else None
             base_url = f"https://{server_name}" if server_name else host_url
             
             if not base_url:
-                logger.warning("Could not determine base URL for image path generation.")
+                logger.warning("Could not determine base URL for image path generation.") 
                 _static_url_path = url_for("static", filename="").lstrip("/")
                 _image_path = image_path.lstrip("/")
                 return f"/{_static_url_path.rstrip('/')}/{_image_path}"
@@ -74,22 +73,29 @@ def format_image_url(image_path):
             return image_path # Return original image_path as a fallback
     return image_path
 
-# --- Helper Function to Format Questions --- #
+# --- Helper Function to Format Questions (MODIFIED to include correct_option_id) --- #
 def format_question(question):
-    """Formats a Question object into the desired dictionary structure for JSON response."""
+    """Formats a Question object into the desired dictionary structure for JSON response,
+       including a top-level correct_option_id."""
+    
+    options_list = []
+    correct_option_id_found = None
+    for opt in sorted(question.options, key=lambda o: o.option_id):
+        options_list.append({
+            "option_id": opt.option_id,
+            "option_text": opt.option_text,
+            "image_url": format_image_url(opt.image_url),
+            "is_correct": opt.is_correct
+        })
+        if opt.is_correct:
+            correct_option_id_found = opt.option_id
+            
     return {
         "question_id": question.question_id,
         "question_text": question.question_text,
         "image_url": format_image_url(question.image_url),
-        "options": [
-            {
-                "option_id": opt.option_id,
-                "option_text": opt.option_text,
-                "image_url": format_image_url(opt.image_url),
-                "is_correct": opt.is_correct
-            }
-            for opt in sorted(question.options, key=lambda o: o.option_id)
-        ]
+        "options": options_list,
+        "correct_option_id": correct_option_id_found  # Added this line
     }
 
 # --- API Endpoint for Listing Courses --- #
