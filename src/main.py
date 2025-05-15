@@ -59,21 +59,21 @@ dashboard_bp = None
 
 # محاولة استيراد dashboard_blueprint من مسارات مختلفة
 try:
-    # المسار الأول: src.routes.dashboard_blueprint (المسار الأصلي)
-    logger.info("محاولة استيراد dashboard_blueprint من src.routes.dashboard_blueprint")
-    from src.routes.dashboard_blueprint import dashboard_bp
+    # المسار الأول: routes.dashboard_blueprint (بدون src)
+    logger.info("محاولة استيراد dashboard_blueprint من routes.dashboard_blueprint")
+    from routes.dashboard_blueprint import dashboard_bp
     has_dashboard = True
-    logger.info("تم استيراد dashboard_blueprint بنجاح من src.routes.dashboard_blueprint")
+    logger.info("تم استيراد dashboard_blueprint بنجاح من routes.dashboard_blueprint")
 except ImportError as e:
-    logger.warning(f"فشل استيراد dashboard_blueprint من src.routes.dashboard_blueprint: {e}")
+    logger.warning(f"فشل استيراد dashboard_blueprint من routes.dashboard_blueprint: {e}")
     try:
-        # المسار الثاني: routes.dashboard_blueprint (بدون src)
-        logger.info("محاولة استيراد dashboard_blueprint من routes.dashboard_blueprint")
-        from routes.dashboard_blueprint import dashboard_bp
+        # المسار الثاني: src.routes.dashboard_blueprint
+        logger.info("محاولة استيراد dashboard_blueprint من src.routes.dashboard_blueprint")
+        from src.routes.dashboard_blueprint import dashboard_bp
         has_dashboard = True
-        logger.info("تم استيراد dashboard_blueprint بنجاح من routes.dashboard_blueprint")
+        logger.info("تم استيراد dashboard_blueprint بنجاح من src.routes.dashboard_blueprint")
     except ImportError as e:
-        logger.warning(f"فشل استيراد dashboard_blueprint من routes.dashboard_blueprint: {e}")
+        logger.warning(f"فشل استيراد dashboard_blueprint من src.routes.dashboard_blueprint: {e}")
         try:
             # المسار الثالث: محاولة استيراد نسبي
             logger.info("محاولة استيراد dashboard_blueprint باستخدام المسار النسبي")
@@ -103,7 +103,7 @@ def create_app():
     # تعديل مسارات القوالب والملفات الثابتة لتتناسب مع هيكل المشروع الفعلي
     try:
         logger.info("إنشاء تطبيق Flask مع مسارات القوالب والملفات الثابتة")
-        app = Flask(__name__, template_folder="src/templates", static_folder="src/static")
+        app = Flask(__name__, template_folder="templates", static_folder="static")
         logger.info("تم إنشاء تطبيق Flask بنجاح")
     except Exception as e:
         logger.error(f"خطأ في إنشاء تطبيق Flask: {e}")
