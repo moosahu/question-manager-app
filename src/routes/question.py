@@ -561,8 +561,7 @@ def download_template(format):
 
 # --- END: Download Template Route --- #
 
-
-# --- edit_question route (Modified for Cascading Dropdowns) --- #
+# --- edit_question route (Modified to ensure proper lesson data) --- #
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
 @login_required
 def edit_question(question_id):
@@ -572,6 +571,7 @@ def edit_question(question_id):
         joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
     ).get_or_404(question_id)
     
+    # الحصول على قائمة الدروس المرتبة
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس.", "danger")
@@ -690,9 +690,7 @@ def edit_question(question_id):
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
-            # تجهيز بيانات السؤال للعرض في القالب
-            question_data = prepare_question_data_for_template(question)
-            return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
         try:
             question.question_text = question_text if question_text else None
@@ -751,14 +749,16 @@ def edit_question(question_id):
             current_app.logger.exception(f"Generic Error updating question: {e}")
             flash("حدث خطأ غير متوقع أثناء تحديث السؤال.", "danger")
         
-        # تجهيز بيانات السؤال للعرض في القالب
-        question_data = prepare_question_data_for_template(question)
-        return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+        return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
     # GET request
-    # تجهيز بيانات السؤال للعرض في القالب
-    question_data = prepare_question_data_for_template(question)
-    return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+    # تأكد من أن السؤال يحتوي على معلومات الدرس والوحدة والدورة
+    if question.lesson and question.lesson.unit and question.lesson.unit.course:
+        current_app.logger.info(f"Question {question_id} has complete lesson path: {question.lesson.unit.course.name} / {question.lesson.unit.name} / {question.lesson.name}")
+    else:
+        current_app.logger.warning(f"Question {question_id} has incomplete lesson path")
+        
+    return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
 # --- delete_question route (keep as is) --- #
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
@@ -784,42 +784,3 @@ def delete_question(question_id):
         current_app.logger.exception(f"Unexpected error deleting question ID {question_id}: {e}")
         flash("حدث خطأ غير متوقع أثناء محاولة حذف السؤال.", "danger")
     return redirect(url_for("question.list_questions"))
-
-# دالة مساعدة لتجهيز بيانات السؤال للعرض في القالب
-def prepare_question_data_for_template(question):
-    """تجهيز بيانات السؤال للعرض في القالب بما في ذلك معلومات الدورة والوحدة والدرس"""
-    options_for_form = []
-    correct_option_index = None
-    for i, option in enumerate(sorted(question.options, key=lambda o: o.option_id)):
-        if option.is_correct:
-            correct_option_index = i
-        options_for_form.append({
-            "option_text": option.option_text,
-            "image_url": option.image_url,
-            "option_id": option.option_id
-        })
-    
-    # تجهيز بيانات السؤال مع معلومات الدورة والوحدة والدرس
-    question_data = {
-        "question_id": question.question_id,
-        "text": question.question_text,
-        "lesson_id": question.lesson_id,
-        "image_url": question.image_url,
-        "options": options_for_form,
-        "correct_option_index": correct_option_index,
-        "lesson": {
-            "id": question.lesson_id,
-            "name": question.lesson.name if question.lesson else "",
-            "unit": {
-                "id": question.lesson.unit_id if question.lesson and question.lesson.unit else "",
-                "name": question.lesson.unit.name if question.lesson and question.lesson.unit else "",
-                "course_id": question.lesson.unit.course_id if question.lesson and question.lesson.unit else "",
-                "course": {
-                    "id": question.lesson.unit.course_id if question.lesson and question.lesson.unit else "",
-                    "name": question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else ""
-                }
-            }
-        }
-    }
-    
-    return question_data
