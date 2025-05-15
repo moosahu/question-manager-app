@@ -692,7 +692,7 @@ def edit_question(question_id):
                 flash(error, "danger")
             # تجهيز بيانات السؤال للعرض في القالب
             question_data = prepare_question_data_for_template(question)
-            return render_template("question/form_updated_fixed.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+            return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
 
         try:
             question.question_text = question_text if question_text else None
@@ -753,12 +753,12 @@ def edit_question(question_id):
         
         # تجهيز بيانات السؤال للعرض في القالب
         question_data = prepare_question_data_for_template(question)
-        return render_template("question/form_updated_fixed.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+        return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
 
     # GET request
     # تجهيز بيانات السؤال للعرض في القالب
     question_data = prepare_question_data_for_template(question)
-    return render_template("question/form_updated_fixed.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
+    return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question_data, submit_text="حفظ التعديلات")
 
 # --- delete_question route (keep as is) --- #
 @question_bp.route("/delete/<int:question_id>", methods=["POST"])
