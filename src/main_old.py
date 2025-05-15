@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify # Added jsonify for API responses
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request # Added request for API URL formatting
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required # Added login_required
 
@@ -13,7 +13,6 @@ from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
 from src.routes.api import api_bp # <<< Added API blueprint import
-from src.routes.dashboard_blueprint import dashboard_bp # <<< إضافة بلوبرنت لوحة التحكم
 
 # Import User model AFTER defining db
 from src.models.user import User
@@ -63,13 +62,12 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp) # <<< Registered API blueprint (prefix is in api.py)
-    app.register_blueprint(dashboard_bp, url_prefix="/dashboard") # <<< تسجيل بلوبرنت لوحة التحكم
 
     @app.route("/")
     @login_required
     def index():
-        # إعادة توجيه إلى لوحة التحكم
-        return redirect(url_for('dashboard.dashboard'))
+        # Render the index.html template which extends base.html
+        return render_template("index.html")
 
     # Error Handling
     @app.errorhandler(404)
@@ -100,3 +98,4 @@ if __name__ == "__main__":
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False) # <<< Corrected host quote and indentation
+
