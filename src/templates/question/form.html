@@ -15,17 +15,31 @@
             <div class="card mb-3">
                 <div class="card-header">تفاصيل السؤال</div>
                 <div class="card-body">
+                    {# Start: Cascading Dropdowns for Course, Unit, Lesson #}
                     <div class="mb-3">
-                        <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
-                        <select name="lesson_id" id="lesson_id" class="form-select" required>
-                            <option value="" disabled {% if not question %}selected{% endif %}>-- اختر الدرس --</option>
-                            {% for lesson in lessons %}
-                            <option value="{{ lesson.id }}" {% if question and question.lesson_id == lesson.id %}selected{% endif %}>
-                                {{ lesson.unit.course.name }} / {{ lesson.unit.name }} / {{ lesson.name }}
-                            </option>
-                            {% endfor %}
+                        <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
+                        <select id="course_id" class="form-select" name="course_id_temp" required>
+                            <option value="" selected disabled>-- اختر الدورة --</option>
+                            {# Options will be populated by JavaScript #}
                         </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
+                        <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
+                            <option value="" selected disabled>-- اختر الوحدة --</option>
+                            {# Options will be populated by JavaScript #}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
+                        <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
+                            <option value="" selected disabled>-- اختر الدرس --</option>
+                            {# Options will be populated by JavaScript #}
+                        </select>
+                    </div>
+                    {# End: Cascading Dropdowns #}
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
@@ -39,10 +53,10 @@
                         <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.image_url %}
-                                {% if question.image_url.startswith('http') %}
+                                {% if question.image_url.startswith("http") %}
                                     <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
                                 {% else %}
-                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="question_image_preview" src="{{ url_for("static", filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -82,7 +96,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                            <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else request.form.get('option_text_' ~ i, '') }}">
+                            <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else request.form.get("option_text_" ~ i, "") }}">
                             <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
                         </div>
                         <div class="mb-3">
@@ -90,10 +104,10 @@
                             <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
                             <div class="mt-2 tex2jax_ignore">
                                 {% if i < options|length and options[i].image_url %}
-                                    {% if options[i].image_url.startswith('http') %}
+                                    {% if options[i].image_url.startswith("http") %}
                                         <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                     {% else %}
-                                        <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                        <img id="option_image_{{ i }}_preview" src="{{ url_for("static", filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                     {% endif %}
                                     <small class="d-block">الصورة الحالية</small>
                                     <div class="form-check mt-1">
@@ -133,10 +147,10 @@
                         <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input" accept="image/*" data-preview-target="explanation_image_preview">
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
-                                {% if question.explanation_image_path.startswith('http') %}
+                                {% if question.explanation_image_path.startswith("http") %}
                                     <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for("static", filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -196,192 +210,233 @@
 
 {% block scripts %}
 <script>
-    // Function to update MathJax preview
-    function updatePreview(inputId, previewId) {
-        const inputElement = document.getElementById(inputId);
-        const previewElement = document.getElementById(previewId);
-        if (inputElement && previewElement) {
-            previewElement.innerHTML = inputElement.value;
-            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
-                MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
+    document.addEventListener("DOMContentLoaded", function() {
+        const courseSelect = document.getElementById("course_id");
+        const unitSelect = document.getElementById("unit_id");
+        const lessonSelect = document.getElementById("lesson_id");
+
+        // For pre-selection in edit mode
+        const initialCourseId = "{{ question.lesson.unit.course_id if question and question.lesson and question.lesson.unit else "" }}";
+        const initialUnitId = "{{ question.lesson.unit_id if question and question.lesson else "" }}";
+        const initialLessonId = "{{ question.lesson_id if question else "" }}";
+
+        function populateSelect(selectElement, items, placeholder, selectedValue = null) {
+            selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
+            items.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item.id;
+                option.textContent = item.name;
+                if (selectedValue && item.id.toString() === selectedValue.toString()) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            });
+            selectElement.disabled = false;
+        }
+
+        function clearAndDisableSelect(selectElement, placeholder) {
+            selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
+            selectElement.disabled = true;
+        }
+
+        // Fetch and populate courses
+        fetch("{{ url_for("api.get_courses") }}")
+            .then(response => response.json())
+            .then(data => {
+                populateSelect(courseSelect, data, "-- اختر الدورة --", initialCourseId);
+                if (initialCourseId) {
+                    courseSelect.dispatchEvent(new Event("change")); // Trigger change to load units
+                }
+            })
+            .catch(error => console.error("Error fetching courses:", error));
+
+        courseSelect.addEventListener("change", function() {
+            const courseId = this.value;
+            clearAndDisableSelect(unitSelect, "-- اختر الوحدة --");
+            clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
+            if (courseId) {
+                fetch(`{{ url_for("api.get_units_for_course", course_id=0) }}${courseId}`.replace("0/", "")) // Construct URL properly
+                    .then(response => response.json())
+                    .then(data => {
+                        populateSelect(unitSelect, data, "-- اختر الوحدة --", initialUnitId);
+                        if (initialUnitId && unitSelect.value === initialUnitId) { // Ensure it was populated and selected
+                             unitSelect.dispatchEvent(new Event("change")); // Trigger change to load lessons
+                        }
+                    })
+                    .catch(error => console.error("Error fetching units:", error));
+            }
+        });
+
+        unitSelect.addEventListener("change", function() {
+            const unitId = this.value;
+            clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
+            if (unitId) {
+                fetch(`{{ url_for("api.get_lessons_for_unit", unit_id=0) }}${unitId}`.replace("0/", "")) // Construct URL properly
+                    .then(response => response.json())
+                    .then(data => {
+                        populateSelect(lessonSelect, data, "-- اختر الدرس --", initialLessonId);
+                    })
+                    .catch(error => console.error("Error fetching lessons:", error));
+            }
+        });
+
+        // --- Existing MathJax and Image Preview Logic --- //
+        function updatePreview(inputId, previewId) {
+            const inputElement = document.getElementById(inputId);
+            const previewElement = document.getElementById(previewId);
+            if (inputElement && previewElement) {
+                previewElement.innerHTML = inputElement.value;
+                if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
+                    MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
+                }
             }
         }
-    }
 
-    // Function to initialize MathJax preview for an element
-    function initializeMathJaxPreview(inputElement) {
-        const previewId = inputElement.id + "-preview";
-        updatePreview(inputElement.id, previewId);
-        inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
-    }
-
-    // Function to initialize Image preview for an element
-    function initializeImagePreview(inputElement) {
-        const previewTargetId = inputElement.dataset.previewTarget;
-        const previewElement = document.getElementById(previewTargetId);
-
-        if (!previewElement) {
-            console.error(`Preview target element with ID "${previewTargetId}" not found for input "${inputElement.id}"`);
-            return;
+        function initializeMathJaxPreview(inputElement) {
+            const previewId = inputElement.id + "-preview";
+            updatePreview(inputElement.id, previewId);
+            inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
         }
 
-        // Store the initial src from the HTML (set by Jinja) if it exists and is a real URL
-        // Use getAttribute to ensure we get the value set by Jinja, not the resolved URL
-        const initialSrc = previewElement.getAttribute("src");
-        const hasInitialImage = initialSrc && initialSrc !== "#";
-
-        if (hasInitialImage) {
-            previewElement.setAttribute("data-initial-src", initialSrc);
-            previewElement.style.display = "block"; // Ensure display is block if there's an initial image
-        } else {
-            previewElement.style.display = "none"; // Hide if no initial image
-        }
-
-        inputElement.addEventListener("change", function(event) {
-            const file = event.target.files[0];
-            if (file && file.type.startsWith("image/")) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewElement.src = e.target.result;
-                    previewElement.style.display = "block";
-                    // Remove initial src data attribute as we now have a new preview
-                    previewElement.removeAttribute("data-initial-src");
-                }
-                reader.readAsDataURL(file);
+        function initializeImagePreview(inputElement) {
+            const previewTargetId = inputElement.dataset.previewTarget;
+            const previewElement = document.getElementById(previewTargetId);
+            if (!previewElement) return;
+            const initialSrc = previewElement.getAttribute("src");
+            const hasInitialImage = initialSrc && initialSrc !== "#";
+            if (hasInitialImage) {
+                previewElement.setAttribute("data-initial-src", initialSrc);
+                previewElement.style.display = "block";
             } else {
-                // This case handles when the user clears the file input or selects a non-image file
-                if (!inputElement.value) { // Check if the input value is empty (cleared)
-                    const storedInitialSrc = previewElement.getAttribute("data-initial-src");
-                    if (storedInitialSrc) {
-                        // Restore the original image if it existed
-                        previewElement.src = storedInitialSrc;
+                previewElement.style.display = "none";
+            }
+            inputElement.addEventListener("change", function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewElement.src = e.target.result;
+                        previewElement.style.display = "block";
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    const initialDisplaySrc = previewElement.getAttribute("data-initial-src");
+                    if (initialDisplaySrc) {
+                        previewElement.src = initialDisplaySrc;
                         previewElement.style.display = "block";
                     } else {
-                        // No original image, just hide the preview
                         previewElement.src = "#";
                         previewElement.style.display = "none";
                     }
                 }
-                // If inputElement.value is not empty (user cancelled or selected non-image),
-                // leave the current preview (either original or newly selected) visible.
-            }
-        });
-    }
-
-    // Function to update option numbers and remove button states
-    function updateOptionIndices() {
-        const optionsContainer = document.getElementById("options-container");
-        const optionGroups = optionsContainer.querySelectorAll(".option-group");
-        const canRemove = optionGroups.length > 2;
-
-        optionGroups.forEach((group, index) => {
-            group.dataset.index = index;
-            const optionNumber = index + 1;
-            group.querySelector(".option-number").textContent = optionNumber;
-
-            // Update IDs, names, fors, and preview targets
-            group.querySelectorAll("[id*=\"__INDEX__\"], [name*=\"__INDEX__\"], [for*=\"__INDEX__\"], [data-preview-target*=\"__INDEX__\"]").forEach(el => {
-                const id = el.id;
-                const name = el.name;
-                const htmlFor = el.htmlFor;
-                const previewTarget = el.dataset.previewTarget;
-
-                if (id) el.id = id.replace(/__INDEX__/g, index);
-                if (name) el.name = name.replace(/__INDEX__/g, index);
-                if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
-                if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
-
-                // Update alt text for preview image
-                if (el.tagName === "IMG" && el.alt) {
-                    el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
-                }
             });
-
-            const radio = group.querySelector(".correct-option-radio");
-            if (radio) {
-                radio.value = index;
-            }
-
-            const removeBtn = group.querySelector(".remove-option-btn");
-            if (removeBtn) {
-                removeBtn.disabled = !canRemove;
-            }
-        });
-    }
-
-    // Function to add a new option
-    function addOption() {
-        const optionsContainer = document.getElementById("options-container");
-        const optionGroups = optionsContainer.querySelectorAll(".option-group");
-        const newIndex = optionGroups.length;
-        const newNumber = newIndex + 1;
-
-        // Clone the template
-        const template = document.getElementById("option-template");
-        const newOptionHTML = template.innerHTML
-            .replace(/__INDEX__/g, newIndex)
-            .replace(/__NUMBER__/g, newNumber);
-
-        // Add to container
-        optionsContainer.insertAdjacentHTML("beforeend", newOptionHTML);
-
-        // Update all indices and states
-        updateOptionIndices();
-
-        // Initialize MathJax and image previews for the new option
-        const newOption = optionsContainer.lastElementChild;
-        const mathJaxInputs = newOption.querySelectorAll(".mathjax-input");
-        mathJaxInputs.forEach(initializeMathJaxPreview);
-
-        const imageInputs = newOption.querySelectorAll(".image-input");
-        imageInputs.forEach(initializeImagePreview);
-    }
-
-    // Function to remove an option
-    function removeOption(event) {
-        const button = event.target;
-        const optionGroup = button.closest(".option-group");
-        if (optionGroup) {
-            optionGroup.remove();
-            updateOptionIndices();
         }
-    }
 
-    // Initialize when DOM is loaded
-    document.addEventListener("DOMContentLoaded", function() {
-        // Initialize MathJax previews
         document.querySelectorAll(".mathjax-input").forEach(initializeMathJaxPreview);
-
-        // Initialize image previews
         document.querySelectorAll(".image-input").forEach(initializeImagePreview);
 
-        // Add option button
-        const addOptionBtn = document.getElementById("add-option-btn");
-        if (addOptionBtn) {
-            addOptionBtn.addEventListener("click", addOption);
-        }
-
-        // Remove option buttons (using event delegation)
+        // --- Existing Options Management Logic --- //
         const optionsContainer = document.getElementById("options-container");
-        if (optionsContainer) {
-            optionsContainer.addEventListener("click", function(event) {
-                if (event.target.classList.contains("remove-option-btn") || event.target.closest(".remove-option-btn")) {
-                    removeOption(event);
-                }
+        const addOptionButton = document.getElementById("add-option-btn");
+        const optionTemplate = document.getElementById("option-template").innerHTML;
+        let optionIndex = {{ initial_option_count }}; // Start index from existing options
+
+        function updateOptionNumbers() {
+            const optionGroups = optionsContainer.querySelectorAll(".option-group");
+            optionGroups.forEach((group, idx) => {
+                group.querySelector(".option-number").textContent = idx + 1;
+                // Enable remove button for all except first two
+                const removeBtn = group.querySelector(".remove-option-btn");
+                if (removeBtn) removeBtn.disabled = idx < 2;
+                // Ensure first radio is required if it exists
+                const radio = group.querySelector(".correct-option-radio");
+                if (radio) radio.required = (idx === 0);
             });
         }
 
-        // Ensure at least 2 options are present
-        const optionGroups = optionsContainer.querySelectorAll(".option-group");
-        if (optionGroups.length < 2) {
-            // Add options until we have at least 2
-            while (optionsContainer.querySelectorAll(".option-group").length < 2) {
-                addOption();
-            }
+        function addOption(text = "", imageUrl = "", isCorrect = false, optionDbId = "") {
+            const newOptionHtml = optionTemplate
+                .replace(/__INDEX__/g, optionIndex)
+                .replace(/__NUMBER__/g, optionsContainer.children.length + 1);
+            
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = newOptionHtml;
+            const newOptionGroup = tempDiv.firstElementChild;
+
+            newOptionGroup.querySelector(`input[name="option_text_${optionIndex}"]`).value = text;
+            newOptionGroup.querySelector(`input[name="option_id_${optionIndex}"]`).value = optionDbId;
+            // Image preview for new options will be handled by initializeImagePreview if an image is selected
+            // If imageUrl is provided (e.g. for repopulation), it needs to be set on the img tag directly.
+            // For simplicity, new options added via button won't have pre-filled images.
+            
+            const radio = newOptionGroup.querySelector(`input[name="correct_option"][value="${optionIndex}"]`);
+            if (isCorrect) radio.checked = true;
+
+            optionsContainer.appendChild(newOptionGroup);
+            
+            // Initialize MathJax and Image previews for the new option
+            newOptionGroup.querySelectorAll(".mathjax-input").forEach(initializeMathJaxPreview);
+            newOptionGroup.querySelectorAll(".image-input").forEach(initializeImagePreview);
+
+            optionIndex++;
+            updateOptionNumbers();
         }
 
-        // Update indices on initial load
-        updateOptionIndices();
+        addOptionButton.addEventListener("click", () => addOption());
+
+        optionsContainer.addEventListener("click", function(event) {
+            if (event.target.classList.contains("remove-option-btn")) {
+                if (optionsContainer.querySelectorAll(".option-group").length > 2) {
+                    event.target.closest(".option-group").remove();
+                    updateOptionNumbers();
+                }
+            }
+        });
+        updateOptionNumbers(); // Initial call
+
+        // Repopulate options if form was submitted with errors (for add_question)
+        {% if question and question.options_repop %}
+            const repopOptions = {{ question.options_repop | tojson }};
+            const correctRepopIndex = parseInt("{{ question.correct_option_repop if question.correct_option_repop is not none else -1 }}", 10);
+            
+            // Clear existing template-generated options if we are repopulating
+            // This is tricky because the initial options are rendered by Jinja.
+            // A cleaner way might be to always render a minimum via Jinja and add/remove, 
+            // or fully render via JS if repopulating.
+            // For now, assuming the JS will handle adding based on repopOptions, 
+            // and the Jinja loop for initial_option_count might need adjustment if it conflicts.
+            // Let's assume the initial Jinja loop for options is sufficient for edit, and for add, we rely on JS for repop.
+            
+            // If it's an add form (no question.id) and there are repop_options
+            {% if not (question and question.question_id) and question and question.options_repop %}
+                optionsContainer.innerHTML = ""; // Clear static options if repopulating an add form
+                optionIndex = 0; // Reset index for repopulation
+                repopOptions.forEach((opt, idx) => {
+                    addOption(opt.option_text, opt.image_url, idx === correctRepopIndex);
+                });
+            {% endif %}
+        {% endif %}
+
+        // Ensure at least one correct option radio is checked if there are options
+        // This is mainly for the initial state or after dynamic changes.
+        const form = document.getElementById("question-form");
+        form.addEventListener("submit", function(event) {
+            const radios = form.querySelectorAll(".correct-option-radio");
+            let oneChecked = false;
+            radios.forEach(radio => {
+                if (radio.checked) oneChecked = true;
+            });
+            if (radios.length > 0 && !oneChecked) {
+                // Find the first radio and set its validation message or alert
+                // For simplicity, relying on HTML5 `required` on the first radio of each group.
+                // Or, add a general flash message from server-side if validation fails.
+                console.warn("No correct option selected.");
+                // Optionally, prevent submission and show a custom message
+                // event.preventDefault();
+                // alert("الرجاء تحديد الخيار الصحيح.");
+            }
+        });
     });
 </script>
 {% endblock %}
+
