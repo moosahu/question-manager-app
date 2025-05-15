@@ -13,13 +13,33 @@ from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
 from src.routes.api import api_bp
 
-# استيراد شرطي لبلوبرنت لوحة التحكم
+# استيراد شرطي لبلوبرنت لوحة التحكم مع محاولة مسارات مختلفة
+has_dashboard = False
+dashboard_bp = None
+
+# محاولة استيراد dashboard_blueprint من مسارات مختلفة
 try:
+    # المسار الأول: src.routes.dashboard_blueprint (المسار الأصلي)
     from src.routes.dashboard_blueprint import dashboard_bp
     has_dashboard = True
+    print("تم استيراد dashboard_blueprint بنجاح من src.routes.dashboard_blueprint")
 except ImportError:
-    has_dashboard = False
-    print("تحذير: لم يتم العثور على ملف dashboard_blueprint.py، سيتم تخطي تسجيل بلوبرنت لوحة التحكم")
+    try:
+        # المسار الثاني: routes.dashboard_blueprint (بدون src)
+        from routes.dashboard_blueprint import dashboard_bp
+        has_dashboard = True
+        print("تم استيراد dashboard_blueprint بنجاح من routes.dashboard_blueprint")
+    except ImportError:
+        try:
+            # المسار الثالث: محاولة استيراد نسبي
+            import sys
+            sys.path.append(os.getcwd())
+            from src.routes.dashboard_blueprint import dashboard_bp
+            has_dashboard = True
+            print("تم استيراد dashboard_blueprint بنجاح باستخدام المسار النسبي")
+        except ImportError:
+            has_dashboard = False
+            print("تحذير: لم يتم العثور على ملف dashboard_blueprint.py، سيتم تخطي تسجيل بلوبرنت لوحة التحكم")
 
 # Import User model AFTER defining db
 from src.models.user import User
@@ -83,17 +103,8 @@ def create_app():
     @app.route("/")
     @login_required
     def index():
-        # إعادة توجيه إلى لوحة التحكم إذا كانت متاحة، وإلا عرض الصفحة الرئيسية
-        if has_dashboard:
-            return redirect(url_for('dashboard.dashboard'))
-        else:
-            # الإجراء الأصلي
-            try:
-                return render_template("index.html")
-            except Exception as e:
-                print(f"خطأ في عرض index.html: {e}")
-                # إنشاء صفحة بسيطة كبديل
-                return "<h1>مدير الأسئلة الكيميائية</h1><p>الصفحة الرئيسية غير متوفرة حالياً.</p>"
+        # إعادة توجيه مباشرة إلى لوحة التحكم بغض النظر عن وجود البلوبرنت
+        return redirect("/dashboard")
 
     # Error Handling
     @app.errorhandler(404)
