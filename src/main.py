@@ -26,8 +26,25 @@ except ImportError:
 from src.models.user import User
 
 def create_app():
-    # تعديل مسارات القوالب والملفات الثابتة ليشيروا إلى المجلدات الصحيحة
-    app = Flask(__name__, template_folder="src/templates", static_folder="src/static")
+    # طباعة المسار الحالي وقائمة الملفات للتشخيص
+    print("المسار الحالي:", os.getcwd())
+    
+    # التحقق من وجود مجلدات القوالب المختلفة
+    template_paths = [
+        "templates",
+        "src/templates",
+        "./templates",
+        "./src/templates"
+    ]
+    
+    for path in template_paths:
+        if os.path.exists(path):
+            print(f"المجلد {path} موجود. محتوياته:", os.listdir(path))
+        else:
+            print(f"المجلد {path} غير موجود.")
+    
+    # تعديل مسارات القوالب والملفات الثابتة لتتناسب مع نقطة تشغيل Gunicorn
+    app = Flask(__name__, template_folder="templates", static_folder="static")
 
     # Configuration
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
@@ -37,6 +54,10 @@ def create_app():
     # Configure SERVER_NAME for external URL generation in API (adjust if needed)
     # Example: app.config["SERVER_NAME"] = "your-app-name.onrender.com"
     # Or rely on request context (might be sufficient)
+
+    # طباعة مسار القوالب الفعلي الذي يستخدمه Flask
+    print("مسار القوالب الفعلي في Flask:", app.template_folder)
+    print("مسار الملفات الثابتة الفعلي في Flask:", app.static_folder)
 
     # Initialize extensions
     db.init_app(app)
@@ -85,7 +106,12 @@ def create_app():
             return redirect(url_for('dashboard.dashboard'))
         else:
             # الإجراء الأصلي
-            return render_template("index.html")
+            try:
+                return render_template("index.html")
+            except Exception as e:
+                print(f"خطأ في عرض index.html: {e}")
+                # إنشاء صفحة بسيطة كبديل
+                return "<h1>مدير الأسئلة الكيميائية</h1><p>الصفحة الرئيسية غير متوفرة حالياً.</p>"
 
     # Error Handling
     @app.errorhandler(404)
@@ -94,7 +120,11 @@ def create_app():
         # Check if the request path starts with /api/ for JSON response
         if request.path.startswith("/api/"):
             return jsonify(error="Not Found"), 404
-        return render_template("404.html"), 404 # Or a simple string
+        try:
+            return render_template("404.html"), 404
+        except Exception as ex:
+            print(f"خطأ في عرض 404.html: {ex}")
+            return "<h1>404 - الصفحة غير موجودة</h1>", 404
         
     @app.errorhandler(500)
     def internal_server_error(e):
@@ -104,7 +134,11 @@ def create_app():
         if request.path.startswith("/api/"):
              return jsonify(error="Internal Server Error"), 500
         # You might want to render a custom 500 template later
-        return render_template("500.html"), 500 # Or a simple string
+        try:
+            return render_template("500.html"), 500
+        except Exception as ex:
+            print(f"خطأ في عرض 500.html: {ex}")
+            return "<h1>500 - خطأ في الخادم</h1>", 500
 
     return app
 
