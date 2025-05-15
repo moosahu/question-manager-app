@@ -17,7 +17,7 @@
         {% endif %}
     {% endwith %}
 
-    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+    <form method="POST" enctype="multipart/form-data">
         {# Start: Cascading Dropdowns for Course, Unit, Lesson #}
         <div class="mb-3">
             <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
@@ -65,21 +65,21 @@
             <h5 class="alert-heading">متطلبات تنسيق الملف</h5>
             <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
             <ol>
-                <li><code>نص السؤال</code> (اختياري في حال وجود صورة)</li>
-                <li><code>رابط صورة السؤال</code> (اختياري)</li>
-                <li><code>نص الخيار 1</code> (اختياري في حال وجود صورة)</li>
-                <li><code>رابط صورة الخيار 1</code> (اختياري)</li>
-                <li><code>نص الخيار 2</code> (اختياري في حال وجود صورة)</li>
-                <li><code>رابط صورة الخيار 2</code> (اختياري)</li>
-                <li><code>نص الخيار 3</code> (اختياري)</li>
-                <li><code>رابط صورة الخيار 3</code> (اختياري)</li>
-                <li><code>نص الخيار 4</code> (اختياري)</li>
-                <li><code>رابط صورة الخيار 4</code> (اختياري)</li>
-                <li><code>رقم الخيار الصحيح</code> (مطلوب: 1، 2، 3، أو 4)</li>
+                <li><code>Question Text</code> (نص السؤال - اختياري في حال وجود صورة)</li>
+                <li><code>Question Image URL</code> (رابط صورة السؤال - اختياري)</li>
+                <li><code>Option 1 Text</code> (نص الخيار 1 - اختياري في حال وجود صورة)</li>
+                <li><code>Option 1 Image URL</code> (رابط صورة الخيار 1 - اختياري)</li>
+                <li><code>Option 2 Text</code> (نص الخيار 2 - اختياري في حال وجود صورة)</li>
+                <li><code>Option 2 Image URL</code> (رابط صورة الخيار 2 - اختياري)</li>
+                <li><code>Option 3 Text</code> (نص الخيار 3 - اختياري)</li>
+                <li><code>Option 3 Image URL</code> (رابط صورة الخيار 3 - اختياري)</li>
+                <li><code>Option 4 Text</code> (نص الخيار 4 - اختياري)</li>
+                <li><code>Option 4 Image URL</code> (رابط صورة الخيار 4 - اختياري)</li>
+                <li><code>Correct Option Number</code> (رقم الخيار الصحيح - مطلوب: 1، 2، 3، أو 4)</li>
             </ol>
             <p><strong>هام:</strong></p>
             <ul>
-                <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة تمامًا كما هي مذكورة أعلاه.</li>
+                <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة <strong>باللغة الإنجليزية</strong> تمامًا كما هي مذكورة أعلاه.</li>
                 <li>مطلوب خياران على الأقل (نص أو صورة) لكل سؤال.</li>
                 <li>تأكد من أن روابط الصور صالحة ويمكن الوصول إليها بشكل عام.</li>
             </ul>
@@ -103,6 +103,8 @@
         const courseSelect = document.getElementById("course_id");
         const unitSelect = document.getElementById("unit_id");
         const lessonSelect = document.getElementById("lesson_id");
+        const fileInput = document.getElementById("question_file");
+        const form = document.querySelector('form');
 
         function populateSelect(selectElement, items, placeholder, selectedValue = null) {
             selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
@@ -176,14 +178,39 @@
             }
         });
 
-        // Form validation
-        const form = document.querySelector('.needs-validation');
+        // تحسين التحقق من صحة النموذج
         form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
+            console.log("Form submission attempted");
+            
+            // التحقق من اختيار الدرس
+            if (!lessonSelect.value) {
+                console.log("Lesson not selected");
                 event.preventDefault();
-                event.stopPropagation();
+                alert("الرجاء اختيار الدرس");
+                return false;
             }
-            form.classList.add('was-validated');
+            
+            // التحقق من اختيار الملف
+            if (!fileInput.files || fileInput.files.length === 0) {
+                console.log("File not selected");
+                event.preventDefault();
+                alert("الرجاء اختيار ملف للاستيراد");
+                return false;
+            }
+            
+            console.log("Form validation passed, submitting");
+            // إذا وصلنا إلى هنا، فإن النموذج صالح ويمكن إرساله
+            return true;
+        });
+        
+        // إضافة مراقب لتغيير الملف للتحقق من صحته
+        fileInput.addEventListener('change', function() {
+            console.log("File input changed");
+            if (this.files && this.files.length > 0) {
+                console.log("File selected:", this.files[0].name);
+            } else {
+                console.log("No file selected");
+            }
         });
     });
 </script>
