@@ -154,23 +154,60 @@ def save_upload(file, subfolder="questions"):
 @login_required
 def list_questions():
     current_app.logger.info("Entering list_questions route.")
+    
+    # استقبال معاملات التصفية من الطلب
+    course_id = request.args.get("course_id", type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    lesson_id = request.args.get("lesson_id", type=int)
     page = request.args.get("page", 1, type=int)
     per_page = 10
-    current_app.logger.info(f"Requesting page {page} with {per_page} items per page.")
+    
+    current_app.logger.info(f"Filter parameters: course_id={course_id}, unit_id={unit_id}, lesson_id={lesson_id}, page={page}")
+    
     try:
-        questions_pagination = (
-            Question.query
-            .options(
-                joinedload(Question.options),
-                joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
-            )
-            .order_by(Question.question_id.desc())
-            .paginate(page=page, per_page=per_page, error_out=False)
+        # بناء الاستعلام الأساسي
+        query = Question.query.options(
+            joinedload(Question.options),
+            joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
         )
+        
+        # إضافة شروط التصفية إذا تم تحديدها
+        if lesson_id:
+            query = query.filter(Question.lesson_id == lesson_id)
+        elif unit_id:
+            query = query.join(Question.lesson).filter(Lesson.unit_id == unit_id)
+        elif course_id:
+            query = query.join(Question.lesson).join(Lesson.unit).filter(Unit.course_id == course_id)
+        
+        # ترتيب النتائج وتقسيمها إلى صفحات
+        questions_pagination = query.order_by(Question.question_id.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
         current_app.logger.info(f"Database query successful. Found {len(questions_pagination.items)} questions on this page (total: {questions_pagination.total}).")
-        rendered_template = render_template("question/list.html", questions=questions_pagination.items, pagination=questions_pagination)
+        
+        # جلب قوائم الدورات والوحدات والدروس للتصفية
+        courses = Course.query.order_by(Course.name).all()
+        units = []
+        lessons = []
+        
+        if course_id:
+            units = Unit.query.filter_by(course_id=course_id).order_by(Unit.name).all()
+            if unit_id:
+                lessons = Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all()
+        
+        rendered_template = render_template(
+            "question/list.html", 
+            questions=questions_pagination.items, 
+            pagination=questions_pagination,
+            courses=courses,
+            units=units,
+            lessons=lessons
+        )
+        
         current_app.logger.info("Template rendering successful.")
         return rendered_template
+        
     except Exception as e:
         current_app.logger.exception("Error occurred in list_questions.")
         flash("حدث خطأ غير متوقع أثناء عرض قائمة الأسئلة.", "danger")
