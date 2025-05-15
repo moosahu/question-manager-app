@@ -146,7 +146,7 @@
 
     async function fetchAndPopulateCourses() {
         try {
-            const response = await fetch("{{ url_for('api.get_courses') }}");
+            const response = await fetch("{{ url_for('api.get_all_courses') }}");
             const data = await response.json();
             populateSelect(courseSelect, data, "-- اختر الدورة --", preselectCourseId);
             if (preselectCourseId) {
