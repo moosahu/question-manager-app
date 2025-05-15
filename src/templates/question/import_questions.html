@@ -163,7 +163,7 @@
         clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
         if (courseId) {
             try {
-                const response = await fetch(`{{ url_for('api.get_units_for_course', course_id=0) }}${courseId}`.replace("0/",""));
+                const response = await fetch(`{{ url_for('api.get_course_units', course_id=0) }}${courseId}`.replace("0/",""));
                 const data = await response.json();
                 populateSelect(unitSelect, data, "-- اختر الوحدة --", preselectUnitId);
                 if (preselectUnitId && unitSelect.value === preselectUnitId) {

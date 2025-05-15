@@ -240,7 +240,7 @@
         }
 
         // Fetch and populate courses
-        fetch("{{ url_for("api.get_courses") }}")
+        fetch("{{ url_for("api.get_all_courses") }}")
             .then(response => response.json())
             .then(data => {
                 populateSelect(courseSelect, data, "-- اختر الدورة --", initialCourseId);
@@ -255,7 +255,7 @@
             clearAndDisableSelect(unitSelect, "-- اختر الوحدة --");
             clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
             if (courseId) {
-                fetch(`{{ url_for("api.get_units_for_course", course_id=0) }}${courseId}`.replace("0/", "")) // Construct URL properly
+                fetch(`{{ url_for("api.get_course_units", course_id=0) }}${courseId}`.replace("0/", "")) // Construct URL properly
                     .then(response => response.json())
                     .then(data => {
                         populateSelect(unitSelect, data, "-- اختر الوحدة --", initialUnitId);
