@@ -240,9 +240,13 @@
         }
 
         // Fetch and populate courses
-        fetch("{{ url_for("api.get_all_courses") }}")
-            .then(response => response.json())
+        fetch("/api/v1/courses")
+            .then(response => {
+                console.log("Courses API Response:", response);
+                return response.json();
+            })
             .then(data => {
+                console.log("Courses data:", data);
                 populateSelect(courseSelect, data, "-- اختر الدورة --", initialCourseId);
                 if (initialCourseId) {
                     courseSelect.dispatchEvent(new Event("change")); // Trigger change to load units
@@ -252,12 +256,19 @@
 
         courseSelect.addEventListener("change", function() {
             const courseId = this.value;
+            console.log("Selected course ID:", courseId);
             clearAndDisableSelect(unitSelect, "-- اختر الوحدة --");
             clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
             if (courseId) {
-                fetch(`{{ url_for("api.get_course_units", course_id=0) }}${courseId}`.replace("0/", "")) // Construct URL properly
-                    .then(response => response.json())
+                const unitsUrl = `/api/v1/courses/${courseId}/units`;
+                console.log("Fetching units from:", unitsUrl);
+                fetch(unitsUrl)
+                    .then(response => {
+                        console.log("Units API Response:", response);
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log("Units data:", data);
                         populateSelect(unitSelect, data, "-- اختر الوحدة --", initialUnitId);
                         if (initialUnitId && unitSelect.value === initialUnitId) { // Ensure it was populated and selected
                              unitSelect.dispatchEvent(new Event("change")); // Trigger change to load lessons
@@ -269,11 +280,18 @@
 
         unitSelect.addEventListener("change", function() {
             const unitId = this.value;
+            console.log("Selected unit ID:", unitId);
             clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
             if (unitId) {
-                fetch(`{{ url_for("api.get_unit_lessons", unit_id=0) }}${unitId}`.replace("0/", "")) // Construct URL properly
-                    .then(response => response.json())
+                const lessonsUrl = `/api/v1/units/${unitId}/lessons`;
+                console.log("Fetching lessons from:", lessonsUrl);
+                fetch(lessonsUrl)
+                    .then(response => {
+                        console.log("Lessons API Response:", response);
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log("Lessons data:", data);
                         populateSelect(lessonSelect, data, "-- اختر الدرس --", initialLessonId);
                     })
                     .catch(error => console.error("Error fetching lessons:", error));
