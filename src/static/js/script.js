@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.transform = 'translateY(-8px)';
         });
         
-        card.addEventListener('mouseleave', function() {
+        item.addEventListener('mouseleave', function() {
             this.style.transform = 'translateY(-5px)';
         });
     });
