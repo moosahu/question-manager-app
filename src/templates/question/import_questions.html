@@ -54,41 +54,46 @@
         {# End: Cascading Dropdowns #}
 
         <div class="mb-3">
-            <label for="file" class="form-label">رفع ملف (.xlsx أو .csv) *</label>
-            <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.csv" required>
+            <label for="question_file" class="form-label">رفع ملف (.xlsx أو .csv) *</label>
+            <input class="form-control" type="file" id="question_file" name="question_file" accept=".xlsx,.csv" required>
             <div class="invalid-feedback">
-                الرجاء اختيار ملف Excel أو CSV.
+                الرجاء اختيار ملف بصيغة .xlsx أو .csv لرفعه.
             </div>
         </div>
 
-        <div class="card mb-4">
-            <div class="card-header">متطلبات تنسيق الملف</div>
-            <div class="card-body">
-                <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
-                <ol>
-                    <li><span class="text-primary">نص السؤال</span> (اختياري في حال وجود صورة)</li>
-                    <li><span class="text-primary">رابط صورة السؤال</span> (اختياري)</li>
-                    <li><span class="text-primary">نص الخيار 1</span> (اختياري في حال وجود صورة)</li>
-                    <li><span class="text-primary">رابط صورة الخيار 1</span> (اختياري)</li>
-                    <li><span class="text-primary">نص الخيار 2</span> (اختياري في حال وجود صورة)</li>
-                    <li><span class="text-primary">رابط صورة الخيار 2</span> (اختياري)</li>
-                    <li><span class="text-primary">نص الخيار 3</span> (اختياري في حال وجود صورة)</li>
-                    <li><span class="text-primary">رابط صورة الخيار 3</span> (اختياري)</li>
-                    <li><span class="text-primary">نص الخيار 4</span> (اختياري في حال وجود صورة)</li>
-                    <li><span class="text-primary">رابط صورة الخيار 4</span> (اختياري)</li>
-                    <li><span class="text-primary">رقم الإجابة الصحيحة</span> (1-4)</li>
-                    <li><span class="text-primary">نص الشرح</span> (اختياري)</li>
-                    <li><span class="text-primary">رابط صورة الشرح</span> (اختياري)</li>
-                </ol>
-                <p class="text-muted small">ملاحظة: يمكن أن تكون روابط الصور URLs خارجية أو مسارات محلية.</p>
-            </div>
+        <div class="alert alert-info">
+            <h5 class="alert-heading">متطلبات تنسيق الملف</h5>
+            <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
+            <ol>
+                <li><code>نص السؤال</code> (اختياري في حال وجود صورة)</li>
+                <li><code>رابط صورة السؤال</code> (اختياري)</li>
+                <li><code>نص الخيار 1</code> (اختياري في حال وجود صورة)</li>
+                <li><code>رابط صورة الخيار 1</code> (اختياري)</li>
+                <li><code>نص الخيار 2</code> (اختياري في حال وجود صورة)</li>
+                <li><code>رابط صورة الخيار 2</code> (اختياري)</li>
+                <li><code>نص الخيار 3</code> (اختياري)</li>
+                <li><code>رابط صورة الخيار 3</code> (اختياري)</li>
+                <li><code>نص الخيار 4</code> (اختياري)</li>
+                <li><code>رابط صورة الخيار 4</code> (اختياري)</li>
+                <li><code>رقم الخيار الصحيح</code> (مطلوب: 1، 2، 3، أو 4)</li>
+            </ol>
+            <p><strong>هام:</strong></p>
+            <ul>
+                <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة تمامًا كما هي مذكورة أعلاه.</li>
+                <li>مطلوب خياران على الأقل (نص أو صورة) لكل سؤال.</li>
+                <li>تأكد من أن روابط الصور صالحة ويمكن الوصول إليها بشكل عام.</li>
+            </ul>
+            <hr>
+            <p><strong>تنزيل القالب:</strong>
+                <a href="{{ url_for('question.download_template', format='xlsx') }}" class="btn btn-sm btn-outline-success">تنزيل قالب Excel (.xlsx)</a>
+                <a href="{{ url_for('question.download_template', format='csv') }}" class="btn btn-sm btn-outline-secondary">تنزيل قالب CSV (.csv)</a>
+            </p>
         </div>
 
-        <div class="d-grid gap-2 d-md-flex">
-            <button type="submit" class="btn btn-primary">استيراد الأسئلة</button>
-            <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary">إلغاء</a>
-        </div>
+        <button type="submit" class="btn btn-primary">استيراد الأسئلة</button>
+        <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary">إلغاء</a>
     </form>
+
 </div>
 {% endblock %}
 
