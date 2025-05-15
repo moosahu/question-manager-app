@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+/* تضمين CSS مباشرة في القالب */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --dark-color: #2c3e50;
+    --light-color: #ecf0f1;
+    --gray-color: #95a5a6;
+    --white-color: #ffffff;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --border-radius: 8px;
+    --transition: all 0.3s ease;
+}
+
+.dashboard-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.dashboard-title {
+    font-size: 24px;
+    color: var(--dark-color);
+    margin: 0;
+}
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background-color: var(--white-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    text-align: center;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.courses {
+    border-top: 4px solid var(--primary-color);
+}
+
+.stat-card.units {
+    border-top: 4px solid var(--secondary-color);
+}
+
+.stat-card.lessons {
+    border-top: 4px solid var(--warning-color);
+}
+
+.stat-card.questions {
+    border-top: 4px solid var(--danger-color);
+}
+
+.stat-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.courses .stat-icon {
+    color: var(--primary-color);
+}
+
+.units .stat-icon {
+    color: var(--secondary-color);
+}
+
+.lessons .stat-icon {
+    color: var(--warning-color);
+}
+
+.questions .stat-icon {
+    color: var(--danger-color);
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.stat-label {
+    color: var(--gray-color);
+    font-size: 16px;
+}
+
+.recent-activity {
+    background-color: var(--white-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 18px;
+    color: var(--dark-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--light-color);
+}
+
+.activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.activity-item {
+    padding: 15px 0;
+    border-bottom: 1px solid var(--light-color);
+    display: flex;
+    align-items: center;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    background-color: var(--light-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: var(--dark-color);
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.activity-time {
+    font-size: 12px;
+    color: var(--gray-color);
+}
+
+.activity-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--gray-color);
+    cursor: pointer;
+    font-size: 16px;
+    transition: var(--transition);
+}
+
+.btn-icon:hover {
+    color: var(--dark-color);
+}
+
+.btn-edit:hover {
+    color: var(--warning-color);
+}
+
+.btn-delete:hover {
+    color: var(--danger-color);
+}
+
+.quick-actions {
+    background-color: var(--white-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
+
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    background-color: var(--light-color);
+    border-radius: var(--border-radius);
+    text-decoration: none;
+    color: var(--dark-color);
+    font-weight: bold;
+    transition: var(--transition);
+    border: none;
+    cursor: pointer;
+}
+
+.action-btn i {
+    margin-right: 10px;
+    font-size: 18px;
+}
+
+.action-btn.primary {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+}
+
+.action-btn.secondary {
+    background-color: var(--secondary-color);
+    color: var(--white-color);
+}
+
+.action-btn.warning {
+    background-color: var(--warning-color);
+    color: var(--white-color);
+}
+
+.action-btn.danger {
+    background-color: var(--danger-color);
+    color: var(--white-color);
+}
+
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+    .dashboard-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .dashboard-title {
+        margin-bottom: 15px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">لوحة التحكم</h1>
+    </div>
+    
+    <div class="dashboard-stats">
+        <div class="stat-card courses">
+            <div class="stat-icon">
+                <i class="fas fa-book"></i>
+            </div>
+            <div class="stat-value">{{ courses_count }}</div>
+            <div class="stat-label">الدورات</div>
+        </div>
+        
+        <div class="stat-card units">
+            <div class="stat-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stat-value">{{ units_count }}</div>
+            <div class="stat-label">الوحدات</div>
+        </div>
+        
+        <div class="stat-card lessons">
+            <div class="stat-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="stat-value">{{ lessons_count }}</div>
+            <div class="stat-label">الدروس</div>
+        </div>
+        
+        <div class="stat-card questions">
+            <div class="stat-icon">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <div class="stat-value">{{ questions_count }}</div>
+            <div class="stat-label">الأسئلة</div>
+        </div>
+    </div>
+    
+    <div class="recent-activity">
+        <h2 class="section-title">النشاط الأخير</h2>
+        <ul class="activity-list">
+            {% for activity in recent_activities %}
+            <li class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-{{ activity.icon }}"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-title">{{ activity.title }}</div>
+                    <div class="activity-time">{{ activity.time }}</div>
+                </div>
+                <div class="activity-actions">
+                    {% if activity.can_edit %}
+                    <button class="btn-icon btn-edit" title="تعديل">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% endif %}
+                    {% if activity.can_delete %}
+                    <button class="btn-icon btn-delete" title="حذف">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="quick-actions">
+        <h2 class="section-title">المهام السريعة</h2>
+        <div class="action-buttons">
+            <a href="{{ url_for('question_bp.create_question') }}" class="action-btn primary">
+                <i class="fas fa-plus-circle"></i> إضافة سؤال جديد
+            </a>
+            <a href="{{ url_for('question_bp.import_questions') }}" class="action-btn secondary">
+                <i class="fas fa-file-import"></i> استيراد أسئلة
+            </a>
+            <a href="{{ url_for('curriculum_bp.create_course') }}" class="action-btn warning">
+                <i class="fas fa-book"></i> إضافة دورة
+            </a>
+            <a href="{{ url_for('question_bp.list_questions') }}" class="action-btn danger">
+                <i class="fas fa-list"></i> عرض الكل
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// تضمين JavaScript مباشرة في القالب
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة تأثيرات حركية للبطاقات الإحصائية
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+        });
+    });
+    
+    // إضافة تأثيرات حركية لأزرار الإجراءات السريعة
+    const actionButtons = document.querySelectorAll('.action-btn');
+    actionButtons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-3px)';
+            this.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+    
+    // إضافة وظائف لأزرار التعديل والحذف
+    const editButtons = document.querySelectorAll('.btn-edit');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const activityItem = this.closest('.activity-item');
+            const activityTitle = activityItem.querySelector('.activity-title').textContent;
+            alert('تعديل: ' + activityTitle);
+        });
+    });
+    
+    const deleteButtons = document.querySelectorAll('.btn-delete');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const activityItem = this.closest('.activity-item');
+            const activityTitle = activityItem.querySelector('.activity-title').textContent;
+            if (confirm('هل أنت متأكد من حذف: ' + activityTitle + '؟')) {
+                activityItem.remove();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

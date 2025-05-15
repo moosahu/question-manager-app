@@ -26,7 +26,8 @@ except ImportError:
 from src.models.user import User
 
 def create_app():
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+    # تعديل مسارات القوالب والملفات الثابتة ليشيروا إلى المجلدات الصحيحة
+    app = Flask(__name__, template_folder="src/templates", static_folder="src/static")
 
     # Configuration
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
