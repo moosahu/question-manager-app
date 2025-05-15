@@ -82,15 +82,18 @@
                 {% for question in questions %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('question.edit_question', question_id=question.question_id) }}" class="btn btn-sm btn-primary">Edit</a>
+                            {# --- FIX: Use question.question_id instead of question.id --- #}
                             <form action="{{ url_for('question.delete_question', question_id=question.question_id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا السؤال وجميع خياراته؟');">
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                <button type="submit" class="btn btn-sm btn-danger">حذف</button>
                             </form>
+                            <a href="{{ url_for('question.edit_question', question_id=question.question_id) }}" class="btn btn-sm btn-primary me-1">تعديل</a>
                         </td>
                         <td>{{ question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else 'N/A' }}</td>
                         <td>{{ question.lesson.unit.name if question.lesson and question.lesson.unit else 'N/A' }}</td>
                         <td>{{ question.lesson.name if question.lesson else 'N/A' }}</td>
+                        {# --- FIX: Use question.question_text instead of question.text --- #}
                         <td>{{ (question.question_text | truncate(100)) if question.question_text else '[سؤال بصورة فقط]' }}</td>
+                        {# Display sequential number across pages #}
                         <td>{{ start_num + loop.index0 }}</td>
                     </tr>
                 {% endfor %}
