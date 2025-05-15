@@ -13,7 +13,14 @@ from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
 from src.routes.api import api_bp # <<< Added API blueprint import
-from src.routes.dashboard_blueprint import dashboard_bp # <<< إضافة بلوبرنت لوحة التحكم
+
+# استيراد شرطي لبلوبرنت لوحة التحكم
+try:
+    from src.routes.dashboard_blueprint import dashboard_bp
+    has_dashboard = True
+except ImportError:
+    has_dashboard = False
+    print("تحذير: لم يتم العثور على ملف dashboard_blueprint.py، سيتم تخطي تسجيل بلوبرنت لوحة التحكم")
 
 # Import User model AFTER defining db
 from src.models.user import User
@@ -63,13 +70,21 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp) # <<< Registered API blueprint (prefix is in api.py)
-    app.register_blueprint(dashboard_bp, url_prefix="/dashboard") # <<< تسجيل بلوبرنت لوحة التحكم
+    
+    # تسجيل بلوبرنت لوحة التحكم بشكل شرطي
+    if has_dashboard:
+        app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
+        print("تم تسجيل بلوبرنت لوحة التحكم بنجاح")
 
     @app.route("/")
     @login_required
     def index():
-        # إعادة توجيه إلى لوحة التحكم
-        return redirect(url_for('dashboard.dashboard'))
+        # إعادة توجيه إلى لوحة التحكم إذا كانت متاحة، وإلا عرض الصفحة الرئيسية
+        if has_dashboard:
+            return redirect(url_for('dashboard.dashboard'))
+        else:
+            # الإجراء الأصلي
+            return render_template("index.html")
 
     # Error Handling
     @app.errorhandler(404)
