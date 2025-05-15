@@ -180,7 +180,7 @@
         clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
         if (unitId) {
             try {
-                const response = await fetch(`{{ url_for('api.get_lessons_for_unit', unit_id=0) }}${unitId}`.replace("0/",""));
+                const response = await fetch(`{{ url_for('api.get_unit_lessons', unit_id=0) }}${unitId}`.replace("0/",""));
                 const data = await response.json();
                 populateSelect(lessonSelect, data, "-- اختر الدرس --", selectedLessonId);
             } catch (error) {

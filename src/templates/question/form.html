@@ -271,7 +271,7 @@
             const unitId = this.value;
             clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
             if (unitId) {
-                fetch(`{{ url_for("api.get_lessons_for_unit", unit_id=0) }}${unitId}`.replace("0/", "")) // Construct URL properly
+                fetch(`{{ url_for("api.get_unit_lessons", unit_id=0) }}${unitId}`.replace("0/", "")) // Construct URL properly
                     .then(response => response.json())
                     .then(data => {
                         populateSelect(lessonSelect, data, "-- اختر الدرس --", initialLessonId);
