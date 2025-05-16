@@ -22,7 +22,7 @@ def create_app():
 
     # Configuration
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///instance/mydatabase.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     # Configure SERVER_NAME for external URL generation in API (adjust if needed)

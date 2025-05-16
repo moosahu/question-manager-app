@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>مرحباً, {{ current_user.username }}!</h1>
+    <p>هذه هي لوحة التحكم الرئيسية.</p>
+    {# يمكنك إضافة المزيد من محتوى لوحة التحكم هنا لاحقًا, مثل روابط سريعة أو إحصائيات #}
+    <p>
+        {# --- Ensure NO backslashes around quotes here --- #}
+        <a href="{{ url_for('question.list_questions') }}" class="btn btn-primary">إدارة الأسئلة</a>
+        {# --- Ensure NO backslashes around quotes here --- #}
+        <a href="{{ url_for('curriculum.list_courses') }}" class="btn btn-secondary">إدارة المنهج</a>
+        {# --- You might want to add a link to change password here too --- #}
+        {# <a href="{{ url_for('user.change_password') }}" class="btn btn-info">تغيير كلمة المرور</a> #}
+    </p>
+</div>
+{% endblock %}
