@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المنهج - إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+</head>
+<body>
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="particle p7"></div>
+        <div class="particle p8"></div>
+        <div class="particle p9"></div>
+        <div class="particle p10"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                <li><a href="{{ url_for('curriculum.list_courses') }}" class="active"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                <li><a href="{{ url_for('question.list_questions') }}"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="{{ url_for('question.import_questions') }}"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="{{ url_for('user.change_password') }}"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
+                <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="dashboard">
+            <h2><i class="fas fa-flask"></i> إدارة المنهج</h2>
+            
+            <div class="section">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <a href="{{ url_for('curriculum.add_course') }}" class="btn btn-sm btn-outline-secondary">إضافة دورة جديدة</a>
+                    </div>
+                </div>
+
+                {# Flash messages #}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} flash" role="alert">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if courses %}
+                    {% for course in courses %}
+                    <div class="accordion mb-2" id="accordionCourse{{ course.id }}">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingCourse{{ course.id }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCourse{{ course.id }}" aria-expanded="false" aria-controls="collapseCourse{{ course.id }}">
+                                    <strong>{{ course.name }}</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseCourse{{ course.id }}" class="accordion-collapse collapse" aria-labelledby="headingCourse{{ course.id }}" data-bs-parent="#accordionCourse{{ course.id }}">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-end mb-2 tex2jax_ignore"> {# Ignore action links #}
+                                        <a href="{{ url_for('curriculum.edit_course', course_id=course.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الدورة</a>
+                                        <a href="{{ url_for('curriculum.delete_course', course_id=course.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذه الدورة سيؤدي أيضًا إلى حذف جميع الوحدات والدروس والأسئلة التابعة لها. هل أنت متأكد؟')">حذف الدورة</a>
+                                    </div>
+
+                                    <h5>الوحدات</h5>
+                                    {% for unit in course.units %}
+                                    <div class="card card-body mb-2">
+                                        <div class="d-flex justify-content-between align-items-center tex2jax_ignore"> {# Ignore action links #}
+                                            <span>{{ unit.name }}</span>
+                                            <div>
+                                                <a href="{{ url_for('curriculum.edit_unit', unit_id=unit.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الوحدة</a>
+                                                <a href="{{ url_for('curriculum.delete_unit', unit_id=unit.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذه الوحدة سيؤدي أيضًا إلى حذف جميع الدروس والأسئلة التابعة لها. هل أنت متأكد؟')">حذف الوحدة</a>
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <h6>الدروس</h6>
+                                        <ul class="list-group list-group-flush">
+                                            {% for lesson in unit.lessons %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center tex2jax_ignore"> {# Ignore action links #}
+                                                {{ lesson.name }}
+                                                <div>
+                                                    <a href="{{ url_for('curriculum.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-primary me-1">تعديل الدرس</a>
+                                                    <a href="{{ url_for('curriculum.delete_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذا الدرس سيؤدي أيضًا إلى حذف جميع الأسئلة التابعة له. هل أنت متأكد؟')">حذف الدرس</a>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                            <li class="list-group-item tex2jax_ignore"> {# Ignore action links #}
+                                                <a href="{{ url_for('curriculum.add_lesson', unit_id=unit.id) }}" class="btn btn-sm btn-outline-success">+ إضافة درس</a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    {% endfor %}
+                                    <div class="tex2jax_ignore"> {# Ignore action links #}
+                                        <a href="{{ url_for('curriculum.add_unit', course_id=course.id) }}" class="btn btn-sm btn-outline-success">+ إضافة وحدة</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info" role="alert">
+                        لا توجد دورات حتى الآن. ابدأ بإضافة دورة جديدة.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p> جميع الحقوق محفوظة - إدارة الأسئلة الكيميائية تطوير الاستاذ حسين علي الموسى© 2025</p>
+            <div class="footer-links">
+                <a href="#">الدعم الفني</a>
+                <a href="#">سياسة الخصوصية</a>
+                <a href="#">شروط الاستخدام</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+</body>
+</html>

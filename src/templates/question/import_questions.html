@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استيراد أسئلة - إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="particle p7"></div>
+        <div class="particle p8"></div>
+        <div class="particle p9"></div>
+        <div class="particle p10"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                <li><a href="{{ url_for('curriculum.list_courses') }}"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                <li><a href="{{ url_for('question.list_questions') }}"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="{{ url_for('question.import_questions') }}" class="active"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="{{ url_for('user.change_password') }}"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
+                <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="dashboard">
+            <h2><i class="fas fa-file-import"></i> استيراد أسئلة من ملف</h2>
+            
+            <div class="section">
+                <p class="text-muted">قم برفع ملف Excel (.xlsx) أو CSV (.csv) يحتوي على الأسئلة لإضافتها إلى درس معين.</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message | safe }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    {# Start: Cascading Dropdowns for Course, Unit, Lesson #}
+                    <div class="mb-3">
+                        <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
+                        <select id="course_id" class="form-select" name="course_id_temp" required>
+                            <option value="" selected disabled>-- اختر الدورة --</option>
+                            {# Options will be populated by JavaScript #}
+                        </select>
+                        <div class="invalid-feedback">
+                            الرجاء اختيار دورة.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
+                        <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
+                            <option value="" selected disabled>-- اختر الوحدة --</option>
+                            {# Options will be populated by JavaScript #}
+                        </select>
+                        <div class="invalid-feedback">
+                            الرجاء اختيار وحدة.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
+                        <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
+                            <option value="" selected disabled>-- اختر الدرس --</option>
+                            {# Options will be populated by JavaScript #}
+                        </select>
+                        <div class="invalid-feedback">
+                            الرجاء اختيار درس.
+                        </div>
+                    </div>
+                    {# End: Cascading Dropdowns #}
+
+                    <div class="mb-3">
+                        <label for="question_file" class="form-label">رفع ملف (.xlsx أو .csv) *</label>
+                        <input class="form-control" type="file" id="question_file" name="question_file" accept=".xlsx,.csv" required>
+                        <div class="invalid-feedback">
+                            الرجاء اختيار ملف بصيغة .xlsx أو .csv لرفعه.
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">متطلبات تنسيق الملف</h5>
+                        <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
+                        <ol>
+                            <li><code>Question Text</code> (نص السؤال - اختياري في حال وجود صورة)</li>
+                            <li><code>Question Image URL</code> (رابط صورة السؤال - اختياري)</li>
+                            <li><code>Option 1 Text</code> (نص الخيار 1 - اختياري في حال وجود صورة)</li>
+                            <li><code>Option 1 Image URL</code> (رابط صورة الخيار 1 - اختياري)</li>
+                            <li><code>Option 2 Text</code> (نص الخيار 2 - اختياري في حال وجود صورة)</li>
+                            <li><code>Option 2 Image URL</code> (رابط صورة الخيار 2 - اختياري)</li>
+                            <li><code>Option 3 Text</code> (نص الخيار 3 - اختياري)</li>
+                            <li><code>Option 3 Image URL</code> (رابط صورة الخيار 3 - اختياري)</li>
+                            <li><code>Option 4 Text</code> (نص الخيار 4 - اختياري)</li>
+                            <li><code>Option 4 Image URL</code> (رابط صورة الخيار 4 - اختياري)</li>
+                            <li><code>Correct Option Number</code> (رقم الخيار الصحيح - مطلوب: 1، 2، 3، أو 4)</li>
+                        </ol>
+                        <p><strong>هام:</strong></p>
+                        <ul>
+                            <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة <strong>باللغة الإنجليزية</strong> تمامًا كما هي مذكورة أعلاه.</li>
+                            <li>مطلوب خياران على الأقل (نص أو صورة) لكل سؤال.</li>
+                            <li>تأكد من أن روابط الصور صالحة ويمكن الوصول إليها بشكل عام.</li>
+                        </ul>
+                        <hr>
+                        <p><strong>تنزيل القالب:</strong>
+                            <a href="{{ url_for('question.download_template', format='xlsx') }}" class="btn btn-sm btn-outline-success">تنزيل قالب Excel (.xlsx)</a>
+                            <a href="{{ url_for('question.download_template', format='csv') }}" class="btn btn-sm btn-outline-secondary">تنزيل قالب CSV (.csv)</a>
+                        </p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="background-color: var(--primary-color); border: none; padding: 10px; margin-top: 20px; cursor: pointer;">استيراد الأسئلة</button>
+                    <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary" style="background-color: var(--dark-color); border: none; padding: 10px; margin-top: 20px; cursor: pointer;">إلغاء</a>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p> جميع الحقوق محفوظة - إدارة الأسئلة الكيميائية تطوير الاستاذ حسين علي الموسى© 2025</p>
+            <div class="footer-links">
+                <a href="#">الدعم الفني</a>
+                <a href="#">سياسة الخصوصية</a>
+                <a href="#">شروط الاستخدام</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const courseSelect = document.getElementById("course_id");
+            const unitSelect = document.getElementById("unit_id");
+            const lessonSelect = document.getElementById("lesson_id");
+            const fileInput = document.getElementById("question_file");
+            const form = document.querySelector('form');
+
+            function populateSelect(selectElement, items, placeholder, selectedValue = null) {
+                selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
+                items.forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item.id;
+                    option.textContent = item.name;
+                    if (selectedValue && item.id.toString() === selectedValue.toString()) {
+                        option.selected = true;
+                    }
+                    selectElement.appendChild(option);
+                });
+                selectElement.disabled = false;
+            }
+
+            function clearAndDisableSelect(selectElement, placeholder) {
+                selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
+                selectElement.disabled = true;
+            }
+
+            // Fetch and populate courses
+            fetch("/api/v1/courses")
+                .then(response => {
+                    console.log("Courses API Response:", response);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Courses data:", data);
+                    populateSelect(courseSelect, data, "-- اختر الدورة --");
+                })
+                .catch(error => console.error("Error fetching courses:", error));
+
+            courseSelect.addEventListener("change", function() {
+                const courseId = this.value;
+                console.log("Selected course ID:", courseId);
+                clearAndDisableSelect(unitSelect, "-- اختر الوحدة --");
+                clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
+                if (courseId) {
+                    const unitsUrl = `/api/v1/courses/${courseId}/units`;
+                    console.log("Fetching units from:", unitsUrl);
+                    fetch(unitsUrl)
+                        .then(response => {
+                            console.log("Units API Response:", response);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Units data:", data);
+                            populateSelect(unitSelect, data, "-- اختر الوحدة --");
+                        })
+                        .catch(error => console.error("Error fetching units:", error));
+                }
+            });
+
+            unitSelect.addEventListener("change", function() {
+                const unitId = this.value;
+                console.log("Selected unit ID:", unitId);
+                clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
+                if (unitId) {
+                    const lessonsUrl = `/api/v1/units/${unitId}/lessons`;
+                    console.log("Fetching lessons from:", lessonsUrl);
+                    fetch(lessonsUrl)
+                        .then(response => {
+                            console.log("Lessons API Response:", response);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Lessons data:", data);
+                            populateSelect(lessonSelect, data, "-- اختر الدرس --");
+                        })
+                        .catch(error => console.error("Error fetching lessons:", error));
+                }
+            });
+
+            // تحسين التحقق من صحة النموذج
+            form.addEventListener('submit', function(event) {
+                console.log("Form submission attempted");
+                
+                // التحقق من اختيار الدرس
+                if (!lessonSelect.value) {
+                    console.log("Lesson not selected");
+                    event.preventDefault();
+                    alert("الرجاء اختيار الدرس");
+                    return false;
+                }
+                
+                // التحقق من اختيار الملف
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    console.log("File not selected");
+                    event.preventDefault();
+                    alert("الرجاء اختيار ملف للاستيراد");
+                    return false;
+                }
+                
+                console.log("Form validation passed, submitting");
+                // إذا وصلنا إلى هنا، فإن النموذج صالح ويمكن إرساله
+                return true;
+            });
+            
+            // إضافة مراقب لتغيير الملف للتحقق من صحته
+            fileInput.addEventListener('change', function() {
+                console.log("File input changed");
+                if (this.files && this.files.length > 0) {
+                    console.log("File selected:", this.files[0].name);
+                } else {
+                    console.log("No file selected");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
