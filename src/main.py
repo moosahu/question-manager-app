@@ -199,8 +199,8 @@ def create_app():
                 'recent_activities': [],
                 'recent_questions': []
             }
-            logger.info("عرض قالب dashboard_inline_css_fixed.html مباشرة")
-            return render_template("dashboard_inline_css_fixed.html", **dashboard_data)
+            logger.info("عرض قالب dashboard_inline_css.html مباشرة")
+            return render_template("dashboard_inline_css.html", **dashboard_data)
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للوحة التحكم: {e}")
             logger.error(traceback.format_exc())
