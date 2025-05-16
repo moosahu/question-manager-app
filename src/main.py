@@ -174,7 +174,7 @@ def create_app():
     @login_required
     def index():
         try:
-            logger.info("تم استدعاء المسار الرئيسي '/'")
+            logger.info("تم استدعاء المسار الرئيسي '/'" )
             # إعادة توجيه مباشرة إلى لوحة التحكم
             logger.info("إعادة توجيه إلى /dashboard")
             return redirect("/dashboard")
@@ -188,7 +188,7 @@ def create_app():
     @login_required
     def dashboard():
         try:
-            logger.info("تم استدعاء المسار المباشر '/dashboard'")
+            logger.info("تم استدعاء المسار المباشر '/dashboard'" )
             # عرض قالب لوحة التحكم مباشرة
             dashboard_data = {
                 'courses_count': 10,
@@ -211,8 +211,8 @@ def create_app():
     @login_required
     def curriculum():
         try:
-            logger.info("تم استدعاء المسار المباشر '/curriculum'")
-            return render_template("curriculum.html", title="إدارة المنهج")
+            logger.info("تم استدعاء المسار المباشر '/curriculum'" )
+            return render_template("curriculum_complete.html", title="إدارة المنهج")
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للمنهج: {e}")
             logger.error(traceback.format_exc())
@@ -222,8 +222,8 @@ def create_app():
     @login_required
     def questions():
         try:
-            logger.info("تم استدعاء المسار المباشر '/questions'")
-            return render_template("questions.html", title="إدارة الأسئلة")
+            logger.info("تم استدعاء المسار المباشر '/questions'" )
+            return render_template("questions_complete.html", title="إدارة الأسئلة")
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للأسئلة: {e}")
             logger.error(traceback.format_exc())
@@ -233,8 +233,8 @@ def create_app():
     @login_required
     def settings():
         try:
-            logger.info("تم استدعاء المسار المباشر '/settings'")
-            return render_template("settings.html", title="الإعدادات")
+            logger.info("تم استدعاء المسار المباشر '/settings'" )
+            return render_template("settings_complete.html", title="الإعدادات")
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للإعدادات: {e}")
             logger.error(traceback.format_exc())
@@ -302,3 +302,4 @@ if __name__ == "__main__":
         logger.critical(f"خطأ حرج في تشغيل تطبيق Flask: {e}")
         logger.critical(traceback.format_exc())
         raise
+
