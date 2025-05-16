@@ -100,10 +100,10 @@ def create_app():
     # طباعة المسار الحالي وقائمة الملفات للتشخيص
     logger.info(f"المسار الحالي في create_app: {os.getcwd()}")
     
-    # تعديل مسارات القوالب والملفات الثابتة لتتناسب مع هيكل المشروع الفعلي
+    # تعديل مسارات القوالب والملفات الثابتة لتكون نسبية
     try:
-        logger.info("إنشاء تطبيق Flask مع مسارات القوالب والملفات الثابتة")
-        app = Flask(__name__, template_folder="/opt/render/project/src/templates", static_folder="/opt/render/project/src/static")
+        logger.info("إنشاء تطبيق Flask مع مسارات القوالب والملفات الثابتة النسبية")
+        app = Flask(__name__, template_folder="templates", static_folder="static")
         logger.info("تم إنشاء تطبيق Flask بنجاح")
     except Exception as e:
         logger.error(f"خطأ في إنشاء تطبيق Flask: {e}")
