@@ -53,39 +53,6 @@ except Exception as e:
     logger.error(traceback.format_exc())
     raise
 
-# استيراد شرطي لبلوبرنت لوحة التحكم مع محاولة مسارات مختلفة
-has_dashboard = False
-dashboard_bp = None
-
-# محاولة استيراد dashboard_blueprint من مسارات مختلفة
-try:
-    # المسار الأول: routes.dashboard_blueprint (بدون src)
-    logger.info("محاولة استيراد dashboard_blueprint من routes.dashboard_blueprint")
-    from routes.dashboard_blueprint import dashboard_bp
-    has_dashboard = True
-    logger.info("تم استيراد dashboard_blueprint بنجاح من routes.dashboard_blueprint")
-except ImportError as e:
-    logger.warning(f"فشل استيراد dashboard_blueprint من routes.dashboard_blueprint: {e}")
-    try:
-        # المسار الثاني: src.routes.dashboard_blueprint
-        logger.info("محاولة استيراد dashboard_blueprint من src.routes.dashboard_blueprint")
-        from src.routes.dashboard_blueprint import dashboard_bp
-        has_dashboard = True
-        logger.info("تم استيراد dashboard_blueprint بنجاح من src.routes.dashboard_blueprint")
-    except ImportError as e:
-        logger.warning(f"فشل استيراد dashboard_blueprint من src.routes.dashboard_blueprint: {e}")
-        try:
-            # المسار الثالث: محاولة استيراد نسبي
-            logger.info("محاولة استيراد dashboard_blueprint باستخدام المسار النسبي")
-            import sys
-            sys.path.append(os.getcwd())
-            from src.routes.dashboard_blueprint import dashboard_bp
-            has_dashboard = True
-            logger.info("تم استيراد dashboard_blueprint بنجاح باستخدام المسار النسبي")
-        except ImportError as e:
-            logger.error(f"فشل استيراد dashboard_blueprint من جميع المسارات: {e}")
-            has_dashboard = False
-
 # Import User model AFTER defining db
 try:
     logger.info("محاولة استيراد User من src.models.user")
@@ -202,25 +169,13 @@ def create_app():
         logger.error(f"خطأ في تسجيل البلوبرنت الأساسية: {e}")
         logger.error(traceback.format_exc())
         raise
-    
-    # تسجيل بلوبرنت لوحة التحكم بشكل شرطي
-    if has_dashboard:
-        try:
-            logger.info("محاولة تسجيل بلوبرنت لوحة التحكم")
-            app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
-            logger.info("تم تسجيل بلوبرنت لوحة التحكم بنجاح")
-        except Exception as e:
-            logger.error(f"خطأ في تسجيل بلوبرنت لوحة التحكم: {e}")
-            logger.error(traceback.format_exc())
-    else:
-        logger.warning("تم تخطي تسجيل بلوبرنت لوحة التحكم لأنه غير متوفر")
 
     @app.route("/")
     @login_required
     def index():
         try:
             logger.info("تم استدعاء المسار الرئيسي '/'")
-            # إعادة توجيه مباشرة إلى لوحة التحكم بغض النظر عن وجود البلوبرنت
+            # إعادة توجيه مباشرة إلى لوحة التحكم
             logger.info("إعادة توجيه إلى /dashboard")
             return redirect("/dashboard")
         except Exception as e:
@@ -228,7 +183,7 @@ def create_app():
             logger.error(traceback.format_exc())
             return render_template("500.html"), 500
 
-    # إضافة مسار مباشر للوحة التحكم في حالة عدم تسجيل البلوبرنت
+    # إضافة مسار مباشر للوحة التحكم
     @app.route("/dashboard")
     @login_required
     def dashboard():
@@ -240,7 +195,9 @@ def create_app():
                 'units_count': 50,
                 'lessons_count': 200,
                 'questions_count': 1000,
-                'title': 'لوحة التحكم'
+                'title': 'لوحة التحكم',
+                'recent_activities': [],
+                'recent_questions': []
             }
             logger.info("عرض قالب dashboard_inline_css_fixed.html مباشرة")
             return render_template("dashboard_inline_css_fixed.html", **dashboard_data)
@@ -249,36 +206,39 @@ def create_app():
             logger.error(traceback.format_exc())
             return render_template("500.html"), 500
 
-    # تعديل مسار dashboard_blueprint.py أيضاً إذا تم استيراده
-    if has_dashboard:
+    # إضافة مسارات مباشرة للأزرار العلوية
+    @app.route("/curriculum")
+    @login_required
+    def curriculum():
         try:
-            logger.info("تعديل مسار dashboard_blueprint.py ليستخدم dashboard_inline_css_fixed.html")
-            # تعديل دالة dashboard في dashboard_bp
-            original_dashboard_view = dashboard_bp.view_functions['dashboard']
-            
-            @dashboard_bp.route('', endpoint='dashboard')
-            @login_required
-            def dashboard_view():
-                try:
-                    logger.info("تم استدعاء مسار dashboard من خلال البلوبرنت")
-                    # جلب بيانات لوحة التحكم
-                    from src.routes.dashboard import get_dashboard_data
-                    dashboard_data = get_dashboard_data()
-                    
-                    # عرض قالب لوحة التحكم مع البيانات
-                    logger.info("عرض قالب dashboard_inline_css_fixed.html من خلال البلوبرنت")
-                    return render_template('dashboard_inline_css_fixed.html', **dashboard_data)
-                except Exception as e:
-                    logger.error(f"خطأ في مسار dashboard من خلال البلوبرنت: {e}")
-                    logger.error(traceback.format_exc())
-                    return render_template("500.html"), 500
-            
-            # استبدال الدالة الأصلية بالدالة المعدلة
-            dashboard_bp.view_functions['dashboard'] = dashboard_view
-            logger.info("تم تعديل مسار dashboard_blueprint.py بنجاح")
+            logger.info("تم استدعاء المسار المباشر '/curriculum'")
+            return render_template("curriculum.html", title="إدارة المنهج")
         except Exception as e:
-            logger.error(f"خطأ في تعديل مسار dashboard_blueprint.py: {e}")
+            logger.error(f"خطأ في المسار المباشر للمنهج: {e}")
             logger.error(traceback.format_exc())
+            return render_template("500.html"), 500
+
+    @app.route("/questions")
+    @login_required
+    def questions():
+        try:
+            logger.info("تم استدعاء المسار المباشر '/questions'")
+            return render_template("questions.html", title="إدارة الأسئلة")
+        except Exception as e:
+            logger.error(f"خطأ في المسار المباشر للأسئلة: {e}")
+            logger.error(traceback.format_exc())
+            return render_template("500.html"), 500
+
+    @app.route("/settings")
+    @login_required
+    def settings():
+        try:
+            logger.info("تم استدعاء المسار المباشر '/settings'")
+            return render_template("settings.html", title="الإعدادات")
+        except Exception as e:
+            logger.error(f"خطأ في المسار المباشر للإعدادات: {e}")
+            logger.error(traceback.format_exc())
+            return render_template("500.html"), 500
 
     # Error Handling
     @app.errorhandler(404)
