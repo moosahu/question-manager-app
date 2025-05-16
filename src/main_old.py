@@ -22,7 +22,7 @@ def create_app():
 
     # Configuration
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///instance/mydatabase.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     # Configure SERVER_NAME for external URL generation in API (adjust if needed)
@@ -66,8 +66,22 @@ def create_app():
     @app.route("/")
     @login_required
     def index():
-        # Render the index.html template which extends base.html
-        return render_template("index.html")
+        # جلب الإحصائيات من قاعدة البيانات
+        from src.models.question import Question
+        from src.models.curriculum import Course, Unit, Lesson
+        
+        # حساب عدد الأسئلة والدورات والوحدات والدروس
+        questions_count = Question.query.count()
+        courses_count = Course.query.count()
+        units_count = Unit.query.count()
+        lessons_count = Lesson.query.count()
+        
+        # تمرير الإحصائيات إلى القالب
+        return render_template("index.html", 
+                              questions_count=questions_count,
+                              courses_count=courses_count,
+                              units_count=units_count,
+                              lessons_count=lessons_count)
 
     # Error Handling
     @app.errorhandler(404)
@@ -97,5 +111,5 @@ if __name__ == "__main__":
     # <<< Corrected indentation for the block below
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False) # <<< Corrected host quote and indentation
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True) # تفعيل وضع التصحيح مؤقتاً
 

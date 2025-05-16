@@ -1,21 +1,23 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, current_app, request # Added request for API URL formatting
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify
 from werkzeug.security import generate_password_hash
-from flask_login import current_user, login_required # Added login_required
-
+from flask_login import current_user, login_required
+from flask_wtf.csrf import CSRFProtect
 
 # Import db and login_manager from the new extensions file
 from src.extensions import db, login_manager
 
 # Import blueprints AFTER defining db and login_manager
-from src.routes.auth import auth_bp # <<< Corrected import name
+from src.routes.auth import auth_bp
 from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
-from src.routes.api import api_bp # <<< Added API blueprint import
+from src.routes.api import api_bp
+from src.routes.settings import settings_bp
 
 # Import User model AFTER defining db
 from src.models.user import User
+from src.models.activity import Activity
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -25,13 +27,12 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
-    # Configure SERVER_NAME for external URL generation in API (adjust if needed)
-    # Example: app.config["SERVER_NAME"] = "your-app-name.onrender.com"
-    # Or rely on request context (might be sufficient)
-
+    app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
+    
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
+    csrf = CSRFProtect(app)  # تهيئة حماية CSRF
     login_manager.login_view = "auth.login" # Set the login view
 
     # User loader function for Flask-Login
@@ -52,6 +53,9 @@ def create_app():
                 db.session.add(new_admin)
                 db.session.commit()
                 print("Admin user created.")
+                
+                # تسجيل نشاط إنشاء المستخدم الإداري
+                Activity.log_system_activity("تم إنشاء حساب المستخدم الإداري")
         except Exception as e:
             print(f"Error during database initialization or admin creation: {e}")
             db.session.rollback()
@@ -62,6 +66,7 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp) # <<< Registered API blueprint (prefix is in api.py)
+    app.register_blueprint(settings_bp, url_prefix="/settings") # تسجيل blueprint الإعدادات
 
     @app.route("/")
     @login_required
@@ -76,12 +81,16 @@ def create_app():
         units_count = Unit.query.count()
         lessons_count = Lesson.query.count()
         
-        # تمرير الإحصائيات إلى القالب
+        # جلب آخر الأنشطة
+        recent_activities = Activity.get_recent_activities(limit=4)
+        
+        # تمرير الإحصائيات والأنشطة إلى القالب
         return render_template("index.html", 
                               questions_count=questions_count,
                               courses_count=courses_count,
                               units_count=units_count,
-                              lessons_count=lessons_count)
+                              lessons_count=lessons_count,
+                              recent_activities=recent_activities)
 
     # Error Handling
     @app.errorhandler(404)
@@ -112,4 +121,3 @@ if __name__ == "__main__":
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True) # تفعيل وضع التصحيح مؤقتاً
-
