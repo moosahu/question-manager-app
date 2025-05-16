@@ -25,6 +25,12 @@ if os.path.exists('src'):
         logger.info(f"قائمة الملفات في مجلد src/routes: {os.listdir('src/routes')}")
     if os.path.exists('src/templates'):
         logger.info(f"قائمة الملفات في مجلد src/templates: {os.listdir('src/templates')}")
+    if os.path.exists('src/static'):
+        logger.info(f"قائمة الملفات في مجلد src/static: {os.listdir('src/static')}")
+        if os.path.exists('src/static/css'):
+            logger.info(f"قائمة الملفات في مجلد src/static/css: {os.listdir('src/static/css')}")
+        if os.path.exists('src/static/js'):
+            logger.info(f"قائمة الملفات في مجلد src/static/js: {os.listdir('src/static/js')}")
 
 # طباعة مسارات البحث في Python
 logger.info(f"مسارات البحث في Python: {sys.path}")
@@ -103,7 +109,7 @@ def create_app():
     # تعديل مسارات القوالب والملفات الثابتة لتكون نسبية
     try:
         logger.info("إنشاء تطبيق Flask مع مسارات القوالب والملفات الثابتة النسبية")
-        app = Flask(__name__, template_folder="templates", static_folder="static")
+        app = Flask(__name__, template_folder="templates", static_folder="src/static")
         logger.info("تم إنشاء تطبيق Flask بنجاح")
     except Exception as e:
         logger.error(f"خطأ في إنشاء تطبيق Flask: {e}")
@@ -135,6 +141,17 @@ def create_app():
                 logger.info(f"قائمة الملفات في مجلد auth: {os.listdir(os.path.join(app.template_folder, 'auth'))}")
     except Exception as e:
         logger.error(f"خطأ في طباعة محتويات مجلد القوالب: {e}")
+        
+    # طباعة محتويات مجلد الملفات الثابتة بشكل أكثر تفصيلاً
+    try:
+        if os.path.exists(app.static_folder):
+            logger.info(f"قائمة الملفات في مجلد الملفات الثابتة: {os.listdir(app.static_folder)}")
+            if os.path.exists(os.path.join(app.static_folder, 'css')):
+                logger.info(f"قائمة الملفات في مجلد css: {os.listdir(os.path.join(app.static_folder, 'css'))}")
+            if os.path.exists(os.path.join(app.static_folder, 'js')):
+                logger.info(f"قائمة الملفات في مجلد js: {os.listdir(os.path.join(app.static_folder, 'js'))}")
+    except Exception as e:
+        logger.error(f"خطأ في طباعة محتويات مجلد الملفات الثابتة: {e}")
 
     # Initialize extensions
     try:
@@ -229,7 +246,6 @@ def create_app():
             return render_template("500.html"), 500
 
     # إضافة مسار مباشر للوحة التحكم في حالة عدم تسجيل البلوبرنت
-    # تغيير اسم الدالة من dashboard_direct إلى dashboard ليتطابق مع ما يستخدمه القالب
     @app.route("/dashboard")
     @login_required
     def dashboard():  # تم تغيير الاسم من dashboard_direct إلى dashboard
