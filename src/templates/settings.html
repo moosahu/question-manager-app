@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات - إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="particle p7"></div>
+        <div class="particle p8"></div>
+        <div class="particle p9"></div>
+        <div class="particle p10"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                <li><a href="{{ url_for('curriculum.list_courses') }}"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                <li><a href="{{ url_for('question.list_questions') }}"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="{{ url_for('question.import_questions') }}"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="{{ url_for('user.change_password') }}"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
+                <li><a href="{{ url_for('settings') }}" class="active"><i class="fas fa-cog"></i> الإعدادات</a></li>
+                <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="dashboard">
+            <h2><i class="fas fa-cog"></i> الإعدادات</h2>
+            
+            <div class="settings-container">
+                <div class="settings-sidebar">
+                    <h3>قائمة الإعدادات</h3>
+                    <ul class="settings-menu">
+                        <li class="settings-menu-item">
+                            <a href="#profile-settings" class="active"><i class="fas fa-user-circle"></i> الملف الشخصي</a>
+                        </li>
+                        <li class="settings-menu-item">
+                            <a href="#account-settings"><i class="fas fa-user-cog"></i> إعدادات الحساب</a>
+                        </li>
+                        <li class="settings-menu-item">
+                            <a href="#notification-settings"><i class="fas fa-bell"></i> إعدادات الإشعارات</a>
+                        </li>
+                        <li class="settings-menu-item">
+                            <a href="#security-settings"><i class="fas fa-shield-alt"></i> الأمان والخصوصية</a>
+                        </li>
+                        <li class="settings-menu-item">
+                            <a href="#integration-settings"><i class="fas fa-cogs"></i> التكاملات</a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="settings-content">
+                    <section id="profile-settings" class="settings-section">
+                        <h3><i class="fas fa-user-circle"></i> الملف الشخصي</h3>
+                        <form>
+                            <div class="form-group">
+                                <label for="full-name" class="form-label">الاسم الكامل</label>
+                                <input type="text" id="full-name" class="form-control" value="{{ current_user.username }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="email" class="form-label">البريد الإلكتروني</label>
+                                <input type="email" id="email" class="form-control" value="{{ current_user.email or '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="bio" class="form-label">نبذة تعريفية</label>
+                                <textarea id="bio" class="form-control" rows="3">{{ current_user.bio or '' }}</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التغييرات</button>
+                        </form>
+                    </section>
+                    
+                    <section id="account-settings" class="settings-section">
+                        <h3><i class="fas fa-user-cog"></i> إعدادات الحساب</h3>
+                        <form action="{{ url_for('user.change_password') }}" method="post">
+                            {{ form.hidden_tag() }}
+                            <div class="form-group">
+                                <label for="username" class="form-label">اسم المستخدم</label>
+                                <input type="text" id="username" class="form-control" value="{{ current_user.username }}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="current-password" class="form-label">كلمة المرور الحالية</label>
+                                <input type="password" id="current-password" name="current_password" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-password" class="form-label">كلمة المرور الجديدة</label>
+                                <input type="password" id="new-password" name="new_password" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-password" class="form-label">تأكيد كلمة المرور الجديدة</label>
+                                <input type="password" id="confirm-password" name="confirm_password" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> تغيير كلمة المرور</button>
+                        </form>
+                    </section>
+
+                    <section id="notification-settings" class="settings-section">
+                        <h3><i class="fas fa-bell"></i> إعدادات الإشعارات</h3>
+                        <form>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="email-notifications" class="form-check-input" checked>
+                                    <label for="email-notifications" class="form-label">تلقي الإشعارات عبر البريد الإلكتروني</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="app-notifications" class="form-check-input" checked>
+                                    <label for="app-notifications" class="form-label">تلقي الإشعارات داخل التطبيق</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="notification-frequency" class="form-label">تكرار الإشعارات</label>
+                                <select id="notification-frequency" class="form-control">
+                                    <option value="immediate">فوري</option>
+                                    <option value="daily">يومي</option>
+                                    <option value="weekly">أسبوعي</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات الإشعارات</button>
+                        </form>
+                    </section>
+
+                    <section id="security-settings" class="settings-section">
+                        <h3><i class="fas fa-shield-alt"></i> الأمان والخصوصية</h3>
+                        <form>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="two-factor-auth" class="form-check-input">
+                                    <label for="two-factor-auth" class="form-label">تفعيل المصادقة الثنائية</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="login-alerts" class="form-check-input" checked>
+                                    <label for="login-alerts" class="form-label">تلقي تنبيهات عند تسجيل الدخول من جهاز جديد</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات الأمان</button>
+                        </form>
+                    </section>
+
+                    <section id="integration-settings" class="settings-section">
+                        <h3><i class="fas fa-cogs"></i> التكاملات</h3>
+                        <form>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="google-integration" class="form-check-input">
+                                    <label for="google-integration" class="form-label">تكامل مع Google Classroom</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" id="microsoft-integration" class="form-check-input">
+                                    <label for="microsoft-integration" class="form-label">تكامل مع Microsoft Teams</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="api-key" class="form-label">مفتاح API</label>
+                                <input type="text" id="api-key" class="form-control" value="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" readonly>
+                                <button type="button" class="btn btn-primary mt-2"><i class="fas fa-sync-alt"></i> إعادة توليد المفتاح</button>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات التكاملات</button>
+                        </form>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>© 2025 إدارة الأسئلة الكيميائية - جميع الحقوق محفوظة تطوير الاستاذ حسين علي الموسى</p>
+            <div class="footer-links">
+                <a href="#">الدعم الفني</a>
+                <a href="#">سياسة الخصوصية</a>
+                <a href="#">شروط الاستخدام</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // تفعيل التنقل بين أقسام الإعدادات
+            const menuLinks = document.querySelectorAll('.settings-menu-item a');
+            const sections = document.querySelectorAll('.settings-section');
+            
+            menuLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // إزالة الكلاس active من جميع الروابط
+                    menuLinks.forEach(item => item.classList.remove('active'));
+                    
+                    // إضافة الكلاس active للرابط المحدد
+                    this.classList.add('active');
+                    
+                    // إظهار القسم المطلوب
+                    const targetId = this.getAttribute('href').substring(1);
+                    sections.forEach(section => {
+                        if (section.id === targetId) {
+                            section.style.display = 'block';
+                        } else {
+                            section.style.display = 'none';
+                        }
+                    });
+                });
+            });
+            
+            // عرض القسم الأول افتراضياً
+            if (menuLinks.length > 0 && sections.length > 0) {
+                menuLinks[0].classList.add('active');
+                sections.forEach((section, index) => {
+                    section.style.display = index === 0 ? 'block' : 'none';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
