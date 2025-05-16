@@ -1,18 +1,18 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify # Added jsonify
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request # Added request for API URL formatting
 from werkzeug.security import generate_password_hash
-from flask_login import current_user, login_required
-from flask_wtf.csrf import CSRFProtect # إضافة حماية CSRF
+from flask_login import current_user, login_required # Added login_required
+
 
 # Import db and login_manager from the new extensions file
 from src.extensions import db, login_manager
 
 # Import blueprints AFTER defining db and login_manager
-from src.routes.auth import auth_bp
+from src.routes.auth import auth_bp # <<< Corrected import name
 from src.routes.user import user_bp
 from src.routes.question import question_bp
 from src.routes.curriculum import curriculum_bp
-from src.routes.api import api_bp
+from src.routes.api import api_bp # <<< Added API blueprint import
 
 # Import User model AFTER defining db
 from src.models.user import User
@@ -25,12 +25,13 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
-    app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
-    
+    # Configure SERVER_NAME for external URL generation in API (adjust if needed)
+    # Example: app.config["SERVER_NAME"] = "your-app-name.onrender.com"
+    # Or rely on request context (might be sufficient)
+
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
-    csrf = CSRFProtect(app)  # تهيئة حماية CSRF
     login_manager.login_view = "auth.login" # Set the login view
 
     # User loader function for Flask-Login
@@ -111,3 +112,4 @@ if __name__ == "__main__":
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True) # تفعيل وضع التصحيح مؤقتاً
+
