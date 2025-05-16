@@ -37,10 +37,10 @@
             <ul>
                 <li><a href="{{ url_for('dashboard') }}" class="active"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
                 <li><a href="#"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
-                <li><a href="{{ url_for('list_questions') }}"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
-                <li><a href="{{ url_for('import_questions') }}"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="#"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="#"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
                 <li><a href="#"><i class="fas fa-user-cog"></i> الإعدادات</a></li>
-                <li><a href="{{ url_for('logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                <li><a href="#" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
             </ul>
         </nav>
     </header>
@@ -86,6 +86,7 @@
                     <a href="#" class="view-all">عرض الكل</a>
                 </div>
                 <div class="activity-list">
+                    {% if recent_activities %}
                     {% for activity in recent_activities %}
                     <div class="activity-item">
                         <div class="activity-icon"><i class="fas {{ activity.icon }}"></i></div>
@@ -95,6 +96,14 @@
                         </div>
                     </div>
                     {% endfor %}
+                    {% else %}
+                    <div class="activity-item">
+                        <div class="activity-icon"><i class="fas fa-info-circle"></i></div>
+                        <div class="activity-details">
+                            <p>لا توجد أنشطة حديثة</p>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -102,7 +111,7 @@
                 <div class="section">
                     <div class="section-header">
                         <h3><i class="fas fa-question-circle"></i> الأسئلة الأخيرة</h3>
-                        <a href="{{ url_for('list_questions') }}" class="view-all">عرض الكل</a>
+                        <a href="#" class="view-all">عرض الكل</a>
                     </div>
                     <div class="questions-table">
                         <table>
@@ -115,17 +124,23 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% if recent_questions %}
                                 {% for question in recent_questions %}
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td>{{ question.text }}</td>
                                     <td>{{ question.lesson_name }}</td>
                                     <td>
-                                        <a href="{{ url_for('edit_question', question_id=question.id) }}" class="btn btn-edit">تعديل</a>
-                                        <a href="{{ url_for('delete_question', question_id=question.id) }}" class="btn btn-delete">حذف</a>
+                                        <a href="#" class="btn btn-edit">تعديل</a>
+                                        <a href="#" class="btn btn-delete">حذف</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">لا توجد أسئلة حديثة</td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -136,27 +151,27 @@
                         <h3><i class="fas fa-tasks"></i> المهام السريعة</h3>
                     </div>
                     <div class="quick-actions">
-                        <a href="{{ url_for('add_question') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-plus-circle"></i>
                             <span>إضافة سؤال جديد</span>
                         </a>
-                        <a href="{{ url_for('import_questions') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-file-import"></i>
                             <span>استيراد أسئلة</span>
                         </a>
-                        <a href="{{ url_for('add_course') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-flask"></i>
                             <span>إضافة دورة</span>
                         </a>
-                        <a href="{{ url_for('add_unit') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-book"></i>
                             <span>إضافة وحدة</span>
                         </a>
-                        <a href="{{ url_for('add_lesson') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-bookmark"></i>
                             <span>إضافة درس</span>
                         </a>
-                        <a href="{{ url_for('export_data') }}" class="quick-action-card">
+                        <a href="#" class="quick-action-card">
                             <i class="fas fa-file-export"></i>
                             <span>تصدير البيانات</span>
                         </a>
