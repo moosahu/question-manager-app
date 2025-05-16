@@ -126,6 +126,15 @@ def create_app():
     # طباعة مسار القوالب الفعلي الذي يستخدمه Flask
     logger.info(f"مسار القوالب الفعلي في Flask: {app.template_folder}")
     logger.info(f"مسار الملفات الثابتة الفعلي في Flask: {app.static_folder}")
+    
+    # طباعة محتويات مجلد القوالب بشكل أكثر تفصيلاً
+    try:
+        if os.path.exists(app.template_folder):
+            logger.info(f"قائمة الملفات في مجلد القوالب: {os.listdir(app.template_folder)}")
+            if os.path.exists(os.path.join(app.template_folder, 'auth')):
+                logger.info(f"قائمة الملفات في مجلد auth: {os.listdir(os.path.join(app.template_folder, 'auth'))}")
+    except Exception as e:
+        logger.error(f"خطأ في طباعة محتويات مجلد القوالب: {e}")
 
     # Initialize extensions
     try:
@@ -220,9 +229,10 @@ def create_app():
             return render_template("500.html"), 500
 
     # إضافة مسار مباشر للوحة التحكم في حالة عدم تسجيل البلوبرنت
+    # تغيير اسم الدالة من dashboard_direct إلى dashboard ليتطابق مع ما يستخدمه القالب
     @app.route("/dashboard")
     @login_required
-    def dashboard_direct():
+    def dashboard():  # تم تغيير الاسم من dashboard_direct إلى dashboard
         try:
             logger.info("تم استدعاء المسار المباشر '/dashboard'")
             # عرض قالب لوحة التحكم مباشرة
