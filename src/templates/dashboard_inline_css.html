@@ -626,6 +626,30 @@ footer {
     <div class="particle p10"></div>
 </div>
 
+<header>
+    <div class="logo-container">
+        <div class="logo">
+            <div class="atom">
+                <div class="nucleus"></div>
+                <div class="electron e1"></div>
+                <div class="electron e2"></div>
+                <div class="electron e3"></div>
+            </div>
+            <h1>مدير الأسئلة الكيميائية</h1>
+        </div>
+    </div>
+    <nav>
+        <ul>
+            <li><a href="/dashboard" class="active"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+            <li><a href="/curriculum"><i class="fas fa-book"></i> إدارة المنهج</a></li>
+            <li><a href="/questions"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+            <li><a href="/questions/import"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+            <li><a href="/settings"><i class="fas fa-cog"></i> الإعدادات</a></li>
+            <li><a href="/auth/logout" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+        </ul>
+    </nav>
+</header>
+
 <main>
     <div class="dashboard">
         <h2><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h2>
@@ -676,6 +700,14 @@ footer {
                     </div>
                 </div>
                 {% endfor %}
+                {% if not recent_activities %}
+                <div class="activity-item">
+                    <div class="activity-icon"><i class="fas fa-info-circle"></i></div>
+                    <div class="activity-details">
+                        <p>لا توجد أنشطة حديثة</p>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -683,7 +715,7 @@ footer {
             <div class="section">
                 <div class="section-header">
                     <h3><i class="fas fa-question-circle"></i> الأسئلة الأخيرة</h3>
-                    <a href="{{ url_for('question_bp.list_questions') }}" class="view-all">عرض الكل</a>
+                    <a href="/questions" class="view-all">عرض الكل</a>
                 </div>
                 <div class="questions-table">
                     <table>
@@ -702,92 +734,65 @@ footer {
                                 <td>{{ question.text }}</td>
                                 <td>{{ question.lesson_name }}</td>
                                 <td>
-                                    <a href="{{ url_for('question_bp.edit_question', question_id=question.id) }}" class="btn btn-edit">تعديل</a>
-                                    <a href="{{ url_for('question_bp.delete_question', question_id=question.id) }}" class="btn btn-delete">حذف</a>
+                                    <a href="/questions/edit/{{ question.id }}" class="btn btn-edit">تعديل</a>
+                                    <a href="/questions/delete/{{ question.id }}" class="btn btn-delete">حذف</a>
                                 </td>
                             </tr>
                             {% endfor %}
+                            {% if not recent_questions %}
+                            <tr>
+                                <td colspan="4" style="text-align: center;">لا توجد أسئلة حديثة</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
-
             <div class="section">
                 <div class="section-header">
                     <h3><i class="fas fa-tasks"></i> المهام السريعة</h3>
                 </div>
                 <div class="quick-actions">
-                    <a href="{{ url_for('question_bp.add_question') }}" class="quick-action-card">
+                    <a href="/questions/create" class="quick-action-card">
                         <i class="fas fa-plus-circle"></i>
                         <span>إضافة سؤال جديد</span>
                     </a>
-                    <a href="{{ url_for('question_bp.import_questions') }}" class="quick-action-card">
+                    <a href="/curriculum/create" class="quick-action-card">
+                        <i class="fas fa-folder-plus"></i>
+                        <span>إضافة درس جديد</span>
+                    </a>
+                    <a href="/questions/import" class="quick-action-card">
                         <i class="fas fa-file-import"></i>
                         <span>استيراد أسئلة</span>
                     </a>
-                    <a href="{{ url_for('curriculum_bp.add_course') }}" class="quick-action-card">
-                        <i class="fas fa-flask"></i>
-                        <span>إضافة دورة</span>
-                    </a>
-                    <a href="{{ url_for('curriculum_bp.add_unit') }}" class="quick-action-card">
-                        <i class="fas fa-book"></i>
-                        <span>إضافة وحدة</span>
-                    </a>
-                    <a href="{{ url_for('curriculum_bp.add_lesson') }}" class="quick-action-card">
-                        <i class="fas fa-bookmark"></i>
-                        <span>إضافة درس</span>
-                    </a>
-                    <a href="#" class="quick-action-card">
+                    <a href="/questions/export" class="quick-action-card">
                         <i class="fas fa-file-export"></i>
-                        <span>تصدير البيانات</span>
+                        <span>تصدير أسئلة</span>
                     </a>
                 </div>
             </div>
         </div>
     </div>
 </main>
+
+<footer>
+    <div class="footer-content">
+        <p>&copy; 2025 مدير الأسئلة الكيميائية. جميع الحقوق محفوظة.</p>
+        <div class="footer-links">
+            <a href="/about">عن التطبيق</a>
+            <a href="/contact">اتصل بنا</a>
+            <a href="/privacy">سياسة الخصوصية</a>
+        </div>
+    </div>
+</footer>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-// تضمين JavaScript مباشرة
-document.addEventListener('DOMContentLoaded', function() {
-    // تحريك الذرة والإلكترونات
-    const nucleus = document.querySelector('.nucleus');
-    const electrons = document.querySelectorAll('.electron');
-    
-    // إضافة تأثير نبض للنواة
-    setInterval(() => {
-        nucleus.style.boxShadow = '0 0 15px var(--primary-color)';
-        setTimeout(() => {
-            nucleus.style.boxShadow = '0 0 10px var(--primary-color)';
-        }, 500);
-    }, 1000);
-    
-    // تفاعل القوائم
-    const navItems = document.querySelectorAll('nav ul li a');
-    navItems.forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-3px)';
-        });
-        
-        item.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-        });
+    // يمكن إضافة أي JavaScript إضافي هنا
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('تم تحميل لوحة التحكم بنجاح!');
     });
-    
-    // تفاعل بطاقات الإحصائيات
-    const statCards = document.querySelectorAll('.stat-card');
-    statCards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-8px)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(-5px)';
-        });
-    });
-});
 </script>
 {% endblock %}

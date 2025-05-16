@@ -242,8 +242,8 @@ def create_app():
                 'questions_count': 1000,
                 'title': 'لوحة التحكم'
             }
-            logger.info("عرض قالب dashboard_inline_css.html مباشرة")
-            return render_template("dashboard_inline_css.html", **dashboard_data)
+            logger.info("عرض قالب dashboard_inline_css_fixed.html مباشرة")
+            return render_template("dashboard_inline_css_fixed.html", **dashboard_data)
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للوحة التحكم: {e}")
             logger.error(traceback.format_exc())
@@ -252,7 +252,7 @@ def create_app():
     # تعديل مسار dashboard_blueprint.py أيضاً إذا تم استيراده
     if has_dashboard:
         try:
-            logger.info("تعديل مسار dashboard_blueprint.py ليستخدم dashboard_inline_css.html")
+            logger.info("تعديل مسار dashboard_blueprint.py ليستخدم dashboard_inline_css_fixed.html")
             # تعديل دالة dashboard في dashboard_bp
             original_dashboard_view = dashboard_bp.view_functions['dashboard']
             
@@ -266,8 +266,8 @@ def create_app():
                     dashboard_data = get_dashboard_data()
                     
                     # عرض قالب لوحة التحكم مع البيانات
-                    logger.info("عرض قالب dashboard_inline_css.html من خلال البلوبرنت")
-                    return render_template('dashboard_inline_css.html', **dashboard_data)
+                    logger.info("عرض قالب dashboard_inline_css_fixed.html من خلال البلوبرنت")
+                    return render_template('dashboard_inline_css_fixed.html', **dashboard_data)
                 except Exception as e:
                     logger.error(f"خطأ في مسار dashboard من خلال البلوبرنت: {e}")
                     logger.error(traceback.format_exc())
