@@ -25,12 +25,6 @@ if os.path.exists('src'):
         logger.info(f"قائمة الملفات في مجلد src/routes: {os.listdir('src/routes')}")
     if os.path.exists('src/templates'):
         logger.info(f"قائمة الملفات في مجلد src/templates: {os.listdir('src/templates')}")
-    if os.path.exists('src/static'):
-        logger.info(f"قائمة الملفات في مجلد src/static: {os.listdir('src/static')}")
-        if os.path.exists('src/static/css'):
-            logger.info(f"قائمة الملفات في مجلد src/static/css: {os.listdir('src/static/css')}")
-        if os.path.exists('src/static/js'):
-            logger.info(f"قائمة الملفات في مجلد src/static/js: {os.listdir('src/static/js')}")
 
 # طباعة مسارات البحث في Python
 logger.info(f"مسارات البحث في Python: {sys.path}")
@@ -109,7 +103,7 @@ def create_app():
     # تعديل مسارات القوالب والملفات الثابتة لتكون نسبية
     try:
         logger.info("إنشاء تطبيق Flask مع مسارات القوالب والملفات الثابتة النسبية")
-        app = Flask(__name__, template_folder="templates", static_folder="src/static")
+        app = Flask(__name__, template_folder="templates", static_folder="static")
         logger.info("تم إنشاء تطبيق Flask بنجاح")
     except Exception as e:
         logger.error(f"خطأ في إنشاء تطبيق Flask: {e}")
@@ -141,17 +135,6 @@ def create_app():
                 logger.info(f"قائمة الملفات في مجلد auth: {os.listdir(os.path.join(app.template_folder, 'auth'))}")
     except Exception as e:
         logger.error(f"خطأ في طباعة محتويات مجلد القوالب: {e}")
-        
-    # طباعة محتويات مجلد الملفات الثابتة بشكل أكثر تفصيلاً
-    try:
-        if os.path.exists(app.static_folder):
-            logger.info(f"قائمة الملفات في مجلد الملفات الثابتة: {os.listdir(app.static_folder)}")
-            if os.path.exists(os.path.join(app.static_folder, 'css')):
-                logger.info(f"قائمة الملفات في مجلد css: {os.listdir(os.path.join(app.static_folder, 'css'))}")
-            if os.path.exists(os.path.join(app.static_folder, 'js')):
-                logger.info(f"قائمة الملفات في مجلد js: {os.listdir(os.path.join(app.static_folder, 'js'))}")
-    except Exception as e:
-        logger.error(f"خطأ في طباعة محتويات مجلد الملفات الثابتة: {e}")
 
     # Initialize extensions
     try:
@@ -248,7 +231,7 @@ def create_app():
     # إضافة مسار مباشر للوحة التحكم في حالة عدم تسجيل البلوبرنت
     @app.route("/dashboard")
     @login_required
-    def dashboard():  # تم تغيير الاسم من dashboard_direct إلى dashboard
+    def dashboard():
         try:
             logger.info("تم استدعاء المسار المباشر '/dashboard'")
             # عرض قالب لوحة التحكم مباشرة
@@ -259,12 +242,43 @@ def create_app():
                 'questions_count': 1000,
                 'title': 'لوحة التحكم'
             }
-            logger.info("عرض قالب dashboard.html مباشرة")
-            return render_template("dashboard.html", **dashboard_data)
+            logger.info("عرض قالب dashboard_inline_css.html مباشرة")
+            return render_template("dashboard_inline_css.html", **dashboard_data)
         except Exception as e:
             logger.error(f"خطأ في المسار المباشر للوحة التحكم: {e}")
             logger.error(traceback.format_exc())
             return render_template("500.html"), 500
+
+    # تعديل مسار dashboard_blueprint.py أيضاً إذا تم استيراده
+    if has_dashboard:
+        try:
+            logger.info("تعديل مسار dashboard_blueprint.py ليستخدم dashboard_inline_css.html")
+            # تعديل دالة dashboard في dashboard_bp
+            original_dashboard_view = dashboard_bp.view_functions['dashboard']
+            
+            @dashboard_bp.route('', endpoint='dashboard')
+            @login_required
+            def dashboard_view():
+                try:
+                    logger.info("تم استدعاء مسار dashboard من خلال البلوبرنت")
+                    # جلب بيانات لوحة التحكم
+                    from src.routes.dashboard import get_dashboard_data
+                    dashboard_data = get_dashboard_data()
+                    
+                    # عرض قالب لوحة التحكم مع البيانات
+                    logger.info("عرض قالب dashboard_inline_css.html من خلال البلوبرنت")
+                    return render_template('dashboard_inline_css.html', **dashboard_data)
+                except Exception as e:
+                    logger.error(f"خطأ في مسار dashboard من خلال البلوبرنت: {e}")
+                    logger.error(traceback.format_exc())
+                    return render_template("500.html"), 500
+            
+            # استبدال الدالة الأصلية بالدالة المعدلة
+            dashboard_bp.view_functions['dashboard'] = dashboard_view
+            logger.info("تم تعديل مسار dashboard_blueprint.py بنجاح")
+        except Exception as e:
+            logger.error(f"خطأ في تعديل مسار dashboard_blueprint.py: {e}")
+            logger.error(traceback.format_exc())
 
     # Error Handling
     @app.errorhandler(404)
