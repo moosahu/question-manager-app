@@ -2,6 +2,132 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block head_extra %}
+<style>
+    /* تنسيقات عامة للنموذج */
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .option-group {
+        transition: all 0.3s ease;
+    }
+    
+    .option-group.border-success {
+        border-color: #28a745 !important;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+    
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    
+    /* تنسيقات خاصة بحقول الإدخال */
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* تنسيقات معاينة MathJax */
+    .mathjax-preview {
+        min-height: 40px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* تنسيقات أزرار اختيار الملفات */
+    .file-input-button {
+        display: block;
+        width: 100%;
+        text-align: right;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        cursor: pointer;
+    }
+    
+    .file-input-button:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* تنسيقات خاصة بصفحة التعديل (عمودين) */
+    .edit-layout .explanation-column {
+        order: 1;
+    }
+    
+    .edit-layout .details-column {
+        order: 2;
+    }
+    
+    /* تنسيقات خاصة بصفحة الإضافة (عمود واحد) */
+    .add-layout .details-card {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* تنسيقات متجاوبة */
+    @media (max-width: 768px) {
+        .edit-layout .explanation-column,
+        .edit-layout .details-column {
+            order: 0;
+        }
+    }
+    
+    /* تنسيق النص "لم يتم اختيار أي ملف" */
+    .file-placeholder {
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    
+    /* تنسيق الصور المعاينة */
+    .preview-image {
+        max-width: 200px;
+        max-height: 150px;
+        margin-top: 0.5rem;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">{{ title }}</h1>
@@ -12,29 +138,27 @@
 <form method="post" enctype="multipart/form-data" id="question-form">
     {% if title and 'تعديل' in title %}
     <!-- تخطيط صفحة التعديل: عمودين -->
-    <div class="row g-3">
+    <div class="row g-3 edit-layout">
         <!-- العمود الأيسر: الشرح -->
-        <div class="col-md-6">
+        <div class="col-md-6 explanation-column">
             <div class="card mb-3">
                 <div class="card-header">الشرح (اختياري)</div>
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="explanation" class="form-label">نص الشرح</label>
                         <textarea name="explanation" id="explanation" rows="8" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
-                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        <div id="explanation-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
                     </div>
                     <div class="mb-3">
                         <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
-                        <div class="input-group">
-                            <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input d-none" accept="image/*" data-preview-target="explanation_image_preview">
-                            <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('explanation_image').click()">اختيار ملف</button>
-                        </div>
+                        <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input d-none" accept="image/*" data-preview-target="explanation_image_preview">
+                        <button type="button" class="file-input-button" onclick="document.getElementById('explanation_image').click()">اختيار ملف</button>
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
                                 {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" class="preview-image">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" class="preview-image">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -44,8 +168,8 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <div class="text-muted">لم يتم اختيار أي ملف</div>
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" class="preview-image" style="display: none;">
                             {% endif %}
                         </div>
                     </div>
@@ -61,7 +185,7 @@
         </div>
 
         <!-- العمود الأيمن: تفاصيل السؤال -->
-        <div class="col-md-6">
+        <div class="col-md-6 details-column">
             <div class="card mb-3">
                 <div class="card-header">تفاصيل السؤال</div>
                 <div class="card-body">
@@ -94,22 +218,20 @@
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
                         <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
+                        <div id="text-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
-                        <div class="input-group">
-                            <input type="file" name="question_image" id="question_image" class="form-control image-input d-none" accept="image/*" data-preview-target="question_image_preview">
-                            <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('question_image').click()">اختيار ملف</button>
-                        </div>
+                        <input type="file" name="question_image" id="question_image" class="form-control image-input d-none" accept="image/*" data-preview-target="question_image_preview">
+                        <button type="button" class="file-input-button" onclick="document.getElementById('question_image').click()">اختيار ملف</button>
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.image_url %}
                                 {% if question.image_url.startswith('http') %}
-                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" class="preview-image">
                                 {% else %}
-                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" class="preview-image">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -119,8 +241,8 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <div class="text-muted">لم يتم اختيار أي ملف</div>
-                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
+                                <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" class="preview-image" style="display: none;">
                             {% endif %}
                         </div>
                     </div>
@@ -130,9 +252,9 @@
     </div>
     {% else %}
     <!-- تخطيط صفحة الإضافة: عمود واحد -->
-    <div class="row g-3">
-        <div class="col-md-12">
-            <div class="card mb-3">
+    <div class="row g-3 add-layout">
+        <div class="col-md-8">
+            <div class="card mb-3 details-card">
                 <div class="card-header">تفاصيل السؤال</div>
                 <div class="card-body">
                     {# Start: Cascading Dropdowns for Course, Unit, Lesson #}
@@ -164,22 +286,20 @@
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
                         <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
+                        <div id="text-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
                     </div>
 
                     <div class="mb-3">
                         <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
-                        <div class="input-group">
-                            <input type="file" name="question_image" id="question_image" class="form-control image-input d-none" accept="image/*" data-preview-target="question_image_preview">
-                            <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('question_image').click()">اختيار ملف</button>
-                        </div>
+                        <input type="file" name="question_image" id="question_image" class="form-control image-input d-none" accept="image/*" data-preview-target="question_image_preview">
+                        <button type="button" class="file-input-button" onclick="document.getElementById('question_image').click()">اختيار ملف</button>
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.image_url %}
                                 {% if question.image_url.startswith('http') %}
-                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" class="preview-image">
                                 {% else %}
-                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" class="preview-image">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -189,8 +309,8 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <div class="text-muted">لم يتم اختيار أي ملف</div>
-                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
+                                <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" class="preview-image" style="display: none;">
                             {% endif %}
                         </div>
                     </div>
@@ -198,25 +318,86 @@
             </div>
 
             <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
+                    <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
+                </div>
+                <div class="card-body" id="options-container">
+                    {# Container for dynamic options #}
+                    {% set options = question.options if question else [] %}
+                    {% if question %}
+                        {% set initial_option_count = options|length if options|length > 1 else 2 %}
+                    {% else %}
+                        {% set initial_option_count = 4 %}
+                    {% endif %}
+
+                    {% for i in range(initial_option_count) %}
+                    <div class="option-group border p-3 mb-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
+                        <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">الخيار <span class="option-number">{{ i+1 }}</span></h5>
+                            <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
+                            <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else request.form.get('option_text_' ~ i, '') }}">
+                            <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
+                            <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input d-none" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
+                            <button type="button" class="file-input-button" onclick="document.getElementById('option_image_{{ i }}').click()">اختيار ملف</button>
+                            <div class="mt-2 tex2jax_ignore">
+                                {% if i < options|length and options[i].image_url %}
+                                    {% if options[i].image_url.startswith('http') %}
+                                        <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px;">
+                                    {% else %}
+                                        <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px;">
+                                    {% endif %}
+                                    <small class="d-block">الصورة الحالية</small>
+                                    <div class="form-check mt-1">
+                                        <input class="form-check-input" type="checkbox" name="delete_option_image_{{ i }}" id="delete_option_image_{{ i }}" value="1">
+                                        <label class="form-check-label text-danger" for="delete_option_image_{{ i }}">
+                                            حذف الصورة الحالية
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                                    <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px; display: none;">
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
+                            <label class="form-check-label" for="correct_option_{{ i }}">
+                                هذا هو الخيار الصحيح
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-3">
                 <div class="card-header">الشرح (اختياري)</div>
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="explanation" class="form-label">نص الشرح</label>
                         <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
-                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        <div id="explanation-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
                     </div>
                     <div class="mb-3">
                         <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
-                        <div class="input-group">
-                            <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input d-none" accept="image/*" data-preview-target="explanation_image_preview">
-                            <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('explanation_image').click()">اختيار ملف</button>
-                        </div>
+                        <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input d-none" accept="image/*" data-preview-target="explanation_image_preview">
+                        <button type="button" class="file-input-button" onclick="document.getElementById('explanation_image').click()">اختيار ملف</button>
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
                                 {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" class="preview-image" style="max-width: 150px; max-height: 100px;">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" class="preview-image" style="max-width: 150px; max-height: 100px;">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -226,18 +407,26 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <div class="text-muted">لم يتم اختيار أي ملف</div>
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" class="preview-image" style="max-width: 150px; max-height: 100px; display: none;">
                             {% endif %}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body tex2jax_ignore"> {# Ignore action links #}
+                    <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
+                    <a href="{{ url_for("question.list_questions") }}" class="btn btn-secondary w-100">إلغاء</a>
                 </div>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- قسم الخيارات (مشترك بين التخطيطين) -->
+    {% if title and 'تعديل' in title %}
+    <!-- قسم الخيارات (فقط في صفحة التعديل) -->
     <div class="card mb-3 mt-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
@@ -262,20 +451,18 @@
                 <div class="mb-3">
                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
                     <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else request.form.get('option_text_' ~ i, '') }}">
-                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
+                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
                 </div>
                 <div class="mb-3">
                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                    <div class="input-group">
-                        <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input d-none" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
-                        <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('option_image_{{ i }}').click()">اختيار ملف</button>
-                    </div>
+                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input d-none" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
+                    <button type="button" class="file-input-button" onclick="document.getElementById('option_image_{{ i }}').click()">اختيار ملف</button>
                     <div class="mt-2 tex2jax_ignore">
                         {% if i < options|length and options[i].image_url %}
                             {% if options[i].image_url.startswith('http') %}
-                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px;">
                             {% else %}
-                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px;">
                             {% endif %}
                             <small class="d-block">الصورة الحالية</small>
                             <div class="form-check mt-1">
@@ -285,8 +472,8 @@
                                 </label>
                             </div>
                         {% else %}
-                            <div class="text-muted">لم يتم اختيار أي ملف</div>
-                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                            <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i+1 }}" class="preview-image" style="max-width: 100px; max-height: 75px; display: none;">
                         {% endif %}
                     </div>
                 </div>
@@ -298,15 +485,6 @@
                 </div>
             </div>
             {% endfor %}
-        </div>
-    </div>
-
-    <!-- أزرار الإجراءات (تظهر فقط في صفحة الإضافة) -->
-    {% if not (title and 'تعديل' in title) %}
-    <div class="card mb-3">
-        <div class="card-body tex2jax_ignore">
-            <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
-            <a href="{{ url_for("question.list_questions") }}" class="btn btn-secondary w-100">إلغاء</a>
         </div>
     </div>
     {% endif %}
@@ -323,17 +501,15 @@
         <div class="mb-3">
             <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
             <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
-            <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
+            <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light mathjax-preview"></div>
         </div>
         <div class="mb-3">
             <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-            <div class="input-group">
-                <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input d-none" accept="image/*" data-preview-target="option_image___INDEX___preview">
-                <button type="button" class="btn btn-outline-secondary w-100 text-start" onclick="document.getElementById('option_image___INDEX__').click()">اختيار ملف</button>
-            </div>
+            <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input d-none" accept="image/*" data-preview-target="option_image___INDEX___preview">
+            <button type="button" class="file-input-button" onclick="document.getElementById('option_image___INDEX__').click()">اختيار ملف</button>
             <div class="mt-2 tex2jax_ignore">
-                <div class="text-muted">لم يتم اختيار أي ملف</div>
-                <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                <div class="file-placeholder">لم يتم اختيار أي ملف</div>
+                <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" class="preview-image" style="max-width: 100px; max-height: 75px; display: none;">
             </div>
         </div>
         <div class="form-check">
@@ -481,7 +657,7 @@
                             previewElement.style.display = 'block';
                             // Hide "لم يتم اختيار أي ملف" text
                             const textElement = previewElement.previousElementSibling;
-                            if (textElement && textElement.classList.contains('text-muted')) {
+                            if (textElement && textElement.classList.contains('file-placeholder')) {
                                 textElement.style.display = 'none';
                             }
                         };
@@ -543,7 +719,7 @@
                                 previewElement.style.display = 'block';
                                 // Hide "لم يتم اختيار أي ملف" text
                                 const textElement = previewElement.previousElementSibling;
-                                if (textElement && textElement.classList.contains('text-muted')) {
+                                if (textElement && textElement.classList.contains('file-placeholder')) {
                                     textElement.style.display = 'none';
                                 }
                             };
