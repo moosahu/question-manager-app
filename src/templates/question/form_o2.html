@@ -618,52 +618,12 @@
         <h1 class="page-title">{{ title }}</h1>
 
         <form method="post" enctype="multipart/form-data" id="question-form" class="form-container">
-            <div class="row">
-                <!-- العمود الأيسر: الشرح -->
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header">الشرح (اختياري)</div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="explanation" class="form-label">نص الشرح</label>
-                                <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
-                                <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
-                                <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input" accept="image/*" data-preview-target="explanation_image_preview">
-                                <div class="mt-2 tex2jax_ignore">
-                                    {% if question and question.explanation_image_path %}
-                                        {% if question.explanation_image_path.startswith('http') %}
-                                            <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
-                                        {% else %}
-                                            <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
-                                        {% endif %}
-                                        <small class="d-block">الصورة الحالية</small>
-                                        <div class="form-check mt-1">
-                                            <input class="form-check-input" type="checkbox" name="delete_explanation_image" id="delete_explanation_image" value="1">
-                                            <label class="form-check-label text-danger" for="delete_explanation_image">
-                                                حذف الصورة الحالية
-                                            </label>
-                                        </div>
-                                    {% else %}
-                                        <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-body tex2jax_ignore">
-                                <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
-                                <a href="{{ url_for("question.list_questions") }}" class="btn btn-secondary w-100">إلغاء</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- العمود الأيمن: تفاصيل السؤال -->
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header">تفاصيل السؤال</div>
-                        <div class="card-body">
+            <!-- قسم تفاصيل السؤال (في الأعلى) -->
+            <div class="card mb-3">
+                <div class="card-header">تفاصيل السؤال</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
                                 <select id="course_id" class="form-select" name="course_id_temp" required>
@@ -684,7 +644,8 @@
                                     <option value="" selected disabled>-- اختر الدرس --</option>
                                 </select>
                             </div>
-
+                        </div>
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
                                 <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
@@ -716,41 +677,46 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="card mb-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
-                            <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
-                        </div>
-                        <div class="card-body" id="options-container">
-                            {% set options = question.options if question else [] %}
-                            {% if question %}
-                                {% set initial_option_count = options|length if options|length > 1 else 2 %}
-                            {% else %}
-                                {% set initial_option_count = 4 %}
-                            {% endif %}
+            <!-- قسم الخيارات (في الوسط) -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
+                    <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="options-container">
+                        {% set options = question.options if question else [] %}
+                        {% if question %}
+                            {% set initial_option_count = options|length if options|length > 1 else 2 %}
+                        {% else %}
+                            {% set initial_option_count = 4 %}
+                        {% endif %}
 
-                            {% for i in range(initial_option_count) %}
-                            <div class="option-group border p-3 mb-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
+                        {% for i in range(initial_option_count) %}
+                        <div class="col-md-6 mb-3">
+                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="mb-0">الخيار <span class="option-number">{{ i+1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times; إزالة</button>
+                                    <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
+                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else request.form.get('option_text_' ~ i, '') }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].text if i < options|length else "" }}">
+                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
+                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
                                     <div class="mt-2 tex2jax_ignore">
                                         {% if i < options|length and options[i].image_url %}
                                             {% if options[i].image_url.startswith('http') %}
-                                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                             {% else %}
-                                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                             {% endif %}
                                             <small class="d-block">الصورة الحالية</small>
                                             <div class="form-check mt-1">
@@ -760,52 +726,92 @@
                                                 </label>
                                             </div>
                                         {% else %}
-                                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i+1 }}" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                                            <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
+                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %}>
                                     <label class="form-check-label" for="correct_option_{{ i }}">
                                         هذا هو الخيار الصحيح
                                     </label>
                                 </div>
                             </div>
-                            {% endfor %}
                         </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم الشرح (في الأسفل) -->
+            <div class="card mb-3">
+                <div class="card-header">الشرح (اختياري)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="explanation" class="form-label">نص الشرح</label>
+                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
+                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
+                        <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input" accept="image/*" data-preview-target="explanation_image_preview">
+                        <div class="mt-2 tex2jax_ignore">
+                            {% if question and question.explanation_image_path %}
+                                {% if question.explanation_image_path.startswith('http') %}
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                {% else %}
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                {% endif %}
+                                <small class="d-block">الصورة الحالية</small>
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" name="delete_explanation_image" id="delete_explanation_image" value="1">
+                                    <label class="form-check-label text-danger" for="delete_explanation_image">
+                                        حذف الصورة الحالية
+                                    </label>
+                                </div>
+                            {% else %}
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center mt-4">
+                        <button type="submit" class="btn btn-primary mx-2">{{ submit_text }}</button>
+                        <a href="{{ url_for("question.list_questions") }}" class="btn btn-secondary mx-2">إلغاء</a>
                     </div>
                 </div>
             </div>
         </form>
 
-        <!-- Template for new option group (hidden) -->
-        <div id="option-template" style="display: none;">
-            <div class="option-group border p-3 mb-3 rounded" data-index="__INDEX__">
-                <input type="hidden" name="option_id___INDEX__" value="">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
-                    <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times; إزالة</button>
-                </div>
-                <div class="mb-3">
-                    <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                    <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
-                    <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 30px;"></div>
-                </div>
-                <div class="mb-3">
-                    <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-                    <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image___INDEX___preview">
-                    <div class="mt-2 tex2jax_ignore">
-                        <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+        <!-- قالب الخيار -->
+        <template id="option-template">
+            <div class="col-md-6 mb-3">
+                <div class="option-group border p-3 rounded" data-index="__INDEX__">
+                    <input type="hidden" name="option_id___INDEX__" value="">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
+                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">× إزالة</button>
+                    </div>
+                    <div class="mb-3">
+                        <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
+                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
+                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview___INDEX__">
+                        <div class="mt-2 tex2jax_ignore">
+                            <img id="option_image_preview___INDEX__" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__">
+                        <label class="form-check-label" for="correct_option___INDEX__">
+                            هذا هو الخيار الصحيح
+                        </label>
                     </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__">
-                    <label class="form-check-label" for="correct_option___INDEX__">
-                        هذا هو الخيار الصحيح
-                    </label>
-                </div>
             </div>
-        </div>
+        </template>
     </main>
 
     <footer>
