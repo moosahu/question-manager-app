@@ -685,24 +685,37 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
-                                    <select id="course_id" class="form-select" name="course_id_temp" required>
+                                    <select id="course_id" class="form-select" name="course_id" required>
                                         <option value="" selected disabled>-- اختر الدورة --</option>
+                                        {% for course in courses %}
+                                            <option value="{{ course.id }}" {% if question and question.lesson and question.lesson.unit.course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
-                                    <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
+                                    <select id="unit_id" class="form-select" name="unit_id" required {% if not question or not question.lesson %}disabled{% endif %}>
                                         <option value="" selected disabled>-- اختر الوحدة --</option>
+                                        {% if question and question.lesson %}
+                                            {% for unit in question.lesson.unit.course.units %}
+                                                <option value="{{ unit.id }}" {% if question.lesson.unit_id == unit.id %}selected{% endif %}>{{ unit.name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
                                     </select>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
-                                    <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
+                                    <select name="lesson_id" id="lesson_id" class="form-select" required {% if not question or not question.lesson %}disabled{% endif %}>
                                         <option value="" selected disabled>-- اختر الدرس --</option>
+                                        {% if question and question.lesson %}
+                                            {% for lesson in question.lesson.unit.lessons %}
+                                                <option value="{{ lesson.id }}" {% if question.lesson_id == lesson.id %}selected{% endif %}>{{ lesson.name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
                                     </select>
                                 </div>
                             </div>
@@ -920,86 +933,143 @@
                         preview.style.display = 'block';
                     };
                     reader.readAsDataURL(input.files[0]);
+                } else {
+                    preview.src = '#';
+                    preview.style.display = 'none';
                 }
             }
             
-            // إضافة خيار جديد
-            function addOption() {
-                const optionsContainer = document.getElementById('options-container');
-                const template = document.getElementById('option-template');
-                const optionGroups = optionsContainer.querySelectorAll('.option-group');
-                const newIndex = optionGroups.length;
-                const newNumber = newIndex + 1;
+            // تهيئة معاينة النصوص
+            function initializeMathJaxPreview(inputElement) {
+                const inputId = inputElement.id;
+                const previewId = inputId + '-preview';
+                const previewElement = document.getElementById(previewId);
                 
-                let templateContent = template.innerHTML;
-                templateContent = templateContent.replace(/{index}/g, newIndex);
-                templateContent = templateContent.replace(/{number}/g, newNumber);
-                
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = templateContent;
-                optionsContainer.appendChild(tempDiv.firstElementChild);
-                
-                // تحديث معالجات الأحداث للعناصر الجديدة
-                setupEventHandlers();
+                if (previewElement) {
+                    // تحديث المعاينة عند تحميل الصفحة
+                    updatePreview(inputElement, previewElement);
+                    
+                    // تحديث المعاينة عند تغيير النص
+                    inputElement.addEventListener('input', function() {
+                        updatePreview(inputElement, previewElement);
+                    });
+                }
             }
             
-            // إزالة خيار
-            function removeOption(button) {
-                const optionCol = button.closest('.col-md-6');
-                optionCol.remove();
-                updateOptionIndices();
-            }
-            
-            // تحديث فهارس الخيارات
-            function updateOptionIndices() {
-                const optionsContainer = document.getElementById('options-container');
-                const optionGroups = optionsContainer.querySelectorAll('.option-group');
+            // تهيئة معاينة الصور
+            function initializeImagePreview(inputElement) {
+                const previewId = inputElement.dataset.previewTarget;
+                const previewElement = document.getElementById(previewId);
                 
-                optionGroups.forEach((group, index) => {
-                    const numberElement = group.querySelector('.option-number');
-                    numberElement.textContent = index + 1;
+                if (previewElement) {
+                    // حفظ المصدر الأصلي للصورة (إن وجد)
+                    if (previewElement.src && previewElement.src !== '#' && previewElement.src !== window.location.href) {
+                        previewElement.setAttribute('data-initial-src', previewElement.src);
+                    }
                     
-                    // تحديث قيمة زر الراديو
-                    const radioButton = group.querySelector('.correct-option-radio');
-                    radioButton.value = index;
-                    
-                    // تحديث data-index
-                    group.dataset.index = index;
-                });
+                    // معالجة تغيير الصورة
+                    inputElement.addEventListener('change', function() {
+                        handleImagePreview(inputElement);
+                    });
+                }
             }
             
             // إعداد معالجات الأحداث
             function setupEventHandlers() {
-                // معالجة معاينة النصوص
-                document.querySelectorAll('.mathjax-input').forEach(input => {
-                    const previewId = input.id + '-preview';
-                    const preview = document.getElementById(previewId);
+                // تهيئة معاينة النصوص
+                document.querySelectorAll('.mathjax-input').forEach(initializeMathJaxPreview);
+                
+                // تهيئة معاينة الصور
+                document.querySelectorAll('.image-input').forEach(initializeImagePreview);
+            }
+            
+            // Function to update option indices and states
+            function updateOptionIndices() {
+                const optionsContainer = document.getElementById("options-container");
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                const canRemove = optionGroups.length > 2;
+
+                optionGroups.forEach((group, index) => {
+                    group.dataset.index = index;
+                    const optionNumber = index + 1;
+                    group.querySelector(".option-number").textContent = optionNumber;
+
+                    // Update the radio button value
+                    const radioButton = group.querySelector(".correct-option-radio");
+                    if (radioButton) {
+                        radioButton.value = index;
+                    }
+
+                    // Enable/disable remove buttons based on minimum required options
+                    const removeButton = group.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.disabled = !canRemove;
+                    }
+                });
+            }
+
+            // Function to add a new option
+            function addOption() {
+                const optionsContainer = document.getElementById("options-container");
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                const newIndex = optionGroups.length;
+                
+                // Get the template and replace placeholders
+                const template = document.getElementById("option-template").innerHTML;
+                const newOptionHTML = template
+                    .replace(/{index}/g, newIndex)
+                    .replace(/{number}/g, newIndex + 1);
+                
+                // Create a temporary container to hold the new option
+                const tempContainer = document.createElement("div");
+                tempContainer.innerHTML = newOptionHTML;
+                
+                // Append the new option to the options container
+                optionsContainer.appendChild(tempContainer.firstElementChild);
+                
+                // Initialize the new option's inputs
+                const newOptionGroup = optionsContainer.querySelector(`.option-group[data-index="${newIndex}"]`);
+                if (newOptionGroup) {
+                    const textInput = newOptionGroup.querySelector(`#option_text_${newIndex}`);
+                    const imageInput = newOptionGroup.querySelector(`#option_image_${newIndex}`);
                     
-                    if (preview) {
-                        input.addEventListener('input', function() {
-                            updatePreview(this, preview);
-                        });
-                        
-                        // تحديث المعاينة الأولية
-                        updatePreview(input, preview);
+                    if (textInput) {
+                        initializeMathJaxPreview(textInput);
                     }
-                });
-                
-                // معالجة معاينة الصور
-                document.querySelectorAll('.image-input').forEach(input => {
-                    input.addEventListener('change', function() {
-                        handleImagePreview(this);
-                    });
-                });
-                
-                // معالجة إزالة الخيارات
-                document.querySelectorAll('.remove-option-btn').forEach(button => {
-                    if (!button.disabled) {
-                        button.addEventListener('click', function() {
-                            removeOption(this);
+                    
+                    if (imageInput) {
+                        initializeImagePreview(imageInput);
+                    }
+                    
+                    // Add event listener to the remove button
+                    const removeButton = newOptionGroup.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.addEventListener("click", function() {
+                            removeOption(newOptionGroup);
                         });
                     }
-                });
+                }
+                
+                // Update option indices and states
+                updateOptionIndices();
+            }
+
+            // Function to remove an option
+            function removeOption(optionGroup) {
+                const optionsContainer = document.getElementById("options-container");
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                
+                // Check if we have more than the minimum required options
+                if (optionGroups.length <= 2) {
+                    alert("يجب أن يكون هناك خياران على الأقل.");
+                    return;
+                }
+                
+                // Remove the option group
+                optionGroup.parentElement.remove();
+                
+                // Update option indices and states
+                updateOptionIndices();
             }
             
             // إعداد معالج إضافة خيار
@@ -1108,6 +1178,16 @@
                     // إضافة الفئة النشطة للتبويب المحدد
                     this.classList.add('active');
                     document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // إضافة معالجات الأحداث لأزرار إزالة الخيارات
+            document.querySelectorAll('.remove-option-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const optionGroup = this.closest('.option-group');
+                    if (optionGroup) {
+                        removeOption(optionGroup);
+                    }
                 });
             });
         });
