@@ -1,318 +1,101 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}إدارة الأسئلة الكيميائية{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}مدير الأسئلة{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
     <style>
-        /* تنسيق أساسي للصفحة */
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        /* تنسيق الرأس */
-        header {
-            background-color: #1e2a38;
-            color: white;
-            padding: 0.5rem 0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0.5rem 0;
-        }
-        
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .logo h1 {
-            color: #4ecdc4;
-            margin: 0;
-            font-size: 1.8rem;
-        }
-        
-        /* تنسيق القائمة */
-        nav ul {
-            display: flex;
-            justify-content: center;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            background-color: #2b3a4a;
-        }
-        
-        nav li {
-            margin: 0;
-        }
-        
-        nav a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 0.8rem 1.2rem;
-            transition: background-color 0.3s;
-        }
-        
-        nav a:hover {
-            background-color: #3a4b5c;
-        }
-        
-        nav a.active {
-            background-color: #4ecdc4;
-            color: #1e2a38;
-            border-bottom: 3px solid #1e2a38;
-        }
-        
-        nav a.logout {
-            color: #ff6b6b;
-        }
-        
-        /* تنسيق المحتوى الرئيسي */
-        main {
-            flex: 1;
-            padding: 1rem;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            box-sizing: border-box;
-        }
-        
-        /* تنسيق التذييل */
-        footer {
-            background-color: #1e2a38;
-            color: white;
-            padding: 1rem 0;
-            margin-top: auto;
-            width: 100%;
-        }
-        
-        .footer-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-        
-        .footer-content p {
-            margin: 0.5rem 0;
-            text-align: center;
-        }
-        
-        .footer-links {
-            display: flex;
-            gap: 1.5rem;
-            margin-top: 0.5rem;
-        }
-        
-        .footer-links a {
-            color: #4ecdc4;
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        
-        .footer-links a:hover {
-            color: white;
-            text-decoration: underline;
-        }
-        
-        /* تنسيق الرسائل المؤقتة */
+        body { padding-top: 5rem; }
         .flash {
-            padding: 0.75rem 1.25rem;
+            padding: 1rem;
             margin-bottom: 1rem;
-            border-radius: 0.25rem;
+            border: 1px solid transparent;
+            border-radius: .25rem;
         }
-        
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .alert-warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-        
-        .alert-info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        /* تنسيق الذرة المتحركة */
-        .atom {
-            position: relative;
-            width: 40px;
-            height: 40px;
-        }
-        
-        .nucleus {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 12px;
-            height: 12px;
-            background-color: #4ecdc4;
-            border-radius: 50%;
-        }
-        
-        .electron {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background-color: #ff6b6b;
-            border-radius: 50%;
-            animation: orbit 3s linear infinite;
-        }
-        
-        .e1 {
-            animation-delay: -1s;
-        }
-        
-        .e2 {
-            animation-delay: -2s;
-        }
-        
-        .e3 {
-            animation-delay: 0s;
-        }
-        
-        @keyframes orbit {
-            0% {
-                transform: rotate(0deg) translateX(15px) rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg) translateX(15px) rotate(-360deg);
-            }
-        }
-        
-        /* تنسيق الجزيئات في الخلفية */
-        .particles-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
-        }
-        
-        .particle {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.3;
-        }
-        
-        .p1 { background-color: #4ecdc4; width: 10px; height: 10px; top: 20%; left: 10%; }
-        .p2 { background-color: #ff6b6b; width: 15px; height: 15px; top: 30%; left: 20%; }
-        .p3 { background-color: #ffbe0b; width: 12px; height: 12px; top: 40%; left: 30%; }
-        .p4 { background-color: #8a6baf; width: 8px; height: 8px; top: 50%; left: 40%; }
-        .p5 { background-color: #4ecdc4; width: 10px; height: 10px; top: 60%; left: 50%; }
-        .p6 { background-color: #ff6b6b; width: 14px; height: 14px; top: 70%; left: 60%; }
-        .p7 { background-color: #ffbe0b; width: 9px; height: 9px; top: 80%; left: 70%; }
-        .p8 { background-color: #8a6baf; width: 11px; height: 11px; top: 90%; left: 80%; }
-        .p9 { background-color: #4ecdc4; width: 13px; height: 13px; top: 25%; left: 85%; }
-        .p10 { background-color: #ff6b6b; width: 7px; height: 7px; top: 75%; left: 15%; }
-        
-        /* تنسيق للشاشات الصغيرة */
-        @media (max-width: 768px) {
-            nav ul {
-                flex-direction: column;
-            }
-            
-            nav a {
-                text-align: center;
-            }
-            
-            .logo h1 {
-                font-size: 1.4rem;
-            }
-            
-            .footer-content {
-                text-align: center;
-            }
-            
-            .footer-links {
-                flex-direction: column;
-                align-items: center;
-                gap: 0.5rem;
-            }
-        }
+        .flash.success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+        .flash.danger { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+        .flash.warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+        .flash.info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
+        /* Add more styles as needed */
     </style>
+    <!-- MathJax Configuration -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [["$", "$"], ["\\(", "\\) "]],
+                displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+                // processEscapes: true, // Keep disabled to prevent conflict with URLs
+                tags: "ams" // Automatic equation numbering
+            },
+            chtml: {
+                matchFontHeight: false
+            },
+            options: {
+                skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+                ignoreHtmlClass: "tex2jax_ignore",
+                processHtmlClass: "tex2jax_process"
+            },
+            startup: {
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    // You can add custom ready functions here if needed
+                }
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
     {% block head_extra %}{% endblock %}
 </head>
 <body>
-    <div class="particles-container">
-        <div class="particle p1"></div>
-        <div class="particle p2"></div>
-        <div class="particle p3"></div>
-        <div class="particle p4"></div>
-        <div class="particle p5"></div>
-        <div class="particle p6"></div>
-        <div class="particle p7"></div>
-        <div class="particle p8"></div>
-        <div class="particle p9"></div>
-        <div class="particle p10"></div>
-    </div>
-
-    <header>
-        <div class="logo-container">
-            <div class="logo">
-                <div class="atom">
-                    <div class="electron e1"></div>
-                    <div class="electron e2"></div>
-                    <div class="electron e3"></div>
-                    <div class="nucleus"></div>
-                </div>
-                <h1>إدارة الأسئلة الكيميائية</h1>
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+        <div class="container-fluid">
+            <!-- Corrected link to point to the 'index' endpoint -->
+            <a class="navbar-brand" href="{{ url_for('index')  }}">مدير الأسئلة</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <!-- Corrected link to point to the 'index' endpoint -->
+                            <a class="nav-link" href="{{ url_for('index') }}">لوحة التحكم</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('curriculum.list_courses') }}">إدارة المنهج</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('question.list_questions') }}">إدارة الأسئلة</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('question.import_questions') }}">استيراد الأسئلة</a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                     {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="navbar-text">مرحباً, {{ current_user.username }}</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user.change_password') }}">تغيير كلمة المرور</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+                        </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
-        <nav>
-            <ul>
-                {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
-                    <li><a href="{{ url_for('curriculum.list_courses') }}" {% if request.endpoint.startswith('curriculum') %}class="active"{% endif %}><i class="fas fa-flask"></i> إدارة المنهج</a></li>
-                    <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint.startswith('question') and request.endpoint != 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
-                    <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
-                    <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
-                    <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
-                {% else %}
-                    <li><a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-    </header>
+    </nav>
 
-    <main>
+    <main class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -322,22 +105,11 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
         {% block content %}{% endblock %}
     </main>
 
-    <footer>
-        <div class="footer-content">
-            <p>جميع الحقوق محفوظة - إدارة الأسئلة الكيميائية تطوير الاستاذ حسين علي الموسى© 2025</p>
-            <div class="footer-links">
-                <a href="#">الدعم الفني</a>
-                <a href="#">سياسة الخصوصية</a>
-                <a href="#">شروط الاستخدام</a>
-            </div>
-        </div>
-    </footer>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
+
