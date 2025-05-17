@@ -710,7 +710,7 @@
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times; إزالة</button>
+                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times;</button>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -767,9 +767,9 @@
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
                                 {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -779,7 +779,7 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                             {% endif %}
                         </div>
                     </div>
@@ -798,7 +798,7 @@
                     <input type="hidden" name="option_id___INDEX__" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
-                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times; إزالة</button>
+                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times;</button>
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -813,7 +813,7 @@
                         </div>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__" {% if loop.first %}required{% endif %}>
+                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__">
                         <label class="form-check-label" for="correct_option___INDEX__">
                             هذا هو الخيار الصحيح
                         </label>
