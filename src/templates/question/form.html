@@ -714,8 +714,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ (i+1)|string + '-' + options[i].option_text if i < options|length else (i+1)|string + '-' }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ (i+1)|string + '-' + options[i].option_text if i < options|length else (i+1)|string + '-' }}</div>
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else "" }}">
+                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
@@ -802,8 +802,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="__NUMBER__-">
-                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">__NUMBER__-</div>
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
+                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
@@ -940,34 +940,8 @@
             function ensureOptionNumberPrefix(inputElement) {
                 if (!inputElement) return;
                 
-                // Get the option group and its number
-                const optionGroup = inputElement.closest('.option-group');
-                if (!optionGroup) return;
-                
-                const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                const prefix = optionNumber + "-";
-                
-                // If the input doesn't start with the prefix, add it
-                if (!inputElement.value.startsWith(prefix)) {
-                    // If input is empty, just add the prefix
-                    if (!inputElement.value.trim()) {
-                        inputElement.value = prefix;
-                    } 
-                    // If input has content but no prefix, add the prefix
-                    else {
-                        // Check if it starts with a different number prefix
-                        const match = inputElement.value.match(/^(\d+)-/);
-                        if (match) {
-                            // Replace the existing number prefix
-                            inputElement.value = inputElement.value.replace(/^\d+-/, prefix);
-                        } else {
-                            // Add the prefix at the beginning
-                            inputElement.value = prefix + inputElement.value;
-                        }
-                    }
-                }
-                
-                // Update the preview
+                // No longer need to add prefix since we're removing the option number from text
+                // Just update the preview
                 const previewId = inputElement.id + "-preview";
                 updatePreview(inputElement.id, previewId);
             }
@@ -982,47 +956,11 @@
                     
                     // Add event listeners to maintain the prefix
                     inputElement.addEventListener('focus', function() {
-                        const currentValue = this.value;
-                        const optionGroup = this.closest('.option-group');
-                        const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                        const prefix = optionNumber + "-";
-                        
-                        // Store the cursor position relative to the end of the string
-                        const cursorPos = this.selectionStart;
-                        
-                        // Ensure prefix exists
-                        if (!currentValue.startsWith(prefix)) {
-                            this.value = prefix + currentValue.replace(/^\d+-/, '');
-                            
-                            // Restore cursor position, but after the prefix if it was at the start
-                            this.selectionStart = this.selectionEnd = Math.max(prefix.length, cursorPos);
-                        }
+                        // No longer need to add prefix
                     });
                     
                     inputElement.addEventListener('input', function() {
-                        const currentValue = this.value;
-                        const optionGroup = this.closest('.option-group');
-                        const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                        const prefix = optionNumber + "-";
-                        
-                        // Store the cursor position
-                        const cursorPos = this.selectionStart;
-                        
-                        // If prefix was deleted or changed, restore it
-                        if (!currentValue.startsWith(prefix)) {
-                            // If completely empty, just add prefix
-                            if (!currentValue) {
-                                this.value = prefix;
-                                this.selectionStart = this.selectionEnd = prefix.length;
-                            } else {
-                                // If has content but wrong/no prefix
-                                this.value = prefix + currentValue.replace(/^\d+-/, '');
-                                
-                                // Adjust cursor position to account for prefix change
-                                const newCursorPos = cursorPos + (this.value.length - currentValue.length);
-                                this.selectionStart = this.selectionEnd = Math.max(prefix.length, newCursorPos);
-                            }
-                        }
+                        // No longer need to add prefix
                         
                         // Update preview with the new value
                         updatePreview(this.id, previewId);
@@ -1086,11 +1024,14 @@
                                     const prefix = optionNumber + "-";
                                     
                                     // إنشاء رابط الصورة
-                                    const fileName = file.name;
-                                    const imageLink = ` [صورة: ${fileName}]`;
+                                    const imageUrl = e.target.result;
+                                    const imageLink = ` [صورة: ${imageUrl}]`;
                                     
-                                    // إضافة رابط الصورة إلى نص الخيار مع الحفاظ على البادئة
-                                    const currentText = optionTextInput.value;
+                                    // إضافة رابط الصورة إلى نص الخيار بدون البادئة الرقمية
+                                    let currentText = optionTextInput.value;
+                                    
+                                    // إزالة البادئة الرقمية من النص
+                                    currentText = currentText.replace(/^\d+-/, '');
                                     
                                     // التحقق مما إذا كان النص يحتوي بالفعل على رابط صورة
                                     if (!currentText.includes('[صورة:')) {
