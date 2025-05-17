@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة الأسئلة الكيميائية - {{ title }}</title>
+    <title>إدارة الأسئلة الكيميائية - إضافة سؤال جديد</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* تنسيق أساسي للصفحة */
@@ -683,12 +683,12 @@
         </div>
         <nav>
             <ul>
-                <li><a href="/"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
-                <li><a href="/curriculum/courses"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
-                <li><a href="/question/list" class="active"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
-                <li><a href="/question/import"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
-                <li><a href="/user/change-password"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
-                <li><a href="/auth/logout" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                <li><a href="#"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                <li><a href="#"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                <li><a href="#" class="active"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="#"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="#"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
+                <li><a href="#" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
             </ul>
         </nav>
     </header>
@@ -714,23 +714,35 @@
                                 <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
                                 <select id="course_id" class="form-select" name="course_id_temp" required>
                                     <option value="" selected disabled>-- اختر الدورة --</option>
-                                    <!-- سيتم ملء الخيارات بواسطة JavaScript -->
+                                    <option value="1">الكيمياء العامة</option>
+                                    <option value="2">الكيمياء العضوية</option>
+                                    <option value="3">الكيمياء غير العضوية</option>
+                                    <option value="4">الكيمياء التحليلية</option>
+                                    <option value="5">الكيمياء الفيزيائية</option>
                                 </select>
                             </div>
 
                             <div class="mb-3">
                                 <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
-                                <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
+                                <select id="unit_id" class="form-select" name="unit_id_temp" required>
                                     <option value="" selected disabled>-- اختر الوحدة --</option>
-                                    <!-- سيتم ملء الخيارات بواسطة JavaScript -->
+                                    <option value="1">الوحدة الأولى: مقدمة في الكيمياء</option>
+                                    <option value="2">الوحدة الثانية: الجدول الدوري</option>
+                                    <option value="3">الوحدة الثالثة: الروابط الكيميائية</option>
+                                    <option value="4">الوحدة الرابعة: التفاعلات الكيميائية</option>
+                                    <option value="5">الوحدة الخامسة: الحسابات الكيميائية</option>
                                 </select>
                             </div>
 
                             <div class="mb-3">
                                 <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
-                                <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
+                                <select name="lesson_id" id="lesson_id" class="form-select" required>
                                     <option value="" selected disabled>-- اختر الدرس --</option>
-                                    <!-- سيتم ملء الخيارات بواسطة JavaScript -->
+                                    <option value="1">الدرس الأول: مفهوم الكيمياء</option>
+                                    <option value="2">الدرس الثاني: المادة وخصائصها</option>
+                                    <option value="3">الدرس الثالث: القياسات العلمية</option>
+                                    <option value="4">الدرس الرابع: الذرة والجزيء</option>
+                                    <option value="5">الدرس الخامس: العناصر والمركبات</option>
                                 </select>
                             </div>
 
@@ -887,7 +899,7 @@
                     <div class="card">
                         <div class="card-body tex2jax_ignore">
                             <button type="submit" class="btn btn-primary w-100 mb-2">حفظ</button>
-                            <a href="/question/list" class="btn btn-secondary w-100">إلغاء</a>
+                            <a href="#" class="btn btn-secondary w-100">إلغاء</a>
                         </div>
                     </div>
                 </div>
@@ -945,80 +957,116 @@
             const unitSelect = document.getElementById("unit_id");
             const lessonSelect = document.getElementById("lesson_id");
 
-            function populateSelect(selectElement, items, placeholder, selectedValue = null) {
+            // بيانات تجريبية للدورات والوحدات والدروس
+            const mockData = {
+                courses: [
+                    { id: 1, name: "الكيمياء العامة" },
+                    { id: 2, name: "الكيمياء العضوية" },
+                    { id: 3, name: "الكيمياء غير العضوية" },
+                    { id: 4, name: "الكيمياء التحليلية" },
+                    { id: 5, name: "الكيمياء الفيزيائية" }
+                ],
+                units: {
+                    1: [
+                        { id: 1, name: "الوحدة الأولى: مقدمة في الكيمياء" },
+                        { id: 2, name: "الوحدة الثانية: الجدول الدوري" },
+                        { id: 3, name: "الوحدة الثالثة: الروابط الكيميائية" },
+                        { id: 4, name: "الوحدة الرابعة: التفاعلات الكيميائية" },
+                        { id: 5, name: "الوحدة الخامسة: الحسابات الكيميائية" }
+                    ],
+                    2: [
+                        { id: 6, name: "الوحدة الأولى: مقدمة في الكيمياء العضوية" },
+                        { id: 7, name: "الوحدة الثانية: الألكانات" },
+                        { id: 8, name: "الوحدة الثالثة: الألكينات" },
+                        { id: 9, name: "الوحدة الرابعة: الألكاينات" },
+                        { id: 10, name: "الوحدة الخامسة: المركبات الأروماتية" }
+                    ],
+                    3: [
+                        { id: 11, name: "الوحدة الأولى: مقدمة في الكيمياء غير العضوية" },
+                        { id: 12, name: "الوحدة الثانية: العناصر الانتقالية" },
+                        { id: 13, name: "الوحدة الثالثة: المركبات التناسقية" },
+                        { id: 14, name: "الوحدة الرابعة: الأحماض والقواعد" },
+                        { id: 15, name: "الوحدة الخامسة: الأكاسيد" }
+                    ]
+                },
+                lessons: {
+                    1: [
+                        { id: 1, name: "الدرس الأول: مفهوم الكيمياء" },
+                        { id: 2, name: "الدرس الثاني: المادة وخصائصها" },
+                        { id: 3, name: "الدرس الثالث: القياسات العلمية" },
+                        { id: 4, name: "الدرس الرابع: الذرة والجزيء" },
+                        { id: 5, name: "الدرس الخامس: العناصر والمركبات" }
+                    ],
+                    2: [
+                        { id: 6, name: "الدرس الأول: تاريخ الجدول الدوري" },
+                        { id: 7, name: "الدرس الثاني: تصنيف العناصر" },
+                        { id: 8, name: "الدرس الثالث: الخواص الدورية" },
+                        { id: 9, name: "الدرس الرابع: المجموعات الرئيسية" },
+                        { id: 10, name: "الدرس الخامس: العناصر الانتقالية" }
+                    ]
+                }
+            };
+
+            function populateSelect(selectElement, items, placeholder) {
                 selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
                 items.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.id;
                     option.textContent = item.name;
-                    if (selectedValue && item.id.toString() === selectedValue.toString()) {
-                        option.selected = true;
-                    }
                     selectElement.appendChild(option);
                 });
                 selectElement.disabled = false;
             }
 
-            // Load courses
-            fetch('/api/courses')
-                .then(response => response.json())
-                .then(data => {
-                    populateSelect(courseSelect, data, "-- اختر الدورة --");
-                })
-                .catch(error => console.error('Error loading data:', error));
+            // تحميل الدورات
+            populateSelect(courseSelect, mockData.courses, "-- اختر الدورة --");
 
-            // Course change event
+            // حدث تغيير الدورة
             courseSelect.addEventListener("change", function() {
-                const courseId = this.value;
+                const courseId = parseInt(this.value);
                 if (courseId) {
-                    // Reset dependent dropdowns
+                    // إعادة تعيين القوائم المنسدلة التابعة
                     unitSelect.innerHTML = '<option value="" selected disabled>-- اختر الوحدة --</option>';
                     unitSelect.disabled = true;
                     lessonSelect.innerHTML = '<option value="" selected disabled>-- اختر الدرس --</option>';
                     lessonSelect.disabled = true;
                     
-                    // Fetch units for selected course
-                    fetch(`/api/courses/${courseId}/units`)
-                        .then(response => response.json())
-                        .then(data => {
-                            populateSelect(unitSelect, data, "-- اختر الوحدة --");
-                        })
-                        .catch(error => console.error('Error loading units:', error));
+                    // تحميل الوحدات للدورة المحددة
+                    if (mockData.units[courseId]) {
+                        populateSelect(unitSelect, mockData.units[courseId], "-- اختر الوحدة --");
+                    }
                 }
             });
 
-            // Unit change event
+            // حدث تغيير الوحدة
             unitSelect.addEventListener("change", function() {
-                const unitId = this.value;
+                const unitId = parseInt(this.value);
                 if (unitId) {
-                    // Reset lesson dropdown
+                    // إعادة تعيين قائمة الدروس
                     lessonSelect.innerHTML = '<option value="" selected disabled>-- اختر الدرس --</option>';
                     lessonSelect.disabled = true;
                     
-                    // Fetch lessons for selected unit
-                    fetch(`/api/units/${unitId}/lessons`)
-                        .then(response => response.json())
-                        .then(data => {
-                            populateSelect(lessonSelect, data, "-- اختر الدرس --");
-                        })
-                        .catch(error => console.error('Error loading lessons:', error));
+                    // تحميل الدروس للوحدة المحددة
+                    if (mockData.lessons[unitId]) {
+                        populateSelect(lessonSelect, mockData.lessons[unitId], "-- اختر الدرس --");
+                    }
                 }
             });
 
-            // MathJax preview functionality
+            // وظائف معاينة MathJax
             const mathjaxInputs = document.querySelectorAll('.mathjax-input');
             mathjaxInputs.forEach(input => {
                 const previewId = input.id + '-preview';
                 const previewElement = document.getElementById(previewId);
                 
                 if (previewElement) {
-                    // Initial preview
+                    // معاينة أولية
                     previewElement.innerHTML = input.value;
                     if (window.MathJax) {
                         window.MathJax.typeset([previewElement]);
                     }
                     
-                    // Update preview on input
+                    // تحديث المعاينة عند الإدخال
                     input.addEventListener('input', function() {
                         previewElement.innerHTML = this.value;
                         if (window.MathJax) {
@@ -1028,7 +1076,7 @@
                 }
             });
 
-            // Image preview functionality
+            // وظائف معاينة الصور
             const imageInputs = document.querySelectorAll('.image-input');
             imageInputs.forEach(input => {
                 const previewTargetId = input.dataset.previewTarget;
@@ -1048,12 +1096,12 @@
                 }
             });
 
-            // Options management
+            // إدارة الخيارات
             const optionsContainer = document.getElementById('options-container');
             const optionTemplate = document.getElementById('option-template').innerHTML;
             const addOptionBtn = document.getElementById('add-option-btn');
             
-            // Add option
+            // إضافة خيار
             addOptionBtn.addEventListener('click', function() {
                 const optionGroups = optionsContainer.querySelectorAll('.option-group');
                 const newIndex = optionGroups.length;
@@ -1069,7 +1117,7 @@
                 
                 optionsContainer.appendChild(newOptionElement);
                 
-                // Setup MathJax preview for new option
+                // إعداد معاينة MathJax للخيار الجديد
                 const newInput = newOptionElement.querySelector('.mathjax-input');
                 if (newInput) {
                     const previewId = newInput.id + '-preview';
@@ -1085,7 +1133,7 @@
                     }
                 }
                 
-                // Setup image preview for new option
+                // إعداد معاينة الصورة للخيار الجديد
                 const newImageInput = newOptionElement.querySelector('.image-input');
                 if (newImageInput) {
                     const previewTargetId = newImageInput.dataset.previewTarget;
@@ -1105,7 +1153,7 @@
                     }
                 }
                 
-                // Setup remove button for new option
+                // إعداد زر الإزالة للخيار الجديد
                 const removeBtn = newOptionElement.querySelector('.remove-option-btn');
                 if (removeBtn) {
                     removeBtn.addEventListener('click', function() {
@@ -1114,17 +1162,17 @@
                 }
             });
             
-            // Remove option
+            // إزالة خيار
             function removeOption(optionElement) {
                 optionsContainer.removeChild(optionElement);
                 
-                // Renumber remaining options
+                // إعادة ترقيم الخيارات المتبقية
                 const optionGroups = optionsContainer.querySelectorAll('.option-group');
                 optionGroups.forEach((group, index) => {
                     group.dataset.index = index;
                     group.querySelector('.option-number').textContent = index + 1;
                     
-                    // Update radio button value
+                    // تحديث قيمة زر الراديو
                     const radio = group.querySelector('.correct-option-radio');
                     if (radio) {
                         radio.value = index;
@@ -1137,7 +1185,7 @@
                 });
             }
             
-            // Setup existing remove buttons
+            // إعداد أزرار الإزالة الموجودة
             const removeButtons = document.querySelectorAll('.remove-option-btn');
             removeButtons.forEach(button => {
                 if (!button.disabled) {
@@ -1148,17 +1196,17 @@
                 }
             });
             
-            // Highlight correct option when selected
+            // تمييز الخيار الصحيح عند اختياره
             const correctOptionRadios = document.querySelectorAll('.correct-option-radio');
             correctOptionRadios.forEach(radio => {
                 radio.addEventListener('change', function() {
-                    // Remove highlight from all options
+                    // إزالة التمييز من جميع الخيارات
                     const allOptionGroups = document.querySelectorAll('.option-group');
                     allOptionGroups.forEach(group => {
                         group.classList.remove('border-success');
                     });
                     
-                    // Add highlight to selected option
+                    // إضافة تمييز للخيار المحدد
                     const selectedGroup = this.closest('.option-group');
                     selectedGroup.classList.add('border-success');
                 });
