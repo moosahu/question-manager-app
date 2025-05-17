@@ -706,26 +706,26 @@
 
                         {% for i in range(initial_option_count) %}
                         <div class="col-md-6 mb-3">
-                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}" data-option-number="{{ i + 1 }}">
+                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times;</button>
+                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ (i+1)|string + '-' + options[i].option_text if i < options|length else (i+1)|string + '-' }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ (i+1)|string + '-' + options[i].option_text if i < options|length else (i+1)|string + '-' }}</div>
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else "" }}">
+                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
+                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
                                     <div class="mt-2 tex2jax_ignore">
                                         {% if i < options|length and options[i].image_url %}
                                             {% if options[i].image_url.startswith('http') %}
-                                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                             {% else %}
-                                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                             {% endif %}
                                             <small class="d-block">الصورة الحالية</small>
                                             <div class="form-check mt-1">
@@ -735,12 +735,12 @@
                                                 </label>
                                             </div>
                                         {% else %}
-                                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                                            <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
+                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %}>
                                     <label class="form-check-label" for="correct_option_{{ i }}">
                                         هذا هو الخيار الصحيح
                                     </label>
@@ -767,9 +767,9 @@
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
                                 {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -779,7 +779,7 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                             {% endif %}
                         </div>
                     </div>
@@ -794,22 +794,22 @@
         <!-- قالب الخيار (مخفي) -->
         <template id="option-template">
             <div class="col-md-6 mb-3">
-                <div class="option-group border p-3 rounded" data-index="__INDEX__" data-option-number="__NUMBER__">
+                <div class="option-group border p-3 rounded" data-index="__INDEX__">
                     <input type="hidden" name="option_id___INDEX__" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
-                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times;</button>
+                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">× إزالة</button>
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="__NUMBER__-">
-                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">__NUMBER__-</div>
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
+                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image___INDEX___preview">
+                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview___INDEX__">
                         <div class="mt-2 tex2jax_ignore">
-                            <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
+                            <img id="option_image_preview___INDEX__" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                         </div>
                     </div>
                     <div class="form-check">
@@ -936,106 +936,11 @@
                 }
             }
 
-            // Function to ensure option number prefix in input field
-            function ensureOptionNumberPrefix(inputElement) {
-                if (!inputElement) return;
-                
-                // Get the option group and its number
-                const optionGroup = inputElement.closest('.option-group');
-                if (!optionGroup) return;
-                
-                const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                const prefix = optionNumber + "-";
-                
-                // If the input doesn't start with the prefix, add it
-                if (!inputElement.value.startsWith(prefix)) {
-                    // If input is empty, just add the prefix
-                    if (!inputElement.value.trim()) {
-                        inputElement.value = prefix;
-                    } 
-                    // If input has content but no prefix, add the prefix
-                    else {
-                        // Check if it starts with a different number prefix
-                        const match = inputElement.value.match(/^(\d+)-/);
-                        if (match) {
-                            // Replace the existing number prefix
-                            inputElement.value = inputElement.value.replace(/^\d+-/, prefix);
-                        } else {
-                            // Add the prefix at the beginning
-                            inputElement.value = prefix + inputElement.value;
-                        }
-                    }
-                }
-                
-                // Update the preview
-                const previewId = inputElement.id + "-preview";
-                updatePreview(inputElement.id, previewId);
-            }
-
             // Function to initialize MathJax preview for an element
             function initializeMathJaxPreview(inputElement) {
                 const previewId = inputElement.id + "-preview";
-                
-                // If this is an option text input, ensure it has the number prefix
-                if (inputElement.id.includes('option_text_')) {
-                    ensureOptionNumberPrefix(inputElement);
-                    
-                    // Add event listeners to maintain the prefix
-                    inputElement.addEventListener('focus', function() {
-                        const currentValue = this.value;
-                        const optionGroup = this.closest('.option-group');
-                        const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                        const prefix = optionNumber + "-";
-                        
-                        // Store the cursor position relative to the end of the string
-                        const cursorPos = this.selectionStart;
-                        
-                        // Ensure prefix exists
-                        if (!currentValue.startsWith(prefix)) {
-                            this.value = prefix + currentValue.replace(/^\d+-/, '');
-                            
-                            // Restore cursor position, but after the prefix if it was at the start
-                            this.selectionStart = this.selectionEnd = Math.max(prefix.length, cursorPos);
-                        }
-                    });
-                    
-                    inputElement.addEventListener('input', function() {
-                        const currentValue = this.value;
-                        const optionGroup = this.closest('.option-group');
-                        const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                        const prefix = optionNumber + "-";
-                        
-                        // Store the cursor position
-                        const cursorPos = this.selectionStart;
-                        
-                        // If prefix was deleted or changed, restore it
-                        if (!currentValue.startsWith(prefix)) {
-                            // If completely empty, just add prefix
-                            if (!currentValue) {
-                                this.value = prefix;
-                                this.selectionStart = this.selectionEnd = prefix.length;
-                            } else {
-                                // If has content but wrong/no prefix
-                                this.value = prefix + currentValue.replace(/^\d+-/, '');
-                                
-                                // Adjust cursor position to account for prefix change
-                                const newCursorPos = cursorPos + (this.value.length - currentValue.length);
-                                this.selectionStart = this.selectionEnd = Math.max(prefix.length, newCursorPos);
-                            }
-                        }
-                        
-                        // Update preview with the new value
-                        updatePreview(this.id, previewId);
-                    });
-                }
-                
-                // Initial preview update
                 updatePreview(inputElement.id, previewId);
-                
-                // Standard input event for non-option text inputs
-                if (!inputElement.id.includes('option_text_')) {
-                    inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
-                }
+                inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
             }
 
             // Function to initialize Image preview for an element
@@ -1091,7 +996,7 @@
                 });
             }
 
-            // Function to update option indices and states
+            // Function to update option numbers and remove button states
             function updateOptionIndices() {
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
@@ -1099,9 +1004,8 @@
 
                 optionGroups.forEach((group, index) => {
                     group.dataset.index = index;
-                    // Keep option number static - don't update it based on index
-                    // const optionNumber = index + 1;
-                    // group.querySelector(".option-number").textContent = optionNumber;
+                    const optionNumber = index + 1;
+                    group.querySelector(".option-number").textContent = optionNumber;
 
                     // Update all elements with index in their attributes
                     const elementsWithIndex = group.querySelectorAll("[id*='__INDEX__'], [name*='__INDEX__'], [for*='__INDEX__'], [data-preview-target*='__INDEX__']");
@@ -1116,10 +1020,10 @@
                         if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
                         if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
 
-                        // Keep alt text static - don't update number in alt text
-                        // if (el.tagName === "IMG" && el.alt) {
-                        //     el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
-                        // }
+                        // Update alt text for preview image
+                        if (el.tagName === "IMG" && el.alt) {
+                            el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
+                        }
                     });
 
                     const radio = group.querySelector(".correct-option-radio");
@@ -1139,31 +1043,7 @@
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
                 const newIndex = optionGroups.length;
-                
-                // Determine the option number based on available slots
-                let newNumber = 0;
-                const usedNumbers = [];
-                
-                // Collect all currently used option numbers
-                optionGroups.forEach(group => {
-                    const numberElement = group.querySelector(".option-number");
-                    if (numberElement) {
-                        usedNumbers.push(parseInt(numberElement.textContent));
-                    }
-                });
-                
-                // Find the first available number from 1-4
-                for (let i = 1; i <= 4; i++) {
-                    if (!usedNumbers.includes(i)) {
-                        newNumber = i;
-                        break;
-                    }
-                }
-                
-                // If all 1-4 are used, use the next number
-                if (newNumber === 0) {
-                    newNumber = Math.max(...usedNumbers) + 1;
-                }
+                const newNumber = newIndex + 1;
 
                 // Clone the template
                 const template = document.getElementById("option-template");
