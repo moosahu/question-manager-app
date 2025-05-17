@@ -527,17 +527,9 @@
             padding-left: 15px;
             box-sizing: border-box;
         }
-        
-        .col-md-4 {
-            flex: 0 0 33.333333%;
-            max-width: 33.333333%;
-            padding-right: 15px;
-            padding-left: 15px;
-            box-sizing: border-box;
-        }
 
         @media (max-width: 768px) {
-            .col-md-6, .col-md-4 {
+            .col-md-6 {
                 flex: 0 0 100%;
                 max-width: 100%;
             }
@@ -631,23 +623,21 @@
                 <div class="card-header">تفاصيل السؤال</div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
                                 <select id="course_id" class="form-select" name="course_id_temp" required>
                                     <option value="" selected disabled>-- اختر الدورة --</option>
                                 </select>
                             </div>
-                        </div>
-                        <div class="col-md-4">
+
                             <div class="mb-3">
                                 <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
                                 <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
                                     <option value="" selected disabled>-- اختر الوحدة --</option>
                                 </select>
                             </div>
-                        </div>
-                        <div class="col-md-4">
+
                             <div class="mb-3">
                                 <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
                                 <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
@@ -655,35 +645,36 @@
                                 </select>
                             </div>
                         </div>
-                    </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
+                                <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
+                                <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
+                                <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
+                            </div>
 
-                    <div class="mb-3">
-                        <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
-                        <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
-                        <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
-                        <div class="mt-2 tex2jax_ignore">
-                            {% if question and question.image_url %}
-                                {% if question.image_url.startswith('http') %}
-                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
-                                {% else %}
-                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
-                                {% endif %}
-                                <small class="d-block">الصورة الحالية</small>
-                                <div class="form-check mt-1">
-                                    <input class="form-check-input" type="checkbox" name="delete_question_image" id="delete_question_image" value="1">
-                                    <label class="form-check-label text-danger" for="delete_question_image">
-                                        حذف الصورة الحالية
-                                    </label>
+                            <div class="mb-3">
+                                <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
+                                <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
+                                <div class="mt-2 tex2jax_ignore">
+                                    {% if question and question.image_url %}
+                                        {% if question.image_url.startswith('http') %}
+                                            <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                        {% else %}
+                                            <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                        {% endif %}
+                                        <small class="d-block">الصورة الحالية</small>
+                                        <div class="form-check mt-1">
+                                            <input class="form-check-input" type="checkbox" name="delete_question_image" id="delete_question_image" value="1">
+                                            <label class="form-check-label text-danger" for="delete_question_image">
+                                                حذف الصورة الحالية
+                                            </label>
+                                        </div>
+                                    {% else %}
+                                        <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
+                                    {% endif %}
                                 </div>
-                            {% else %}
-                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
-                            {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
