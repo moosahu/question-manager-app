@@ -710,7 +710,7 @@
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
+                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times; إزالة</button>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -719,13 +719,13 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
+                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
                                     <div class="mt-2 tex2jax_ignore">
                                         {% if i < options|length and options[i].image_url %}
                                             {% if options[i].image_url.startswith('http') %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                             {% else %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                             {% endif %}
                                             <small class="d-block">الصورة الحالية</small>
                                             <div class="form-check mt-1">
@@ -735,12 +735,12 @@
                                                 </label>
                                             </div>
                                         {% else %}
-                                            <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %}>
+                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
                                     <label class="form-check-label" for="correct_option_{{ i }}">
                                         هذا هو الخيار الصحيح
                                     </label>
@@ -798,7 +798,7 @@
                     <input type="hidden" name="option_id___INDEX__" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
-                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">× إزالة</button>
+                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times; إزالة</button>
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -807,13 +807,13 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview___INDEX__">
+                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image___INDEX___preview">
                         <div class="mt-2 tex2jax_ignore">
-                            <img id="option_image_preview___INDEX__" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                            <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                         </div>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__">
+                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__" {% if loop.first %}required{% endif %}>
                         <label class="form-check-label" for="correct_option___INDEX__">
                             هذا هو الخيار الصحيح
                         </label>
