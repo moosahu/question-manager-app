@@ -706,7 +706,7 @@
 
                         {% for i in range(initial_option_count) %}
                         <div class="col-md-6 mb-3">
-                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
+                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}" data-option-number="{{ i + 1 }}">
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
@@ -794,7 +794,7 @@
         <!-- قالب الخيار (مخفي) -->
         <template id="option-template">
             <div class="col-md-6 mb-3">
-                <div class="option-group border p-3 rounded" data-index="__INDEX__">
+                <div class="option-group border p-3 rounded" data-index="__INDEX__" data-option-number="__NUMBER__">
                     <input type="hidden" name="option_id___INDEX__" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
@@ -996,7 +996,7 @@
                 });
             }
 
-            // Function to update option numbers and remove button states
+            // Function to update option indices and states
             function updateOptionIndices() {
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
@@ -1004,8 +1004,9 @@
 
                 optionGroups.forEach((group, index) => {
                     group.dataset.index = index;
-                    const optionNumber = index + 1;
-                    group.querySelector(".option-number").textContent = optionNumber;
+                    // Keep option number static - don't update it based on index
+                    // const optionNumber = index + 1;
+                    // group.querySelector(".option-number").textContent = optionNumber;
 
                     // Update all elements with index in their attributes
                     const elementsWithIndex = group.querySelectorAll("[id*='__INDEX__'], [name*='__INDEX__'], [for*='__INDEX__'], [data-preview-target*='__INDEX__']");
@@ -1020,10 +1021,10 @@
                         if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
                         if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
 
-                        // Update alt text for preview image
-                        if (el.tagName === "IMG" && el.alt) {
-                            el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
-                        }
+                        // Keep alt text static - don't update number in alt text
+                        // if (el.tagName === "IMG" && el.alt) {
+                        //     el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
+                        // }
                     });
 
                     const radio = group.querySelector(".correct-option-radio");
@@ -1043,7 +1044,31 @@
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
                 const newIndex = optionGroups.length;
-                const newNumber = newIndex + 1;
+                
+                // Determine the option number based on available slots
+                let newNumber = 0;
+                const usedNumbers = [];
+                
+                // Collect all currently used option numbers
+                optionGroups.forEach(group => {
+                    const numberElement = group.querySelector(".option-number");
+                    if (numberElement) {
+                        usedNumbers.push(parseInt(numberElement.textContent));
+                    }
+                });
+                
+                // Find the first available number from 1-4
+                for (let i = 1; i <= 4; i++) {
+                    if (!usedNumbers.includes(i)) {
+                        newNumber = i;
+                        break;
+                    }
+                }
+                
+                // If all 1-4 are used, use the next number
+                if (newNumber === 0) {
+                    newNumber = Math.max(...usedNumbers) + 1;
+                }
 
                 // Clone the template
                 const template = document.getElementById("option-template");
