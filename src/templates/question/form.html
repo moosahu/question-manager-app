@@ -542,6 +542,49 @@
                 max-width: 100%;
             }
         }
+        
+        /* تنسيق التبويبات من layout_proposal_2 */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .tab.active {
+            border-color: #dee2e6;
+            border-bottom-color: white;
+            background-color: white;
+            color: #007bff;
+        }
+        
+        .tab:hover:not(.active) {
+            background-color: #f8f9fa;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* تنسيق أيقونات التبويب */
+        .tab i {
+            margin-left: 8px;
+            font-size: 16px;
+        }
     </style>
     <!-- MathJax Configuration -->
     <script>
@@ -626,195 +669,222 @@
         <h1 class="page-title">{{ title }}</h1>
 
         <form method="post" enctype="multipart/form-data" id="question-form" class="form-container">
-            <!-- قسم تفاصيل السؤال (في الأعلى) -->
-            <div class="card mb-3">
-                <div class="card-header">تفاصيل السؤال</div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
-                                <select id="course_id" class="form-select" name="course_id_temp" required>
-                                    <option value="" selected disabled>-- اختر الدورة --</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
-                                <select id="unit_id" class="form-select" name="unit_id_temp" required disabled>
-                                    <option value="" selected disabled>-- اختر الوحدة --</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
-                                <select name="lesson_id" id="lesson_id" class="form-select" required disabled>
-                                    <option value="" selected disabled>-- اختر الدرس --</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
-                        <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
-                        <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
-                        <div class="mt-2 tex2jax_ignore">
-                            {% if question and question.image_url %}
-                                {% if question.image_url.startswith('http') %}
-                                    <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
-                                {% else %}
-                                    <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
-                                {% endif %}
-                                <small class="d-block">الصورة الحالية</small>
-                                <div class="form-check mt-1">
-                                    <input class="form-check-input" type="checkbox" name="delete_question_image" id="delete_question_image" value="1">
-                                    <label class="form-check-label text-danger" for="delete_question_image">
-                                        حذف الصورة الحالية
-                                    </label>
+            <!-- تبويبات للتنقل بين أقسام النموذج -->
+            <div class="tabs">
+                <div class="tab active" data-tab="details"><i class="fas fa-info-circle"></i>تفاصيل السؤال</div>
+                <div class="tab" data-tab="options"><i class="fas fa-list-ul"></i>الخيارات</div>
+                <div class="tab" data-tab="explanation"><i class="fas fa-comment-alt"></i>الشرح</div>
+            </div>
+            
+            <!-- قسم تفاصيل السؤال -->
+            <div id="details" class="tab-content active">
+                <div class="card mb-3">
+                    <div class="card-header">تفاصيل السؤال</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="course_id" class="form-label">الدورة <span class="text-danger">*</span></label>
+                                    <select id="course_id" class="form-select" name="course_id" required>
+                                        <option value="" selected disabled>-- اختر الدورة --</option>
+                                        {% for course in courses %}
+                                            <option value="{{ course.id }}" {% if question and question.lesson and question.lesson.unit.course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
-                            {% else %}
-                                <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
-                            {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="unit_id" class="form-label">الوحدة <span class="text-danger">*</span></label>
+                                    <select id="unit_id" class="form-select" name="unit_id" required {% if not question or not question.lesson %}disabled{% endif %}>
+                                        <option value="" selected disabled>-- اختر الوحدة --</option>
+                                        {% if question and question.lesson %}
+                                            {% for unit in question.lesson.unit.course.units %}
+                                                <option value="{{ unit.id }}" {% if question.lesson.unit_id == unit.id %}selected{% endif %}>{{ unit.name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="lesson_id" class="form-label">الدرس <span class="text-danger">*</span></label>
+                                    <select name="lesson_id" id="lesson_id" class="form-select" required {% if not question or not question.lesson %}disabled{% endif %}>
+                                        <option value="" selected disabled>-- اختر الدرس --</option>
+                                        {% if question and question.lesson %}
+                                            {% for lesson in question.lesson.unit.lessons %}
+                                                <option value="{{ lesson.id }}" {% if question.lesson_id == lesson.id %}selected{% endif %}>{{ lesson.name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) <span class="text-danger">*</span></label>
+                            <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question else request.form.get("text", "") }}</textarea>
+                            <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
+                            <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="question_image" class="form-label">صورة السؤال (اختياري)</label>
+                            <input type="file" name="question_image" id="question_image" class="form-control image-input" accept="image/*" data-preview-target="question_image_preview">
+                            <div class="mt-2 tex2jax_ignore">
+                                {% if question and question.image_url %}
+                                    {% if question.image_url.startswith('http') %}
+                                        <img id="question_image_preview" src="{{ question.image_url }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    {% else %}
+                                        <img id="question_image_preview" src="{{ url_for('static', filename=question.image_url) }}" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: block;" class="img-thumbnail mt-1">
+                                    {% endif %}
+                                    <small class="d-block">الصورة الحالية</small>
+                                    <div class="form-check mt-1">
+                                        <input class="form-check-input" type="checkbox" name="delete_question_image" id="delete_question_image" value="1">
+                                        <label class="form-check-label text-danger" for="delete_question_image">
+                                            حذف الصورة الحالية
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    <img id="question_image_preview" src="#" alt="معاينة صورة السؤال" style="max-width: 200px; max-height: 150px; display: none;" class="img-thumbnail mt-1">
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- قسم الخيارات -->
+            <div id="options" class="tab-content">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
+                        <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="options-container">
+                            {% set options = question.options if question else [] %}
+                            {% if question %}
+                                {% set initial_option_count = options|length if options|length > 1 else 2 %}
+                            {% else %}
+                                {% set initial_option_count = 4 %}
+                            {% endif %}
 
-            <!-- قسم الخيارات (في الوسط) -->
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
-                    <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
-                </div>
-                <div class="card-body">
-                    <div class="row" id="options-container">
-                        {% set options = question.options if question else [] %}
-                        {% if question %}
-                            {% set initial_option_count = options|length if options|length > 1 else 2 %}
-                        {% else %}
-                            {% set initial_option_count = 4 %}
-                        {% endif %}
-
-                        {% for i in range(initial_option_count) %}
-                        <div class="col-md-6 mb-3">
-                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
-                                <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else "" }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
-                                    <div class="mt-2 tex2jax_ignore">
-                                        {% if i < options|length and options[i].image_url %}
-                                            {% if options[i].image_url.startswith('http') %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                            {% for i in range(initial_option_count) %}
+                            <div class="col-md-6 mb-3">
+                                <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
+                                    <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
+                                        <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
+                                        <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else "" }}">
+                                        <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
+                                        <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
+                                        <div class="mt-2 tex2jax_ignore">
+                                            {% if i < options|length and options[i].image_url %}
+                                                {% if options[i].image_url.startswith('http') %}
+                                                    <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                {% else %}
+                                                    <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                {% endif %}
+                                                <small class="d-block">الصورة الحالية</small>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" name="delete_option_image_{{ i }}" id="delete_option_image_{{ i }}" value="1">
+                                                    <label class="form-check-label text-danger" for="delete_option_image_{{ i }}">
+                                                        حذف الصورة الحالية
+                                                    </label>
+                                                </div>
                                             {% else %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                                             {% endif %}
-                                            <small class="d-block">الصورة الحالية</small>
-                                            <div class="form-check mt-1">
-                                                <input class="form-check-input" type="checkbox" name="delete_option_image_{{ i }}" id="delete_option_image_{{ i }}" value="1">
-                                                <label class="form-check-label text-danger" for="delete_option_image_{{ i }}">
-                                                    حذف الصورة الحالية
-                                                </label>
-                                            </div>
-                                        {% else %}
-                                            <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
-                                        {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i == 0 %}required{% endif %} {% if i < options|length and options[i].is_correct %}checked{% endif %}>
+                                        <label class="form-check-label" for="correct_option_{{ i }}">
+                                            هذا هو الخيار الصحيح
+                                        </label>
                                     </div>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %}>
-                                    <label class="form-check-label" for="correct_option_{{ i }}">
-                                        هذا هو الخيار الصحيح
-                                    </label>
-                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- قسم الشرح -->
+            <div id="explanation" class="tab-content">
+                <div class="card mb-3">
+                    <div class="card-header">الشرح (اختياري)</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="explanation" class="form-label">نص الشرح</label>
+                            <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
+                            <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
+                            <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input" accept="image/*" data-preview-target="explanation_image_preview">
+                            <div class="mt-2 tex2jax_ignore">
+                                {% if question and question.explanation_image_path %}
+                                    {% if question.explanation_image_path.startswith('http') %}
+                                        <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    {% else %}
+                                        <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    {% endif %}
+                                    <small class="d-block">الصورة الحالية</small>
+                                    <div class="form-check mt-1">
+                                        <input class="form-check-input" type="checkbox" name="delete_explanation_image" id="delete_explanation_image" value="1">
+                                        <label class="form-check-label text-danger" for="delete_explanation_image">
+                                            حذف الصورة الحالية
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                {% endif %}
                             </div>
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
 
-            <!-- قسم الشرح (في الأسفل) -->
-            <div class="card mb-3">
-                <div class="card-header">الشرح (اختياري)</div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="explanation" class="form-label">نص الشرح</label>
-                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
-                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
-                        <input type="file" name="explanation_image" id="explanation_image" class="form-control image-input" accept="image/*" data-preview-target="explanation_image_preview">
-                        <div class="mt-2 tex2jax_ignore">
-                            {% if question and question.explanation_image_path %}
-                                {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
-                                {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
-                                {% endif %}
-                                <small class="d-block">الصورة الحالية</small>
-                                <div class="form-check mt-1">
-                                    <input class="form-check-input" type="checkbox" name="delete_explanation_image" id="delete_explanation_image" value="1">
-                                    <label class="form-check-label text-danger" for="delete_explanation_image">
-                                        حذف الصورة الحالية
-                                    </label>
-                                </div>
-                            {% else %}
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card-body tex2jax_ignore">
-                        <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
-                        <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary w-100">إلغاء</a>
-                    </div>
-                </div>
+            <div class="d-flex justify-content-between mt-3">
+                <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary">إلغاء</a>
+                <button type="submit" class="btn btn-primary">حفظ السؤال</button>
             </div>
         </form>
 
         <!-- قالب الخيار (مخفي) -->
         <template id="option-template">
             <div class="col-md-6 mb-3">
-                <div class="option-group border p-3 rounded" data-index="__INDEX__">
-                    <input type="hidden" name="option_id___INDEX__" value="">
+                <div class="option-group border p-3 rounded" data-index="{index}">
+                    <input type="hidden" name="option_id_{index}" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
+                        <h5 class="mb-0">الخيار <span class="option-number">{number}</span></h5>
                         <button type="button" class="btn btn-sm btn-danger remove-option-btn">× إزالة</button>
                     </div>
                     <div class="mb-3">
-                        <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
-                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        <label for="option_text_{index}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
+                        <input type="text" name="option_text_{index}" id="option_text_{index}" class="form-control mathjax-input" value="">
+                        <div id="option_text_{index}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
-                        <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview___INDEX__">
+                        <label for="option_image_{index}" class="form-label">صورة الخيار (اختياري)</label>
+                        <input type="file" name="option_image_{index}" id="option_image_{index}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{index}">
                         <div class="mt-2 tex2jax_ignore">
-                            <img id="option_image_preview___INDEX__" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                            <img id="option_image_preview_{index}" src="#" alt="معاينة صورة الخيار {number}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
                         </div>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option___INDEX__" value="__INDEX__">
-                        <label class="form-check-label" for="correct_option___INDEX__">
+                        <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{index}" value="{index}">
+                        <label class="form-check-label" for="correct_option_{index}">
                             هذا هو الخيار الصحيح
                         </label>
                     </div>
@@ -825,178 +895,95 @@
 
     <footer>
         <div class="footer-content">
-            <p>جميع الحقوق محفوظة - إدارة الأسئلة الكيميائية تطوير الاستاذ حسين علي الموسى© 2025</p>
+            <p>© 2025 نظام إدارة الأسئلة الكيميائية - جميع الحقوق محفوظة</p>
             <div class="footer-links">
-                <a href="#">الدعم الفني</a>
                 <a href="#">سياسة الخصوصية</a>
                 <a href="#">شروط الاستخدام</a>
+                <a href="#">اتصل بنا</a>
             </div>
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const courseSelect = document.getElementById("course_id");
-            const unitSelect = document.getElementById("unit_id");
-            const lessonSelect = document.getElementById("lesson_id");
-
-            // For pre-selection in edit mode
-            const initialCourseId = "{{ question.lesson.unit.course_id if question and question.lesson and question.lesson.unit else "" }}";
-            const initialUnitId = "{{ question.lesson.unit_id if question and question.lesson else "" }}";
-            const initialLessonId = "{{ question.lesson_id if question else "" }}";
-
-            function populateSelect(selectElement, items, placeholder, selectedValue = null) {
-                selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
-                items.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.id;
-                    option.textContent = item.name;
-                    if (selectedValue && item.id.toString() === selectedValue.toString()) {
-                        option.selected = true;
-                    }
-                    selectElement.appendChild(option);
-                });
-                selectElement.disabled = false;
-            }
-
-            function clearAndDisableSelect(selectElement, placeholder) {
-                selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
-                selectElement.disabled = true;
-            }
-
-            // Fetch and populate courses
-            fetch("/api/v1/courses")
-                .then(response => {
-                    console.log("Courses API Response:", response);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Courses data:", data);
-                    populateSelect(courseSelect, data, "-- اختر الدورة --", initialCourseId);
-                    if (initialCourseId) {
-                        courseSelect.dispatchEvent(new Event("change")); // Trigger change to load units
-                    }
-                })
-                .catch(error => console.error("Error fetching courses:", error));
-
-            courseSelect.addEventListener("change", function() {
-                const courseId = this.value;
-                console.log("Selected course ID:", courseId);
-                clearAndDisableSelect(unitSelect, "-- اختر الوحدة --");
-                clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
-                if (courseId) {
-                    const unitsUrl = `/api/v1/courses/${courseId}/units`;
-                    console.log("Fetching units from:", unitsUrl);
-                    fetch(unitsUrl)
-                        .then(response => {
-                            console.log("Units API Response:", response);
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log("Units data:", data);
-                            populateSelect(unitSelect, data, "-- اختر الوحدة --", initialUnitId);
-                            if (initialUnitId && unitSelect.value === initialUnitId) { // Ensure it was populated and selected
-                                 unitSelect.dispatchEvent(new Event("change")); // Trigger change to load lessons
-                            }
-                        })
-                        .catch(error => console.error("Error fetching units:", error));
-                }
-            });
-
-            unitSelect.addEventListener("change", function() {
-                const unitId = this.value;
-                console.log("Selected unit ID:", unitId);
-                clearAndDisableSelect(lessonSelect, "-- اختر الدرس --");
-                if (unitId) {
-                    const lessonsUrl = `/api/v1/units/${unitId}/lessons`;
-                    console.log("Fetching lessons from:", lessonsUrl);
-                    fetch(lessonsUrl)
-                        .then(response => {
-                            console.log("Lessons API Response:", response);
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log("Lessons data:", data);
-                            populateSelect(lessonSelect, data, "-- اختر الدرس --", initialLessonId);
-                        })
-                        .catch(error => console.error("Error fetching lessons:", error));
-                }
-            });
-
-            // Function to update MathJax preview
-            function updatePreview(inputId, previewId) {
-                const inputElement = document.getElementById(inputId);
-                const previewElement = document.getElementById(previewId);
-                if (inputElement && previewElement) {
-                    previewElement.innerHTML = inputElement.value;
-                    if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
-                        MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
-                    }
+        document.addEventListener('DOMContentLoaded', function() {
+            // تهيئة MathJax
+            function typeset(element) {
+                if (window.MathJax && element) {
+                    MathJax.typesetPromise([element]).catch(function(err) {
+                        console.log('MathJax error:', err);
+                    });
                 }
             }
-
-            // Function to initialize MathJax preview for an element
-            function initializeMathJaxPreview(inputElement) {
-                const previewId = inputElement.id + "-preview";
-                updatePreview(inputElement.id, previewId);
-                inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
+            
+            // معالجة معاينة النصوص
+            function updatePreview(inputElement, previewElement) {
+                previewElement.innerHTML = inputElement.value;
+                typeset(previewElement);
             }
-
-            // Function to initialize Image preview for an element
-            function initializeImagePreview(inputElement) {
-                const previewTargetId = inputElement.dataset.previewTarget;
-                const previewElement = document.getElementById(previewTargetId);
-
-                if (!previewElement) {
-                    console.error(`Preview target element with ID "${previewTargetId}" not found for input "${inputElement.id}"`);
-                    return;
-                }
-
-                // Store the initial src from the HTML (set by Jinja) if it exists and is a real URL
-                // Use getAttribute to ensure we get the value set by Jinja, not the resolved URL
-                const initialSrc = previewElement.getAttribute("src");
-                const hasInitialImage = initialSrc && initialSrc !== "#";
-
-                if (hasInitialImage) {
-                    previewElement.setAttribute("data-initial-src", initialSrc);
-                    previewElement.style.display = "block"; // Ensure display is block if there's an initial image
+            
+            // معالجة معاينة الصور
+            function handleImagePreview(input) {
+                const previewId = input.dataset.previewTarget;
+                const preview = document.getElementById(previewId);
+                
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(input.files[0]);
                 } else {
-                    previewElement.style.display = "none"; // Hide if no initial image
+                    preview.src = '#';
+                    preview.style.display = 'none';
                 }
-
-                inputElement.addEventListener("change", function(event) {
-                    const file = event.target.files[0];
-                    if (file && file.type.startsWith("image/")) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            previewElement.src = e.target.result;
-                            previewElement.style.display = "block";
-                            // Remove initial src data attribute as we now have a new preview
-                            previewElement.removeAttribute("data-initial-src");
-                        }
-                        reader.readAsDataURL(file);
-                    } else {
-                        // This case handles when the user clears the file input or selects a non-image file
-                        if (!inputElement.value) { // Check if the input value is empty (cleared)
-                            const storedInitialSrc = previewElement.getAttribute("data-initial-src");
-                            if (storedInitialSrc) {
-                                // Restore the original image if it existed
-                                previewElement.src = storedInitialSrc;
-                                previewElement.style.display = "block";
-                            } else {
-                                // No original image, just hide the preview
-                                previewElement.src = "#";
-                                previewElement.style.display = "none";
-                            }
-                        }
-                        // If inputElement.value is not empty (user cancelled or selected non-image),
-                        // leave the current preview (either original or newly selected) visible.
-                    }
-                });
             }
-
-            // Function to update option numbers and remove button states
+            
+            // تهيئة معاينة النصوص
+            function initializeMathJaxPreview(inputElement) {
+                const inputId = inputElement.id;
+                const previewId = inputId + '-preview';
+                const previewElement = document.getElementById(previewId);
+                
+                if (previewElement) {
+                    // تحديث المعاينة عند تحميل الصفحة
+                    updatePreview(inputElement, previewElement);
+                    
+                    // تحديث المعاينة عند تغيير النص
+                    inputElement.addEventListener('input', function() {
+                        updatePreview(inputElement, previewElement);
+                    });
+                }
+            }
+            
+            // تهيئة معاينة الصور
+            function initializeImagePreview(inputElement) {
+                const previewId = inputElement.dataset.previewTarget;
+                const previewElement = document.getElementById(previewId);
+                
+                if (previewElement) {
+                    // حفظ المصدر الأصلي للصورة (إن وجد)
+                    if (previewElement.src && previewElement.src !== '#' && previewElement.src !== window.location.href) {
+                        previewElement.setAttribute('data-initial-src', previewElement.src);
+                    }
+                    
+                    // معالجة تغيير الصورة
+                    inputElement.addEventListener('change', function() {
+                        handleImagePreview(inputElement);
+                    });
+                }
+            }
+            
+            // إعداد معالجات الأحداث
+            function setupEventHandlers() {
+                // تهيئة معاينة النصوص
+                document.querySelectorAll('.mathjax-input').forEach(initializeMathJaxPreview);
+                
+                // تهيئة معاينة الصور
+                document.querySelectorAll('.image-input').forEach(initializeImagePreview);
+            }
+            
+            // Function to update option indices and states
             function updateOptionIndices() {
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
@@ -1007,33 +994,16 @@
                     const optionNumber = index + 1;
                     group.querySelector(".option-number").textContent = optionNumber;
 
-                    // Update all elements with index in their attributes
-                    const elementsWithIndex = group.querySelectorAll("[id*='__INDEX__'], [name*='__INDEX__'], [for*='__INDEX__'], [data-preview-target*='__INDEX__']");
-                    elementsWithIndex.forEach(el => {
-                        const id = el.id;
-                        const name = el.name;
-                        const htmlFor = el.htmlFor;
-                        const previewTarget = el.dataset.previewTarget;
-
-                        if (id) el.id = id.replace(/__INDEX__/g, index);
-                        if (name) el.name = name.replace(/__INDEX__/g, index);
-                        if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
-                        if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
-
-                        // Update alt text for preview image
-                        if (el.tagName === "IMG" && el.alt) {
-                            el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
-                        }
-                    });
-
-                    const radio = group.querySelector(".correct-option-radio");
-                    if (radio) {
-                        radio.value = index;
+                    // Update the radio button value
+                    const radioButton = group.querySelector(".correct-option-radio");
+                    if (radioButton) {
+                        radioButton.value = index;
                     }
 
-                    const removeBtn = group.querySelector(".remove-option-btn");
-                    if (removeBtn) {
-                        removeBtn.disabled = !canRemove;
+                    // Enable/disable remove buttons based on minimum required options
+                    const removeButton = group.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.disabled = !canRemove;
                     }
                 });
             }
@@ -1043,72 +1013,183 @@
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
                 const newIndex = optionGroups.length;
-                const newNumber = newIndex + 1;
-
-                // Clone the template
-                const template = document.getElementById("option-template");
-                const newOptionHTML = template.innerHTML
-                    .replace(/__INDEX__/g, newIndex)
-                    .replace(/__NUMBER__/g, newNumber);
-
-                // Add to container
-                optionsContainer.insertAdjacentHTML("beforeend", newOptionHTML);
-
-                // Update all indices and states
+                
+                // Get the template and replace placeholders
+                const template = document.getElementById("option-template").innerHTML;
+                const newOptionHTML = template
+                    .replace(/{index}/g, newIndex)
+                    .replace(/{number}/g, newIndex + 1);
+                
+                // Create a temporary container to hold the new option
+                const tempContainer = document.createElement("div");
+                tempContainer.innerHTML = newOptionHTML;
+                
+                // Append the new option to the options container
+                optionsContainer.appendChild(tempContainer.firstElementChild);
+                
+                // Initialize the new option's inputs
+                const newOptionGroup = optionsContainer.querySelector(`.option-group[data-index="${newIndex}"]`);
+                if (newOptionGroup) {
+                    const textInput = newOptionGroup.querySelector(`#option_text_${newIndex}`);
+                    const imageInput = newOptionGroup.querySelector(`#option_image_${newIndex}`);
+                    
+                    if (textInput) {
+                        initializeMathJaxPreview(textInput);
+                    }
+                    
+                    if (imageInput) {
+                        initializeImagePreview(imageInput);
+                    }
+                    
+                    // Add event listener to the remove button
+                    const removeButton = newOptionGroup.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.addEventListener("click", function() {
+                            removeOption(newOptionGroup);
+                        });
+                    }
+                }
+                
+                // Update option indices and states
                 updateOptionIndices();
-
-                // Initialize MathJax and image previews for the new option
-                const newOption = optionsContainer.lastElementChild;
-                const mathJaxInputs = newOption.querySelectorAll(".mathjax-input");
-                mathJaxInputs.forEach(initializeMathJaxPreview);
-
-                const imageInputs = newOption.querySelectorAll(".image-input");
-                imageInputs.forEach(initializeImagePreview);
             }
 
             // Function to remove an option
-            function removeOption(event) {
-                const button = event.target;
-                const optionGroup = button.closest(".option-group");
-                if (optionGroup) {
-                    optionGroup.remove();
-                    updateOptionIndices();
+            function removeOption(optionGroup) {
+                const optionsContainer = document.getElementById("options-container");
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                
+                // Check if we have more than the minimum required options
+                if (optionGroups.length <= 2) {
+                    alert("يجب أن يكون هناك خياران على الأقل.");
+                    return;
+                }
+                
+                // Remove the option group
+                optionGroup.parentElement.remove();
+                
+                // Update option indices and states
+                updateOptionIndices();
+            }
+            
+            // إعداد معالج إضافة خيار
+            document.getElementById('add-option-btn').addEventListener('click', addOption);
+            
+            // إعداد معالجات الأحداث الأولية
+            setupEventHandlers();
+            
+            // تهيئة قائمة الدورات والوحدات والدروس
+            const courseSelect = document.getElementById('course_id');
+            const unitSelect = document.getElementById('unit_id');
+            const lessonSelect = document.getElementById('lesson_id');
+            
+            // تحميل الدورات
+            fetch('/api/courses')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.id;
+                        option.textContent = course.name;
+                        courseSelect.appendChild(option);
+                    });
+                    
+                    {% if question and question.lesson %}
+                        courseSelect.value = "{{ question.lesson.unit.course.id }}";
+                        loadUnits("{{ question.lesson.unit.course.id }}");
+                    {% endif %}
+                });
+            
+            // تحميل الوحدات عند اختيار دورة
+            courseSelect.addEventListener('change', function() {
+                loadUnits(this.value);
+            });
+            
+            // تحميل الدروس عند اختيار وحدة
+            unitSelect.addEventListener('change', function() {
+                loadLessons(this.value);
+            });
+            
+            // دالة تحميل الوحدات
+            function loadUnits(courseId) {
+                unitSelect.innerHTML = '<option value="" selected disabled>-- اختر الوحدة --</option>';
+                unitSelect.disabled = true;
+                lessonSelect.innerHTML = '<option value="" selected disabled>-- اختر الدرس --</option>';
+                lessonSelect.disabled = true;
+                
+                if (courseId) {
+                    fetch(`/api/courses/${courseId}/units`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(unit => {
+                                const option = document.createElement('option');
+                                option.value = unit.id;
+                                option.textContent = unit.name;
+                                unitSelect.appendChild(option);
+                            });
+                            
+                            unitSelect.disabled = false;
+                            
+                            {% if question and question.lesson %}
+                                unitSelect.value = "{{ question.lesson.unit.id }}";
+                                loadLessons("{{ question.lesson.unit.id }}");
+                            {% endif %}
+                        });
                 }
             }
-
-            // Initialize MathJax previews
-            document.querySelectorAll(".mathjax-input").forEach(initializeMathJaxPreview);
-
-            // Initialize image previews
-            document.querySelectorAll(".image-input").forEach(initializeImagePreview);
-
-            // Add option button
-            const addOptionBtn = document.getElementById("add-option-btn");
-            if (addOptionBtn) {
-                addOptionBtn.addEventListener("click", addOption);
+            
+            // دالة تحميل الدروس
+            function loadLessons(unitId) {
+                lessonSelect.innerHTML = '<option value="" selected disabled>-- اختر الدرس --</option>';
+                lessonSelect.disabled = true;
+                
+                if (unitId) {
+                    fetch(`/api/units/${unitId}/lessons`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(lesson => {
+                                const option = document.createElement('option');
+                                option.value = lesson.id;
+                                option.textContent = lesson.name;
+                                lessonSelect.appendChild(option);
+                            });
+                            
+                            lessonSelect.disabled = false;
+                            
+                            {% if question and question.lesson %}
+                                lessonSelect.value = "{{ question.lesson.id }}";
+                            {% endif %}
+                        });
+                }
             }
-
-            // Remove option buttons (using event delegation)
-            const optionsContainer = document.getElementById("options-container");
-            if (optionsContainer) {
-                optionsContainer.addEventListener("click", function(event) {
-                    if (event.target.classList.contains("remove-option-btn") || event.target.closest(".remove-option-btn")) {
-                        removeOption(event);
+            
+            // معالجة التبويبات
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // إزالة الفئة النشطة من جميع التبويبات
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // إضافة الفئة النشطة للتبويب المحدد
+                    this.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // إضافة معالجات الأحداث لأزرار إزالة الخيارات
+            document.querySelectorAll('.remove-option-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const optionGroup = this.closest('.option-group');
+                    if (optionGroup) {
+                        removeOption(optionGroup);
                     }
                 });
-            }
-
-            // Ensure at least 2 options are present
-            const optionGroups = optionsContainer.querySelectorAll(".option-group");
-            if (optionGroups.length < 2) {
-                // Add options until we have at least 2
-                while (optionsContainer.querySelectorAll(".option-group").length < 2) {
-                    addOption();
-                }
-            }
-
-            // Update indices on initial load
-            updateOptionIndices();
+            });
         });
     </script>
 </body>
