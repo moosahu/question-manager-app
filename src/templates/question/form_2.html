@@ -706,11 +706,11 @@
 
                         {% for i in range(initial_option_count) %}
                         <div class="col-md-6 mb-3">
-                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}">
+                            <div class="option-group border p-3 rounded {% if i < options|length and options[i].is_correct %}border-success{% endif %}" data-index="{{ i }}" data-option-number="{{ i + 1 }}">
                                 <input type="hidden" name="option_id_{{ i }}" value="{{ options[i].option_id if i < options|length else "" }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h5 class="mb-0">الخيار <span class="option-number">{{ i + 1 }}</span></h5>
-                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
+                                    <button type="button" class="btn btn-sm btn-danger remove-option-btn" {% if i < 2 %}disabled{% endif %}>&times;</button>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -719,13 +719,13 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
-                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview_{{ i }}">
+                                    <input type="file" name="option_image_{{ i }}" id="option_image_{{ i }}" class="form-control image-input" accept="image/*" data-preview-target="option_image_{{ i }}_preview">
                                     <div class="mt-2 tex2jax_ignore">
                                         {% if i < options|length and options[i].image_url %}
                                             {% if options[i].image_url.startswith('http') %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_{{ i }}_preview" src="{{ options[i].image_url }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                             {% else %}
-                                                <img id="option_image_preview_{{ i }}" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                                <img id="option_image_{{ i }}_preview" src="{{ url_for('static', filename=options[i].image_url) }}" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                             {% endif %}
                                             <small class="d-block">الصورة الحالية</small>
                                             <div class="form-check mt-1">
@@ -735,12 +735,12 @@
                                                 </label>
                                             </div>
                                         {% else %}
-                                            <img id="option_image_preview_{{ i }}" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                            <img id="option_image_{{ i }}_preview" src="#" alt="معاينة صورة الخيار {{ i + 1 }}" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %}>
+                                    <input class="form-check-input correct-option-radio" type="radio" name="correct_option" id="correct_option_{{ i }}" value="{{ i }}" {% if i < options|length and options[i].is_correct %}checked{% endif %} {% if i == 0 %}required{% endif %}>
                                     <label class="form-check-label" for="correct_option_{{ i }}">
                                         هذا هو الخيار الصحيح
                                     </label>
@@ -767,9 +767,9 @@
                         <div class="mt-2 tex2jax_ignore">
                             {% if question and question.explanation_image_path %}
                                 {% if question.explanation_image_path.startswith('http') %}
-                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ question.explanation_image_path }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                 {% else %}
-                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: block;" class="img-thumbnail mt-1">
+                                    <img id="explanation_image_preview" src="{{ url_for('static', filename=question.explanation_image_path) }}" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: block;" class="img-thumbnail mt-1">
                                 {% endif %}
                                 <small class="d-block">الصورة الحالية</small>
                                 <div class="form-check mt-1">
@@ -779,7 +779,7 @@
                                     </label>
                                 </div>
                             {% else %}
-                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                                <img id="explanation_image_preview" src="#" alt="معاينة صورة الشرح" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                             {% endif %}
                         </div>
                     </div>
@@ -794,11 +794,11 @@
         <!-- قالب الخيار (مخفي) -->
         <template id="option-template">
             <div class="col-md-6 mb-3">
-                <div class="option-group border p-3 rounded" data-index="__INDEX__">
+                <div class="option-group border p-3 rounded" data-index="__INDEX__" data-option-number="__NUMBER__">
                     <input type="hidden" name="option_id___INDEX__" value="">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="mb-0">الخيار <span class="option-number">__NUMBER__</span></h5>
-                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">× إزالة</button>
+                        <button type="button" class="btn btn-sm btn-danger remove-option-btn">&times;</button>
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
@@ -807,9 +807,9 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
-                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image_preview___INDEX__">
+                        <input type="file" name="option_image___INDEX__" id="option_image___INDEX__" class="form-control image-input" accept="image/*" data-preview-target="option_image___INDEX___preview">
                         <div class="mt-2 tex2jax_ignore">
-                            <img id="option_image_preview___INDEX__" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 150px; max-height: 100px; display: none;" class="img-thumbnail mt-1">
+                            <img id="option_image___INDEX___preview" src="#" alt="معاينة صورة الخيار __NUMBER__" style="max-width: 100px; max-height: 75px; display: none;" class="img-thumbnail mt-1">
                         </div>
                     </div>
                     <div class="form-check">
@@ -936,11 +936,44 @@
                 }
             }
 
+            // Function to ensure option number prefix in input field
+            function ensureOptionNumberPrefix(inputElement) {
+                if (!inputElement) return;
+                
+                // No longer need to add prefix since we're removing the option number from text
+                // Just update the preview
+                const previewId = inputElement.id + "-preview";
+                updatePreview(inputElement.id, previewId);
+            }
+
             // Function to initialize MathJax preview for an element
             function initializeMathJaxPreview(inputElement) {
                 const previewId = inputElement.id + "-preview";
+                
+                // If this is an option text input, ensure it has the number prefix
+                if (inputElement.id.includes('option_text_')) {
+                    ensureOptionNumberPrefix(inputElement);
+                    
+                    // Add event listeners to maintain the prefix
+                    inputElement.addEventListener('focus', function() {
+                        // No longer need to add prefix
+                    });
+                    
+                    inputElement.addEventListener('input', function() {
+                        // No longer need to add prefix
+                        
+                        // Update preview with the new value
+                        updatePreview(this.id, previewId);
+                    });
+                }
+                
+                // Initial preview update
                 updatePreview(inputElement.id, previewId);
-                inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
+                
+                // Standard input event for non-option text inputs
+                if (!inputElement.id.includes('option_text_')) {
+                    inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
+                }
             }
 
             // Function to initialize Image preview for an element
@@ -974,6 +1007,40 @@
                             previewElement.style.display = "block";
                             // Remove initial src data attribute as we now have a new preview
                             previewElement.removeAttribute("data-initial-src");
+                            
+                            // إضافة رابط الصورة إلى نص الخيار
+                            // استخراج رقم الخيار من معرف عنصر الإدخال
+                            const optionImageId = inputElement.id;
+                            const optionMatch = optionImageId.match(/option_image_(\d+)/);
+                            
+                            if (optionMatch && optionMatch[1]) {
+                                const optionIndex = optionMatch[1];
+                                const optionTextInput = document.getElementById(`option_text_${optionIndex}`);
+                                
+                                if (optionTextInput) {
+                                    // إنشاء رابط الصورة
+                                    const imageUrl = e.target.result;
+                                    const imageLink = ` [صورة: ${imageUrl}]`;
+                                    
+                                    // إضافة رابط الصورة إلى نص الخيار
+                                    let currentText = optionTextInput.value;
+                                    
+                                    // التحقق مما إذا كان النص يحتوي بالفعل على رابط صورة
+                                    if (!currentText.includes('[صورة:')) {
+                                        optionTextInput.value = currentText + imageLink;
+                                        
+                                        // تحديث المعاينة
+                                        const previewId = optionTextInput.id + "-preview";
+                                        const previewElement = document.getElementById(previewId);
+                                        if (previewElement) {
+                                            previewElement.innerHTML = optionTextInput.value;
+                                            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
+                                                MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         reader.readAsDataURL(file);
                     } else {
@@ -996,7 +1063,7 @@
                 });
             }
 
-            // Function to update option numbers and remove button states
+            // Function to update option indices and states
             function updateOptionIndices() {
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
@@ -1004,36 +1071,20 @@
 
                 optionGroups.forEach((group, index) => {
                     group.dataset.index = index;
-                    const optionNumber = index + 1;
-                    group.querySelector(".option-number").textContent = optionNumber;
+                    // Keep option number static - don't update it based on index
+                    // const optionNumber = index + 1;
+                    // group.querySelector(".option-number").textContent = optionNumber;
 
-                    // Update all elements with index in their attributes
-                    const elementsWithIndex = group.querySelectorAll("[id*='__INDEX__'], [name*='__INDEX__'], [for*='__INDEX__'], [data-preview-target*='__INDEX__']");
-                    elementsWithIndex.forEach(el => {
-                        const id = el.id;
-                        const name = el.name;
-                        const htmlFor = el.htmlFor;
-                        const previewTarget = el.dataset.previewTarget;
-
-                        if (id) el.id = id.replace(/__INDEX__/g, index);
-                        if (name) el.name = name.replace(/__INDEX__/g, index);
-                        if (htmlFor) el.htmlFor = htmlFor.replace(/__INDEX__/g, index);
-                        if (previewTarget) el.dataset.previewTarget = previewTarget.replace(/__INDEX__/g, index);
-
-                        // Update alt text for preview image
-                        if (el.tagName === "IMG" && el.alt) {
-                            el.alt = el.alt.replace(/__NUMBER__/g, optionNumber);
-                        }
-                    });
-
-                    const radio = group.querySelector(".correct-option-radio");
-                    if (radio) {
-                        radio.value = index;
+                    // Update the radio button value
+                    const radioButton = group.querySelector(".correct-option-radio");
+                    if (radioButton) {
+                        radioButton.value = index;
                     }
 
-                    const removeBtn = group.querySelector(".remove-option-btn");
-                    if (removeBtn) {
-                        removeBtn.disabled = !canRemove;
+                    // Enable/disable remove buttons based on minimum required options
+                    const removeButton = group.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.disabled = !canRemove;
                     }
                 });
             }
@@ -1043,72 +1094,144 @@
                 const optionsContainer = document.getElementById("options-container");
                 const optionGroups = optionsContainer.querySelectorAll(".option-group");
                 const newIndex = optionGroups.length;
-                const newNumber = newIndex + 1;
-
-                // Clone the template
-                const template = document.getElementById("option-template");
-                const newOptionHTML = template.innerHTML
+                
+                // Find the first available option number from 1-4
+                const usedNumbers = new Set();
+                optionGroups.forEach(group => {
+                    const numberElement = group.querySelector(".option-number");
+                    if (numberElement) {
+                        usedNumbers.add(parseInt(numberElement.textContent));
+                    }
+                });
+                
+                let newNumber = 1;
+                while (usedNumbers.has(newNumber) && newNumber <= 4) {
+                    newNumber++;
+                }
+                
+                // Get the template and replace placeholders
+                const template = document.getElementById("option-template").innerHTML;
+                const newOptionHTML = template
                     .replace(/__INDEX__/g, newIndex)
                     .replace(/__NUMBER__/g, newNumber);
-
-                // Add to container
-                optionsContainer.insertAdjacentHTML("beforeend", newOptionHTML);
-
-                // Update all indices and states
+                
+                // Create a temporary container to hold the new option
+                const tempContainer = document.createElement("div");
+                tempContainer.innerHTML = newOptionHTML;
+                
+                // Append the new option to the options container
+                optionsContainer.appendChild(tempContainer.firstElementChild);
+                
+                // Initialize the new option's inputs
+                const newOptionGroup = optionsContainer.querySelector(`.option-group[data-index="${newIndex}"]`);
+                if (newOptionGroup) {
+                    const textInput = newOptionGroup.querySelector(`#option_text_${newIndex}`);
+                    const imageInput = newOptionGroup.querySelector(`#option_image_${newIndex}`);
+                    
+                    if (textInput) {
+                        initializeMathJaxPreview(textInput);
+                    }
+                    
+                    if (imageInput) {
+                        initializeImagePreview(imageInput);
+                    }
+                    
+                    // Add event listener to the remove button
+                    const removeButton = newOptionGroup.querySelector(".remove-option-btn");
+                    if (removeButton) {
+                        removeButton.addEventListener("click", function() {
+                            removeOption(newOptionGroup);
+                        });
+                    }
+                }
+                
+                // Update option indices and states
                 updateOptionIndices();
-
-                // Initialize MathJax and image previews for the new option
-                const newOption = optionsContainer.lastElementChild;
-                const mathJaxInputs = newOption.querySelectorAll(".mathjax-input");
-                mathJaxInputs.forEach(initializeMathJaxPreview);
-
-                const imageInputs = newOption.querySelectorAll(".image-input");
-                imageInputs.forEach(initializeImagePreview);
             }
 
             // Function to remove an option
-            function removeOption(event) {
-                const button = event.target;
-                const optionGroup = button.closest(".option-group");
-                if (optionGroup) {
-                    optionGroup.remove();
-                    updateOptionIndices();
+            function removeOption(optionGroup) {
+                const optionsContainer = document.getElementById("options-container");
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                
+                // Check if we have more than the minimum required options
+                if (optionGroups.length <= 2) {
+                    alert("يجب أن يكون هناك خياران على الأقل.");
+                    return;
                 }
+                
+                // Remove the option group
+                optionGroup.parentElement.remove();
+                
+                // Update option indices and states
+                updateOptionIndices();
             }
 
-            // Initialize MathJax previews
-            document.querySelectorAll(".mathjax-input").forEach(initializeMathJaxPreview);
-
-            // Initialize image previews
-            document.querySelectorAll(".image-input").forEach(initializeImagePreview);
-
-            // Add option button
+            // Add event listener to the add option button
             const addOptionBtn = document.getElementById("add-option-btn");
             if (addOptionBtn) {
                 addOptionBtn.addEventListener("click", addOption);
             }
 
-            // Remove option buttons (using event delegation)
-            const optionsContainer = document.getElementById("options-container");
-            if (optionsContainer) {
-                optionsContainer.addEventListener("click", function(event) {
-                    if (event.target.classList.contains("remove-option-btn") || event.target.closest(".remove-option-btn")) {
-                        removeOption(event);
+            // Add event listeners to remove option buttons
+            const removeOptionBtns = document.querySelectorAll(".remove-option-btn");
+            removeOptionBtns.forEach(btn => {
+                btn.addEventListener("click", function() {
+                    const optionGroup = this.closest(".option-group");
+                    if (optionGroup) {
+                        removeOption(optionGroup);
+                    }
+                });
+            });
+
+            // Initialize MathJax previews for all mathjax-input elements
+            const mathjaxInputs = document.querySelectorAll(".mathjax-input");
+            mathjaxInputs.forEach(input => {
+                initializeMathJaxPreview(input);
+            });
+
+            // Initialize Image previews for all image-input elements
+            const imageInputs = document.querySelectorAll(".image-input");
+            imageInputs.forEach(input => {
+                initializeImagePreview(input);
+            });
+
+            // Add image URLs from database to option text if not already present
+            function addImageUrlsToOptionText() {
+                const optionGroups = document.querySelectorAll(".option-group");
+                
+                optionGroups.forEach(group => {
+                    const optionIndex = group.dataset.index;
+                    const imagePreview = document.getElementById(`option_image_${optionIndex}_preview`);
+                    const optionTextInput = document.getElementById(`option_text_${optionIndex}`);
+                    
+                    if (imagePreview && optionTextInput) {
+                        const imageUrl = imagePreview.getAttribute("src");
+                        
+                        // Check if image exists and is not the default placeholder
+                        if (imageUrl && imageUrl !== "#" && imagePreview.style.display !== "none") {
+                            // Check if text already contains an image link
+                            if (!optionTextInput.value.includes("[صورة:")) {
+                                // Add image URL to option text
+                                optionTextInput.value = optionTextInput.value + ` [صورة: ${imageUrl}]`;
+                                
+                                // Update preview
+                                const previewId = optionTextInput.id + "-preview";
+                                const previewElement = document.getElementById(previewId);
+                                if (previewElement) {
+                                    previewElement.innerHTML = optionTextInput.value;
+                                    if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
+                                        MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
-
-            // Ensure at least 2 options are present
-            const optionGroups = optionsContainer.querySelectorAll(".option-group");
-            if (optionGroups.length < 2) {
-                // Add options until we have at least 2
-                while (optionsContainer.querySelectorAll(".option-group").length < 2) {
-                    addOption();
-                }
-            }
-
-            // Update indices on initial load
-            updateOptionIndices();
+            
+            // Call the function to add image URLs to option text when the page loads
+            addImageUrlsToOptionText();
         });
     </script>
 </body>
