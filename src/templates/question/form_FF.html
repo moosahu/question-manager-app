@@ -1069,45 +1069,6 @@
                             previewElement.style.display = "block";
                             // Remove initial src data attribute as we now have a new preview
                             previewElement.removeAttribute("data-initial-src");
-                            
-                            // إضافة رابط الصورة إلى نص الخيار
-                            // استخراج رقم الخيار من معرف عنصر الإدخال
-                            const optionImageId = inputElement.id;
-                            const optionMatch = optionImageId.match(/option_image_(\d+)/);
-                            
-                            if (optionMatch && optionMatch[1]) {
-                                const optionIndex = optionMatch[1];
-                                const optionTextInput = document.getElementById(`option_text_${optionIndex}`);
-                                
-                                if (optionTextInput) {
-                                    // الحصول على البادئة الرقمية الحالية
-                                    const optionGroup = optionTextInput.closest('.option-group');
-                                    const optionNumber = optionGroup.querySelector('.option-number').textContent;
-                                    const prefix = optionNumber + "-";
-                                    
-                                    // إنشاء رابط الصورة
-                                    const fileName = file.name;
-                                    const imageLink = ` [صورة: ${fileName}]`;
-                                    
-                                    // إضافة رابط الصورة إلى نص الخيار مع الحفاظ على البادئة
-                                    const currentText = optionTextInput.value;
-                                    
-                                    // التحقق مما إذا كان النص يحتوي بالفعل على رابط صورة
-                                    if (!currentText.includes('[صورة:')) {
-                                        optionTextInput.value = currentText + imageLink;
-                                        
-                                        // تحديث المعاينة
-                                        const previewId = optionTextInput.id + "-preview";
-                                        const previewElement = document.getElementById(previewId);
-                                        if (previewElement) {
-                                            previewElement.innerHTML = optionTextInput.value;
-                                            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
-                                                MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
                         reader.readAsDataURL(file);
                     } else {
