@@ -154,23 +154,60 @@ def save_upload(file, subfolder="questions"):
 @login_required
 def list_questions():
     current_app.logger.info("Entering list_questions route.")
+    
+    # استقبال معاملات التصفية من الطلب
+    course_id = request.args.get("course_id", type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    lesson_id = request.args.get("lesson_id", type=int)
     page = request.args.get("page", 1, type=int)
     per_page = 10
-    current_app.logger.info(f"Requesting page {page} with {per_page} items per page.")
+    
+    current_app.logger.info(f"Filter parameters: course_id={course_id}, unit_id={unit_id}, lesson_id={lesson_id}, page={page}")
+    
     try:
-        questions_pagination = (
-            Question.query
-            .options(
-                joinedload(Question.options),
-                joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
-            )
-            .order_by(Question.question_id.desc())
-            .paginate(page=page, per_page=per_page, error_out=False)
+        # بناء الاستعلام الأساسي
+        query = Question.query.options(
+            joinedload(Question.options),
+            joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
         )
+        
+        # إضافة شروط التصفية إذا تم تحديدها
+        if lesson_id:
+            query = query.filter(Question.lesson_id == lesson_id)
+        elif unit_id:
+            query = query.join(Question.lesson).filter(Lesson.unit_id == unit_id)
+        elif course_id:
+            query = query.join(Question.lesson).join(Lesson.unit).filter(Unit.course_id == course_id)
+        
+        # ترتيب النتائج وتقسيمها إلى صفحات
+        questions_pagination = query.order_by(Question.question_id.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
         current_app.logger.info(f"Database query successful. Found {len(questions_pagination.items)} questions on this page (total: {questions_pagination.total}).")
-        rendered_template = render_template("question/list.html", questions=questions_pagination.items, pagination=questions_pagination)
+        
+        # جلب قوائم الدورات والوحدات والدروس للتصفية
+        courses = Course.query.order_by(Course.name).all()
+        units = []
+        lessons = []
+        
+        if course_id:
+            units = Unit.query.filter_by(course_id=course_id).order_by(Unit.name).all()
+            if unit_id:
+                lessons = Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all()
+        
+        rendered_template = render_template(
+            "question/list.html", 
+            questions=questions_pagination.items, 
+            pagination=questions_pagination,
+            courses=courses,
+            units=units,
+            lessons=lessons
+        )
+        
         current_app.logger.info("Template rendering successful.")
         return rendered_template
+        
     except Exception as e:
         current_app.logger.exception("Error occurred in list_questions.")
         flash("حدث خطأ غير متوقع أثناء عرض قائمة الأسئلة.", "danger")
@@ -350,163 +387,167 @@ def add_question():
         return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال")
 
     # GET request
-    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=None, submit_text="إضافة سؤال")
+    return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, submit_text="إضافة سؤال")
 
-# --- START: Import Questions Route (Integrated) --- #
+# --- START: Import Questions Route (Modified for Cloudinary) --- #
 @question_bp.route("/import", methods=["GET", "POST"])
 @login_required
 def import_questions():
+    """Import questions from Excel or CSV file."""
+    current_app.logger.info("Entering import_questions route.")
     lessons = get_sorted_lessons()
     if not lessons:
-        flash("لا يمكن استيراد الأسئلة. يرجى إضافة المناهج (الدورات والوحدات والدروس) أولاً.", "warning")
+        flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
         return redirect(url_for("curriculum.list_courses"))
 
     if request.method == "POST":
+        current_app.logger.info("POST request received for import_questions.")
+        
+        # Debug logging for request data
+        current_app.logger.debug(f"Form data: {request.form}")
+        current_app.logger.debug(f"Files: {request.files}")
+        
         lesson_id = request.form.get("lesson_id")
-        file = request.files.get("question_file")
-
         if not lesson_id:
             flash("يجب اختيار درس لاستيراد الأسئلة إليه.", "danger")
+            current_app.logger.warning("No lesson_id provided in import form.")
             return render_template("question/import_questions.html", lessons=lessons)
-
-        if not file or file.filename == "":
-            flash("يجب اختيار ملف للاستيراد.", "danger")
-            return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
-
-        if not allowed_import_file(file.filename):
-            flash("نوع الملف غير مسموح به. يرجى استخدام ملفات Excel (.xlsx) أو CSV (.csv).", "danger")
+        
+        file = request.files.get("question_file")
+        if not file or not file.filename:
+            flash("الرجاء اختيار ملف للاستيراد.", "danger")
+            current_app.logger.warning("No file provided in import form.")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
         
-        try:
-            current_app.logger.info(f"Attempting to read uploaded file: {file.filename}")
-            file_content = io.BytesIO(file.read())
-            if file.filename.endswith(".xlsx"):
-                df = pd.read_excel(file_content, engine='openpyxl')
-            else:
-                try:
-                    df = pd.read_csv(file_content, encoding='utf-8')
-                except UnicodeDecodeError:
-                    current_app.logger.warning("UTF-8 decoding failed, trying cp1256 for CSV.")
-                    file_content.seek(0)
-                    df = pd.read_csv(file_content, encoding='cp1256')           
-            current_app.logger.info(f"Successfully read file into DataFrame. Shape: {df.shape}")
-            df.columns = [str(col).strip().lower().replace(" ", "_") for col in df.columns]
-            current_app.logger.debug(f"Standardized columns: {df.columns.tolist()}")
-            # Use the globally defined expected columns
-            expected_columns_lower = [col.lower().replace(" ", "_") for col in EXPECTED_IMPORT_COLUMNS]
-            missing_cols = [col for col in expected_columns_lower if col not in df.columns]
-            if missing_cols:
-                # Find original case names for missing columns for user message
-                original_missing_names = [EXPECTED_IMPORT_COLUMNS[expected_columns_lower.index(mc)] for mc in missing_cols]
-                missing_cols_str = ', '.join(original_missing_names)
-                flash(f"الملف المرفوع يفتقد للأعمدة المطلوبة: {missing_cols_str}. يرجى التأكد من تنسيق الملف أو تنزيل القالب.", "danger")
-                return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
-
-        except Exception as e:
-            current_app.logger.exception(f"Error reading or processing the uploaded file: {e}")
-            flash(f"حدث خطأ أثناء قراءة الملف: {e}. يرجى التأكد من أن الملف بالتنسيق الصحيح.", "danger")
+        if not allowed_import_file(file.filename):
+            flash("نوع الملف غير مسموح به. يرجى استخدام ملف Excel (.xlsx) أو CSV (.csv).", "danger")
+            current_app.logger.warning(f"File type not allowed: {file.filename}")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
-
-        imported_count = 0
-        error_details = []
-
-        for index, row in df.iterrows():
-            row_num = index + 2
-            current_app.logger.debug(f"Processing row {row_num}...")
-            try:
-                q_text = str(row.get('question_text', '')).strip() if pd.notna(row.get('question_text')) else None
-                q_image = str(row.get('question_image_url', '')).strip() if pd.notna(row.get('question_image_url')) else None
-                
-                options_from_row = []
-                for i in range(1, 5):
-                    opt_text_col = f'option_{i}_text'
-                    opt_img_col = f'option_{i}_image_url'
-                    opt_text = str(row.get(opt_text_col, '')).strip() if pd.notna(row.get(opt_text_col)) else None
-                    opt_image = str(row.get(opt_img_col, '')).strip() if pd.notna(row.get(opt_img_col)) else None
-                    if opt_text or opt_image:
-                        options_from_row.append({
-                            "text": opt_text,
-                            "image_url": opt_image
-                        })
-                
-                correct_opt_num_raw = row.get('correct_option_number')
-                correct_opt_num = -1
-                if pd.notna(correct_opt_num_raw):
-                    try:
-                        correct_opt_num = int(correct_opt_num_raw) - 1
-                    except (ValueError, TypeError):
-                        error_details.append(f"Row {row_num}: رقم الخيار الصحيح '{correct_opt_num_raw}' غير صالح (يجب أن يكون رقمًا).")
-                        continue
-                else:
-                    error_details.append(f"Row {row_num}: عمود رقم الخيار الصحيح فارغ.")
-                    continue
-
-                if not q_text and not q_image:
-                    error_details.append(f"Row {row_num}: يجب توفير نص للسؤال أو رابط صورة.")
-                    continue
-                
-                if len(options_from_row) < 2:
-                    error_details.append(f"Row {row_num}: يجب توفير خيارين على الأقل (نص أو صورة).")
-                    continue
-
-                if not (0 <= correct_opt_num < len(options_from_row)):
-                    error_details.append(f"Row {row_num}: رقم الخيار الصحيح '{correct_opt_num_raw}' غير صالح بالنسبة لعدد الخيارات المتاحة ({len(options_from_row)}).")
-                    continue
-
+        
+        # Process the file
+        try:
+            # Read the file into a pandas DataFrame
+            if file.filename.endswith('.xlsx'):
+                df = pd.read_excel(file)
+            else:  # CSV
+                df = pd.read_csv(file)
+            
+            current_app.logger.info(f"File read successfully. Shape: {df.shape}")
+            current_app.logger.debug(f"Columns in file: {df.columns.tolist()}")
+            
+            # Validate columns
+            missing_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col not in df.columns]
+            if missing_columns:
+                flash(f"الملف يفتقد إلى الأعمدة التالية: {', '.join(missing_columns)}", "danger")
+                current_app.logger.warning(f"Missing columns in import file: {missing_columns}")
+                return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
+            
+            # Process each row
+            imported_count = 0
+            error_details = []
+            
+            for index, row in df.iterrows():
                 try:
+                    # Extract question data
+                    question_text = row["Question Text"] if pd.notna(row["Question Text"]) else None
+                    question_image_url = row["Question Image URL"] if pd.notna(row["Question Image URL"]) else None
+                    
+                    # Skip row if both question text and image are missing
+                    if not question_text and not question_image_url:
+                        error_details.append(f"صف {index+2}: يجب توفير نص السؤال أو صورة له.")
+                        continue
+                    
+                    # Extract options data
+                    options_data = []
+                    valid_options_count = 0
+                    correct_option_number = None
+                    
+                    if pd.notna(row["Correct Option Number"]):
+                        try:
+                            correct_option_number = int(row["Correct Option Number"])
+                            if correct_option_number < 1 or correct_option_number > 4:
+                                error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون بين 1 و 4.")
+                                continue
+                        except (ValueError, TypeError):
+                            error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون رقمًا صحيحًا.")
+                            continue
+                    else:
+                        error_details.append(f"صف {index+2}: يجب تحديد رقم الإجابة الصحيحة.")
+                        continue
+                    
+                    for i in range(1, 5):
+                        option_text = row[f"Option {i} Text"] if pd.notna(row[f"Option {i} Text"]) else None
+                        option_image_url = row[f"Option {i} Image URL"] if pd.notna(row[f"Option {i} Image URL"]) else None
+                        
+                        if option_text or option_image_url:
+                            valid_options_count += 1
+                            options_data.append({
+                                "option_text": option_text,
+                                "image_url": option_image_url,
+                                "is_correct": (i == correct_option_number)
+                            })
+                    
+                    if valid_options_count < 2:
+                        error_details.append(f"صف {index+2}: يجب توفير خيارين صالحين على الأقل.")
+                        continue
+                    
+                    if correct_option_number > valid_options_count:
+                        error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
+                        continue
+                    
+                    # Create question
                     new_question = Question(
-                        question_text=q_text,
-                        image_url=q_image,
-                        lesson_id=lesson_id
+                        question_text=question_text,
+                        lesson_id=lesson_id,
+                        image_url=question_image_url
                     )
                     db.session.add(new_question)
-                    db.session.flush()
-
-                    for idx, opt_data in enumerate(options_from_row):
+                    db.session.flush()  # Get the question ID
+                    
+                    # Create options
+                    for opt_data in options_data:
                         option = Option(
-                            option_text=opt_data['text'],
-                            image_url=opt_data['image_url'],
-                            is_correct=(idx == correct_opt_num),
+                            option_text=opt_data["option_text"],
+                            image_url=opt_data["image_url"],
+                            is_correct=opt_data["is_correct"],
                             question_id=new_question.question_id
                         )
                         db.session.add(option)
                     
-                    db.session.commit()
                     imported_count += 1
-                    current_app.logger.info(f"Successfully imported question from row {row_num} (ID: {new_question.question_id})")
-
-                except (IntegrityError, DBAPIError) as db_err:
-                    db.session.rollback()
-                    current_app.logger.error(f"Database error importing row {row_num}: {db_err}")
-                    error_details.append(f"Row {row_num}: خطأ في قاعدة البيانات - {db_err}")
-                    continue
-                except Exception as inner_e:
-                    db.session.rollback()
-                    current_app.logger.error(f"Unexpected error importing row {row_num}: {inner_e}", exc_info=True)
-                    error_details.append(f"Row {row_num}: خطأ غير متوقع - {inner_e}")
-                    continue
-
-            except Exception as outer_e:
-                current_app.logger.error(f"Error processing row {row_num}: {outer_e}", exc_info=True)
-                error_details.append(f"Row {row_num}: خطأ في معالجة البيانات - {outer_e}")
-                continue
-
-        if imported_count > 0:
-            flash(f"تم استيراد {imported_count} سؤال بنجاح!", "success")
-        
-        if error_details:
-            error_summary = f"فشل استيراد {len(error_details)} سؤال. التفاصيل:<br>" + "<br>".join(error_details[:10])
-            if len(error_details) > 10:
-                error_summary += "<br>... (المزيد من الأخطاء في السجلات)"
-            flash(error_summary, "danger")
-            current_app.logger.error(f"Import errors occurred: {error_details}")
-            return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
-        else:
+                    
+                except Exception as row_error:
+                    error_details.append(f"صف {index+2}: {str(row_error)}")
+                    current_app.logger.exception(f"Error processing row {index+2}: {row_error}")
+            
+            # Commit all changes if there were any successful imports
             if imported_count > 0:
-                 return redirect(url_for("question.list_questions"))
+                db.session.commit()
+                current_app.logger.info(f"Successfully imported {imported_count} questions.")
+                flash(f"تم استيراد {imported_count} سؤال بنجاح!", "success")
+            
+            # Show errors if any
+            if error_details:
+                error_summary = f"تم استيراد {imported_count} سؤال، مع {len(error_details)} أخطاء:"
+                for i, error in enumerate(error_details[:5]):  # Show first 5 errors
+                    flash(error, "warning")
+                if len(error_details) > 5:
+                    flash(f"... و {len(error_details) - 5} أخطاء أخرى.", "warning")
+                
+                flash(error_summary, "danger")
+                current_app.logger.error(f"Import errors occurred: {error_details}")
+                return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             else:
-                 flash("لم يتم العثور على أسئلة صالحة للاستيراد في الملف.", "warning")
-                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
+                if imported_count > 0:
+                     return redirect(url_for("question.list_questions"))
+                else:
+                     flash("لم يتم العثور على أسئلة صالحة للاستيراد في الملف.", "warning")
+                     return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
+
+        except Exception as e:
+            current_app.logger.exception(f"Error processing import file: {e}")
+            flash(f"حدث خطأ أثناء معالجة ملف الاستيراد: {str(e)}", "danger")
+            return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
 
     # GET request: Render the import form
     return render_template("question/import_questions.html", lessons=lessons)
@@ -557,12 +598,17 @@ def download_template(format):
 
 # --- END: Download Template Route --- #
 
-
-# --- edit_question route (Uses modified save_upload) --- #
+# --- edit_question route (Modified to ensure proper lesson data) --- #
 @question_bp.route("/edit/<int:question_id>", methods=["GET", "POST"])
 @login_required
 def edit_question(question_id):
-    question = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
+    # استرجاع السؤال مع الخيارات والدرس والوحدة والدورة
+    question = Question.query.options(
+        joinedload(Question.options),
+        joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+    ).get_or_404(question_id)
+    
+    # الحصول على قائمة الدروس المرتبة
     lessons = get_sorted_lessons()
     if not lessons:
         flash("حدث خطأ أثناء تحميل قائمة الدروس.", "danger")
@@ -698,37 +744,57 @@ def edit_question(question_id):
                 if opt_data["existing_id"]:
                     option_to_update = Option.query.get(opt_data["existing_id"])
                     if option_to_update:
-                        option_to_update.option_text = opt_data["option_text"] if opt_data["option_text"] else None
+                        # --- Logic to set option_text to image_url if option_text is empty and image_url exists ---
+                        option_text_to_save = opt_data["option_text"]
+                        if not option_text_to_save and opt_data["image_url"]:
+                            option_text_to_save = opt_data["image_url"] # Set option_text to the image_url
+                        elif not option_text_to_save: # If option_text is still empty (and no image_url or image_url was not used)
+                            option_text_to_save = None
+
+                        option_to_update.option_text = option_text_to_save
                         option_to_update.image_url = opt_data["image_url"]
                         option_to_update.is_correct = opt_data["is_correct"]
-                        current_app.logger.debug(f"Updating option ID: {opt_data['existing_id']}")
+                        current_app.logger.info(f"Updated existing option ID: {opt_data['existing_id']} for question ID: {question_id}")
                 else:
+                    # --- Logic to set option_text to image_url if option_text is empty and image_url exists ---
+                    option_text_to_save = opt_data["option_text"]
+                    if not option_text_to_save and opt_data["image_url"]:
+                        option_text_to_save = opt_data["image_url"] # Set option_text to the image_url
+                    elif not option_text_to_save: # If option_text is still empty (and no image_url or image_url was not used)
+                        option_text_to_save = None
+
                     new_option = Option(
-                        option_text=opt_data["option_text"] if opt_data["option_text"] else None,
+                        option_text=option_text_to_save,
                         image_url=opt_data["image_url"],
                         is_correct=opt_data["is_correct"],
                         question_id=question.question_id
                     )
                     db.session.add(new_option)
-                    current_app.logger.debug(f"Adding new option for question ID: {question_id}")
+                    current_app.logger.info(f"Added new option for question ID: {question_id}")
             
             db.session.commit()
-            current_app.logger.info(f"Transaction committed successfully for question ID: {question_id}")
-            flash("تم تعديل السؤال بنجاح!", "success")
+            current_app.logger.info(f"Successfully updated question ID: {question_id}")
+            flash("تم تحديث السؤال بنجاح!", "success")
             return redirect(url_for("question.list_questions"))
 
         except (IntegrityError, DBAPIError) as db_error:
             db.session.rollback()
-            current_app.logger.exception(f"Database Error editing question ID {question_id}: {db_error}")
-            flash(f"خطأ في قاعدة البيانات أثناء تعديل السؤال.", "danger")
+            current_app.logger.exception(f"Database Error updating question: {db_error}")
+            flash("خطأ في قاعدة البيانات أثناء تحديث السؤال.", "danger")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.exception(f"Generic Error editing question ID {question_id}: {e}")
-            flash(f"حدث خطأ غير متوقع أثناء تعديل السؤال: {e}", "danger")
+            current_app.logger.exception(f"Generic Error updating question: {e}")
+            flash("حدث خطأ غير متوقع أثناء تحديث السؤال.", "danger")
         
         return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
     # GET request
+    # تأكد من أن السؤال يحتوي على معلومات الدرس والوحدة والدورة
+    if question.lesson and question.lesson.unit and question.lesson.unit.course:
+        current_app.logger.info(f"Question {question_id} has complete lesson path: {question.lesson.unit.course.name} / {question.lesson.unit.name} / {question.lesson.name}")
+    else:
+        current_app.logger.warning(f"Question {question_id} has incomplete lesson path")
+        
     return render_template("question/form.html", title=f"تعديل السؤال #{question.question_id}", lessons=lessons, question=question, submit_text="حفظ التعديلات")
 
 # --- delete_question route (keep as is) --- #
@@ -755,4 +821,3 @@ def delete_question(question_id):
         current_app.logger.exception(f"Unexpected error deleting question ID {question_id}: {e}")
         flash("حدث خطأ غير متوقع أثناء محاولة حذف السؤال.", "danger")
     return redirect(url_for("question.list_questions"))
-
