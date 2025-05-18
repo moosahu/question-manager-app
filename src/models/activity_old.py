@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from sqlalchemy import inspect
 try:
     from src.extensions import db
 except ImportError:
@@ -120,18 +119,3 @@ class Activity(db.Model):
         else:
             years = diff.days // 365
             return f"منذ {years} سنة" if years == 1 else f"منذ {years} سنوات"
-
-    @staticmethod
-    def check_if_activities_table_exists():
-        """
-        التحقق من وجود جدول الأنشطة في قاعدة البيانات
-        
-        Returns:
-        - True إذا كان الجدول موجودًا، False إذا لم يكن موجودًا
-        """
-        try:
-            inspector = inspect(db.engine)
-            return inspector.has_table('activities')
-        except Exception as e:
-            print(f"Error checking if activities table exists: {e}")
-            return False
