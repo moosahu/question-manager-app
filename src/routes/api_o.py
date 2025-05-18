@@ -5,7 +5,6 @@ from flask import Blueprint, jsonify, current_app, url_for, request # Added requ
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
-from sqlalchemy import inspect
 
 try:
     from src.extensions import db
@@ -238,8 +237,7 @@ def get_recent_activities():
         
         # محاولة التحقق من وجود جدول الأنشطة في قاعدة البيانات
         try:
-            inspector = inspect(current_app.extensions['sqlalchemy'].db.engine)
-            if not inspector.has_table('activities'):
+            if not Activity.__table__.exists(bind=current_app.extensions['sqlalchemy'].db.engine):
                 logger.warning("Activities table does not exist in the database. Returning dummy data.")
                 # إرجاع بيانات وهمية
                 dummy_activities = [
@@ -384,5 +382,325 @@ def get_all_courses():
         formatted_courses = [{"id": c.id, "name": c.name} for c in courses]
         return jsonify(formatted_courses)
     except SQLAlchemyError as e:
-        logger.exception(f"Database error when fetching courses: {e}")
-        return jsonify([]), 500
+        logger.exception(f"Database error while fetching courses: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching courses: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Units by Course --- #
+@api_bp.route("/courses/<int:course_id>/units", methods=["GET"])
+def get_course_units(course_id):
+    """Returns a list of units for a specific course."""
+    logger.info(f"API request received for units of course_id: {course_id}")
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            logger.warning(f"Course with id {course_id} not found.")
+            return jsonify({"error": "Course not found"}), 404
+
+        units = (
+            Unit.query
+            .filter(Unit.course_id == course_id)
+            .order_by(Unit.id)
+            .all()
+        )
+        logger.info(f"Found {len(units)} units for course_id: {course_id}")
+        formatted_units = [{"id": u.id, "name": u.name} for u in units]
+        return jsonify(formatted_units)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching units for course {course_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching units for course {course_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Lessons by Unit --- #
+@api_bp.route("/units/<int:unit_id>/lessons", methods=["GET"])
+def get_unit_lessons(unit_id):
+    """Returns a list of lessons for a specific unit."""
+    logger.info(f"API request received for lessons of unit_id: {unit_id}")
+    try:
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            logger.warning(f"Unit with id {unit_id} not found.")
+            return jsonify({"error": "Unit not found"}), 404
+
+        lessons = (
+            Lesson.query
+            .filter(Lesson.unit_id == unit_id)
+            .order_by(Lesson.id)
+            .all()
+        )
+        logger.info(f"Found {len(lessons)} lessons for unit_id: {unit_id}")
+        formatted_lessons = [{"id": l.id, "name": l.name} for l in lessons]
+        return jsonify(formatted_lessons)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching lessons for unit {unit_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching lessons for unit {unit_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Questions by Lesson --- #
+@api_bp.route("/lessons/<int:lesson_id>/questions", methods=["GET"])
+def get_lesson_questions(lesson_id):
+    """Returns a list of questions for a specific lesson."""
+    logger.info(f"API request received for questions of lesson_id: {lesson_id}")
+    try:
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            logger.warning(f"Lesson with id {lesson_id} not found.")
+            return jsonify({"error": "Lesson not found"}), 404
+        questions = (
+            Question.query
+            .options(joinedload(Question.options))
+            .filter(Question.lesson_id == lesson_id)
+            .order_by(Question.question_id)
+            .all()
+        )
+        logger.info(f"Found {len(questions)} questions for lesson_id: {lesson_id}")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching questions for lesson {lesson_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching questions for lesson {lesson_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Questions by Unit (Direct) --- #
+@api_bp.route("/units/<int:unit_id>/questions", methods=["GET"])
+def get_unit_questions_direct(unit_id):
+    """Returns a list of questions for a specific unit."""
+    logger.info(f"API request received for questions of unit_id: {unit_id}")
+    try:
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            logger.warning(f"Unit with id {unit_id} not found.")
+            return jsonify({"error": "Unit not found"}), 404
+        questions = (
+            Question.query
+            .join(Question.lesson)
+            .options(joinedload(Question.options))
+            .filter(Lesson.unit_id == unit_id)
+            .order_by(Question.question_id)
+            .all()
+        )
+        logger.info(f"Found {len(questions)} questions for unit_id: {unit_id}")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching questions for unit {unit_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching questions for unit {unit_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Questions by Course (Direct) --- #
+@api_bp.route("/courses/<int:course_id>/questions", methods=["GET"])
+def get_course_questions_direct(course_id):
+    """Returns a list of questions for a specific course."""
+    logger.info(f"API request received for questions of course_id: {course_id}")
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            logger.warning(f"Course with id {course_id} not found.")
+            return jsonify({"error": "Course not found"}), 404
+        questions = (
+            Question.query
+            .join(Question.lesson)
+            .join(Lesson.unit)
+            .options(joinedload(Question.options))
+            .filter(Unit.course_id == course_id)
+            .order_by(Question.question_id)
+            .all()
+        )
+        logger.info(f"Found {len(questions)} questions for course_id: {course_id}")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching questions for course {course_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching questions for course {course_id}: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# +++ NEW Nested API Endpoint for Questions by Unit within a Course +++ #
+@api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/questions", methods=["GET"])
+def get_course_unit_questions(course_id, unit_id):
+    """Returns a list of questions for a specific unit within a specific course."""
+    logger.info(f"API request for questions of unit_id: {unit_id} within course_id: {course_id}")
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            logger.warning(f"Course with id {course_id} not found.")
+            return jsonify({"error": "Course not found"}), 404
+
+        unit = Unit.query.filter_by(id=unit_id, course_id=course_id).first()
+        if not unit:
+            logger.warning(f"Unit with id {unit_id} not found within course {course_id}.")
+            existing_unit_elsewhere = Unit.query.get(unit_id)
+            if existing_unit_elsewhere:
+                return jsonify({"error": f"Unit {unit_id} found, but it does not belong to course {course_id}"}), 404
+            else:
+                return jsonify({"error": f"Unit {unit_id} not found"}), 404
+
+        questions = (
+            Question.query
+            .join(Question.lesson)
+            .options(joinedload(Question.options))
+            .filter(Lesson.unit_id == unit_id)
+            .order_by(Question.question_id)
+            .all()
+        )
+        logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} in course_id: {course_id}")
+        
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching questions for unit {unit_id} in course {course_id}: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# +++ NEW API Endpoint for All Questions +++ #
+@api_bp.route("/questions/all", methods=["GET"])
+def get_all_questions_in_db(): # Renamed function to be more descriptive
+    """Returns a list of all questions in the database."""
+    logger.info("API request received for listing all questions in the database.")
+    try:
+        questions = (
+            Question.query
+            .options(joinedload(Question.options)) # Eager load options
+            .order_by(Question.question_id) # Optional: order by ID or another field
+            .all()
+        )
+        logger.info(f"Found {len(questions)} total questions in the database.")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching all questions: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching all questions: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+# --- API Endpoint for Recent Questions --- #
+@api_bp.route("/questions/recent", methods=["GET"])
+def get_recent_questions():
+    """استرجاع أحدث الأسئلة"""
+    logger.info("API request received for recent questions.")
+    try:
+        limit = request.args.get("limit", 10, type=int)
+        
+        # محاولة استرجاع الأسئلة مع العلاقات
+        try:
+            questions = Question.query.options(
+                joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+            ).order_by(Question.question_id.desc()).limit(limit).all()
+            
+            result = []
+            for question in questions:
+                result.append({
+                    "id": question.question_id,
+                    "text": question.question_text[:100] + "..." if question.question_text and len(question.question_text) > 100 else question.question_text or "[سؤال بصورة فقط]",
+                    "lesson_name": question.lesson.name if question.lesson else None,
+                    "unit_name": question.lesson.unit.name if question.lesson and question.lesson.unit else None,
+                    "course_name": question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else None
+                })
+            
+            return jsonify({"questions": result})
+        except Exception as inner_e:
+            logger.error(f"Error in inner query for recent questions: {inner_e}")
+            # في حالة فشل الاستعلام المعقد، نجرب استعلام أبسط
+            try:
+                questions = Question.query.order_by(Question.question_id.desc()).limit(limit).all()
+                
+                result = []
+                for question in questions:
+                    result.append({
+                        "id": question.question_id,
+                        "text": question.question_text[:100] + "..." if question.question_text and len(question.question_text) > 100 else question.question_text or "[سؤال بصورة فقط]",
+                        "lesson_name": None,
+                        "unit_name": None,
+                        "course_name": None
+                    })
+                
+                return jsonify({"questions": result})
+            except Exception as simple_query_e:
+                logger.error(f"Error in simple query for recent questions: {simple_query_e}")
+                # في حالة فشل الاستعلام البسيط أيضاً، نرجع بيانات وهمية
+                raise
+            
+    except Exception as e:
+        logger.exception(f"Error fetching recent questions: {e}")
+        # إرجاع بيانات وهمية في حالة حدوث خطأ
+        dummy_questions = [
+            {
+                "id": 1,
+                "text": "أي الخواص الآتية نوعية ؟",
+                "lesson_name": "خواص المادة",
+                "unit_name": "المادة",
+                "course_name": "كيمياء 1"
+            },
+            {
+                "id": 2,
+                "text": "أي الآتي يمثل مقياساً لكمية المادة فقط ؟",
+                "lesson_name": "خواص المادة",
+                "unit_name": "المادة",
+                "course_name": "كيمياء 1"
+            },
+            {
+                "id": 3,
+                "text": "تمكن العالم دوبيسون من قياس المعدل الطبيعي لكمية الأوزون وهي :",
+                "lesson_name": "قصة مادتين",
+                "unit_name": "المادة",
+                "course_name": "كيمياء 1"
+            },
+            {
+                "id": 4,
+                "text": "الأشعة الضارة التي تمتصها طبقة الأوزون هي :",
+                "lesson_name": "قصة مادتين",
+                "unit_name": "المادة",
+                "course_name": "كيمياء 1"
+            }
+        ]
+        return jsonify({"questions": dummy_questions[:limit]})
+
+import random
+from sqlalchemy import func
+
+# --- API Endpoint for Random Questions --- #
+@api_bp.route("/questions/random", methods=["GET"])
+def get_random_questions():
+    """Returns a list of random questions, optionally limited by count."""
+    logger.info("API request received for random questions.")
+    try:
+        count = request.args.get("count", 10, type=int)
+        if count <= 0:
+            count = 10
+        logger.info(f"Requesting {count} random questions.")
+
+        questions = (
+            Question.query
+            .options(joinedload(Question.options))
+            .order_by(func.random())
+            .limit(count)
+            .all()
+        )
+        
+        logger.info(f"Found {len(questions)} random questions.")
+        formatted_questions = [format_question(q) for q in questions]
+        return jsonify(formatted_questions)
+
+    except SQLAlchemyError as e:
+        logger.exception(f"Database error while fetching random questions: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching random questions: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
