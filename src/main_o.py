@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify # Added jsonify
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request # Added request for API URL formatting
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required # Added login_required
 
@@ -112,3 +112,4 @@ if __name__ == "__main__":
     # Use 0.0.0.0 to be accessible externally if needed, port 5000 is common
     # Debug should be False in production
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True) # تفعيل وضع التصحيح مؤقتاً
+

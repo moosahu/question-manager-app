@@ -238,7 +238,8 @@ def get_recent_activities():
         
         # محاولة التحقق من وجود جدول الأنشطة في قاعدة البيانات
         try:
-            inspector = inspect(current_app.extensions['sqlalchemy'].db.engine)
+            # استخدام db مباشرة بدلاً من current_app.extensions['sqlalchemy'].db
+            inspector = inspect(db.engine)
             if not inspector.has_table('activities'):
                 logger.warning("Activities table does not exist in the database. Returning dummy data.")
                 # إرجاع بيانات وهمية
@@ -372,17 +373,3 @@ def get_recent_activities():
             }
         ]
         return jsonify({"activities": dummy_activities[:limit]})
-
-# --- API Endpoint for Listing Courses --- #
-@api_bp.route("/courses", methods=["GET"])
-def get_all_courses():
-    """Returns a list of all available courses."""
-    logger.info("API request received for listing all courses.")
-    try:
-        courses = Course.query.order_by(Course.id).all()
-        logger.info(f"Found {len(courses)} courses.")
-        formatted_courses = [{"id": c.id, "name": c.name} for c in courses]
-        return jsonify(formatted_courses)
-    except SQLAlchemyError as e:
-        logger.exception(f"Database error when fetching courses: {e}")
-        return jsonify([]), 500
