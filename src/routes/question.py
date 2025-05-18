@@ -1,4 +1,4 @@
-# src/routes/question.py (Modified to add activity logging for add/edit/delete only)
+# src/routes/question.py (Modified with detailed logging for import function)
 
 import os
 import logging
@@ -6,6 +6,7 @@ import time
 import uuid
 import io # Added for reading/writing file in memory
 import pandas as pd # Added for reading Excel/CSV
+import traceback # Added for detailed error logging
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app,
     send_file # Added for sending generated files
@@ -667,49 +668,84 @@ def delete_question(question_id):
     
     return redirect(url_for("question.list_questions"))
 
-# --- import_questions route (keep as is) --- #
+# --- import_questions route (Modified with detailed logging) --- #
 @question_bp.route("/import", methods=["GET", "POST"])
 @login_required
 def import_questions():
     """Import questions from Excel or CSV file."""
+    current_app.logger.info("=== IMPORT QUESTIONS: Starting import_questions function ===")
+    
     lessons = get_sorted_lessons()
     if not lessons:
+        current_app.logger.error("=== IMPORT QUESTIONS: No lessons available ===")
         flash("حدث خطأ أثناء تحميل قائمة الدروس أو لا توجد دروس متاحة. الرجاء إضافة المناهج أولاً.", "warning")
         return redirect(url_for("curriculum.list_courses"))
 
     if request.method == "POST":
-        current_app.logger.info("POST request received for import_questions.")
+        current_app.logger.info("=== IMPORT QUESTIONS: POST request received ===")
         
         # Get form data
         lesson_id = request.form.get("lesson_id")
+        current_app.logger.info(f"=== IMPORT QUESTIONS: Lesson ID from form: {lesson_id} ===")
+        
         if not lesson_id:
+            current_app.logger.error("=== IMPORT QUESTIONS: No lesson_id provided ===")
             flash("يجب اختيار درس لاستيراد الأسئلة إليه.", "danger")
             return render_template("question/import_questions.html", lessons=lessons)
         
         # Check if file was uploaded
+        current_app.logger.info("=== IMPORT QUESTIONS: Checking for import_file in request.files ===")
+        current_app.logger.info(f"=== IMPORT QUESTIONS: request.files keys: {list(request.files.keys())} ===")
+        
         if "import_file" not in request.files:
+            current_app.logger.error("=== IMPORT QUESTIONS: import_file not in request.files ===")
             flash("لم يتم تحديد ملف للاستيراد.", "danger")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
         
         import_file = request.files["import_file"]
         if not import_file or not import_file.filename:
+            current_app.logger.error("=== IMPORT QUESTIONS: import_file is empty or has no filename ===")
             flash("لم يتم تحديد ملف للاستيراد.", "danger")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
         
+        current_app.logger.info(f"=== IMPORT QUESTIONS: File received: {import_file.filename} ===")
+        
         if not allowed_import_file(import_file.filename):
+            current_app.logger.error(f"=== IMPORT QUESTIONS: File type not allowed: {import_file.filename} ===")
             flash("نوع الملف غير مدعوم. يرجى استخدام ملف Excel (.xlsx) أو CSV (.csv).", "danger")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
         
         try:
+            current_app.logger.info("=== IMPORT QUESTIONS: Starting to read file ===")
             # Read the file
             if import_file.filename.endswith(".xlsx"):
-                df = pd.read_excel(import_file)
+                current_app.logger.info("=== IMPORT QUESTIONS: Reading Excel file ===")
+                try:
+                    df = pd.read_excel(import_file)
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Excel file read successfully. Shape: {df.shape} ===")
+                except Exception as excel_error:
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Error reading Excel file: {excel_error} ===")
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Traceback: {traceback.format_exc()} ===")
+                    flash(f"حدث خطأ أثناء قراءة ملف Excel: {str(excel_error)}", "danger")
+                    return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             else:  # CSV
-                df = pd.read_csv(import_file)
+                current_app.logger.info("=== IMPORT QUESTIONS: Reading CSV file ===")
+                try:
+                    df = pd.read_csv(import_file)
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: CSV file read successfully. Shape: {df.shape} ===")
+                except Exception as csv_error:
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Error reading CSV file: {csv_error} ===")
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Traceback: {traceback.format_exc()} ===")
+                    flash(f"حدث خطأ أثناء قراءة ملف CSV: {str(csv_error)}", "danger")
+                    return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             
             # Validate columns
+            current_app.logger.info(f"=== IMPORT QUESTIONS: Validating columns. File columns: {list(df.columns)} ===")
+            current_app.logger.info(f"=== IMPORT QUESTIONS: Expected columns: {EXPECTED_IMPORT_COLUMNS} ===")
+            
             missing_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col not in df.columns]
             if missing_columns:
+                current_app.logger.error(f"=== IMPORT QUESTIONS: Missing columns: {missing_columns} ===")
                 flash(f"الملف لا يحتوي على الأعمدة المطلوبة: {', '.join(missing_columns)}", "danger")
                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             
@@ -717,14 +753,21 @@ def import_questions():
             imported_count = 0
             error_details = []
             
+            current_app.logger.info(f"=== IMPORT QUESTIONS: Starting to process {len(df)} rows ===")
+            
             for index, row in df.iterrows():
                 try:
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Processing row {index+1} ===")
+                    
                     # Extract question data
                     question_text = str(row["Question Text"]).strip() if not pd.isna(row["Question Text"]) else None
                     question_image_url = str(row["Question Image URL"]).strip() if not pd.isna(row["Question Image URL"]) else None
                     
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Question text: {question_text[:30] + '...' if question_text and len(question_text) > 30 else question_text} ===")
+                    
                     # Validate question data
                     if not question_text and not question_image_url:
+                        current_app.logger.error(f"=== IMPORT QUESTIONS: Row {index+1} - No question text or image URL ===")
                         error_details.append(f"صف {index+2}: يجب توفير نص للسؤال أو صورة له.")
                         continue
                     
@@ -741,19 +784,27 @@ def import_questions():
                                 "is_correct": False  # Will set correct one later
                             })
                     
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Found {len(options_data)} options ===")
+                    
                     # Validate options
                     if len(options_data) < 2:
+                        current_app.logger.error(f"=== IMPORT QUESTIONS: Row {index+1} - Not enough options (minimum 2 required) ===")
                         error_details.append(f"صف {index+2}: يجب توفير خيارين صالحين على الأقل.")
                         continue
                     
                     # Set correct option
                     correct_option = row["Correct Option Number"]
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Correct option number: {correct_option} ===")
+                    
                     if pd.isna(correct_option) or not isinstance(correct_option, (int, float)) or correct_option < 1 or correct_option > len(options_data):
+                        current_app.logger.error(f"=== IMPORT QUESTIONS: Row {index+1} - Invalid correct option number ===")
                         error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة غير صالح.")
                         continue
                     
                     correct_index = int(correct_option) - 1  # Convert to 0-based index
                     options_data[correct_index]["is_correct"] = True
+                    
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Creating question in database ===")
                     
                     # Create question
                     new_question = Question(
@@ -764,8 +815,11 @@ def import_questions():
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
                     
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Question created with ID: {new_question.question_id} ===")
+                    
                     # Create options
-                    for opt_data in options_data:
+                    for opt_index, opt_data in enumerate(options_data):
+                        current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Creating option {opt_index+1} ===")
                         option = Option(
                             option_text=opt_data["option_text"],
                             image_url=opt_data["image_url"],
@@ -775,20 +829,30 @@ def import_questions():
                         db.session.add(option)
                     
                     imported_count += 1
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Row {index+1} - Successfully processed ===")
                     
                 except Exception as row_error:
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Error processing row {index+1}: {row_error} ===")
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Traceback: {traceback.format_exc()} ===")
                     error_details.append(f"صف {index+2}: {str(row_error)}")
-                    current_app.logger.exception(f"Error processing row {index+2}: {row_error}")
             
             # Commit all changes if there were any successful imports
             if imported_count > 0:
-                db.session.commit()
-                current_app.logger.info(f"Successfully imported {imported_count} questions.")
-                
-                flash(f"تم استيراد {imported_count} سؤال بنجاح!", "success")
+                current_app.logger.info(f"=== IMPORT QUESTIONS: Committing {imported_count} questions to database ===")
+                try:
+                    db.session.commit()
+                    current_app.logger.info(f"=== IMPORT QUESTIONS: Successfully committed {imported_count} questions ===")
+                    flash(f"تم استيراد {imported_count} سؤال بنجاح!", "success")
+                except Exception as commit_error:
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Error during commit: {commit_error} ===")
+                    current_app.logger.error(f"=== IMPORT QUESTIONS: Traceback: {traceback.format_exc()} ===")
+                    db.session.rollback()
+                    flash(f"حدث خطأ أثناء حفظ الأسئلة في قاعدة البيانات: {str(commit_error)}", "danger")
+                    return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             
             # Show errors if any
             if error_details:
+                current_app.logger.warning(f"=== IMPORT QUESTIONS: {len(error_details)} errors occurred during import ===")
                 error_summary = f"تم استيراد {imported_count} سؤال، مع {len(error_details)} أخطاء:"
                 for i, error in enumerate(error_details[:5]):  # Show first 5 errors
                     flash(error, "warning")
@@ -796,21 +860,24 @@ def import_questions():
                     flash(f"... و {len(error_details) - 5} أخطاء أخرى.", "warning")
                 
                 flash(error_summary, "danger")
-                current_app.logger.error(f"Import errors occurred: {error_details}")
                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
             else:
                 if imported_count > 0:
-                     return redirect(url_for("question.list_questions"))
+                    current_app.logger.info("=== IMPORT QUESTIONS: Import completed successfully, redirecting to questions list ===")
+                    return redirect(url_for("question.list_questions"))
                 else:
-                     flash("لم يتم العثور على أسئلة صالحة للاستيراد في الملف.", "warning")
-                     return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
+                    current_app.logger.warning("=== IMPORT QUESTIONS: No valid questions found in file ===")
+                    flash("لم يتم العثور على أسئلة صالحة للاستيراد في الملف.", "warning")
+                    return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
 
         except Exception as e:
-            current_app.logger.exception(f"Error processing import file: {e}")
+            current_app.logger.error(f"=== IMPORT QUESTIONS: Unhandled exception: {e} ===")
+            current_app.logger.error(f"=== IMPORT QUESTIONS: Traceback: {traceback.format_exc()} ===")
             flash(f"حدث خطأ أثناء معالجة ملف الاستيراد: {str(e)}", "danger")
             return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id)
 
     # GET request: Render the import form
+    current_app.logger.info("=== IMPORT QUESTIONS: GET request, rendering import form ===")
     return render_template("question/import_questions.html", lessons=lessons)
 
 # --- END: Import Questions Route --- #
