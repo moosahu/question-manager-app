@@ -758,7 +758,7 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="explanation" class="form-label">نص الشرح</label>
-                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{% if question %}{{ question.explanation if question.explanation is defined else "" }}{% else %}{{ request.form.get("explanation", "") }}{% endif %}</textarea>
+                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{% if question %}{% if question.explanation is defined %}{{ question.explanation }}{% elif question is mapping and 'explanation' in question %}{{ question['explanation'] }}{% elif hasattr(question, 'explanation') %}{{ question.explanation }}{% else %}{{ "" }}{% endif %}{% else %}{{ request.form.get("explanation", "") }}{% endif %}</textarea>
                         <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
