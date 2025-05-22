@@ -337,9 +337,7 @@ def add_question():
             new_question = Question(
                 question_text=question_text if question_text else None,
                 lesson_id=lesson_id,
-                image_url=q_image_path,
-                explanation=request.form.get("explanation", "").strip() or None,
-                explanation_image_path=None
+                image_url=q_image_path
             )
             db.session.add(new_question)
             db.session.flush()
@@ -785,29 +783,6 @@ def edit_question(question_id):
             question.question_text = question_text if question_text else None
             question.lesson_id = lesson_id
             question.image_url = q_image_path
-            
-            # حفظ الشرح وصورة الشرح
-            question.explanation = request.form.get("explanation", "").strip() or None
-            
-            # معالجة صورة الشرح
-            explanation_image_file = request.files.get("explanation_image")
-            remove_explanation_image = request.form.get("delete_explanation_image") == "1"
-            
-            if remove_explanation_image:
-                question.explanation_image_path = None
-                current_app.logger.info(f"Request to remove explanation image for question ID: {question_id}")
-            elif explanation_image_file and explanation_image_file.filename:
-                if not allowed_image_file(explanation_image_file.filename):
-                    flash("نوع ملف صورة الشرح غير مسموح به.", "danger")
-                else:
-                    # استخدام دالة رفع الصور المتوافقة مع Cloudinary
-                    new_explanation_image_path = save_upload(explanation_image_file, subfolder="explanations")
-                    if new_explanation_image_path:
-                        question.explanation_image_path = new_explanation_image_path
-                        current_app.logger.info(f"New explanation image uploaded for question ID: {question_id}")
-                    else:
-                        flash("فشل رفع صورة الشرح الجديدة. تحقق من إعدادات Cloudinary والسجلات.", "danger")
-            
             current_app.logger.info(f"Updating question ID: {question_id}")
 
             options_to_delete = existing_option_ids - processed_option_ids
