@@ -21,10 +21,6 @@ class Question(db.Model):
     question_text = db.Column(db.Text, nullable=True) 
     image_url = db.Column(db.String(255), nullable=True)
     # quiz_id = db.Column(db.Integer, nullable=True) # Assuming nullable, adjust if needed
-    
-    # إضافة حقل الشرح وصورة الشرح
-    explanation = db.Column(db.Text, nullable=True)
-    explanation_image_path = db.Column(db.String(255), nullable=True)
 
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
 
