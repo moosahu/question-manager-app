@@ -114,7 +114,9 @@ def format_question(question):
         "question_text": question.question_text,
         "image_url": format_image_url(question.image_url),
         "options": options_list,
-        "correct_option_id": correct_option_id_found  # Added this line
+        "correct_option_id": correct_option_id_found,  # Added this line
+        "explanation": question.explanation,  # إضافة الشرح
+        "explanation_image_path": format_image_url(question.explanation_image_path)  # إضافة صورة الشرح
     }
 
 # --- Helper Function to Get Activity Icon --- #
