@@ -4,6 +4,75 @@
 
 {% block head_extra %}
 <meta name="csrf-token" content="{{ csrf_token() if csrf_token else 'dummy-token' }}">
+
+<!-- Google APIs للمصادقة مع Google Drive -->
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+// إعدادات Google Drive
+const GOOGLE_DRIVE_CONFIG = {
+    CLIENT_ID: '855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com',
+    API_KEY: 'AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc',
+    DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+    SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly'
+};
+
+// متغيرات حالة Google APIs
+let gapiInited = false;
+let gisInited = false;
+let tokenClient;
+
+// تهيئة Google APIs
+async function initializeGoogleAPIs() {
+    try {
+        console.log('🔄 تهيئة Google APIs...');
+        
+        // تهيئة GAPI
+        if (window.gapi) {
+            await new Promise((resolve) => {
+                gapi.load('client', resolve);
+            });
+            
+            await gapi.client.init({
+                apiKey: GOOGLE_DRIVE_CONFIG.API_KEY,
+                discoveryDocs: [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
+            });
+            
+            gapiInited = true;
+            console.log('✅ تم تهيئة GAPI بنجاح');
+        }
+        
+        // تهيئة Google Identity Services
+        if (window.google && window.google.accounts) {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+                scope: GOOGLE_DRIVE_CONFIG.SCOPES,
+                callback: '', // سيتم تعيينه لاحقاً
+            });
+            
+            gisInited = true;
+            console.log('✅ تم تهيئة Google Identity Services بنجاح');
+        }
+        
+        if (gapiInited && gisInited) {
+            console.log('🎉 تم تهيئة جميع Google APIs بنجاح');
+        } else {
+            console.warn('⚠️ لم يتم تهيئة جميع Google APIs');
+        }
+        
+    } catch (error) {
+        console.error('❌ خطأ في تهيئة Google APIs:', error);
+    }
+}
+
+// تهيئة تلقائية عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // انتظار تحميل Google APIs ثم التهيئة
+    setTimeout(initializeGoogleAPIs, 1000);
+});
+</script>
+
 <style>
     /* أنماط المصادقة الثنائية */
     .two-factor-modal {
@@ -949,7 +1018,7 @@ function connectToGoogleDrive() {
      */
     async function checkGoogleDriveConnection() {
         try {
-            const response = await fetch('/settings/api/v1/google-drive/status');
+            const response = await fetch('/api/v1/google-drive/connection-status');
             const data = await response.json();
             
             googleDriveConnected = data.connected || false;
@@ -1044,7 +1113,7 @@ function connectToGoogleDrive() {
                                 token_type: resp.token_type || 'Bearer'
                             };
                             
-                            const saveResponse = await fetch('/settings/api/v1/google-drive/connect', {
+                            const saveResponse = await fetch('/api/v1/google-drive/connect', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -1093,7 +1162,7 @@ function connectToGoogleDrive() {
         }
 
         try {
-            const response = await fetch('/settings/api/v1/google-drive/disconnect', {
+            const response = await fetch('/api/v1/google-drive/disconnect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1129,7 +1198,7 @@ function connectToGoogleDrive() {
         try {
             showNotification('جاري مزامنة إعداداتك...', 'info');
             
-            const response = await fetch('/settings/api/v1/user-settings/sync-to-drive', {
+            const response = await fetch('/api/v1/user-settings/sync-to-drive', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1169,7 +1238,7 @@ function connectToGoogleDrive() {
         try {
             showNotification('جاري تحميل إعداداتك...', 'info');
             
-            const response = await fetch('/settings/api/v1/user-settings/download-from-drive', {
+            const response = await fetch('/api/v1/user-settings/download-from-drive', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1350,7 +1419,7 @@ async function connectToGoogleDrive() {
                 };
                 
                 console.log('📤 إرسال token إلى الخادم...');
-                const saveResponse = await fetch('/settings/api/v1/google-drive/connect', {
+                const saveResponse = await fetch('/api/v1/google-drive/connect', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1463,7 +1532,7 @@ async function updateApiKeyInDatabase(apiKey) {
 // فحص حالة Google Drive عند تحميل الصفحة
 async function checkGoogleDriveStatus() {
     try {
-        const response = await fetch('/settings/api/v1/google-drive/status', {
+        const response = await fetch('/api/v1/google-drive/connection-status', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
