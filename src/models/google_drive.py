@@ -132,7 +132,7 @@ class GoogleDriveToken(db.Model if db else object):
         __table_args__ = {'extend_existing': True}
         
         id = db.Column(db.Integer, primary_key=True)
-        user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+        user_id = db.Column(db.Integer, nullable=False)  # إزالة foreign key مؤقتاً
         access_token = db.Column(db.Text, nullable=True)
         refresh_token = db.Column(db.Text, nullable=True)
         token_uri = db.Column(db.String(255), nullable=True)
@@ -149,8 +149,27 @@ class GoogleDriveToken(db.Model if db else object):
         backup_count = db.Column(db.Integer, default=0)
         is_active = db.Column(db.Boolean, default=True)
         
-        # العلاقة مع المستخدم
-        user = db.relationship('User', backref=db.backref('google_drive_tokens', lazy=True))
+        # العلاقة مع المستخدم (إزالة مؤقتاً لتجنب مشاكل foreign key)
+        # user = db.relationship('User', backref=db.backref('google_drive_tokens', lazy=True))
+    
+    @classmethod
+    def ensure_table_exists(cls):
+        """التأكد من وجود الجدول في قاعدة البيانات"""
+        def _ensure_table():
+            try:
+                if not db:
+                    logger.warning("Database not available for table creation")
+                    return False
+                
+                # محاولة إنشاء الجدول إذا لم يكن موجوداً
+                db.create_all()
+                logger.info("تم التأكد من وجود جدول google_drive_tokens")
+                return True
+            except Exception as e:
+                logger.error(f"خطأ في إنشاء جدول google_drive_tokens: {e}")
+                return False
+        
+        return execute_with_app_context(_ensure_table)
     
     def __repr__(self):
         return f'<GoogleDriveToken {self.user_id}>'
@@ -189,6 +208,10 @@ class GoogleDriveToken(db.Model if db else object):
                 if not db:
                     logger.warning("Database not available")
                     return None
+                
+                # التأكد من وجود الجدول أولاً
+                cls.ensure_table_exists()
+                
                 return cls.query.filter_by(user_id=user_id, is_active=True).first()
             except Exception as e:
                 logger.error(f"Error querying user token: {e}")
@@ -204,6 +227,9 @@ class GoogleDriveToken(db.Model if db else object):
                 if not db:
                     logger.warning("Database not available")
                     return None
+                
+                # التأكد من وجود الجدول أولاً
+                cls.ensure_table_exists()
                 
                 existing_token = cls.query.filter_by(user_id=user_id, is_active=True).first()
                 
