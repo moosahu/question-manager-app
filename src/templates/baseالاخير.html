@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="particle p7"></div>
+        <div class="particle p8"></div>
+        <div class="particle p9"></div>
+        <div class="particle p10"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+
+        <nav class="main-navigation">
+            <ul class="nav-list">
+                {% if session.get('user_id') or session.get('logged_in') or session.get('username') or session.get('_user_id') or 'user_id' in session or session.get('current_user') or session.get('user') %}
+                    <!-- قائمة المستخدمين المسجلين -->
+                    <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                    <li><a href="{{ url_for('curriculum.list_courses') }}" {% if request.endpoint == 'curriculum.list_courses' %}class="active"{% endif %}><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                    <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                    <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                    <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-user-cog"></i> تغير كلمة المرور</a></li>
+                    <li><a href="{{ url_for('settings.index') }}" {% if request.endpoint == 'settings.index' %}class="active"{% endif %}><i class="fas fa-cog"></i> الإعدادات</a></li>
+                    <li><a href="{{ url_for('view_notifications') }}" class="notifications-nav-link {% if request.endpoint == 'view_notifications' %}active{% endif %}">
+                        <span class="notification-icon-wrapper">
+                            <i class="fas fa-bell"></i>
+                            {% if unread_count and unread_count > 0 %}
+                            <span class="nav-notification-badge">{{ unread_count }}</span>
+                            {% endif %}
+                        </span>
+                        الإشعارات
+                    </a></li>
+                    <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                {% else %}
+                    <!-- قائمة المستخدمين غير المسجلين -->
+                    <li><a href="{{ url_for('auth.login') }}" {% if request.endpoint == 'auth.login' %}class="active"{% endif %}><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} flash" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <main class="{% block main_class %}default-main{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>جميع الحقوق محفوظة - إدارة الأسئلة الكيميائية تطوير الاستاذ حسين علي الموسى© 2025</p>
+            <div class="footer-links">
+                <a href="#">الدعم الفني</a>
+                <a href="#">سياسة الخصوصية</a>
+                <a href="#">شروط الاستخدام</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        // إخفاء الرسائل بعد 5 ثوانٍ تلقائيًا
+        setTimeout(() => {
+            document.querySelectorAll('.flash').forEach(flash => {
+                flash.style.transition = 'opacity 0.5s ease';
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 500);
+            });
+        }, 5000);
+
+        // تحسين تجربة المستخدم
+        document.addEventListener('DOMContentLoaded', function() {
+            // إضافة تأثيرات تفاعلية للأزرار
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                });
+                btn.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+
+            // تحسين تجربة القائمة على الأجهزة المحمولة
+            if (window.innerWidth <= 768) {
+                const navLinks = document.querySelectorAll('nav a');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        // إضافة تأثير بصري عند النقر
+                        this.style.backgroundColor = 'rgba(78, 205, 196, 0.2)';
+                        setTimeout(() => {
+                            this.style.backgroundColor = '';
+                        }, 200);
+                    });
+                });
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

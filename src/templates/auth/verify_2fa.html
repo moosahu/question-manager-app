@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}التحقق الثنائي{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 400px;">
+  <h2 class="mb-4">التحقق بخطوتين</h2>
+  <p>أدخل رمز المصادقة (TOTP) من تطبيق المصادقة لديك:</p>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.otp_code.label(class="form-label") }}
+      {{ form.otp_code(class="form-control", placeholder="رمز مكوّن من 6 أرقام") }}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+  </form>
+</div>
+{% endblock %}

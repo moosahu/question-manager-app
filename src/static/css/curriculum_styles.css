@@ -1,0 +1,199 @@
+/* تنسيقات محسنة لصفحة إدارة المنهج */
+
+/* تحسينات عامة */
+.curriculum-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* تنسيق المناهج */
+.course-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background-color: #fff;
+}
+
+.course-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.course-header:hover {
+    background-color: #e9ecef;
+}
+
+.course-title {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.course-content {
+    padding: 15px;
+    display: none;
+}
+
+.course-content.active {
+    display: block;
+}
+
+/* تنسيق الوحدات */
+.unit-item {
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    background-color: #f8f9fa;
+}
+
+.unit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+}
+
+.unit-title {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.unit-content {
+    padding: 10px 15px;
+    background-color: #fff;
+    border-top: 1px solid #e9ecef;
+    display: none;
+}
+
+.unit-content.active {
+    display: block;
+}
+
+/* تنسيق الدروس */
+.lesson-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.lesson-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.lesson-item:last-child {
+    border-bottom: none;
+}
+
+.lesson-title {
+    display: flex;
+    align-items: center;
+}
+
+/* تنسيق أزرار التحكم */
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.order-controls {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.order-controls button {
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 2px 5px;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+.order-controls button:hover {
+    color: #0d6efd;
+}
+
+.order-badge {
+    display: inline-block;
+    min-width: 25px;
+    text-align: center;
+    background-color: #fff;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin: 0 2px;
+    font-size: 0.8rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-icon {
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-icon i {
+    font-size: 0.9rem;
+}
+
+/* تنسيق أزرار الإضافة */
+.add-button {
+    margin-top: 10px;
+}
+
+/* تنسيق الأيقونات */
+.icon-toggle {
+    margin-left: 8px;
+    transition: transform 0.3s;
+}
+
+.icon-toggle.rotate {
+    transform: rotate(90deg);
+}
+
+/* تنسيق الإشارات المرئية */
+.course-indicator, .unit-indicator, .lesson-indicator {
+    width: 4px;
+    height: 24px;
+    border-radius: 2px;
+    margin-left: 10px;
+}
+
+.course-indicator {
+    background-color: #0d6efd;
+}
+
+.unit-indicator {
+    background-color: #198754;
+}
+
+.lesson-indicator {
+    background-color: #6c757d;
+    height: 16px;
+}
+

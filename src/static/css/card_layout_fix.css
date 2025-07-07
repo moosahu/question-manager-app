@@ -1,0 +1,132 @@
+/* إصلاح تنسيق البطاقات - 3 بطاقات في كل صف */
+
+/* حاوي البطاقات الرئيسي */
+#cardView .enhanced-cards-container,
+.enhanced-cards-container,
+.cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1.5rem !important;
+    padding: 20px !important;
+    width: 100% !important;
+    max-width: 1400px !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+}
+
+/* البطاقة الفردية */
+.enhanced-card-wrapper,
+.card-wrapper {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.enhanced-card,
+.question-card {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 300px !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* الشاشات المتوسطة (أقل من 1200px) */
+@media (max-width: 1199px) {
+    #cardView .enhanced-cards-container,
+    .enhanced-cards-container,
+    .cards-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1.2rem !important;
+    }
+}
+
+/* الشاشات الصغيرة (أقل من 768px) */
+@media (max-width: 767px) {
+    #cardView .enhanced-cards-container,
+    .enhanced-cards-container,
+    .cards-container {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+        padding: 15px !important;
+    }
+}
+
+/* إصلاح مشاكل التصفية */
+.filtered-view #cardView .enhanced-cards-container,
+.filtered-view .enhanced-cards-container,
+.filtered-view .cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* إصلاح مشاكل التحميل الديناميكي */
+[data-view="cards"] .enhanced-cards-container,
+[data-view="cards"] .cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* إصلاح مشاكل AJAX */
+.ajax-loaded .enhanced-cards-container,
+.ajax-loaded .cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* إصلاح مشاكل الفلكس */
+.enhanced-cards-container.d-flex,
+.cards-container.d-flex {
+    display: grid !important;
+}
+
+/* إصلاح مشاكل Bootstrap */
+.enhanced-cards-container.row,
+.cards-container.row {
+    display: grid !important;
+    margin: 0 !important;
+}
+
+.enhanced-card-wrapper.col,
+.enhanced-card-wrapper.col-md-6,
+.enhanced-card-wrapper.col-lg-4,
+.card-wrapper.col,
+.card-wrapper.col-md-6,
+.card-wrapper.col-lg-4 {
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+    padding: 0 !important;
+}
+
+/* ضمان التطبيق على جميع الحالات */
+body #cardView .enhanced-cards-container,
+body .enhanced-cards-container,
+body .cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* إصلاح مشاكل الرؤية */
+#cardView {
+    display: block !important;
+}
+
+#cardView .enhanced-cards-container {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* إصلاح مشاكل التحديث */
+.updated-content .enhanced-cards-container,
+.refreshed-content .cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+

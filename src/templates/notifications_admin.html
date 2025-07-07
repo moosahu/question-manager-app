@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإشعارات - إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* تحسينات بصرية للإشعارات - متناسقة مع ألوان الهيدر الداكنة */
+        .notifications-container {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            color: #ecf0f1;
+            min-height: 80vh;
+        }
+        
+        .notifications-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(52, 73, 94, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(44, 62, 80, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(52, 152, 219, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .notifications-header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(52, 152, 219, 0.3);
+        }
+        
+        .notifications-header h1 {
+            color: #ecf0f1;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .notifications-header h1 i {
+            color: #3498db;
+            margin-left: 15px;
+            text-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
+        }
+        
+        .notifications-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .stat-item {
+            background: rgba(52, 73, 94, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 25px;
+            border: 1px solid rgba(52, 152, 219, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-5px);
+            border-color: rgba(52, 152, 219, 0.4);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+        }
+        
+        /* أدوات التحكم */
+        .notifications-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-select {
+            background: rgba(52, 73, 94, 0.8);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: #ecf0f1;
+            font-size: 0.9rem;
+            min-width: 150px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: rgba(52, 152, 219, 0.6);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9, #1f5f8b);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 
+                0 8px 16px rgba(52, 152, 219, 0.4),
+                0 0 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #229954, #1e8449);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 
+                0 8px 16px rgba(39, 174, 96, 0.4),
+                0 0 20px rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 
+                0 8px 16px rgba(231, 76, 60, 0.4),
+                0 0 20px rgba(231, 76, 60, 0.3);
+        }
+        
+        /* قائمة الإشعارات */
+        .notifications-list {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .notification-item {
+            background: rgba(52, 73, 94, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(52, 152, 219, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .notification-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.1), transparent);
+            transition: left 0.5s;
+        }
+        
+        .notification-item:hover::before {
+            left: 100%;
+        }
+        
+        .notification-item:hover {
+            transform: translateX(10px);
+            border-color: rgba(52, 152, 219, 0.4);
+            box-shadow: 
+                0 10px 25px rgba(0,0,0,0.3),
+                0 0 20px rgba(52, 152, 219, 0.2);
+        }
+        
+        .notification-item.unread {
+            border-left: 4px solid #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        
+        .notification-item.read {
+            opacity: 0.8;
+        }
+        
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .notification-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+            margin-left: 15px;
+            flex-shrink: 0;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ecf0f1;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .notification-message {
+            font-size: 0.95rem;
+            color: #bdc3c7;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        
+        .notification-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #95a5a6;
+        }
+        
+        .notification-time {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .notification-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .notification-actions .btn {
+            padding: 5px 12px;
+            font-size: 0.8rem;
+        }
+        
+        /* حالات التحميل والرسائل */
+        .loading-spinner {
+            text-align: center;
+            padding: 60px 20px;
+            color: #bdc3c7;
+        }
+        
+        .loading-spinner i {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        .no-notifications {
+            text-align: center;
+            padding: 60px 20px;
+            color: #bdc3c7;
+        }
+        
+        .no-notifications i {
+            font-size: 4rem;
+            color: #95a5a6;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #e74c3c;
+        }
+        
+        .error-message i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* تحسينات للأجهزة المحمولة */
+        @media (max-width: 768px) {
+            .notifications-container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            .notifications-header h1 {
+                font-size: 2rem;
+            }
+            
+            .notifications-stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .notifications-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-controls {
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+            }
+            
+            .notification-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .notification-icon {
+                margin: 0 auto 10px auto;
+            }
+            
+            .notification-meta {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .notification-actions {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* تأثيرات الانيميشن */
+        .notification-item {
+            animation: fadeInUp 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        .notification-item:nth-child(1) { animation-delay: 0.1s; }
+        .notification-item:nth-child(2) { animation-delay: 0.2s; }
+        .notification-item:nth-child(3) { animation-delay: 0.3s; }
+        .notification-item:nth-child(4) { animation-delay: 0.4s; }
+        .notification-item:nth-child(5) { animation-delay: 0.5s; }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* تأثيرات الجسيمات */
+        .particles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            opacity: 0.1;
+            animation: particleFloat 20s infinite linear;
+        }
+        
+        .particle.p1 { width: 4px; height: 4px; left: 10%; animation-delay: 0s; }
+        .particle.p2 { width: 6px; height: 6px; left: 20%; animation-delay: 2s; }
+        .particle.p3 { width: 3px; height: 3px; left: 30%; animation-delay: 4s; }
+        .particle.p4 { width: 5px; height: 5px; left: 40%; animation-delay: 6s; }
+        .particle.p5 { width: 4px; height: 4px; left: 50%; animation-delay: 8s; }
+        .particle.p6 { width: 7px; height: 7px; left: 60%; animation-delay: 10s; }
+        .particle.p7 { width: 3px; height: 3px; left: 70%; animation-delay: 12s; }
+        .particle.p8 { width: 5px; height: 5px; left: 80%; animation-delay: 14s; }
+        .particle.p9 { width: 4px; height: 4px; left: 90%; animation-delay: 16s; }
+        .particle.p10 { width: 6px; height: 6px; left: 95%; animation-delay: 18s; }
+        
+        @keyframes particleFloat {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.1;
+            }
+            90% {
+                opacity: 0.1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="particle p7"></div>
+        <div class="particle p8"></div>
+        <div class="particle p9"></div>
+        <div class="particle p10"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                <li><a href="{{ url_for('curriculum.list_courses') }}"><i class="fas fa-flask"></i> إدارة المنهج</a></li>
+                <li><a href="{{ url_for('question.list_questions') }}"><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
+                <li><a href="{{ url_for('question.import_questions') }}"><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                <li><a href="{{ url_for('user.change_password') }}"><i class="fas fa-user-cog"></i> تغيير كلمة المرور</a></li>
+                <li><a href="{{ url_for('settings.index') }}"><i class="fas fa-cog"></i> الإعدادات</a></li>
+                <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+            </ul>
+        </nav>
+        {% if current_user.is_authenticated %}
+        <div style="text-align: center; background-color: #f1f1f1; padding: 0.5rem;">
+            <a href="{{ url_for('view_notifications') }}" style="text-decoration: none; color: #333;">
+                🔔 إشعاراتك {% if unread_count > 0 %}<span style="color:red;">({{ unread_count }})</span>{% endif %}
+            </a>
+        </div>
+        {% endif %}
+    </header>
+
+    <main>
+        <div class="notifications-container">
+            <div class="notifications-header">
+                <h1><i class="fas fa-bell"></i> الإشعارات</h1>
+                
+                <div class="notifications-stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-notifications">0</div>
+                        <div class="stat-label">إجمالي الإشعارات</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="unread-notifications">0</div>
+                        <div class="stat-label">غير مقروءة</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="read-notifications">0</div>
+                        <div class="stat-label">مقروءة</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="notifications-controls">
+                <div class="filter-controls">
+                    <select class="filter-select" id="filter-status">
+                        <option value="all">جميع الإشعارات</option>
+                        <option value="unread">غير مقروءة</option>
+                        <option value="read">مقروءة</option>
+                    </select>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-success" id="mark-all-read">
+                        <i class="fas fa-check-double"></i> تحديد الكل كمقروء
+                    </button>
+                    <button class="btn btn-primary" id="refresh-notifications">
+                        <i class="fas fa-sync-alt"></i> تحديث
+                    </button>
+                </div>
+            </div>
+            
+            <div class="notifications-list" id="notifications-list">
+                <!-- سيتم تحميل الإشعارات ديناميكياً هنا -->
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <div>جاري تحميل الإشعارات...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // متغيرات عامة
+        let notifications = [];
+        let filteredNotifications = [];
+        
+        // تحميل الإشعارات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNotifications();
+            setupEventListeners();
+        });
+        
+        // إعداد مستمعي الأحداث
+        function setupEventListeners() {
+            // تصفية الإشعارات
+            document.getElementById('filter-status').addEventListener('change', filterNotifications);
+            
+            // أزرار الإجراءات
+            document.getElementById('mark-all-read').addEventListener('click', markAllAsRead);
+            document.getElementById('refresh-notifications').addEventListener('click', loadNotifications);
+        }
+        
+        // دالة تحميل الإشعارات من API
+        function loadNotifications() {
+            const notificationsList = document.getElementById('notifications-list');
+            
+            // عرض مؤشر التحميل
+            notificationsList.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <div>جاري تحميل الإشعارات...</div>
+                </div>
+            `;
+            
+            // جلب الإشعارات من API
+            fetch('/api/v1/notifications')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    notifications = data.notifications || [];
+                    updateStatistics();
+                    filterNotifications();
+                })
+                .catch(error => {
+                    console.error('Error loading notifications:', error);
+                    // في حالة فشل API، استخدام بيانات تجريبية
+                    loadDummyNotifications();
+                });
+        }
+        
+        // دالة تحميل بيانات تجريبية في حالة فشل API
+        function loadDummyNotifications() {
+            notifications = [
+                {
+                    id: 1,
+                    content: 'تم إضافة سؤال جديد في درس "التفاعلات الكيميائية"',
+                    is_read: false,
+                    created_at: new Date().toISOString(),
+                    time_diff: 'منذ 5 دقائق'
+                },
+                {
+                    id: 2,
+                    content: 'تم تحديث النظام لإضافة ميزات جديدة',
+                    is_read: false,
+                    created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+                    time_diff: 'منذ 15 دقيقة'
+                },
+                {
+                    id: 3,
+                    content: 'تم حفظ التغييرات في إعدادات النظام بنجاح',
+                    is_read: true,
+                    created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+                    time_diff: 'منذ ساعة'
+                },
+                {
+                    id: 4,
+                    content: 'تحذير: يُنصح بعمل نسخة احتياطية من البيانات',
+                    is_read: true,
+                    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                    time_diff: 'منذ ساعتين'
+                }
+            ];
+            
+            updateStatistics();
+            filterNotifications();
+        }
+        
+        // دالة تحديث الإحصائيات
+        function updateStatistics() {
+            const total = notifications.length;
+            const unread = notifications.filter(n => !n.is_read).length;
+            const read = total - unread;
+            
+            document.getElementById('total-notifications').textContent = total;
+            document.getElementById('unread-notifications').textContent = unread;
+            document.getElementById('read-notifications').textContent = read;
+        }
+        
+        // دالة تصفية الإشعارات
+        function filterNotifications() {
+            const statusFilter = document.getElementById('filter-status').value;
+            
+            filteredNotifications = notifications.filter(notification => {
+                if (statusFilter === 'read' && !notification.is_read) return false;
+                if (statusFilter === 'unread' && notification.is_read) return false;
+                return true;
+            });
+            
+            renderNotifications();
+        }
+        
+        // دالة عرض الإشعارات
+        function renderNotifications() {
+            const notificationsList = document.getElementById('notifications-list');
+            
+            if (filteredNotifications.length === 0) {
+                notificationsList.innerHTML = `
+                    <div class="no-notifications">
+                        <i class="fas fa-bell-slash"></i>
+                        <div>لا توجد إشعارات تطابق المعايير المحددة</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            filteredNotifications.forEach((notification, index) => {
+                const timeDisplay = notification.time_diff || getTimeAgo(notification.created_at);
+                
+                html += `
+                    <div class="notification-item ${notification.is_read ? 'read' : 'unread'}" style="animation-delay: ${index * 0.1}s">
+                        <div class="notification-header">
+                            <div style="display: flex; align-items: flex-start; gap: 15px; flex: 1;">
+                                <div class="notification-icon">
+                                    <i class="fas fa-bell"></i>
+                                </div>
+                                <div class="notification-content">
+                                    <div class="notification-message">${notification.content}</div>
+                                    <div class="notification-meta">
+                                        <div class="notification-time">
+                                            <i class="fas fa-clock"></i>
+                                            <span>${timeDisplay}</span>
+                                        </div>
+                                        <div class="notification-actions">
+                                            ${!notification.is_read ? `
+                                                <button class="btn btn-primary" onclick="markAsRead(${notification.id})">
+                                                    <i class="fas fa-check"></i> تحديد كمقروء
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn btn-danger" onclick="deleteNotification(${notification.id})">
+                                                <i class="fas fa-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            notificationsList.innerHTML = html;
+        }
+        
+        // دالة حساب الوقت المنقضي
+        function getTimeAgo(timeString) {
+            const time = new Date(timeString);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - time) / 1000);
+            
+            if (diffInSeconds < 60) return 'منذ لحظات';
+            if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
+            if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
+            if (diffInSeconds < 2592000) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
+            return time.toLocaleDateString('ar-SA');
+        }
+        
+        // دالة تحديد إشعار كمقروء
+        function markAsRead(notificationId) {
+            // تحديث محلي فوري
+            const notification = notifications.find(n => n.id === notificationId);
+            if (notification) {
+                notification.is_read = true;
+                updateStatistics();
+                filterNotifications();
+            }
+            
+            // إرسال طلب لـ API (يمكن تنفيذه لاحقاً)
+            console.log(`تم تحديد الإشعار ${notificationId} كمقروء`);
+        }
+        
+        // دالة حذف إشعار
+        function deleteNotification(notificationId) {
+            if (confirm('هل أنت متأكد من حذف هذا الإشعار؟')) {
+                // حذف محلي فوري
+                notifications = notifications.filter(n => n.id !== notificationId);
+                updateStatistics();
+                filterNotifications();
+                
+                // إرسال طلب حذف لـ API
+                fetch(`/api/v1/notifications/${notificationId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`تم حذف الإشعار ${notificationId} بنجاح`);
+                    } else {
+                        console.error('فشل في حذف الإشعار:', data.error);
+                        // إعادة تحميل الإشعارات في حالة الفشل
+                        loadNotifications();
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في حذف الإشعار:', error);
+                    // إعادة تحميل الإشعارات في حالة الفشل
+                    loadNotifications();
+                });
+            }
+        }
+        
+        // دالة تحديد جميع الإشعارات كمقروءة
+        function markAllAsRead() {
+            const unreadNotifications = notifications.filter(n => !n.is_read);
+            if (unreadNotifications.length === 0) {
+                alert('جميع الإشعارات مقروءة بالفعل');
+                return;
+            }
+            
+            if (confirm(`هل تريد تحديد جميع الإشعارات كمقروءة (${unreadNotifications.length} إشعار)؟`)) {
+                // تحديث محلي فوري
+                notifications.forEach(notification => {
+                    notification.is_read = true;
+                });
+                updateStatistics();
+                filterNotifications();
+                
+                // إرسال طلب لـ API
+                fetch('/api/v1/notifications/mark-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('تم تحديد جميع الإشعارات كمقروءة بنجاح');
+                    } else {
+                        console.error('فشل في تحديث الإشعارات:', data.error);
+                        // إعادة تحميل الإشعارات في حالة الفشل
+                        loadNotifications();
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في تحديث الإشعارات:', error);
+                    // إعادة تحميل الإشعارات في حالة الفشل
+                    loadNotifications();
+                });
+            }
+        }
+    </script>
+</body>
+</html>
+

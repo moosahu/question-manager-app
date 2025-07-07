@@ -1,0 +1,55 @@
+# ملفات البيئة الحساسة
+.env
+.env.*
+*.env
+src/.env
+src/.env.*
+
+# ملفات Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ملفات قاعدة البيانات
+*.db
+*.sqlite
+*.sqlite3
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
+
+# ملفات المحرر
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ملفات السجلات
+*.log
+logs/
+
+# ملفات مؤقتة
+tmp/
+temp/
+
+# ملفات الأسرار والمفاتيح
+secrets/
+*.key
+*.pem
+*.p12
+config/secrets.yml
+config/master.key
+
+# ملفات النسخ الاحتياطي
+*.bak
+*.backup
+*~
+

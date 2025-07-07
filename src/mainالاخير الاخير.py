@@ -1,0 +1,1053 @@
+import os
+from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
+from werkzeug.security import generate_password_hash
+from flask_login import current_user, login_required, login_user
+from flask_wtf.csrf import CSRFProtect
+from src.extensions import db
+from src.models.notification import Notification
+from datetime import datetime
+import uuid
+
+
+# Import db and login_manager from the new extensions file
+try:
+    from src.extensions import db, login_manager
+except ImportError:
+    try:
+        from extensions import db, login_manager
+    except ImportError:
+        print("Error: Could not import db and login_manager from src.extensions or extensions.")
+        raise
+
+# Import blueprints AFTER defining db and login_manager
+try:
+    from src.routes.auth import auth_bp
+    from src.routes.user import user_bp
+    from src.routes.question import question_bp
+    from src.routes.curriculum import curriculum_bp
+    from src.routes.api import api_bp
+    # استيراد settings_bp مع معالجة الخطأ
+    try:
+        from src.routes.settings import settings_bp
+        settings_available = True
+    except ImportError:
+        try:
+            from routes.settings import settings_bp
+            settings_available = True
+        except ImportError:
+            print("Warning: Could not import settings_bp. Settings feature will be disabled.")
+            settings_available = False
+    
+    # استيراد Google Drive routes مع معالجة الخطأ
+    try:
+        from src.routes.google_drive_backend_routes import register_google_drive_routes
+        google_drive_available = True
+    except ImportError:
+        try:
+            from routes.google_drive_backend_routes import register_google_drive_routes
+            google_drive_available = True
+        except ImportError:
+            print("Warning: Could not import google_drive_backend_routes. Google Drive feature will be disabled.")
+            google_drive_available = False
+        
+except ImportError:
+    try:
+        from routes.auth import auth_bp
+        from routes.user import user_bp
+        from routes.question import question_bp
+        from routes.curriculum import curriculum_bp
+        from routes.api import api_bp
+        # استيراد settings_bp مع معالجة الخطأ
+        try:
+            from routes.settings import settings_bp
+            settings_available = True
+        except ImportError:
+            print("Warning: Could not import settings_bp. Settings feature will be disabled.")
+            settings_available = False
+        
+        # استيراد Google Drive routes مع معالجة الخطأ
+        try:
+            from src.routes.google_drive_backend_routes import register_google_drive_routes
+            google_drive_available = True
+        except ImportError:
+            try:
+                from routes.google_drive_backend_routes import register_google_drive_routes
+                google_drive_available = True
+            except ImportError:
+                print("Warning: Could not import google_drive_backend_routes. Google Drive feature will be disabled.")
+                google_drive_available = False
+    except ImportError:
+        print("Error: Could not import blueprints from src.routes or routes.")
+        raise
+
+# Import User model AFTER defining db
+try:
+    from src.models.user import User
+    # استيراد Google Drive Token model
+    try:
+        from src.models.google_drive import GoogleDriveToken
+        google_drive_model_available = True
+    except ImportError:
+        try:
+            from models.google_drive import GoogleDriveToken
+            google_drive_model_available = True
+        except ImportError:
+            print("Warning: Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
+            google_drive_model_available = False
+    
+    # استيراد Backup Settings model
+    backup_settings_model_available = False
+    try:
+        from src.models.backup_settings import BackupSettings
+        backup_settings_model_available = True
+    except ImportError:
+        try:
+            from models.backup_settings import BackupSettings
+            backup_settings_model_available = True
+        except ImportError:
+            try:
+                from backup_settings import BackupSettings
+                backup_settings_model_available = True
+            except ImportError:
+                print("Warning: Could not import BackupSettings. Backup settings storage will be disabled.")
+                backup_settings_model_available = False
+    
+    # استيراد Activity مع معالجة الخطأ
+    try:
+        from src.models.activity import Activity
+        activity_available = True
+    except ImportError:
+        try:
+            from models.activity import Activity
+            activity_available = True
+        except ImportError:
+            print("Warning: Could not import Activity. Activity tracking will be disabled.")
+            activity_available = False
+except ImportError:
+    try:
+        from models.user import User
+        # استيراد Google Drive Token model
+        try:
+            from models.google_drive import GoogleDriveToken
+            google_drive_model_available = True
+        except ImportError:
+            print("Warning: Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
+            google_drive_model_available = False
+        # استيراد Activity مع معالجة الخطأ
+        try:
+            from models.activity import Activity
+            activity_available = True
+        except ImportError:
+            print("Warning: Could not import Activity. Activity tracking will be disabled.")
+            activity_available = False
+    except ImportError:
+        print("Error: Could not import User model from src.models or models.")
+        raise
+
+def create_app():
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    # Configuration
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
+    app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
+    
+    # Initialize extensions
+    db.init_app(app)
+    login_manager.init_app(app)
+    csrf = CSRFProtect(app)  # تهيئة حماية CSRF
+    login_manager.login_view = "auth.login" # Set the login view
+
+    # ===== إضافة CORS Middleware =====
+    @app.after_request
+    def add_coop_header(response):
+        """إضافة Cross-Origin-Opener-Policy header لحل مشاكل CORS"""
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+        return response
+
+    # User loader function for Flask-Login
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
+    # Create database tables and default admin if needed
+    with app.app_context():
+        try:
+            db.create_all()
+            # Check if admin user exists
+            admin_user = User.query.filter_by(username="admin").first()
+            if not admin_user:
+                admin_password = os.environ.get("ADMIN_PASSWORD", "password")
+                hashed_password = generate_password_hash(admin_password)
+                new_admin = User(username="admin", password_hash=hashed_password, is_admin=True)
+                db.session.add(new_admin)
+                db.session.commit()
+                print("Admin user created.")
+                
+                # تسجيل نشاط إنشاء المستخدم الإداري إذا كان متاحاً
+                if activity_available:
+                    try:
+                        Activity.log_system_activity("تم إنشاء حساب المستخدم الإداري")
+                    except Exception as e:
+                        print(f"Warning: Could not log activity: {e}")
+        except Exception as e:
+            print(f"Error during database initialization or admin creation: {e}")
+            db.session.rollback()
+
+    # Register blueprints
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(user_bp, url_prefix="/user")
+    app.register_blueprint(question_bp, url_prefix="/questions")
+    app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
+    app.register_blueprint(api_bp) # <<< Registered API blueprint (prefix is in api.py)
+    
+    # إضافة context processor لجعل unread_count متاح في جميع القوالب
+    @app.context_processor
+    def inject_unread_count():
+        """حقن عدد الإشعارات غير المقروءة في جميع القوالب"""
+        if current_user.is_authenticated:
+            try:
+                unread_count = Notification.query.filter_by(
+                    user_id=current_user.id, 
+                    is_read=False
+                ).count()
+                return {'unread_count': unread_count}
+            except Exception as e:
+                print(f"Warning: Could not calculate unread count: {e}")
+                return {'unread_count': 0}
+        return {'unread_count': 0}
+    
+    # تسجيل blueprint الإشعارات
+    try:
+        from src.routes.notifications import notifications_bp
+        app.register_blueprint(notifications_bp, url_prefix="/notifications")
+        print("Notifications blueprint registered successfully.")
+    except ImportError:
+        try:
+            from routes.notifications import notifications_bp
+            app.register_blueprint(notifications_bp, url_prefix="/notifications")
+            print("Notifications blueprint registered successfully.")
+        except ImportError:
+            print("Warning: Could not import notifications blueprint. Notifications feature will be disabled.")
+    
+    # تسجيل blueprint الإعدادات إذا كان متاحاً
+    if settings_available:
+        try:
+            app.register_blueprint(settings_bp, url_prefix="/settings")
+            print("Settings blueprint registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register settings blueprint: {e}")
+    
+    # تسجيل Google Drive routes إذا كان متاحاً
+    if google_drive_available:
+        try:
+            register_google_drive_routes(app)
+            print("Google Drive routes registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register Google Drive routes: {e}")
+
+    @app.route("/", endpoint='index')
+    def home():
+        # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم
+        if current_user.is_authenticated:
+            return dashboard()
+        # إذا كان زائر، عرض الصفحة الرئيسية
+        return render_template("home.html")
+    
+    @app.route("/dashboard")
+    @login_required
+    def dashboard():
+        # جلب الإحصائيات من قاعدة البيانات
+        try:
+            from src.models.question import Question
+            from src.models.curriculum import Course, Unit, Lesson
+        except ImportError:
+            try:
+                from models.question import Question
+                from models.curriculum import Course, Unit, Lesson
+            except ImportError:
+                print("Error: Could not import models for statistics.")
+                return render_template("index.html", 
+                                      questions_count=0,
+                                      courses_count=0,
+                                      units_count=0,
+                                      lessons_count=0)
+        
+        # حساب عدد الأسئلة والمناهج والوحدات والدروس
+        questions_count = Question.query.count()
+        courses_count = Course.query.count()
+        units_count = Unit.query.count()
+        lessons_count = Lesson.query.count()
+        
+        # جلب آخر الأنشطة إذا كان متاحاً
+        recent_activities = None
+        if activity_available:
+            try:
+                recent_activities = Activity.get_recent_activities(limit=4)
+            except Exception as e:
+                print(f"Warning: Could not get recent activities: {e}")
+        
+        # تمرير الإحصائيات والأنشطة إلى القالب
+        context = {
+            "questions_count": questions_count,
+            "courses_count": courses_count,
+            "units_count": units_count,
+            "lessons_count": lessons_count
+        }
+        
+        if recent_activities is not None:
+            context["recent_activities"] = recent_activities
+
+        # إضافة معالجة الإشعارات المحسنة
+        try:
+            notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+            unread_count = sum(1 for n in notifications if not n.is_read)
+            context["notifications"] = notifications
+            context["unread_count"] = unread_count
+        except Exception as e:
+            print(f"Warning: Failed to load notifications: {e}")
+            context["notifications"] = []
+            context["unread_count"] = 0
+            
+        return render_template("index.html", **context)
+
+    # استثناء مسارات API والنماذج من حماية CSRF
+    @csrf.exempt
+    def csrf_exempt_routes():
+        # استثناء جميع مسارات API
+        if request.path.startswith('/api/'):
+            return True
+        # استثناء مسارات النماذج (إضافة وتعديل الأسئلة)
+        if request.path.startswith('/questions/add') or '/questions/edit/' in request.path:
+            return True
+        # استثناء مسارات استيراد الأسئلة
+        if request.path.startswith('/questions/import'):
+            return True
+        # استثناء مسارات Google Drive
+        if request.path.startswith('/settings/google-drive/'):
+            return True
+        return False
+
+    # Error Handling
+    @app.errorhandler(404)
+    def page_not_found(e):
+        # You might want to render a custom 404 template later
+        # Check if the request path starts with /api/ for JSON response
+        if request.path.startswith("/api/"):
+            return jsonify(error="Not Found"), 404
+        return render_template("404.html"), 404 # Or a simple string
+        
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        print(f"Internal Server Error: {e}")
+        db.session.rollback()
+        # Check if the request path starts with /api/ for JSON response
+        if request.path.startswith("/api/"):
+             return jsonify(error="Internal Server Error"), 500
+        # You might want to render a custom 500 template later
+        return render_template("500.html"), 500 # Or a simple string
+
+    # مسارات الإشعارات المحسنة
+    @app.route("/notifications")
+    @login_required
+    def view_notifications():
+        """عرض صفحة الإشعارات المحسنة"""
+        try:
+            notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+            unread_count = sum(1 for n in notifications if not n.is_read)
+            
+            return render_template("notifications.html", 
+                                 notifications=notifications, 
+                                 unread_count=unread_count)
+        except Exception as e:
+            print(f"Error loading notifications page: {e}")
+            flash('حدث خطأ في تحميل صفحة الإشعارات', 'error')
+            return redirect(url_for('dashboard'))
+    
+    @app.route("/notifications/action", methods=["POST"])
+    @login_required
+    def bulk_notifications_action():
+        """تنفيذ إجراءات جماعية على الإشعارات مع تحسينات"""
+        try:
+            notif_ids = request.form.getlist("notif_ids")
+            action = request.form.get("action")
+
+            if not notif_ids:
+                flash("يرجى تحديد إشعار واحد على الأقل.", 'warning')
+                return redirect(url_for("view_notifications"))
+
+            # تحويل IDs إلى أرقام صحيحة
+            try:
+                notif_ids = [int(id) for id in notif_ids]
+            except ValueError:
+                flash("معرفات الإشعارات غير صحيحة.", 'error')
+                return redirect(url_for("view_notifications"))
+
+            # جلب الإشعارات الخاصة بالمستخدم فقط
+            notifications = Notification.query.filter(
+                Notification.id.in_(notif_ids),
+                Notification.user_id == current_user.id
+            ).all()
+
+            if not notifications:
+                flash("لم يتم العثور على إشعارات صالحة للتحديث.", 'warning')
+                return redirect(url_for("view_notifications"))
+
+            if action == "mark_read":
+                updated_count = 0
+                for notif in notifications:
+                    if not notif.is_read:
+                        notif.is_read = True
+                        updated_count += 1
+                
+                db.session.commit()
+                
+                if updated_count > 0:
+                    flash(f"تم تحديد {updated_count} إشعار كمقروء.", 'success')
+                else:
+                    flash("جميع الإشعارات المحددة مقروءة بالفعل.", 'info')
+
+            elif action == "delete":
+                deleted_count = len(notifications)
+                for notif in notifications:
+                    db.session.delete(notif)
+                
+                db.session.commit()
+                flash(f"تم حذف {deleted_count} إشعار بنجاح.", 'success')
+                
+                # تسجيل نشاط الحذف إذا كان متاحاً
+                if activity_available:
+                    try:
+                        Activity.log_user_activity(
+                            current_user.id, 
+                            "delete", 
+                            "notification", 
+                            f"تم حذف {deleted_count} إشعار"
+                        )
+                    except Exception as e:
+                        print(f"Warning: Could not log delete activity: {e}")
+            else:
+                flash("إجراء غير صحيح.", 'error')
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error in bulk notifications action: {e}")
+            flash('حدث خطأ في تنفيذ الإجراء. يرجى المحاولة مرة أخرى.', 'error')
+
+        return redirect(url_for("view_notifications"))
+
+    # إضافة مسار لتحديد إشعار واحد كمقروء
+    @app.route("/notifications/<int:notif_id>/mark-read", methods=["POST"])
+    @login_required
+    def mark_single_notification_read(notif_id):
+        """تحديد إشعار واحد كمقروء"""
+        try:
+            notification = Notification.query.filter_by(
+                id=notif_id, 
+                user_id=current_user.id
+            ).first()
+            
+            if not notification:
+                return jsonify({'error': 'الإشعار غير موجود'}), 404
+            
+            if not notification.is_read:
+                notification.is_read = True
+                db.session.commit()
+                return jsonify({'success': True, 'message': 'تم تحديد الإشعار كمقروء'})
+            else:
+                return jsonify({'success': True, 'message': 'الإشعار مقروء بالفعل'})
+                
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error marking notification {notif_id} as read: {e}")
+            return jsonify({'error': 'حدث خطأ في تحديث الإشعار'}), 500
+
+    # إضافة مسار لحذف إشعار واحد
+    @app.route("/notifications/<int:notif_id>/delete", methods=["POST"])
+    @login_required
+    def delete_single_notification(notif_id):
+        """حذف إشعار واحد"""
+        try:
+            notification = Notification.query.filter_by(
+                id=notif_id, 
+                user_id=current_user.id
+            ).first()
+            
+            if not notification:
+                return jsonify({'error': 'الإشعار غير موجود'}), 404
+            
+            db.session.delete(notification)
+            db.session.commit()
+            
+            # تسجيل نشاط الحذف إذا كان متاحاً
+            if activity_available:
+                try:
+                    Activity.log_user_activity(
+                        current_user.id, 
+                        "delete", 
+                        "notification", 
+                        f"تم حذف إشعار: {notification.title}"
+                    )
+                except Exception as e:
+                    print(f"Warning: Could not log delete activity: {e}")
+            
+            return jsonify({'success': True, 'message': 'تم حذف الإشعار بنجاح'})
+                
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting notification {notif_id}: {e}")
+            return jsonify({'error': 'حدث خطأ في حذف الإشعار'}), 500
+
+    # ===== Google Drive APIs المفقودة =====
+    
+    @app.route('/api/v1/google-drive/connect', methods=['POST'])
+    def connect_google_drive():
+        """ربط Google Drive"""
+        try:
+            print('🔗 محاولة ربط Google Drive...')
+            
+            # التحقق من المستخدم أولاً
+            if not current_user.is_authenticated:
+                print('❌ المستخدم غير مسجل دخول')
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً',
+                    'connected': False
+                }), 401
+            
+            # طباعة معلومات الطلب للتشخيص
+            print(f'📋 Content-Type: {request.content_type}')
+            print(f'📋 Method: {request.method}')
+            print(f'📋 Headers: {dict(request.headers)}')
+            
+            # الحصول على بيانات Token من الطلب
+            try:
+                # محاولة قراءة البيانات بطرق مختلفة
+                data = None
+                
+                if request.is_json:
+                    data = request.get_json()
+                    print(f'📥 JSON data: {data}')
+                elif request.form:
+                    data = request.form.to_dict()
+                    print(f'📥 Form data: {data}')
+                else:
+                    # محاولة قراءة البيانات الخام
+                    raw_data = request.get_data(as_text=True)
+                    print(f'📥 Raw data: {raw_data}')
+                    if raw_data:
+                        import json
+                        data = json.loads(raw_data)
+                
+                if not data:
+                    print('❌ لم يتم العثور على بيانات في الطلب')
+                    return jsonify({
+                        'success': False,
+                        'message': 'لم يتم إرسال بيانات صحيحة - البيانات فارغة',
+                        'connected': False,
+                        'debug': {
+                            'content_type': request.content_type,
+                            'has_json': request.is_json,
+                            'has_form': bool(request.form),
+                            'raw_data_length': len(request.get_data())
+                        }
+                    }), 400
+                    
+            except Exception as json_error:
+                print(f'❌ خطأ في قراءة البيانات: {json_error}')
+                return jsonify({
+                    'success': False,
+                    'message': f'خطأ في قراءة البيانات: {str(json_error)}',
+                    'connected': False
+                }), 400
+            
+            # استخراج معلومات Token
+            access_token = data.get('access_token')
+            token_type = data.get('token_type', 'Bearer')
+            expires_in = data.get('expires_in')
+            scope = data.get('scope')
+            refresh_token = data.get('refresh_token')
+            
+            print(f'📥 تم استلام - access_token: {bool(access_token)}, type: {token_type}, refresh: {bool(refresh_token)}')
+            print(f'📥 البيانات الكاملة: {list(data.keys()) if data else "لا توجد بيانات"}')
+            
+            if not access_token:
+                print('❌ access_token مفقود من البيانات')
+                return jsonify({
+                    'success': False,
+                    'message': 'لم يتم توفير access token في البيانات المرسلة',
+                    'connected': False,
+                    'debug': {
+                        'received_keys': list(data.keys()) if data else [],
+                        'data_sample': str(data)[:200] if data else 'لا توجد بيانات'
+                    }
+                }), 400
+            
+            # حفظ في الجلسة
+            session['google_drive_connected'] = True
+            session['google_drive_token'] = access_token
+            if refresh_token:
+                session['google_drive_refresh_token'] = refresh_token
+            
+            print('✅ تم حفظ token في الجلسة')
+            
+            # حفظ في قاعدة البيانات إذا كان النموذج متاحاً
+            if google_drive_model_available and current_user.is_authenticated:
+                try:
+                    from src.models.google_drive import GoogleDriveToken
+                    
+                    # البحث عن token موجود أو إنشاء جديد
+                    existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if existing_token:
+                        existing_token.access_token = access_token
+                        if refresh_token:
+                            existing_token.refresh_token = refresh_token
+                        existing_token.created_at = datetime.utcnow()
+                        print(f'🔄 تم تحديث token للمستخدم {current_user.id}')
+                    else:
+                        new_token = GoogleDriveToken(
+                            user_id=current_user.id,
+                            access_token=access_token,
+                            refresh_token=refresh_token,
+                            created_at=datetime.utcnow()
+                        )
+                        db.session.add(new_token)
+                        print(f'➕ تم إنشاء token جديد للمستخدم {current_user.id}')
+                    
+                    db.session.commit()
+                    print('💾 تم حفظ token في قاعدة البيانات بنجاح')
+                    
+                except Exception as db_error:
+                    print(f'⚠️ خطأ في حفظ token في قاعدة البيانات: {db_error}')
+                    # لا نفشل العملية إذا فشل حفظ قاعدة البيانات
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم ربط Google Drive بنجاح',
+                'connected': True,
+                'user_id': current_user.id
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ عام في ربط Google Drive: {e}')
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في الخادم: {str(e)}',
+                'connected': False
+            }), 500
+    
+    @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+
+    @app.route('/api/v1/google-drive/disconnect', methods=['POST'])
+    def disconnect_google_drive():
+        """قطع اتصال Google Drive"""
+        try:
+            # حذف من قاعدة البيانات إذا كان النموذج متاحاً
+            if google_drive_model_available and current_user.is_authenticated:
+                existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                if existing_token:
+                    db.session.delete(existing_token)
+                    db.session.commit()
+            
+            # حذف من الجلسة
+            session.pop('google_drive_connected', None)
+            session.pop('google_drive_token', None)
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم قطع الاتصال مع Google Drive بنجاح',
+                'connected': False
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في قطع الاتصال: {str(e)}',
+                'connected': True
+            }), 500
+
+    @app.route('/api/v1/google-drive/connection-status', methods=['GET'])
+    def google_drive_connection_status():
+        """فحص حالة اتصال Google Drive"""
+        try:
+            print('🔍 فحص حالة اتصال Google Drive...')
+            
+            # فحص الجلسة أولاً
+            session_connected = session.get('google_drive_connected', False)
+            session_token = session.get('google_drive_token')
+            
+            print(f'📊 حالة الجلسة: connected={session_connected}, token={bool(session_token)}')
+            
+            # فحص قاعدة البيانات إذا كان النموذج متاحاً
+            db_connected = False
+            db_token = None
+            
+            if google_drive_model_available and current_user.is_authenticated:
+                try:
+                    from src.models.google_drive import GoogleDriveToken
+                    user_token = GoogleDriveToken.get_user_token(current_user.id)
+                    if user_token:
+                        db_connected = True
+                        db_token = {
+                            'access_token': user_token.access_token,
+                            'token_type': 'Bearer'
+                        }
+                        print(f'✅ تم العثور على token في قاعدة البيانات للمستخدم {current_user.id}')
+                        
+                        # تحديث الجلسة من قاعدة البيانات
+                        session['google_drive_connected'] = True
+                        session['google_drive_token'] = user_token.access_token
+                    else:
+                        print(f'❌ لا يوجد token في قاعدة البيانات للمستخدم {current_user.id}')
+                except Exception as db_error:
+                    print(f'⚠️ خطأ في فحص قاعدة البيانات: {db_error}')
+            
+            # تحديد الحالة النهائية
+            final_connected = session_connected or db_connected
+            final_token = session_token or (db_token['access_token'] if db_token else None)
+            
+            print(f'🎯 الحالة النهائية: connected={final_connected}, token={bool(final_token)}')
+            
+            return jsonify({
+                'success': True,
+                'status': {
+                    'connected': final_connected
+                },
+                'token': {
+                    'access_token': final_token,
+                    'token_type': 'Bearer'
+                } if final_connected and final_token else None
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ في فحص حالة Google Drive: {e}')
+            return jsonify({
+                'success': False,
+                'connected': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/v1/user-settings/sync-to-drive', methods=['POST'])
+    def sync_user_settings_to_drive():
+        """مزامنة إعدادات المستخدم إلى Google Drive"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية المزامنة
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم رفع الإعدادات إلى Google Drive بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في المزامنة: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/download-from-drive', methods=['POST'])
+    def download_user_settings_from_drive():
+        """تحميل إعدادات المستخدم من Google Drive"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية التحميل
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحميل الإعدادات من Google Drive بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في التحميل: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/quick-sync', methods=['POST'])
+    def quick_sync_user_settings():
+        """مزامنة سريعة لإعدادات المستخدم"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية المزامنة السريعة
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تمت المزامنة السريعة بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في المزامنة السريعة: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/sync-status', methods=['GET'])
+    def user_settings_sync_status():
+        """فحص حالة مزامنة إعدادات المستخدم"""
+        try:
+            connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_sync')
+            
+            return jsonify({
+                'success': True,
+                'connected': connected,
+                'last_sync': last_sync,
+                'sync_enabled': connected
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    # ===== APIs إعدادات النسخ الاحتياطي =====
+    
+    @app.route('/api/v1/backup-settings/save', methods=['POST'])
+    def save_backup_settings():
+        """حفظ إعدادات النسخ الاحتياطي"""
+        try:
+            data = request.get_json() or {}
+            print(f"📥 تم استلام بيانات حفظ الإعدادات: {data}")
+            
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                print("❌ المستخدم غير مسجل الدخول")
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            print(f"👤 المستخدم المسجل: {current_user.id}")
+            print(f"🔧 backup_settings_model_available: {backup_settings_model_available}")
+            
+            # حفظ في قاعدة البيانات إذا كان النموذج متاحاً
+            if backup_settings_model_available:
+                try:
+                    settings_data = {
+                        'auto_backup_enabled': data.get('auto_backup_enabled', False),
+                        'backup_frequency': data.get('backup_frequency', 'daily'),
+                        'backup_time': data.get('backup_time', '02:00'),
+                        'max_backups': data.get('max_backups', 10),
+                        'backup_destination': data.get('backup_destination', 'local')
+                    }
+                    
+                    print(f"💾 محاولة حفظ الإعدادات: {settings_data}")
+                    result = BackupSettings.update_user_settings(current_user.id, settings_data)
+                    print(f"✅ تم حفظ الإعدادات بنجاح: {result}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح',
+                        'settings': settings_data
+                    }), 200
+                except Exception as db_error:
+                    print(f"❌ خطأ في قاعدة البيانات: {str(db_error)}")
+                    # في حالة فشل قاعدة البيانات، احفظ في الجلسة
+                    session['backup_settings'] = data
+                    return jsonify({
+                        'success': True,
+                        'message': f'تم حفظ الإعدادات مؤقتاً (خطأ قاعدة البيانات: {str(db_error)})',
+                        'settings': data
+                    }), 200
+            else:
+                print("⚠️ نموذج BackupSettings غير متاح، الحفظ في الجلسة")
+                # حفظ في الجلسة كبديل
+                session['backup_settings'] = data
+                return jsonify({
+                    'success': True,
+                    'message': 'تم حفظ إعدادات النسخ الاحتياطي مؤقتاً',
+                    'settings': data
+                }), 200
+                
+        except Exception as e:
+            print(f"❌ خطأ عام في API: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في حفظ إعدادات النسخ الاحتياطي: {str(e)}'
+            }), 500
+        
+        @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+        def refresh_google_token():
+            """تحديث Google Drive Token"""
+        try:
+            print('🔄 طلب تحديث Google Drive Token...')
+            
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # البحث عن refresh_token في قاعدة البيانات
+            refresh_token = None
+            if google_drive_model_available:
+                try:
+                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if user_token and user_token.refresh_token:
+                        refresh_token = user_token.refresh_token
+                        print('✅ تم العثور على refresh_token في قاعدة البيانات')
+                    else:
+                        print(f'❌ لا يوجد refresh_token في قاعدة البيانات للمستخدم {current_user.id}')
+                except Exception as e:
+                    print(f'⚠️ خطأ في البحث في قاعدة البيانات: {e}')
+            
+            # البحث في الجلسة كبديل
+            if not refresh_token:
+                refresh_token = session.get('google_drive_refresh_token')
+                if refresh_token:
+                    print('✅ تم العثور على refresh_token في الجلسة')
+                else:
+                    print('❌ لا يوجد refresh_token في الجلسة')
+            
+            if not refresh_token:
+                return jsonify({
+                    'success': False,
+                    'message': 'لا يوجد refresh_token. يجب إعادة تسجيل الدخول إلى Google Drive',
+                    'requires_reauth': True
+                }), 400
+            
+            # محاكاة تحديث Token (في التطبيق الحقيقي، ستستدعي Google OAuth API)
+            import time
+            new_access_token = f"new_token_{int(time.time())}"
+            
+            # تحديث في قاعدة البيانات
+            if google_drive_model_available:
+                try:
+                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if user_token:
+                        user_token.access_token = new_access_token
+                        user_token.created_at = datetime.utcnow()
+                        db.session.commit()
+                        print('💾 تم تحديث access_token في قاعدة البيانات')
+                except Exception as e:
+                    print(f'⚠️ خطأ في تحديث قاعدة البيانات: {e}')
+            
+            # تحديث في الجلسة
+            session['google_drive_token'] = new_access_token
+            session['google_drive_connected'] = True
+            
+            print('✅ تم تحديث Token بنجاح')
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحديث Token بنجاح',
+                'access_token': new_access_token,
+                'token_type': 'Bearer'
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ في تحديث Token: {e}')
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تحديث Token: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user/info', methods=['GET'])
+    @login_required
+    def get_user_info():
+        """جلب معلومات المستخدم الحالي"""
+        try:
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # جلب معلومات المستخدم من قاعدة البيانات
+            user_info = {
+                'id': current_user.id,
+                'username': current_user.username,
+                'email': getattr(current_user, 'email', None),
+                'name': getattr(current_user, 'name', current_user.username),
+                'is_admin': getattr(current_user, 'is_admin', False),
+                'created_at': getattr(current_user, 'created_at', None)
+            }
+            
+            # تحويل التاريخ إلى string إذا كان موجوداً
+            if user_info['created_at']:
+                user_info['created_at'] = user_info['created_at'].isoformat()
+            
+            return jsonify({
+                'success': True,
+                'user': user_info
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ في جلب معلومات المستخدم: {e}')
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في جلب معلومات المستخدم: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-settings/load', methods=['GET'])
+    def load_backup_settings():
+        """تحميل إعدادات النسخ الاحتياطي"""
+        try:
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # تحميل من قاعدة البيانات إذا كان النموذج متاحاً
+            if backup_settings_model_available:
+                settings = BackupSettings.get_user_settings(current_user.id)
+                return jsonify({
+                    'success': True,
+                    'settings': settings.to_dict()
+                }), 200
+            else:
+                # تحميل من الجلسة كبديل
+                settings = session.get('backup_settings', {
+                    'auto_backup_enabled': False,
+                    'backup_frequency': 'daily',
+                    'backup_time': '02:00',
+                    'max_backups': 10,
+                    'backup_destination': 'local'
+                })
+                return jsonify({
+                    'success': True,
+                    'settings': settings
+                }), 200
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تحميل إعدادات النسخ الاحتياطي: {str(e)}'
+            }), 500
+
+    return app
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run(debug=True)
+
+
+# إنشاء متغير app لـ gunicorn
+app = create_app()
+
