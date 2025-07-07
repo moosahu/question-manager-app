@@ -19,7 +19,7 @@ backup_api_bp = Blueprint('backup_api', __name__, url_prefix='/api/v1/backup')
 
 # استيراد الوحدات المطلوبة
 try:
-    from google_drive_enhanced import (
+    from src.models.google_drive import (
         get_authorization_url,
         handle_oauth_callback,
         disconnect_user,
@@ -30,8 +30,20 @@ try:
     )
     GOOGLE_DRIVE_AVAILABLE = True
 except ImportError:
-    logger.warning("Google Drive module not available")
-    GOOGLE_DRIVE_AVAILABLE = False
+    try:
+        from models.google_drive import (
+            get_authorization_url,
+            handle_oauth_callback,
+            disconnect_user,
+            get_connection_status,
+            upload_backup,
+            list_user_backups,
+            delete_backup_file
+        )
+        GOOGLE_DRIVE_AVAILABLE = True
+    except ImportError:
+        logger.warning("Google Drive module not available")
+        GOOGLE_DRIVE_AVAILABLE = False
 
 try:
     from backup_scheduler_fixed import (
