@@ -13,6 +13,40 @@ import traceback
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# استيراد db
+try:
+    from src.extensions import db
+except ImportError:
+    try:
+        from extensions import db
+    except ImportError:
+        db = None
+
+class GoogleDriveToken(db.Model if db else object):
+    """نموذج رموز Google Drive للمستخدمين"""
+    __tablename__ = 'google_drive_tokens'
+    __table_args__ = {'extend_existing': True}
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    access_token = db.Column(db.Text)
+    refresh_token = db.Column(db.Text)
+    token_uri = db.Column(db.String(255))
+    client_id = db.Column(db.String(255))
+    client_secret = db.Column(db.String(255))
+    scopes = db.Column(db.Text)
+    expiry = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    folder_id = db.Column(db.String(255))
+    last_backup_date = db.Column(db.DateTime)
+    backup_count = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    api_key = db.Column(db.String(255))
+    
+    def __repr__(self):
+        return f'<GoogleDriveToken {self.user_id}>'
+
 def safe_db_operation(operation_func, *args, **kwargs):
     """
     تنفيذ آمن لعمليات قاعدة البيانات مع معالجة شاملة للأخطاء
