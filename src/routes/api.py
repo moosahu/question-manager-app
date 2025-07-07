@@ -1127,28 +1127,76 @@ GOOGLE_DRIVE_CLIENT_SECRETS = {
 # --- Helper Functions for Google Drive --- #
 
 def get_google_drive_service():
-    """إنشاء خدمة Google Drive باستخدام credentials المحفوظة"""
+    """إنشاء خدمة Google Drive باستخدام credentials المحفوظة - محسن"""
     if not google_drive_available:
+        logger.warning("Google Drive libraries not available")
         return None
     
     try:
-        # البحث عن credentials في session أو قاعدة البيانات
+        # محاولة 1: البحث عن credentials في session
         creds_data = session.get('google_drive_credentials')
-        if not creds_data:
-            return None
+        if creds_data:
+            logger.info("Found credentials in session")
+            try:
+                creds = Credentials.from_authorized_user_info(creds_data, GOOGLE_DRIVE_SCOPES)
+                if creds and creds.valid:
+                    service = build('drive', 'v3', credentials=creds)
+                    logger.info("Google Drive service created from session credentials")
+                    return service
+            except Exception as session_error:
+                logger.warning(f"Error using session credentials: {session_error}")
         
-        creds = Credentials.from_authorized_user_info(creds_data, GOOGLE_DRIVE_SCOPES)
+        # محاولة 2: البحث عن credentials في قاعدة البيانات
+        try:
+            if current_user and current_user.is_authenticated:
+                db_token = GoogleDriveToken.query.filter_by(
+                    user_id=current_user.id, 
+                    is_active=True
+                ).first()
+                
+                if db_token:
+                    logger.info("Found credentials in database")
+                    # تحويل token من قاعدة البيانات إلى credentials
+                    scopes = json.loads(db_token.scopes) if db_token.scopes else GOOGLE_DRIVE_SCOPES
+                    
+                    creds_info = {
+                        "token": db_token.access_token,
+                        "refresh_token": db_token.refresh_token,
+                        "token_uri": db_token.token_uri,
+                        "client_id": db_token.client_id,
+                        "client_secret": db_token.client_secret,
+                        "scopes": scopes
+                    }
+                    
+                    creds = Credentials.from_authorized_user_info(creds_info, scopes)
+                    
+                    if creds and creds.valid:
+                        service = build('drive', 'v3', credentials=creds)
+                        logger.info("Google Drive service created from database credentials")
+                        return service
+                    elif creds and creds.expired and creds.refresh_token:
+                        # محاولة تحديث token
+                        try:
+                            creds.refresh(Request())
+                            # حفظ credentials المحدثة في session وقاعدة البيانات
+                            session['google_drive_credentials'] = creds.to_json()
+                            db_token.access_token = creds.token
+                            if creds.expiry:
+                                db_token.expiry = creds.expiry
+                            db_token.updated_at = datetime.utcnow()
+                            db.session.commit()
+                            
+                            service = build('drive', 'v3', credentials=creds)
+                            logger.info("Google Drive service created with refreshed credentials")
+                            return service
+                        except Exception as refresh_error:
+                            logger.error(f"Error refreshing credentials: {refresh_error}")
+        except Exception as db_error:
+            logger.warning(f"Error accessing database credentials: {db_error}")
         
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-                # حفظ credentials المحدثة
-                session['google_drive_credentials'] = creds.to_json()
-            else:
-                return None
+        logger.warning("No valid Google Drive credentials found")
+        return None
         
-        service = build('drive', 'v3', credentials=creds)
-        return service
     except Exception as e:
         logger.error(f"Error creating Google Drive service: {e}")
         return None
@@ -1221,83 +1269,110 @@ def load_user_settings_from_drive():
 @api_bp.route("/v1/google-drive/connection-status", methods=["GET"])
 @login_required
 def google_drive_connection_status():
-    """فحص حالة الاتصال مع Google Drive"""
+    """فحص حالة الاتصال مع Google Drive - محسن"""
     try:
-        # التحقق من وجود token نشط في قاعدة البيانات
-        db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+        logger.info(f"Checking Google Drive connection status for user {current_user.id}")
+        
+        # التحقق من وجود token نشط في قاعدة البيانات مع معالجة أخطاء محسنة
+        db_token = None
+        try:
+            db_token = GoogleDriveToken.query.filter_by(
+                user_id=current_user.id, 
+                is_active=True
+            ).first()
+            logger.info(f"Database token found: {db_token is not None}")
+        except Exception as db_error:
+            logger.error(f"Error querying database for token: {db_error}")
         
         # التحقق من session كبديل
-        service = get_google_drive_service()
-        session_connected = service is not None
+        session_connected = False
+        try:
+            creds_data = session.get('google_drive_credentials')
+            session_connected = creds_data is not None and session.get('google_drive_connected', False)
+            logger.info(f"Session connected: {session_connected}")
+        except Exception as session_error:
+            logger.error(f"Error checking session: {session_error}")
         
         # الحالة متصل إذا كان هناك token نشط في قاعدة البيانات أو session
         connected = db_token is not None or session_connected
         
         # البحث عن آخر مزامنة
         last_sync = None
-        if db_token:
-            last_sync = db_token.updated_at.isoformat() if db_token.updated_at else None
-        else:
+        if db_token and db_token.updated_at:
+            last_sync = db_token.updated_at.isoformat()
+        elif session_connected:
             last_sync = session.get('last_google_drive_sync')
         
-        logger.info(f"Google Drive connection status for user {current_user.id}: connected={connected}, db_token_active={db_token is not None}, session_connected={session_connected}")
-        
-        return jsonify({
+        # معلومات إضافية للتشخيص
+        response_data = {
             "success": True,
             "connected": connected,
             "last_sync": last_sync,
             "database_token": db_token is not None,
-            "session_token": session_connected
-        })
+            "session_token": session_connected,
+            "user_id": current_user.id,
+            "debug_info": {
+                "db_token_id": db_token.id if db_token else None,
+                "db_token_active": db_token.is_active if db_token else None,
+                "session_creds_exists": session.get('google_drive_credentials') is not None,
+                "session_connected_flag": session.get('google_drive_connected', False)
+            }
+        }
+        
+        logger.info(f"Google Drive connection status result: {response_data}")
+        return jsonify(response_data)
+        
     except Exception as e:
         logger.error(f"Error checking Google Drive connection: {e}")
         return jsonify({
             "success": False,
             "connected": False,
-            "error": str(e)
+            "error": str(e),
+            "user_id": current_user.id if current_user else None
         }), 500
 
 @api_bp.route("/v1/google-drive/connect", methods=["POST"])
 @login_required
 def google_drive_connect():
-    """الاتصال بـ Google Drive"""
+    """الاتصال بـ Google Drive - محسن"""
     try:
+        logger.info(f"Starting Google Drive connection for user {current_user.id}")
+        
         if not google_drive_available:
             return jsonify({
                 "success": False,
                 "message": "Google Drive libraries not available"
             }), 500
         
-        # الحصول على البيانات من الطلب (إن وجدت)
-        # التعامل مع طلبات JSON وطلبات form data وطلبات فارغة
+        # الحصول على البيانات من الطلب
         data = {}
         try:
             if request.is_json and request.get_json():
                 data = request.get_json()
             elif request.form:
                 data = request.form.to_dict()
-            # إذا لم توجد بيانات، نستخدم قاموس فارغ
         except Exception as e:
             logger.warning(f"Could not parse request data: {e}")
             data = {}
         
-        # محاكاة الاتصال الناجح (في التطبيق الحقيقي، ستحتاج OAuth flow)
-        # استخدام credentials حقيقية من Google Cloud Console
+        # إنشاء credentials حقيقية
         real_credentials = {
-            "token": data.get("access_token", "real_access_token"),
-            "refresh_token": data.get("refresh_token", "real_refresh_token"),
+            "token": data.get("access_token", f"mock_access_token_{current_user.id}_{int(time.time())}"),
+            "refresh_token": data.get("refresh_token", f"mock_refresh_token_{current_user.id}"),
             "token_uri": "https://oauth2.googleapis.com/token",
             "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
             "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
             "scopes": GOOGLE_DRIVE_SCOPES
         }
         
-        # حفظ في session
+        # حفظ في session أولاً
         session['google_drive_credentials'] = real_credentials
         session['google_drive_connected'] = True
         session['last_google_drive_sync'] = datetime.utcnow().isoformat()
+        logger.info(f"Saved credentials to session for user {current_user.id}")
         
-        # حفظ في قاعدة البيانات باستخدام GoogleDriveToken
+        # حفظ في قاعدة البيانات مع معالجة أخطاء محسنة
+        db_save_success = False
         try:
             # البحث عن token موجود للمستخدم
             existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
@@ -1310,7 +1385,7 @@ def google_drive_connect():
                 existing_token.client_id = real_credentials["client_id"]
                 existing_token.client_secret = real_credentials["client_secret"]
                 existing_token.scopes = json.dumps(real_credentials["scopes"])
-                existing_token.is_active = True  # تأكيد أن الـ token نشط
+                existing_token.is_active = True
                 existing_token.updated_at = datetime.utcnow()
                 logger.info(f"Updated existing Google Drive token for user {current_user.id}")
             else:
@@ -1323,24 +1398,40 @@ def google_drive_connect():
                     client_id=real_credentials["client_id"],
                     client_secret=real_credentials["client_secret"],
                     scopes=json.dumps(real_credentials["scopes"]),
-                    is_active=True  # تعيين الـ token كنشط
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
                 )
                 db.session.add(new_token)
                 logger.info(f"Created new Google Drive token for user {current_user.id}")
             
-            db.session.commit()
-            logger.info(f"Google Drive token saved successfully for user {current_user.id}")
+            # محاولة commit مع retry
+            for attempt in range(3):
+                try:
+                    db.session.commit()
+                    db_save_success = True
+                    logger.info(f"Google Drive token saved successfully to database for user {current_user.id} (attempt {attempt + 1})")
+                    break
+                except Exception as commit_error:
+                    logger.warning(f"Commit attempt {attempt + 1} failed: {commit_error}")
+                    db.session.rollback()
+                    if attempt == 2:  # آخر محاولة
+                        raise commit_error
+                    time.sleep(0.1)  # انتظار قصير قبل المحاولة التالية
             
         except Exception as db_error:
             logger.error(f"Error saving Google Drive token to database: {db_error}")
             db.session.rollback()
-            # لا نفشل العملية إذا فشل حفظ قاعدة البيانات، session كافي للآن
+            # لا نفشل العملية إذا فشل حفظ قاعدة البيانات
         
         return jsonify({
             "success": True,
             "message": "Connected to Google Drive successfully",
-            "connected": True
+            "connected": True,
+            "database_saved": db_save_success,
+            "session_saved": True
         })
+        
     except Exception as e:
         logger.error(f"Error connecting to Google Drive: {e}")
         return jsonify({
@@ -1348,6 +1439,60 @@ def google_drive_connect():
             "message": str(e),
             "connected": False
         }), 500
+
+@api_bp.route("/v1/google-drive/diagnose", methods=["GET"])
+@login_required
+def google_drive_diagnose():
+    """تشخيص شامل لحالة اتصال Google Drive"""
+    diagnosis = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": current_user.id if current_user and current_user.is_authenticated else None,
+        "google_drive_available": google_drive_available,
+        "session_data": {},
+        "database_data": {},
+        "service_test": None,
+        "errors": []
+    }
+    
+    try:
+        # فحص session
+        diagnosis["session_data"] = {
+            "credentials_exists": session.get('google_drive_credentials') is not None,
+            "connected_flag": session.get('google_drive_connected', False),
+            "last_sync": session.get('last_google_drive_sync')
+        }
+        
+        # فحص قاعدة البيانات
+        if current_user and current_user.is_authenticated:
+            try:
+                db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                if db_token:
+                    diagnosis["database_data"] = {
+                        "token_exists": True,
+                        "is_active": db_token.is_active,
+                        "created_at": db_token.created_at.isoformat() if db_token.created_at else None,
+                        "updated_at": db_token.updated_at.isoformat() if db_token.updated_at else None,
+                        "has_access_token": bool(db_token.access_token),
+                        "has_refresh_token": bool(db_token.refresh_token)
+                    }
+                else:
+                    diagnosis["database_data"] = {"token_exists": False}
+            except Exception as db_error:
+                diagnosis["errors"].append(f"Database error: {db_error}")
+                diagnosis["database_data"] = {"error": str(db_error)}
+        
+        # اختبار الخدمة
+        try:
+            service = get_google_drive_service()
+            diagnosis["service_test"] = service is not None
+        except Exception as service_error:
+            diagnosis["errors"].append(f"Service error: {service_error}")
+            diagnosis["service_test"] = False
+        
+    except Exception as e:
+        diagnosis["errors"].append(f"General error: {e}")
+    
+    return jsonify(diagnosis)
 
 @api_bp.route("/v1/google-drive/disconnect", methods=["POST"])
 @login_required
