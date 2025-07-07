@@ -1552,94 +1552,9 @@ async function updateApiKeyInDatabase(apiKey) {
 
 // ===== فحص حالة Google Drive =====
 
-// فحص حالة الاتصال دورياً
-function startConnectionStatusCheck() {
-    // فحص فوري
-    checkConnectionStatus();
-    
-    // فحص كل 30 ثانية
-    setInterval(checkConnectionStatus, 30000);
-}
-
-// دالة محسنة لفحص حالة الاتصال
-async function checkConnectionStatus() {
-    try {
-        const response = await fetch('/api/v1/google-drive/connection-status');
-        const data = await response.json();
-        
-        if (data.success && data.status) {
-            updateConnectionUI(data.status.connected, data.token);
-            
-            // إذا كان الـ token يحتاج تحديث، حاول تحديثه
-            if (data.status.needs_refresh && data.status.has_refresh_token) {
-                console.log('🔄 Token needs refresh, attempting to refresh...');
-                await refreshToken();
-            }
-        } else {
-            updateConnectionUI(false, null);
-        }
-    } catch (error) {
-        console.error('❌ خطأ في فحص حالة الاتصال:', error);
-        updateConnectionUI(false, null);
-    }
-}
-
-// دالة تحديث الـ token
-async function refreshToken() {
-    try {
-        const response = await fetch('/api/v1/google-drive/refresh-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log('✅ تم تحديث Token بنجاح');
-            showNotification('تم تحديث الاتصال مع Google Drive', 'success');
-            updateConnectionUI(true, { access_token: data.access_token, token_type: data.token_type });
-        } else if (data.requires_reauth) {
-            console.log('⚠️ يتطلب إعادة تسجيل الدخول');
-            showNotification('يجب إعادة ربط Google Drive', 'warning');
-            updateConnectionUI(false, null);
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحديث Token:', error);
-    }
-}
-
-// تحديث واجهة المستخدم بناءً على حالة الاتصال
-function updateConnectionUI(connected, token) {
-    const statusElement = document.getElementById('google-drive-status');
-    const connectButton = document.getElementById('connect-google-drive');
-    const disconnectButton = document.getElementById('disconnect-google-drive');
-    
-    if (statusElement) {
-        if (connected) {
-            statusElement.innerHTML = '<span class="text-success">✅ متصل بـ Google Drive</span>';
-            statusElement.className = 'alert alert-success';
-        } else {
-            statusElement.innerHTML = '<span class="text-danger">❌ غير متصل بـ Google Drive</span>';
-            statusElement.className = 'alert alert-danger';
-        }
-    }
-    
-    if (connectButton) {
-        connectButton.style.display = connected ? 'none' : 'inline-block';
-    }
-    
-    if (disconnectButton) {
-        disconnectButton.style.display = connected ? 'inline-block' : 'none';
-    }
-}
-
 // تهيئة مفتاح API عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     displayApiKey();
-    startConnectionStatusCheck(); // بدء فحص الحالة الدوري
     
     // ربط زر إعادة توليد المفتاح
     const regenerateBtn = document.querySelector('button[name="regenerate_api_key"]');

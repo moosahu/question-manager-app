@@ -234,33 +234,21 @@ class GoogleDriveToken(db.Model if db else object):
                 
                 existing_token = cls.query.filter_by(user_id=user_id, is_active=True).first()
                 
-                # حساب تاريخ انتهاء الصلاحية
-                expiry_date = None
-                if token_data.get('expires_in'):
-                    try:
-                        expires_in_seconds = int(token_data.get('expires_in'))
-                        expiry_date = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid expires_in value: {token_data.get('expires_in')}")
-                elif token_data.get('expiry'):
-                    expiry_date = token_data.get('expiry')
-                
                 if existing_token:
                     # تحديث الرمز الموجود
                     existing_token.access_token = token_data.get('access_token')
-                    if token_data.get('refresh_token'):  # حفظ refresh_token فقط إذا كان موجوداً
-                        existing_token.refresh_token = token_data.get('refresh_token')
-                    existing_token.token_uri = token_data.get('token_uri', 'https://oauth2.googleapis.com/token')
+                    existing_token.refresh_token = token_data.get('refresh_token')
+                    existing_token.token_uri = token_data.get('token_uri')
                     existing_token.client_id = token_data.get('client_id')
                     existing_token.client_secret = token_data.get('client_secret')
                     existing_token.scopes = token_data.get('scopes')
-                    existing_token.expiry = expiry_date
-                    existing_token.api_key = token_data.get('api_key')
+                    existing_token.expiry = token_data.get('expiry')
+                    existing_token.api_key = token_data.get('api_key')  # إضافة api_key
                     existing_token.updated_at = datetime.utcnow()
                     existing_token.is_active = True
                     
                     db.session.commit()
-                    logger.info(f"Token updated successfully for user {user_id}, expires at: {expiry_date}")
+                    logger.info(f"Token updated successfully for user {user_id}")
                     return existing_token
                 else:
                     # إنشاء رمز جديد
@@ -268,18 +256,18 @@ class GoogleDriveToken(db.Model if db else object):
                         user_id=user_id,
                         access_token=token_data.get('access_token'),
                         refresh_token=token_data.get('refresh_token'),
-                        token_uri=token_data.get('token_uri', 'https://oauth2.googleapis.com/token'),
+                        token_uri=token_data.get('token_uri'),
                         client_id=token_data.get('client_id'),
                         client_secret=token_data.get('client_secret'),
                         scopes=token_data.get('scopes'),
-                        expiry=expiry_date,
-                        api_key=token_data.get('api_key'),
+                        expiry=token_data.get('expiry'),
+                        api_key=token_data.get('api_key'),  # إضافة api_key
                         is_active=True
                     )
                     
                     db.session.add(new_token)
                     db.session.commit()
-                    logger.info(f"New token created successfully for user {user_id}, expires at: {expiry_date}")
+                    logger.info(f"New token created successfully for user {user_id}")
                     return new_token
                     
             except Exception as e:
@@ -289,50 +277,6 @@ class GoogleDriveToken(db.Model if db else object):
                 return None
         
         return execute_with_app_context(_create_or_update)
-    
-    @classmethod
-    def refresh_user_token(cls, user_id):
-        """تحديث رمز المستخدم باستخدام refresh_token"""
-        def _refresh_token():
-            try:
-                if not db:
-                    logger.warning("Database not available")
-                    return None
-                
-                token = cls.query.filter_by(user_id=user_id, is_active=True).first()
-                if not token or not token.refresh_token:
-                    logger.warning(f"No refresh token available for user {user_id}")
-                    return None
-                
-                # في التطبيق الحقيقي، ستستدعي Google OAuth API لتحديث الـ token
-                # هنا سنحاكي العملية
-                import time
-                new_access_token = f"refreshed_token_{int(time.time())}"
-                new_expiry = datetime.utcnow() + timedelta(hours=1)
-                
-                token.access_token = new_access_token
-                token.expiry = new_expiry
-                token.updated_at = datetime.utcnow()
-                
-                db.session.commit()
-                logger.info(f"Token refreshed successfully for user {user_id}")
-                return token
-                
-            except Exception as e:
-                logger.error(f"Error refreshing token for user {user_id}: {e}")
-                if db:
-                    db.session.rollback()
-                return None
-        
-        return execute_with_app_context(_refresh_token)
-    
-    def needs_refresh(self):
-        """فحص ما إذا كان الـ token يحتاج تحديث"""
-        if not self.expiry:
-            return False
-        
-        # تحديث الـ token إذا كان سينتهي خلال 5 دقائق
-        return self.expiry <= datetime.utcnow() + timedelta(minutes=5)
 
 class GoogleDriveManager:
     """مدير Google Drive المحسن"""
@@ -508,22 +452,11 @@ class GoogleDriveManager:
                         'message': 'غير متصل بـ Google Drive'
                     }
                 
-                # فحص ما إذا كان الـ token يحتاج تحديث
-                if token.needs_refresh() and token.refresh_token:
-                    logger.info(f"Token for user {user_id} needs refresh, attempting to refresh...")
-                    refreshed_token = GoogleDriveToken.refresh_user_token(user_id)
-                    if refreshed_token:
-                        token = refreshed_token
-                        logger.info(f"Token refreshed successfully for user {user_id}")
-                    else:
-                        logger.warning(f"Failed to refresh token for user {user_id}")
-                
                 if not token.is_token_valid():
                     return {
                         'connected': False,
                         'message': 'انتهت صلاحية الرمز المميز',
-                        'needs_refresh': True,
-                        'has_refresh_token': bool(token.refresh_token)
+                        'needs_refresh': True
                     }
                 
                 return {
@@ -531,9 +464,7 @@ class GoogleDriveManager:
                     'message': 'متصل بـ Google Drive',
                     'folder_id': token.folder_id,
                     'last_backup': token.last_backup_date.isoformat() if token.last_backup_date else None,
-                    'backup_count': token.backup_count,
-                    'token_expires': token.expiry.isoformat() if token.expiry else None,
-                    'needs_refresh': token.needs_refresh()
+                    'backup_count': token.backup_count
                 }
                 
             except Exception as e:

@@ -753,24 +753,26 @@ def create_app():
                 try:
                     from src.models.google_drive import GoogleDriveToken
                     
-                    # إعداد بيانات الـ token للحفظ
-                    token_data = {
-                        'access_token': access_token,
-                        'refresh_token': refresh_token,
-                        'token_uri': 'https://oauth2.googleapis.com/token',
-                        'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
-                        'client_secret': os.environ.get('GOOGLE_CLIENT_SECRET'),
-                        'scopes': json.dumps(scope.split() if scope else ['https://www.googleapis.com/auth/drive.file']),
-                        'expires_in': expires_in
-                    }
-                    
-                    # حفظ الـ token في قاعدة البيانات
-                    saved_token = GoogleDriveToken.create_or_update_token(current_user.id, token_data)
-                    
-                    if saved_token:
-                        print(f'💾 تم حفظ token في قاعدة البيانات بنجاح للمستخدم {current_user.id}')
+                    # البحث عن token موجود أو إنشاء جديد
+                    existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if existing_token:
+                        existing_token.access_token = access_token
+                        if refresh_token:
+                            existing_token.refresh_token = refresh_token
+                        existing_token.created_at = datetime.utcnow()
+                        print(f'🔄 تم تحديث token للمستخدم {current_user.id}')
                     else:
-                        print(f'⚠️ فشل في حفظ token في قاعدة البيانات للمستخدم {current_user.id}')
+                        new_token = GoogleDriveToken(
+                            user_id=current_user.id,
+                            access_token=access_token,
+                            refresh_token=refresh_token,
+                            created_at=datetime.utcnow()
+                        )
+                        db.session.add(new_token)
+                        print(f'➕ تم إنشاء token جديد للمستخدم {current_user.id}')
+                    
+                    db.session.commit()
+                    print('💾 تم حفظ token في قاعدة البيانات بنجاح')
                     
                 except Exception as db_error:
                     print(f'⚠️ خطأ في حفظ token في قاعدة البيانات: {db_error}')
@@ -780,8 +782,7 @@ def create_app():
                 'success': True,
                 'message': 'تم ربط Google Drive بنجاح',
                 'connected': True,
-                'user_id': current_user.id,
-                'token_saved_in_db': google_drive_model_available
+                'user_id': current_user.id
             })
             
         except Exception as e:
@@ -882,104 +883,6 @@ def create_app():
                 'success': False,
                 'connected': False,
                 'error': str(e)
-            }), 500
-
-    @app.route('/api/v1/google-drive/refresh-token', methods=['POST'])
-    def refresh_google_drive_token():
-        """تحديث Google Drive Token"""
-        try:
-            print('🔄 طلب تحديث Google Drive Token...')
-            
-            # التحقق من المستخدم
-            if not current_user.is_authenticated:
-                return jsonify({
-                    'success': False,
-                    'message': 'يجب تسجيل الدخول أولاً'
-                }), 401
-            
-            # البحث عن refresh_token في قاعدة البيانات
-            refresh_token = None
-            if google_drive_model_available:
-                try:
-                    from src.models.google_drive import GoogleDriveToken
-                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
-                    if user_token and user_token.refresh_token:
-                        refresh_token = user_token.refresh_token
-                        print('✅ تم العثور على refresh_token في قاعدة البيانات')
-                    else:
-                        print(f'❌ لا يوجد refresh_token في قاعدة البيانات للمستخدم {current_user.id}')
-                except Exception as e:
-                    print(f'⚠️ خطأ في البحث في قاعدة البيانات: {e}')
-            
-            # البحث في الجلسة كبديل
-            if not refresh_token:
-                refresh_token = session.get('google_drive_refresh_token')
-                if refresh_token:
-                    print('✅ تم العثور على refresh_token في الجلسة')
-                else:
-                    print('❌ لا يوجد refresh_token في الجلسة')
-            
-            if not refresh_token:
-                return jsonify({
-                    'success': False,
-                    'message': 'لا يوجد refresh_token. يجب إعادة تسجيل الدخول إلى Google Drive',
-                    'requires_reauth': True
-                }), 400
-            
-            # تحديث الـ token باستخدام النموذج المحسن
-            if google_drive_model_available:
-                try:
-                    refreshed_token = GoogleDriveToken.refresh_user_token(current_user.id)
-                    if refreshed_token:
-                        # تحديث في الجلسة أيضاً
-                        session['google_drive_token'] = refreshed_token.access_token
-                        session['google_drive_connected'] = True
-                        
-                        print('✅ تم تحديث Token بنجاح')
-                        
-                        return jsonify({
-                            'success': True,
-                            'message': 'تم تحديث Token بنجاح',
-                            'access_token': refreshed_token.access_token,
-                            'token_type': 'Bearer',
-                            'expires_at': refreshed_token.expiry.isoformat() if refreshed_token.expiry else None
-                        })
-                    else:
-                        print('❌ فشل في تحديث Token')
-                        return jsonify({
-                            'success': False,
-                            'message': 'فشل في تحديث Token',
-                            'requires_reauth': True
-                        }), 400
-                except Exception as e:
-                    print(f'❌ خطأ في تحديث Token: {e}')
-                    return jsonify({
-                        'success': False,
-                        'message': f'خطأ في تحديث Token: {str(e)}'
-                    }), 500
-            else:
-                # محاكاة تحديث Token (في حالة عدم توفر النموذج)
-                import time
-                new_access_token = f"new_token_{int(time.time())}"
-                
-                # تحديث في الجلسة
-                session['google_drive_token'] = new_access_token
-                session['google_drive_connected'] = True
-                
-                print('✅ تم تحديث Token بنجاح (محاكاة)')
-                
-                return jsonify({
-                    'success': True,
-                    'message': 'تم تحديث Token بنجاح',
-                    'access_token': new_access_token,
-                    'token_type': 'Bearer'
-                })
-            
-        except Exception as e:
-            print(f'❌ خطأ في تحديث Token: {e}')
-            return jsonify({
-                'success': False,
-                'message': f'خطأ في تحديث Token: {str(e)}'
             }), 500
 
     @app.route('/api/v1/user-settings/sync-to-drive', methods=['POST'])
