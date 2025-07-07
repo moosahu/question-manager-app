@@ -13,7 +13,7 @@ try:
     from src.models.question import Question
     from src.models.curriculum import Course, Unit, Lesson
     from src.models.user import User
-    from src.models.google_drive import GoogleDriveToken
+    from src.google_drive import GoogleDriveToken
 except ImportError:
     try:
         from models.backup_settings import BackupSettings
@@ -21,7 +21,7 @@ except ImportError:
         from models.question import Question
         from models.curriculum import Course, Unit, Lesson
         from models.user import User
-        from models.google_drive import GoogleDriveToken
+        from google_drive import GoogleDriveToken
     except ImportError:
         try:
             from backup_settings import BackupSettings

@@ -148,9 +148,7 @@ class GoogleDriveToken(db.Model if db else object):
         last_backup_date = db.Column(db.DateTime, nullable=True)
         backup_count = db.Column(db.Integer, default=0)
         is_active = db.Column(db.Boolean, default=True)
-        
-        # إضافة عمود api_key للمفتاح العشوائي
-        api_key = db.Column(db.String(255), nullable=True)  # المفتاح العشوائي من الصفحة
+        api_key = db.Column(db.String(255), nullable=True)  # مفتاح API العشوائي
         
         # العلاقة مع المستخدم (إزالة مؤقتاً لتجنب مشاكل foreign key)
         # user = db.relationship('User', backref=db.backref('google_drive_tokens', lazy=True))
