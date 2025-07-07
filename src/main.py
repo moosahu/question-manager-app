@@ -751,6 +751,7 @@ def create_app():
             # حفظ في قاعدة البيانات إذا كان النموذج متاحاً
             if google_drive_model_available and current_user.is_authenticated:
                 try:
+                    import json
                     from src.models.google_drive import GoogleDriveToken
                     
                     # إعداد بيانات الـ token للحفظ
