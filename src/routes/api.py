@@ -25,6 +25,7 @@ try:
     from src.models.question import Question, Option
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.backup_settings import BackupSettings
+    from src.models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
     # محاولة استيراد نموذج Activity
     try:
         from src.models.activity import Activity
@@ -41,6 +42,7 @@ except ImportError:
         from models.question import Question, Option
         from models.curriculum import Lesson, Unit, Course
         from models.backup_settings import BackupSettings
+        from models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
         # محاولة استيراد نموذج Activity
         try:
             from models.activity import Activity
@@ -1221,16 +1223,29 @@ def load_user_settings_from_drive():
 def google_drive_connection_status():
     """فحص حالة الاتصال مع Google Drive"""
     try:
+        # التحقق من وجود token في قاعدة البيانات
+        db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+        
+        # التحقق من session كبديل
         service = get_google_drive_service()
-        connected = service is not None
+        session_connected = service is not None
+        
+        # الحالة متصل إذا كان هناك token في قاعدة البيانات أو session
+        connected = db_token is not None or session_connected
         
         # البحث عن آخر مزامنة
-        last_sync = session.get('last_google_drive_sync')
+        last_sync = None
+        if db_token:
+            last_sync = db_token.updated_at.isoformat() if db_token.updated_at else None
+        else:
+            last_sync = session.get('last_google_drive_sync')
         
         return jsonify({
             "success": True,
             "connected": connected,
-            "last_sync": last_sync
+            "last_sync": last_sync,
+            "database_token": db_token is not None,
+            "session_token": session_connected
         })
     except Exception as e:
         logger.error(f"Error checking Google Drive connection: {e}")
@@ -1275,9 +1290,45 @@ def google_drive_connect():
             "scopes": GOOGLE_DRIVE_SCOPES
         }
         
+        # حفظ في session
         session['google_drive_credentials'] = real_credentials
         session['google_drive_connected'] = True
         session['last_google_drive_sync'] = datetime.utcnow().isoformat()
+        
+        # حفظ في قاعدة البيانات باستخدام GoogleDriveToken
+        try:
+            # البحث عن token موجود للمستخدم
+            existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+            
+            if existing_token:
+                # تحديث token موجود
+                existing_token.access_token = real_credentials["token"]
+                existing_token.refresh_token = real_credentials["refresh_token"]
+                existing_token.token_uri = real_credentials["token_uri"]
+                existing_token.client_id = real_credentials["client_id"]
+                existing_token.client_secret = real_credentials["client_secret"]
+                existing_token.scopes = json.dumps(real_credentials["scopes"])
+                existing_token.updated_at = datetime.utcnow()
+            else:
+                # إنشاء token جديد
+                new_token = GoogleDriveToken(
+                    user_id=current_user.id,
+                    access_token=real_credentials["token"],
+                    refresh_token=real_credentials["refresh_token"],
+                    token_uri=real_credentials["token_uri"],
+                    client_id=real_credentials["client_id"],
+                    client_secret=real_credentials["client_secret"],
+                    scopes=json.dumps(real_credentials["scopes"])
+                )
+                db.session.add(new_token)
+            
+            db.session.commit()
+            logger.info(f"Google Drive token saved successfully for user {current_user.id}")
+            
+        except Exception as db_error:
+            logger.error(f"Error saving Google Drive token to database: {db_error}")
+            db.session.rollback()
+            # لا نفشل العملية إذا فشل حفظ قاعدة البيانات، session كافي للآن
         
         return jsonify({
             "success": True,
@@ -1301,6 +1352,18 @@ def google_drive_disconnect():
         session.pop('google_drive_credentials', None)
         session.pop('google_drive_connected', None)
         session.pop('last_google_drive_sync', None)
+        
+        # حذف token من قاعدة البيانات
+        try:
+            db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+            if db_token:
+                db.session.delete(db_token)
+                db.session.commit()
+                logger.info(f"Google Drive token deleted from database for user {current_user.id}")
+        except Exception as db_error:
+            logger.error(f"Error deleting Google Drive token from database: {db_error}")
+            db.session.rollback()
+            # لا نفشل العملية إذا فشل حذف قاعدة البيانات
         
         return jsonify({
             "success": True,
