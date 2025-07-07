@@ -19,765 +19,53 @@ const GOOGLE_DRIVE_CONFIG = {
 };
 
 // متغيرات حالة Google APIs
-let gapiInited = false;
-let gisInited = false;
 let tokenClient;
 
-// دالة تحميل GAPI
-function gapiLoaded() {
-    console.log('✅ GAPI loaded successfully');
-    gapi.load('client', initializeGapi);
-}
-
-// دالة تحميل GIS
-function gisLoaded() {
-    console.log('✅ GIS loaded successfully');
-    initializeGis();
-}
-
-// تهيئة GAPI Client
-async function initializeGapi() {
+// تهيئة Google APIs
+async function initializeGoogleAPIs() {
     try {
-        await gapi.client.init({
-            apiKey: GOOGLE_DRIVE_CONFIG.API_KEY,
-            discoveryDocs: [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
-        });
-        gapiInited = true;
-        console.log('✅ GAPI Client initialized successfully');
-        maybeEnableButtons();
-    } catch (error) {
-        console.error('❌ GAPI Client initialization failed:', error);
-    }
-}
-
-// تهيئة GIS Client
-function initializeGis() {
-    try {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
-            scope: GOOGLE_DRIVE_CONFIG.SCOPES,
-            callback: (tokenResponse) => {
-                console.log('✅ تم الحصول على token بنجاح');
-                handleAuthSuccess(tokenResponse);
-            },
-        });
-        gisInited = true;
-        console.log('✅ GIS Client initialized successfully');
-        maybeEnableButtons();
-    } catch (error) {
-        console.error('❌ GIS Client initialization failed:', error);
-    }
-}
-
-// تفعيل الأزرار عند اكتمال التهيئة
-function maybeEnableButtons() {
-    if (gapiInited && gisInited) {
-        console.log('🎉 تم تهيئة جميع Google APIs بنجاح');
-        const connectBtn = document.getElementById('connectGoogleDriveBtn');
-        if (connectBtn) {
-            connectBtn.disabled = false;
-        }
-    }
-}
-
-// معالجة نجاح المصادقة
-async function handleAuthSuccess(tokenResponse) {
-    try {
-        // إرسال الـ token إلى الخادم
-        const response = await fetch('/api/v1/google-drive/connect', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify(tokenResponse)
-        });
-
-        const result = await response.json();
+        console.log('🔄 تهيئة Google APIs...');
         
-        if (result.success) {
-            showNotification('تم ربط Google Drive بنجاح!', 'success');
-            updateConnectionStatus();
-        } else {
-            showNotification('فشل في ربط Google Drive: ' + (result.message || 'خطأ غير معروف'), 'error');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في إرسال token:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-// ربط Google Drive
-function connectToGoogleDrive() {
-    if (!gapiInited || !gisInited || !tokenClient) {
-        showNotification('Google APIs غير مهيأة، يرجى إعادة تحميل الصفحة', 'error');
-        return;
-    }
-    
-    console.log('✅ بدء عملية OAuth...');
-    tokenClient.requestAccessToken();
-}
-
-// قطع الاتصال مع Google Drive
-async function disconnectGoogleDrive() {
-    try {
-        const response = await fetch('/api/v1/google-drive/disconnect', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            }
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('تم قطع الاتصال مع Google Drive', 'success');
-            updateConnectionStatus();
-        } else {
-            showNotification('فشل في قطع الاتصال: ' + (result.message || 'خطأ غير معروف'), 'error');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في قطع الاتصال:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-// فحص حالة الاتصال
-async function checkConnectionStatus() {
-    try {
-        const response = await fetch('/api/v1/google-drive/connection-status');
-        const data = await response.json();
-        
-        if (data.success && data.status) {
-            updateConnectionUI(data.status.connected, data.status.token);
-        } else {
-            updateConnectionUI(false, null);
-        }
-    } catch (error) {
-        console.error('❌ خطأ في فحص حالة الاتصال:', error);
-        updateConnectionUI(false, null);
-    }
-}
-
-// تحديث واجهة المستخدم بناءً على حالة الاتصال
-function updateConnectionUI(connected, token) {
-    const statusElement = document.getElementById('driveConnectionStatus');
-    const connectButton = document.getElementById('connectGoogleDriveBtn');
-    const disconnectButton = document.getElementById('disconnectGoogleDriveBtn');
-    const indicator = document.getElementById('driveConnectionIndicator');
-    
-    if (statusElement) {
-        if (connected) {
-            statusElement.textContent = 'متصل بـ Google Drive';
-            statusElement.className = 'text-success';
-        } else {
-            statusElement.textContent = 'غير متصل بـ Google Drive';
-            statusElement.className = 'text-danger';
-        }
-    }
-    
-    if (indicator) {
-        if (connected) {
-            indicator.className = 'status-indicator connected';
-        } else {
-            indicator.className = 'status-indicator disconnected';
-        }
-    }
-    
-    if (connectButton) {
-        connectButton.style.display = connected ? 'none' : 'inline-block';
-    }
-    
-    if (disconnectButton) {
-        disconnectButton.style.display = connected ? 'inline-block' : 'none';
-    }
-    
-    // تحديث أزرار المزامنة
-    const syncBtn = document.getElementById('syncUserSettingsBtn');
-    const downloadBtn = document.getElementById('downloadUserSettingsBtn');
-    const syncDetails = document.getElementById('syncDetails');
-    
-    if (syncBtn) {
-        syncBtn.disabled = !connected;
-    }
-    
-    if (downloadBtn) {
-        downloadBtn.disabled = !connected;
-    }
-    
-    if (syncDetails) {
-        syncDetails.style.display = connected ? 'block' : 'none';
-    }
-}
-
-// تحديث حالة الاتصال
-function updateConnectionStatus() {
-    setTimeout(checkConnectionStatus, 1000);
-}
-
-// عرض الإشعارات
-function showNotification(message, type = 'info') {
-    // إنشاء عنصر الإشعار
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // إضافة الإشعار إلى الصفحة
-    document.body.appendChild(notification);
-    
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 5000);
-}
-
-// مزامنة إعدادات المستخدم
-async function syncUserSettings() {
-    try {
-        showNotification('جاري مزامنة الإعدادات...', 'info');
-        
-        const response = await fetch('/api/v1/user-settings/sync-to-drive', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            }
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('تم مزامنة الإعدادات بنجاح!', 'success');
-            updateLastSyncTime();
-        } else {
-            showNotification('فشل في مزامنة الإعدادات: ' + (result.message || 'خطأ غير معروف'), 'error');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في مزامنة الإعدادات:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-// تحميل إعدادات المستخدم
-async function downloadUserSettings() {
-    try {
-        showNotification('جاري تحميل الإعدادات...', 'info');
-        
-        const response = await fetch('/api/v1/user-settings/download-from-drive', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            }
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('تم تحميل الإعدادات بنجاح! سيتم إعادة تحميل الصفحة.', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            showNotification('فشل في تحميل الإعدادات: ' + (result.message || 'خطأ غير معروف'), 'error');
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحميل الإعدادات:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-// تحديث وقت آخر مزامنة
-function updateLastSyncTime() {
-    const lastSyncElement = document.getElementById('lastSyncTime');
-    if (lastSyncElement) {
-        const now = new Date();
-        lastSyncElement.textContent = now.toLocaleString('ar-SA');
-    }
-}
-
-// إدارة المصادقة الثنائية
-function setupTwoFactor() {
-    // عرض نافذة إعداد المصادقة الثنائية
-    const modal = document.getElementById('two-factor-setup-modal');
-    if (modal) {
-        modal.style.display = 'block';
-        generateTwoFactorQR();
-    }
-}
-
-function disableTwoFactor() {
-    // عرض نافذة تأكيد إلغاء المصادقة الثنائية
-    const modal = document.getElementById('two-factor-disable-modal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
-}
-
-function closeTwoFactorModal() {
-    // إغلاق جميع نوافذ المصادقة الثنائية
-    const modals = document.querySelectorAll('.two-factor-modal');
-    modals.forEach(modal => {
-        modal.style.display = 'none';
-    });
-}
-
-async function generateTwoFactorQR() {
-    try {
-        const response = await fetch('/api/v1/auth/two-factor/setup', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            }
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            // عرض QR Code والمفتاح السري
-            const qrImage = document.getElementById('qr-code-image');
-            const secretKey = document.getElementById('secret-key');
+        // تهيئة GAPI
+        if (window.gapi) {
+            await new Promise((resolve) => {
+                gapi.load('client', resolve);
+            });
             
-            if (qrImage && result.qr_code) {
-                qrImage.src = result.qr_code;
-            }
+            await gapi.client.init({
+                apiKey: GOOGLE_DRIVE_CONFIG.API_KEY,
+                discoveryDocs: [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
+            });
             
-            if (secretKey && result.secret) {
-                secretKey.textContent = result.secret;
-            }
-        } else {
-            showNotification('فشل في إنشاء QR Code: ' + (result.message || 'خطأ غير معروف'), 'error');
+            console.log('✅ تم تهيئة GAPI بنجاح');
         }
-    } catch (error) {
-        console.error('❌ خطأ في إنشاء QR Code:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-async function enableTwoFactor() {
-    const verificationCode = document.getElementById('verification-code').value;
-    
-    if (!verificationCode || verificationCode.length !== 6) {
-        showNotification('يرجى إدخال رمز التحقق المكون من 6 أرقام', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/v1/auth/two-factor/enable', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                verification_code: verificationCode
-            })
-        });
-
-        const result = await response.json();
         
-        if (result.success) {
-            showNotification('تم تفعيل المصادقة الثنائية بنجاح!', 'success');
-            closeTwoFactorModal();
-            // إعادة تحميل الصفحة لتحديث الحالة
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            showNotification('فشل في تفعيل المصادقة الثنائية: ' + (result.message || 'رمز التحقق غير صحيح'), 'error');
+        // تهيئة Google Identity Services
+        if (window.google && window.google.accounts) {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+                scope: GOOGLE_DRIVE_CONFIG.SCOPES,
+                callback: '', // سيتم تعيينه لاحقاً
+            });
+            
+            console.log('✅ تم تهيئة Google Identity Services بنجاح');
         }
-    } catch (error) {
-        console.error('❌ خطأ في تفعيل المصادقة الثنائية:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
-    }
-}
-
-async function confirmDisableTwoFactor() {
-    const verificationCode = document.getElementById('disable-verification-code').value;
-    
-    if (!verificationCode || verificationCode.length !== 6) {
-        showNotification('يرجى إدخال رمز التحقق المكون من 6 أرقام', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/v1/auth/two-factor/disable', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                verification_code: verificationCode
-            })
-        });
-
-        const result = await response.json();
         
-        if (result.success) {
-            showNotification('تم إلغاء المصادقة الثنائية بنجاح!', 'success');
-            closeTwoFactorModal();
-            // إعادة تحميل الصفحة لتحديث الحالة
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            showNotification('فشل في إلغاء المصادقة الثنائية: ' + (result.message || 'رمز التحقق غير صحيح'), 'error');
-        }
+        console.log('🎉 تم تهيئة Google APIs');
+        
     } catch (error) {
-        console.error('❌ خطأ في إلغاء المصادقة الثنائية:', error);
-        showNotification('خطأ في الاتصال بالخادم', 'error');
+        console.error('❌ خطأ في تهيئة Google APIs:', error);
     }
 }
 
-// التنقل بين أقسام الإعدادات
-function showSettingsSection(targetId) {
-    // إخفاء جميع الأقسام
-    const sections = document.querySelectorAll('.settings-section');
-    sections.forEach(section => {
-        section.style.display = 'none';
-    });
-    
-    // إزالة الفئة النشطة من جميع عناصر القائمة
-    const menuItems = document.querySelectorAll('.settings-menu-item a');
-    menuItems.forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    // عرض القسم المطلوب
-    const targetSection = document.getElementById(targetId);
-    if (targetSection) {
-        targetSection.style.display = 'block';
-    }
-    
-    // إضافة الفئة النشطة للعنصر المحدد
-    const activeItem = document.querySelector(`a[href="#${targetId}"]`);
-    if (activeItem) {
-        activeItem.classList.add('active');
-    }
-}
-
-// تهيئة الصفحة عند التحميل
+// تهيئة تلقائية عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
-    // فحص حالة الاتصال عند تحميل الصفحة
-    checkConnectionStatus();
-    
-    // فحص دوري كل 30 ثانية
-    setInterval(checkConnectionStatus, 30000);
-    
-    // ربط الأحداث
-    const connectBtn = document.getElementById('connectGoogleDriveBtn');
-    const disconnectBtn = document.getElementById('disconnectGoogleDriveBtn');
-    const syncBtn = document.getElementById('syncUserSettingsBtn');
-    const downloadBtn = document.getElementById('downloadUserSettingsBtn');
-    
-    if (connectBtn) {
-        connectBtn.addEventListener('click', connectToGoogleDrive);
-    }
-    
-    if (disconnectBtn) {
-        disconnectBtn.addEventListener('click', disconnectGoogleDrive);
-    }
-    
-    if (syncBtn) {
-        syncBtn.addEventListener('click', syncUserSettings);
-    }
-    
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', downloadUserSettings);
-    }
-    
-    // ربط أحداث التنقل
-    const menuLinks = document.querySelectorAll('.settings-menu-item a');
-    menuLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('href').substring(1);
-            showSettingsSection(targetId);
-        });
-    });
-    
-    // عرض القسم الأول افتراضياً
-    showSettingsSection('profile-settings');
-    
-    // ربط أحداث المصادقة الثنائية
-    const twoFactorCheckbox = document.getElementById('two-factor-auth');
-    if (twoFactorCheckbox) {
-        twoFactorCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                setupTwoFactor();
-            } else {
-                disableTwoFactor();
-            }
-        });
-    }
-    
-    // إغلاق النوافذ المنبثقة عند النقر خارجها
-    window.addEventListener('click', function(event) {
-        const modals = document.querySelectorAll('.two-factor-modal');
-        modals.forEach(modal => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
+    // انتظار تحميل Google APIs ثم التهيئة
+    setTimeout(initializeGoogleAPIs, 1000);
 });
 </script>
 
 <style>
-    /* أنماط عامة للإعدادات */
-    .settings-container {
-        display: flex;
-        min-height: 600px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    
-    .settings-sidebar {
-        width: 250px;
-        background: #fff;
-        border-left: 1px solid #dee2e6;
-        padding: 20px 0;
-    }
-    
-    .settings-sidebar h3 {
-        padding: 0 20px;
-        margin-bottom: 20px;
-        color: #495057;
-        font-size: 18px;
-    }
-    
-    .settings-menu {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .settings-menu-item {
-        margin: 0;
-    }
-    
-    .settings-menu-item a {
-        display: block;
-        padding: 12px 20px;
-        color: #6c757d;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border-right: 3px solid transparent;
-    }
-    
-    .settings-menu-item a:hover {
-        background: #f8f9fa;
-        color: #495057;
-    }
-    
-    .settings-menu-item a.active {
-        background: #e3f2fd;
-        color: #1976d2;
-        border-right-color: #1976d2;
-    }
-    
-    .settings-menu-item a i {
-        margin-left: 10px;
-        width: 20px;
-    }
-    
-    .settings-content {
-        flex: 1;
-        padding: 30px;
-        background: #fff;
-    }
-    
-    .settings-section {
-        display: none;
-    }
-    
-    .settings-section.active {
-        display: block;
-    }
-    
-    .settings-section h3 {
-        margin-bottom: 25px;
-        color: #495057;
-        border-bottom: 2px solid #e9ecef;
-        padding-bottom: 10px;
-    }
-    
-    .settings-section h3 i {
-        margin-left: 10px;
-        color: #1976d2;
-    }
-    
-    /* أنماط النماذج */
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-label {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 8px;
-        display: block;
-    }
-    
-    .form-control {
-        border: 1px solid #ced4da;
-        border-radius: 6px;
-        padding: 10px 12px;
-        transition: border-color 0.3s ease;
-    }
-    
-    .form-control:focus {
-        border-color: #1976d2;
-        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
-    }
-    
-    .form-check {
-        margin-bottom: 10px;
-    }
-    
-    .form-check-input {
-        margin-left: 10px;
-    }
-    
-    .form-text {
-        font-size: 14px;
-        margin-top: 5px;
-    }
-    
-    /* أنماط الأزرار */
-    .btn {
-        padding: 10px 20px;
-        border-radius: 6px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-    }
-    
-    .btn-primary {
-        background: #1976d2;
-        color: white;
-    }
-    
-    .btn-primary:hover {
-        background: #1565c0;
-    }
-    
-    .btn-success {
-        background: #388e3c;
-        color: white;
-    }
-    
-    .btn-success:hover {
-        background: #2e7d32;
-    }
-    
-    .btn-danger {
-        background: #d32f2f;
-        color: white;
-    }
-    
-    .btn-danger:hover {
-        background: #c62828;
-    }
-    
-    .btn-warning {
-        background: #f57c00;
-        color: white;
-    }
-    
-    .btn-warning:hover {
-        background: #ef6c00;
-    }
-    
-    .btn-info {
-        background: #0288d1;
-        color: white;
-    }
-    
-    .btn-info:hover {
-        background: #0277bd;
-    }
-    
-    .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-    
-    /* أنماط Google Drive */
-    .google-drive-sync-section {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-top: 15px;
-    }
-    
-    .sync-status-info {
-        margin-bottom: 20px;
-    }
-    
-    .connection-status {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    
-    .status-indicator {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-left: 10px;
-    }
-    
-    .status-indicator.connected {
-        background: #4caf50;
-    }
-    
-    .status-indicator.disconnected {
-        background: #f44336;
-    }
-    
-    .sync-description {
-        color: #6c757d;
-        font-size: 14px;
-        margin: 0;
-    }
-    
-    .sync-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-bottom: 20px;
-    }
-    
-    .sync-details {
-        border-top: 1px solid #dee2e6;
-        padding-top: 15px;
-    }
-    
-    .last-sync-info {
-        margin-bottom: 15px;
-    }
-    
-    .sync-options {
-        display: flex;
-        gap: 20px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    
     /* أنماط المصادقة الثنائية */
     .two-factor-modal {
         display: none;
@@ -902,49 +190,255 @@ document.addEventListener('DOMContentLoaded', function() {
         padding-right: 20px;
     }
     
-    /* أنماط متجاوبة */
+    .instructions li {
+        margin: 5px 0;
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+    .two-factor-modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .qr-code-container img {
+        max-height: 200px;
+        width: auto;
+    }
+
+    /* تنسيق قسم مزامنة Google Drive */
+    .google-drive-sync-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+
+    .sync-status-info {
+        margin-bottom: 20px;
+    }
+
+    .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #dc3545;
+        display: inline-block;
+    }
+
+    .status-indicator.connected {
+        background-color: #28a745;
+    }
+
+    .sync-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .sync-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+    .sync-actions .btn {
+        font-size: 0.9rem;
+        padding: 8px 16px;
+    }
+
+    .sync-details {
+        border-top: 1px solid #dee2e6;
+        padding-top: 15px;
+        margin-top: 15px;
+    }
+
+    .last-sync-info {
+        margin-bottom: 15px;
+    }
+
+    .sync-options {
+        display: grid;
+        gap: 15px;
+    }
+
+    .sync-options .form-group {
+        margin-bottom: 0;
+    }
+
+    .sync-options .form-control {
+        max-width: 200px;
+    }
+
     @media (max-width: 768px) {
-        .settings-container {
-            flex-direction: column;
-        }
-        
-        .settings-sidebar {
-            width: 100%;
-            border-left: none;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .settings-menu {
-            display: flex;
-            overflow-x: auto;
-            padding: 0 10px;
-        }
-        
-        .settings-menu-item {
-            flex-shrink: 0;
-        }
-        
-        .settings-menu-item a {
-            white-space: nowrap;
-            border-right: none;
-            border-bottom: 3px solid transparent;
-        }
-        
-        .settings-menu-item a.active {
-            border-right: none;
-            border-bottom-color: #1976d2;
-        }
-        
         .sync-actions {
             flex-direction: column;
         }
         
-        .sync-options {
-            flex-direction: column;
-            align-items: flex-start;
+        .sync-actions .btn {
+            width: 100%;
         }
     }
-</style>
+</style><!-- Google APIs للتكامل مع Google Drive -->
+<script>
+// إعدادات Google Drive API - يتم تحميلها من Backend
+let GOOGLE_CONFIG = {
+    CLIENT_ID: '',
+    API_KEY: ''
+};
+
+// متغيرات بسيطة
+let gapi_loaded = false;
+let gis_loaded = false;
+let tokenClient = null;
+let configLoaded = false;
+
+// دالة تحميل إعدادات Google OAuth من Backend
+async function loadGoogleConfig() {
+    try {
+        console.log('🔄 تحميل إعدادات Google OAuth من Backend...');
+        const response = await fetch('/api/v1/google-oauth/config');
+        const config = await response.json();
+        
+        if (config.success && config.client_id) {
+            GOOGLE_CONFIG.CLIENT_ID = config.client_id;
+            GOOGLE_CONFIG.API_KEY = config.api_key;
+            configLoaded = true;
+            console.log('✅ تم تحميل إعدادات Google OAuth بنجاح');
+            console.log('Client ID:', GOOGLE_CONFIG.CLIENT_ID.substring(0, 20) + '...');
+            
+            // تهيئة Google APIs بعد تحميل الإعدادات
+            if (gapi_loaded) {
+                initGapiClient();
+            }
+            if (gis_loaded) {
+                initGisClient();
+            }
+        } else {
+            console.error('❌ فشل في تحميل إعدادات Google OAuth:', config.error || 'خطأ غير معروف');
+            alert('خطأ: لا يمكن تحميل إعدادات Google OAuth. تأكد من إعداد متغيرات البيئة.');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحميل إعدادات Google OAuth:', error);
+        alert('خطأ في الاتصال بالخادم لتحميل إعدادات Google OAuth.');
+    }
+}
+
+// دالة تهيئة GAPI Client
+async function initGapiClient() {
+    if (!configLoaded || !GOOGLE_CONFIG.CLIENT_ID) {
+        console.log('⏳ انتظار تحميل إعدادات Google OAuth...');
+        return;
+    }
+    
+    try {
+        await gapi.client.init({
+            apiKey: GOOGLE_CONFIG.API_KEY,
+            // discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+        console.log('✅ GAPI Client initialized successfully');
+    } catch (error) {
+        console.error('❌ GAPI Client initialization failed:', error);
+    }
+}
+
+// دالة تهيئة GIS Client
+function initGisClient() {
+    if (!configLoaded || !GOOGLE_CONFIG.CLIENT_ID) {
+        console.log('⏳ انتظار تحميل إعدادات Google OAuth...');
+        return;
+    }
+    
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CONFIG.CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: (tokenResponse) => {
+                console.log('✅ تم الحصول على token بنجاح');
+                console.log('Token:', tokenResponse);
+                alert('تم ربط Google Drive بنجاح!');
+            },
+        });
+        console.log('✅ GIS Client initialized successfully');
+    } catch (error) {
+        console.error('❌ GIS Client initialization failed:', error);
+    }
+}
+
+// دالة تحميل GAPI
+function gapiLoaded() {
+    console.log('✅ GAPI loaded successfully');
+    gapi_loaded = true;
+    
+    // تحميل GAPI Client
+    gapi.load('client', () => {
+        if (configLoaded) {
+            initGapiClient();
+        }
+    });
+}
+
+// دالة تحميل GIS
+function gisLoaded() {
+    console.log('✅ GIS loaded successfully');
+    gis_loaded = true;
+    
+    if (configLoaded) {
+        initGisClient();
+    }
+}
+
+// دالة ربط Google Drive المحسنة
+function connectToGoogleDrive() {
+    console.log('🚀 محاولة ربط Google Drive...');
+    
+    if (!gapi_loaded || !gis_loaded) {
+        console.error('❌ Google APIs غير محملة');
+        alert('خطأ: Google APIs غير محملة');
+        return;
+    }
+    
+    if (!configLoaded || !GOOGLE_CONFIG.CLIENT_ID) {
+        console.error('❌ إعدادات Google OAuth غير محملة');
+        alert('خطأ: إعدادات Google OAuth غير محملة');
+        return;
+    }
+    
+    if (!tokenClient) {
+        console.error('❌ Google APIs غير مهيأة');
+        alert('خطأ: Google APIs غير مهيأة');
+        return;
+    }
+    
+    console.log('✅ بدء عملية OAuth...');
+    tokenClient.requestAccessToken();
+}
+</script>
+
+// معالجة أخطاء النوافذ المنبثقة
+                if (error.type === 'popup_blocked') {
+                    showNotification('تم حظر النافذة المنبثقة. يرجى السماح بالنوافذ المنبثقة وإعادة المحاولة.', 'error');
+                } else if (error.type === 'popup_closed') {
+                    showNotification('تم إغلاق نافذة تسجيل الدخول', 'warning');
+                }
+            }
+        });
+        console.log('✅ تم تهيئة Google Identity Services بنجاح');
+    } catch (error) {
+        console.error('❌ خطأ في تهيئة Google Identity Services:', error);
+    }
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -991,15 +485,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label for="bio" class="form-label">نبذة تعريفية</label>
                         <textarea id="bio" name="bio" class="form-control" rows="3">{{ profile_form.bio.data or '' }}</textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ الملف الشخصي</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التغييرات</button>
                 </form>
             </section>
-
+            
             <section id="account-settings" class="settings-section">
                 <h3><i class="fas fa-user-cog"></i> إعدادات الحساب</h3>
-                <form method="post" action="{{ url_for('settings.index') }}">
+                <form action="{{ url_for('settings.index') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="account_submit" value="1">
+                    <input type="hidden" name="change_password_submit" value="1">
                     <div class="form-group">
                         <label for="username" class="form-label">اسم المستخدم</label>
                         <input type="text" id="username" class="form-control" value="{{ current_user.username }}" readonly>
@@ -1016,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label for="confirm-password" class="form-label">تأكيد كلمة المرور الجديدة</label>
                         <input type="password" id="confirm-password" name="confirm_password" class="form-control">
                     </div>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات الحساب</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> تغيير كلمة المرور</button>
                 </form>
             </section>
 
@@ -1028,22 +522,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" id="email-notifications" name="email_notifications" class="form-check-input" {% if current_user.email_notifications %}checked{% endif %}>
-                            <label for="email-notifications" class="form-label">تلقي إشعارات عبر البريد الإلكتروني</label>
+                            <label for="email-notifications" class="form-label">تلقي الإشعارات عبر البريد الإلكتروني</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" id="app-notifications" name="app_notifications" class="form-check-input" {% if current_user.app_notifications %}checked{% endif %}>
-                            <label for="app-notifications" class="form-label">تلقي إشعارات التطبيق</label>
+                            <label for="app-notifications" class="form-label">تلقي الإشعارات داخل التطبيق</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="notification-frequency" class="form-label">تكرار الإشعارات</label>
                         <select id="notification-frequency" name="notification_frequency" class="form-control">
-                            <option value="immediate">فوري</option>
-                            <option value="daily">يومي</option>
-                            <option value="weekly">أسبوعي</option>
-                            <option value="monthly">شهري</option>
+                            <option value="immediate" {% if current_user.notification_frequency == 'immediate' %}selected{% endif %}>فوري</option>
+                            <option value="daily" {% if current_user.notification_frequency == 'daily' %}selected{% endif %}>يومي</option>
+                            <option value="weekly" {% if current_user.notification_frequency == 'weekly' %}selected{% endif %}>أسبوعي</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات الإشعارات</button>
@@ -1101,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group">
                         <label for="api-key" class="form-label">مفتاح API</label>
                         <input type="text" id="api-key" class="form-control" value="{{ current_user.api_key or 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }}" readonly>
-                        <button type="submit" name="regenerate_api_key" value="1" class="btn btn-warning mt-2"><i class="fas fa-sync-alt"></i> إعادة توليد المفتاح</button>
+                        <button type="submit" name="regenerate_api_key" value="1" class="btn btn-primary mt-2"><i class="fas fa-sync-alt"></i> إعادة توليد المفتاح</button>
                     </div>
                     
                     <!-- قسم مزامنة إعدادات المستخدم مع Google Drive -->
@@ -1120,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             
                             <div class="sync-actions">
-                                <button type="button" id="connectGoogleDriveBtn" class="btn btn-success" disabled>
+                                <button type="button" id="connectGoogleDriveBtn" class="btn btn-success">
                                     <i class="fas fa-link"></i> ربط Google Drive
                                 </button>
                                 <button type="button" id="disconnectGoogleDriveBtn" class="btn btn-danger" style="display: none;">
@@ -1212,18 +705,17 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- نافذة إلغاء المصادقة الثنائية -->
+<!-- نافذة إلغاء تفعيل المصادقة الثنائية -->
 <div id="two-factor-disable-modal" class="two-factor-modal">
     <div class="two-factor-modal-content">
         <div class="two-factor-modal-header">
-            <h3><i class="fas fa-shield-alt"></i> إلغاء المصادقة الثنائية</h3>
-            <button class="close-modal" onclick="closeTwoFactorModal()">&times;</button>
+            <h3><i class="fas fa-shield-alt"></i> إلغاء تفعيل المصادقة الثنائية</h3>
+            <button class="close-modal" onclick="closeTwoFactorDisableModal()">&times;</button>
         </div>
         
         <div class="instructions">
-            <h4>تأكيد إلغاء المصادقة الثنائية:</h4>
-            <p>لإلغاء المصادقة الثنائية، يرجى إدخال رمز التحقق من تطبيق المصادقة الخاص بك.</p>
-            <p><strong>تحذير:</strong> إلغاء المصادقة الثنائية سيقلل من مستوى الأمان لحسابك.</p>
+            <h4>تأكيد إلغاء التفعيل:</h4>
+            <p>لإلغاء تفعيل المصادقة الثنائية، يرجى إدخال رمز التحقق من تطبيق المصادقة الخاص بك.</p>
         </div>
         
         <div class="form-group">
@@ -1232,10 +724,10 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         
         <div class="form-group">
-            <button type="button" class="btn btn-danger" onclick="confirmDisableTwoFactor()">
-                <i class="fas fa-times"></i> إلغاء المصادقة الثنائية
+            <button type="button" class="btn btn-danger" onclick="disableTwoFactor()">
+                <i class="fas fa-times"></i> إلغاء تفعيل المصادقة الثنائية
             </button>
-            <button type="button" class="btn btn-secondary" onclick="closeTwoFactorModal()">
+            <button type="button" class="btn btn-secondary" onclick="closeTwoFactorDisableModal()">
                 <i class="fas fa-arrow-left"></i> إلغاء
             </button>
         </div>
@@ -1243,3 +735,905 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 {% endblock %}
 
+{% block scripts %}
+<script>
+    // ===== دوال مساعدة =====
+    
+    /**
+     * الحصول على CSRF token بطريقة آمنة
+     */
+    function getCSRFToken() {
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfMeta = document.querySelector('meta[name=csrf-token]');
+        
+        if (csrfInput) {
+            return csrfInput.value;
+        } else if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        }
+        return '';
+    }
+
+    // ===== باقي الكود =====
+    document.addEventListener('DOMContentLoaded', function () {
+        // تفعيل التنقل بين أقسام الإعدادات
+        const menuLinks = document.querySelectorAll('.settings-menu-item a');
+        const sections = document.querySelectorAll('.settings-section');
+        
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // إزالة الكلاس active من جميع الروابط
+                menuLinks.forEach(item => item.classList.remove('active'));
+                
+                // إضافة الكلاس active للرابط المحدد
+                this.classList.add('active');
+                
+                // إظهار القسم المطلوب
+                const targetId = this.getAttribute('href').substring(1);
+                sections.forEach(section => {
+                    if (section.id === targetId) {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        // عرض القسم الأول افتراضياً
+        if (menuLinks.length > 0 && sections.length > 0) {
+            menuLinks[0].classList.add('active');
+            sections.forEach((section, index) => {
+                section.style.display = index === 0 ? 'block' : 'none';
+            });
+        }
+
+        // معالجة تغيير حالة المصادقة الثنائية
+        const twoFactorCheckbox = document.getElementById('two-factor-auth');
+        if (twoFactorCheckbox) {
+            twoFactorCheckbox.addEventListener('change', function(e) {
+                e.preventDefault();
+                
+                if (this.checked) {
+                    // المستخدم يريد تفعيل المصادقة الثنائية
+                    if (!{{ 'true' if current_user.two_factor_auth else 'false' }}) {
+                        showTwoFactorSetupModal();
+                    }
+                } else {
+                    // المستخدم يريد إلغاء تفعيل المصادقة الثنائية
+                    if ({{ 'true' if current_user.two_factor_auth else 'false' }}) {
+                        showTwoFactorDisableModal();
+                    }
+                }
+                
+                // إعادة تعيين الحالة الأصلية
+                this.checked = {{ 'true' if current_user.two_factor_auth else 'false' }};
+            });
+        }
+    });
+
+    // عرض نافذة إعداد المصادقة الثنائية
+    function showTwoFactorSetupModal() {
+        const modal = document.getElementById('two-factor-setup-modal');
+        if (!modal) return;
+
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+
+        fetch('/settings/setup-2fa', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const qrContainer = document.getElementById('qr-code-container');
+                if (qrContainer && data.qr_html) {
+                    qrContainer.innerHTML = data.qr_html;
+                }
+
+                const secretElement = document.getElementById('secret-key');
+                if (secretElement) {
+                    secretElement.textContent = data.secret;
+                }
+            } else {
+                alert('فشل في تحميل بيانات المصادقة الثنائية');
+            }
+        })
+        .catch(error => {
+            console.error('خطأ:', error);
+            alert('حدث خطأ في الاتصال');
+        });
+    }
+
+    // عرض نافذة إلغاء تفعيل المصادقة الثنائية
+    function showTwoFactorDisableModal() {
+        document.getElementById('two-factor-disable-modal').style.display = 'block';
+    }
+
+    // إغلاق نافذة إعداد المصادقة الثنائية
+    function closeTwoFactorModal() {
+        document.getElementById('two-factor-setup-modal').style.display = 'none';
+        document.getElementById('verification-code').value = '';
+    }
+
+    // إغلاق نافذة إلغاء تفعيل المصادقة الثنائية
+    function closeTwoFactorDisableModal() {
+        document.getElementById('two-factor-disable-modal').style.display = 'none';
+        document.getElementById('disable-verification-code').value = '';
+    }
+
+    // تفعيل المصادقة الثنائية
+    function enableTwoFactor() {
+        const code = document.getElementById('verification-code').value;
+        
+        if (!code || code.length !== 6) {
+            alert('يرجى إدخال رمز التحقق المكون من 6 أرقام');
+            return;
+        }
+
+        // إرسال طلب تفعيل المصادقة الثنائية
+        fetch('/settings/verify-2fa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({ code: code })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('تم تفعيل المصادقة الثنائية بنجاح');
+                location.reload();
+            } else {
+                alert(data.message || 'حدث خطأ أثناء تفعيل المصادقة الثنائية');
+            }
+        })
+        .catch(error => {
+            console.error('خطأ:', error);
+            alert('حدث خطأ أثناء تفعيل المصادقة الثنائية');
+        });
+    }
+
+    // إلغاء تفعيل المصادقة الثنائية
+    function disableTwoFactor() {
+        const code = document.getElementById('disable-verification-code').value;
+        
+        if (!code || code.length !== 6) {
+            alert('يرجى إدخال رمز التحقق المكون من 6 أرقام');
+            return;
+        }
+
+        if (!confirm('هل أنت متأكد من إلغاء تفعيل المصادقة الثنائية؟ سيؤدي هذا إلى تقليل مستوى الأمان لحسابك.')) {
+            return;
+        }
+
+        // إرسال طلب إلغاء تفعيل المصادقة الثنائية
+        fetch('/settings/disable-2fa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: `verification_code=${code}&csrf_token=${getCSRFToken()}`
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('تم إلغاء تفعيل المصادقة الثنائية بنجاح');
+                location.reload();
+            } else {
+                alert('رمز التحقق غير صحيح أو حدث خطأ');
+            }
+        })
+        .catch(error => {
+            console.error('خطأ:', error);
+            alert('حدث خطأ أثناء إلغاء تفعيل المصادقة الثنائية');
+        });
+    }
+
+    // إغلاق النوافذ المنبثقة عند النقر خارجها
+    window.onclick = function(event) {
+        const setupModal = document.getElementById('two-factor-setup-modal');
+        const disableModal = document.getElementById('two-factor-disable-modal');
+        
+        if (event.target === setupModal) {
+            closeTwoFactorModal();
+        }
+        if (event.target === disableModal) {
+            closeTwoFactorDisableModal();
+        }
+    }
+
+    // ===== وظائف مزامنة إعدادات المستخدم مع Google Drive =====
+
+    // متغيرات حالة Google Drive (تم نقلها من الأعلى لتجنب التكرار)
+    let googleDriveConnected = false;
+    let lastSyncTime = null;
+
+    // تهيئة نظام Google Drive عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        // انتظار تحميل Google APIs ثم التهيئة
+        setTimeout(() => {
+            initializeGoogleAPIs();
+            initGoogleDriveSync();
+            setupGoogleDriveEventListeners();
+        }, 1000);
+    });
+
+    /**
+     * تهيئة نظام مزامنة Google Drive
+     */
+    function initGoogleDriveSync() {
+        console.log('🔄 تهيئة نظام مزامنة Google Drive للإعدادات');
+        
+        // فحص حالة الاتصال الأولية
+        checkGoogleDriveConnection();
+        
+        // تحديث الواجهة
+        updateGoogleDriveUI();
+    }
+
+    /**
+     * إعداد مستمعي الأحداث لأزرار Google Drive
+     */
+    function setupGoogleDriveEventListeners() {
+        const connectBtn = document.getElementById('connectGoogleDriveBtn');
+        const disconnectBtn = document.getElementById('disconnectGoogleDriveBtn');
+        const syncBtn = document.getElementById('syncUserSettingsBtn');
+        const downloadBtn = document.getElementById('downloadUserSettingsBtn');
+
+        if (connectBtn) {
+            connectBtn.addEventListener('click', connectToGoogleDrive);
+        }
+        
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', disconnectFromGoogleDrive);
+        }
+        
+        if (syncBtn) {
+            syncBtn.addEventListener('click', syncUserSettingsToGoogleDrive);
+        }
+        
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', downloadUserSettingsFromGoogleDrive);
+        }
+    }
+
+    /**
+     * فحص حالة الاتصال مع Google Drive
+     */
+    async function checkGoogleDriveConnection() {
+        try {
+            console.log('🔍 فحص حالة الاتصال مع Google Drive...');
+            const response = await fetch('/api/v1/google-drive/connection-status');
+            const data = await response.json();
+            
+            console.log('📊 استجابة فحص الحالة:', data);
+            
+            googleDriveConnected = data.connected || false;
+            lastSyncTime = data.last_sync || null;
+            
+            console.log(`✅ حالة الاتصال محدثة: ${googleDriveConnected ? 'متصل' : 'غير متصل'}`);
+            
+            updateGoogleDriveUI();
+        } catch (error) {
+            console.error('❌ خطأ في فحص حالة الاتصال:', error);
+            googleDriveConnected = false;
+            updateGoogleDriveUI();
+        }
+    }
+
+    /**
+     * تحديث واجهة Google Drive
+     */
+    function updateGoogleDriveUI() {
+        console.log(`🎨 تحديث واجهة Google Drive - الحالة: ${googleDriveConnected ? 'متصل' : 'غير متصل'}`);
+        
+        const indicator = document.getElementById('driveConnectionIndicator');
+        const status = document.getElementById('driveConnectionStatus');
+        const connectBtn = document.getElementById('connectGoogleDriveBtn');
+        const disconnectBtn = document.getElementById('disconnectGoogleDriveBtn');
+        const syncBtn = document.getElementById('syncUserSettingsBtn');
+        const downloadBtn = document.getElementById('downloadUserSettingsBtn');
+        const syncDetails = document.getElementById('syncDetails');
+        const lastSyncTimeElement = document.getElementById('lastSyncTime');
+
+        if (googleDriveConnected) {
+            // متصل
+            console.log('✅ تحديث الواجهة: متصل');
+            if (indicator) indicator.className = 'status-indicator connected';
+            if (status) status.textContent = 'متصل بـ Google Drive';
+            if (connectBtn) connectBtn.style.display = 'none';
+            if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
+            if (syncBtn) syncBtn.disabled = false;
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (syncDetails) syncDetails.style.display = 'block';
+            
+            if (lastSyncTime && lastSyncTimeElement) {
+                const syncDate = new Date(lastSyncTime);
+                lastSyncTimeElement.textContent = syncDate.toLocaleString('ar');
+            }
+        } else {
+            // غير متصل
+            console.log('❌ تحديث الواجهة: غير متصل');
+            if (indicator) indicator.className = 'status-indicator';
+            if (status) status.textContent = 'غير متصل بـ Google Drive';
+            if (connectBtn) connectBtn.style.display = 'inline-block';
+            if (disconnectBtn) disconnectBtn.style.display = 'none';
+            if (syncBtn) syncBtn.disabled = true;
+            if (downloadBtn) downloadBtn.disabled = true;
+            if (syncDetails) syncDetails.style.display = 'none';
+        }
+    }
+
+    /**
+     * الاتصال بـ Google Drive باستخدام OAuth مباشر
+     */
+    async function connectToGoogleDrive() {
+        try {
+            console.log('🔄 بدء عملية ربط Google Drive...');
+            
+            // التأكد من تحميل Google APIs
+            if (!window.gapi || !window.google) {
+                console.error('❌ Google APIs غير محملة');
+                showNotification('خطأ: Google APIs غير محملة', 'error');
+                return;
+            }
+            
+            // إنشاء tokenClient إذا لم يكن موجوداً
+            if (!tokenClient) {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+                    scope: GOOGLE_DRIVE_CONFIG.SCOPES,
+                    callback: async (resp) => {
+                        if (resp.error !== undefined) {
+                            console.error('❌ خطأ في المصادقة:', resp.error);
+                            showNotification('فشل في تسجيل الدخول إلى Google Drive', 'error');
+                            return;
+                        }
+                        
+                        try {
+                            console.log('✅ تم الحصول على token بنجاح');
+                            
+                            // حفظ الـ token في قاعدة البيانات
+                            const tokenData = {
+                                access_token: resp.access_token,
+                                expires_in: resp.expires_in,
+                                scope: resp.scope,
+                                token_type: resp.token_type || 'Bearer'
+                            };
+                            
+                            const saveResponse = await fetch('/api/v1/google-drive/connect', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCSRFToken()
+                                },
+                                body: JSON.stringify(tokenData)
+                            });
+                            
+                            if (!saveResponse.ok) {
+                                throw new Error('فشل في حفظ token في قاعدة البيانات');
+                            }
+                            
+                            const saveResult = await saveResponse.json();
+                            console.log('✅ تم حفظ Google Drive token في قاعدة البيانات:', saveResult);
+                            
+                            // تحديث حالة الاتصال فوراً
+                            googleDriveConnected = true;
+                            console.log('🔄 تحديث حالة الاتصال محلياً إلى: متصل');
+                            
+                            // تحديث الواجهة فوراً
+                            updateGoogleDriveUI();
+                            
+                            // فحص الحالة من الخادم للتأكيد
+                            setTimeout(() => {
+                                console.log('🔍 فحص الحالة من الخادم للتأكيد...');
+                                checkGoogleDriveConnection();
+                            }, 1000);
+                            
+                            showNotification('تم ربط Google Drive بنجاح!', 'success');
+                            
+                        } catch (error) {
+                            console.error('❌ خطأ في حفظ Google Drive token:', error);
+                            showNotification('تم تسجيل الدخول لكن فشل في حفظ الاتصال', 'warning');
+                        }
+                    }
+                });
+            }
+            
+            // طلب المصادقة
+            console.log('🚀 طلب المصادقة من Google...');
+            tokenClient.requestAccessToken({prompt: 'consent'});
+            
+        } catch (error) {
+            console.error('❌ خطأ في الاتصال:', error);
+            showNotification('خطأ في الاتصال بـ Google Drive', 'error');
+        }
+    }
+
+    /**
+     * قطع الاتصال مع Google Drive
+     */
+    async function disconnectFromGoogleDrive() {
+        if (!confirm('هل أنت متأكد من قطع الاتصال مع Google Drive؟')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/v1/google-drive/disconnect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                googleDriveConnected = false;
+                lastSyncTime = null;
+                updateGoogleDriveUI();
+                showNotification('تم قطع الاتصال مع Google Drive', 'success');
+            } else {
+                showNotification('فشل في قطع الاتصال: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('خطأ في قطع الاتصال:', error);
+            showNotification('خطأ في قطع الاتصال', 'error');
+        }
+    }
+
+    /**
+     * مزامنة إعدادات المستخدم إلى Google Drive
+     */
+    async function syncUserSettingsToGoogleDrive() {
+        if (!googleDriveConnected) {
+            showNotification('يجب الاتصال بـ Google Drive أولاً', 'warning');
+            return;
+        }
+
+        try {
+            showNotification('جاري مزامنة إعداداتك...', 'info');
+            
+            const response = await fetch('/api/v1/user-settings/sync-to-drive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({})
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                lastSyncTime = new Date().toISOString();
+                updateGoogleDriveUI();
+                showNotification('تم مزامنة إعداداتك بنجاح!', 'success');
+            } else {
+                showNotification('فشل في المزامنة: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('خطأ في المزامنة:', error);
+            showNotification('خطأ في مزامنة الإعدادات', 'error');
+        }
+    }
+
+    /**
+     * تحميل إعدادات المستخدم من Google Drive
+     */
+    async function downloadUserSettingsFromGoogleDrive() {
+        if (!googleDriveConnected) {
+            showNotification('يجب الاتصال بـ Google Drive أولاً', 'warning');
+            return;
+        }
+
+        if (!confirm('هل تريد تحميل الإعدادات من Google Drive؟ سيتم استبدال الإعدادات الحالية.')) {
+            return;
+        }
+
+        try {
+            showNotification('جاري تحميل إعداداتك...', 'info');
+            
+            const response = await fetch('/api/v1/user-settings/download-from-drive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({})
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('تم تحميل إعداداتك بنجاح! سيتم إعادة تحميل الصفحة.', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showNotification('فشل في التحميل: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('خطأ في التحميل:', error);
+            showNotification('خطأ في تحميل الإعدادات', 'error');
+        }
+    }
+
+    /**
+     * عرض إشعار للمستخدم
+     */
+    function showNotification(message, type = 'info') {
+        // إنشاء عنصر الإشعار
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        // إضافة الأنماط
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${getNotificationColor(type)};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease;
+            max-width: 400px;
+        `;
+        
+        // إضافة إلى الصفحة
+        document.body.appendChild(notification);
+        
+        // إزالة تلقائية بعد 5 ثوان
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideUp 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    }
+
+    function getNotificationIcon(type) {
+        const icons = {
+            success: 'check-circle',
+            error: 'exclamation-circle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+        return icons[type] || 'info-circle';
+    }
+
+    function getNotificationColor(type) {
+        const colors = {
+            success: '#27ae60',
+            error: '#e74c3c',
+            warning: '#f39c12',
+            info: '#3498db'
+        };
+        return colors[type] || '#3498db';
+    }
+
+    // إضافة أنماط الحركة للإشعارات
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideDown {
+                from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+            
+            @keyframes slideUp {
+                from { transform: translateX(-50%) translateY(0); opacity: 1; }
+                to { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+            }
+            
+            .notification button {
+                background: none;
+                border: none;
+                color: white;
+                cursor: pointer;
+                padding: 5px;
+                border-radius: 50%;
+                transition: background 0.3s ease;
+            }
+            
+            .notification button:hover {
+                background: rgba(255,255,255,0.2);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // إغلاق النوافذ المنبثقة عند النقر خارجها
+    window.onclick = function(event) {
+        const setupModal = document.getElementById('two-factor-setup-modal');
+        const disableModal = document.getElementById('two-factor-disable-modal');
+        
+        if (event.target === setupModal) {
+            closeTwoFactorModal();
+        }
+        if (event.target === disableModal) {
+            closeTwoFactorDisableModal();
+        }
+    }
+
+// ===== إضافة نظام Google OAuth للإعدادات =====
+
+/**
+ * الاتصال بـ Google Drive (النسخة الناجحة من لوحة التحكم)
+ */
+async function connectToGoogleDrive() {
+    try {
+        console.log('🚀 بدء عملية ربط Google Drive...');
+        
+        // التأكد من تهيئة Google APIs
+        if (!tokenClient) {
+            console.log('⏳ Google APIs غير مهيأة، جاري التهيئة...');
+            
+            // انتظار قصير للتهيئة
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            if (!tokenClient) {
+                console.error('❌ فشل في تهيئة Google APIs');
+                showNotification('فشل في تهيئة Google APIs، يرجى إعادة تحميل الصفحة', 'error');
+                return;
+            }
+        }
+        
+        showNotification('جاري الاتصال بـ Google Drive...', 'info');
+        
+        // تحديث callback
+        tokenClient.callback = async (resp) => {
+            if (resp.error !== undefined) {
+                console.error('❌ خطأ في المصادقة:', resp.error);
+                showNotification('فشل في تسجيل الدخول إلى Google Drive: ' + resp.error, 'error');
+                return;
+            }
+            
+            try {
+                console.log('✅ تم الحصول على token بنجاح');
+                
+                // حفظ الـ token في قاعدة البيانات
+                const tokenData = {
+                    access_token: resp.access_token,
+                    expires_in: resp.expires_in,
+                    scope: resp.scope,
+                    token_type: resp.token_type || 'Bearer'
+                };
+                
+                console.log('📤 إرسال token إلى الخادم...');
+                const saveResponse = await fetch('/api/v1/google-drive/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify(tokenData)
+                });
+                
+                if (!saveResponse.ok) {
+                    const errorText = await saveResponse.text();
+                    console.error('❌ خطأ في حفظ token:', saveResponse.status, errorText);
+                    throw new Error(`فشل في حفظ token: ${saveResponse.status}`);
+                }
+                
+                const saveResult = await saveResponse.json();
+                console.log('✅ تم حفظ Google Drive token في قاعدة البيانات:', saveResult);
+                
+                // تحديث حالة الاتصال
+                googleDriveConnected = true;
+                
+                showNotification('تم ربط Google Drive بنجاح!', 'success');
+                
+                // تحديث واجهة المستخدم
+                setTimeout(() => {
+                    location.reload(); // إعادة تحميل الصفحة لتحديث الحالة
+                }, 1500);
+                
+            } catch (error) {
+                console.error('❌ خطأ في حفظ Google Drive token:', error);
+                showNotification('تم تسجيل الدخول لكن فشل في حفظ الاتصال: ' + error.message, 'warning');
+            }
+        };
+        
+        // طلب المصادقة مع إعدادات محسنة
+        console.log('🔐 طلب المصادقة من Google...');
+        tokenClient.requestAccessToken({
+            prompt: 'consent',
+            hint: 'select_account'
+        });
+        
+    } catch (error) {
+        console.error('❌ خطأ عام في connectToGoogleDrive:', error);
+        showNotification('خطأ في بدء عملية المصادقة: ' + error.message, 'error');
+    }
+}
+
+// ===== دوال توليد مفتاح API =====
+
+// دالة توليد مفتاح API عشوائي
+function generateApiKey() {
+    // توليد UUID v4 عشوائي
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// دالة عرض مفتاح API في الحقل
+function displayApiKey() {
+    const apiKeyField = document.getElementById('api-key');
+    if (apiKeyField) {
+        // إذا كان الحقل فارغ أو يحتوي على placeholder، توليد مفتاح جديد
+        if (!apiKeyField.value || apiKeyField.value.includes('xxxxxxxx')) {
+            apiKeyField.value = generateApiKey();
+        }
+    }
+}
+
+// دالة إعادة توليد مفتاح API
+function regenerateApiKey() {
+    const apiKeyField = document.getElementById('api-key');
+    if (apiKeyField) {
+        const newKey = generateApiKey();
+        apiKeyField.value = newKey;
+        
+        // إظهار رسالة تأكيد
+        showNotification('تم توليد مفتاح API جديد بنجاح', 'success');
+        
+        // تحديث المفتاح في قاعدة البيانات
+        updateApiKeyInDatabase(newKey);
+    }
+}
+
+// دالة تحديث مفتاح API في قاعدة البيانات
+async function updateApiKeyInDatabase(apiKey) {
+    try {
+        const response = await fetch('/settings/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            },
+            body: `regenerate_api_key=1&new_api_key=${encodeURIComponent(apiKey)}`
+        });
+        
+        if (!response.ok) {
+            throw new Error('فشل في تحديث مفتاح API');
+        }
+        
+        console.log('✅ تم تحديث مفتاح API في قاعدة البيانات');
+    } catch (error) {
+        console.error('❌ خطأ في تحديث مفتاح API:', error);
+        showNotification('فشل في حفظ مفتاح API في قاعدة البيانات', 'error');
+    }
+}
+
+// ===== فحص حالة Google Drive =====
+
+// فحص حالة الاتصال دورياً
+function startConnectionStatusCheck() {
+    // فحص فوري
+    checkConnectionStatus();
+    
+    // فحص كل 30 ثانية
+    setInterval(checkConnectionStatus, 30000);
+}
+
+// دالة محسنة لفحص حالة الاتصال
+async function checkConnectionStatus() {
+    try {
+        const response = await fetch('/api/v1/google-drive/connection-status');
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            updateConnectionUI(data.status.connected, data.token);
+            
+            // إذا كان الـ token يحتاج تحديث، حاول تحديثه
+            if (data.status.needs_refresh && data.status.has_refresh_token) {
+                console.log('🔄 Token needs refresh, attempting to refresh...');
+                await refreshToken();
+            }
+        } else {
+            updateConnectionUI(false, null);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في فحص حالة الاتصال:', error);
+        updateConnectionUI(false, null);
+    }
+}
+
+// دالة تحديث الـ token
+async function refreshToken() {
+    try {
+        const response = await fetch('/api/v1/google-drive/refresh-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ تم تحديث Token بنجاح');
+            showNotification('تم تحديث الاتصال مع Google Drive', 'success');
+            updateConnectionUI(true, { access_token: data.access_token, token_type: data.token_type });
+        } else if (data.requires_reauth) {
+            console.log('⚠️ يتطلب إعادة تسجيل الدخول');
+            showNotification('يجب إعادة ربط Google Drive', 'warning');
+            updateConnectionUI(false, null);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحديث Token:', error);
+    }
+}
+
+// تحديث واجهة المستخدم بناءً على حالة الاتصال
+function updateConnectionUI(connected, token) {
+    const statusElement = document.getElementById('google-drive-status');
+    const connectButton = document.getElementById('connect-google-drive');
+    const disconnectButton = document.getElementById('disconnect-google-drive');
+    
+    if (statusElement) {
+        if (connected) {
+            statusElement.innerHTML = '<span class="text-success">✅ متصل بـ Google Drive</span>';
+            statusElement.className = 'alert alert-success';
+        } else {
+            statusElement.innerHTML = '<span class="text-danger">❌ غير متصل بـ Google Drive</span>';
+            statusElement.className = 'alert alert-danger';
+        }
+    }
+    
+    if (connectButton) {
+        connectButton.style.display = connected ? 'none' : 'inline-block';
+    }
+    
+    if (disconnectButton) {
+        disconnectButton.style.display = connected ? 'inline-block' : 'none';
+    }
+}
+
+// تهيئة مفتاح API عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    displayApiKey();
+    startConnectionStatusCheck(); // بدء فحص الحالة الدوري
+    
+    // ربط زر إعادة توليد المفتاح
+    const regenerateBtn = document.querySelector('button[name="regenerate_api_key"]');
+    if (regenerateBtn) {
+        regenerateBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            regenerateApiKey();
+        });
+    }
+});
+
+// تحديث الدالة العامة لتستخدم النظام الجديد
+window.connectToGoogleDrive = connectToGoogleDrive;
+</script>
+{% endblock %}
