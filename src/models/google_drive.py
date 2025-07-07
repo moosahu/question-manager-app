@@ -58,42 +58,54 @@ except ImportError:
         User = None
 
 def execute_with_app_context(func, *args, **kwargs):
-    """تنفيذ دالة مع app context صحيح - الإصلاح النهائي المحسن"""
+    """تنفيذ دالة مع app context صحيح - الإصلاح النهائي لمشكلة SQLAlchemy"""
+    # محاولة 1: استخدام current_app مباشرة
     try:
-        # محاولة استخدام current_app مباشرة
-        from flask import current_app
-        if current_app:
+        if current_app and current_app._get_current_object():
             logger.debug("Using current Flask app context")
             return func(*args, **kwargs)
     except RuntimeError:
         # لا يوجد app context حالي
         pass
     except Exception as e:
-        logger.warning(f"Error accessing current_app: {e}")
+        logger.debug(f"Current app not available: {e}")
     
+    # محاولة 2: إنشاء app context من db.app
     try:
-        # محاولة الحصول على app من db
         if db and hasattr(db, 'app') and db.app:
             logger.debug("Creating app context from db.app")
             with db.app.app_context():
                 return func(*args, **kwargs)
     except Exception as e:
-        logger.warning(f"Error using db.app context: {e}")
+        logger.debug(f"Error using db.app context: {e}")
     
+    # محاولة 3: البحث عن Flask app في النظام
     try:
-        # محاولة الحصول على app من Flask
-        from flask import Flask
-        app = Flask.current_app
-        if app:
-            logger.debug("Using Flask.current_app")
-            with app.app_context():
+        import flask
+        if hasattr(flask, 'current_app') and flask.current_app:
+            with flask.current_app.app_context():
+                logger.debug("Using flask.current_app context")
                 return func(*args, **kwargs)
     except Exception as e:
-        logger.warning(f"Error using Flask.current_app: {e}")
+        logger.debug(f"Error using flask.current_app: {e}")
     
-    # إذا فشلت جميع المحاولات، نحاول تنفيذ الدالة بدون context
-    logger.warning("No Flask app context available, attempting direct execution")
+    # محاولة 4: تنفيذ مباشر مع معالجة خاصة لـ SQLAlchemy
+    logger.warning("No Flask app context available, attempting direct execution with SQLAlchemy fix")
     try:
+        # محاولة تهيئة db إذا لم يكن مهيأ
+        if db and hasattr(db, 'init_app') and not hasattr(db, '_app_initialized'):
+            try:
+                # البحث عن Flask app في المتغيرات العامة
+                import sys
+                for name, obj in sys.modules.items():
+                    if hasattr(obj, 'app') and hasattr(obj.app, 'config'):
+                        db.init_app(obj.app)
+                        db._app_initialized = True
+                        logger.info("SQLAlchemy initialized with found Flask app")
+                        break
+            except Exception as init_e:
+                logger.debug(f"Could not initialize SQLAlchemy: {init_e}")
+        
         return func(*args, **kwargs)
     except Exception as e:
         logger.error(f"Error executing function without app context: {e}")
