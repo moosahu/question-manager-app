@@ -965,13 +965,18 @@ function connectToGoogleDrive() {
 
     // ===== وظائف مزامنة إعدادات المستخدم مع Google Drive =====
 
+    // متغيرات حالة Google Drive (تم نقلها من الأعلى لتجنب التكرار)
     let googleDriveConnected = false;
     let lastSyncTime = null;
 
     // تهيئة نظام Google Drive عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', function() {
-        initGoogleDriveSync();
-        setupGoogleDriveEventListeners();
+        // انتظار تحميل Google APIs ثم التهيئة
+        setTimeout(() => {
+            initializeGoogleAPIs();
+            initGoogleDriveSync();
+            setupGoogleDriveEventListeners();
+        }, 1000);
     });
 
     /**
@@ -1018,15 +1023,20 @@ function connectToGoogleDrive() {
      */
     async function checkGoogleDriveConnection() {
         try {
+            console.log('🔍 فحص حالة الاتصال مع Google Drive...');
             const response = await fetch('/api/v1/google-drive/connection-status');
             const data = await response.json();
+            
+            console.log('📊 استجابة فحص الحالة:', data);
             
             googleDriveConnected = data.connected || false;
             lastSyncTime = data.last_sync || null;
             
+            console.log(`✅ حالة الاتصال محدثة: ${googleDriveConnected ? 'متصل' : 'غير متصل'}`);
+            
             updateGoogleDriveUI();
         } catch (error) {
-            console.error('خطأ في فحص حالة الاتصال:', error);
+            console.error('❌ خطأ في فحص حالة الاتصال:', error);
             googleDriveConnected = false;
             updateGoogleDriveUI();
         }
@@ -1036,6 +1046,8 @@ function connectToGoogleDrive() {
      * تحديث واجهة Google Drive
      */
     function updateGoogleDriveUI() {
+        console.log(`🎨 تحديث واجهة Google Drive - الحالة: ${googleDriveConnected ? 'متصل' : 'غير متصل'}`);
+        
         const indicator = document.getElementById('driveConnectionIndicator');
         const status = document.getElementById('driveConnectionStatus');
         const connectBtn = document.getElementById('connectGoogleDriveBtn');
@@ -1047,27 +1059,29 @@ function connectToGoogleDrive() {
 
         if (googleDriveConnected) {
             // متصل
-            indicator.className = 'status-indicator connected';
-            status.textContent = 'متصل بـ Google Drive';
-            connectBtn.style.display = 'none';
-            disconnectBtn.style.display = 'inline-block';
-            syncBtn.disabled = false;
-            downloadBtn.disabled = false;
-            syncDetails.style.display = 'block';
+            console.log('✅ تحديث الواجهة: متصل');
+            if (indicator) indicator.className = 'status-indicator connected';
+            if (status) status.textContent = 'متصل بـ Google Drive';
+            if (connectBtn) connectBtn.style.display = 'none';
+            if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
+            if (syncBtn) syncBtn.disabled = false;
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (syncDetails) syncDetails.style.display = 'block';
             
-            if (lastSyncTime) {
+            if (lastSyncTime && lastSyncTimeElement) {
                 const syncDate = new Date(lastSyncTime);
                 lastSyncTimeElement.textContent = syncDate.toLocaleString('ar');
             }
         } else {
             // غير متصل
-            indicator.className = 'status-indicator';
-            status.textContent = 'غير متصل بـ Google Drive';
-            connectBtn.style.display = 'inline-block';
-            disconnectBtn.style.display = 'none';
-            syncBtn.disabled = true;
-            downloadBtn.disabled = true;
-            syncDetails.style.display = 'none';
+            console.log('❌ تحديث الواجهة: غير متصل');
+            if (indicator) indicator.className = 'status-indicator';
+            if (status) status.textContent = 'غير متصل بـ Google Drive';
+            if (connectBtn) connectBtn.style.display = 'inline-block';
+            if (disconnectBtn) disconnectBtn.style.display = 'none';
+            if (syncBtn) syncBtn.disabled = true;
+            if (downloadBtn) downloadBtn.disabled = true;
+            if (syncDetails) syncDetails.style.display = 'none';
         }
     }
 
@@ -1129,9 +1143,18 @@ function connectToGoogleDrive() {
                             const saveResult = await saveResponse.json();
                             console.log('✅ تم حفظ Google Drive token في قاعدة البيانات:', saveResult);
                             
-                            // تحديث حالة الاتصال
+                            // تحديث حالة الاتصال فوراً
                             googleDriveConnected = true;
+                            console.log('🔄 تحديث حالة الاتصال محلياً إلى: متصل');
+                            
+                            // تحديث الواجهة فوراً
                             updateGoogleDriveUI();
+                            
+                            // فحص الحالة من الخادم للتأكيد
+                            setTimeout(() => {
+                                console.log('🔍 فحص الحالة من الخادم للتأكيد...');
+                                checkGoogleDriveConnection();
+                            }, 1000);
                             
                             showNotification('تم ربط Google Drive بنجاح!', 'success');
                             
@@ -1529,40 +1552,9 @@ async function updateApiKeyInDatabase(apiKey) {
 
 // ===== فحص حالة Google Drive =====
 
-// فحص حالة Google Drive عند تحميل الصفحة
-async function checkGoogleDriveStatus() {
-    try {
-        const response = await fetch('/api/v1/google-drive/connection-status', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            googleDriveConnected = data.connected;
-            lastSyncTime = data.last_sync;
-            updateGoogleDriveUI();
-            console.log(`✅ حالة Google Drive: ${data.connected ? 'متصل' : 'غير متصل'}`);
-        }
-        
-    } catch (error) {
-        console.error('❌ خطأ في فحص حالة Google Drive:', error);
-    }
-}
-
 // تهيئة مفتاح API عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     displayApiKey();
-    
-    // تحميل إعدادات Google OAuth من Backend
-    loadGoogleConfig();
-    
-    // فحص حالة Google Drive
-    checkGoogleDriveStatus();
     
     // ربط زر إعادة توليد المفتاح
     const regenerateBtn = document.querySelector('button[name="regenerate_api_key"]');
