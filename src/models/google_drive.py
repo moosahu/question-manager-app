@@ -57,18 +57,34 @@ except ImportError:
         db = None
         User = None
 
+def execute_with_app_context(func, *args, **kwargs):
+    """تنفيذ دالة مع app context صحيح - إصلاح محسن"""
+    try:
+        # فحص وجود current_app أولاً
+        if current_app:
+            return func(*args, **kwargs)
+        
+        # إذا لم يكن هناك current_app، نحاول الوصول للتطبيق عبر db
+        if db and hasattr(db, 'app') and db.app:
+            with db.app.app_context():
+                return func(*args, **kwargs)
+        
+        logger.warning("No Flask app context available for database operation")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error executing with app context: {e}")
+        return None
+
 def get_db_with_context():
-    """الحصول على db مع app context صحيح"""
+    """الحصول على db مع app context صحيح - محسن"""
     try:
         if current_app:
             return db
         else:
             # إذا لم يكن هناك app context، نحاول إنشاء واحد
-            from flask import Flask
-            app = Flask.current_app if hasattr(Flask, 'current_app') else None
-            if app:
-                with app.app_context():
-                    return db
+            if db and hasattr(db, 'app') and db.app:
+                return db
             return None
     except:
         return None
@@ -133,75 +149,71 @@ class GoogleDriveToken(db.Model if db else object):
     @classmethod
     def get_user_token(cls, user_id):
         """الحصول على رمز المستخدم مع app context صحيح"""
-        try:
-            # التأكد من وجود app context
-            if not current_app:
-                logger.warning("No Flask app context available for database query")
+        def _get_token():
+            try:
+                return cls.query.filter_by(user_id=user_id, is_active=True).first()
+            except Exception as e:
+                logger.error(f"Database error getting user token: {e}")
                 return None
-                
-            database = get_db_with_context()
-            if not database:
-                logger.warning("Database not available")
-                return None
-                
-            return cls.query.filter_by(user_id=user_id, is_active=True).first()
-        except Exception as e:
-            logger.error(f"Error getting user token: {e}")
-            return None
+        
+        return execute_with_app_context(_get_token)
     
     @classmethod
     def create_or_update_token(cls, user_id, token_data):
-        """إنشاء أو تحديث رمز المستخدم مع app context صحيح"""
-        try:
-            # التأكد من وجود app context
-            if not current_app:
-                logger.warning("No Flask app context available for database operation")
+        """إنشاء أو تحديث رمز المستخدم مع app context صحيح - إصلاح محسن"""
+        def _create_or_update():
+            try:
+                database = get_db_with_context()
+                if not database:
+                    logger.error("Database not available for token operation")
+                    return None
+                
+                existing_token = cls.query.filter_by(user_id=user_id, is_active=True).first()
+                
+                if existing_token:
+                    # تحديث الرمز الموجود
+                    existing_token.access_token = token_data.get('access_token')
+                    existing_token.refresh_token = token_data.get('refresh_token')
+                    existing_token.token_uri = token_data.get('token_uri')
+                    existing_token.client_id = token_data.get('client_id')
+                    existing_token.client_secret = token_data.get('client_secret')
+                    existing_token.scopes = token_data.get('scopes')
+                    existing_token.expiry = token_data.get('expiry')
+                    existing_token.updated_at = datetime.utcnow()
+                    existing_token.is_active = True
+                    
+                    database.session.commit()
+                    logger.info(f"Token updated successfully for user {user_id}")
+                    return existing_token
+                else:
+                    # إنشاء رمز جديد
+                    new_token = cls(
+                        user_id=user_id,
+                        access_token=token_data.get('access_token'),
+                        refresh_token=token_data.get('refresh_token'),
+                        token_uri=token_data.get('token_uri'),
+                        client_id=token_data.get('client_id'),
+                        client_secret=token_data.get('client_secret'),
+                        scopes=token_data.get('scopes'),
+                        expiry=token_data.get('expiry'),
+                        is_active=True
+                    )
+                    
+                    database.session.add(new_token)
+                    database.session.commit()
+                    logger.info(f"New token created successfully for user {user_id}")
+                    return new_token
+                    
+            except Exception as e:
+                logger.error(f"Error creating/updating token for user {user_id}: {e}")
+                try:
+                    if database:
+                        database.session.rollback()
+                except:
+                    pass
                 return None
-                
-            database = get_db_with_context()
-            if not database:
-                logger.warning("Database not available")
-                return None
-                
-            existing_token = cls.get_user_token(user_id)
-            
-            if existing_token:
-                # تحديث الرمز الموجود
-                existing_token.access_token = token_data.get('access_token')
-                existing_token.refresh_token = token_data.get('refresh_token')
-                existing_token.token_uri = token_data.get('token_uri')
-                existing_token.client_id = token_data.get('client_id')
-                existing_token.client_secret = token_data.get('client_secret')
-                existing_token.scopes = token_data.get('scopes')
-                existing_token.expiry = token_data.get('expiry')
-                existing_token.updated_at = datetime.utcnow()
-                existing_token.is_active = True
-                
-                database.session.commit()
-                return existing_token
-            else:
-                # إنشاء رمز جديد
-                new_token = cls(
-                    user_id=user_id,
-                    access_token=token_data.get('access_token'),
-                    refresh_token=token_data.get('refresh_token'),
-                    token_uri=token_data.get('token_uri'),
-                    client_id=token_data.get('client_id'),
-                    client_secret=token_data.get('client_secret'),
-                    scopes=token_data.get('scopes'),
-                    expiry=token_data.get('expiry'),
-                    is_active=True
-                )
-                
-                database.session.add(new_token)
-                database.session.commit()
-                return new_token
-                
-        except Exception as e:
-            logger.error(f"Error creating/updating token: {e}")
-            if database:
-                database.session.rollback()
-            return None
+        
+        return execute_with_app_context(_create_or_update)
 
 class GoogleDriveManager:
     """مدير Google Drive المحسن"""
@@ -332,81 +344,79 @@ class GoogleDriveManager:
             return False
     
     def disconnect_user(self, user_id: int) -> bool:
-        """قطع اتصال المستخدم"""
-        try:
-            # التأكد من وجود app context
-            if not current_app:
-                logger.warning("No Flask app context available for disconnect operation")
+        """قطع اتصال المستخدم مع app context صحيح"""
+        def _disconnect():
+            try:
+                database = get_db_with_context()
+                if not database:
+                    logger.error("Database not available for disconnect operation")
+                    return False
+                    
+                token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                if token:
+                    token.is_active = False
+                    token.updated_at = datetime.utcnow()
+                    database.session.commit()
+                    
+                    logger.info(f"User {user_id} disconnected from Google Drive")
+                    return True
+                
                 return False
                 
-            database = get_db_with_context()
-            if not database:
-                logger.warning("Database not available for disconnect operation")
+            except Exception as e:
+                logger.error(f"Error disconnecting user {user_id}: {e}")
+                try:
+                    if database:
+                        database.session.rollback()
+                except:
+                    pass
                 return False
-                
-            token = GoogleDriveToken.get_user_token(user_id)
-            if token:
-                token.is_active = False
-                token.updated_at = datetime.utcnow()
-                database.session.commit()
-                
-                logger.info(f"User {user_id} disconnected from Google Drive")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error disconnecting user {user_id}: {e}")
-            return False
+        
+        return execute_with_app_context(_disconnect)
     
     def get_user_connection_status(self, user_id: int) -> Dict[str, Any]:
-        """الحصول على حالة اتصال المستخدم مع app context صحيح"""
-        try:
-            # التأكد من وجود app context
-            if not current_app:
-                logger.warning("No Flask app context available for status check")
+        """الحصول على حالة اتصال المستخدم مع app context صحيح - إصلاح محسن"""
+        def _get_status():
+            try:
+                database = get_db_with_context()
+                if not database:
+                    logger.error("Database not available for status check")
+                    return {
+                        'connected': False,
+                        'message': 'قاعدة البيانات غير متاحة'
+                    }
+                    
+                token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                
+                if not token:
+                    return {
+                        'connected': False,
+                        'message': 'غير متصل بـ Google Drive'
+                    }
+                
+                if not token.is_token_valid():
+                    return {
+                        'connected': False,
+                        'message': 'انتهت صلاحية الرمز المميز',
+                        'needs_refresh': True
+                    }
+                
                 return {
-                    'connected': False,
-                    'message': 'خطأ في app context - يرجى المحاولة مرة أخرى'
+                    'connected': True,
+                    'message': 'متصل بـ Google Drive',
+                    'folder_id': token.folder_id,
+                    'last_backup': token.last_backup_date.isoformat() if token.last_backup_date else None,
+                    'backup_count': token.backup_count
                 }
                 
-            database = get_db_with_context()
-            if not database:
-                logger.warning("Database not available for status check")
+            except Exception as e:
+                logger.error(f"Error getting connection status for user {user_id}: {e}")
                 return {
                     'connected': False,
-                    'message': 'قاعدة البيانات غير متاحة'
+                    'message': f'خطأ في فحص الاتصال: {str(e)}'
                 }
-                
-            token = GoogleDriveToken.get_user_token(user_id)
-            
-            if not token:
-                return {
-                    'connected': False,
-                    'message': 'غير متصل بـ Google Drive'
-                }
-            
-            if not token.is_token_valid():
-                return {
-                    'connected': False,
-                    'message': 'انتهت صلاحية الرمز المميز',
-                    'needs_refresh': True
-                }
-            
-            return {
-                'connected': True,
-                'message': 'متصل بـ Google Drive',
-                'folder_id': token.folder_id,
-                'last_backup': token.last_backup_date.isoformat() if token.last_backup_date else None,
-                'backup_count': token.backup_count
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting connection status for user {user_id}: {e}")
-            return {
-                'connected': False,
-                'message': f'خطأ في فحص الاتصال: {str(e)}'
-            }
+        
+        return execute_with_app_context(_get_status)
     
     def upload_backup(self, user_id: int, backup_data: bytes, filename: str) -> bool:
         """رفع نسخة احتياطية إلى Google Drive"""
@@ -414,11 +424,19 @@ class GoogleDriveManager:
             if not GOOGLE_APIS_AVAILABLE:
                 logger.info(f"Mock backup upload for user {user_id}: {filename}")
                 # محاكاة رفع ناجح
-                token = GoogleDriveToken.get_user_token(user_id)
-                if token:
-                    token.last_backup_date = datetime.utcnow()
-                    token.backup_count += 1
-                    db.session.commit()
+                def _update_backup_stats():
+                    try:
+                        database = get_db_with_context()
+                        if database:
+                            token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                            if token:
+                                token.last_backup_date = datetime.utcnow()
+                                token.backup_count += 1
+                                database.session.commit()
+                    except Exception as e:
+                        logger.error(f"Error updating backup stats: {e}")
+                
+                execute_with_app_context(_update_backup_stats)
                 return True
             
             credentials = self._get_user_credentials(user_id)
@@ -452,11 +470,19 @@ class GoogleDriveManager:
             ).execute()
             
             # تحديث إحصائيات النسخ الاحتياطي
-            token = GoogleDriveToken.get_user_token(user_id)
-            if token:
-                token.last_backup_date = datetime.utcnow()
-                token.backup_count += 1
-                db.session.commit()
+            def _update_backup_stats():
+                try:
+                    database = get_db_with_context()
+                    if database:
+                        token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                        if token:
+                            token.last_backup_date = datetime.utcnow()
+                            token.backup_count += 1
+                            database.session.commit()
+                except Exception as e:
+                    logger.error(f"Error updating backup stats: {e}")
+            
+            execute_with_app_context(_update_backup_stats)
             
             logger.info(f"Backup uploaded successfully for user {user_id}: {file.get('id')}")
             return True
@@ -568,10 +594,18 @@ class GoogleDriveManager:
             if not GOOGLE_APIS_AVAILABLE:
                 # محاكاة إنشاء المجلد
                 folder_id = f"mock_folder_{user_id}"
-                token = GoogleDriveToken.get_user_token(user_id)
-                if token:
-                    token.folder_id = folder_id
-                    db.session.commit()
+                def _update_folder_id():
+                    try:
+                        database = get_db_with_context()
+                        if database:
+                            token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                            if token:
+                                token.folder_id = folder_id
+                                database.session.commit()
+                    except Exception as e:
+                        logger.error(f"Error updating folder ID: {e}")
+                
+                execute_with_app_context(_update_folder_id)
                 return folder_id
             
             credentials = self._get_user_credentials(user_id)
@@ -584,10 +618,18 @@ class GoogleDriveManager:
             existing_folder = self._find_backup_folder(service)
             if existing_folder:
                 # تحديث معرف المجلد في قاعدة البيانات
-                token = GoogleDriveToken.get_user_token(user_id)
-                if token:
-                    token.folder_id = existing_folder
-                    db.session.commit()
+                def _update_folder_id():
+                    try:
+                        database = get_db_with_context()
+                        if database:
+                            token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                            if token:
+                                token.folder_id = existing_folder
+                                database.session.commit()
+                    except Exception as e:
+                        logger.error(f"Error updating folder ID: {e}")
+                
+                execute_with_app_context(_update_folder_id)
                 return existing_folder
             
             # إنشاء مجلد جديد
@@ -600,10 +642,18 @@ class GoogleDriveManager:
             folder_id = folder.get('id')
             
             # حفظ معرف المجلد
-            token = GoogleDriveToken.get_user_token(user_id)
-            if token:
-                token.folder_id = folder_id
-                db.session.commit()
+            def _save_folder_id():
+                try:
+                    database = get_db_with_context()
+                    if database:
+                        token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                        if token:
+                            token.folder_id = folder_id
+                            database.session.commit()
+                except Exception as e:
+                    logger.error(f"Error saving folder ID: {e}")
+            
+            execute_with_app_context(_save_folder_id)
             
             logger.info(f"Backup folder created for user {user_id}: {folder_id}")
             return folder_id
