@@ -19,8 +19,6 @@ const GOOGLE_DRIVE_CONFIG = {
 };
 
 // متغيرات حالة Google APIs
-let gapiInited = false;
-let gisInited = false;
 let tokenClient;
 
 // تهيئة Google APIs
@@ -39,7 +37,6 @@ async function initializeGoogleAPIs() {
                 discoveryDocs: [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
             });
             
-            gapiInited = true;
             console.log('✅ تم تهيئة GAPI بنجاح');
         }
         
@@ -51,15 +48,10 @@ async function initializeGoogleAPIs() {
                 callback: '', // سيتم تعيينه لاحقاً
             });
             
-            gisInited = true;
             console.log('✅ تم تهيئة Google Identity Services بنجاح');
         }
         
-        if (gapiInited && gisInited) {
-            console.log('🎉 تم تهيئة جميع Google APIs بنجاح');
-        } else {
-            console.warn('⚠️ لم يتم تهيئة جميع Google APIs');
-        }
+        console.log('🎉 تم تهيئة Google APIs');
         
     } catch (error) {
         console.error('❌ خطأ في تهيئة Google APIs:', error);
@@ -308,8 +300,6 @@ let GOOGLE_CONFIG = {
 // متغيرات بسيطة
 let gapi_loaded = false;
 let gis_loaded = false;
-let gapiInited = false;
-let gisInited = false;
 let tokenClient = null;
 let configLoaded = false;
 
@@ -328,10 +318,10 @@ async function loadGoogleConfig() {
             console.log('Client ID:', GOOGLE_CONFIG.CLIENT_ID.substring(0, 20) + '...');
             
             // تهيئة Google APIs بعد تحميل الإعدادات
-            if (gapi_loaded && !gapiInited) {
+            if (gapi_loaded) {
                 initGapiClient();
             }
-            if (gis_loaded && !gisInited) {
+            if (gis_loaded) {
                 initGisClient();
             }
         } else {
@@ -356,7 +346,6 @@ async function initGapiClient() {
             apiKey: GOOGLE_CONFIG.API_KEY,
             // discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         });
-        gapiInited = true;
         console.log('✅ GAPI Client initialized successfully');
     } catch (error) {
         console.error('❌ GAPI Client initialization failed:', error);
@@ -380,7 +369,6 @@ function initGisClient() {
                 alert('تم ربط Google Drive بنجاح!');
             },
         });
-        gisInited = true;
         console.log('✅ GIS Client initialized successfully');
     } catch (error) {
         console.error('❌ GIS Client initialization failed:', error);
@@ -426,7 +414,7 @@ function connectToGoogleDrive() {
         return;
     }
     
-    if (!gapiInited || !gisInited || !tokenClient) {
+    if (!tokenClient) {
         console.error('❌ Google APIs غير مهيأة');
         alert('خطأ: Google APIs غير مهيأة');
         return;
@@ -443,7 +431,6 @@ function connectToGoogleDrive() {
                 }
             }
         });
-        gisInited = true;
         console.log('✅ تم تهيئة Google Identity Services بنجاح');
     } catch (error) {
         console.error('❌ خطأ في تهيئة Google Identity Services:', error);
@@ -1099,11 +1086,6 @@ function connectToGoogleDrive() {
                 return;
             }
             
-            // تهيئة Google APIs إذا لم تكن مهيأة
-            if (!gapiInited) {
-                await initializeGoogleAPIs();
-            }
-            
             // إنشاء tokenClient إذا لم يكن موجوداً
             if (!tokenClient) {
                 tokenClient = google.accounts.oauth2.initTokenClient({
@@ -1407,13 +1389,13 @@ async function connectToGoogleDrive() {
         console.log('🚀 بدء عملية ربط Google Drive...');
         
         // التأكد من تهيئة Google APIs
-        if (!gapiInited || !gisInited || !tokenClient) {
+        if (!tokenClient) {
             console.log('⏳ Google APIs غير مهيأة، جاري التهيئة...');
             
             // انتظار قصير للتهيئة
             await new Promise(resolve => setTimeout(resolve, 2000));
             
-            if (!gapiInited || !gisInited || !tokenClient) {
+            if (!tokenClient) {
                 console.error('❌ فشل في تهيئة Google APIs');
                 showNotification('فشل في تهيئة Google APIs، يرجى إعادة تحميل الصفحة', 'error');
                 return;
