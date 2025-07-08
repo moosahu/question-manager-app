@@ -40,11 +40,13 @@ import time
 # src/routes/api.py (Updated with /questions/all and nested /courses/<cid>/units/<uid>/questions endpoint, and correct_option_id)
 
 
+    pass  # Added automatically to fix empty try block
 try:
-    from src.utils.backup_scheduler import backup_scheduler
 except ImportError:
+    pass  # Added automatically to fix empty try block
     try:
     except ImportError:
+    pass  # Added automatically to fix empty try block
         try:
         except ImportError:
             print("Error: Database object 'db' could not be imported.")
@@ -79,6 +81,7 @@ except ImportError:
 # إضافة مسار المجلد الأب للوصول للوحدات
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+    pass  # Added automatically to fix empty try block
 try:
 except ImportError as e:
     print(f"تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: {e}")
@@ -2496,6 +2499,7 @@ def get_backup_logs():
 @api_bp.route("/backup/logs/download", methods=["GET"])
 def download_backup_logs():
     """تحميل ملف السجلات"""
+    pass  # Added automatically to fix empty try block
     try:
         
         logs_file = os.path.join('logs', 'backup.log')
@@ -2573,10 +2577,13 @@ def backup_health_check():
 # src/routes/api.py (Updated with /questions/all and nested /courses/<cid>/units/<uid>/questions endpoint, and correct_option_id)
 
 
+    pass  # Added automatically to fix empty try block
 try:
 except ImportError:
+    pass  # Added automatically to fix empty try block
     try:
     except ImportError:
+    pass  # Added automatically to fix empty try block
         try:
         except ImportError:
             print("Error: Database object 'db' could not be imported.")
@@ -2611,6 +2618,7 @@ except ImportError:
 # إضافة مسار المجلد الأب للوصول للوحدات
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+    pass  # Added automatically to fix empty try block
 try:
 except ImportError as e:
     print(f"تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: {e}")
