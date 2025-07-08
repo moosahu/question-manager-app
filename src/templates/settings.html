@@ -1553,6 +1553,48 @@ function disableTwoFactor() {
     });
 }
 
+// ===== الحل البسيط: فحص الاتصال المحفوظ =====
+async function checkSavedConnection() {
+    try {
+        console.log('🔍 فحص الاتصال المحفوظ...');
+        
+        const savedToken = localStorage.getItem('google_drive_token');
+        const savedExpiry = localStorage.getItem('google_drive_token_expiry');
+        
+        if (savedToken && savedExpiry) {
+            const now = Date.now();
+            const expiry = parseInt(savedExpiry);
+            
+            if (now < expiry) {
+                console.log('✅ تم العثور على token صالح، استعادة الاتصال...');
+                
+                // تعيين token في gapi
+                gapi.client.setToken({
+                    access_token: savedToken
+                });
+                
+                // تحديث الحالة
+                googleDriveConnected = true;
+                updateGoogleDriveUI();
+                
+                console.log('✅ تم استعادة اتصال Google Drive من localStorage');
+                showNotification('تم استعادة اتصال Google Drive', 'success');
+                
+                return;
+            } else {
+                console.log('⚠️ Token منتهي الصلاحية، سيتم حذفه');
+                localStorage.removeItem('google_drive_token');
+                localStorage.removeItem('google_drive_token_expiry');
+            }
+        }
+        
+        console.log('ℹ️ لا يوجد اتصال محفوظ');
+        
+    } catch (error) {
+        console.error('❌ خطأ في فحص الاتصال المحفوظ:', error);
+    }
+}
+
 // إغلاق النوافذ المنبثقة عند النقر خارجها
 window.onclick = function(event) {
     const setupModal = document.getElementById('two-factor-setup-modal');
