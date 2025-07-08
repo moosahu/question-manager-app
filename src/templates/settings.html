@@ -539,6 +539,9 @@ function gapiLoaded() {
             });
             console.log('✅ GAPI Client initialized successfully');
             configLoaded = true;
+            
+            // ===== الحل البسيط: فحص localStorage عند التحميل =====
+            checkSavedConnection();
         } catch (error) {
             console.error('❌ GAPI Client initialization failed:', error);
         }
@@ -566,9 +569,6 @@ function gisLoaded() {
 }
 
 // ===== دالة الاتصال بـ Google Drive مع إصلاح Cross-Origin =====
-// ===== تم استبدال دالة connectToGoogleDrive بآلية Redirect Flow =====
-// الآن يتم الاتصال عبر رابط مباشر إلى /auth/google/connect
-// هذا يحل مشكلة Cross-Origin-Opener-Policy نهائياً
 
 // ===== دالة معالجة الاتصال مع إعادة المحاولة =====
 async function handleGoogleDriveConnectionWithRetry(tokenResponse, retryCount = 0) {
@@ -592,6 +592,12 @@ async function handleGoogleDriveConnectionWithRetry(tokenResponse, retryCount = 
         }
         
         console.log('📤 إرسال token إلى الخادم...');
+        
+        // ===== الحل البسيط: حفظ token في localStorage =====
+        localStorage.setItem('google_drive_token', tokenResponse.access_token);
+        localStorage.setItem('google_drive_token_expiry', (Date.now() + (tokenResponse.expires_in * 1000)).toString());
+        console.log('💾 تم حفظ token في localStorage للاستمرارية');
+        
         const saveResponse = await fetch('/api/v1/google-drive/connect', {
             method: 'POST',
             headers: {
@@ -796,6 +802,11 @@ async function disconnectFromGoogleDrive() {
         if (data.success) {
             googleDriveConnected = false;
             lastSyncTime = null;
+            
+            // ===== الحل البسيط: تنظيف localStorage =====
+            localStorage.removeItem('google_drive_token');
+            localStorage.removeItem('google_drive_token_expiry');
+            console.log('🧹 تم تنظيف localStorage');
             
             if (connectionCheckInterval) {
                 clearInterval(connectionCheckInterval);
@@ -1537,6 +1548,48 @@ function disableTwoFactor() {
         console.error('خطأ:', error);
         alert('حدث خطأ أثناء إلغاء تفعيل المصادقة الثنائية');
     });
+}
+
+// ===== الحل البسيط: فحص الاتصال المحفوظ =====
+async function checkSavedConnection() {
+    try {
+        console.log('🔍 فحص الاتصال المحفوظ...');
+        
+        const savedToken = localStorage.getItem('google_drive_token');
+        const savedExpiry = localStorage.getItem('google_drive_token_expiry');
+        
+        if (savedToken && savedExpiry) {
+            const now = Date.now();
+            const expiry = parseInt(savedExpiry);
+            
+            if (now < expiry) {
+                console.log('✅ تم العثور على token صالح، استعادة الاتصال...');
+                
+                // تعيين token في gapi
+                gapi.client.setToken({
+                    access_token: savedToken
+                });
+                
+                // تحديث الحالة
+                googleDriveConnected = true;
+                updateGoogleDriveUI();
+                
+                console.log('✅ تم استعادة اتصال Google Drive من localStorage');
+                showNotification('تم استعادة اتصال Google Drive', 'success');
+                
+                return;
+            } else {
+                console.log('⚠️ Token منتهي الصلاحية، سيتم حذفه');
+                localStorage.removeItem('google_drive_token');
+                localStorage.removeItem('google_drive_token_expiry');
+            }
+        }
+        
+        console.log('ℹ️ لا يوجد اتصال محفوظ');
+        
+    } catch (error) {
+        console.error('❌ خطأ في فحص الاتصال المحفوظ:', error);
+    }
 }
 
 // إغلاق النوافذ المنبثقة عند النقر خارجها
