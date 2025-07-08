@@ -41,6 +41,7 @@ import time
 
 
 try:
+    from src.utils.backup_scheduler import backup_scheduler
 except ImportError:
     try:
     except ImportError:
