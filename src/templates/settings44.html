@@ -605,7 +605,7 @@ function connectToGoogleDrive() {
     }
 }
 
-// ===== دالة معالجة الاتصال - محسنة =====
+// ===== دالة معالجة الاتصال =====
 async function handleGoogleDriveConnection(tokenResponse) {
     try {
         console.log('🔄 معالجة اتصال Google Drive...');
@@ -641,17 +641,11 @@ async function handleGoogleDriveConnection(tokenResponse) {
         const saveResult = await saveResponse.json();
         console.log('✅ تم حفظ Google Drive token:', saveResult);
         
-        if (saveResult.database_saved) {
-            console.log('✅ تم حفظ Token في قاعدة البيانات بنجاح - الاتصال دائم');
-            showNotification('تم ربط Google Drive بنجاح! الاتصال محفوظ بشكل دائم.', 'success');
-        } else {
-            console.log('⚠️ تم حفظ Token في الجلسة فقط - قد ينقطع الاتصال');
-            showNotification('تم ربط Google Drive مؤقتاً. قد تحتاج لإعادة الربط لاحقاً.', 'warning');
-        }
-        
         // تحديث حالة الاتصال محلياً
         googleDriveConnected = true;
         updateGoogleDriveUI();
+        
+        showNotification('تم ربط Google Drive بنجاح!', 'success');
         
         // بدء فحص الحالة المستمر مع تأخير قصير
         setTimeout(() => {
@@ -664,7 +658,7 @@ async function handleGoogleDriveConnection(tokenResponse) {
     }
 }
 
-// ===== فحص حالة الاتصال - محسن =====
+// ===== باقي الدوال =====
 function startConnectionStatusCheck() {
     if (connectionCheckInterval) {
         clearInterval(connectionCheckInterval);
@@ -673,9 +667,9 @@ function startConnectionStatusCheck() {
     checkGoogleDriveConnection();
     connectionCheckInterval = setInterval(() => {
         checkGoogleDriveConnection();
-    }, 15000); // فحص كل 15 ثانية بدلاً من 10
+    }, 10000);
     
-    console.log('🔄 تم بدء فحص الحالة المستمر (كل 15 ثانية)');
+    console.log('🔄 تم بدء فحص الحالة المستمر (كل 10 ثوانٍ)');
 }
 
 async function checkGoogleDriveConnection() {
@@ -697,16 +691,6 @@ async function checkGoogleDriveConnection() {
         const wasConnected = googleDriveConnected;
         googleDriveConnected = data.connected || false;
         lastSyncTime = data.last_sync || null;
-        
-        // تسجيل معلومات التشخيص
-        if (data.debug_info) {
-            console.log('🔍 معلومات التشخيص:', {
-                database_token: data.database_token,
-                db_token_id: data.debug_info.db_token_id,
-                db_token_active: data.debug_info.db_token_active,
-                connected: data.connected
-            });
-        }
         
         updateGoogleDriveUI();
         
@@ -741,7 +725,7 @@ function updateGoogleDriveUI() {
 
     if (googleDriveConnected) {
         if (indicator) indicator.className = 'status-indicator connected';
-        if (status) status.textContent = 'متصل بـ Google Drive (دائم)';
+        if (status) status.textContent = 'متصل بـ Google Drive';
         if (connectBtn) connectBtn.style.display = 'none';
         if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
         if (syncBtn) syncBtn.disabled = false;
@@ -1195,7 +1179,7 @@ if (!document.getElementById('notification-styles')) {
                                 </div>
                                 <p class="sync-description">
                                     قم بربط حسابك مع Google Drive لمزامنة إعداداتك الشخصية عبر جميع الأجهزة.
-                                    سيتم حفظ الملف الشخصي، إعدادات الإشعارات، والتفضيلات تلقائياً وبشكل دائم.
+                                    سيتم حفظ الملف الشخصي، إعدادات الإشعارات، والتفضيلات تلقائياً.
                                 </p>
                             </div>
                             
