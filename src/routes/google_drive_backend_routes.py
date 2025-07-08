@@ -746,14 +746,16 @@ def quick_sync_backend():
 def register_google_drive_backend_routes(app):
     """تسجيل Google Drive Backend routes في التطبيق الرئيسي"""
     try:
-        app.register_blueprint(google_drive_backend_bp, url_prefix='/google-drive-backend')
+        # تسجيل blueprint بدون prefix للمسارات الأساسية
+        app.register_blueprint(google_drive_backend_bp)
         
         # تحميل بيانات المستخدم عند بدء التشغيل
         load_google_drive_user_data_local()
         
         print("🚀 تم تسجيل Google Drive Backend routes بنجاح")
-        print("📱 الوصول للتطبيق: /google-drive-backend/google-drive-dashboard")
-        print("⚙️ صفحة الإعدادات: /google-drive-backend/google-drive-settings")
+        print("🔗 مسار OAuth: /auth/google/connect")
+        print("📱 الوصول للتطبيق: /google-drive-dashboard")
+        print("⚙️ صفحة الإعدادات: /google-drive-settings")
         print("☁️ مزامنة Google Drive متاحة")
         
         return True
@@ -1162,60 +1164,5 @@ def save_google_drive_user_data_local():
         print(f'❌ Error saving user data: {e}')
         return False
 
-# ===== تحديث مسار الحالة =====
 
-@google_drive_backend_bp.route('/auth/google/status')
-def google_oauth_status():
-    """فحص حالة اتصال Google Drive"""
-    try:
-        connected = session.get('google_drive_connected', False)
-        token = session.get('google_drive_token')
-        
-        return jsonify({
-            'success': True,
-            'connected': connected,
-            'has_token': bool(token),
-            'connection_time': session.get('google_drive_connection_time')
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'connected': False,
-            'error': str(e)
-        }), 500
-
-@google_drive_backend_bp.route('/auth/google/disconnect', methods=['POST'])
-def google_oauth_disconnect():
-    """قطع اتصال Google Drive"""
-    try:
-        # حذف من الجلسة
-        session.pop('google_drive_connected', None)
-        session.pop('google_drive_token', None)
-        session.pop('google_drive_refresh_token', None)
-        session.pop('google_drive_token_expires', None)
-        session.pop('google_drive_user_data_saved', None)
-        session.pop('google_drive_connection_time', None)
-        
-        # تحديث حالة المستخدم
-        if hasattr(google_drive_current_user, 'google_drive_connected'):
-            google_drive_current_user.google_drive_connected = False
-            google_drive_current_user.google_drive_token = None
-        
-        print('✅ Google Drive disconnected successfully')
-        flash('تم قطع الاتصال مع Google Drive بنجاح', 'success')
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم قطع الاتصال مع Google Drive بنجاح',
-            'connected': False
-        })
-        
-    except Exception as e:
-        print(f'❌ Error disconnecting: {e}')
-        return jsonify({
-            'success': False,
-            'message': f'خطأ في قطع الاتصال: {str(e)}',
-            'connected': True
-        }), 500
 
