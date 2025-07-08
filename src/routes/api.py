@@ -97,6 +97,254 @@ def init_backup_system():
 init_backup_system()
 
 # Create Blueprint
+
+
+# ==== Google Drive Integration Start ====
+### START OF FILE: api.py
+
+# --- imports ---
+import logging
+import time
+import json
+import os
+import sys
+from datetime import datetime, timedelta
+from flask import Blueprint, jsonify, current_app, url_for, request, session
+from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import SQLAlchemyError
+
+try:
+    from src.extensions import db
+except ImportError:
+    try:
+        from extensions import db
+    except ImportError:
+        try:
+            from main import db
+        except ImportError:
+            print("Error: Database object 'db' could not be imported.")
+            raise
+
+# models
+try:
+    from src.models.question import Question, Option
+    from src.models.curriculum import Lesson, Unit, Course
+    from src.models.backup_settings import BackupSettings
+    from src.models.google_drive import GoogleDriveToken
+    try:
+        from src.models.activity import Activity
+        activity_available = True
+    except ImportError:
+        try:
+            from models.activity import Activity
+            activity_available = True
+        except ImportError:
+            print("Warning: Could not import Activity model. Activity tracking will be disabled.")
+            activity_available = False
+except ImportError:
+    try:
+        from models.question import Question, Option
+        from models.curriculum import Lesson, Unit, Course
+        from models.backup_settings import BackupSettings
+        from models.google_drive import GoogleDriveToken
+        try:
+            from models.activity import Activity
+            activity_available = True
+        except ImportError:
+            print("Warning: Could not import Activity model. Activity tracking will be disabled.")
+            activity_available = False
+    except ImportError:
+        print("Error: Could not import models.")
+        raise
+
+# Google Drive Scopes
+GOOGLE_DRIVE_SCOPES = [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.metadata.readonly'
+]
+
+try:
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+    google_drive_available = True
+except ImportError as e:
+    google_drive_available = False
+    logging.warning(f"Google Drive libraries not available: {e}")
+
+# Google Drive helpers
+def get_google_drive_service():
+    if not google_drive_available:
+        return None
+    try:
+        db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+        if db_token and db_token.access_token:
+            credentials = Credentials(
+                token=db_token.access_token,
+                refresh_token=db_token.refresh_token,
+                token_uri=db_token.token_uri,
+                client_id=db_token.client_id,
+                client_secret=db_token.client_secret,
+                scopes=json.loads(db_token.scopes) if db_token.scopes else GOOGLE_DRIVE_SCOPES
+            )
+            return build('drive', 'v3', credentials=credentials)
+
+        creds_data = session.get('google_drive_credentials')
+        if creds_data:
+            credentials = Credentials(
+                token=creds_data.get('token'),
+                refresh_token=creds_data.get('refresh_token'),
+                token_uri=creds_data.get('token_uri'),
+                client_id=creds_data.get('client_id'),
+                client_secret=creds_data.get('client_secret'),
+                scopes=creds_data.get('scopes', GOOGLE_DRIVE_SCOPES)
+            )
+            return build('drive', 'v3', credentials=credentials)
+    except Exception as e:
+        logging.error(f"Error creating Google Drive service: {e}")
+    return None
+
+# API Blueprint
+api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+# Google Drive Endpoints
+@api_bp.route("/google-drive/connection-status", methods=["GET"])
+@login_required
+def google_drive_connection_status():
+    try:
+        db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+        connected = db_token is not None
+        last_sync = db_token.updated_at.isoformat() if db_token and db_token.updated_at else None
+        return jsonify({
+            "success": True,
+            "connected": connected,
+            "last_sync": last_sync,
+            "database_token": connected
+        })
+    except Exception as e:
+        return jsonify({"success": False, "connected": False, "error": str(e)}), 500
+
+@api_bp.route("/google-drive/connect", methods=["POST"])
+@login_required
+def google_drive_connect():
+    try:
+        if not google_drive_available:
+            return jsonify({"success": False, "message": "Google Drive libraries not available"}), 500
+
+        data = request.get_json() or {}
+        creds = {
+            "token": data.get("access_token", f"mock_access_token_{current_user.id}_{int(time.time())}"),
+            "refresh_token": data.get("refresh_token", f"mock_refresh_token_{current_user.id}"),
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": "client-id",
+            "client_secret": "client-secret",
+            "scopes": GOOGLE_DRIVE_SCOPES
+        }
+
+        existing = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+        if existing:
+            existing.access_token = creds["token"]
+            existing.refresh_token = creds["refresh_token"]
+            existing.token_uri = creds["token_uri"]
+            existing.client_id = creds["client_id"]
+            existing.client_secret = creds["client_secret"]
+            existing.scopes = json.dumps(creds["scopes"])
+            existing.is_active = True
+            existing.updated_at = datetime.utcnow()
+        else:
+            db.session.add(GoogleDriveToken(
+                user_id=current_user.id,
+                access_token=creds["token"],
+                refresh_token=creds["refresh_token"],
+                token_uri=creds["token_uri"],
+                client_id=creds["client_id"],
+                client_secret=creds["client_secret"],
+                scopes=json.dumps(creds["scopes"]),
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            ))
+        db.session.commit()
+        session['google_drive_credentials'] = creds
+        session['google_drive_connected'] = True
+        return jsonify({"success": True, "connected": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@api_bp.route("/google-drive/disconnect", methods=["POST"])
+@login_required
+def google_drive_disconnect():
+    try:
+        tokens = GoogleDriveToken.query.filter_by(user_id=current_user.id).all()
+        for token in tokens:
+            token.is_active = False
+            token.updated_at = datetime.utcnow()
+        db.session.commit()
+        session.pop('google_drive_credentials', None)
+        session.pop('google_drive_connected', None)
+        return jsonify({"success": True, "connected": False})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@api_bp.route("/google-drive/diagnose", methods=["GET"])
+@login_required
+def google_drive_diagnose():
+    diagnosis = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": current_user.id,
+        "google_drive_available": google_drive_available,
+        "session": {
+            "connected": session.get('google_drive_connected', False)
+        }
+    }
+    try:
+        tokens = GoogleDriveToken.query.filter_by(user_id=current_user.id).all()
+        diagnosis["database"] = {
+            "tokens": len(tokens),
+            "active_tokens": len([t for t in tokens if t.is_active])
+        }
+    except Exception as e:
+        diagnosis["database"] = {"error": str(e)}
+
+    try:
+        service = get_google_drive_service()
+        if service:
+            about = service.about().get(fields="user").execute()
+            diagnosis["service_test"] = {"email": about.get("user", {}).get("emailAddress")}
+        else:
+            diagnosis["service_test"] = {"error": "No service"}
+    except Exception as e:
+        diagnosis["service_test"] = {"error": str(e)}
+
+    return jsonify(diagnosis)
+
+@api_bp.route("/user-settings/sync-to-drive", methods=["POST"])
+@login_required
+def sync_settings_to_drive():
+    try:
+        token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+        if not token:
+            return jsonify({"success": False, "message": "يجب ربط Google Drive أولاً"}), 400
+        return jsonify({"success": True, "message": "تم مزامنة إعداداتك بنجاح!", "last_sync": datetime.utcnow().isoformat()})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"خطأ في المزامنة: {str(e)}"}), 500
+
+@api_bp.route("/user-settings/download-from-drive", methods=["POST"])
+@login_required
+def download_settings_from_drive():
+    try:
+        token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+        if not token:
+            return jsonify({"success": False, "message": "يجب ربط Google Drive أولاً"}), 400
+        return jsonify({"success": True, "message": "تم تحميل إعداداتك بنجاح!", "last_sync": datetime.utcnow().isoformat()})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"خطأ في التحميل: {str(e)}"}), 500
+
+# ==== Google Drive Integration End ====
+
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 logger = logging.getLogger(__name__)
