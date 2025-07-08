@@ -129,15 +129,27 @@ try:
     
     # استيراد Google Drive Backend routes مع معالجة الخطأ
     try:
-        from src.routes.google_drive_backend_routes import register_google_drive_backend_routes
+        from google_drive_backend_routes import register_google_drive_backend_routes
         google_drive_backend_available = True
+        logger.info("✅ Google Drive Backend routes imported successfully")
     except ImportError:
         try:
             from routes.google_drive_backend_routes import register_google_drive_backend_routes
             google_drive_backend_available = True
+            logger.info("✅ Google Drive Backend routes imported successfully (fallback)")
         except ImportError:
-            print("Warning: Could not import google_drive_backend_routes. Google Drive Backend feature will be disabled.")
+            logger.warning("⚠️ Could not import google_drive_backend_routes. Google Drive Backend feature will be disabled.")
             google_drive_backend_available = False
+            
+            # إنشاء دالة بديلة
+            def register_google_drive_backend_routes(app):
+                @app.route('/api/google-drive/status')
+                def google_drive_status_fallback():
+                    return jsonify({
+                        'connected': False,
+                        'error': 'Google Drive service not available'
+                    })
+                logger.info("Google Drive Backend routes fallback registered")
         
 except ImportError:
     try:
@@ -391,9 +403,9 @@ def create_app():
     if google_drive_backend_available:
         try:
             register_google_drive_backend_routes(app)
-            print("Google Drive Backend routes registered successfully.")
+            logger.info("✅ Google Drive Backend routes registered successfully.")
         except Exception as e:
-            print(f"Warning: Could not register Google Drive Backend routes: {e}")
+            logger.warning(f"⚠️ Warning: Could not register Google Drive Backend routes: {e}")
     
     # تسجيل APIs النسخ الاحتياطي المحسنة إذا كانت متاحة
     if backup_apis_available:

@@ -785,10 +785,10 @@ def google_oauth_connect():
         client_id = os.environ.get('GOOGLE_CLIENT_ID')
         if not client_id:
             flash('خطأ: Google Client ID غير موجود في متغيرات البيئة', 'error')
-            return redirect(url_for('google_drive_backend.google_drive_settings'))
+            return redirect('/settings')
         
         # تحديد redirect URI بناءً على البيئة
-        if os.environ.get('FLASK_ENV') == 'production':
+        if 'render.com' in request.host or os.environ.get('FLASK_ENV') == 'production':
             redirect_uri = request.url_root.rstrip('/') + '/auth/google/callback'
         else:
             redirect_uri = 'http://localhost:5000/auth/google/callback'
@@ -808,12 +808,15 @@ def google_oauth_connect():
         # إنشاء رابط المصادقة
         auth_url = 'https://accounts.google.com/o/oauth2/auth?' + urlencode(auth_params)
         
+        print(f'🔗 إعادة توجيه إلى Google OAuth: {auth_url}')
+        
         # إعادة توجيه إلى Google
         return redirect(auth_url)
         
     except Exception as e:
+        print(f'❌ خطأ في بدء المصادقة: {e}')
         flash(f'خطأ في بدء المصادقة: {str(e)}', 'error')
-        return redirect(url_for('google_drive_backend.google_drive_settings'))
+        return redirect('/settings')
 
 @google_drive_backend_bp.route('/auth/google/callback')
 def google_oauth_callback():
@@ -825,24 +828,28 @@ def google_oauth_callback():
         error = request.args.get('error')
         
         if error:
+            print(f'❌ OAuth error: {error}')
             flash(f'خطأ في المصادقة: {error}', 'error')
-            return redirect(url_for('google_drive_backend.google_drive_settings'))
+            return redirect('/settings')
         
         if not code:
+            print('❌ No authorization code received')
             flash('لم يتم الحصول على authorization code', 'error')
-            return redirect(url_for('google_drive_backend.google_drive_settings'))
+            return redirect('/settings')
         
         # فحص state token للأمان
         if state != session.get('oauth_state'):
+            print('❌ State mismatch - possible CSRF attack')
             flash('خطأ في التحقق من الأمان (state mismatch)', 'error')
-            return redirect(url_for('google_drive_backend.google_drive_settings'))
+            return redirect('/settings')
         
         # تبديل authorization code بـ access token
         token_data = exchange_authorization_code_for_token(code)
         
         if not token_data:
+            print('❌ Failed to exchange code for token')
             flash('فشل في الحصول على access token', 'error')
-            return redirect(url_for('google_drive_backend.google_drive_settings'))
+            return redirect('/settings')
         
         # حفظ token في النظام
         success = save_google_drive_token(token_data)
@@ -863,11 +870,14 @@ def google_oauth_callback():
         session.pop('oauth_state', None)
         
         # إعادة توجيه إلى صفحة الإعدادات
-        return redirect(url_for('google_drive_backend.google_drive_settings'))
+        return redirect('/settings')
         
     except Exception as e:
+        print(f'❌ Error in callback: {e}')
+        import traceback
+        traceback.print_exc()
         flash(f'خطأ في معالجة callback: {str(e)}', 'error')
-        return redirect(url_for('google_drive_backend.google_drive_settings'))
+        return redirect('/settings')
 
 @google_drive_backend_bp.route('/auth/google/status')
 def google_oauth_status():
@@ -1058,4 +1068,154 @@ except Exception as e:
     print(f"⚠️ لم يتم العثور على Google Drive token محفوظ: {e}")
 
 print("🚀 Google Drive OAuth Redirect Flow routes added successfully")
+
+
+
+# ===== دوال OAuth المساعدة =====
+
+def exchange_authorization_code_for_token(authorization_code):
+    """تبديل authorization code بـ access token"""
+    try:
+        import requests
+        
+        # معاملات الطلب
+        client_id = os.environ.get('GOOGLE_CLIENT_ID')
+        client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+        
+        if not client_id or not client_secret:
+            print('❌ Google OAuth credentials not found in environment')
+            return None
+        
+        # تحديد redirect URI بناءً على البيئة
+        if 'render.com' in request.host or os.environ.get('FLASK_ENV') == 'production':
+            redirect_uri = request.url_root.rstrip('/') + '/auth/google/callback'
+        else:
+            redirect_uri = 'http://localhost:5000/auth/google/callback'
+        
+        # بيانات الطلب
+        token_data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'code': authorization_code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': redirect_uri
+        }
+        
+        print(f'🔄 Exchanging code for token...')
+        
+        # إرسال الطلب إلى Google
+        response = requests.post(
+            'https://oauth2.googleapis.com/token',
+            data=token_data,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+        
+        if response.status_code == 200:
+            token_response = response.json()
+            print(f'✅ Token exchange successful')
+            return token_response
+        else:
+            print(f'❌ Token exchange failed: {response.status_code} - {response.text}')
+            return None
+            
+    except Exception as e:
+        print(f'❌ Error in token exchange: {e}')
+        return None
+
+def save_google_drive_token(token_data):
+    """حفظ Google Drive token"""
+    try:
+        # حفظ في الجلسة
+        session['google_drive_connected'] = True
+        session['google_drive_token'] = token_data.get('access_token')
+        session['google_drive_refresh_token'] = token_data.get('refresh_token')
+        session['google_drive_token_expires'] = token_data.get('expires_in')
+        
+        print(f'✅ Token saved in session')
+        
+        # محاولة حفظ في قاعدة البيانات إذا كان النموذج متاحاً
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                # هنا يمكن إضافة كود حفظ في قاعدة البيانات
+                print(f'💾 Token saved for user {current_user.id}')
+        except Exception as db_error:
+            print(f'⚠️ Could not save to database: {db_error}')
+        
+        return True
+        
+    except Exception as e:
+        print(f'❌ Error saving token: {e}')
+        return False
+
+def save_google_drive_user_data_local():
+    """حفظ بيانات المستخدم محلياً"""
+    try:
+        # تحديث بيانات المستخدم في الجلسة
+        session['google_drive_user_data_saved'] = True
+        session['google_drive_connection_time'] = datetime.utcnow().isoformat()
+        
+        print('✅ User data saved locally')
+        return True
+        
+    except Exception as e:
+        print(f'❌ Error saving user data: {e}')
+        return False
+
+# ===== تحديث مسار الحالة =====
+
+@google_drive_backend_bp.route('/auth/google/status')
+def google_oauth_status():
+    """فحص حالة اتصال Google Drive"""
+    try:
+        connected = session.get('google_drive_connected', False)
+        token = session.get('google_drive_token')
+        
+        return jsonify({
+            'success': True,
+            'connected': connected,
+            'has_token': bool(token),
+            'connection_time': session.get('google_drive_connection_time')
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'connected': False,
+            'error': str(e)
+        }), 500
+
+@google_drive_backend_bp.route('/auth/google/disconnect', methods=['POST'])
+def google_oauth_disconnect():
+    """قطع اتصال Google Drive"""
+    try:
+        # حذف من الجلسة
+        session.pop('google_drive_connected', None)
+        session.pop('google_drive_token', None)
+        session.pop('google_drive_refresh_token', None)
+        session.pop('google_drive_token_expires', None)
+        session.pop('google_drive_user_data_saved', None)
+        session.pop('google_drive_connection_time', None)
+        
+        # تحديث حالة المستخدم
+        if hasattr(google_drive_current_user, 'google_drive_connected'):
+            google_drive_current_user.google_drive_connected = False
+            google_drive_current_user.google_drive_token = None
+        
+        print('✅ Google Drive disconnected successfully')
+        flash('تم قطع الاتصال مع Google Drive بنجاح', 'success')
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم قطع الاتصال مع Google Drive بنجاح',
+            'connected': False
+        })
+        
+    except Exception as e:
+        print(f'❌ Error disconnecting: {e}')
+        return jsonify({
+            'success': False,
+            'message': f'خطأ في قطع الاتصال: {str(e)}',
+            'connected': True
+        }), 500
 

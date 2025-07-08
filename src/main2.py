@@ -1520,3 +1520,31 @@ if __name__ == "__main__":
 # إنشاء متغير app لـ gunicorn
 app = create_app()
 
+
+# ===== Google Drive Integration - Redirect Flow =====
+# إضافة مسارات Google Drive مع آلية إعادة التوجيه لحل مشكلة Cross-Origin
+
+try:
+    from google_drive_routes import register_google_drive_routes
+    # تسجيل مسارات Google Drive في التطبيق
+    register_google_drive_routes(app)
+    print("✅ Google Drive routes registered successfully with redirect flow")
+except ImportError as e:
+    print(f"⚠️ Could not import Google Drive routes: {e}")
+    print("📝 Make sure google_drive_routes.py is in the project directory")
+except Exception as e:
+    print(f"❌ Error registering Google Drive routes: {e}")
+
+# إضافة route للإعدادات إذا لم يكن موجوداً
+try:
+    @app.route('/settings')
+    @login_required
+    def settings_page():
+        """صفحة الإعدادات مع دعم Google Drive Integration"""
+        return render_template('settings.html')
+    print("✅ Settings route registered successfully")
+except Exception as e:
+    print(f"⚠️ Settings route may already exist: {e}")
+
+print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
+
