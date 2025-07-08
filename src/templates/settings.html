@@ -566,69 +566,9 @@ function gisLoaded() {
 }
 
 // ===== دالة الاتصال بـ Google Drive مع إصلاح Cross-Origin =====
-function connectToGoogleDrive() {
-    console.log('🚀 محاولة ربط Google Drive...');
-    
-    if (!gapi_loaded || !gis_loaded) {
-        console.error('❌ Google APIs غير محملة');
-        showNotification('خطأ: Google APIs غير محملة. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
-    
-    if (!tokenClient) {
-        console.error('❌ Google APIs غير مهيأة');
-        showNotification('خطأ: Google APIs غير مهيأة. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
-    
-    console.log('✅ بدء عملية OAuth...');
-    showNotification('جاري الاتصال بـ Google Drive...', 'info');
-    
-    // تعيين callback مع معالجة محسنة
-    tokenClient.callback = async (resp) => {
-        console.log('📥 استلام response من Google:', resp);
-        
-        if (resp.error !== undefined) {
-            console.error('❌ خطأ في المصادقة:', resp.error);
-            showNotification('فشل في تسجيل الدخول إلى Google Drive: ' + resp.error, 'error');
-            return;
-        }
-        
-        try {
-            console.log('✅ تم الحصول على token بنجاح');
-            
-            // حفظ فوري للحالة محلياً
-            googleDriveConnected = true;
-            updateGoogleDriveUI();
-            
-            // معالجة الاتصال مع إعادة محاولة
-            await handleGoogleDriveConnectionWithRetry(resp);
-            
-        } catch (error) {
-            console.error('❌ خطأ في معالجة الاتصال:', error);
-            showNotification('خطأ في معالجة الاتصال: ' + error.message, 'error');
-            
-            // إعادة تعيين الحالة عند الفشل
-            googleDriveConnected = false;
-            updateGoogleDriveUI();
-        }
-    };
-    
-    try {
-        // طلب المصادقة مع إعدادات محسنة
-        tokenClient.requestAccessToken({
-            prompt: 'consent',
-            include_granted_scopes: true,
-            enable_granular_consent: true,
-            // إضافة معاملات لحل مشكلة Cross-Origin
-            hint: '',
-            hd: ''
-        });
-    } catch (error) {
-        console.error('❌ خطأ في طلب المصادقة:', error);
-        showNotification('خطأ في بدء عملية المصادقة', 'error');
-    }
-}
+// ===== تم استبدال دالة connectToGoogleDrive بآلية Redirect Flow =====
+// الآن يتم الاتصال عبر رابط مباشر إلى /auth/google/connect
+// هذا يحل مشكلة Cross-Origin-Opener-Policy نهائياً
 
 // ===== دالة معالجة الاتصال مع إعادة المحاولة =====
 async function handleGoogleDriveConnectionWithRetry(tokenResponse, retryCount = 0) {
@@ -720,7 +660,7 @@ function startPersistentConnectionCheck() {
 
 async function checkGoogleDriveConnectionPersistent() {
     try {
-        const response = await fetch('/api/v1/google-drive/connection-status', {
+        const response = await fetch('/auth/google/status', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -843,7 +783,7 @@ async function disconnectFromGoogleDrive() {
     }
 
     try {
-        const response = await fetch('/api/v1/google-drive/disconnect', {
+        const response = await fetch('/auth/google/disconnect', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1274,9 +1214,9 @@ if (!document.getElementById('notification-styles')) {
                             </div>
                             
                             <div class="sync-actions">
-                                <button type="button" id="connectGoogleDriveBtn" class="btn btn-success" onclick="connectToGoogleDrive()">
+                                <a href="/auth/google/connect" class="btn btn-success" id="connect-drive-btn">
                                     <i class="fas fa-link"></i> ربط Google Drive
-                                </button>
+                                </a>
                                 <button type="button" id="disconnectGoogleDriveBtn" class="btn btn-danger" style="display: none;" onclick="disconnectFromGoogleDrive()">
                                     <i class="fas fa-unlink"></i> قطع الاتصال
                                 </button>
