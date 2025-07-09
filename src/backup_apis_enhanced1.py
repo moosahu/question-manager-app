@@ -77,7 +77,7 @@ except ImportError:
 @backup_api_bp.route('/status', methods=['GET'])
 @login_required
 def get_backup_status():
-    """الحصول على حالة النسخ الاحتياطي الشاملة - محسن مع معالجة أخطاء app context"""
+    """الحصول على حالة النسخ الاحتياطي الشاملة"""
     try:
         user_id = current_user.id
         status = {
@@ -101,7 +101,7 @@ def get_backup_status():
             }
         }
         
-        # حالة الجدولة مع معالجة أخطاء محسنة
+        # حالة الجدولة
         if SCHEDULER_AVAILABLE:
             try:
                 scheduler_status = get_scheduler_status()
@@ -118,52 +118,19 @@ def get_backup_status():
                     
             except Exception as e:
                 logger.error(f"Error getting scheduler status: {e}")
-                status['scheduler']['error'] = str(e)
         
-        # حالة Google Drive مع معالجة أخطاء محسنة لـ app context
+        # حالة Google Drive
         if GOOGLE_DRIVE_AVAILABLE:
             try:
-                # محاولة الحصول على حالة Google Drive مع معالجة أخطاء app context
-                drive_status = None
-                
-                # محاولة 1: استخدام current_app context
-                try:
-                    if current_app:
-                        with current_app.app_context():
-                            drive_status = get_connection_status(user_id)
-                except RuntimeError:
-                    # لا يوجد app context حالي
-                    pass
-                except Exception as context_error:
-                    logger.debug(f"Error with current_app context: {context_error}")
-                
-                # محاولة 2: استدعاء مباشر (قد يعمل إذا كان app context موجود)
-                if not drive_status:
-                    try:
-                        drive_status = get_connection_status(user_id)
-                    except Exception as direct_error:
-                        logger.debug(f"Error with direct call: {direct_error}")
-                
-                # إذا نجحت إحدى المحاولات
-                if drive_status:
-                    status['google_drive'].update({
-                        'connected': drive_status.get('connected', False),
-                        'last_backup': drive_status.get('last_backup'),
-                        'backup_count': drive_status.get('backup_count', 0),
-                        'message': drive_status.get('message', '')
-                    })
-                else:
-                    # في حالة فشل جميع المحاولات، استخدم قيم افتراضية
-                    status['google_drive'].update({
-                        'connected': False,
-                        'message': 'غير قادر على فحص حالة الاتصال حالياً',
-                        'error': 'app_context_issue'
-                    })
-                    
+                drive_status = get_connection_status(user_id)
+                status['google_drive'].update({
+                    'connected': drive_status.get('connected', False),
+                    'last_backup': drive_status.get('last_backup'),
+                    'backup_count': drive_status.get('backup_count', 0),
+                    'message': drive_status.get('message', '')
+                })
             except Exception as e:
                 logger.error(f"Error getting Google Drive status: {e}")
-                status['google_drive']['error'] = str(e)
-                status['google_drive']['message'] = 'خطأ في فحص حالة Google Drive'
         
         return jsonify({
             'success': True,
@@ -172,12 +139,9 @@ def get_backup_status():
         
     except Exception as e:
         logger.error(f"Error getting backup status: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e),
-            'error_type': 'backup_status_error'
+            'error': str(e)
         }), 500
 
 @backup_api_bp.route('/enable', methods=['POST'])
