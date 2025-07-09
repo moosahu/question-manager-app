@@ -3282,7 +3282,7 @@
                                     <small>حفظ النسخ في متصفح الويب</small>
                                 </label>
                                 <label class="destination-option">
-                                    <input type="radio" name="backup_destination" value="google_drive" id="google-drive-option">
+                                    <input type="radio" name="backup_destination" value="google_drive" disabled>
                                     <span>Google Drive</span>
                                     <small id="google-drive-status" class="destination-status unavailable">يتطلب تسجيل الدخول</small>
                                 </label>
@@ -6002,11 +6002,9 @@
             if (statusElement) {
                 statusElement.textContent = 'متاح';
                 statusElement.style.color = '#28a745';
-                statusElement.className = 'destination-status available';
             }
             if (driveOption) {
                 driveOption.disabled = false;
-                console.log('✅ تم تفعيل خيار Google Drive - متصل');
             }
         } else {
             if (indicator) {
@@ -6020,12 +6018,14 @@
             if (statusElement) {
                 statusElement.textContent = 'يتطلب تسجيل الدخول';
                 statusElement.style.color = '#dc3545';
-                statusElement.className = 'destination-status unavailable';
             }
             if (driveOption) {
-                // لا نعطل الخيار، بل نتركه قابل للاختيار مع رسالة توضيحية
-                driveOption.disabled = false;
-                console.log('ℹ️ خيار Google Drive متاح للاختيار - يحتاج تسجيل دخول');
+                driveOption.disabled = true;
+                
+                // لا تغير الاختيار تلقائياً - دع المستخدم يحتفظ بإعداداته المحفوظة
+                // إذا كان Google Drive مختار ولكن غير متصل، اتركه مختار لكن معطل
+                // سيتم تفعيله عند تسجيل الدخول
+                console.log('🔒 تم تعطيل خيار Google Drive مؤقتاً - سيتم تفعيله عند تسجيل الدخول');
             }
         }
     }
@@ -7532,44 +7532,5 @@ if (typeof window !== 'undefined') {
 }
 
 console.log('🚀 Service Worker للنسخ التلقائي جاهز!');
-
-// معالج اختيار Google Drive في إعدادات النسخ التلقائي
-document.addEventListener('DOMContentLoaded', function() {
-    const googleDriveOption = document.getElementById('google-drive-option');
-    
-    if (googleDriveOption) {
-        googleDriveOption.addEventListener('change', function() {
-            if (this.checked && !isGoogleDriveConnected()) {
-                // إظهار رسالة توضيحية
-                showGoogleDriveNotification(
-                    'تم اختيار Google Drive كوجهة للحفظ.\n' +
-                    'يرجى تسجيل الدخول إلى Google Drive أولاً لتفعيل هذا الخيار.\n' +
-                    'يمكنك تسجيل الدخول من قسم "الاتصال بـ Google Drive" أعلاه.',
-                    'info'
-                );
-                
-                // التمرير إلى قسم Google Drive
-                const googleDriveSection = document.getElementById('google-drive-section');
-                if (googleDriveSection) {
-                    googleDriveSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    // إضافة تأثير بصري للفت الانتباه
-                    googleDriveSection.style.border = '2px solid #3498db';
-                    googleDriveSection.style.borderRadius = '8px';
-                    googleDriveSection.style.padding = '15px';
-                    googleDriveSection.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    
-                    // إزالة التأثير بعد 3 ثوان
-                    setTimeout(() => {
-                        googleDriveSection.style.border = '';
-                        googleDriveSection.style.borderRadius = '';
-                        googleDriveSection.style.padding = '';
-                        googleDriveSection.style.backgroundColor = '';
-                    }, 3000);
-                }
-            }
-        });
-    }
-});
 </script>
 
