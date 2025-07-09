@@ -5010,77 +5010,10 @@
         function deleteBackupById(backupId) {
             if (confirm('هل أنت متأكد من حذف هذه النسخة الاحتياطية؟')) {
                 backupSystem.backups = backupSystem.backups.filter(b => b.id !== backupId);
-                safeLocalStorageSet('systemBackups', JSON.stringify(backupSystem.backups));
+                localStorage.setItem('systemBackups', JSON.stringify(backupSystem.backups));
                 updateBackupStats();
                 updateRecentBackupsList();
                 showBackupSuccess('تم حذف النسخة الاحتياطية بنجاح');
-            }
-        }
-        
-        /**
-         * تنظيف النسخ القديمة لتجنب QuotaExceededError
-         */
-        function cleanupOldBackups(maxBackups = 10) {
-            try {
-                if (typeof backupSystem === 'undefined' || !backupSystem.backups) {
-                    return;
-                }
-                
-                // ترتيب النسخ حسب التاريخ (الأحدث أولاً)
-                backupSystem.backups.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                // إذا كان عدد النسخ أكثر من الحد المسموح
-                if (backupSystem.backups.length > maxBackups) {
-                    const removedCount = backupSystem.backups.length - maxBackups;
-                    backupSystem.backups = backupSystem.backups.slice(0, maxBackups);
-                    
-                    console.log(`🧹 تم حذف ${removedCount} نسخة قديمة للحفاظ على الحد الأقصى ${maxBackups}`);
-                    
-                    // حفظ القائمة المحدثة
-                    localStorage.setItem('systemBackups', JSON.stringify(backupSystem.backups));
-                    
-                    showGoogleDriveNotification(
-                        `تم تنظيف النسخ القديمة\n` +
-                        `🗑️ تم حذف ${removedCount} نسخة قديمة\n` +
-                        `📊 النسخ المتبقية: ${backupSystem.backups.length}`,
-                        'info'
-                    );
-                }
-            } catch (error) {
-                console.error('❌ خطأ في تنظيف النسخ القديمة:', error);
-            }
-        }
-        
-        /**
-         * حفظ آمن في localStorage مع معالجة QuotaExceededError
-         */
-        function safeLocalStorageSet(key, value, retryCount = 0) {
-            try {
-                localStorage.setItem(key, value);
-                return true;
-            } catch (error) {
-                if (error.name === 'QuotaExceededError' && retryCount < 3) {
-                    console.warn(`⚠️ QuotaExceededError - محاولة تنظيف النسخ (المحاولة ${retryCount + 1})`);
-                    
-                    // تنظيف النسخ القديمة بشكل تدريجي
-                    const maxBackups = Math.max(5, 10 - (retryCount * 2));
-                    cleanupOldBackups(maxBackups);
-                    
-                    // محاولة الحفظ مرة أخرى
-                    return safeLocalStorageSet(key, value, retryCount + 1);
-                } else {
-                    console.error('❌ فشل في حفظ البيانات في localStorage:', error);
-                    
-                    // إظهار رسالة للمستخدم
-                    showGoogleDriveNotification(
-                        'تعذر حفظ النسخة الاحتياطية\n' +
-                        'السبب: مساحة التخزين المحلي ممتلئة\n' +
-                        'يرجى حذف بعض النسخ القديمة يدوياً',
-                        'error'
-                    );
-                    
-                    return false;
-                }
             }
         }
         
@@ -6287,7 +6220,7 @@
                     // حفظ محلي كبديل
                     if (typeof backupSystem !== 'undefined') {
                         backupSystem.backups.unshift(automaticBackup);
-                        safeLocalStorageSet('systemBackups', JSON.stringify(backupSystem.backups));
+                        localStorage.setItem('systemBackups', JSON.stringify(backupSystem.backups));
                     } else {
                         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                         localStorage.setItem(`auto-backup-${timestamp}`, JSON.stringify(automaticBackup));
@@ -6312,7 +6245,7 @@
                 
                 if (typeof backupSystem !== 'undefined') {
                     backupSystem.backups.unshift(automaticBackup);
-                    safeLocalStorageSet('systemBackups', JSON.stringify(backupSystem.backups));
+                    localStorage.setItem('systemBackups', JSON.stringify(backupSystem.backups));
                 } else {
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                     localStorage.setItem(`backup-${timestamp}`, JSON.stringify(automaticBackup));
@@ -7648,14 +7581,6 @@ document.addEventListener('DOMContentLoaded', function() {
         option.disabled = false;
         console.log(`✅ تم تفعيل خيار: ${option.value}`);
     });
-    
-    // تنظيف النسخ القديمة عند تحميل الصفحة
-    setTimeout(() => {
-        if (typeof cleanupOldBackups === 'function') {
-            cleanupOldBackups(10); // الحد الأقصى 10 نسخ
-            console.log('🧹 تم تنظيف النسخ القديمة عند تحميل الصفحة');
-        }
-    }, 2000);
 });
 </script>
 
