@@ -341,8 +341,7 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)
-    register_google_drive_routes(app)  # ✅ مضاف لتفعيل Google Drive status endpoint
-    register_google_drive_backend_routes(app)  # ✅ مضاف لتفعيل Google Drive API routes # <<< Registered API blueprint (prefix is in api.py)
+    register_google_drive_routes(app)  # ✅ مضاف لتفعيل Google Drive status endpoint # <<< Registered API blueprint (prefix is in api.py)
     
     # إضافة context processor لجعل unread_count متاح في جميع القوالب
     @app.context_processor
