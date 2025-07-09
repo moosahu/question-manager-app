@@ -1,4 +1,3 @@
-from backup_apis_enhanced import register_backup_apis
 import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
@@ -1232,10 +1231,10 @@ def create_app():
                 'success': False,
                 'message': f'خطأ في حفظ إعدادات النسخ الاحتياطي: {str(e)}'
             }), 500
-        
-        @app.route('/api/v1/auth/google/refresh', methods=['POST'])
-        def refresh_google_token():
-            """تحديث Google Drive Token"""
+
+    @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+    def refresh_google_token():
+        """تحديث Google Drive Token"""
         try:
             print('🔄 طلب تحديث Google Drive Token...')
             
