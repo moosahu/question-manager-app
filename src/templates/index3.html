@@ -6538,77 +6538,36 @@
     // ===== دوال حفظ واستعادة إعدادات النسخ =====
     
     /**
-     * الحصول على CSRF Token
-     */
-    function getCSRFToken() {
-        return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
-    }
-    
-    /**
-     * حفظ إعدادات النسخ في قاعدة البيانات على الخادم
+     * حفظ إعدادات النسخ في localStorage
      */
     async function saveBackupSettingsToDatabase(settings) {
         try {
-            console.log('🔄 حفظ إعدادات النسخ في قاعدة البيانات...', settings);
+            console.log('🔄 حفظ إعدادات النسخ في localStorage...', settings);
             
-            // إرسال الإعدادات إلى API الخادم
-            const response = await fetch('/api/v1/backup-settings/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                },
-                body: JSON.stringify(settings)
-            });
+            // حفظ الإعدادات في localStorage بدلاً من API
+            localStorage.setItem('autoBackupSettings', JSON.stringify(settings));
             
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                console.log('✅ تم حفظ إعدادات النسخ بنجاح في قاعدة البيانات');
-                
-                // حفظ نسخة احتياطية في localStorage
-                localStorage.setItem('autoBackupSettings', JSON.stringify(settings));
-                
-                // تحديث backupSystem.settings إذا كان متوفراً
-                if (typeof backupSystem !== 'undefined') {
-                    backupSystem.settings = {
-                        enabled: settings.auto_backup_enabled || false,
-                        frequency: settings.backup_frequency || 'daily',
-                        destination: settings.backup_destination || 'local',
-                        time: settings.backup_time || '02:00',
-                        maxBackups: settings.max_backups || 10
-                    };
-                }
-                
-                return {
-                    success: true,
-                    message: 'تم حفظ إعدادات النسخ بنجاح',
-                    settings: settings
-                };
-            } else {
-                console.error('❌ فشل في حفظ إعدادات النسخ:', result.message);
-                
-                // في حالة فشل الخادم، احفظ في localStorage كبديل
-                localStorage.setItem('autoBackupSettings', JSON.stringify(settings));
-                console.log('💾 تم حفظ الإعدادات محلياً كبديل');
-                
-                return {
-                    success: false,
-                    message: result.message || 'فشل في حفظ إعدادات النسخ على الخادم، تم الحفظ محلياً'
+            // تحديث backupSystem.settings إذا كان متوفراً
+            if (typeof backupSystem !== 'undefined') {
+                backupSystem.settings = {
+                    enabled: settings.auto_backup_enabled || false,
+                    frequency: settings.backup_frequency || 'daily',
+                    destination: settings.backup_destination || 'local',
+                    time: settings.backup_time || '02:00',
+                    maxBackups: settings.max_backups || 10
                 };
             }
+            
+            console.log('✅ تم حفظ إعدادات النسخ بنجاح في localStorage');
+            
+            return {
+                success: true,
+                message: 'تم حفظ إعدادات النسخ بنجاح',
+                settings: settings
+            };
             
         } catch (error) {
             console.error('❌ خطأ في حفظ إعدادات النسخ:', error);
-            
-            // في حالة خطأ الشبكة، احفظ في localStorage كبديل
-            try {
-                localStorage.setItem('autoBackupSettings', JSON.stringify(settings));
-                console.log('💾 تم حفظ الإعدادات محلياً بسبب خطأ الشبكة');
-            } catch (localError) {
-                console.error('❌ فشل في الحفظ المحلي أيضاً:', localError);
-            }
-            
             return {
                 success: false,
                 message: 'فشل في حفظ إعدادات النسخ: ' + error.message
@@ -6617,59 +6576,18 @@
     }
     
     /**
-     * تحميل إعدادات النسخ من قاعدة البيانات على الخادم
+     * تحميل إعدادات النسخ من localStorage
      */
     async function loadBackupSettingsFromDatabase() {
         try {
-            console.log('🔄 تحميل إعدادات النسخ من قاعدة البيانات...');
+            console.log('🔄 تحميل إعدادات النسخ من localStorage...');
             
-            // محاولة تحميل الإعدادات من API الخادم
-            const response = await fetch('/api/v1/backup-settings/load', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                }
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                
-                if (result.success && result.settings) {
-                    console.log('✅ تم تحميل إعدادات النسخ من قاعدة البيانات:', result.settings);
-                    
-                    // حفظ نسخة احتياطية في localStorage
-                    localStorage.setItem('autoBackupSettings', JSON.stringify(result.settings));
-                    
-                    // تطبيق الإعدادات على النموذج
-                    applyBackupSettings(result.settings);
-                    
-                    // تحديث backupSystem.settings
-                    if (typeof backupSystem !== 'undefined') {
-                        backupSystem.settings = {
-                            enabled: result.settings.auto_backup_enabled || false,
-                            frequency: result.settings.backup_frequency || 'daily',
-                            destination: result.settings.backup_destination || 'local',
-                            time: result.settings.backup_time || '02:00',
-                            maxBackups: result.settings.max_backups || 10
-                        };
-                    }
-                    
-                    return {
-                        success: true,
-                        message: 'تم تحميل إعدادات النسخ بنجاح من قاعدة البيانات',
-                        settings: result.settings
-                    };
-                }
-            }
-            
-            // في حالة فشل الخادم، حاول التحميل من localStorage
-            console.log('⚠️ فشل في تحميل من الخادم، محاولة التحميل من localStorage...');
+            // تحميل الإعدادات من localStorage بدلاً من API
             const savedSettings = localStorage.getItem('autoBackupSettings');
             
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                console.log('✅ تم تحميل إعدادات النسخ من localStorage:', settings);
+                console.log('✅ تم تحميل إعدادات النسخ:', settings);
                 
                 // تطبيق الإعدادات على النموذج
                 applyBackupSettings(settings);
@@ -6687,7 +6605,7 @@
                 
                 return {
                     success: true,
-                    message: 'تم تحميل إعدادات النسخ من التخزين المحلي',
+                    message: 'تم تحميل إعدادات النسخ بنجاح',
                     settings: settings
                 };
                 
@@ -6702,16 +6620,8 @@
                     max_backups: 10
                 };
                 
-                // حفظ الإعدادات الافتراضية في localStorage
+                // حفظ الإعدادات الافتراضية
                 localStorage.setItem('autoBackupSettings', JSON.stringify(defaultSettings));
-                
-                
-                // محاولة حفظ الإعدادات الافتراضية على الخادم
-                try {
-                    await saveBackupSettingsToDatabase(defaultSettings);
-                } catch (error) {
-                    console.log('⚠️ فشل في حفظ الإعدادات الافتراضية على الخادم:', error);
-                }
                 
                 return {
                     success: true,
@@ -6722,24 +6632,6 @@
             
         } catch (error) {
             console.error('❌ خطأ في تحميل إعدادات النسخ:', error);
-            
-            // في حالة خطأ الشبكة، حاول التحميل من localStorage
-            try {
-                const savedSettings = localStorage.getItem('autoBackupSettings');
-                if (savedSettings) {
-                    const settings = JSON.parse(savedSettings);
-                    console.log('✅ تم تحميل إعدادات النسخ من localStorage بسبب خطأ الشبكة');
-                    applyBackupSettings(settings);
-                    return {
-                        success: true,
-                        message: 'تم تحميل إعدادات النسخ من التخزين المحلي',
-                        settings: settings
-                    };
-                }
-            } catch (localError) {
-                console.error('❌ فشل في التحميل المحلي أيضاً:', localError);
-            }
-            
             return {
                 success: false,
                 message: 'فشل في تحميل إعدادات النسخ: ' + error.message
