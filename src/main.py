@@ -1,3 +1,4 @@
+from src.routes.backup_apis_enhanced import register_backup_apis
 import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
@@ -342,7 +343,8 @@ def create_app():
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)
     register_google_drive_routes(app)  # ✅ مضاف لتفعيل Google Drive status endpoint
-    register_google_drive_backend_routes(app)  # ✅ مضاف لتفعيل Google Drive API routes # <<< Registered API blueprint (prefix is in api.py)
+    register_google_drive_backend_routes(app)  # ✅ مضاف لتفعيل Google Drive API routes
+    register_backup_apis(app)  # ✅ مضاف لتفعيل Backup APIs including /api/v1/backup/status # <<< Registered API blueprint (prefix is in api.py)
     
     # إضافة context processor لجعل unread_count متاح في جميع القوالب
     @app.context_processor
@@ -1637,3 +1639,10 @@ except Exception as e:
 
 print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
 
+
+
+# ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
+@app.route("/api/backup/status")
+def alias_backup_status():
+    from src.routes.backup_apis_enhanced import backup_status
+    return backup_status()
