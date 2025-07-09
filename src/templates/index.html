@@ -4860,7 +4860,88 @@
         }
         
         // تحديث إحصائيات النسخ
-        function updateBackupStats() {
+        async function updateBackupStats() {
+            try {
+                console.log('🔄 تحديث إحصائيات النسخ من الخادم...');
+                
+                // الحصول على الإحصائيات من الخادم
+                const response = await fetch('/api/v1/backup/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.success && result.stats) {
+                        const stats = result.stats;
+                        console.log('✅ تم تحميل إحصائيات النسخ من الخادم:', stats);
+                        
+                        // تحديث العناصر مع التحقق من وجودها
+                        const totalBackupsEl = document.getElementById('total-backups');
+                        const backupSizeEl = document.getElementById('backup-size');
+                        const lastBackupTimeEl = document.getElementById('last-backup-time');
+                        const autoBackupStatusEl = document.getElementById('auto-backup-status');
+                        
+                        if (totalBackupsEl) totalBackupsEl.textContent = stats.total_backups || 0;
+                        if (backupSizeEl) backupSizeEl.textContent = `${stats.total_size || 0} KB`;
+                        if (lastBackupTimeEl) lastBackupTimeEl.textContent = 
+                            stats.last_backup_time ? formatRelativeTime(new Date(stats.last_backup_time)) : 'لا يوجد';
+                        
+                        // تحديث حالة النسخ التلقائي من الإعدادات المحفوظة
+                        try {
+                            const settingsResponse = await fetch('/api/v1/backup-settings/load', {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCSRFToken()
+                                }
+                            });
+                            
+                            if (settingsResponse.ok) {
+                                const settingsResult = await settingsResponse.json();
+                                if (settingsResult.success && settingsResult.settings) {
+                                    const autoBackupEnabled = settingsResult.settings.auto_backup_enabled || false;
+                                    if (autoBackupStatusEl) {
+                                        autoBackupStatusEl.textContent = autoBackupEnabled ? 'مفعل' : 'معطل';
+                                        autoBackupStatusEl.style.color = autoBackupEnabled ? '#27ae60' : '#e74c3c';
+                                    }
+                                }
+                            }
+                        } catch (settingsError) {
+                            console.log('⚠️ فشل في تحميل إعدادات النسخ التلقائي:', settingsError);
+                        }
+                        
+                        // طباعة معلومات التشخيص
+                        console.log('📊 إحصائيات النسخ المحدثة:', {
+                            total_backups: stats.total_backups,
+                            google_drive_backups: stats.google_drive_backups,
+                            local_backups: stats.local_backups,
+                            google_drive_connected: stats.google_drive_connected
+                        });
+                        
+                        return;
+                    }
+                }
+                
+                // في حالة فشل الخادم، استخدم البيانات المحلية كبديل
+                console.log('⚠️ فشل في تحميل الإحصائيات من الخادم، استخدام البيانات المحلية...');
+                updateBackupStatsFromLocal();
+                
+            } catch (error) {
+                console.error('❌ خطأ في تحديث إحصائيات النسخ:', error);
+                // في حالة خطأ الشبكة، استخدم البيانات المحلية
+                updateBackupStatsFromLocal();
+            }
+        }
+        
+        // دالة احتياطية لتحديث الإحصائيات من البيانات المحلية
+        function updateBackupStatsFromLocal() {
+            console.log('🔄 تحديث إحصائيات النسخ من البيانات المحلية...');
+            
             // تحميل الإعدادات من localStorage أولاً
             const savedSettings = localStorage.getItem('backupSettings');
             if (savedSettings) {
@@ -4894,10 +4975,11 @@
             }
             
             // طباعة معلومات التشخيص
-            console.log('تحديث إحصائيات النسخ:', {
+            console.log('📊 إحصائيات النسخ المحلية:', {
                 savedSettings: savedSettings,
                 autoBackupEnabled: autoBackupEnabled,
-                settings: backupSystem.settings
+                settings: backupSystem.settings,
+                totalBackups: totalBackups
             });
         }
         
