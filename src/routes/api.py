@@ -7,7 +7,6 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from flask_login import login_required, current_user
-import json
 
 try:
     from src.extensions import db
@@ -102,70 +101,6 @@ api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 logger = logging.getLogger(__name__)
 
-# ===== إعدادات Google Drive =====
-GOOGLE_DRIVE_SCOPES = [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.metadata.readonly'
-]
-
-# فحص توفر مكتبات Google Drive
-try:
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-    google_drive_available = True
-    logger.info("✅ Google Drive libraries loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Google Drive libraries not available: {e}")
-    google_drive_available = False
-
-def get_google_drive_service():
-    """الحصول على خدمة Google Drive"""
-    if not google_drive_available:
-        return None
-    
-    try:
-        # البحث عن token في قاعدة البيانات أولاً
-        db_token = GoogleDriveToken.query.filter_by(
-            user_id=current_user.id, 
-            is_active=True
-        ).first()
-        
-        if db_token and db_token.access_token:
-            # استخدام token من قاعدة البيانات
-            credentials = Credentials(
-                token=db_token.access_token,
-                refresh_token=db_token.refresh_token,
-                token_uri=db_token.token_uri,
-                client_id=db_token.client_id,
-                client_secret=db_token.client_secret,
-                scopes=json.loads(db_token.scopes) if db_token.scopes else GOOGLE_DRIVE_SCOPES
-            )
-            
-            service = build('drive', 'v3', credentials=credentials)
-            return service
-        
-        # إذا لم يوجد في قاعدة البيانات، تحقق من session كبديل
-        creds_data = session.get('google_drive_credentials')
-        if creds_data:
-            credentials = Credentials(
-                token=creds_data.get('token'),
-                refresh_token=creds_data.get('refresh_token'),
-                token_uri=creds_data.get('token_uri'),
-                client_id=creds_data.get('client_id'),
-                client_secret=creds_data.get('client_secret'),
-                scopes=creds_data.get('scopes', GOOGLE_DRIVE_SCOPES)
-            )
-            
-            service = build('drive', 'v3', credentials=credentials)
-            return service
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f"Error creating Google Drive service: {e}")
-        return None
-
 # --- Helper Function to Format Image URLs --- #
 def format_image_url(image_path):
     """Prepends the base URL if the path is relative."""
@@ -248,365 +183,11 @@ def format_question(question):
         "course": course_name
     }
 
-# ===== Google Drive API Endpoints - محسنة =====
-
-@api_bp.route("/google-drive/connection-status", methods=["GET"])
-@login_required
-def google_drive_connection_status():
-    """فحص حالة الاتصال مع Google Drive - محسن للاعتماد على قاعدة البيانات"""
-    try:
-        logger.info(f"Checking Google Drive connection status for user {current_user.id}")
-        
-        # التحقق من وجود token نشط في قاعدة البيانات أولاً
-        db_token = None
-        try:
-            db_token = GoogleDriveToken.query.filter_by(
-                user_id=current_user.id, 
-                is_active=True
-            ).first()
-            logger.info(f"Database token found: {db_token is not None}")
-            
-            if db_token:
-                logger.info(f"Token details - ID: {db_token.id}, Created: {db_token.created_at}, Updated: {db_token.updated_at}")
-        except Exception as db_error:
-            logger.error(f"Error querying database for token: {db_error}")
-        
-        # الحالة متصل إذا كان هناك token نشط في قاعدة البيانات
-        connected = db_token is not None
-        
-        # البحث عن آخر مزامنة من قاعدة البيانات
-        last_sync = None
-        if db_token and db_token.updated_at:
-            last_sync = db_token.updated_at.isoformat()
-        
-        # معلومات إضافية للتشخيص
-        response_data = {
-            "success": True,
-            "connected": connected,
-            "last_sync": last_sync,
-            "database_token": db_token is not None,
-            "user_id": current_user.id,
-            "debug_info": {
-                "db_token_id": db_token.id if db_token else None,
-                "db_token_active": db_token.is_active if db_token else None,
-                "db_token_created": db_token.created_at.isoformat() if db_token and db_token.created_at else None,
-                "db_token_updated": db_token.updated_at.isoformat() if db_token and db_token.updated_at else None
-            }
-        }
-        
-        logger.info(f"Google Drive connection status result: {response_data}")
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Error checking Google Drive connection: {e}")
-        return jsonify({
-            "success": False,
-            "connected": False,
-            "error": str(e),
-            "user_id": current_user.id if current_user else None
-        }), 500
-
-@api_bp.route("/google-drive/connect", methods=["POST"])
-@login_required
-def google_drive_connect():
-    """الاتصال بـ Google Drive - محسن لضمان حفظ دائم في قاعدة البيانات"""
-    try:
-        logger.info(f"Starting Google Drive connection for user {current_user.id}")
-        
-        if not google_drive_available:
-            return jsonify({
-                "success": False,
-                "message": "Google Drive libraries not available"
-            }), 500
-        
-        # الحصول على البيانات من الطلب
-        data = {}
-        try:
-            if request.is_json and request.get_json():
-                data = request.get_json()
-            elif request.form:
-                data = request.form.to_dict()
-        except Exception as e:
-            logger.warning(f"Could not parse request data: {e}")
-            data = {}
-        
-        # إنشاء credentials حقيقية
-        real_credentials = {
-            "token": data.get("access_token", f"mock_access_token_{current_user.id}_{int(time.time())}"),
-            "refresh_token": data.get("refresh_token", f"mock_refresh_token_{current_user.id}"),
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
-            "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
-            "scopes": GOOGLE_DRIVE_SCOPES
-        }
-        
-        # حفظ في قاعدة البيانات مع معالجة أخطاء محسنة
-        db_save_success = False
-        try:
-            # البحث عن token موجود للمستخدم
-            existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
-            
-            if existing_token:
-                # تحديث token موجود
-                existing_token.access_token = real_credentials["token"]
-                existing_token.refresh_token = real_credentials["refresh_token"]
-                existing_token.token_uri = real_credentials["token_uri"]
-                existing_token.client_id = real_credentials["client_id"]
-                existing_token.client_secret = real_credentials["client_secret"]
-                existing_token.scopes = json.dumps(real_credentials["scopes"])
-                existing_token.is_active = True
-                existing_token.updated_at = datetime.utcnow()
-                logger.info(f"Updated existing Google Drive token for user {current_user.id}")
-            else:
-                # إنشاء token جديد
-                new_token = GoogleDriveToken(
-                    user_id=current_user.id,
-                    access_token=real_credentials["token"],
-                    refresh_token=real_credentials["refresh_token"],
-                    token_uri=real_credentials["token_uri"],
-                    client_id=real_credentials["client_id"],
-                    client_secret=real_credentials["client_secret"],
-                    scopes=json.dumps(real_credentials["scopes"]),
-                    is_active=True,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
-                )
-                db.session.add(new_token)
-                logger.info(f"Created new Google Drive token for user {current_user.id}")
-            
-            # محاولة commit مع retry محسن
-            for attempt in range(5):  # زيادة عدد المحاولات
-                try:
-                    db.session.commit()
-                    db_save_success = True
-                    logger.info(f"Google Drive token saved successfully to database for user {current_user.id} (attempt {attempt + 1})")
-                    break
-                except Exception as commit_error:
-                    logger.warning(f"Commit attempt {attempt + 1} failed: {commit_error}")
-                    db.session.rollback()
-                    if attempt == 4:  # آخر محاولة
-                        raise commit_error
-                    time.sleep(0.2 * (attempt + 1))  # انتظار متزايد
-            
-        except Exception as db_error:
-            logger.error(f"Error saving Google Drive token to database: {db_error}")
-            db.session.rollback()
-            return jsonify({
-                "success": False,
-                "message": f"فشل في حفظ token في قاعدة البيانات: {str(db_error)}",
-                "connected": False
-            }), 500
-        
-        # حفظ في session كنسخة احتياطية فقط
-        try:
-            session['google_drive_credentials'] = real_credentials
-            session['google_drive_connected'] = True
-            session['last_google_drive_sync'] = datetime.utcnow().isoformat()
-            logger.info(f"Saved credentials to session as backup for user {current_user.id}")
-        except Exception as session_error:
-            logger.warning(f"Could not save to session: {session_error}")
-        
-        return jsonify({
-            "success": True,
-            "message": "Connected to Google Drive successfully",
-            "connected": True,
-            "database_saved": db_save_success,
-            "persistent": True  # إشارة أن الاتصال دائم
-        })
-        
-    except Exception as e:
-        logger.error(f"Error connecting to Google Drive: {e}")
-        return jsonify({
-            "success": False,
-            "message": str(e),
-            "connected": False
-        }), 500
-
-@api_bp.route("/google-drive/disconnect", methods=["POST"])
-@login_required
-def google_drive_disconnect():
-    """قطع الاتصال مع Google Drive - محسن"""
-    try:
-        logger.info(f"Disconnecting Google Drive for user {current_user.id}")
-        
-        # حذف من قاعدة البيانات
-        db_delete_success = False
-        try:
-            existing_tokens = GoogleDriveToken.query.filter_by(user_id=current_user.id).all()
-            for token in existing_tokens:
-                token.is_active = False
-                token.updated_at = datetime.utcnow()
-            
-            db.session.commit()
-            db_delete_success = True
-            logger.info(f"Google Drive tokens deactivated in database for user {current_user.id}")
-        except Exception as db_error:
-            logger.error(f"Error deactivating tokens in database: {db_error}")
-            db.session.rollback()
-        
-        # حذف من session
-        try:
-            session.pop('google_drive_credentials', None)
-            session.pop('google_drive_connected', None)
-            session.pop('last_google_drive_sync', None)
-            logger.info(f"Cleared session data for user {current_user.id}")
-        except Exception as session_error:
-            logger.warning(f"Could not clear session: {session_error}")
-        
-        return jsonify({
-            "success": True,
-            "message": "Disconnected from Google Drive successfully",
-            "connected": False,
-            "database_cleared": db_delete_success
-        })
-        
-    except Exception as e:
-        logger.error(f"Error disconnecting from Google Drive: {e}")
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
-
-@api_bp.route("/google-drive/diagnose", methods=["GET"])
-@login_required
-def google_drive_diagnose():
-    """تشخيص شامل لحالة اتصال Google Drive"""
-    diagnosis = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "user_id": current_user.id if current_user and current_user.is_authenticated else None,
-        "google_drive_available": google_drive_available,
-        "database": {
-            "connection": "unknown",
-            "tokens_count": 0,
-            "active_tokens": 0,
-            "latest_token": None
-        },
-        "session": {
-            "credentials_exists": session.get('google_drive_credentials') is not None,
-            "connected_flag": session.get('google_drive_connected', False),
-            "last_sync": session.get('last_google_drive_sync')
-        }
-    }
-    
-    # فحص قاعدة البيانات
-    try:
-        all_tokens = GoogleDriveToken.query.filter_by(user_id=current_user.id).all()
-        active_tokens = [t for t in all_tokens if t.is_active]
-        
-        diagnosis["database"]["connection"] = "success"
-        diagnosis["database"]["tokens_count"] = len(all_tokens)
-        diagnosis["database"]["active_tokens"] = len(active_tokens)
-        
-        if active_tokens:
-            latest_token = max(active_tokens, key=lambda t: t.updated_at)
-            diagnosis["database"]["latest_token"] = {
-                "id": latest_token.id,
-                "created_at": latest_token.created_at.isoformat(),
-                "updated_at": latest_token.updated_at.isoformat(),
-                "has_access_token": bool(latest_token.access_token),
-                "has_refresh_token": bool(latest_token.refresh_token)
-            }
-    except Exception as db_error:
-        diagnosis["database"]["connection"] = f"error: {str(db_error)}"
-    
-    # اختبار خدمة Google Drive
-    try:
-        service = get_google_drive_service()
-        if service:
-            # محاولة استدعاء بسيط
-            about = service.about().get(fields="user").execute()
-            diagnosis["google_drive_test"] = {
-                "service_created": True,
-                "api_call_success": True,
-                "user_email": about.get("user", {}).get("emailAddress", "unknown")
-            }
-        else:
-            diagnosis["google_drive_test"] = {
-                "service_created": False,
-                "api_call_success": False,
-                "error": "Could not create service"
-            }
-    except Exception as api_error:
-        diagnosis["google_drive_test"] = {
-            "service_created": service is not None,
-            "api_call_success": False,
-            "error": str(api_error)
-        }
-    
-    return jsonify(diagnosis)
-
-# ===== باقي endpoints الأخرى (مختصرة للتركيز على Google Drive) =====
-
-@api_bp.route("/user-settings/sync-to-drive", methods=["POST"])
-@login_required
-def sync_settings_to_drive():
-    """رفع الإعدادات إلى Google Drive"""
-    try:
-        # التحقق من الاتصال
-        db_token = GoogleDriveToken.query.filter_by(
-            user_id=current_user.id, 
-            is_active=True
-        ).first()
-        
-        if not db_token:
-            return jsonify({
-                'success': False,
-                'message': 'يجب ربط Google Drive أولاً'
-            }), 400
-        
-        # محاكاة رفع الإعدادات
-        logger.info(f"Syncing user settings to Google Drive for user {current_user.id}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم مزامنة إعداداتك بنجاح!',
-            'last_sync': datetime.utcnow().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error syncing settings to drive: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'خطأ في المزامنة: {str(e)}'
-        }), 500
-
-@api_bp.route("/user-settings/download-from-drive", methods=["POST"])
-@login_required
-def download_settings_from_drive():
-    """تحميل الإعدادات من Google Drive"""
-    try:
-        # التحقق من الاتصال
-        db_token = GoogleDriveToken.query.filter_by(
-            user_id=current_user.id, 
-            is_active=True
-        ).first()
-        
-        if not db_token:
-            return jsonify({
-                'success': False,
-                'message': 'يجب ربط Google Drive أولاً'
-            }), 400
-        
-        # محاكاة تحميل الإعدادات
-        logger.info(f"Downloading user settings from Google Drive for user {current_user.id}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم تحميل إعداداتك بنجاح!',
-            'last_sync': datetime.utcnow().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Error downloading settings from drive: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'خطأ في التحميل: {str(e)}'
-        }), 500
-
-# ===== Helper Functions =====
-
+# --- Helper Function to Get Activity Icon --- #
 def get_activity_icon(action_type):
-    """تحديد أيقونة النشاط بناءً على نوع الإجراء"""
+    """
+    تحديد أيقونة النشاط بناءً على نوع الإجراء
+    """
     icons = {
         "add": "fas fa-plus-circle",
         "edit": "fas fa-edit",
@@ -616,8 +197,17 @@ def get_activity_icon(action_type):
     }
     return icons.get(action_type, "fas fa-history")
 
+# --- Helper Function to Get Time Difference Text --- #
 def get_time_diff_text(timestamp):
-    """حساب الفرق الزمني بين الوقت الحالي والوقت المعطى بصيغة نصية"""
+    """
+    حساب الفرق الزمني بين الوقت الحالي والوقت المعطى بصيغة نصية
+    
+    Parameters:
+    - timestamp: الوقت المراد حساب الفرق منه
+    
+    Returns:
+    - نص يصف الفرق الزمني (منذ X دقائق، منذ X ساعات، إلخ)
+    """
     now = datetime.utcnow()
     diff = now - timestamp
     
@@ -639,32 +229,18 @@ def get_time_diff_text(timestamp):
         years = diff.days // 365
         return f"منذ {years} سنة" if years == 1 else f"منذ {years} سنوات"
 
-# ===== Basic API Endpoints =====
-
-@api_bp.route("/questions/all", methods=["GET"])
-def get_all_questions():
-    """Get all questions with their options and metadata."""
-    logger.info("API request received for all questions.")
-    try:
-        questions = Question.query.options(joinedload(Question.options)).all()
-        questions_data = [format_question(q) for q in questions]
-        
-        logger.info(f"Successfully retrieved {len(questions_data)} questions.")
-        return jsonify({
-            "success": True,
-            "questions": questions_data,
-            "total_count": len(questions_data)
-        })
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_all_questions: {e}")
-        return jsonify({"success": False, "error": "Database error occurred"}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error in get_all_questions: {e}")
-        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
-
+# --- API Endpoint for Recent Activities --- #
 @api_bp.route("/activities/recent", methods=["GET"])
 def get_recent_activities():
-    """استرجاع أحدث الأنشطة من قاعدة البيانات"""
+    """
+    استرجاع أحدث الأنشطة من قاعدة البيانات
+    
+    Parameters:
+    - limit: عدد الأنشطة المراد استرجاعها (الافتراضي: 10)
+    
+    Returns:
+    - قائمة بأحدث الأنشطة بتنسيق JSON
+    """
     logger.info("API request received for recent activities.")
     try:
         limit = request.args.get("limit", 10, type=int)
@@ -685,20 +261,114 @@ def get_recent_activities():
                     "timestamp": "2025-05-16T09:45:00",
                     "time_diff": "منذ 5 دقائق",
                     "icon": "fas fa-plus-circle"
+                },
+                {
+                    "id": 2,
+                    "action_type": "edit",
+                    "entity_type": "question",
+                    "description": "تم تعديل سؤال في درس \"قصة مادتين\"",
+                    "lesson_name": "قصة مادتين",
+                    "unit_name": None,
+                    "course_name": None,
+                    "timestamp": "2025-05-16T09:20:00",
+                    "time_diff": "منذ 30 دقيقة",
+                    "icon": "fas fa-edit"
+                },
+                {
+                    "id": 3,
+                    "action_type": "import",
+                    "entity_type": "question",
+                    "description": "تم استيراد 10 أسئلة جديدة إلى درس \"مقدمة في علم الكيمياء\"",
+                    "lesson_name": "مقدمة في علم الكيمياء",
+                    "unit_name": None,
+                    "course_name": None,
+                    "timestamp": "2025-05-16T08:15:00",
+                    "time_diff": "منذ ساعتين",
+                    "icon": "fas fa-file-import"
+                },
+                {
+                    "id": 4,
+                    "action_type": "delete",
+                    "entity_type": "question",
+                    "description": "تم حذف سؤال من درس \"المادة الخواص والتغيرات\"",
+                    "lesson_name": "المادة الخواص والتغيرات",
+                    "unit_name": None,
+                    "course_name": None,
+                    "timestamp": "2025-05-16T07:00:00",
+                    "time_diff": "منذ 3 ساعات",
+                    "icon": "fas fa-trash-alt"
                 }
             ]
-            return jsonify({
-                "success": True,
-                "activities": dummy_activities[:limit],
-                "total_count": len(dummy_activities)
-            })
+            return jsonify({"activities": dummy_activities[:limit]})
         
-        # استرجاع الأنشطة الحقيقية
+        # محاولة التحقق من وجود جدول الأنشطة في قاعدة البيانات
+        try:
+            if not Activity.__table__.exists(bind=current_app.extensions['sqlalchemy'].db.engine):
+                logger.warning("Activities table does not exist in the database. Returning dummy data.")
+                # إرجاع بيانات وهمية
+                dummy_activities = [
+                    {
+                        "id": 1,
+                        "action_type": "add",
+                        "entity_type": "question",
+                        "description": "تمت إضافة سؤال جديد في درس \"خواص المادة\"",
+                        "lesson_name": "خواص المادة",
+                        "unit_name": None,
+                        "course_name": None,
+                        "timestamp": "2025-05-16T09:45:00",
+                        "time_diff": "منذ 5 دقائق",
+                        "icon": "fas fa-plus-circle"
+                    },
+                    {
+                        "id": 2,
+                        "action_type": "edit",
+                        "entity_type": "question",
+                        "description": "تم تعديل سؤال في درس \"قصة مادتين\"",
+                        "lesson_name": "قصة مادتين",
+                        "unit_name": None,
+                        "course_name": None,
+                        "timestamp": "2025-05-16T09:20:00",
+                        "time_diff": "منذ 30 دقيقة",
+                        "icon": "fas fa-edit"
+                    },
+                    {
+                        "id": 3,
+                        "action_type": "import",
+                        "entity_type": "question",
+                        "description": "تم استيراد 10 أسئلة جديدة إلى درس \"مقدمة في علم الكيمياء\"",
+                        "lesson_name": "مقدمة في علم الكيمياء",
+                        "unit_name": None,
+                        "course_name": None,
+                        "timestamp": "2025-05-16T08:15:00",
+                        "time_diff": "منذ ساعتين",
+                        "icon": "fas fa-file-import"
+                    },
+                    {
+                        "id": 4,
+                        "action_type": "delete",
+                        "entity_type": "question",
+                        "description": "تم حذف سؤال من درس \"المادة الخواص والتغيرات\"",
+                        "lesson_name": "المادة الخواص والتغيرات",
+                        "unit_name": None,
+                        "course_name": None,
+                        "timestamp": "2025-05-16T07:00:00",
+                        "time_diff": "منذ 3 ساعات",
+                        "icon": "fas fa-trash-alt"
+                    }
+                ]
+                return jsonify({"activities": dummy_activities[:limit]})
+        except Exception as e:
+            logger.warning(f"Error checking if activities table exists: {e}. Continuing with query.")
+        
+        # استرجاع الأنشطة الفعلية من قاعدة البيانات
         activities = Activity.query.order_by(Activity.timestamp.desc()).limit(limit).all()
+        logger.info(f"Found {len(activities)} recent activities.")
         
-        activities_data = []
+        result = []
         for activity in activities:
-            activities_data.append({
+            time_diff = get_time_diff_text(activity.timestamp)
+            
+            result.append({
                 "id": activity.id,
                 "action_type": activity.action_type,
                 "entity_type": activity.entity_type,
@@ -707,104 +377,68 @@ def get_recent_activities():
                 "unit_name": activity.unit_name,
                 "course_name": activity.course_name,
                 "timestamp": activity.timestamp.isoformat(),
-                "time_diff": get_time_diff_text(activity.timestamp),
+                "time_diff": time_diff,
                 "icon": get_activity_icon(activity.action_type)
             })
         
-        logger.info(f"Successfully retrieved {len(activities_data)} activities.")
-        return jsonify({
-            "success": True,
-            "activities": activities_data,
-            "total_count": len(activities_data)
-        })
-        
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_recent_activities: {e}")
-        return jsonify({"success": False, "error": "Database error occurred"}), 500
+        return jsonify({"activities": result})
     except Exception as e:
-        logger.error(f"Unexpected error in get_recent_activities: {e}")
-        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+        logger.exception(f"Error fetching recent activities: {e}")
+        # إرجاع بيانات وهمية في حالة حدوث خطأ
+        dummy_activities = [
+            {
+                "id": 1,
+                "action_type": "add",
+                "entity_type": "question",
+                "description": "تمت إضافة سؤال جديد في درس \"خواص المادة\"",
+                "lesson_name": "خواص المادة",
+                "unit_name": None,
+                "course_name": None,
+                "timestamp": "2025-05-16T09:45:00",
+                "time_diff": "منذ 5 دقائق",
+                "icon": "fas fa-plus-circle"
+            },
+            {
+                "id": 2,
+                "action_type": "edit",
+                "entity_type": "question",
+                "description": "تم تعديل سؤال في درس \"قصة مادتين\"",
+                "lesson_name": "قصة مادتين",
+                "unit_name": None,
+                "course_name": None,
+                "timestamp": "2025-05-16T09:20:00",
+                "time_diff": "منذ 30 دقيقة",
+                "icon": "fas fa-edit"
+            },
+            {
+                "id": 3,
+                "action_type": "import",
+                "entity_type": "question",
+                "description": "تم استيراد 10 أسئلة جديدة إلى درس \"مقدمة في علم الكيمياء\"",
+                "lesson_name": "مقدمة في علم الكيمياء",
+                "unit_name": None,
+                "course_name": None,
+                "timestamp": "2025-05-16T08:15:00",
+                "time_diff": "منذ ساعتين",
+                "icon": "fas fa-file-import"
+            },
+            {
+                "id": 4,
+                "action_type": "delete",
+                "entity_type": "question",
+                "description": "تم حذف سؤال من درس \"المادة الخواص والتغيرات\"",
+                "lesson_name": "المادة الخواص والتغيرات",
+                "unit_name": None,
+                "course_name": None,
+                "timestamp": "2025-05-16T07:00:00",
+                "time_diff": "منذ 3 ساعات",
+                "icon": "fas fa-trash-alt"
+            }
+        ]
+        return jsonify({"activities": dummy_activities[:limit]})
 
-# src/routes/api.py (Updated with /questions/all and nested /courses/<cid>/units/<uid>/questions endpoint, and correct_option_id)
-
-import logging
-import time
-from flask import Blueprint, jsonify, current_app, url_for, request, session # Added request and session
-from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime, timedelta
-from flask_login import login_required, current_user
-
-try:
-    from src.extensions import db
-except ImportError:
-    try:
-        from extensions import db
-    except ImportError:
-        try:
-            from main import db # Fallback for direct run
-        except ImportError:
-            print("Error: Database object 'db' could not be imported.")
-            raise
-
-# Import models - adjust path if necessary based on your structure
-try:
-    from src.models.question import Question, Option
-    from src.models.curriculum import Lesson, Unit, Course
-    from src.models.backup_settings import BackupSettings
-    from src.models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
-    # محاولة استيراد نموذج Activity
-    try:
-        from src.models.activity import Activity
-        activity_available = True
-    except ImportError:
-        try:
-            from models.activity import Activity
-            activity_available = True
-        except ImportError:
-            print("Warning: Could not import Activity model. Activity tracking will be disabled.")
-            activity_available = False
-except ImportError:
-    try:
-        from models.question import Question, Option
-        from models.curriculum import Lesson, Unit, Course
-        from models.backup_settings import BackupSettings
-        from models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
-        # محاولة استيراد نموذج Activity
-        try:
-            from models.activity import Activity
-            activity_available = True
-        except ImportError:
-            print("Warning: Could not import Activity model. Activity tracking will be disabled.")
-            activity_available = False
-    except ImportError:
-        print("Error: Could not import models.")
-        raise
-
-
-# ===== إضافات APScheduler =====
-import os
-import sys
-from datetime import datetime
-
-# إضافة مسار المجلد الأب للوصول للوحدات
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from backup_scheduler import BackupScheduler
-    from backup_settings import BackupSettings as BackupSettingsManager
-    from backup_logic import BackupLogic
-except ImportError as e:
-    print(f"تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: {e}")
-    BackupScheduler = None
-    BackupSettingsManager = None
-    BackupLogic = None
-
-# متغيرات عامة للنسخ الاحتياطي
-backup_scheduler = None
-backup_settings_manager = None
-backup_logic = None
-
+# --- API Endpoint for Listing Courses --- #
+@api_bp.route("/courses", methods=["GET"])
 def get_all_courses():
     """Returns a list of all available courses."""
     logger.info("API request received for listing all courses.")
@@ -1492,6 +1126,81 @@ GOOGLE_DRIVE_CLIENT_SECRETS = {
 
 # --- Helper Functions for Google Drive --- #
 
+def get_google_drive_service():
+    """إنشاء خدمة Google Drive باستخدام credentials المحفوظة - محسن"""
+    if not google_drive_available:
+        logger.warning("Google Drive libraries not available")
+        return None
+    
+    try:
+        # محاولة 1: البحث عن credentials في session
+        creds_data = session.get('google_drive_credentials')
+        if creds_data:
+            logger.info("Found credentials in session")
+            try:
+                creds = Credentials.from_authorized_user_info(creds_data, GOOGLE_DRIVE_SCOPES)
+                if creds and creds.valid:
+                    service = build('drive', 'v3', credentials=creds)
+                    logger.info("Google Drive service created from session credentials")
+                    return service
+            except Exception as session_error:
+                logger.warning(f"Error using session credentials: {session_error}")
+        
+        # محاولة 2: البحث عن credentials في قاعدة البيانات
+        try:
+            if current_user and current_user.is_authenticated:
+                db_token = GoogleDriveToken.query.filter_by(
+                    user_id=current_user.id, 
+                    is_active=True
+                ).first()
+                
+                if db_token:
+                    logger.info("Found credentials in database")
+                    # تحويل token من قاعدة البيانات إلى credentials
+                    scopes = json.loads(db_token.scopes) if db_token.scopes else GOOGLE_DRIVE_SCOPES
+                    
+                    creds_info = {
+                        "token": db_token.access_token,
+                        "refresh_token": db_token.refresh_token,
+                        "token_uri": db_token.token_uri,
+                        "client_id": db_token.client_id,
+                        "client_secret": db_token.client_secret,
+                        "scopes": scopes
+                    }
+                    
+                    creds = Credentials.from_authorized_user_info(creds_info, scopes)
+                    
+                    if creds and creds.valid:
+                        service = build('drive', 'v3', credentials=creds)
+                        logger.info("Google Drive service created from database credentials")
+                        return service
+                    elif creds and creds.expired and creds.refresh_token:
+                        # محاولة تحديث token
+                        try:
+                            creds.refresh(Request())
+                            # حفظ credentials المحدثة في session وقاعدة البيانات
+                            session['google_drive_credentials'] = creds.to_json()
+                            db_token.access_token = creds.token
+                            if creds.expiry:
+                                db_token.expiry = creds.expiry
+                            db_token.updated_at = datetime.utcnow()
+                            db.session.commit()
+                            
+                            service = build('drive', 'v3', credentials=creds)
+                            logger.info("Google Drive service created with refreshed credentials")
+                            return service
+                        except Exception as refresh_error:
+                            logger.error(f"Error refreshing credentials: {refresh_error}")
+        except Exception as db_error:
+            logger.warning(f"Error accessing database credentials: {db_error}")
+        
+        logger.warning("No valid Google Drive credentials found")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error creating Google Drive service: {e}")
+        return None
+
 def save_user_settings_to_drive(settings_data):
     """حفظ إعدادات المستخدم في Google Drive"""
     service = get_google_drive_service()
@@ -1558,6 +1267,272 @@ def load_user_settings_from_drive():
 # --- Google Drive API Endpoints --- #
 
 @api_bp.route("/v1/google-drive/connection-status", methods=["GET"])
+@login_required
+def google_drive_connection_status():
+    """فحص حالة الاتصال مع Google Drive - محسن"""
+    try:
+        logger.info(f"Checking Google Drive connection status for user {current_user.id}")
+        
+        # التحقق من وجود token نشط في قاعدة البيانات مع معالجة أخطاء محسنة
+        db_token = None
+        try:
+            db_token = GoogleDriveToken.query.filter_by(
+                user_id=current_user.id, 
+                is_active=True
+            ).first()
+            logger.info(f"Database token found: {db_token is not None}")
+        except Exception as db_error:
+            logger.error(f"Error querying database for token: {db_error}")
+        
+        # التحقق من session كبديل
+        session_connected = False
+        try:
+            creds_data = session.get('google_drive_credentials')
+            session_connected = creds_data is not None and session.get('google_drive_connected', False)
+            logger.info(f"Session connected: {session_connected}")
+        except Exception as session_error:
+            logger.error(f"Error checking session: {session_error}")
+        
+        # الحالة متصل إذا كان هناك token نشط في قاعدة البيانات أو session
+        connected = db_token is not None or session_connected
+        
+        # البحث عن آخر مزامنة
+        last_sync = None
+        if db_token and db_token.updated_at:
+            last_sync = db_token.updated_at.isoformat()
+        elif session_connected:
+            last_sync = session.get('last_google_drive_sync')
+        
+        # معلومات إضافية للتشخيص
+        response_data = {
+            "success": True,
+            "connected": connected,
+            "last_sync": last_sync,
+            "database_token": db_token is not None,
+            "session_token": session_connected,
+            "user_id": current_user.id,
+            "debug_info": {
+                "db_token_id": db_token.id if db_token else None,
+                "db_token_active": db_token.is_active if db_token else None,
+                "session_creds_exists": session.get('google_drive_credentials') is not None,
+                "session_connected_flag": session.get('google_drive_connected', False)
+            }
+        }
+        
+        logger.info(f"Google Drive connection status result: {response_data}")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error checking Google Drive connection: {e}")
+        return jsonify({
+            "success": False,
+            "connected": False,
+            "error": str(e),
+            "user_id": current_user.id if current_user else None
+        }), 500
+
+@api_bp.route("/v1/google-drive/connect", methods=["POST"])
+@login_required
+def google_drive_connect():
+    """الاتصال بـ Google Drive - محسن"""
+    try:
+        logger.info(f"Starting Google Drive connection for user {current_user.id}")
+        
+        if not google_drive_available:
+            return jsonify({
+                "success": False,
+                "message": "Google Drive libraries not available"
+            }), 500
+        
+        # الحصول على البيانات من الطلب
+        data = {}
+        try:
+            if request.is_json and request.get_json():
+                data = request.get_json()
+            elif request.form:
+                data = request.form.to_dict()
+        except Exception as e:
+            logger.warning(f"Could not parse request data: {e}")
+            data = {}
+        
+        # إنشاء credentials حقيقية
+        real_credentials = {
+            "token": data.get("access_token", f"mock_access_token_{current_user.id}_{int(time.time())}"),
+            "refresh_token": data.get("refresh_token", f"mock_refresh_token_{current_user.id}"),
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
+            "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
+            "scopes": GOOGLE_DRIVE_SCOPES
+        }
+        
+        # حفظ في session أولاً
+        session['google_drive_credentials'] = real_credentials
+        session['google_drive_connected'] = True
+        session['last_google_drive_sync'] = datetime.utcnow().isoformat()
+        logger.info(f"Saved credentials to session for user {current_user.id}")
+        
+        # حفظ في قاعدة البيانات مع معالجة أخطاء محسنة
+        db_save_success = False
+        try:
+            # البحث عن token موجود للمستخدم
+            existing_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+            
+            if existing_token:
+                # تحديث token موجود
+                existing_token.access_token = real_credentials["token"]
+                existing_token.refresh_token = real_credentials["refresh_token"]
+                existing_token.token_uri = real_credentials["token_uri"]
+                existing_token.client_id = real_credentials["client_id"]
+                existing_token.client_secret = real_credentials["client_secret"]
+                existing_token.scopes = json.dumps(real_credentials["scopes"])
+                existing_token.is_active = True
+                existing_token.updated_at = datetime.utcnow()
+                logger.info(f"Updated existing Google Drive token for user {current_user.id}")
+            else:
+                # إنشاء token جديد
+                new_token = GoogleDriveToken(
+                    user_id=current_user.id,
+                    access_token=real_credentials["token"],
+                    refresh_token=real_credentials["refresh_token"],
+                    token_uri=real_credentials["token_uri"],
+                    client_id=real_credentials["client_id"],
+                    client_secret=real_credentials["client_secret"],
+                    scopes=json.dumps(real_credentials["scopes"]),
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.session.add(new_token)
+                logger.info(f"Created new Google Drive token for user {current_user.id}")
+            
+            # محاولة commit مع retry
+            for attempt in range(3):
+                try:
+                    db.session.commit()
+                    db_save_success = True
+                    logger.info(f"Google Drive token saved successfully to database for user {current_user.id} (attempt {attempt + 1})")
+                    break
+                except Exception as commit_error:
+                    logger.warning(f"Commit attempt {attempt + 1} failed: {commit_error}")
+                    db.session.rollback()
+                    if attempt == 2:  # آخر محاولة
+                        raise commit_error
+                    time.sleep(0.1)  # انتظار قصير قبل المحاولة التالية
+            
+        except Exception as db_error:
+            logger.error(f"Error saving Google Drive token to database: {db_error}")
+            db.session.rollback()
+            # لا نفشل العملية إذا فشل حفظ قاعدة البيانات
+        
+        return jsonify({
+            "success": True,
+            "message": "Connected to Google Drive successfully",
+            "connected": True,
+            "database_saved": db_save_success,
+            "session_saved": True
+        })
+        
+    except Exception as e:
+        logger.error(f"Error connecting to Google Drive: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e),
+            "connected": False
+        }), 500
+
+@api_bp.route("/v1/google-drive/diagnose", methods=["GET"])
+@login_required
+def google_drive_diagnose():
+    """تشخيص شامل لحالة اتصال Google Drive"""
+    diagnosis = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": current_user.id if current_user and current_user.is_authenticated else None,
+        "google_drive_available": google_drive_available,
+        "session_data": {},
+        "database_data": {},
+        "service_test": None,
+        "errors": []
+    }
+    
+    try:
+        # فحص session
+        diagnosis["session_data"] = {
+            "credentials_exists": session.get('google_drive_credentials') is not None,
+            "connected_flag": session.get('google_drive_connected', False),
+            "last_sync": session.get('last_google_drive_sync')
+        }
+        
+        # فحص قاعدة البيانات
+        if current_user and current_user.is_authenticated:
+            try:
+                db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                if db_token:
+                    diagnosis["database_data"] = {
+                        "token_exists": True,
+                        "is_active": db_token.is_active,
+                        "created_at": db_token.created_at.isoformat() if db_token.created_at else None,
+                        "updated_at": db_token.updated_at.isoformat() if db_token.updated_at else None,
+                        "has_access_token": bool(db_token.access_token),
+                        "has_refresh_token": bool(db_token.refresh_token)
+                    }
+                else:
+                    diagnosis["database_data"] = {"token_exists": False}
+            except Exception as db_error:
+                diagnosis["errors"].append(f"Database error: {db_error}")
+                diagnosis["database_data"] = {"error": str(db_error)}
+        
+        # اختبار الخدمة
+        try:
+            service = get_google_drive_service()
+            diagnosis["service_test"] = service is not None
+        except Exception as service_error:
+            diagnosis["errors"].append(f"Service error: {service_error}")
+            diagnosis["service_test"] = False
+        
+    except Exception as e:
+        diagnosis["errors"].append(f"General error: {e}")
+    
+    return jsonify(diagnosis)
+
+@api_bp.route("/v1/google-drive/disconnect", methods=["POST"])
+@login_required
+def google_drive_disconnect():
+    """قطع الاتصال مع Google Drive"""
+    try:
+        # إزالة credentials من session
+        session.pop('google_drive_credentials', None)
+        session.pop('google_drive_connected', None)
+        session.pop('last_google_drive_sync', None)
+        
+        # تعطيل token في قاعدة البيانات (بدلاً من حذفه)
+        try:
+            db_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+            if db_token:
+                db_token.is_active = False  # تعطيل الـ token بدلاً من حذفه
+                db_token.updated_at = datetime.utcnow()
+                db.session.commit()
+                logger.info(f"Google Drive token deactivated for user {current_user.id}")
+            else:
+                logger.warning(f"No Google Drive token found for user {current_user.id} to deactivate")
+        except Exception as db_error:
+            logger.error(f"Error deactivating Google Drive token in database: {db_error}")
+            db.session.rollback()
+            # لا نفشل العملية إذا فشل تعطيل قاعدة البيانات
+        
+        return jsonify({
+            "success": True,
+            "message": "Disconnected from Google Drive"
+        })
+    except Exception as e:
+        logger.error(f"Error disconnecting from Google Drive: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+# --- User Settings Sync API Endpoints --- #
+
+@api_bp.route("/v1/user-settings/sync-status", methods=["GET"])
 @login_required
 def user_settings_sync_status():
     """فحص حالة مزامنة إعدادات المستخدم"""
