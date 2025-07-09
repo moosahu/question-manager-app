@@ -89,7 +89,7 @@ class BackupMonitor {
     
     async checkBackupStatus() {
         try {
-            const response = await fetch('/api/v1/backup/status', {
+            const response = await fetch('/api/backup/status', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ class BackupMonitor {
     
     async checkGoogleDriveConnection() {
         try {
-            const response = await fetch('/api/v1/google-drive/connection-status', {
+            const response = await fetch('/api/google-drive/status', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,24 +130,19 @@ class BackupMonitor {
     }
     
     updateBackupStatus(data) {
-        // التعامل مع البنية الجديدة للاستجابة
-        const status = data.status || data;
-        const googleDriveInfo = status.google_drive || {};
-        
-        if (this.lastBackupElement && googleDriveInfo.last_backup) {
-            const lastBackupDate = new Date(googleDriveInfo.last_backup);
+        if (this.lastBackupElement && data.last_backup_time) {
+            const lastBackupDate = new Date(data.last_backup_time);
             this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
         }
         
-        if (this.destinationElement) {
-            const isGoogleDriveConnected = googleDriveInfo.connected;
-            const destinationText = isGoogleDriveConnected ? 'Google Drive' : 'محلي';
+        if (this.destinationElement && data.destination) {
+            const destinationText = data.destination === 'google_drive' ? 'Google Drive' : 'محلي';
             this.destinationElement.textContent = destinationText;
         }
         
         // تحديث مؤشر الحالة
         if (this.statusElement) {
-            const isRecent = this.isRecentBackup(googleDriveInfo.last_backup);
+            const isRecent = this.isRecentBackup(data.last_backup_time);
             this.statusElement.className = isRecent ? 'status-good' : 'status-warning';
             this.statusElement.textContent = isRecent ? 'نشط' : 'يحتاج تحديث';
         }
@@ -155,10 +150,7 @@ class BackupMonitor {
     
     updateGoogleDriveStatus(data) {
         if (this.connectionElement) {
-            // التحقق من البنية الجديدة للاستجابة
-            const isConnected = data.status ? data.status.connected : data.connected;
-            
-            if (isConnected) {
+            if (data.connected) {
                 this.connectionElement.innerHTML = '✅ متصل';
                 this.connectionElement.className = 'status-connected';
             } else {
@@ -168,8 +160,7 @@ class BackupMonitor {
         }
         
         // إظهار/إخفاء أزرار الاتصال
-        const isConnected = data.status ? data.status.connected : data.connected;
-        this.toggleConnectionButtons(isConnected);
+        this.toggleConnectionButtons(data.connected);
     }
     
     toggleConnectionButtons(isConnected) {
@@ -198,7 +189,7 @@ class BackupMonitor {
         }
         
         try {
-            const response = await fetch('/api/v1/backup/immediate', {
+            const response = await fetch('/api/backup/test', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -227,7 +218,7 @@ class BackupMonitor {
     
     async connectGoogleDrive() {
         try {
-            const response = await fetch('/api/v1/backup/google-drive/connect', {
+            const response = await fetch('/api/google-drive/auth-url', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -281,7 +272,7 @@ class BackupMonitor {
         }
         
         try {
-            const response = await fetch('/api/v1/backup/google-drive/disconnect', {
+            const response = await fetch('/api/google-drive/disconnect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -302,7 +293,7 @@ class BackupMonitor {
     
     async checkGoogleDriveFiles() {
         try {
-            const response = await fetch('/api/v1/backup/google-drive/backups', {
+            const response = await fetch('/api/google-drive/files', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -311,7 +302,7 @@ class BackupMonitor {
             
             if (response.ok) {
                 const data = await response.json();
-                this.showGoogleDriveFiles(data.backups || []);
+                this.showGoogleDriveFiles(data.files || []);
             } else {
                 this.showError('فشل في الحصول على ملفات Google Drive');
             }

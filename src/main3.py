@@ -1642,17 +1642,6 @@ print("🚀 Google Drive Integration with Redirect Flow initialized successfully
 
 # ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
 @app.route("/api/backup/status")
-@login_required
 def alias_backup_status():
-    """Alias route للتوافق مع الـ frontend القديم"""
-    try:
-        # استدعاء الدالة الصحيحة من backup_apis_enhanced
-        from backup_apis_enhanced import get_backup_status
-        return get_backup_status()
-    except Exception as e:
-        logger.error(f"Error in alias backup status: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
-            'error_type': 'alias_route_error'
-        }), 500
+    from src.routes.backup_apis_enhanced import backup_status
+    return backup_status()
