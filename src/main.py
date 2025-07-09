@@ -1,4 +1,4 @@
-from src.routes.backup_apis_enhanced import register_backup_apis
+from backup_apis_enhanced import register_backup_apis
 import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
