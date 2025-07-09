@@ -6588,9 +6588,9 @@
                                 radio.disabled = false;
                                 console.log('✅ تم تفعيل خيار Google Drive - متصل');
                             } else {
-                                // اتركه مختار لكن معطل حتى يتم تسجيل الدخول
-                                radio.disabled = true;
-                                console.log('🔒 Google Drive مختار لكن معطل - يحتاج تسجيل دخول');
+                                // لا نعطل الخيار، بل نتركه قابل للاختيار مع رسالة توضيحية
+                                radio.disabled = false;
+                                console.log('ℹ️ خيار Google Drive متاح للاختيار - يحتاج تسجيل دخول');
                             }
                         }
                     } else {
@@ -7537,7 +7537,11 @@ console.log('🚀 Service Worker للنسخ التلقائي جاهز!');
 document.addEventListener('DOMContentLoaded', function() {
     const googleDriveOption = document.getElementById('google-drive-option');
     
+    // ضمان أن خيار Google Drive قابل للنقر دائماً
     if (googleDriveOption) {
+        googleDriveOption.disabled = false;
+        console.log('✅ تم تفعيل خيار Google Drive عند تحميل الصفحة');
+        
         googleDriveOption.addEventListener('change', function() {
             if (this.checked && !isGoogleDriveConnected()) {
                 // إظهار رسالة توضيحية
@@ -7570,6 +7574,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // التأكد من تفعيل جميع خيارات وجهة النسخ
+    const allDestinationOptions = document.querySelectorAll('input[name="backup_destination"]');
+    allDestinationOptions.forEach(option => {
+        option.disabled = false;
+        console.log(`✅ تم تفعيل خيار: ${option.value}`);
+    });
 });
 </script>
 
