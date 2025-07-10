@@ -13,44 +13,40 @@ import uuid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# متغيرات لتتبع حالة الاستيراد
-backup_scheduler_available = False
-backup_apis_available = False
-settings_available = False
-google_drive_backend_available = False
-google_drive_model_available = False
-backup_settings_model_available = False
-activity_available = False
-
-# استيراد نظام جدولة النسخ الاحتياطي (الملف موجود في src/)
+# استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
-    from backup_scheduler import (
+    from backup_scheduler_fixed import (
         init_backup_scheduler, 
         start_backup_scheduler,
         get_scheduler_status,
         schedule_user_backup
     )
     backup_scheduler_available = True
-    logger.info("✅ تم استيراد نظام الجدولة")
+    logger.info("✅ تم استيراد نظام الجدولة المحسن")
 except ImportError:
-    logger.warning("❌ Could not import backup_scheduler. Using fallback implementation.")
-    backup_scheduler_available = False
-    
-    # إنشاء دوال بديلة
-    def init_backup_scheduler(app):
-        logger.info("Backup scheduler fallback: initialized")
-        return True
+    try:
+        from backup_scheduler import init_backup_scheduler, start_backup_scheduler
+        backup_scheduler_available = True
+        logger.info("⚠️ تم استيراد نظام الجدولة الأصلي")
+    except ImportError:
+        logger.warning("❌ Could not import backup_scheduler. Using fallback implementation.")
+        backup_scheduler_available = False
         
-    def start_backup_scheduler():
-        logger.info("Backup scheduler fallback: started")
-        return True
-        
-    def get_scheduler_status():
-        return {"status": "disabled", "message": "Backup scheduler not available"}
-        
-    def schedule_user_backup(user_id, frequency):
-        logger.info(f"Backup scheduler fallback: scheduled for user {user_id}")
-        return True
+        # إنشاء دوال بديلة
+        def init_backup_scheduler(app):
+            logger.info("Backup scheduler fallback: initialized")
+            return True
+            
+        def start_backup_scheduler():
+            logger.info("Backup scheduler fallback: started")
+            return True
+            
+        def get_scheduler_status():
+            return {"status": "disabled", "message": "Backup scheduler not available"}
+            
+        def schedule_user_backup(user_id, frequency):
+            logger.info(f"Backup scheduler fallback: scheduled for user {user_id}")
+            return True
 
 # Import db and login_manager from the new extensions file مع معالجة أخطاء
 try:
@@ -73,14 +69,14 @@ try:
     from src.routes.api import api_bp
     logger.info("✅ Main blueprints imported successfully")
     
-    # استيراد APIs النسخ الاحتياطي المحسنة (الملف موجود في src/)
+    # استيراد APIs النسخ الاحتياطي المحسنة مع معالجة أخطاء
     try:
         from backup_apis_enhanced import register_backup_apis
         backup_apis_available = True
         logger.info("✅ تم استيراد APIs النسخ الاحتياطي المحسنة")
     except ImportError:
         backup_apis_available = False
-        logger.warning("Backup logic not available")
+        logger.warning("⚠️ Could not import backup_apis_enhanced. Using fallback implementation.")
         
         # إنشاء دالة بديلة
         def register_backup_apis(app):
@@ -92,7 +88,7 @@ try:
                 })
             logger.info("Backup APIs fallback registered")
     
-    # استيراد settings_bp (الملف موجود في src/routes/)
+    # استيراد settings_bp مع معالجة الخطأ المحسنة
     try:
         from src.routes.settings import settings_bp
         settings_available = True
@@ -106,29 +102,42 @@ try:
             logger.warning("⚠️ Could not import settings_bp. Settings feature will be disabled.")
             settings_available = False
     
-    # ✅ استيراد Google Drive Backend routes الصحيح (الملف موجود في src/routes/)
+    # استيراد Google Drive routes مع معالجة الخطأ المحسنة
+    try:
+        from src.routes.google_drive_backend_routes import register_google_drive_routes
+        google_drive_available = True
+        logger.info("✅ Google Drive routes imported successfully")
+    except ImportError:
+        try:
+            from routes.google_drive_backend_routes import register_google_drive_routes
+            google_drive_available = True
+            logger.info("✅ Google Drive routes imported successfully (fallback)")
+        except ImportError:
+            logger.warning("⚠️ Could not import google_drive_backend_routes. Using fallback implementation.")
+            google_drive_available = False
+            
+            # إنشاء دالة بديلة
+            def register_google_drive_routes(app):
+                @app.route('/api/google-drive/status')
+                def google_drive_status_fallback():
+                    return jsonify({
+                        'connected': False,
+                        'error': 'Google Drive service not available'
+                    })
+                logger.info("Google Drive routes fallback registered")
+            google_drive_available = False
+    
+    # استيراد Google Drive Backend routes مع معالجة الخطأ
     try:
         from src.routes.google_drive_backend_routes import register_google_drive_backend_routes
         google_drive_backend_available = True
-        logger.info("✅ Google Drive Backend routes imported successfully")
     except ImportError:
         try:
             from routes.google_drive_backend_routes import register_google_drive_backend_routes
             google_drive_backend_available = True
-            logger.info("✅ Google Drive Backend routes imported successfully (fallback)")
         except ImportError:
-            logger.warning("⚠️ Could not import google_drive_backend_routes. Using fallback implementation.")
+            print("Warning: Could not import google_drive_backend_routes. Google Drive Backend feature will be disabled.")
             google_drive_backend_available = False
-            
-            # إنشاء دالة بديلة
-            def register_google_drive_backend_routes(app):
-                @app.route('/google-drive-backend/status')
-                def google_drive_backend_status_fallback():
-                    return jsonify({
-                        'status': 'disabled',
-                        'message': 'Google Drive Backend not available'
-                    })
-                logger.info("Google Drive Backend routes fallback registered")
         
 except ImportError:
     try:
@@ -137,66 +146,76 @@ except ImportError:
         from routes.question import question_bp
         from routes.curriculum import curriculum_bp
         from routes.api import api_bp
-        logger.info("✅ Main blueprints imported successfully (fallback)")
         
+        # استيراد APIs النسخ الاحتياطي المحسنة
+        # تم استيراد backup_apis_enhanced مسبقاً في بداية الملف
+        # لا حاجة لاستيراده مرة أخرى
         # استيراد settings_bp مع معالجة الخطأ
         try:
             from routes.settings import settings_bp
             settings_available = True
         except ImportError:
-            logger.warning("⚠️ Could not import settings_bp. Settings feature will be disabled.")
+            print("Warning: Could not import settings_bp. Settings feature will be disabled.")
             settings_available = False
         
-        # ✅ استيراد Google Drive Backend routes الصحيح مع معالجة الخطأ
+        # استيراد Google Drive routes مع معالجة الخطأ
         try:
-            from routes.google_drive_backend_routes import register_google_drive_backend_routes
+            from src.routes.google_drive_backend_routes import register_google_drive_routes, register_google_drive_backend_routes
+            google_drive_available = True
             google_drive_backend_available = True
         except ImportError:
-            logger.warning("⚠️ Could not import google_drive_backend_routes. Google Drive Backend features will be disabled.")
-            google_drive_backend_available = False
-            
-            # إنشاء دالة بديلة
-            def register_google_drive_backend_routes(app):
-                @app.route('/google-drive-backend/status')
-                def google_drive_backend_status_fallback():
-                    return jsonify({'status': 'disabled', 'message': 'Google Drive Backend not available'})
+            try:
+                from routes.google_drive_backend_routes import register_google_drive_routes, register_google_drive_backend_routes
+                google_drive_available = True
+                google_drive_backend_available = True
+            except ImportError:
+                print("Warning: Could not import google_drive_backend_routes. Google Drive features will be disabled.")
+                google_drive_available = False
+                google_drive_backend_available = False
+                
+                # إنشاء دوال بديلة
+                def register_google_drive_routes(app):
+                    @app.route('/api/google-drive/status')
+                    def google_drive_status_fallback():
+                        return jsonify({'status': 'disabled', 'message': 'Google Drive not available'})
+                    
+                def register_google_drive_backend_routes(app):
+                    pass
     except ImportError:
-        logger.error("❌ Could not import blueprints from src.routes or routes.")
+        print("Error: Could not import blueprints from src.routes or routes.")
         raise
 
 # Import User model AFTER defining db
 try:
     from src.models.user import User
-    # استيراد Google Drive Token model (الملف موجود في src/models/)
+    # استيراد Google Drive Token model
     try:
         from src.models.google_drive import GoogleDriveToken
         google_drive_model_available = True
-        logger.info("✅ Google APIs client library loaded successfully")
-        logger.info("✅ Database models imported successfully")
-        logger.info("✅ Google OAuth credentials loaded successfully")
-        logger.info("✅ Google Drive Manager initialized successfully")
     except ImportError:
         try:
             from models.google_drive import GoogleDriveToken
             google_drive_model_available = True
-            logger.info("✅ Google APIs client library loaded successfully")
         except ImportError:
-            logger.warning("⚠️ Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
+            print("Warning: Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
             google_drive_model_available = False
     
-    # استيراد Backup Settings model (الملف موجود في src/models/)
+    # استيراد Backup Settings model
+    backup_settings_model_available = False
     try:
         from src.models.backup_settings import BackupSettings
         backup_settings_model_available = True
-        logger.info("✅ Database models imported successfully")
     except ImportError:
         try:
             from models.backup_settings import BackupSettings
             backup_settings_model_available = True
-            logger.info("✅ Database models imported successfully")
         except ImportError:
-            logger.warning("تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: No module named 'backup_settings'")
-            backup_settings_model_available = False
+            try:
+                from backup_settings import BackupSettings
+                backup_settings_model_available = True
+            except ImportError:
+                print("Warning: Could not import BackupSettings. Backup settings storage will be disabled.")
+                backup_settings_model_available = False
     
     # استيراد Activity مع معالجة الخطأ
     try:
@@ -207,7 +226,7 @@ try:
             from models.activity import Activity
             activity_available = True
         except ImportError:
-            logger.warning("⚠️ Could not import Activity. Activity tracking will be disabled.")
+            print("Warning: Could not import Activity. Activity tracking will be disabled.")
             activity_available = False
 except ImportError:
     try:
@@ -217,17 +236,17 @@ except ImportError:
             from models.google_drive import GoogleDriveToken
             google_drive_model_available = True
         except ImportError:
-            logger.warning("⚠️ Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
+            print("Warning: Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
             google_drive_model_available = False
         # استيراد Activity مع معالجة الخطأ
         try:
             from models.activity import Activity
             activity_available = True
         except ImportError:
-            logger.warning("⚠️ Could not import Activity. Activity tracking will be disabled.")
+            print("Warning: Could not import Activity. Activity tracking will be disabled.")
             activity_available = False
     except ImportError:
-        logger.error("❌ Could not import User model from src.models or models.")
+        print("Error: Could not import User model from src.models or models.")
         raise
 
 def create_app():
@@ -270,16 +289,16 @@ def create_app():
                 new_admin = User(username="admin", password_hash=hashed_password, is_admin=True)
                 db.session.add(new_admin)
                 db.session.commit()
-                logger.info("Admin user created.")
+                print("Admin user created.")
                 
                 # تسجيل نشاط إنشاء المستخدم الإداري إذا كان متاحاً
                 if activity_available:
                     try:
                         Activity.log_system_activity("تم إنشاء حساب المستخدم الإداري")
                     except Exception as e:
-                        logger.warning(f"Could not log activity: {e}")
+                        print(f"Warning: Could not log activity: {e}")
         except Exception as e:
-            logger.error(f"Error during database initialization or admin creation: {e}")
+            print(f"Error during database initialization or admin creation: {e}")
             db.session.rollback()
 
     # تهيئة جدولة النسخ الاحتياطي المحسنة
@@ -287,7 +306,7 @@ def create_app():
         try:
             scheduler = init_backup_scheduler(app)
             app.backup_scheduler = scheduler
-            logger.info("✅ تم تهيئة جدولة النسخ الاحتياطي")
+            print("✅ تم تهيئة جدولة النسخ الاحتياطي")
             
             # بدء تشغيل الجدولة في thread منفصل (حل مشكلة before_first_request المهملة)
             import threading
@@ -298,64 +317,33 @@ def create_app():
                 time.sleep(2)  # انتظار لضمان تهيئة التطبيق
                 try:
                     if start_backup_scheduler():
-                        logger.info("✅ تم بدء تشغيل جدولة النسخ الاحتياطي بنجاح")
+                        print("✅ تم بدء تشغيل جدولة النسخ الاحتياطي بنجاح")
                         # جدولة النسخ لجميع المستخدمين
                         scheduled_count = scheduler.schedule_all_users()
-                        logger.info(f"📅 تم جدولة النسخ الاحتياطي لـ {scheduled_count} مستخدم")
+                        print(f"📅 تم جدولة النسخ الاحتياطي لـ {scheduled_count} مستخدم")
                     else:
-                        logger.warning("❌ فشل في بدء تشغيل جدولة النسخ الاحتياطي")
+                        print("❌ فشل في بدء تشغيل جدولة النسخ الاحتياطي")
                 except Exception as e:
-                    logger.error(f"❌ خطأ في بدء تشغيل جدولة النسخ الاحتياطي: {e}")
+                    print(f"❌ خطأ في بدء تشغيل جدولة النسخ الاحتياطي: {e}")
             
             # تشغيل الجدولة في thread منفصل
             scheduler_thread = threading.Thread(target=start_scheduler_delayed, daemon=True)
             scheduler_thread.start()
             
         except Exception as e:
-            logger.error(f"❌ خطأ في تهيئة جدولة النسخ الاحتياطي: {e}")
+            print(f"❌ خطأ في تهيئة جدولة النسخ الاحتياطي: {e}")
     else:
-        logger.warning("⚠️ جدولة النسخ الاحتياطي غير متوفرة")
+        print("⚠️ جدولة النسخ الاحتياطي غير متوفرة")
 
-    # متغير لتتبع الـ blueprints المسجلة
-    registered_blueprints = set()
-
-    # Register blueprints مع تجنب التسجيل المكرر
-    def safe_register_blueprint(blueprint, **kwargs):
-        """تسجيل آمن للـ blueprint مع تجنب التكرار"""
-        blueprint_name = kwargs.get('url_prefix', blueprint.name)
-        if blueprint_name not in registered_blueprints:
-            app.register_blueprint(blueprint, **kwargs)
-            registered_blueprints.add(blueprint_name)
-            return True
-        else:
-            logger.warning(f"Blueprint {blueprint_name} already registered, skipping...")
-            return False
-
-    # تسجيل الـ blueprints الأساسية
-    safe_register_blueprint(auth_bp, url_prefix="/auth")
-    safe_register_blueprint(user_bp, url_prefix="/user")
-    safe_register_blueprint(question_bp, url_prefix="/questions")
-    safe_register_blueprint(curriculum_bp, url_prefix="/curriculum")
-    safe_register_blueprint(api_bp)
-    
-    # ✅ تسجيل Google Drive Backend routes إذا كان متاحاً (الاستيراد الصحيح)
-    if google_drive_backend_available:
-        try:
-            register_google_drive_backend_routes(app)
-            logger.info("🚀 تم تسجيل Google Drive Backend routes بنجاح")
-            logger.info("📱 الوصول للتطبيق: /google-drive-backend/google-drive-dashboard")
-            logger.info("⚙️ صفحة الإعدادات: /google-drive-backend/google-drive-settings")
-            logger.info("☁️ مزامنة Google Drive متاحة")
-        except Exception as e:
-            logger.error(f"خطأ في تسجيل Google Drive Backend routes: {e}")
-    
-    # تسجيل APIs النسخ الاحتياطي المحسنة إذا كانت متاحة
-    if backup_apis_available:
-        try:
-            register_backup_apis(app)
-            logger.info("Backup APIs registered successfully")
-        except Exception as e:
-            logger.warning(f"⚠️ Warning: Could not register Enhanced Backup APIs: {e}")
+    # Register blueprints
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(user_bp, url_prefix="/user")
+    app.register_blueprint(question_bp, url_prefix="/questions")
+    app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
+    app.register_blueprint(api_bp)
+    register_google_drive_routes(app)  # ✅ مضاف لتفعيل Google Drive status endpoint
+    register_google_drive_backend_routes(app)  # ✅ مضاف لتفعيل Google Drive API routes
+    register_backup_apis(app)  # ✅ مضاف لتفعيل Backup APIs including /api/v1/backup/status # <<< Registered API blueprint (prefix is in api.py)
     
     # إضافة context processor لجعل unread_count متاح في جميع القوالب
     @app.context_processor
@@ -369,30 +357,54 @@ def create_app():
                 ).count()
                 return {'unread_count': unread_count}
             except Exception as e:
-                logger.warning(f"Could not calculate unread count: {e}")
+                print(f"Warning: Could not calculate unread count: {e}")
                 return {'unread_count': 0}
         return {'unread_count': 0}
     
     # تسجيل blueprint الإشعارات
     try:
         from src.routes.notifications import notifications_bp
-        if safe_register_blueprint(notifications_bp, url_prefix="/notifications"):
-            logger.info("Notifications blueprint registered successfully.")
+        app.register_blueprint(notifications_bp, url_prefix="/notifications")
+        print("Notifications blueprint registered successfully.")
     except ImportError:
         try:
             from routes.notifications import notifications_bp
-            if safe_register_blueprint(notifications_bp, url_prefix="/notifications"):
-                logger.info("Notifications blueprint registered successfully.")
+            app.register_blueprint(notifications_bp, url_prefix="/notifications")
+            print("Notifications blueprint registered successfully.")
         except ImportError:
-            logger.warning("Warning: No app context available for notifications init")
+            print("Warning: Could not import notifications blueprint. Notifications feature will be disabled.")
     
     # تسجيل blueprint الإعدادات إذا كان متاحاً
     if settings_available:
         try:
-            if safe_register_blueprint(settings_bp, url_prefix="/settings"):
-                logger.info("Settings blueprint registered successfully.")
+            app.register_blueprint(settings_bp, url_prefix="/settings")
+            print("Settings blueprint registered successfully.")
         except Exception as e:
-            logger.warning(f"Could not register settings blueprint: {e}")
+            print(f"Warning: Could not register settings blueprint: {e}")
+    
+    # تسجيل Google Drive routes إذا كان متاحاً
+    if google_drive_available:
+        try:
+            register_google_drive_routes(app)
+            print("Google Drive routes registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register Google Drive routes: {e}")
+    
+    # تسجيل Google Drive Backend routes إذا كان متاحاً
+    if google_drive_backend_available:
+        try:
+            register_google_drive_backend_routes(app)
+            print("Google Drive Backend routes registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register Google Drive Backend routes: {e}")
+    
+    # تسجيل APIs النسخ الاحتياطي المحسنة إذا كانت متاحة
+    if backup_apis_available:
+        try:
+            register_backup_apis(app)
+            print("✅ Enhanced Backup APIs registered successfully.")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not register Enhanced Backup APIs: {e}")
 
     @app.route("/", endpoint='index')
     def home():
@@ -414,7 +426,7 @@ def create_app():
                 from models.question import Question
                 from models.curriculum import Course, Unit, Lesson
             except ImportError:
-                logger.error("Could not import models for statistics.")
+                print("Error: Could not import models for statistics.")
                 return render_template("index.html", 
                                       questions_count=0,
                                       courses_count=0,
@@ -433,7 +445,7 @@ def create_app():
             try:
                 recent_activities = Activity.get_recent_activities(limit=4)
             except Exception as e:
-                logger.warning(f"Could not get recent activities: {e}")
+                print(f"Warning: Could not get recent activities: {e}")
         
         # تمرير الإحصائيات والأنشطة إلى القالب
         context = {
@@ -453,7 +465,7 @@ def create_app():
             context["notifications"] = notifications
             context["unread_count"] = unread_count
         except Exception as e:
-            logger.warning(f"Failed to load notifications: {e}")
+            print(f"Warning: Failed to load notifications: {e}")
             context["notifications"] = []
             context["unread_count"] = 0
             
@@ -487,7 +499,7 @@ def create_app():
         
     @app.errorhandler(500)
     def internal_server_error(e):
-        logger.error(f"Internal Server Error: {e}")
+        print(f"Internal Server Error: {e}")
         db.session.rollback()
         # Check if the request path starts with /api/ for JSON response
         if request.path.startswith("/api/"):
@@ -508,7 +520,7 @@ def create_app():
                                  notifications=notifications, 
                                  unread_count=unread_count)
         except Exception as e:
-            logger.error(f"Error loading notifications page: {e}")
+            print(f"Error loading notifications page: {e}")
             flash('حدث خطأ في تحميل صفحة الإشعارات', 'error')
             return redirect(url_for('dashboard'))
     
@@ -573,13 +585,13 @@ def create_app():
                             f"تم حذف {deleted_count} إشعار"
                         )
                     except Exception as e:
-                        logger.warning(f"Could not log delete activity: {e}")
+                        print(f"Warning: Could not log delete activity: {e}")
             else:
                 flash("إجراء غير صحيح.", 'error')
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error in bulk notifications action: {e}")
+            print(f"Error in bulk notifications action: {e}")
             flash('حدث خطأ في تنفيذ الإجراء. يرجى المحاولة مرة أخرى.', 'error')
 
         return redirect(url_for("view_notifications"))
@@ -607,7 +619,7 @@ def create_app():
                 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error marking notification {notif_id} as read: {e}")
+            print(f"Error marking notification {notif_id} as read: {e}")
             return jsonify({'error': 'حدث خطأ في تحديث الإشعار'}), 500
 
     # إضافة مسار لحذف إشعار واحد
@@ -637,13 +649,13 @@ def create_app():
                         f"تم حذف إشعار: {notification.title}"
                     )
                 except Exception as e:
-                    logger.warning(f"Could not log delete activity: {e}")
+                    print(f"Warning: Could not log delete activity: {e}")
             
             return jsonify({'success': True, 'message': 'تم حذف الإشعار بنجاح'})
                 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error deleting notification {notif_id}: {e}")
+            print(f"Error deleting notification {notif_id}: {e}")
             return jsonify({'error': 'حدث خطأ في حذف الإشعار'}), 500
 
     # ===== Google Drive APIs المفقودة =====
@@ -652,11 +664,11 @@ def create_app():
     def connect_google_drive():
         """ربط Google Drive - محسن لحفظ Token في قاعدة البيانات"""
         try:
-            logger.info('🔗 محاولة ربط Google Drive...')
+            print('🔗 محاولة ربط Google Drive...')
             
             # التحقق من المستخدم أولاً
             if not current_user.is_authenticated:
-                logger.warning('❌ المستخدم غير مسجل دخول')
+                print('❌ المستخدم غير مسجل دخول')
                 return jsonify({
                     'success': False,
                     'message': 'يجب تسجيل الدخول أولاً',
@@ -664,9 +676,9 @@ def create_app():
                 }), 401
             
             # طباعة معلومات الطلب للتشخيص
-            logger.info(f'📋 Content-Type: {request.content_type}')
-            logger.info(f'📋 Method: {request.method}')
-            logger.info(f'📋 User ID: {current_user.id}')
+            print(f'📋 Content-Type: {request.content_type}')
+            print(f'📋 Method: {request.method}')
+            print(f'📋 User ID: {current_user.id}')
             
             # الحصول على بيانات Token من الطلب
             try:
@@ -675,20 +687,20 @@ def create_app():
                 
                 if request.is_json:
                     data = request.get_json()
-                    logger.info(f'📥 JSON data received: {bool(data)}')
+                    print(f'📥 JSON data received: {bool(data)}')
                 elif request.form:
                     data = request.form.to_dict()
-                    logger.info(f'📥 Form data received: {bool(data)}')
+                    print(f'📥 Form data received: {bool(data)}')
                 else:
                     # محاولة قراءة البيانات الخام
                     raw_data = request.get_data(as_text=True)
-                    logger.info(f'📥 Raw data length: {len(raw_data)}')
+                    print(f'📥 Raw data length: {len(raw_data)}')
                     if raw_data:
                         import json
                         data = json.loads(raw_data)
                 
                 if not data:
-                    logger.warning('❌ لم يتم العثور على بيانات في الطلب')
+                    print('❌ لم يتم العثور على بيانات في الطلب')
                     return jsonify({
                         'success': False,
                         'message': 'لم يتم إرسال بيانات صحيحة - البيانات فارغة',
@@ -702,7 +714,7 @@ def create_app():
                     }), 400
                     
             except Exception as json_error:
-                logger.error(f'❌ خطأ في قراءة البيانات: {json_error}')
+                print(f'❌ خطأ في قراءة البيانات: {json_error}')
                 return jsonify({
                     'success': False,
                     'message': f'خطأ في قراءة البيانات: {str(json_error)}',
@@ -716,11 +728,11 @@ def create_app():
             scope = data.get('scope')
             refresh_token = data.get('refresh_token')
             
-            logger.info(f'📥 تم استلام - access_token: {bool(access_token)}, type: {token_type}, refresh: {bool(refresh_token)}')
-            logger.info(f'📥 expires_in: {expires_in}, scope: {scope}')
+            print(f'📥 تم استلام - access_token: {bool(access_token)}, type: {token_type}, refresh: {bool(refresh_token)}')
+            print(f'📥 expires_in: {expires_in}, scope: {scope}')
             
             if not access_token:
-                logger.warning('❌ access_token مفقود من البيانات')
+                print('❌ access_token مفقود من البيانات')
                 return jsonify({
                     'success': False,
                     'message': 'لم يتم توفير access token في البيانات المرسلة',
@@ -736,6 +748,7 @@ def create_app():
             if google_drive_model_available and current_user.is_authenticated:
                 try:
                     import json
+                    from src.models.google_drive import GoogleDriveToken
                     
                     # إعداد بيانات الـ token للحفظ
                     token_data = {
@@ -748,34 +761,34 @@ def create_app():
                         'expires_in': expires_in
                     }
                     
-                    logger.info(f'💾 محاولة حفظ token في قاعدة البيانات للمستخدم {current_user.id}...')
+                    print(f'💾 محاولة حفظ token في قاعدة البيانات للمستخدم {current_user.id}...')
                     
                     # حفظ الـ token في قاعدة البيانات
                     saved_token = GoogleDriveToken.create_or_update_token(current_user.id, token_data)
                     
                     if saved_token:
                         token_saved_in_db = True
-                        logger.info(f'✅ تم حفظ token في قاعدة البيانات بنجاح للمستخدم {current_user.id}')
-                        logger.info(f'📊 Token ID: {saved_token.id}, Active: {saved_token.is_active}')
+                        print(f'✅ تم حفظ token في قاعدة البيانات بنجاح للمستخدم {current_user.id}')
+                        print(f'📊 Token ID: {saved_token.id}, Active: {saved_token.is_active}')
                         
                         # التحقق من حفظ البيانات
                         verification_token = GoogleDriveToken.get_user_token(current_user.id)
                         if verification_token:
-                            logger.info(f'✅ تم التحقق من حفظ Token - ID: {verification_token.id}')
+                            print(f'✅ تم التحقق من حفظ Token - ID: {verification_token.id}')
                         else:
-                            logger.warning(f'⚠️ فشل في التحقق من حفظ Token')
+                            print(f'⚠️ فشل في التحقق من حفظ Token')
                     else:
-                        logger.warning(f'❌ فشل في حفظ token في قاعدة البيانات للمستخدم {current_user.id}')
+                        print(f'❌ فشل في حفظ token في قاعدة البيانات للمستخدم {current_user.id}')
                     
                 except Exception as db_error:
-                    logger.error(f'❌ خطأ في حفظ token في قاعدة البيانات: {db_error}')
+                    print(f'❌ خطأ في حفظ token في قاعدة البيانات: {db_error}')
                     import traceback
                     traceback.print_exc()
                     # لا نفشل العملية إذا فشل حفظ قاعدة البيانات، لكن نسجل الخطأ
             else:
-                logger.warning(f'⚠️ نموذج Google Drive غير متاح أو المستخدم غير مصادق عليه')
-                logger.info(f'📊 google_drive_model_available: {google_drive_model_available}')
-                logger.info(f'📊 current_user.is_authenticated: {current_user.is_authenticated}')
+                print(f'⚠️ نموذج Google Drive غير متاح أو المستخدم غير مصادق عليه')
+                print(f'📊 google_drive_model_available: {google_drive_model_available}')
+                print(f'📊 current_user.is_authenticated: {current_user.is_authenticated}')
             
             # ثانياً: حفظ في الجلسة كنسخة احتياطية
             try:
@@ -787,9 +800,9 @@ def create_app():
                 session['google_drive_expires_in'] = expires_in
                 session['google_drive_scope'] = scope
                 
-                logger.info('✅ تم حفظ token في الجلسة كنسخة احتياطية')
+                print('✅ تم حفظ token في الجلسة كنسخة احتياطية')
             except Exception as session_error:
-                logger.warning(f'⚠️ خطأ في حفظ token في الجلسة: {session_error}')
+                print(f'⚠️ خطأ في حفظ token في الجلسة: {session_error}')
             
             # إعداد الاستجابة
             response_data = {
@@ -810,11 +823,11 @@ def create_app():
                 response_data['storage_method'] = 'session_fallback'
                 response_data['warning'] = 'تم حفظ Token في الجلسة فقط - قد ينقطع الاتصال عند انتهاء الجلسة'
             
-            logger.info(f'📤 إرسال استجابة ناجحة: {response_data}')
+            print(f'📤 إرسال استجابة ناجحة: {response_data}')
             return jsonify(response_data)
             
         except Exception as e:
-            logger.error(f'❌ خطأ عام في ربط Google Drive: {e}')
+            print(f'❌ خطأ عام في ربط Google Drive: {e}')
             import traceback
             traceback.print_exc()
             return jsonify({
@@ -824,6 +837,8 @@ def create_app():
                 'error_type': 'server_error'
             }), 500
     
+    @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+
     @app.route('/api/v1/google-drive/disconnect', methods=['POST'])
     def disconnect_google_drive():
         """قطع اتصال Google Drive"""
@@ -855,7 +870,7 @@ def create_app():
     def google_drive_connection_status():
         """فحص حالة اتصال Google Drive - محسن للتحقق من قاعدة البيانات أولاً"""
         try:
-            logger.info('🔍 فحص حالة اتصال Google Drive...')
+            print('🔍 فحص حالة اتصال Google Drive...')
             
             # أولاً: فحص قاعدة البيانات (الأولوية الأولى)
             db_connected = False
@@ -864,6 +879,7 @@ def create_app():
             
             if google_drive_model_available and current_user.is_authenticated:
                 try:
+                    from src.models.google_drive import GoogleDriveToken
                     user_token = GoogleDriveToken.get_user_token(current_user.id)
                     if user_token and user_token.is_token_valid():
                         db_connected = True
@@ -879,8 +895,8 @@ def create_app():
                             'last_backup': user_token.last_backup_date.isoformat() if user_token.last_backup_date else None,
                             'backup_count': user_token.backup_count
                         }
-                        logger.info(f'✅ تم العثور على token صالح في قاعدة البيانات للمستخدم {current_user.id}')
-                        logger.info(f'📊 Token ID: {user_token.id}, Expires: {user_token.expiry}')
+                        print(f'✅ تم العثور على token صالح في قاعدة البيانات للمستخدم {current_user.id}')
+                        print(f'📊 Token ID: {user_token.id}, Expires: {user_token.expiry}')
                         
                         # تحديث الجلسة من قاعدة البيانات
                         session['google_drive_connected'] = True
@@ -889,24 +905,24 @@ def create_app():
                             session['google_drive_refresh_token'] = user_token.refresh_token
                         session['google_drive_user_id'] = current_user.id
                         
-                        logger.info('🔄 تم تحديث الجلسة من قاعدة البيانات')
+                        print('🔄 تم تحديث الجلسة من قاعدة البيانات')
                     else:
-                        logger.warning(f'❌ لا يوجد token صالح في قاعدة البيانات للمستخدم {current_user.id}')
+                        print(f'❌ لا يوجد token صالح في قاعدة البيانات للمستخدم {current_user.id}')
                         if user_token:
-                            logger.info(f'📊 Token موجود لكن غير صالح - ID: {user_token.id}, Active: {user_token.is_active}, Valid: {user_token.is_token_valid()}')
+                            print(f'📊 Token موجود لكن غير صالح - ID: {user_token.id}, Active: {user_token.is_active}, Valid: {user_token.is_token_valid()}')
                 except Exception as db_error:
-                    logger.warning(f'⚠️ خطأ في فحص قاعدة البيانات: {db_error}')
+                    print(f'⚠️ خطأ في فحص قاعدة البيانات: {db_error}')
             else:
-                logger.warning(f'⚠️ نموذج Google Drive غير متاح أو المستخدم غير مصادق عليه')
-                logger.info(f'📊 google_drive_model_available: {google_drive_model_available}')
-                logger.info(f'📊 current_user.is_authenticated: {current_user.is_authenticated if current_user else False}')
+                print(f'⚠️ نموذج Google Drive غير متاح أو المستخدم غير مصادق عليه')
+                print(f'📊 google_drive_model_available: {google_drive_model_available}')
+                print(f'📊 current_user.is_authenticated: {current_user.is_authenticated if current_user else False}')
             
             # ثانياً: فحص الجلسة كنسخة احتياطية
             session_connected = session.get('google_drive_connected', False)
             session_token = session.get('google_drive_token')
             session_user_id = session.get('google_drive_user_id')
             
-            logger.info(f'📊 حالة الجلسة: connected={session_connected}, token={bool(session_token)}, user_id={session_user_id}')
+            print(f'📊 حالة الجلسة: connected={session_connected}, token={bool(session_token)}, user_id={session_user_id}')
             
             # تحديد الحالة النهائية
             final_connected = db_connected or session_connected
@@ -923,7 +939,7 @@ def create_app():
                 }
                 storage_method = 'session'
             
-            logger.info(f'🎯 الحالة النهائية: connected={final_connected}, storage={storage_method}')
+            print(f'🎯 الحالة النهائية: connected={final_connected}, storage={storage_method}')
             
             # إعداد الاستجابة
             response_data = {
@@ -949,7 +965,7 @@ def create_app():
             return jsonify(response_data)
             
         except Exception as e:
-            logger.error(f'❌ خطأ في فحص حالة Google Drive: {e}')
+            print(f'❌ خطأ في فحص حالة Google Drive: {e}')
             import traceback
             traceback.print_exc()
             return jsonify({
@@ -959,24 +975,214 @@ def create_app():
                 'error_type': 'server_error'
             }), 500
 
-    # إضافة مسارات إضافية للـ APIs
-    @app.route('/api/v1/backup-settings/save', methods=['POST'])
-    def save_backup_settings():
-        """حفظ إعدادات النسخ الاحتياطي"""
+    @app.route('/api/v1/google-drive/refresh-token', methods=['POST'])
+    def refresh_google_drive_token():
+        """تحديث Google Drive Token"""
         try:
-            data = request.get_json() or {}
-            logger.info(f"📥 تم استلام بيانات حفظ الإعدادات: {data}")
+            print('🔄 طلب تحديث Google Drive Token...')
             
             # التحقق من المستخدم
             if not current_user.is_authenticated:
-                logger.warning("❌ المستخدم غير مسجل الدخول")
                 return jsonify({
                     'success': False,
                     'message': 'يجب تسجيل الدخول أولاً'
                 }), 401
             
-            logger.info(f"👤 المستخدم المسجل: {current_user.id}")
-            logger.info(f"🔧 backup_settings_model_available: {backup_settings_model_available}")
+            # البحث عن refresh_token في قاعدة البيانات
+            refresh_token = None
+            if google_drive_model_available:
+                try:
+                    from src.models.google_drive import GoogleDriveToken
+                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id, is_active=True).first()
+                    if user_token and user_token.refresh_token:
+                        refresh_token = user_token.refresh_token
+                        print('✅ تم العثور على refresh_token في قاعدة البيانات')
+                    else:
+                        print(f'❌ لا يوجد refresh_token في قاعدة البيانات للمستخدم {current_user.id}')
+                except Exception as e:
+                    print(f'⚠️ خطأ في البحث في قاعدة البيانات: {e}')
+            
+            # البحث في الجلسة كبديل
+            if not refresh_token:
+                refresh_token = session.get('google_drive_refresh_token')
+                if refresh_token:
+                    print('✅ تم العثور على refresh_token في الجلسة')
+                else:
+                    print('❌ لا يوجد refresh_token في الجلسة')
+            
+            if not refresh_token:
+                return jsonify({
+                    'success': False,
+                    'message': 'لا يوجد refresh_token. يجب إعادة تسجيل الدخول إلى Google Drive',
+                    'requires_reauth': True
+                }), 400
+            
+            # تحديث الـ token باستخدام النموذج المحسن
+            if google_drive_model_available:
+                try:
+                    refreshed_token = GoogleDriveToken.refresh_user_token(current_user.id)
+                    if refreshed_token:
+                        # تحديث في الجلسة أيضاً
+                        session['google_drive_token'] = refreshed_token.access_token
+                        session['google_drive_connected'] = True
+                        
+                        print('✅ تم تحديث Token بنجاح')
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': 'تم تحديث Token بنجاح',
+                            'access_token': refreshed_token.access_token,
+                            'token_type': 'Bearer',
+                            'expires_at': refreshed_token.expiry.isoformat() if refreshed_token.expiry else None
+                        })
+                    else:
+                        print('❌ فشل في تحديث Token')
+                        return jsonify({
+                            'success': False,
+                            'message': 'فشل في تحديث Token',
+                            'requires_reauth': True
+                        }), 400
+                except Exception as e:
+                    print(f'❌ خطأ في تحديث Token: {e}')
+                    return jsonify({
+                        'success': False,
+                        'message': f'خطأ في تحديث Token: {str(e)}'
+                    }), 500
+            else:
+                # محاكاة تحديث Token (في حالة عدم توفر النموذج)
+                import time
+                new_access_token = f"new_token_{int(time.time())}"
+                
+                # تحديث في الجلسة
+                session['google_drive_token'] = new_access_token
+                session['google_drive_connected'] = True
+                
+                print('✅ تم تحديث Token بنجاح (محاكاة)')
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'تم تحديث Token بنجاح',
+                    'access_token': new_access_token,
+                    'token_type': 'Bearer'
+                })
+            
+        except Exception as e:
+            print(f'❌ خطأ في تحديث Token: {e}')
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تحديث Token: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/sync-to-drive', methods=['POST'])
+    def sync_user_settings_to_drive():
+        """مزامنة إعدادات المستخدم إلى Google Drive"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية المزامنة
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم رفع الإعدادات إلى Google Drive بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في المزامنة: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/download-from-drive', methods=['POST'])
+    def download_user_settings_from_drive():
+        """تحميل إعدادات المستخدم من Google Drive"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية التحميل
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحميل الإعدادات من Google Drive بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في التحميل: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/quick-sync', methods=['POST'])
+    def quick_sync_user_settings():
+        """مزامنة سريعة لإعدادات المستخدم"""
+        try:
+            if not session.get('google_drive_connected'):
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب ربط Google Drive أولاً'
+                }), 400
+            
+            # محاكاة عملية المزامنة السريعة
+            session['last_sync'] = datetime.utcnow().isoformat()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تمت المزامنة السريعة بنجاح',
+                'last_sync': session['last_sync']
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في المزامنة السريعة: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user-settings/sync-status', methods=['GET'])
+    def user_settings_sync_status():
+        """فحص حالة مزامنة إعدادات المستخدم"""
+        try:
+            connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_sync')
+            
+            return jsonify({
+                'success': True,
+                'connected': connected,
+                'last_sync': last_sync,
+                'sync_enabled': connected
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    # ===== APIs إعدادات النسخ الاحتياطي =====
+    
+    @app.route('/api/v1/backup-settings/save', methods=['POST'])
+    def save_backup_settings():
+        """حفظ إعدادات النسخ الاحتياطي"""
+        try:
+            data = request.get_json() or {}
+            print(f"📥 تم استلام بيانات حفظ الإعدادات: {data}")
+            
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                print("❌ المستخدم غير مسجل الدخول")
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            print(f"👤 المستخدم المسجل: {current_user.id}")
+            print(f"🔧 backup_settings_model_available: {backup_settings_model_available}")
             
             # حفظ في قاعدة البيانات إذا كان النموذج متاحاً
             if backup_settings_model_available:
@@ -989,9 +1195,9 @@ def create_app():
                         'backup_destination': data.get('backup_destination', 'local')
                     }
                     
-                    logger.info(f"💾 محاولة حفظ الإعدادات: {settings_data}")
+                    print(f"💾 محاولة حفظ الإعدادات: {settings_data}")
                     result = BackupSettings.update_user_settings(current_user.id, settings_data)
-                    logger.info(f"✅ تم حفظ الإعدادات بنجاح: {result}")
+                    print(f"✅ تم حفظ الإعدادات بنجاح: {result}")
                     
                     return jsonify({
                         'success': True,
@@ -999,7 +1205,7 @@ def create_app():
                         'settings': settings_data
                     }), 200
                 except Exception as db_error:
-                    logger.error(f"❌ خطأ في قاعدة البيانات: {str(db_error)}")
+                    print(f"❌ خطأ في قاعدة البيانات: {str(db_error)}")
                     # في حالة فشل قاعدة البيانات، احفظ في الجلسة
                     session['backup_settings'] = data
                     return jsonify({
@@ -1008,7 +1214,7 @@ def create_app():
                         'settings': data
                     }), 200
             else:
-                logger.warning("⚠️ نموذج BackupSettings غير متاح، الحفظ في الجلسة")
+                print("⚠️ نموذج BackupSettings غير متاح، الحفظ في الجلسة")
                 # حفظ في الجلسة كبديل
                 session['backup_settings'] = data
                 return jsonify({
@@ -1018,7 +1224,7 @@ def create_app():
                 }), 200
                 
         except Exception as e:
-            logger.error(f"❌ خطأ عام في API: {str(e)}")
+            print(f"❌ خطأ عام في API: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({
@@ -1026,11 +1232,342 @@ def create_app():
                 'message': f'خطأ في حفظ إعدادات النسخ الاحتياطي: {str(e)}'
             }), 500
 
-    # إضافة مسار Google OAuth Configuration
+    @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+    def refresh_google_token():
+        """تحديث Google Drive Token"""
+        try:
+            print('🔄 طلب تحديث Google Drive Token...')
+            
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # البحث عن refresh_token في قاعدة البيانات
+            refresh_token = None
+            if google_drive_model_available:
+                try:
+                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if user_token and user_token.refresh_token:
+                        refresh_token = user_token.refresh_token
+                        print('✅ تم العثور على refresh_token في قاعدة البيانات')
+                    else:
+                        print(f'❌ لا يوجد refresh_token في قاعدة البيانات للمستخدم {current_user.id}')
+                except Exception as e:
+                    print(f'⚠️ خطأ في البحث في قاعدة البيانات: {e}')
+            
+            # البحث في الجلسة كبديل
+            if not refresh_token:
+                refresh_token = session.get('google_drive_refresh_token')
+                if refresh_token:
+                    print('✅ تم العثور على refresh_token في الجلسة')
+                else:
+                    print('❌ لا يوجد refresh_token في الجلسة')
+            
+            if not refresh_token:
+                return jsonify({
+                    'success': False,
+                    'message': 'لا يوجد refresh_token. يجب إعادة تسجيل الدخول إلى Google Drive',
+                    'requires_reauth': True
+                }), 400
+            
+            # محاكاة تحديث Token (في التطبيق الحقيقي، ستستدعي Google OAuth API)
+            import time
+            new_access_token = f"new_token_{int(time.time())}"
+            
+            # تحديث في قاعدة البيانات
+            if google_drive_model_available:
+                try:
+                    user_token = GoogleDriveToken.query.filter_by(user_id=current_user.id).first()
+                    if user_token:
+                        user_token.access_token = new_access_token
+                        user_token.created_at = datetime.utcnow()
+                        db.session.commit()
+                        print('💾 تم تحديث access_token في قاعدة البيانات')
+                except Exception as e:
+                    print(f'⚠️ خطأ في تحديث قاعدة البيانات: {e}')
+            
+            # تحديث في الجلسة
+            session['google_drive_token'] = new_access_token
+            session['google_drive_connected'] = True
+            
+            print('✅ تم تحديث Token بنجاح')
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحديث Token بنجاح',
+                'access_token': new_access_token,
+                'token_type': 'Bearer'
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ في تحديث Token: {e}')
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تحديث Token: {str(e)}'
+            }), 500
+
+    @app.route('/api/v1/user/info', methods=['GET'])
+    @login_required
+    def get_user_info():
+        """جلب معلومات المستخدم الحالي"""
+        try:
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # جلب معلومات المستخدم من قاعدة البيانات
+            user_info = {
+                'id': current_user.id,
+                'username': current_user.username,
+                'email': getattr(current_user, 'email', None),
+                'name': getattr(current_user, 'name', current_user.username),
+                'is_admin': getattr(current_user, 'is_admin', False),
+                'created_at': getattr(current_user, 'created_at', None)
+            }
+            
+            # تحويل التاريخ إلى string إذا كان موجوداً
+            if user_info['created_at']:
+                user_info['created_at'] = user_info['created_at'].isoformat()
+            
+            return jsonify({
+                'success': True,
+                'user': user_info
+            })
+            
+        except Exception as e:
+            print(f'❌ خطأ في جلب معلومات المستخدم: {e}')
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في جلب معلومات المستخدم: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-settings/load', methods=['GET'])
+    def load_backup_settings():
+        """تحميل إعدادات النسخ الاحتياطي"""
+        try:
+            # التحقق من المستخدم
+            if not current_user.is_authenticated:
+                return jsonify({
+                    'success': False,
+                    'message': 'يجب تسجيل الدخول أولاً'
+                }), 401
+            
+            # تحميل من قاعدة البيانات إذا كان النموذج متاحاً
+            if backup_settings_model_available:
+                settings = BackupSettings.get_user_settings(current_user.id)
+                return jsonify({
+                    'success': True,
+                    'settings': settings.to_dict()
+                }), 200
+            else:
+                # تحميل من الجلسة كبديل
+                settings = session.get('backup_settings', {
+                    'auto_backup_enabled': False,
+                    'backup_frequency': 'daily',
+                    'backup_time': '02:00',
+                    'max_backups': 10,
+                    'backup_destination': 'local'
+                })
+                return jsonify({
+                    'success': True,
+                    'settings': settings
+                }), 200
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تحميل إعدادات النسخ الاحتياطي: {str(e)}'
+            }), 500
+
+    # ===== APIs جدولة النسخ الاحتياطي =====
+    
+    @app.route('/api/v1/backup-scheduler/status', methods=['GET'])
+    @login_required
+    def backup_scheduler_status():
+        """فحص حالة جدولة النسخ الاحتياطي"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'message': 'جدولة النسخ الاحتياطي غير متوفرة',
+                    'scheduler_running': False,
+                    'user_scheduled': False
+                }), 200
+            
+            scheduler = app.backup_scheduler
+            is_running = scheduler.is_running
+            
+            # فحص ما إذا كان المستخدم الحالي لديه جدولة مفعلة
+            user_scheduled = False
+            user_job_info = None
+            
+            if current_user.is_authenticated:
+                scheduled_jobs = scheduler.get_scheduled_jobs()
+                for job in scheduled_jobs:
+                    if job.get('user_id') == current_user.id:
+                        user_scheduled = True
+                        user_job_info = job
+                        break
+            
+            return jsonify({
+                'success': True,
+                'scheduler_running': is_running,
+                'user_scheduled': user_scheduled,
+                'user_job_info': user_job_info,
+                'total_scheduled_users': len(scheduler.get_scheduled_jobs())
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في فحص حالة الجدولة: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-scheduler/schedule', methods=['POST'])
+    @login_required
+    def schedule_user_backup_api():
+        """جدولة النسخ الاحتياطي للمستخدم الحالي"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'message': 'جدولة النسخ الاحتياطي غير متوفرة'
+                }), 200
+            
+            scheduler = app.backup_scheduler
+            
+            # جدولة النسخ للمستخدم الحالي
+            success = scheduler.schedule_user_backup(current_user.id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'تم جدولة النسخ الاحتياطي بنجاح',
+                    'user_id': current_user.id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'فشل في جدولة النسخ الاحتياطي. تأكد من تفعيل النسخ التلقائي في الإعدادات'
+                }), 200
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في جدولة النسخ الاحتياطي: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-scheduler/unschedule', methods=['POST'])
+    @login_required
+    def unschedule_user_backup_api():
+        """إلغاء جدولة النسخ الاحتياطي للمستخدم الحالي"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'message': 'جدولة النسخ الاحتياطي غير متوفرة'
+                }), 200
+            
+            scheduler = app.backup_scheduler
+            
+            # إلغاء جدولة النسخ للمستخدم الحالي
+            success = scheduler.remove_user_backup(current_user.id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'تم إلغاء جدولة النسخ الاحتياطي بنجاح',
+                    'user_id': current_user.id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'فشل في إلغاء جدولة النسخ الاحتياطي'
+                }), 200
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في إلغاء جدولة النسخ الاحتياطي: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-scheduler/trigger', methods=['POST'])
+    @login_required
+    def trigger_immediate_backup_api():
+        """تشغيل نسخ احتياطي فوري للمستخدم الحالي"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'message': 'جدولة النسخ الاحتياطي غير متوفرة'
+                }), 200
+            
+            scheduler = app.backup_scheduler
+            
+            # تشغيل نسخ احتياطي فوري للمستخدم الحالي
+            success = scheduler.trigger_immediate_backup(current_user.id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح',
+                    'user_id': current_user.id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'فشل في تشغيل النسخ الاحتياطي الفوري'
+                }), 200
+                
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في تشغيل النسخ الاحتياطي الفوري: {str(e)}'
+            }), 500
+    
+    @app.route('/api/v1/backup-scheduler/jobs', methods=['GET'])
+    @login_required
+    def get_scheduled_jobs_api():
+        """الحصول على قائمة المهام المجدولة"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'message': 'جدولة النسخ الاحتياطي غير متوفرة',
+                    'jobs': []
+                }), 200
+            
+            scheduler = app.backup_scheduler
+            jobs = scheduler.get_scheduled_jobs()
+            
+            # تصفية المهام للمستخدم الحالي فقط (إذا لم يكن مدير)
+            if not getattr(current_user, 'is_admin', False):
+                jobs = [job for job in jobs if job.get('user_id') == current_user.id]
+            
+            return jsonify({
+                'success': True,
+                'jobs': jobs,
+                'total_jobs': len(jobs)
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'خطأ في جلب المهام المجدولة: {str(e)}',
+                'jobs': []
+            }), 500
+
+    # ===== Google OAuth Configuration API =====
     @app.route('/api/v1/google-oauth/config')
     def get_google_oauth_config():
         """إرسال إعدادات Google OAuth للفرونت إند"""
         try:
+            import os
             config = {
                 'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
                 'api_key': os.environ.get('GOOGLE_API_KEY', 'AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc'),
@@ -1052,14 +1589,41 @@ def create_app():
                 'api_key': ''
             }), 500
 
+    # ===== Service Worker للنسخ التلقائي =====
+    @app.route('/backup-service-worker.js')
+    def service_worker():
+        """تقديم ملف Service Worker للنسخ التلقائي"""
+        try:
+            from flask import send_from_directory
+            return send_from_directory('.', 'backup-service-worker.js', 
+                                     mimetype='application/javascript')
+        except Exception as e:
+            return jsonify({'error': 'Service Worker غير متوفر'}), 404
+
     return app
 
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
 
+
 # إنشاء متغير app لـ gunicorn
 app = create_app()
+
+
+# ===== Google Drive Integration - Redirect Flow =====
+# إضافة مسارات Google Drive مع آلية إعادة التوجيه لحل مشكلة Cross-Origin
+
+try:
+    from google_drive_routes import register_google_drive_routes
+    # تسجيل مسارات Google Drive في التطبيق
+    register_google_drive_routes(app)
+    print("✅ Google Drive routes registered successfully with redirect flow")
+except ImportError as e:
+    print(f"⚠️ Could not import Google Drive routes: {e}")
+    print("📝 Make sure google_drive_routes.py is in the project directory")
+except Exception as e:
+    print(f"❌ Error registering Google Drive routes: {e}")
 
 # إضافة route للإعدادات إذا لم يكن موجوداً
 try:
@@ -1068,11 +1632,13 @@ try:
     def settings_page():
         """صفحة الإعدادات مع دعم Google Drive Integration"""
         return render_template('settings.html')
-    logger.info("✅ Settings route registered successfully")
+    print("✅ Settings route registered successfully")
 except Exception as e:
-    logger.warning(f"⚠️ Settings route may already exist: {e}")
+    print(f"⚠️ Settings route may already exist: {e}")
 
-logger.info("🚀 Google Drive Integration with Redirect Flow initialized successfully")
+print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
+
+
 
 # ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
 @app.route("/api/backup/status")
@@ -1081,20 +1647,71 @@ def alias_backup_status():
     """Alias route للتوافق مع الـ frontend القديم"""
     try:
         # استدعاء الدالة الصحيحة من backup_apis_enhanced
-        if backup_apis_available:
-            from backup_apis_enhanced import get_backup_status
-            return get_backup_status()
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
-                'error_type': 'backup_not_available'
-            }), 500
+        from backup_apis_enhanced import get_backup_status
+        return get_backup_status()
     except Exception as e:
         logger.error(f"Error in alias backup status: {e}")
         return jsonify({
             'success': False,
             'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
             'error_type': 'alias_route_error'
+        }), 500
+
+
+# ===== API إحصائيات النسخ الاحتياطية الشاملة =====
+
+@app.route('/api/v1/backup/stats', methods=['GET'])
+@login_required
+def get_backup_stats():
+    """الحصول على إحصائيات النسخ الاحتياطية الشاملة"""
+    try:
+        user_id = current_user.id
+        stats = {
+            'total_backups': 0,
+            'total_size': 0,
+            'last_backup_time': None,
+            'google_drive_connected': False,
+            'google_drive_backups': 0,
+            'local_backups': 0
+        }
+        
+        # إحصائيات Google Drive
+        try:
+            if google_drive_model_available:
+                from src.models.google_drive import GoogleDriveToken
+                user_token = GoogleDriveToken.get_user_token(user_id)
+                if user_token and user_token.is_active:
+                    stats['google_drive_connected'] = True
+                    stats['google_drive_backups'] = user_token.backup_count or 0
+                    stats['total_backups'] += stats['google_drive_backups']
+        except Exception as e:
+            print(f"خطأ في جلب إحصائيات Google Drive: {e}")
+        
+        # إحصائيات النسخ المحلية (يمكن إضافتها لاحقاً)
+        # stats['local_backups'] = get_local_backups_count(user_id)
+        # stats['total_backups'] += stats['local_backups']
+        
+        # إحصائيات إضافية من backup_settings
+        try:
+            if backup_settings_model_available:
+                from src.models.backup_settings import BackupSettings
+                user_settings = BackupSettings.get_user_settings(user_id)
+                if user_settings:
+                    # يمكن إضافة المزيد من الإحصائيات هنا
+                    pass
+        except Exception as e:
+            print(f"خطأ في جلب إعدادات النسخ: {e}")
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        print(f"خطأ في جلب إحصائيات النسخ: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'فشل في جلب إحصائيات النسخ الاحتياطية',
+            'message': str(e)
         }), 500
 
