@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
-    from src.backup_scheduler_fixed import (
+    from backup_scheduler_fixed import (
         init_backup_scheduler, 
         start_backup_scheduler,
         get_scheduler_status,
@@ -25,9 +25,9 @@ try:
     logger.info("✅ تم استيراد نظام الجدولة المحسن")
 except ImportError:
     try:
-        from src.backup_scheduler import init_backup_scheduler, start_backup_scheduler
+        from backup_scheduler import init_backup_scheduler, start_backup_scheduler
         backup_scheduler_available = True
-        logger.info("✅ تم استيراد نظام الجدولة الأصلي")
+        logger.info("⚠️ تم استيراد نظام الجدولة الأصلي")
     except ImportError:
         logger.warning("❌ Could not import backup_scheduler. Using fallback implementation.")
         backup_scheduler_available = False
@@ -71,7 +71,7 @@ try:
     
     # استيراد APIs النسخ الاحتياطي المحسنة مع معالجة أخطاء
     try:
-        from src.backup_apis_enhanced import register_backup_apis
+        from backup_apis_enhanced import register_backup_apis
         backup_apis_available = True
         logger.info("✅ تم استيراد APIs النسخ الاحتياطي المحسنة")
     except ImportError:
@@ -102,29 +102,42 @@ try:
             logger.warning("⚠️ Could not import settings_bp. Settings feature will be disabled.")
             settings_available = False
     
-    # استيراد Google Drive Backend routes مع معالجة الخطأ المحسنة ✅ إصلاح الاستيراد
+    # استيراد Google Drive routes مع معالجة الخطأ المحسنة
     try:
-        from src.routes.google_drive_backend_routes import register_google_drive_backend_routes
-        google_drive_backend_available = True
-        logger.info("✅ Google Drive Backend routes imported successfully")
+        from src.routes.google_drive_backend_routes import register_google_drive_routes
+        google_drive_available = True
+        logger.info("✅ Google Drive routes imported successfully")
     except ImportError:
         try:
-            from routes.google_drive_backend_routes import register_google_drive_backend_routes
-            google_drive_backend_available = True
-            logger.info("✅ Google Drive Backend routes imported successfully (fallback)")
+            from routes.google_drive_backend_routes import register_google_drive_routes
+            google_drive_available = True
+            logger.info("✅ Google Drive routes imported successfully (fallback)")
         except ImportError:
             logger.warning("⚠️ Could not import google_drive_backend_routes. Using fallback implementation.")
-            google_drive_backend_available = False
+            google_drive_available = False
             
             # إنشاء دالة بديلة
-            def register_google_drive_backend_routes(app):
+            def register_google_drive_routes(app):
                 @app.route('/api/google-drive/status')
                 def google_drive_status_fallback():
                     return jsonify({
                         'connected': False,
                         'error': 'Google Drive service not available'
                     })
-                logger.info("Google Drive Backend routes fallback registered")
+                logger.info("Google Drive routes fallback registered")
+            google_drive_available = False
+    
+    # استيراد Google Drive Backend routes مع معالجة الخطأ
+    try:
+        from src.routes.google_drive_backend_routes import register_google_drive_backend_routes
+        google_drive_backend_available = True
+    except ImportError:
+        try:
+            from routes.google_drive_backend_routes import register_google_drive_backend_routes
+            google_drive_backend_available = True
+        except ImportError:
+            print("Warning: Could not import google_drive_backend_routes. Google Drive Backend feature will be disabled.")
+            google_drive_backend_available = False
         
 except ImportError:
     try:
@@ -145,19 +158,27 @@ except ImportError:
             print("Warning: Could not import settings_bp. Settings feature will be disabled.")
             settings_available = False
         
-        # استيراد Google Drive Backend routes مع معالجة الخطأ ✅ إصلاح الاستيراد
+        # استيراد Google Drive routes مع معالجة الخطأ
         try:
-            from src.routes.google_drive_backend_routes import register_google_drive_backend_routes
+            from src.routes.google_drive_backend_routes import register_google_drive_routes, register_google_drive_backend_routes
+            google_drive_available = True
             google_drive_backend_available = True
         except ImportError:
             try:
-                from routes.google_drive_backend_routes import register_google_drive_backend_routes
+                from routes.google_drive_backend_routes import register_google_drive_routes, register_google_drive_backend_routes
+                google_drive_available = True
                 google_drive_backend_available = True
             except ImportError:
-                print("Warning: Could not import google_drive_backend_routes. Google Drive Backend feature will be disabled.")
+                print("Warning: Could not import google_drive_backend_routes. Google Drive features will be disabled.")
+                google_drive_available = False
                 google_drive_backend_available = False
                 
-                # إنشاء دالة بديلة
+                # إنشاء دوال بديلة
+                def register_google_drive_routes(app):
+                    @app.route('/api/google-drive/status')
+                    def google_drive_status_fallback():
+                        return jsonify({'status': 'disabled', 'message': 'Google Drive not available'})
+                    
                 def register_google_drive_backend_routes(app):
                     pass
     except ImportError:
@@ -171,10 +192,6 @@ try:
     try:
         from src.models.google_drive import GoogleDriveToken
         google_drive_model_available = True
-        logger.info("✅ Google APIs client library loaded successfully")
-        logger.info("✅ Database models imported successfully")
-        logger.info("✅ Google OAuth credentials loaded successfully")
-        logger.info("✅ Google Drive Manager initialized successfully")
     except ImportError:
         try:
             from models.google_drive import GoogleDriveToken
@@ -183,12 +200,11 @@ try:
             print("Warning: Could not import GoogleDriveToken. Google Drive token storage will be disabled.")
             google_drive_model_available = False
     
-    # استيراد Backup Settings model مع تصحيح المسار
+    # استيراد Backup Settings model
     backup_settings_model_available = False
     try:
         from src.models.backup_settings import BackupSettings
         backup_settings_model_available = True
-        logger.info("✅ Database models imported successfully")
     except ImportError:
         try:
             from models.backup_settings import BackupSettings
@@ -198,7 +214,7 @@ try:
                 from backup_settings import BackupSettings
                 backup_settings_model_available = True
             except ImportError:
-                print("تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: No module named 'backup_settings'")
+                print("Warning: Could not import BackupSettings. Backup settings storage will be disabled.")
                 backup_settings_model_available = False
     
     # استيراد Activity مع معالجة الخطأ
@@ -319,31 +335,15 @@ def create_app():
     else:
         print("⚠️ جدولة النسخ الاحتياطي غير متوفرة")
 
-    # Register blueprints - ✅ تنظيف التسجيل المكرر
+    # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)
-    
-    # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
-    if google_drive_backend_available:
-        try:
-            register_google_drive_backend_routes(app)
-            print("🚀 تم تسجيل Google Drive Backend routes بنجاح")
-            print("📱 الوصول للتطبيق: /google-drive-backend/google-drive-dashboard")
-            print("⚙️ صفحة الإعدادات: /google-drive-backend/google-drive-settings")
-            print("☁️ مزامنة Google Drive متاحة")
-        except Exception as e:
-            print(f"Warning: Could not register Google Drive Backend routes: {e}")
-    
-    # تسجيل APIs النسخ الاحتياطي المحسنة إذا كانت متاحة - ✅ تسجيل واحد فقط
-    if backup_apis_available:
-        try:
-            register_backup_apis(app)
-            logger.info("Backup APIs registered successfully")
-        except Exception as e:
-            print(f"⚠️ Warning: Could not register Enhanced Backup APIs: {e}")
+    register_google_drive_routes(app)  # ✅ مضاف لتفعيل Google Drive status endpoint
+    register_google_drive_backend_routes(app)  # ✅ مضاف لتفعيل Google Drive API routes
+    register_backup_apis(app)  # ✅ مضاف لتفعيل Backup APIs including /api/v1/backup/status # <<< Registered API blueprint (prefix is in api.py)
     
     # إضافة context processor لجعل unread_count متاح في جميع القوالب
     @app.context_processor
@@ -361,7 +361,7 @@ def create_app():
                 return {'unread_count': 0}
         return {'unread_count': 0}
     
-    # تسجيل blueprint الإشعارات - ✅ تسجيل واحد فقط
+    # تسجيل blueprint الإشعارات
     try:
         from src.routes.notifications import notifications_bp
         app.register_blueprint(notifications_bp, url_prefix="/notifications")
@@ -372,15 +372,39 @@ def create_app():
             app.register_blueprint(notifications_bp, url_prefix="/notifications")
             print("Notifications blueprint registered successfully.")
         except ImportError:
-            print("Warning: No app context available for notifications init")
+            print("Warning: Could not import notifications blueprint. Notifications feature will be disabled.")
     
-    # تسجيل blueprint الإعدادات إذا كان متاحاً - ✅ تسجيل واحد فقط
+    # تسجيل blueprint الإعدادات إذا كان متاحاً
     if settings_available:
         try:
             app.register_blueprint(settings_bp, url_prefix="/settings")
             print("Settings blueprint registered successfully.")
         except Exception as e:
             print(f"Warning: Could not register settings blueprint: {e}")
+    
+    # تسجيل Google Drive routes إذا كان متاحاً
+    if google_drive_available:
+        try:
+            register_google_drive_routes(app)
+            print("Google Drive routes registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register Google Drive routes: {e}")
+    
+    # تسجيل Google Drive Backend routes إذا كان متاحاً
+    if google_drive_backend_available:
+        try:
+            register_google_drive_backend_routes(app)
+            print("Google Drive Backend routes registered successfully.")
+        except Exception as e:
+            print(f"Warning: Could not register Google Drive Backend routes: {e}")
+    
+    # تسجيل APIs النسخ الاحتياطي المحسنة إذا كانت متاحة
+    if backup_apis_available:
+        try:
+            register_backup_apis(app)
+            print("✅ Enhanced Backup APIs registered successfully.")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not register Enhanced Backup APIs: {e}")
 
     @app.route("/", endpoint='index')
     def home():
@@ -813,6 +837,8 @@ def create_app():
                 'error_type': 'server_error'
             }), 500
     
+    @app.route('/api/v1/auth/google/refresh', methods=['POST'])
+
     @app.route('/api/v1/google-drive/disconnect', methods=['POST'])
     def disconnect_google_drive():
         """قطع اتصال Google Drive"""
@@ -1584,7 +1610,22 @@ if __name__ == "__main__":
 # إنشاء متغير app لـ gunicorn
 app = create_app()
 
-# ===== إضافة route للإعدادات إذا لم يكن موجوداً =====
+
+# ===== Google Drive Integration - Redirect Flow =====
+# إضافة مسارات Google Drive مع آلية إعادة التوجيه لحل مشكلة Cross-Origin
+
+try:
+    from google_drive_routes import register_google_drive_routes
+    # تسجيل مسارات Google Drive في التطبيق
+    register_google_drive_routes(app)
+    print("✅ Google Drive routes registered successfully with redirect flow")
+except ImportError as e:
+    print(f"⚠️ Could not import Google Drive routes: {e}")
+    print("📝 Make sure google_drive_routes.py is in the project directory")
+except Exception as e:
+    print(f"❌ Error registering Google Drive routes: {e}")
+
+# إضافة route للإعدادات إذا لم يكن موجوداً
 try:
     @app.route('/settings')
     @login_required
@@ -1597,6 +1638,8 @@ except Exception as e:
 
 print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
 
+
+
 # ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
 @app.route("/api/backup/status")
 @login_required
@@ -1604,7 +1647,7 @@ def alias_backup_status():
     """Alias route للتوافق مع الـ frontend القديم"""
     try:
         # استدعاء الدالة الصحيحة من backup_apis_enhanced
-        from src.backup_apis_enhanced import get_backup_status
+        from backup_apis_enhanced import get_backup_status
         return get_backup_status()
     except Exception as e:
         logger.error(f"Error in alias backup status: {e}")
@@ -1613,6 +1656,7 @@ def alias_backup_status():
             'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
             'error_type': 'alias_route_error'
         }), 500
+
 
 # ===== API إحصائيات النسخ الاحتياطية الشاملة =====
 
