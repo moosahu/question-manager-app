@@ -4,8 +4,8 @@ from flask import Flask, render_template, redirect, url_for, flash, current_app,
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required, login_user
 from flask_wtf.csrf import CSRFProtect
-from extensions import db
-from models.notification import Notification
+from src.extensions import db
+from src.models.notification import Notification
 from datetime import datetime
 import uuid
 
@@ -78,22 +78,27 @@ try:
     
     # استيراد APIs النسخ الاحتياطي المحسنة مع معالجة أخطاء
     try:
-        from backup_apis_enhanced import register_backup_apis
+        from src.backup_apis_enhanced import register_backup_apis
         backup_apis_available = True
         logger.info("✅ تم استيراد APIs النسخ الاحتياطي المحسنة")
     except ImportError:
-        backup_apis_available = False
-        logger.warning("⚠️ Could not import backup_apis_enhanced. Using fallback implementation.")
-        
-        # إنشاء دالة بديلة
-        def register_backup_apis(app):
-            @app.route('/api/backup/status')
-            def backup_status_fallback():
-                return jsonify({
-                    'status': 'disabled',
-                    'message': 'Backup APIs not available'
-                })
-            logger.info("Backup APIs fallback registered")
+        try:
+            from backup_apis_enhanced import register_backup_apis
+            backup_apis_available = True
+            logger.info("✅ تم استيراد APIs النسخ الاحتياطي المحسنة من المجلد الجذر")
+        except ImportError:
+            backup_apis_available = False
+            logger.warning("⚠️ Could not import backup_apis_enhanced. Using fallback implementation.")
+            
+            # إنشاء دالة بديلة
+            def register_backup_apis(app):
+                @app.route('/api/backup/status')
+                def backup_status_fallback():
+                    return jsonify({
+                        'status': 'disabled',
+                        'message': 'Backup APIs not available'
+                    })
+                logger.info("Backup APIs fallback registered")
     
     # استيراد settings_bp مع معالجة الخطأ المحسنة
     try:
@@ -1656,7 +1661,7 @@ def get_backup_stats():
         # إحصائيات Google Drive
         try:
             if google_drive_model_available:
-                from models.google_drive import GoogleDriveToken
+                from src.models.google_drive import GoogleDriveToken
                 user_token = GoogleDriveToken.get_user_token(user_id)
                 if user_token and user_token.is_active:
                     stats['google_drive_connected'] = True
@@ -1672,7 +1677,7 @@ def get_backup_stats():
         # إحصائيات إضافية من backup_settings
         try:
             if backup_settings_model_available:
-                from models.backup_settings import BackupSettings
+                from src.models.backup_settings import BackupSettings
                 user_settings = BackupSettings.get_user_settings(user_id)
                 if user_settings:
                     # يمكن إضافة المزيد من الإحصائيات هنا
