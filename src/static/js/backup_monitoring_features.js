@@ -35,9 +35,6 @@ class BackupMonitor {
     bindEvents() {
         // زر اختبار النسخ
         
-        // ✅ عند الضغط على الزر، يتم فتح نافذة الخيارات بدلاً من تشغيل النسخ مباشرة
-        
-        // ✅ عند الضغط على الزر، يتم فتح نافذة النسخ الاحتياطي المتقدم فقط
         const testBackupBtn = document.getElementById('test-backup-btn');
         if (testBackupBtn) {
             testBackupBtn.addEventListener('click', () => {
@@ -47,7 +44,6 @@ class BackupMonitor {
                 }
             });
         }
-
 
         
         // زر ربط Google Drive
@@ -409,12 +405,6 @@ class BackupMonitor {
 
 // تهيئة النظام عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
-        // ✅ فتح نافذة النسخ تلقائيًا عند تحميل الصفحة
-        const modal = document.querySelector('.modal-overlay');
-        if (modal) {
-            modal.classList.add('show');
-        }
-
     // التحقق من وجود عناصر النسخ الاحتياطي في الصفحة
     if (document.getElementById('backup-status') || 
         document.querySelector('.backup-section')) {
