@@ -4,8 +4,8 @@ from flask import Flask, render_template, redirect, url_for, flash, current_app,
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required, login_user
 from flask_wtf.csrf import CSRFProtect
-from extensions import db
-from models.notification import Notification
+from src.extensions import db
+from src.models.notification import Notification
 from datetime import datetime
 import uuid
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
-    from backup_scheduler_fixed import (
+    from src.backup_scheduler_fixed import (
         init_backup_scheduler, 
         start_backup_scheduler,
         get_scheduler_status,
@@ -25,7 +25,7 @@ try:
     logger.info("✅ تم استيراد نظام الجدولة المحسن")
 except ImportError:
     try:
-        from backup_scheduler import init_backup_scheduler, start_backup_scheduler
+        from src.backup_scheduler import init_backup_scheduler, start_backup_scheduler
         backup_scheduler_available = True
         logger.info("✅ تم استيراد نظام الجدولة الأصلي")
     except ImportError:
@@ -71,7 +71,7 @@ try:
     
     # استيراد APIs النسخ الاحتياطي المحسنة مع معالجة أخطاء
     try:
-        from backup_apis_enhanced import register_backup_apis
+        from src.backup_apis_enhanced import register_backup_apis
         backup_apis_available = True
         logger.info("✅ تم استيراد APIs النسخ الاحتياطي المحسنة")
     except ImportError:
@@ -1487,21 +1487,6 @@ def create_app():
             success = scheduler.trigger_immediate_backup(current_user.id)
             
             if success:
-                # تحديث عدد النسخ في قاعدة البيانات بعد نجاح العملية
-                try:
-                    if google_drive_model_available:
-                        from models.google_drive import GoogleDriveToken
-                        user_token = GoogleDriveToken.get_user_token(current_user.id)
-                        if user_token:
-                            # زيادة عدد النسخ
-                            current_count = user_token.backup_count or 0
-                            user_token.backup_count = current_count + 1
-                            user_token.last_backup_time = datetime.utcnow()
-                            db.session.commit()
-                            logger.info(f"تم تحديث عدد النسخ للمستخدم {current_user.id}: {user_token.backup_count}")
-                except Exception as e:
-                    logger.error(f"خطأ في تحديث عدد النسخ: {e}")
-                
                 return jsonify({
                     'success': True,
                     'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح',
@@ -1649,7 +1634,7 @@ def get_backup_stats():
         # إحصائيات Google Drive
         try:
             if google_drive_model_available:
-                from models.google_drive import GoogleDriveToken
+                from src.models.google_drive import GoogleDriveToken
                 user_token = GoogleDriveToken.get_user_token(user_id)
                 if user_token and user_token.is_active:
                     stats['google_drive_connected'] = True
@@ -1665,7 +1650,7 @@ def get_backup_stats():
         # إحصائيات إضافية من backup_settings
         try:
             if backup_settings_model_available:
-                from models.backup_settings import BackupSettings
+                from src.models.backup_settings import BackupSettings
                 user_settings = BackupSettings.get_user_settings(user_id)
                 if user_settings:
                     # يمكن إضافة المزيد من الإحصائيات هنا
