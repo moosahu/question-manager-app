@@ -36,15 +36,18 @@ class BackupMonitor {
         // زر اختبار النسخ
         
         // ✅ عند الضغط على الزر، يتم فتح نافذة الخيارات بدلاً من تشغيل النسخ مباشرة
+        
+        // ✅ عند الضغط على الزر، يتم فتح نافذة النسخ الاحتياطي المتقدم فقط
         const testBackupBtn = document.getElementById('test-backup-btn');
         if (testBackupBtn) {
             testBackupBtn.addEventListener('click', () => {
-                const modal = document.querySelector('.modal-overlay');
+                const modal = document.getElementById('advanced-backup-modal');
                 if (modal) {
                     modal.classList.add('show');
                 }
             });
         }
+
 
         
         // زر ربط Google Drive
