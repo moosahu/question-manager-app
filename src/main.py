@@ -15,18 +15,18 @@ logger = logging.getLogger(__name__)
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
-    # محاولة استيراد backup_scheduler أولاً (الملف الجديد الذي يعمل كـ wrapper)
-    from backup_scheduler import (
+    # استيراد مباشر من src/backup_scheduler_fixed
+    from src.backup_scheduler_fixed import (
         init_backup_scheduler, 
         start_backup_scheduler,
         get_scheduler_status,
         schedule_user_backup
     )
     backup_scheduler_available = True
-    logger.info("✅ تم استيراد نظام الجدولة من backup_scheduler")
+    logger.info("✅ تم استيراد نظام الجدولة المحسن")
 except ImportError:
     try:
-        # محاولة استيراد من backup_scheduler_fixed مباشرة
+        # محاولة استيراد من backup_scheduler_fixed في المجلد الجذر
         from backup_scheduler_fixed import (
             init_backup_scheduler, 
             start_backup_scheduler,
@@ -34,9 +34,9 @@ except ImportError:
             schedule_user_backup
         )
         backup_scheduler_available = True
-        logger.info("✅ تم استيراد نظام الجدولة المحسن من backup_scheduler_fixed")
+        logger.info("✅ تم استيراد نظام الجدولة المحسن من المجلد الجذر")
     except ImportError:
-        logger.warning("❌ Could not import backup_scheduler or backup_scheduler_fixed. Using fallback implementation.")
+        logger.warning("❌ Could not import backup_scheduler_fixed. Using fallback implementation.")
         backup_scheduler_available = False
         
         # إنشاء دوال بديلة
