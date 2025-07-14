@@ -125,7 +125,11 @@ class BackupMonitor {
             
             if (response.ok) {
                 const data = await response.json();
-                this.updateGoogleDriveStatus(data);
+                if (data.success) {
+                    this.updateGoogleDriveStatus(data);
+                } else {
+                    console.error('فشل في فحص اتصال Google Drive:', data.error);
+                }
             } else {
                 console.error('فشل في فحص اتصال Google Drive');
             }
@@ -208,7 +212,8 @@ class BackupMonitor {
     updateGoogleDriveStatus(data) {
         if (this.connectionElement) {
             // التحقق من البنية الجديدة للاستجابة
-            const isConnected = data.status ? data.status.connected : data.connected;
+            const status = data.status || data;
+            const isConnected = status.connected || false;
             
             if (isConnected) {
                 this.connectionElement.innerHTML = '✅ متصل';
@@ -220,7 +225,8 @@ class BackupMonitor {
         }
         
         // إظهار/إخفاء أزرار الاتصال
-        const isConnected = data.status ? data.status.connected : data.connected;
+        const status = data.status || data;
+        const isConnected = status.connected || false;
         this.toggleConnectionButtons(isConnected);
     }
     

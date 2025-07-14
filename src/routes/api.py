@@ -8,6 +8,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 
+# إعداد logger
+logger = logging.getLogger(__name__)
+
 try:
     from src.extensions import db
 except ImportError:
@@ -55,43 +58,59 @@ except ImportError:
         raise
 
 
-# ===== إضافات APScheduler =====
+# ===== إضافات النسخ الاحتياطي =====
 import os
 import sys
 from datetime import datetime
 
-# إضافة مسار المجلد الأب للوصول للوحدات
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# محاولة استيراد وحدات النسخ الاحتياطي
+try:
+    from src.backup_scheduler_fixed import BackupScheduler
+    backup_scheduler_available = True
+except ImportError:
+    try:
+        from backup_scheduler_fixed import BackupScheduler
+        backup_scheduler_available = True
+    except ImportError:
+        print("تحذير: لا يمكن استيراد BackupScheduler")
+        BackupScheduler = None
+        backup_scheduler_available = False
 
 try:
-    from backup_scheduler import BackupScheduler
-    from backup_settings import BackupSettings as BackupSettingsManager
-    from backup_logic import BackupLogic
-except ImportError as e:
-    print(f"تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: {e}")
-    BackupScheduler = None
-    BackupSettingsManager = None
-    BackupLogic = None
+    from src.backup_logic import perform_backup_for_user, create_backup
+    backup_logic_available = True
+except ImportError:
+    try:
+        from backup_logic import perform_backup_for_user, create_backup
+        backup_logic_available = True
+    except ImportError:
+        print("تحذير: لا يمكن استيراد backup_logic")
+        backup_logic_available = False
+        perform_backup_for_user = None
+        create_backup = None
 
 # متغيرات عامة للنسخ الاحتياطي
 backup_scheduler = None
-backup_settings_manager = None
 backup_logic = None
+google_drive_available = True
 
 def init_backup_system():
     """تهيئة نظام النسخ الاحتياطي"""
-    global backup_scheduler, backup_settings_manager, backup_logic
+    global backup_scheduler, backup_logic
     
-    if BackupScheduler and BackupSettingsManager and BackupLogic:
+    if backup_scheduler_available and BackupScheduler:
         try:
-            backup_settings_manager = BackupSettingsManager()
-            backup_logic = BackupLogic()
             backup_scheduler = BackupScheduler()
-            return True
         except Exception as e:
-            print(f"خطأ في تهيئة نظام النسخ الاحتياطي: {e}")
-            return False
-    return False
+            print(f"خطأ في تهيئة backup_scheduler: {e}")
+            backup_scheduler = None
+    
+    if backup_logic_available:
+        backup_logic = True
+    else:
+        backup_logic = None
+    
+    return backup_scheduler is not None or backup_logic is not None
 
 # تهيئة النظام عند تحميل الوحدة
 init_backup_system()
@@ -2568,15 +2587,18 @@ def get_backup_status():
                 
             # محاولة الحصول من قاعدة البيانات
             if GoogleDriveToken:
-                db_token = GoogleDriveToken.query.filter_by(
-                    user_id=user_id, 
-                    is_active=True
-                ).first()
-                
-                if db_token:
-                    google_drive_status['connected'] = True
-                    if db_token.updated_at:
-                        google_drive_status['last_backup'] = db_token.updated_at.isoformat()
+                try:
+                    db_token = GoogleDriveToken.query.filter_by(
+                        user_id=user_id, 
+                        is_active=True
+                    ).first()
+                    
+                    if db_token:
+                        google_drive_status['connected'] = True
+                        if hasattr(db_token, 'updated_at') and db_token.updated_at:
+                            google_drive_status['last_backup'] = db_token.updated_at.isoformat()
+                except Exception as e:
+                    logger.warning(f"Error querying GoogleDriveToken: {e}")
                         
         except Exception as e:
             logger.warning(f"Error checking Google Drive status: {e}")
@@ -2591,16 +2613,18 @@ def get_backup_status():
         
         if backup_scheduler:
             try:
-                status = backup_scheduler.get_status()
-                scheduler_status['running'] = status.get('scheduler_running', False)
+                if hasattr(backup_scheduler, 'get_status'):
+                    status = backup_scheduler.get_status()
+                    scheduler_status['running'] = status.get('scheduler_running', False)
                 
                 # البحث عن مهمة المستخدم
-                jobs = backup_scheduler.get_jobs()
-                user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
-                
-                if user_job:
-                    scheduler_status['user_scheduled'] = True
-                    scheduler_status['next_backup'] = user_job.get('next_run')
+                if hasattr(backup_scheduler, 'get_jobs'):
+                    jobs = backup_scheduler.get_jobs()
+                    user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
+                    
+                    if user_job:
+                        scheduler_status['user_scheduled'] = True
+                        scheduler_status['next_backup'] = user_job.get('next_run')
                     
             except Exception as e:
                 logger.warning(f"Error getting scheduler status: {e}")
@@ -2612,7 +2636,7 @@ def get_backup_status():
             'scheduler': scheduler_status,
             'google_drive': google_drive_status,
             'backup_logic': {
-                'available': backup_logic is not None
+                'available': backup_logic_available
             },
             'settings': {
                 'auto_backup_enabled': backup_settings.auto_backup_enabled if backup_settings else False,
@@ -2650,14 +2674,14 @@ def create_immediate_backup():
         user_id = current_user.id
         
         # التحقق من توفر نظام النسخ الاحتياطي
-        if not backup_logic:
+        if not backup_logic_available or not create_backup:
             return jsonify({
                 'success': False,
                 'error': 'نظام النسخ الاحتياطي غير متوفر'
             }), 503
         
         # تنفيذ النسخ الاحتياطي
-        result = backup_logic.create_backup(user_id)
+        result = create_backup(user_id)
         
         if result.get('success'):
             # تحديث session مع معلومات النسخة الجديدة
@@ -2689,6 +2713,66 @@ def create_immediate_backup():
             
     except Exception as e:
         logger.exception(f"Error creating immediate backup: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/google-drive/connection-status", methods=["GET"])
+@login_required
+def get_google_drive_connection_status():
+    """
+    الحصول على حالة اتصال Google Drive
+    
+    Returns:
+    - حالة الاتصال بتنسيق JSON
+    """
+    logger.info("API request received for Google Drive connection status.")
+    try:
+        user_id = current_user.id
+        
+        # فحص حالة الاتصال
+        connection_status = {
+            'connected': False,
+            'last_sync': None,
+            'user_id': user_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        try:
+            # فحص من session
+            google_drive_connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_google_drive_sync')
+            
+            if google_drive_connected:
+                connection_status['connected'] = True
+                connection_status['last_sync'] = last_sync
+            
+            # فحص من قاعدة البيانات
+            if GoogleDriveToken:
+                try:
+                    db_token = GoogleDriveToken.query.filter_by(
+                        user_id=user_id, 
+                        is_active=True
+                    ).first()
+                    
+                    if db_token:
+                        connection_status['connected'] = True
+                        if hasattr(db_token, 'updated_at') and db_token.updated_at:
+                            connection_status['last_sync'] = db_token.updated_at.isoformat()
+                except Exception as e:
+                    logger.warning(f"Error querying GoogleDriveToken: {e}")
+                    
+        except Exception as e:
+            logger.warning(f"Error checking Google Drive connection: {e}")
+        
+        return jsonify({
+            'success': True,
+            'status': connection_status
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting Google Drive connection status: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
