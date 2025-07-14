@@ -34,17 +34,10 @@ class BackupMonitor {
     
     bindEvents() {
         // زر اختبار النسخ
-        
         const testBackupBtn = document.getElementById('test-backup-btn');
         if (testBackupBtn) {
-            testBackupBtn.addEventListener('click', () => {
-                const modal = document.getElementById('advanced-backup-modal');
-                if (modal) {
-                    modal.classList.add('show');
-                }
-            });
+            testBackupBtn.addEventListener('click', () => this.testBackup());
         }
-
         
         // زر ربط Google Drive
         const connectGoogleBtn = document.getElementById('connect-google-drive');
@@ -105,7 +98,12 @@ class BackupMonitor {
             
             if (response.ok) {
                 const data = await response.json();
-                this.updateBackupStatus(data);
+                if (data.success) {
+                    this.updateBackupStatus(data);
+                } else {
+                    console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
+                    this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
+                }
             } else {
                 console.error('فشل في الحصول على حالة النسخ الاحتياطي');
                 this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
@@ -140,24 +138,71 @@ class BackupMonitor {
         // التعامل مع البنية الجديدة للاستجابة
         const status = data.status || data;
         const googleDriveInfo = status.google_drive || {};
+        const settingsInfo = status.settings || {};
         
-        if (this.lastBackupElement && googleDriveInfo.last_backup) {
-            const lastBackupDate = new Date(googleDriveInfo.last_backup);
-            this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
+        // تحديث تاريخ آخر نسخة
+        if (this.lastBackupElement) {
+            let lastBackupTime = null;
+            
+            // البحث عن تاريخ آخر نسخة من مصادر متعددة
+            if (settingsInfo.last_backup_time) {
+                lastBackupTime = settingsInfo.last_backup_time;
+            } else if (googleDriveInfo.last_backup) {
+                lastBackupTime = googleDriveInfo.last_backup;
+            }
+            
+            if (lastBackupTime) {
+                const lastBackupDate = new Date(lastBackupTime);
+                this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
+                this.lastBackupElement.style.color = '#4CAF50';
+            } else {
+                this.lastBackupElement.textContent = 'لم يتم إنشاء نسخة احتياطية بعد';
+                this.lastBackupElement.style.color = '#ff9800';
+            }
         }
         
+        // تحديث وجهة النسخ الاحتياطي
         if (this.destinationElement) {
             const isGoogleDriveConnected = googleDriveInfo.connected;
-            const destinationText = isGoogleDriveConnected ? 'Google Drive' : 'محلي';
+            const backupDestination = settingsInfo.backup_destination || 'local';
+            
+            let destinationText = 'محلي';
+            if (isGoogleDriveConnected && backupDestination === 'google_drive') {
+                destinationText = 'Google Drive';
+            } else if (backupDestination === 'google_drive' && !isGoogleDriveConnected) {
+                destinationText = 'Google Drive (غير متصل)';
+            }
+            
             this.destinationElement.textContent = destinationText;
         }
         
-        // تحديث مؤشر الحالة
+        // تحديث مؤشر الحالة العامة
         if (this.statusElement) {
-            const isRecent = this.isRecentBackup(googleDriveInfo.last_backup);
-            this.statusElement.className = isRecent ? 'status-good' : 'status-warning';
-            this.statusElement.textContent = isRecent ? 'نشط' : 'يحتاج تحديث';
+            const lastBackupTime = settingsInfo.last_backup_time || googleDriveInfo.last_backup;
+            const isRecent = this.isRecentBackup(lastBackupTime);
+            const autoBackupEnabled = settingsInfo.auto_backup_enabled;
+            
+            if (autoBackupEnabled && isRecent) {
+                this.statusElement.className = 'status-good';
+                this.statusElement.textContent = 'نشط';
+            } else if (autoBackupEnabled && !isRecent) {
+                this.statusElement.className = 'status-warning';
+                this.statusElement.textContent = 'يحتاج تحديث';
+            } else {
+                this.statusElement.className = 'status-warning';
+                this.statusElement.textContent = 'غير مفعل';
+            }
         }
+        
+        // تحديث عداد النسخ
+        const backupCountElement = document.getElementById('backup-count');
+        if (backupCountElement) {
+            const backupCount = settingsInfo.backup_count || 0;
+            backupCountElement.textContent = backupCount;
+        }
+        
+        // تحديث معلومات إضافية
+        this.updateAdditionalInfo(status);
     }
     
     updateGoogleDriveStatus(data) {
@@ -197,6 +242,43 @@ class BackupMonitor {
         }
     }
     
+    updateAdditionalInfo(status) {
+        // تحديث معلومات الجدولة
+        const schedulerInfo = status.scheduler || {};
+        const schedulerStatusElement = document.getElementById('scheduler-status');
+        if (schedulerStatusElement) {
+            if (schedulerInfo.user_scheduled) {
+                schedulerStatusElement.textContent = 'مجدول';
+                schedulerStatusElement.className = 'status-good';
+            } else {
+                schedulerStatusElement.textContent = 'غير مجدول';
+                schedulerStatusElement.className = 'status-warning';
+            }
+        }
+        
+        // تحديث موعد النسخة التالية
+        const nextBackupElement = document.getElementById('next-backup-time');
+        if (nextBackupElement && schedulerInfo.next_backup) {
+            const nextBackupDate = new Date(schedulerInfo.next_backup);
+            nextBackupElement.textContent = this.formatDate(nextBackupDate);
+        } else if (nextBackupElement) {
+            nextBackupElement.textContent = 'غير محدد';
+        }
+        
+        // تحديث تكرار النسخ
+        const frequencyElement = document.getElementById('backup-frequency');
+        if (frequencyElement) {
+            const settings = status.settings || {};
+            const frequency = settings.backup_frequency || 'daily';
+            const frequencyText = {
+                'daily': 'يومي',
+                'weekly': 'أسبوعي',
+                'monthly': 'شهري'
+            };
+            frequencyElement.textContent = frequencyText[frequency] || frequency;
+        }
+    }
+
     async testBackup() {
         const testBtn = document.getElementById('test-backup-btn');
         if (testBtn) {

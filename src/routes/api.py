@@ -2527,4 +2527,171 @@ def backup_health_check():
             'message': f'خطأ في فحص الصحة: {str(e)}'
         }), 500
 
+# ===== APIs إضافية للنسخ الاحتياطي =====
+
+@api_bp.route("/backup/status", methods=["GET"])
+@login_required
+def get_backup_status():
+    """
+    الحصول على حالة النسخ الاحتياطي الشاملة
+    
+    Returns:
+    - حالة النسخ الاحتياطي بتنسيق JSON
+    """
+    logger.info("API request received for backup status.")
+    try:
+        user_id = current_user.id
+        
+        # الحصول على إعدادات النسخ الاحتياطي
+        backup_settings = None
+        try:
+            backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+        except Exception as e:
+            logger.warning(f"Could not fetch backup settings: {e}")
+        
+        # الحصول على حالة Google Drive
+        google_drive_status = {
+            'available': google_drive_available,
+            'connected': False,
+            'last_backup': None,
+            'backup_count': 0
+        }
+        
+        try:
+            # فحص اتصال Google Drive من session
+            google_drive_connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_google_drive_sync')
+            
+            if google_drive_connected:
+                google_drive_status['connected'] = True
+                google_drive_status['last_backup'] = last_sync
+                
+            # محاولة الحصول من قاعدة البيانات
+            if GoogleDriveToken:
+                db_token = GoogleDriveToken.query.filter_by(
+                    user_id=user_id, 
+                    is_active=True
+                ).first()
+                
+                if db_token:
+                    google_drive_status['connected'] = True
+                    if db_token.updated_at:
+                        google_drive_status['last_backup'] = db_token.updated_at.isoformat()
+                        
+        except Exception as e:
+            logger.warning(f"Error checking Google Drive status: {e}")
+        
+        # الحصول على حالة الجدولة
+        scheduler_status = {
+            'available': backup_scheduler is not None,
+            'running': False,
+            'user_scheduled': False,
+            'next_backup': None
+        }
+        
+        if backup_scheduler:
+            try:
+                status = backup_scheduler.get_status()
+                scheduler_status['running'] = status.get('scheduler_running', False)
+                
+                # البحث عن مهمة المستخدم
+                jobs = backup_scheduler.get_jobs()
+                user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
+                
+                if user_job:
+                    scheduler_status['user_scheduled'] = True
+                    scheduler_status['next_backup'] = user_job.get('next_run')
+                    
+            except Exception as e:
+                logger.warning(f"Error getting scheduler status: {e}")
+        
+        # تجميع الحالة النهائية
+        status = {
+            'user_id': user_id,
+            'timestamp': datetime.utcnow().isoformat(),
+            'scheduler': scheduler_status,
+            'google_drive': google_drive_status,
+            'backup_logic': {
+                'available': backup_logic is not None
+            },
+            'settings': {
+                'auto_backup_enabled': backup_settings.auto_backup_enabled if backup_settings else False,
+                'backup_frequency': backup_settings.backup_frequency if backup_settings else 'daily',
+                'backup_destination': backup_settings.backup_destination if backup_settings else 'local',
+                'max_backups': backup_settings.max_backups if backup_settings else 5,
+                'last_backup_time': backup_settings.last_backup_time.isoformat() if backup_settings and backup_settings.last_backup_time else None,
+                'backup_count': backup_settings.backup_count if backup_settings else 0
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting backup status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/backup/immediate", methods=["POST"])
+@login_required
+def create_immediate_backup():
+    """
+    إنشاء نسخة احتياطية فورية
+    
+    Returns:
+    - نتيجة عملية النسخ الاحتياطي
+    """
+    logger.info("API request received for immediate backup.")
+    try:
+        user_id = current_user.id
+        
+        # التحقق من توفر نظام النسخ الاحتياطي
+        if not backup_logic:
+            return jsonify({
+                'success': False,
+                'error': 'نظام النسخ الاحتياطي غير متوفر'
+            }), 503
+        
+        # تنفيذ النسخ الاحتياطي
+        result = backup_logic.create_backup(user_id)
+        
+        if result.get('success'):
+            # تحديث session مع معلومات النسخة الجديدة
+            session['last_backup_time'] = datetime.utcnow().isoformat()
+            
+            # تحديث إعدادات قاعدة البيانات
+            try:
+                backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+                if backup_settings:
+                    backup_settings.last_backup_time = datetime.utcnow()
+                    if backup_settings.backup_count is None:
+                        backup_settings.backup_count = 1
+                    else:
+                        backup_settings.backup_count += 1
+                    db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not update backup settings: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم إنشاء النسخة الاحتياطية بنجاح',
+                'data': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'فشل في إنشاء النسخة الاحتياطية')
+            }), 500
+            
+    except Exception as e:
+        logger.exception(f"Error creating immediate backup: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ===== نهاية APIs النسخ الاحتياطي =====

@@ -398,6 +398,96 @@
     }
 
     .sync-status-info {
+        margin-bottom: 15px;
+    }
+
+    /* أنماط قسم النسخ الاحتياطي */
+    .backup-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .backup-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: white;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .stat-item label {
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .stat-item span {
+        font-weight: 500;
+        color: #666;
+    }
+
+    .status-indicator {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .status-good {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .backup-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .backup-controls button {
+        padding: 8px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .backup-controls button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .backup-controls button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .sync-status-info {
         margin-bottom: 20px;
     }
 
@@ -1059,6 +1149,9 @@ if (!document.getElementById('notification-styles')) {
 <!-- تحميل Google APIs بعد تعريف الدوال -->
 <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
 <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+
+<!-- تحميل ملف JavaScript للنسخ الاحتياطي -->
+<script src="{{ url_for('static', filename='js/backup_monitoring_features.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -1083,6 +1176,9 @@ if (!document.getElementById('notification-styles')) {
                 </li>
                 <li class="settings-menu-item">
                     <a href="#integration-settings"><i class="fas fa-cogs"></i> التكاملات</a>
+                </li>
+                <li class="settings-menu-item">
+                    <a href="#backup-settings"><i class="fas fa-cloud-upload-alt"></i> النسخ الاحتياطي</a>
                 </li>
             </ul>
         </div>
@@ -1274,6 +1370,104 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                     
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات التكاملات</button>
+                </form>
+            </section>
+
+            <section id="backup-settings" class="settings-section">
+                <h3><i class="fas fa-cloud-upload-alt"></i> النسخ الاحتياطي</h3>
+                
+                <!-- إحصائيات النسخ الاحتياطي -->
+                <div class="backup-section">
+                    <h4><i class="fas fa-chart-bar"></i> إحصائيات النسخ الاحتياطي</h4>
+                    <div class="backup-stats">
+                        <div class="stat-item">
+                            <label>حالة النظام:</label>
+                            <span id="backup-status" class="status-indicator">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>آخر نسخة احتياطية:</label>
+                            <span id="last-backup-time">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>وجهة النسخ:</label>
+                            <span id="backup-destination">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>عدد النسخ:</label>
+                            <span id="backup-count">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>حالة الجدولة:</label>
+                            <span id="scheduler-status">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>النسخة التالية:</label>
+                            <span id="next-backup-time">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>تكرار النسخ:</label>
+                            <span id="backup-frequency">جاري التحميل...</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>حالة Google Drive:</label>
+                            <span id="google-drive-status">جاري التحميل...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="backup-controls">
+                        <button type="button" id="test-backup-btn" class="btn btn-primary">
+                            <i class="fas fa-play"></i> اختبار النسخ الآن
+                        </button>
+                        <button type="button" id="refresh-status" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i> تحديث الحالة
+                        </button>
+                        <button type="button" id="connect-google-drive" class="btn btn-success">
+                            <i class="fas fa-link"></i> ربط Google Drive
+                        </button>
+                        <button type="button" id="disconnect-google-drive" class="btn btn-danger" style="display: none;">
+                            <i class="fas fa-unlink"></i> قطع الاتصال
+                        </button>
+                        <button type="button" id="check-google-files" class="btn btn-info" style="display: none;">
+                            <i class="fas fa-folder-open"></i> فحص الملفات
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- إعدادات النسخ الاحتياطي -->
+                <form method="post" action="{{ url_for('settings.index') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="backup_submit" value="1">
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" id="auto-backup-enabled" name="auto_backup_enabled" class="form-check-input">
+                            <label for="auto-backup-enabled" class="form-label">تفعيل النسخ الاحتياطي التلقائي</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="backup-frequency-select" class="form-label">تكرار النسخ الاحتياطي</label>
+                        <select id="backup-frequency-select" name="backup_frequency" class="form-control">
+                            <option value="daily">يومي</option>
+                            <option value="weekly">أسبوعي</option>
+                            <option value="monthly">شهري</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="backup-destination-select" class="form-label">وجهة النسخ الاحتياطي</label>
+                        <select id="backup-destination-select" name="backup_destination" class="form-control">
+                            <option value="local">محلي</option>
+                            <option value="google_drive">Google Drive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-backups" class="form-label">الحد الأقصى للنسخ المحفوظة</label>
+                        <input type="number" id="max-backups" name="max_backups" class="form-control" min="1" max="50" value="5">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات النسخ الاحتياطي</button>
                 </form>
             </section>
         </div>

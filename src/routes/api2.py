@@ -2195,7 +2195,34 @@ def get_user_google_credentials(user_id):
 
 # ===== APIs النسخ الاحتياطي =====
 
-
+@api_bp.route("/backup/status", methods=["GET"])
+def get_backup_status():
+    """الحصول على حالة نظام النسخ الاحتياطي"""
+    try:
+        if not backup_scheduler:
+            return jsonify({
+                'success': False,
+                'message': 'نظام النسخ الاحتياطي غير متاح',
+                'data': {
+                    'scheduler_running': False,
+                    'jobs_count': 0,
+                    'last_backup': None,
+                    'next_backup': None
+                }
+            }), 503
+        
+        status = backup_scheduler.get_status()
+        return jsonify({
+            'success': True,
+            'message': 'تم الحصول على الحالة بنجاح',
+            'data': status
+        })
+    except Exception as e:
+        logger.error(f"خطأ في الحصول على حالة النسخ الاحتياطي: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'خطأ في الحصول على الحالة: {str(e)}'
+        }), 500
 
 @api_bp.route("/backup/start", methods=["POST"])
 def start_backup_scheduler():

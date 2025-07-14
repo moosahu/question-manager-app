@@ -51,43 +51,6 @@ except ImportError:
     logger.warning("مكتبات Google Drive غير متوفرة")
     google_drive_available = False
 
-def create_backup(user_id):
-    """
-    إنشاء نسخة احتياطية فورية لمستخدم محدد
-    
-    Args:
-        user_id: معرف المستخدم
-    
-    Returns:
-        dict: نتيجة عملية النسخ الاحتياطي
-    """
-    try:
-        logger.info(f"بدء إنشاء نسخة احتياطية فورية للمستخدم {user_id}")
-        
-        # استخدام دالة النسخ الاحتياطي الموجودة
-        result = perform_backup_for_user(user_id)
-        
-        if result.get("success"):
-            logger.info(f"تم إنشاء النسخة الاحتياطية بنجاح للمستخدم {user_id}")
-            return {
-                "success": True,
-                "message": "تم إنشاء النسخة الاحتياطية بنجاح",
-                "data": result
-            }
-        else:
-            logger.error(f"فشل في إنشاء النسخة الاحتياطية للمستخدم {user_id}: {result.get('error')}")
-            return {
-                "success": False,
-                "error": result.get("error", "فشل في إنشاء النسخة الاحتياطية")
-            }
-            
-    except Exception as e:
-        logger.exception(f"خطأ في إنشاء النسخة الاحتياطية للمستخدم {user_id}: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
 def perform_backup_for_user(user_id):
     """
     تنفيذ النسخ الاحتياطي لمستخدم محدد

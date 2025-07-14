@@ -605,7 +605,7 @@ function connectToGoogleDrive() {
     }
 }
 
-// ===== دالة معالجة الاتصال - محسنة =====
+// ===== دالة معالجة الاتصال =====
 async function handleGoogleDriveConnection(tokenResponse) {
     try {
         console.log('🔄 معالجة اتصال Google Drive...');
@@ -641,17 +641,11 @@ async function handleGoogleDriveConnection(tokenResponse) {
         const saveResult = await saveResponse.json();
         console.log('✅ تم حفظ Google Drive token:', saveResult);
         
-        if (saveResult.database_saved) {
-            console.log('✅ تم حفظ Token في قاعدة البيانات بنجاح - الاتصال دائم');
-            showNotification('تم ربط Google Drive بنجاح! الاتصال محفوظ بشكل دائم.', 'success');
-        } else {
-            console.log('⚠️ تم حفظ Token في الجلسة فقط - قد ينقطع الاتصال');
-            showNotification('تم ربط Google Drive مؤقتاً. قد تحتاج لإعادة الربط لاحقاً.', 'warning');
-        }
-        
         // تحديث حالة الاتصال محلياً
         googleDriveConnected = true;
         updateGoogleDriveUI();
+        
+        showNotification('تم ربط Google Drive بنجاح!', 'success');
         
         // بدء فحص الحالة المستمر مع تأخير قصير
         setTimeout(() => {
@@ -664,7 +658,7 @@ async function handleGoogleDriveConnection(tokenResponse) {
     }
 }
 
-// ===== فحص حالة الاتصال - محسن =====
+// ===== باقي الدوال =====
 function startConnectionStatusCheck() {
     if (connectionCheckInterval) {
         clearInterval(connectionCheckInterval);
@@ -673,55 +667,94 @@ function startConnectionStatusCheck() {
     checkGoogleDriveConnection();
     connectionCheckInterval = setInterval(() => {
         checkGoogleDriveConnection();
-    }, 15000); // فحص كل 15 ثانية بدلاً من 10
+    }, 10000);
     
-    console.log('🔄 تم بدء فحص الحالة المستمر (كل 15 ثانية)');
+    console.log('🔄 تم بدء فحص الحالة المستمر (كل 10 ثوانٍ)');
 }
 
 async function checkGoogleDriveConnection() {
+    console.log('🔍 فحص حالة اتصال Google Drive...');
+    
     try {
         const response = await fetch('/api/v1/google-drive/connection-status', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Cache-Control': 'no-cache',
+                'X-CSRFToken': getCSRFToken()
             }
         });
         
         if (!response.ok) {
+            console.error('❌ خطأ في فحص حالة الاتصال:', response.status);
             throw new Error(`HTTP ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('📊 استجابة فحص الاتصال:', data);
         
-        const wasConnected = googleDriveConnected;
-        googleDriveConnected = data.connected || false;
-        lastSyncTime = data.last_sync || null;
-        
-        // تسجيل معلومات التشخيص
-        if (data.debug_info) {
-            console.log('🔍 معلومات التشخيص:', {
-                database_token: data.database_token,
-                db_token_id: data.debug_info.db_token_id,
-                db_token_active: data.debug_info.db_token_active,
-                connected: data.connected
-            });
-        }
-        
-        updateGoogleDriveUI();
-        
-        if (wasConnected && !googleDriveConnected) {
-            console.log('⚠️ تم قطع الاتصال مع Google Drive');
-            showNotification('تم قطع الاتصال مع Google Drive. قد تحتاج لإعادة الربط.', 'warning');
-        } else if (!wasConnected && googleDriveConnected) {
-            console.log('✅ تم استعادة الاتصال مع Google Drive');
+        if (data.success) {
+            const wasConnected = googleDriveConnected;
+            googleDriveConnected = data.status?.connected || false;
+            
+            // تحديث معلومات إضافية
+            if (data.token_info) {
+                lastSyncTime = data.token_info.last_backup || null;
+                console.log('📅 آخر نسخ احتياطي:', lastSyncTime);
+            }
+            
+            // تسجيل معلومات التخزين
+            if (data.status?.storage_method) {
+                console.log('💾 طريقة التخزين:', data.status.storage_method);
+                
+                if (data.status.storage_method === 'session' && data.warning) {
+                    console.warn('⚠️ تحذير:', data.warning);
+                    showNotification(data.warning, 'warning');
+                }
+                
+                if (data.status.storage_method === 'database') {
+                    console.log('✅ Token محفوظ في قاعدة البيانات - اتصال مستقر');
+                }
+            }
+            
+            updateGoogleDriveUI();
+            
+            // إذا تغيرت الحالة من غير متصل إلى متصل
+            if (!wasConnected && googleDriveConnected) {
+                console.log('🎉 تم اكتشاف اتصال Google Drive جديد');
+                showNotification('تم اكتشاف اتصال Google Drive', 'success');
+            }
+            
+            // إذا تغيرت الحالة من متصل إلى غير متصل
+            if (wasConnected && !googleDriveConnected) {
+                console.log('⚠️ تم قطع الاتصال مع Google Drive');
+                showNotification('تم قطع الاتصال مع Google Drive. قد تحتاج لإعادة الربط.', 'warning');
+            }
+            
+        } else {
+            console.error('❌ فشل في فحص حالة الاتصال:', data.error || 'خطأ غير معروف');
+            googleDriveConnected = false;
+            updateGoogleDriveUI();
         }
         
     } catch (error) {
-        console.error('❌ خطأ في فحص حالة الاتصال:', error);
+        console.error('❌ خطأ في فحص حالة Google Drive:', error);
         
-        if (googleDriveConnected) {
-            console.log('🔄 محاولة إعادة فحص الاتصال...');
+        // في حالة الخطأ، لا نغير الحالة الحالية
+        // لكن نعرض رسالة خطأ فقط إذا كانت هذه أول محاولة
+        if (typeof googleDriveConnected === 'undefined') {
+            googleDriveConnected = false;
+            updateGoogleDriveUI();
+        }
+        
+        // إعادة المحاولة بعد فترة أطول في حالة الخطأ
+        if (error.message.includes('HTTP')) {
+            console.log('🔄 إعادة المحاولة بعد 10 ثوانٍ...');
+            setTimeout(() => {
+                checkGoogleDriveConnection();
+            }, 10000);
+        } else {
+            console.log('🔄 إعادة المحاولة بعد 5 ثوانٍ...');
             setTimeout(() => {
                 checkGoogleDriveConnection();
             }, 5000);
@@ -741,7 +774,7 @@ function updateGoogleDriveUI() {
 
     if (googleDriveConnected) {
         if (indicator) indicator.className = 'status-indicator connected';
-        if (status) status.textContent = 'متصل بـ Google Drive (دائم)';
+        if (status) status.textContent = 'متصل بـ Google Drive';
         if (connectBtn) connectBtn.style.display = 'none';
         if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
         if (syncBtn) syncBtn.disabled = false;
@@ -1195,7 +1228,7 @@ if (!document.getElementById('notification-styles')) {
                                 </div>
                                 <p class="sync-description">
                                     قم بربط حسابك مع Google Drive لمزامنة إعداداتك الشخصية عبر جميع الأجهزة.
-                                    سيتم حفظ الملف الشخصي، إعدادات الإشعارات، والتفضيلات تلقائياً وبشكل دائم.
+                                    سيتم حفظ الملف الشخصي، إعدادات الإشعارات، والتفضيلات تلقائياً.
                                 </p>
                             </div>
                             
