@@ -2643,8 +2643,9 @@ def get_backup_status():
                 'backup_frequency': backup_settings.backup_frequency if backup_settings else 'daily',
                 'backup_destination': backup_settings.backup_destination if backup_settings else 'local',
                 'max_backups': backup_settings.max_backups if backup_settings else 5,
-                'last_backup_time': backup_settings.last_backup_time.isoformat() if backup_settings and backup_settings.last_backup_time else None,
-                'backup_count': backup_settings.backup_count if backup_settings else 0
+                'backup_time': backup_settings.backup_time if backup_settings else '02:00',
+                'created_at': backup_settings.created_at.isoformat() if backup_settings and backup_settings.created_at else None,
+                'updated_at': backup_settings.updated_at.isoformat() if backup_settings and backup_settings.updated_at else None
             }
         }
         

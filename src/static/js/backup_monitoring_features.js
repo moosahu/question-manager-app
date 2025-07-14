@@ -198,13 +198,6 @@ class BackupMonitor {
             }
         }
         
-        // تحديث عداد النسخ
-        const backupCountElement = document.getElementById('backup-count');
-        if (backupCountElement) {
-            const backupCount = settingsInfo.backup_count || 0;
-            backupCountElement.textContent = backupCount;
-        }
-        
         // تحديث معلومات إضافية
         this.updateAdditionalInfo(status);
     }
@@ -282,6 +275,52 @@ class BackupMonitor {
                 'monthly': 'شهري'
             };
             frequencyElement.textContent = frequencyText[frequency] || frequency;
+        }
+        
+        // تحديث عدد النسخ المحفوظة (من إعدادات الحد الأقصى)
+        const countElement = document.getElementById('backup-count');
+        if (countElement && status.settings) {
+            countElement.textContent = `الحد الأقصى: ${status.settings.max_backups || 5}`;
+        }
+        
+        // تحديث آخر نسخة احتياطية (من Google Drive أو إعدادات)
+        const lastBackupElement = document.getElementById('last-backup-time');
+        if (lastBackupElement) {
+            let lastBackupTime = null;
+            
+            // البحث عن آخر نسخة من Google Drive
+            if (status.google_drive && status.google_drive.last_backup) {
+                lastBackupTime = status.google_drive.last_backup;
+            }
+            // أو من إعدادات النظام
+            else if (status.settings && status.settings.updated_at) {
+                lastBackupTime = status.settings.updated_at;
+            }
+            
+            if (lastBackupTime) {
+                const lastDate = new Date(lastBackupTime);
+                lastBackupElement.textContent = this.formatDate(lastDate);
+            } else {
+                lastBackupElement.textContent = 'لم يتم إنشاء نسخة بعد';
+            }
+        }
+        
+        // تحديث وجهة النسخ
+        const destinationElement = document.getElementById('backup-destination');
+        if (destinationElement && status.settings) {
+            destinationElement.textContent = status.settings.backup_destination === 'google_drive' ? 'Google Drive' : 'محلي';
+        }
+        
+        // تحديث حالة Google Drive
+        const googleDriveElement = document.getElementById('google-drive-status');
+        if (googleDriveElement && status.google_drive) {
+            if (status.google_drive.connected) {
+                googleDriveElement.textContent = '✅ متصل';
+                googleDriveElement.className = 'status-good';
+            } else {
+                googleDriveElement.textContent = '❌ غير متصل';
+                googleDriveElement.className = 'status-error';
+            }
         }
     }
 
