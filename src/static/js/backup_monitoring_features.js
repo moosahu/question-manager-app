@@ -361,30 +361,110 @@ class BackupMonitor {
     
     async connectGoogleDrive() {
         try {
-            const response = await fetch('/api/v1/backup/google-drive/connect', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            console.log('🔗 بدء عملية ربط Google Drive...');
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.auth_url) {
-                    // فتح نافذة جديدة للتفويض
-                    window.open(data.auth_url, 'google-auth', 'width=500,height=600');
-                    
-                    // مراقبة إغلاق النافذة
-                    this.monitorAuthWindow();
-                } else {
-                    this.showError('فشل في الحصول على رابط التفويض');
-                }
-            } else {
-                this.showError('فشل في بدء عملية الربط');
+            // الحصول على إعدادات Google OAuth
+            const configResponse = await fetch('/api/v1/google-oauth/config');
+            const config = await configResponse.json();
+            
+            if (!config.success || !config.client_id) {
+                this.showError('إعدادات Google OAuth غير متوفرة');
+                return;
             }
+            
+            // إعداد معاملات OAuth
+            const clientId = config.client_id;
+            const redirectUri = `${window.location.origin}/auth/google/callback`;
+            const scope = 'https://www.googleapis.com/auth/drive.file';
+            const responseType = 'code';
+            const accessType = 'offline';
+            const prompt = 'consent';
+            
+            // إضافة user_id كـ state parameter
+            let state = '';
+            try {
+                const userResponse = await fetch('/api/v1/user/info');
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    if (userData.success && userData.user) {
+                        state = userData.user.id.toString();
+                    }
+                }
+            } catch (e) {
+                console.warn('لا يمكن الحصول على معلومات المستخدم:', e);
+            }
+            
+            // بناء URL للمصادقة
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${encodeURIComponent(clientId)}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=${encodeURIComponent(scope)}&` +
+                `response_type=${responseType}&` +
+                `access_type=${accessType}&` +
+                `prompt=${prompt}&` +
+                `state=${state}`;
+            
+            console.log('🌐 فتح نافذة المصادقة...');
+            console.log('📍 Redirect URI:', redirectUri);
+            
+            // فتح نافذة المصادقة
+            const authWindow = window.open(
+                authUrl,
+                'google-auth',
+                'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+            
+            if (!authWindow) {
+                this.showError('لا يمكن فتح نافذة المصادقة. تأكد من السماح للنوافذ المنبثقة');
+                return;
+            }
+            
+            // الاستماع لرسائل من نافذة المصادقة
+            const messageHandler = (event) => {
+                // التحقق من مصدر الرسالة للأمان
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
+                
+                console.log('📨 تم استلام رسالة من نافذة OAuth:', event.data);
+                
+                if (event.data.type === 'google-auth-success') {
+                    console.log('✅ نجح ربط Google Drive');
+                    this.showSuccess('تم ربط Google Drive بنجاح');
+                    
+                    // تحديث الحالة
+                    setTimeout(() => {
+                        this.checkGoogleDriveConnection();
+                        this.checkBackupStatus();
+                    }, 1000);
+                    
+                    // إزالة مستمع الأحداث
+                    window.removeEventListener('message', messageHandler);
+                    
+                } else if (event.data.type === 'google-auth-error') {
+                    console.error('❌ فشل في ربط Google Drive:', event.data);
+                    this.showError(event.data.message || 'فشل في ربط Google Drive');
+                    
+                    // إزالة مستمع الأحداث
+                    window.removeEventListener('message', messageHandler);
+                }
+            };
+            
+            // إضافة مستمع الأحداث
+            window.addEventListener('message', messageHandler);
+            
+            // مراقبة إغلاق النافذة
+            const checkClosed = setInterval(() => {
+                if (authWindow.closed) {
+                    clearInterval(checkClosed);
+                    window.removeEventListener('message', messageHandler);
+                    console.log('🔒 تم إغلاق نافذة المصادقة');
+                }
+            }, 1000);
+            
         } catch (error) {
-            console.error('خطأ في ربط Google Drive:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            console.error('❌ خطأ في ربط Google Drive:', error);
+            this.showError('خطأ في ربط Google Drive: ' + error.message);
         }
     }
     
