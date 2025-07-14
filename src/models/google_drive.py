@@ -536,22 +536,51 @@ class GoogleDriveManager:
                         'connected': False,
                         'message': 'قاعدة البيانات غير متاحة'
                     }
-            
-            flow.redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
-            
-            # إنشاء رابط التفويض
-            authorization_url, state = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true',
-                state=str(user_id)  # تمرير user_id في state
-            )
-            
-            logger.info(f"Authorization URL generated for user {user_id}")
-            return authorization_url
-            
-        except Exception as e:
-            logger.error(f"Error generating authorization URL for user {user_id}: {e}")
-            return None
+                
+                token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
+                
+                if not token:
+                    return {
+                        'connected': False,
+                        'message': 'غير متصل بـ Google Drive'
+                    }
+                
+                # فحص ما إذا كان الـ token يحتاج تحديث
+                if token.needs_refresh() and token.refresh_token:
+                    logger.info(f"Token for user {user_id} needs refresh, attempting to refresh...")
+                    refreshed_token = GoogleDriveToken.refresh_user_token(user_id)
+                    if refreshed_token:
+                        token = refreshed_token
+                        logger.info(f"Token refreshed successfully for user {user_id}")
+                    else:
+                        logger.warning(f"Failed to refresh token for user {user_id}")
+                
+                if not token.is_token_valid():
+                    return {
+                        'connected': False,
+                        'message': 'انتهت صلاحية الرمز المميز',
+                        'needs_refresh': True,
+                        'has_refresh_token': bool(token.refresh_token)
+                    }
+                
+                return {
+                    'connected': True,
+                    'message': 'متصل بـ Google Drive',
+                    'folder_id': token.folder_id,
+                    'last_backup': token.last_backup_date.isoformat() if token.last_backup_date else None,
+                    'backup_count': token.backup_count,
+                    'token_expires': token.expiry.isoformat() if token.expiry else None,
+                    'needs_refresh': token.needs_refresh()
+                }
+                
+            except Exception as e:
+                logger.error(f"Error getting connection status for user {user_id}: {e}")
+                return {
+                    'connected': False,
+                    'message': f'خطأ في فحص الاتصال: {str(e)}'
+                }
+        
+        return execute_with_app_context(_get_status)
     
     def handle_oauth_callback(self, user_id: int, authorization_code: str) -> bool:
         """معالجة callback OAuth"""
