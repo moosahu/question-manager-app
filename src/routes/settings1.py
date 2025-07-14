@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_required, current_user, login_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SelectField, TextAreaField
@@ -12,20 +12,10 @@ import base64
 try:
     from extensions import db
     from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-    # استيراد نموذج GoogleDriveToken من الملف الأصلي
-    try:
-        from src.models.google_drive import GoogleDriveToken
-    except ImportError:
-        from models.google_drive import GoogleDriveToken
 except ImportError:
     try:
         from src.extensions import db
         from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-        # استيراد نموذج GoogleDriveToken من الملف الأصلي
-        try:
-            from src.models.google_drive import GoogleDriveToken
-        except ImportError:
-            from models.google_drive import GoogleDriveToken
     except ImportError:
         print("Error: Could not import db from extensions or src.extensions.")
         raise
@@ -342,6 +332,23 @@ def verify_2fa():
 
 from datetime import datetime, timedelta
 import json
+
+# نموذج Google Drive Token
+class GoogleDriveToken(db.Model):
+    __tablename__ = 'google_drive_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    access_token = db.Column(db.Text, nullable=False)
+    refresh_token = db.Column(db.Text, nullable=True)
+    expires_in = db.Column(db.Integer, nullable=True)
+    scope = db.Column(db.String(500), nullable=True)
+    token_type = db.Column(db.String(50), default='Bearer')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<GoogleDriveToken {self.user_id}>'
 
 @settings_bp.route('/api/v1/google-drive/connect', methods=['POST'])
 @login_required
