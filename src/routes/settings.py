@@ -582,6 +582,122 @@ def download_from_drive():
             'downloaded': False
         }), 500
 
+@settings_bp.route('/auth/google/callback')
+def google_oauth_callback():
+    """معالجة Google OAuth callback"""
+    try:
+        code = request.args.get('code')
+        state = request.args.get('state')
+        error = request.args.get('error')
+        
+        if error:
+            print(f"❌ خطأ في OAuth: {error}")
+            return f"""
+            <script>
+                window.opener.postMessage({{
+                    type: 'google-auth-error',
+                    error: '{error}'
+                }}, '*');
+                window.close();
+            </script>
+            """
+        
+        if not code:
+            print("❌ لم يتم استلام authorization code")
+            return """
+            <script>
+                window.opener.postMessage({
+                    type: 'google-auth-error',
+                    error: 'لم يتم استلام رمز التفويض'
+                }, '*');
+                window.close();
+            </script>
+            """
+        
+        print(f"✅ تم استلام authorization code: {code[:20]}...")
+        
+        # إذا كان هناك state، فهو user_id
+        user_id = None
+        if state:
+            try:
+                user_id = int(state)
+                print(f"🔍 User ID من state: {user_id}")
+            except ValueError:
+                print(f"⚠️ لا يمكن تحويل state إلى user_id: {state}")
+        
+        # استخدام current_user إذا لم يكن هناك user_id في state
+        if not user_id and hasattr(current_user, 'id') and current_user.is_authenticated:
+            user_id = current_user.id
+            print(f"🔍 استخدام current_user.id: {user_id}")
+        
+        if not user_id:
+            print("❌ لا يمكن تحديد user_id")
+            return """
+            <script>
+                window.opener.postMessage({
+                    type: 'google-auth-error',
+                    error: 'خطأ في تحديد المستخدم'
+                }, '*');
+                window.close();
+            </script>
+            """
+        
+        # استيراد google_drive_manager
+        try:
+            from src.models.google_drive import google_drive_manager
+        except ImportError:
+            try:
+                from models.google_drive import google_drive_manager
+            except ImportError:
+                print("❌ لا يمكن استيراد google_drive_manager")
+                return """
+                <script>
+                    window.opener.postMessage({
+                        type: 'google-auth-error',
+                        error: 'خطأ في النظام'
+                    }, '*');
+                    window.close();
+                </script>
+                """
+        
+        # معالجة OAuth callback
+        success = google_drive_manager.handle_oauth_callback(user_id, code)
+        
+        if success:
+            print(f"✅ تم ربط Google Drive بنجاح للمستخدم {user_id}")
+            return """
+            <script>
+                window.opener.postMessage({
+                    type: 'google-auth-success',
+                    message: 'تم ربط Google Drive بنجاح'
+                }, '*');
+                window.close();
+            </script>
+            """
+        else:
+            print(f"❌ فشل في ربط Google Drive للمستخدم {user_id}")
+            return """
+            <script>
+                window.opener.postMessage({
+                    type: 'google-auth-error',
+                    error: 'فشل في ربط Google Drive'
+                }, '*');
+                window.close();
+            </script>
+            """
+            
+    except Exception as e:
+        print(f"❌ خطأ في معالجة OAuth callback: {str(e)}")
+        return f"""
+        <script>
+            window.opener.postMessage({{
+                type: 'google-auth-error',
+                error: 'خطأ في النظام: {str(e)}'
+            }}, '*');
+            window.close();
+        </script>
+        """
+
 @settings_bp.route('/api/v1/user-settings/quick-sync', methods=['POST'])
 @login_required
 def quick_sync():
