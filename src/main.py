@@ -263,9 +263,16 @@ def create_app():
 
     # ===== إضافة CORS Middleware =====
     @app.after_request
-    def add_coop_header(response):
-        """إضافة Cross-Origin-Opener-Policy header لحل مشاكل CORS"""
-        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+    def add_cors_headers(response):
+        """إضافة headers لحل مشاكل CORS و OAuth"""
+        # السماح للنوافذ المنبثقة بالعمل مع OAuth
+        response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
+        # السماح بالوصول من نفس المصدر
+        response.headers['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
+        # إضافة CORS headers للـ APIs
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         return response
 
     # User loader function for Flask-Login
@@ -1604,7 +1611,7 @@ def create_app():
     # ===== Google OAuth Callback Route =====
     @app.route('/auth/google/callback')
     def google_oauth_callback():
-        """معالجة callback من Google OAuth - مطلوب لربط Google Drive"""
+        """معالجة callback من Google OAuth - محسن للنوافذ المنبثقة"""
         try:
             print('🔗 تم استلام callback من Google OAuth...')
             
@@ -1619,28 +1626,62 @@ def create_app():
             if error:
                 print(f'❌ خطأ في OAuth: {error}')
                 return f"""
-                <script>
-                    window.opener.postMessage({{
-                        type: 'google-auth-error',
-                        error: '{error}',
-                        message: 'فشل في المصادقة مع Google: {error}'
-                    }}, '*');
-                    window.close();
-                </script>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>خطأ في المصادقة</title>
+                    <meta charset="utf-8">
+                </head>
+                <body>
+                    <script>
+                        try {{
+                            if (window.opener && !window.opener.closed) {{
+                                window.opener.postMessage({{
+                                    type: 'google-auth-error',
+                                    error: '{error}',
+                                    message: 'فشل في المصادقة مع Google: {error}'
+                                }}, '*');
+                            }}
+                        }} catch (e) {{
+                            console.error('خطأ في إرسال الرسالة:', e);
+                        }} finally {{
+                            window.close();
+                        }}
+                    </script>
+                    <p>فشل في المصادقة مع Google. يمكنك إغلاق هذه النافذة.</p>
+                </body>
+                </html>
                 """
             
             # التحقق من وجود authorization code
             if not authorization_code:
                 print('❌ لا يوجد authorization code')
                 return """
-                <script>
-                    window.opener.postMessage({
-                        type: 'google-auth-error',
-                        error: 'no_code',
-                        message: 'لم يتم الحصول على رمز التفويض من Google'
-                    }, '*');
-                    window.close();
-                </script>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>خطأ في المصادقة</title>
+                    <meta charset="utf-8">
+                </head>
+                <body>
+                    <script>
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({
+                                    type: 'google-auth-error',
+                                    error: 'no_code',
+                                    message: 'لم يتم الحصول على رمز التفويض من Google'
+                                }, '*');
+                            }
+                        } catch (e) {
+                            console.error('خطأ في إرسال الرسالة:', e);
+                        } finally {
+                            window.close();
+                        }
+                    </script>
+                    <p>لم يتم الحصول على رمز التفويض. يمكنك إغلاق هذه النافذة.</p>
+                </body>
+                </html>
                 """
             
             # استخراج user_id من state parameter
@@ -1727,13 +1768,33 @@ def create_app():
             # إرسال النتيجة للنافذة الأصلية
             if success:
                 return """
-                <script>
-                    window.opener.postMessage({
-                        type: 'google-auth-success',
-                        message: 'تم ربط Google Drive بنجاح'
-                    }, '*');
-                    window.close();
-                </script>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>تم الربط بنجاح</title>
+                    <meta charset="utf-8">
+                </head>
+                <body>
+                    <script>
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({
+                                    type: 'google-auth-success',
+                                    message: 'تم ربط Google Drive بنجاح'
+                                }, '*');
+                            }
+                        } catch (e) {
+                            console.error('خطأ في إرسال الرسالة:', e);
+                        } finally {
+                            setTimeout(() => window.close(), 1000);
+                        }
+                    </script>
+                    <div style="text-align: center; padding: 50px; font-family: Arial;">
+                        <h2 style="color: green;">✅ تم ربط Google Drive بنجاح!</h2>
+                        <p>سيتم إغلاق هذه النافذة تلقائياً...</p>
+                    </div>
+                </body>
+                </html>
                 """
             else:
                 return f"""
