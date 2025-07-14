@@ -551,7 +551,9 @@ class GoogleDriveManager:
             
         except Exception as e:
             logger.error(f"Error generating authorization URL for user {user_id}: {e}")
-            return Nonet, authorization_code: str) -> bool:
+            return None
+    
+    def handle_oauth_callback(self, user_id: int, authorization_code: str) -> bool:
         """معالجة callback OAuth"""
         try:
             if not GOOGLE_APIS_AVAILABLE:
