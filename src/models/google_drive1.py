@@ -13,24 +13,9 @@ import zipfile
 import tempfile
 from flask import current_app
 
-# إعدادات Google OAuth
-GOOGLE_OAUTH_CONFIG = {
-    'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
-    'client_secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
-    'redirect_uri': 'https://chem-tahsili.com/auth/google/callback',
-    'scopes': [
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/drive.metadata.readonly'
-    ],
-    'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-    'token_uri': 'https://oauth2.googleapis.com/token'
-}
-
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-logger.info("✅ Google OAuth credentials loaded successfully")
 
 # استيراد المكتبات المطلوبة مع معالجة أخطاء محسنة
 try:
@@ -397,161 +382,34 @@ class GoogleDriveManager:
         return GOOGLE_APIS_AVAILABLE and self.credentials_available
     
     def get_authorization_url(self, user_id: int) -> Optional[str]:
-        """الحصول على رابط التفويض لـ Google OAuth"""
+        """الحصول على رابط التفويض"""
         try:
             if not GOOGLE_APIS_AVAILABLE:
-                logger.info(f"Mock authorization URL for user {user_id}")
-                return f"https://accounts.google.com/o/oauth2/auth?mock=true&user_id={user_id}"
+                logger.warning("Google APIs not available, returning mock URL")
+                return f"https://accounts.google.com/oauth2/auth?mock=true&user_id={user_id}"
             
-            if not GOOGLE_OAUTH_CONFIG['client_id'] or not GOOGLE_OAUTH_CONFIG['client_secret']:
-                logger.error("Google OAuth credentials not configured")
-                return None
-            
-            # إنشاء Flow للتفويض
             flow = Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": GOOGLE_OAUTH_CONFIG['client_id'],
-                        "client_secret": GOOGLE_OAUTH_CONFIG['client_secret'],
-                        "auth_uri": GOOGLE_OAUTH_CONFIG['auth_uri'],
-                        "token_uri": GOOGLE_OAUTH_CONFIG['token_uri'],
-                        "redirect_uris": [GOOGLE_OAUTH_CONFIG['redirect_uri']]
-                    }
-                },
-                scopes=GOOGLE_OAUTH_CONFIG['scopes']
+                self.client_config,
+                scopes=self.scopes,
+                state=str(user_id)
             )
             
-            flow.redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
+            flow.redirect_uri = self.client_config["web"]["redirect_uris"][0]
             
-            # إنشاء رابط التفويض
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=str(user_id)  # تمرير user_id في state
+                prompt='consent'
             )
             
-            logger.info(f"Authorization URL generated for user {user_id}")
+            logger.info(f"Generated authorization URL for user {user_id}")
             return authorization_url
             
         except Exception as e:
-            logger.error(f"Error generating authorization URL for user {user_id}: {e}")
+            logger.error(f"Error generating authorization URL: {e}")
             return None
     
     def handle_oauth_callback(self, user_id: int, authorization_code: str) -> bool:
-        """معالجة callback OAuth"""
-        try:
-            if not GOOGLE_APIS_AVAILABLE:
-                logger.info(f"Mock OAuth callback for user {user_id}")
-                # محاكاة حفظ token ناجح
-                mock_token_data = {
-                    'access_token': f'mock_access_token_{user_id}',
-                    'refresh_token': f'mock_refresh_token_{user_id}',
-                    'expires_in': 3600,
-                    'client_id': 'mock_client_id',
-                    'client_secret': 'mock_client_secret',
-                    'scopes': GOOGLE_OAUTH_CONFIG['scopes']
-                }
-                return GoogleDriveToken.create_or_update_token(user_id, mock_token_data) is not None
-            
-            if not GOOGLE_OAUTH_CONFIG['client_id'] or not GOOGLE_OAUTH_CONFIG['client_secret']:
-                logger.error("Google OAuth credentials not configured")
-                return False
-            
-            # إنشاء Flow للتفويض
-            flow = Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": GOOGLE_OAUTH_CONFIG['client_id'],
-                        "client_secret": GOOGLE_OAUTH_CONFIG['client_secret'],
-                        "auth_uri": GOOGLE_OAUTH_CONFIG['auth_uri'],
-                        "token_uri": GOOGLE_OAUTH_CONFIG['token_uri'],
-                        "redirect_uris": [GOOGLE_OAUTH_CONFIG['redirect_uri']]
-                    }
-                },
-                scopes=GOOGLE_OAUTH_CONFIG['scopes']
-            )
-            
-            flow.redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
-            
-            # تبديل authorization code بـ access token
-            flow.fetch_token(code=authorization_code)
-            
-            # حفظ credentials في قاعدة البيانات
-            credentials = flow.credentials
-            token_data = {
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token,
-                'expires_in': 3600,  # افتراضي
-                'client_id': GOOGLE_OAUTH_CONFIG['client_id'],
-                'client_secret': GOOGLE_OAUTH_CONFIG['client_secret'],
-                'scopes': GOOGLE_OAUTH_CONFIG['scopes']
-            }
-            
-            if credentials.expiry:
-                token_data['expiry'] = credentials.expiry
-            
-            result = GoogleDriveToken.create_or_update_token(user_id, token_data)
-            
-            if result:
-                logger.info(f"OAuth callback processed successfully for user {user_id}")
-                return True
-            else:
-                logger.error(f"Failed to save token for user {user_id}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error processing OAuth callback for user {user_id}: {e}")
-            return False
-    
-    def disconnect_user(self, user_id: int) -> bool:
-        """قطع اتصال المستخدم من Google Drive"""
-        try:
-            def _disconnect():
-                if not db:
-                    logger.warning("Database not available")
-                    return False
-                
-                token = GoogleDriveToken.query.filter_by(user_id=user_id, is_active=True).first()
-                if token:
-                    token.is_active = False
-                    db.session.commit()
-                    logger.info(f"User {user_id} disconnected from Google Drive")
-                    return True
-                else:
-                    logger.warning(f"No active token found for user {user_id}")
-                    return False
-            
-            return execute_with_app_context(_disconnect)
-            
-        except Exception as e:
-            logger.error(f"Error disconnecting user {user_id}: {e}")
-            return False
-    
-    def get_user_connection_status(self, user_id: int) -> Dict[str, Any]:
-        """الحصول على حالة اتصال المستخدم"""
-        def _get_status():
-            try:
-                if not db:
-                    return {
-                        'connected': False,
-                        'message': 'قاعدة البيانات غير متاحة'
-                    }
-            
-            flow.redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
-            
-            # إنشاء رابط التفويض
-            authorization_url, state = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true',
-                state=str(user_id)  # تمرير user_id في state
-            )
-            
-            logger.info(f"Authorization URL generated for user {user_id}")
-            return authorization_url
-            
-        except Exception as e:
-            logger.error(f"Error generating authorization URL for user {user_id}: {e}")
-            return Nonet, authorization_code: str) -> bool:
         """معالجة callback OAuth"""
         try:
             if not GOOGLE_APIS_AVAILABLE:
