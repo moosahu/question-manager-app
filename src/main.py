@@ -1308,80 +1308,7 @@ def create_app():
                 'message': f'خطأ في تحديث Token: {str(e)}'
             }), 500
 
-    @app.route('/api/v1/user/info', methods=['GET'])
-    @login_required
-    def get_user_info():
-        """جلب معلومات المستخدم الحالي"""
-        try:
-            if not current_user.is_authenticated:
-                return jsonify({
-                    'success': False,
-                    'message': 'يجب تسجيل الدخول أولاً'
-                }), 401
-            
-            # جلب معلومات المستخدم من قاعدة البيانات
-            user_info = {
-                'id': current_user.id,
-                'username': current_user.username,
-                'email': getattr(current_user, 'email', None),
-                'name': getattr(current_user, 'name', current_user.username),
-                'is_admin': getattr(current_user, 'is_admin', False),
-                'created_at': getattr(current_user, 'created_at', None)
-            }
-            
-            # تحويل التاريخ إلى string إذا كان موجوداً
-            if user_info['created_at']:
-                user_info['created_at'] = user_info['created_at'].isoformat()
-            
-            return jsonify({
-                'success': True,
-                'user': user_info
-            })
-            
-        except Exception as e:
-            print(f'❌ خطأ في جلب معلومات المستخدم: {e}')
-            return jsonify({
-                'success': False,
-                'message': f'خطأ في جلب معلومات المستخدم: {str(e)}'
-            }), 500
-    
-    @app.route('/api/v1/backup-settings/load', methods=['GET'])
-    def load_backup_settings():
-        """تحميل إعدادات النسخ الاحتياطي"""
-        try:
-            # التحقق من المستخدم
-            if not current_user.is_authenticated:
-                return jsonify({
-                    'success': False,
-                    'message': 'يجب تسجيل الدخول أولاً'
-                }), 401
-            
-            # تحميل من قاعدة البيانات إذا كان النموذج متاحاً
-            if backup_settings_model_available:
-                settings = BackupSettings.get_user_settings(current_user.id)
-                return jsonify({
-                    'success': True,
-                    'settings': settings.to_dict()
-                }), 200
-            else:
-                # تحميل من الجلسة كبديل
-                settings = session.get('backup_settings', {
-                    'auto_backup_enabled': False,
-                    'backup_frequency': 'daily',
-                    'backup_time': '02:00',
-                    'max_backups': 10,
-                    'backup_destination': 'local'
-                })
-                return jsonify({
-                    'success': True,
-                    'settings': settings
-                }), 200
-                
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': f'خطأ في تحميل إعدادات النسخ الاحتياطي: {str(e)}'
-            }), 500
+
 
     # ===== API للنسخ الاحتياطي الفوري =====
 
@@ -1565,7 +1492,7 @@ def create_app():
     # ===== API لمعلومات المستخدم =====
     @app.route('/api/v1/user/info', methods=['GET'])
     @login_required
-    def get_current_user_info_api():
+    def get_user_info():
         """الحصول على معلومات المستخدم الحالي"""
         try:
             return jsonify({
