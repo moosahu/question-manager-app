@@ -1567,7 +1567,7 @@ def create_app():
     # ===== API لمعلومات المستخدم =====
     @app.route('/api/v1/user/info', methods=['GET'])
     @login_required
-    def get_user_info():
+    def get_current_user_info_api():
         """الحصول على معلومات المستخدم الحالي"""
         try:
             return jsonify({
