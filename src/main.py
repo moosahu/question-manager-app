@@ -265,14 +265,20 @@ def create_app():
     @app.after_request
     def add_cors_headers(response):
         """إضافة headers لحل مشاكل CORS و OAuth"""
-        # السماح للنوافذ المنبثقة بالعمل مع OAuth
-        response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
-        # السماح بالوصول من نفس المصدر
-        response.headers['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
+        # إزالة Cross-Origin-Opener-Policy تماماً لحل مشاكل النوافذ المنبثقة
+        if 'Cross-Origin-Opener-Policy' in response.headers:
+            del response.headers['Cross-Origin-Opener-Policy']
+        
+        # إزالة Cross-Origin-Embedder-Policy أيضاً
+        if 'Cross-Origin-Embedder-Policy' in response.headers:
+            del response.headers['Cross-Origin-Embedder-Policy']
+        
         # إضافة CORS headers للـ APIs
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
         return response
 
     # User loader function for Flask-Login
@@ -1377,7 +1383,380 @@ def create_app():
                 'message': f'خطأ في تحميل إعدادات النسخ الاحتياطي: {str(e)}'
             }), 500
 
-    # ===== APIs جدولة النسخ الاحتياطي =====
+    # ===== API للنسخ الاحتياطي الفوري =====
+    @app.route('/api/v1/backup/immediate', methods=['POST'])
+    @login_required
+    def trigger_immediate_backup_api():
+        """تشغيل نسخ احتياطي فوري للمستخدم الحالي"""
+        try:
+            if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
+                return jsonify({
+                    'success': False,
+                    'error': 'جدولة النسخ الاحتياطي غير متوفرة'
+                }), 400
+            
+            scheduler = app.backup_scheduler
+            
+            # تشغيل نسخ احتياطي فوري للمستخدم الحالي
+            success = scheduler.trigger_immediate_backup(current_user.id)
+            
+            if success:
+                # تحديث عدد النسخ في قاعدة البيانات بعد نجاح العملية
+                try:
+                    if google_drive_model_available:
+                        from src.models.google_drive import GoogleDriveToken
+                        user_token = GoogleDriveToken.get_user_token(current_user.id)
+                        if user_token:
+                            # زيادة عدد النسخ
+                            current_count = user_token.backup_count or 0
+                            user_token.backup_count = current_count + 1
+                            user_token.last_backup_time = datetime.utcnow()
+                            db.session.commit()
+                            logger.info(f"تم تحديث عدد النسخ للمستخدم {current_user.id}: {user_token.backup_count}")
+                except Exception as e:
+                    logger.error(f"خطأ في تحديث عدد النسخ: {e}")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح',
+                    'user_id': current_user.id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'فشل في تشغيل النسخ الاحتياطي الفوري'
+                }), 400
+                
+        except Exception as e:
+            logger.error(f"خطأ في API النسخ الفوري: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في تشغيل النسخ الاحتياطي الفوري: {str(e)}'
+            }), 500
+
+    # ===== API لحالة النسخ الاحتياطي =====
+    @app.route('/api/v1/backup/status', methods=['GET'])
+    @login_required
+    def get_backup_status_api():
+        """الحصول على حالة النسخ الاحتياطي للمستخدم الحالي"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'settings': {
+                        'auto_backup_enabled': False,
+                        'backup_frequency': 'daily',
+                        'backup_destination': 'local',
+                        'max_backups': 5,
+                        'last_backup_time': None,
+                        'updated_at': None
+                    },
+                    'google_drive': {
+                        'connected': False,
+                        'last_backup': None
+                    },
+                    'scheduler': {
+                        'user_scheduled': False,
+                        'next_backup': None
+                    }
+                }
+            }
+            
+            # فحص إعدادات النسخ الاحتياطي من قاعدة البيانات
+            try:
+                if backup_settings_model_available:
+                    from src.models.backup_settings import BackupSettings
+                    user_settings = BackupSettings.get_user_settings(current_user.id)
+                    if user_settings:
+                        status['status']['settings'].update({
+                            'auto_backup_enabled': user_settings.auto_backup_enabled,
+                            'backup_frequency': user_settings.backup_frequency,
+                            'backup_destination': user_settings.backup_destination,
+                            'max_backups': user_settings.max_backups,
+                            'updated_at': user_settings.updated_at.isoformat() if user_settings.updated_at else None
+                        })
+            except Exception as e:
+                logger.error(f"خطأ في جلب إعدادات النسخ: {e}")
+            
+            # فحص حالة Google Drive
+            try:
+                if google_drive_model_available:
+                    from src.models.google_drive import GoogleDriveToken
+                    user_token = GoogleDriveToken.get_user_token(current_user.id)
+                    if user_token and user_token.is_valid():
+                        status['status']['google_drive'].update({
+                            'connected': True,
+                            'last_backup': user_token.last_backup_time.isoformat() if user_token.last_backup_time else None
+                        })
+                        # تحديث آخر نسخة في الإعدادات أيضاً
+                        if user_token.last_backup_time:
+                            status['status']['settings']['last_backup_time'] = user_token.last_backup_time.isoformat()
+            except Exception as e:
+                logger.error(f"خطأ في فحص حالة Google Drive: {e}")
+            
+            # فحص حالة الجدولة
+            try:
+                if backup_scheduler_available and hasattr(app, 'backup_scheduler'):
+                    scheduler = app.backup_scheduler
+                    jobs = scheduler.get_scheduled_jobs()
+                    user_jobs = [job for job in jobs if job.get('user_id') == current_user.id]
+                    if user_jobs:
+                        status['status']['scheduler']['user_scheduled'] = True
+                        # البحث عن موعد النسخة التالية
+                        for job in user_jobs:
+                            if job.get('next_run_time'):
+                                status['status']['scheduler']['next_backup'] = job['next_run_time']
+                                break
+            except Exception as e:
+                logger.error(f"خطأ في فحص حالة الجدولة: {e}")
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة النسخ: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب حالة النسخ الاحتياطي: {str(e)}'
+            }), 500
+
+    # ===== API لحالة اتصال Google Drive =====
+    @app.route('/api/v1/google-drive/connection-status', methods=['GET'])
+    @login_required
+    def get_google_drive_connection_status():
+        """فحص حالة اتصال Google Drive للمستخدم الحالي"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'connected': False,
+                    'user_email': None,
+                    'last_backup': None,
+                    'backup_count': 0
+                }
+            }
+            
+            # فحص من قاعدة البيانات
+            try:
+                if google_drive_model_available:
+                    from src.models.google_drive import GoogleDriveToken
+                    user_token = GoogleDriveToken.get_user_token(current_user.id)
+                    if user_token and user_token.is_valid():
+                        status['status'].update({
+                            'connected': True,
+                            'user_email': user_token.user_email,
+                            'last_backup': user_token.last_backup_time.isoformat() if user_token.last_backup_time else None,
+                            'backup_count': user_token.backup_count or 0
+                        })
+            except Exception as e:
+                logger.error(f"خطأ في فحص token من قاعدة البيانات: {e}")
+            
+            # فحص من الجلسة كبديل
+            if not status['status']['connected']:
+                if session.get('google_drive_connected') and session.get('google_drive_user_id') == current_user.id:
+                    status['status']['connected'] = True
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة Google Drive: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في فحص حالة Google Drive: {str(e)}'
+            }), 500
+
+    # ===== API لمعلومات المستخدم =====
+    @app.route('/api/v1/user/info', methods=['GET'])
+    @login_required
+    def get_user_info():
+        """الحصول على معلومات المستخدم الحالي"""
+        try:
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': current_user.id,
+                    'username': current_user.username,
+                    'email': getattr(current_user, 'email', None),
+                    'is_admin': getattr(current_user, 'is_admin', False)
+                }
+            })
+        except Exception as e:
+            logger.error(f"خطأ في API معلومات المستخدم: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب معلومات المستخدم: {str(e)}'
+            }), 500
+
+    # ===== API لحفظ إعدادات النسخ الاحتياطي =====
+    @app.route('/api/v1/backup/settings', methods=['POST'])
+    @login_required
+    def save_backup_settings_api():
+        """حفظ إعدادات النسخ الاحتياطي للمستخدم الحالي"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    'success': False,
+                    'error': 'لا توجد بيانات لحفظها'
+                }), 400
+            
+            # التحقق من صحة البيانات
+            valid_frequencies = ['daily', 'weekly', 'monthly']
+            valid_destinations = ['local', 'google_drive']
+            
+            settings = {}
+            
+            # تفعيل النسخ التلقائي
+            if 'auto_backup_enabled' in data:
+                settings['auto_backup_enabled'] = bool(data['auto_backup_enabled'])
+            
+            # تكرار النسخ
+            if 'backup_frequency' in data:
+                frequency = data['backup_frequency']
+                if frequency in valid_frequencies:
+                    settings['backup_frequency'] = frequency
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'تكرار النسخ غير صحيح. القيم المسموحة: {valid_frequencies}'
+                    }), 400
+            
+            # وجهة النسخ
+            if 'backup_destination' in data:
+                destination = data['backup_destination']
+                if destination in valid_destinations:
+                    settings['backup_destination'] = destination
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'وجهة النسخ غير صحيحة. القيم المسموحة: {valid_destinations}'
+                    }), 400
+            
+            # الحد الأقصى للنسخ
+            if 'max_backups' in data:
+                max_backups = data['max_backups']
+                if isinstance(max_backups, int) and max_backups > 0:
+                    settings['max_backups'] = max_backups
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'الحد الأقصى للنسخ يجب أن يكون رقم موجب'
+                    }), 400
+            
+            # حفظ الإعدادات في قاعدة البيانات
+            try:
+                if backup_settings_model_available:
+                    from src.models.backup_settings import BackupSettings
+                    
+                    # إنشاء أو تحديث إعدادات المستخدم
+                    user_settings = BackupSettings.create_or_update_settings(current_user.id, settings)
+                    
+                    if user_settings:
+                        logger.info(f"تم حفظ إعدادات النسخ للمستخدم {current_user.id}: {settings}")
+                        
+                        # إذا تم تفعيل النسخ التلقائي، جدولة النسخ
+                        if settings.get('auto_backup_enabled') and backup_scheduler_available and hasattr(app, 'backup_scheduler'):
+                            try:
+                                scheduler = app.backup_scheduler
+                                frequency = settings.get('backup_frequency', 'daily')
+                                success = scheduler.schedule_user_backup(current_user.id, frequency)
+                                if success:
+                                    logger.info(f"تم جدولة النسخ التلقائي للمستخدم {current_user.id} بتكرار {frequency}")
+                                else:
+                                    logger.warning(f"فشل في جدولة النسخ التلقائي للمستخدم {current_user.id}")
+                            except Exception as e:
+                                logger.error(f"خطأ في جدولة النسخ التلقائي: {e}")
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح',
+                            'settings': {
+                                'auto_backup_enabled': user_settings.auto_backup_enabled,
+                                'backup_frequency': user_settings.backup_frequency,
+                                'backup_destination': user_settings.backup_destination,
+                                'max_backups': user_settings.max_backups,
+                                'updated_at': user_settings.updated_at.isoformat() if user_settings.updated_at else None
+                            }
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'فشل في حفظ الإعدادات في قاعدة البيانات'
+                        }), 500
+                else:
+                    # حفظ في الجلسة كبديل
+                    session['backup_settings'] = settings
+                    session['backup_settings']['user_id'] = current_user.id
+                    logger.info(f"تم حفظ إعدادات النسخ في الجلسة للمستخدم {current_user.id}: {settings}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح (في الجلسة)',
+                        'settings': settings
+                    })
+                    
+            except Exception as e:
+                logger.error(f"خطأ في حفظ إعدادات النسخ: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'خطأ في حفظ الإعدادات: {str(e)}'
+                }), 500
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حفظ إعدادات النسخ: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في معالجة الطلب: {str(e)}'
+            }), 500
+
+    # ===== API لجلب إعدادات النسخ الاحتياطي =====
+    @app.route('/api/v1/backup/settings', methods=['GET'])
+    @login_required
+    def get_backup_settings_api():
+        """جلب إعدادات النسخ الاحتياطي للمستخدم الحالي"""
+        try:
+            settings = {
+                'success': True,
+                'settings': {
+                    'auto_backup_enabled': False,
+                    'backup_frequency': 'daily',
+                    'backup_destination': 'local',
+                    'max_backups': 5,
+                    'updated_at': None
+                }
+            }
+            
+            # جلب من قاعدة البيانات
+            try:
+                if backup_settings_model_available:
+                    from src.models.backup_settings import BackupSettings
+                    user_settings = BackupSettings.get_user_settings(current_user.id)
+                    if user_settings:
+                        settings['settings'].update({
+                            'auto_backup_enabled': user_settings.auto_backup_enabled,
+                            'backup_frequency': user_settings.backup_frequency,
+                            'backup_destination': user_settings.backup_destination,
+                            'max_backups': user_settings.max_backups,
+                            'updated_at': user_settings.updated_at.isoformat() if user_settings.updated_at else None
+                        })
+            except Exception as e:
+                logger.error(f"خطأ في جلب إعدادات النسخ من قاعدة البيانات: {e}")
+            
+            # جلب من الجلسة كبديل
+            if not settings['settings']['updated_at']:
+                session_settings = session.get('backup_settings')
+                if session_settings and session_settings.get('user_id') == current_user.id:
+                    settings['settings'].update(session_settings)
+            
+            return jsonify(settings)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API جلب إعدادات النسخ: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب الإعدادات: {str(e)}'
+            }), 500
+
+    # ===== API للنسخ الاحتياطي الفوري (النسخة القديمة للتوافق) =====
     
     @app.route('/api/v1/backup-scheduler/status', methods=['GET'])
     @login_required

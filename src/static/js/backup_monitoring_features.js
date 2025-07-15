@@ -704,3 +704,211 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+
+    // ===== وظائف تفعيل النسخ التلقائي =====
+    
+    async enableAutoBackup(settings = {}) {
+        """تفعيل النسخ التلقائي مع الإعدادات المحددة"""
+        try {
+            console.log('🔄 تفعيل النسخ التلقائي...', settings);
+            
+            // الإعدادات الافتراضية
+            const defaultSettings = {
+                auto_backup_enabled: true,
+                backup_frequency: 'daily',
+                backup_destination: 'local',
+                max_backups: 5
+            };
+            
+            // دمج الإعدادات
+            const finalSettings = { ...defaultSettings, ...settings };
+            
+            const response = await fetch('/api/v1/backup/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(finalSettings)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                this.showSuccess('تم تفعيل النسخ التلقائي بنجاح');
+                
+                // تحديث الحالة فوراً
+                setTimeout(() => {
+                    this.checkBackupStatus();
+                }, 1000);
+                
+                return true;
+            } else {
+                this.showError(data.error || 'فشل في تفعيل النسخ التلقائي');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ خطأ في تفعيل النسخ التلقائي:', error);
+            this.showError('خطأ في الاتصال بالخادم');
+            return false;
+        }
+    }
+    
+    async disableAutoBackup() {
+        """إيقاف النسخ التلقائي"""
+        try {
+            console.log('⏹️ إيقاف النسخ التلقائي...');
+            
+            const response = await fetch('/api/v1/backup/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    auto_backup_enabled: false
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                this.showSuccess('تم إيقاف النسخ التلقائي');
+                
+                // تحديث الحالة فوراً
+                setTimeout(() => {
+                    this.checkBackupStatus();
+                }, 1000);
+                
+                return true;
+            } else {
+                this.showError(data.error || 'فشل في إيقاف النسخ التلقائي');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ خطأ في إيقاف النسخ التلقائي:', error);
+            this.showError('خطأ في الاتصال بالخادم');
+            return false;
+        }
+    }
+    
+    async updateBackupSettings(settings) {
+        """تحديث إعدادات النسخ الاحتياطي"""
+        try {
+            console.log('⚙️ تحديث إعدادات النسخ الاحتياطي...', settings);
+            
+            const response = await fetch('/api/v1/backup/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                this.showSuccess('تم تحديث إعدادات النسخ الاحتياطي بنجاح');
+                
+                // تحديث الحالة فوراً
+                setTimeout(() => {
+                    this.checkBackupStatus();
+                }, 1000);
+                
+                return true;
+            } else {
+                this.showError(data.error || 'فشل في تحديث إعدادات النسخ الاحتياطي');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ خطأ في تحديث إعدادات النسخ الاحتياطي:', error);
+            this.showError('خطأ في الاتصال بالخادم');
+            return false;
+        }
+    }
+    
+    // ===== ربط أحداث تفعيل النسخ التلقائي =====
+    
+    bindAutoBackupEvents() {
+        """ربط أحداث تفعيل النسخ التلقائي"""
+        
+        // checkbox تفعيل النسخ التلقائي
+        const autoBackupCheckbox = document.getElementById('تفعيل-النسخ-التلقائي');
+        if (autoBackupCheckbox) {
+            autoBackupCheckbox.addEventListener('change', async (e) => {
+                const isEnabled = e.target.checked;
+                
+                if (isEnabled) {
+                    // جمع الإعدادات من النموذج
+                    const settings = this.collectBackupSettings();
+                    await this.enableAutoBackup(settings);
+                } else {
+                    await this.disableAutoBackup();
+                }
+            });
+        }
+        
+        // أزرار حفظ الإعدادات
+        const saveSettingsBtn = document.getElementById('save-backup-settings');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', async () => {
+                const settings = this.collectBackupSettings();
+                await this.updateBackupSettings(settings);
+            });
+        }
+        
+        // نموذج إعدادات النسخ الاحتياطي
+        const backupSettingsForm = document.getElementById('backup-settings-form');
+        if (backupSettingsForm) {
+            backupSettingsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const settings = this.collectBackupSettings();
+                await this.updateBackupSettings(settings);
+            });
+        }
+    }
+    
+    collectBackupSettings() {
+        """جمع إعدادات النسخ الاحتياطي من النموذج"""
+        const settings = {};
+        
+        // تفعيل النسخ التلقائي
+        const autoBackupCheckbox = document.getElementById('تفعيل-النسخ-التلقائي');
+        if (autoBackupCheckbox) {
+            settings.auto_backup_enabled = autoBackupCheckbox.checked;
+        }
+        
+        // تكرار النسخ
+        const frequencySelect = document.getElementById('backup-frequency');
+        if (frequencySelect) {
+            settings.backup_frequency = frequencySelect.value;
+        }
+        
+        // وجهة النسخ
+        const destinationSelect = document.getElementById('backup-destination');
+        if (destinationSelect) {
+            settings.backup_destination = destinationSelect.value;
+        }
+        
+        // الحد الأقصى للنسخ
+        const maxBackupsInput = document.getElementById('max-backups');
+        if (maxBackupsInput) {
+            settings.max_backups = parseInt(maxBackupsInput.value) || 5;
+        }
+        
+        return settings;
+    }
+}
+
+// تحديث الكلاس الرئيسي لإضافة ربط أحداث النسخ التلقائي
+if (typeof BackupMonitor !== 'undefined') {
+    const originalInit = BackupMonitor.prototype.init;
+    BackupMonitor.prototype.init = function() {
+        originalInit.call(this);
+        
+        // ربط أحداث النسخ التلقائي
+        this.bindAutoBackupEvents();
+    };
+}
+
