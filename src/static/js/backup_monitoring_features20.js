@@ -98,12 +98,7 @@ class BackupMonitor {
             
             if (response.ok) {
                 const data = await response.json();
-                if (data.success) {
-                    this.updateBackupStatus(data);
-                } else {
-                    console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
-                    this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
-                }
+                this.updateBackupStatus(data);
             } else {
                 console.error('فشل في الحصول على حالة النسخ الاحتياطي');
                 this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
@@ -125,11 +120,7 @@ class BackupMonitor {
             
             if (response.ok) {
                 const data = await response.json();
-                if (data.success) {
-                    this.updateGoogleDriveStatus(data);
-                } else {
-                    console.error('فشل في فحص اتصال Google Drive:', data.error);
-                }
+                this.updateGoogleDriveStatus(data);
             } else {
                 console.error('فشل في فحص اتصال Google Drive');
             }
@@ -142,71 +133,30 @@ class BackupMonitor {
         // التعامل مع البنية الجديدة للاستجابة
         const status = data.status || data;
         const googleDriveInfo = status.google_drive || {};
-        const settingsInfo = status.settings || {};
         
-        // تحديث تاريخ آخر نسخة
-        if (this.lastBackupElement) {
-            let lastBackupTime = null;
-            
-            // البحث عن تاريخ آخر نسخة من مصادر متعددة
-            if (settingsInfo.last_backup_time) {
-                lastBackupTime = settingsInfo.last_backup_time;
-            } else if (googleDriveInfo.last_backup) {
-                lastBackupTime = googleDriveInfo.last_backup;
-            }
-            
-            if (lastBackupTime) {
-                const lastBackupDate = new Date(lastBackupTime);
-                this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
-                this.lastBackupElement.style.color = '#4CAF50';
-            } else {
-                this.lastBackupElement.textContent = 'لم يتم إنشاء نسخة احتياطية بعد';
-                this.lastBackupElement.style.color = '#ff9800';
-            }
+        if (this.lastBackupElement && googleDriveInfo.last_backup) {
+            const lastBackupDate = new Date(googleDriveInfo.last_backup);
+            this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
         }
         
-        // تحديث وجهة النسخ الاحتياطي
         if (this.destinationElement) {
             const isGoogleDriveConnected = googleDriveInfo.connected;
-            const backupDestination = settingsInfo.backup_destination || 'local';
-            
-            let destinationText = 'محلي';
-            if (isGoogleDriveConnected && backupDestination === 'google_drive') {
-                destinationText = 'Google Drive';
-            } else if (backupDestination === 'google_drive' && !isGoogleDriveConnected) {
-                destinationText = 'Google Drive (غير متصل)';
-            }
-            
+            const destinationText = isGoogleDriveConnected ? 'Google Drive' : 'محلي';
             this.destinationElement.textContent = destinationText;
         }
         
-        // تحديث مؤشر الحالة العامة
+        // تحديث مؤشر الحالة
         if (this.statusElement) {
-            const lastBackupTime = settingsInfo.last_backup_time || googleDriveInfo.last_backup;
-            const isRecent = this.isRecentBackup(lastBackupTime);
-            const autoBackupEnabled = settingsInfo.auto_backup_enabled;
-            
-            if (autoBackupEnabled && isRecent) {
-                this.statusElement.className = 'status-good';
-                this.statusElement.textContent = 'نشط';
-            } else if (autoBackupEnabled && !isRecent) {
-                this.statusElement.className = 'status-warning';
-                this.statusElement.textContent = 'يحتاج تحديث';
-            } else {
-                this.statusElement.className = 'status-warning';
-                this.statusElement.textContent = 'غير مفعل';
-            }
+            const isRecent = this.isRecentBackup(googleDriveInfo.last_backup);
+            this.statusElement.className = isRecent ? 'status-good' : 'status-warning';
+            this.statusElement.textContent = isRecent ? 'نشط' : 'يحتاج تحديث';
         }
-        
-        // تحديث معلومات إضافية
-        this.updateAdditionalInfo(status);
     }
     
     updateGoogleDriveStatus(data) {
         if (this.connectionElement) {
             // التحقق من البنية الجديدة للاستجابة
-            const status = data.status || data;
-            const isConnected = status.connected || false;
+            const isConnected = data.status ? data.status.connected : data.connected;
             
             if (isConnected) {
                 this.connectionElement.innerHTML = '✅ متصل';
@@ -218,8 +168,7 @@ class BackupMonitor {
         }
         
         // إظهار/إخفاء أزرار الاتصال
-        const status = data.status || data;
-        const isConnected = status.connected || false;
+        const isConnected = data.status ? data.status.connected : data.connected;
         this.toggleConnectionButtons(isConnected);
     }
     
@@ -241,89 +190,6 @@ class BackupMonitor {
         }
     }
     
-    updateAdditionalInfo(status) {
-        // تحديث معلومات الجدولة
-        const schedulerInfo = status.scheduler || {};
-        const schedulerStatusElement = document.getElementById('scheduler-status');
-        if (schedulerStatusElement) {
-            if (schedulerInfo.user_scheduled) {
-                schedulerStatusElement.textContent = 'مجدول';
-                schedulerStatusElement.className = 'status-good';
-            } else {
-                schedulerStatusElement.textContent = 'غير مجدول';
-                schedulerStatusElement.className = 'status-warning';
-            }
-        }
-        
-        // تحديث موعد النسخة التالية
-        const nextBackupElement = document.getElementById('next-backup-time');
-        if (nextBackupElement && schedulerInfo.next_backup) {
-            const nextBackupDate = new Date(schedulerInfo.next_backup);
-            nextBackupElement.textContent = this.formatDate(nextBackupDate);
-        } else if (nextBackupElement) {
-            nextBackupElement.textContent = 'غير محدد';
-        }
-        
-        // تحديث تكرار النسخ
-        const frequencyElement = document.getElementById('backup-frequency');
-        if (frequencyElement) {
-            const settings = status.settings || {};
-            const frequency = settings.backup_frequency || 'daily';
-            const frequencyText = {
-                'daily': 'يومي',
-                'weekly': 'أسبوعي',
-                'monthly': 'شهري'
-            };
-            frequencyElement.textContent = frequencyText[frequency] || frequency;
-        }
-        
-        // تحديث عدد النسخ المحفوظة (من إعدادات الحد الأقصى)
-        const countElement = document.getElementById('backup-count');
-        if (countElement && status.settings) {
-            countElement.textContent = `الحد الأقصى: ${status.settings.max_backups || 5}`;
-        }
-        
-        // تحديث آخر نسخة احتياطية (من Google Drive أو إعدادات)
-        const lastBackupElement = document.getElementById('last-backup-time');
-        if (lastBackupElement) {
-            let lastBackupTime = null;
-            
-            // البحث عن آخر نسخة من Google Drive
-            if (status.google_drive && status.google_drive.last_backup) {
-                lastBackupTime = status.google_drive.last_backup;
-            }
-            // أو من إعدادات النظام
-            else if (status.settings && status.settings.updated_at) {
-                lastBackupTime = status.settings.updated_at;
-            }
-            
-            if (lastBackupTime) {
-                const lastDate = new Date(lastBackupTime);
-                lastBackupElement.textContent = this.formatDate(lastDate);
-            } else {
-                lastBackupElement.textContent = 'لم يتم إنشاء نسخة بعد';
-            }
-        }
-        
-        // تحديث وجهة النسخ
-        const destinationElement = document.getElementById('backup-destination');
-        if (destinationElement && status.settings) {
-            destinationElement.textContent = status.settings.backup_destination === 'google_drive' ? 'Google Drive' : 'محلي';
-        }
-        
-        // تحديث حالة Google Drive
-        const googleDriveElement = document.getElementById('google-drive-status');
-        if (googleDriveElement && status.google_drive) {
-            if (status.google_drive.connected) {
-                googleDriveElement.textContent = '✅ متصل';
-                googleDriveElement.className = 'status-good';
-            } else {
-                googleDriveElement.textContent = '❌ غير متصل';
-                googleDriveElement.className = 'status-error';
-            }
-        }
-    }
-
     async testBackup() {
         const testBtn = document.getElementById('test-backup-btn');
         if (testBtn) {
@@ -361,110 +227,30 @@ class BackupMonitor {
     
     async connectGoogleDrive() {
         try {
-            console.log('🔗 بدء عملية ربط Google Drive...');
+            const response = await fetch('/api/v1/backup/google-drive/connect', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
             
-            // الحصول على إعدادات Google OAuth
-            const configResponse = await fetch('/api/v1/google-oauth/config');
-            const config = await configResponse.json();
-            
-            if (!config.success || !config.client_id) {
-                this.showError('إعدادات Google OAuth غير متوفرة');
-                return;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.auth_url) {
+                    // فتح نافذة جديدة للتفويض
+                    window.open(data.auth_url, 'google-auth', 'width=500,height=600');
+                    
+                    // مراقبة إغلاق النافذة
+                    this.monitorAuthWindow();
+                } else {
+                    this.showError('فشل في الحصول على رابط التفويض');
+                }
+            } else {
+                this.showError('فشل في بدء عملية الربط');
             }
-            
-            // إعداد معاملات OAuth
-            const clientId = config.client_id;
-            const redirectUri = `${window.location.origin}/auth/google/callback`;
-            const scope = 'https://www.googleapis.com/auth/drive.file';
-            const responseType = 'code';
-            const accessType = 'offline';
-            const prompt = 'consent';
-            
-            // إضافة user_id كـ state parameter
-            let state = '';
-            try {
-                const userResponse = await fetch('/api/v1/user/info');
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    if (userData.success && userData.user) {
-                        state = userData.user.id.toString();
-                    }
-                }
-            } catch (e) {
-                console.warn('لا يمكن الحصول على معلومات المستخدم:', e);
-            }
-            
-            // بناء URL للمصادقة
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                `client_id=${encodeURIComponent(clientId)}&` +
-                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-                `scope=${encodeURIComponent(scope)}&` +
-                `response_type=${responseType}&` +
-                `access_type=${accessType}&` +
-                `prompt=${prompt}&` +
-                `state=${state}`;
-            
-            console.log('🌐 فتح نافذة المصادقة...');
-            console.log('📍 Redirect URI:', redirectUri);
-            
-            // فتح نافذة المصادقة
-            const authWindow = window.open(
-                authUrl,
-                'google-auth',
-                'width=500,height=600,scrollbars=yes,resizable=yes'
-            );
-            
-            if (!authWindow) {
-                this.showError('لا يمكن فتح نافذة المصادقة. تأكد من السماح للنوافذ المنبثقة');
-                return;
-            }
-            
-            // الاستماع لرسائل من نافذة المصادقة
-            const messageHandler = (event) => {
-                // التحقق من مصدر الرسالة للأمان
-                if (event.origin !== window.location.origin) {
-                    return;
-                }
-                
-                console.log('📨 تم استلام رسالة من نافذة OAuth:', event.data);
-                
-                if (event.data.type === 'google-auth-success') {
-                    console.log('✅ نجح ربط Google Drive');
-                    this.showSuccess('تم ربط Google Drive بنجاح');
-                    
-                    // تحديث الحالة
-                    setTimeout(() => {
-                        this.checkGoogleDriveConnection();
-                        this.checkBackupStatus();
-                    }, 1000);
-                    
-                    // إزالة مستمع الأحداث
-                    window.removeEventListener('message', messageHandler);
-                    
-                } else if (event.data.type === 'google-auth-error') {
-                    console.error('❌ فشل في ربط Google Drive:', event.data);
-                    this.showError(event.data.message || 'فشل في ربط Google Drive');
-                    
-                    // إزالة مستمع الأحداث
-                    window.removeEventListener('message', messageHandler);
-                }
-            };
-            
-            // إضافة مستمع الأحداث
-            window.addEventListener('message', messageHandler);
-            
-            // مراقبة إغلاق النافذة
-            const checkClosed = setInterval(() => {
-                if (authWindow.closed) {
-                    clearInterval(checkClosed);
-                    window.removeEventListener('message', messageHandler);
-                    console.log('🔒 تم إغلاق نافذة المصادقة');
-                }
-            }, 1000);
-            
         } catch (error) {
-            console.error('❌ خطأ في ربط Google Drive:', error);
-            this.showError('خطأ في ربط Google Drive: ' + error.message);
+            console.error('خطأ في ربط Google Drive:', error);
+            this.showError('خطأ في الاتصال بالخادم');
         }
     }
     

@@ -1,706 +1,648 @@
 /**
  * نظام مراقبة النسخ الاحتياطي المحسن
- * Enhanced Backup Monitoring System
+ * يوفر واجهة شاملة لمراقبة وإدارة النسخ الاحتياطية
  */
 
-class BackupMonitor {
+class BackupMonitoringSystem {
     constructor() {
-        this.statusCheckInterval = null;
-        this.lastBackupStatus = null;
-        this.isMonitoring = false;
+        this.isInitialized = false;
+        this.refreshInterval = null;
+        this.lastUpdateTime = null;
         
-        // عناصر الواجهة
-        this.statusElement = document.getElementById('backup-status');
-        this.connectionElement = document.getElementById('google-drive-status');
-        this.lastBackupElement = document.getElementById('last-backup-time');
-        this.destinationElement = document.getElementById('backup-destination');
+        // إعدادات النظام
+        this.settings = {
+            autoRefresh: true,
+            refreshIntervalMs: 30000, // 30 ثانية
+            maxRetries: 3,
+            retryDelay: 2000 // 2 ثانية
+        };
         
-        this.init();
+        // حالة النظام
+        this.state = {
+            isConnected: false,
+            lastBackupTime: null,
+            backupCount: 0,
+            connectionStatus: 'disconnected'
+        };
+        
+        console.log('🔧 تم تهيئة نظام مراقبة النسخ الاحتياطي');
     }
-    
-    init() {
-        console.log('تهيئة نظام مراقبة النسخ الاحتياطي...');
-        
-        // بدء المراقبة التلقائية
-        this.startMonitoring();
-        
-        // ربط الأحداث
-        this.bindEvents();
-        
-        // فحص الحالة الأولي
-        this.checkBackupStatus();
-        this.checkGoogleDriveConnection();
+
+    /**
+     * تهيئة النظام وربط الأحداث
+     */
+    async init() {
+        try {
+            console.log('🚀 بدء تهيئة نظام مراقبة النسخ الاحتياطي...');
+            
+            // التحقق من وجود العناصر المطلوبة
+            if (!this.checkRequiredElements()) {
+                console.warn('⚠️ بعض العناصر المطلوبة غير موجودة');
+                return false;
+            }
+            
+            // ربط الأحداث
+            this.bindEvents();
+            
+            // تحديث الحالة الأولية
+            await this.updateStatus();
+            
+            // بدء التحديث التلقائي
+            if (this.settings.autoRefresh) {
+                this.startAutoRefresh();
+            }
+            
+            this.isInitialized = true;
+            console.log('✅ تم تهيئة نظام مراقبة النسخ الاحتياطي بنجاح');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ خطأ في تهيئة نظام مراقبة النسخ الاحتياطي:', error);
+            return false;
+        }
     }
-    
+
+    /**
+     * التحقق من وجود العناصر المطلوبة في DOM
+     */
+    checkRequiredElements() {
+        const requiredElements = [
+            'backup-status-container',
+            'google-drive-status',
+            'backup-stats-container'
+        ];
+        
+        let allFound = true;
+        requiredElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.warn(`⚠️ العنصر غير موجود: ${id}`);
+                allFound = false;
+            }
+        });
+        
+        return allFound;
+    }
+
+    /**
+     * ربط الأحداث بالعناصر
+     */
     bindEvents() {
-        // زر اختبار النسخ
-        const testBackupBtn = document.getElementById('test-backup-btn');
-        if (testBackupBtn) {
-            testBackupBtn.addEventListener('click', () => this.testBackup());
-        }
-        
-        // زر ربط Google Drive
-        const connectGoogleBtn = document.getElementById('connect-google-drive');
-        if (connectGoogleBtn) {
-            connectGoogleBtn.addEventListener('click', () => this.connectGoogleDrive());
-        }
-        
-        // زر قطع الاتصال
-        const disconnectBtn = document.getElementById('disconnect-google-drive');
-        if (disconnectBtn) {
-            disconnectBtn.addEventListener('click', () => this.disconnectGoogleDrive());
-        }
-        
-        // زر فحص ملفات Google Drive
-        const checkFilesBtn = document.getElementById('check-google-files');
-        if (checkFilesBtn) {
-            checkFilesBtn.addEventListener('click', () => this.checkGoogleDriveFiles());
+        // زر النسخ الفوري
+        const immediateBackupBtn = document.getElementById('immediate-backup-btn');
+        if (immediateBackupBtn) {
+            immediateBackupBtn.addEventListener('click', () => this.triggerImmediateBackup());
         }
         
         // زر تحديث الحالة
-        const refreshStatusBtn = document.getElementById('refresh-status');
+        const refreshStatusBtn = document.getElementById('refresh-status-btn');
         if (refreshStatusBtn) {
-            refreshStatusBtn.addEventListener('click', () => this.refreshStatus());
+            refreshStatusBtn.addEventListener('click', () => this.updateStatus());
+        }
+        
+        // زر ربط Google Drive
+        const connectDriveBtn = document.getElementById('connect-google-drive-btn');
+        if (connectDriveBtn) {
+            connectDriveBtn.addEventListener('click', () => this.connectGoogleDrive());
+        }
+        
+        console.log('🔗 تم ربط الأحداث بالعناصر');
+    }
+
+    /**
+     * تحديث حالة النسخ الاحتياطي
+     */
+    async updateStatus() {
+        try {
+            console.log('🔄 تحديث حالة النسخ الاحتياطي...');
+            
+            // عرض مؤشر التحميل
+            this.showLoadingState();
+            
+            // جلب حالة النسخ الاحتياطي
+            const backupStatus = await this.fetchBackupStatus();
+            
+            // جلب حالة Google Drive
+            const driveStatus = await this.fetchGoogleDriveStatus();
+            
+            // تحديث الواجهة
+            this.updateBackupStatusUI(backupStatus);
+            this.updateGoogleDriveStatusUI(driveStatus);
+            this.updateStatsUI(backupStatus, driveStatus);
+            
+            // تحديث الحالة الداخلية
+            this.updateInternalState(backupStatus, driveStatus);
+            
+            // إخفاء مؤشر التحميل
+            this.hideLoadingState();
+            
+            this.lastUpdateTime = new Date();
+            console.log('✅ تم تحديث الحالة بنجاح');
+            
+        } catch (error) {
+            console.error('❌ خطأ في تحديث الحالة:', error);
+            this.showErrorState(error.message);
         }
     }
-    
-    startMonitoring() {
-        if (this.isMonitoring) return;
-        
-        this.isMonitoring = true;
-        
-        // فحص الحالة كل 30 ثانية
-        this.statusCheckInterval = setInterval(() => {
-            this.checkBackupStatus();
-            this.checkGoogleDriveConnection();
-        }, 30000);
-        
-        console.log('تم بدء مراقبة النسخ الاحتياطي');
-    }
-    
-    stopMonitoring() {
-        if (this.statusCheckInterval) {
-            clearInterval(this.statusCheckInterval);
-            this.statusCheckInterval = null;
-        }
-        this.isMonitoring = false;
-        console.log('تم إيقاف مراقبة النسخ الاحتياطي');
-    }
-    
-    async checkBackupStatus() {
+
+    /**
+     * جلب حالة النسخ الاحتياطي من الخادم
+     */
+    async fetchBackupStatus() {
         try {
             const response = await fetch('/api/v1/backup/status', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'same-origin'
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.updateBackupStatus(data);
-                } else {
-                    console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
-                    this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
-                }
-            } else {
-                console.error('فشل في الحصول على حالة النسخ الاحتياطي');
-                this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+            
+            const data = await response.json();
+            console.log('📊 حالة النسخ الاحتياطي:', data);
+            return data;
+            
         } catch (error) {
-            console.error('خطأ في فحص حالة النسخ الاحتياطي:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            console.error('❌ خطأ في جلب حالة النسخ الاحتياطي:', error);
+            throw error;
         }
     }
-    
-    async checkGoogleDriveConnection() {
+
+    /**
+     * جلب حالة Google Drive من الخادم
+     */
+    async fetchGoogleDriveStatus() {
         try {
             const response = await fetch('/api/v1/google-drive/connection-status', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'same-origin'
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.updateGoogleDriveStatus(data);
-                } else {
-                    console.error('فشل في فحص اتصال Google Drive:', data.error);
-                }
-            } else {
-                console.error('فشل في فحص اتصال Google Drive');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+            
+            const data = await response.json();
+            console.log('☁️ حالة Google Drive:', data);
+            return data;
+            
         } catch (error) {
-            console.error('خطأ في فحص اتصال Google Drive:', error);
-        }
-    }
-    
-    updateBackupStatus(data) {
-        // التعامل مع البنية الجديدة للاستجابة
-        const status = data.status || data;
-        const googleDriveInfo = status.google_drive || {};
-        const settingsInfo = status.settings || {};
-        
-        // تحديث تاريخ آخر نسخة
-        if (this.lastBackupElement) {
-            let lastBackupTime = null;
-            
-            // البحث عن تاريخ آخر نسخة من مصادر متعددة
-            if (settingsInfo.last_backup_time) {
-                lastBackupTime = settingsInfo.last_backup_time;
-            } else if (googleDriveInfo.last_backup) {
-                lastBackupTime = googleDriveInfo.last_backup;
-            }
-            
-            if (lastBackupTime) {
-                const lastBackupDate = new Date(lastBackupTime);
-                this.lastBackupElement.textContent = this.formatDate(lastBackupDate);
-                this.lastBackupElement.style.color = '#4CAF50';
-            } else {
-                this.lastBackupElement.textContent = 'لم يتم إنشاء نسخة احتياطية بعد';
-                this.lastBackupElement.style.color = '#ff9800';
-            }
-        }
-        
-        // تحديث وجهة النسخ الاحتياطي
-        if (this.destinationElement) {
-            const isGoogleDriveConnected = googleDriveInfo.connected;
-            const backupDestination = settingsInfo.backup_destination || 'local';
-            
-            let destinationText = 'محلي';
-            if (isGoogleDriveConnected && backupDestination === 'google_drive') {
-                destinationText = 'Google Drive';
-            } else if (backupDestination === 'google_drive' && !isGoogleDriveConnected) {
-                destinationText = 'Google Drive (غير متصل)';
-            }
-            
-            this.destinationElement.textContent = destinationText;
-        }
-        
-        // تحديث مؤشر الحالة العامة
-        if (this.statusElement) {
-            const lastBackupTime = settingsInfo.last_backup_time || googleDriveInfo.last_backup;
-            const isRecent = this.isRecentBackup(lastBackupTime);
-            const autoBackupEnabled = settingsInfo.auto_backup_enabled;
-            
-            if (autoBackupEnabled && isRecent) {
-                this.statusElement.className = 'status-good';
-                this.statusElement.textContent = 'نشط';
-            } else if (autoBackupEnabled && !isRecent) {
-                this.statusElement.className = 'status-warning';
-                this.statusElement.textContent = 'يحتاج تحديث';
-            } else {
-                this.statusElement.className = 'status-warning';
-                this.statusElement.textContent = 'غير مفعل';
-            }
-        }
-        
-        // تحديث معلومات إضافية
-        this.updateAdditionalInfo(status);
-    }
-    
-    updateGoogleDriveStatus(data) {
-        if (this.connectionElement) {
-            // التحقق من البنية الجديدة للاستجابة
-            const status = data.status || data;
-            const isConnected = status.connected || false;
-            
-            if (isConnected) {
-                this.connectionElement.innerHTML = '✅ متصل';
-                this.connectionElement.className = 'status-connected';
-            } else {
-                this.connectionElement.innerHTML = '❌ غير متصل';
-                this.connectionElement.className = 'status-disconnected';
-            }
-        }
-        
-        // إظهار/إخفاء أزرار الاتصال
-        const status = data.status || data;
-        const isConnected = status.connected || false;
-        this.toggleConnectionButtons(isConnected);
-    }
-    
-    toggleConnectionButtons(isConnected) {
-        const connectBtn = document.getElementById('connect-google-drive');
-        const disconnectBtn = document.getElementById('disconnect-google-drive');
-        const checkFilesBtn = document.getElementById('check-google-files');
-        
-        if (connectBtn) {
-            connectBtn.style.display = isConnected ? 'none' : 'inline-block';
-        }
-        
-        if (disconnectBtn) {
-            disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
-        }
-        
-        if (checkFilesBtn) {
-            checkFilesBtn.style.display = isConnected ? 'inline-block' : 'none';
-        }
-    }
-    
-    updateAdditionalInfo(status) {
-        // تحديث معلومات الجدولة
-        const schedulerInfo = status.scheduler || {};
-        const schedulerStatusElement = document.getElementById('scheduler-status');
-        if (schedulerStatusElement) {
-            if (schedulerInfo.user_scheduled) {
-                schedulerStatusElement.textContent = 'مجدول';
-                schedulerStatusElement.className = 'status-good';
-            } else {
-                schedulerStatusElement.textContent = 'غير مجدول';
-                schedulerStatusElement.className = 'status-warning';
-            }
-        }
-        
-        // تحديث موعد النسخة التالية
-        const nextBackupElement = document.getElementById('next-backup-time');
-        if (nextBackupElement && schedulerInfo.next_backup) {
-            const nextBackupDate = new Date(schedulerInfo.next_backup);
-            nextBackupElement.textContent = this.formatDate(nextBackupDate);
-        } else if (nextBackupElement) {
-            nextBackupElement.textContent = 'غير محدد';
-        }
-        
-        // تحديث تكرار النسخ
-        const frequencyElement = document.getElementById('backup-frequency');
-        if (frequencyElement) {
-            const settings = status.settings || {};
-            const frequency = settings.backup_frequency || 'daily';
-            const frequencyText = {
-                'daily': 'يومي',
-                'weekly': 'أسبوعي',
-                'monthly': 'شهري'
-            };
-            frequencyElement.textContent = frequencyText[frequency] || frequency;
-        }
-        
-        // تحديث عدد النسخ المحفوظة (من إعدادات الحد الأقصى)
-        const countElement = document.getElementById('backup-count');
-        if (countElement && status.settings) {
-            countElement.textContent = `الحد الأقصى: ${status.settings.max_backups || 5}`;
-        }
-        
-        // تحديث آخر نسخة احتياطية (من Google Drive أو إعدادات)
-        const lastBackupElement = document.getElementById('last-backup-time');
-        if (lastBackupElement) {
-            let lastBackupTime = null;
-            
-            // البحث عن آخر نسخة من Google Drive
-            if (status.google_drive && status.google_drive.last_backup) {
-                lastBackupTime = status.google_drive.last_backup;
-            }
-            // أو من إعدادات النظام
-            else if (status.settings && status.settings.updated_at) {
-                lastBackupTime = status.settings.updated_at;
-            }
-            
-            if (lastBackupTime) {
-                const lastDate = new Date(lastBackupTime);
-                lastBackupElement.textContent = this.formatDate(lastDate);
-            } else {
-                lastBackupElement.textContent = 'لم يتم إنشاء نسخة بعد';
-            }
-        }
-        
-        // تحديث وجهة النسخ
-        const destinationElement = document.getElementById('backup-destination');
-        if (destinationElement && status.settings) {
-            destinationElement.textContent = status.settings.backup_destination === 'google_drive' ? 'Google Drive' : 'محلي';
-        }
-        
-        // تحديث حالة Google Drive
-        const googleDriveElement = document.getElementById('google-drive-status');
-        if (googleDriveElement && status.google_drive) {
-            if (status.google_drive.connected) {
-                googleDriveElement.textContent = '✅ متصل';
-                googleDriveElement.className = 'status-good';
-            } else {
-                googleDriveElement.textContent = '❌ غير متصل';
-                googleDriveElement.className = 'status-error';
-            }
+            console.error('❌ خطأ في جلب حالة Google Drive:', error);
+            throw error;
         }
     }
 
-    async testBackup() {
-        const testBtn = document.getElementById('test-backup-btn');
-        if (testBtn) {
-            testBtn.disabled = true;
-            testBtn.textContent = 'جاري الاختبار...';
+    /**
+     * تحديث واجهة حالة النسخ الاحتياطي
+     */
+    updateBackupStatusUI(status) {
+        const container = document.getElementById('backup-status-container');
+        if (!container) return;
+        
+        const isEnabled = status?.status?.settings?.auto_backup_enabled || false;
+        const lastBackup = status?.status?.settings?.last_backup_time;
+        const frequency = status?.status?.settings?.backup_frequency || 'daily';
+        
+        container.innerHTML = `
+            <div class="backup-status-card">
+                <div class="status-header">
+                    <h4>حالة النسخ الاحتياطي</h4>
+                    <span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">
+                        ${isEnabled ? 'مفعل' : 'معطل'}
+                    </span>
+                </div>
+                <div class="status-details">
+                    <div class="detail-item">
+                        <span class="label">التكرار:</span>
+                        <span class="value">${this.getFrequencyText(frequency)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">آخر نسخة:</span>
+                        <span class="value">${lastBackup ? this.formatDate(lastBackup) : 'لا توجد'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * تحديث واجهة حالة Google Drive
+     */
+    updateGoogleDriveStatusUI(status) {
+        const container = document.getElementById('google-drive-status');
+        if (!container) return;
+        
+        const isConnected = status?.status?.connected || false;
+        const lastBackup = status?.status?.last_backup;
+        const backupCount = status?.status?.backup_count || 0;
+        
+        container.innerHTML = `
+            <div class="drive-status-card">
+                <div class="status-header">
+                    <h4>Google Drive</h4>
+                    <span class="connection-badge ${isConnected ? 'connected' : 'disconnected'}">
+                        ${isConnected ? 'متصل' : 'غير متصل'}
+                    </span>
+                </div>
+                <div class="status-details">
+                    <div class="detail-item">
+                        <span class="label">عدد النسخ:</span>
+                        <span class="value">${backupCount}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">آخر نسخة:</span>
+                        <span class="value">${lastBackup ? this.formatDate(lastBackup) : 'لا توجد'}</span>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    ${!isConnected ? 
+                        '<button id="connect-google-drive-btn" class="btn btn-primary">ربط Google Drive</button>' :
+                        '<button id="disconnect-google-drive-btn" class="btn btn-secondary">قطع الاتصال</button>'
+                    }
+                </div>
+            </div>
+        `;
+        
+        // إعادة ربط الأحداث للأزرار الجديدة
+        this.rebindDriveButtons();
+    }
+
+    /**
+     * تحديث واجهة الإحصائيات
+     */
+    updateStatsUI(backupStatus, driveStatus) {
+        const container = document.getElementById('backup-stats-container');
+        if (!container) return;
+        
+        const totalBackups = (driveStatus?.status?.backup_count || 0);
+        const isConnected = driveStatus?.status?.connected || false;
+        const autoBackupEnabled = backupStatus?.status?.settings?.auto_backup_enabled || false;
+        
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">${totalBackups}</div>
+                    <div class="stat-label">إجمالي النسخ</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${isConnected ? '1' : '0'}</div>
+                    <div class="stat-label">الخدمات المتصلة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${autoBackupEnabled ? 'مفعل' : 'معطل'}</div>
+                    <div class="stat-label">النسخ التلقائي</div>
+                </div>
+            </div>
+            <div class="action-section">
+                <button id="immediate-backup-btn" class="btn btn-success" ${!isConnected ? 'disabled' : ''}>
+                    نسخ احتياطي فوري
+                </button>
+                <button id="refresh-status-btn" class="btn btn-outline-primary">
+                    تحديث الحالة
+                </button>
+            </div>
+        `;
+        
+        // إعادة ربط الأحداث للأزرار الجديدة
+        this.rebindActionButtons();
+    }
+
+    /**
+     * إعادة ربط أحداث أزرار Google Drive
+     */
+    rebindDriveButtons() {
+        const connectBtn = document.getElementById('connect-google-drive-btn');
+        const disconnectBtn = document.getElementById('disconnect-google-drive-btn');
+        
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => this.connectGoogleDrive());
         }
         
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => this.disconnectGoogleDrive());
+        }
+    }
+
+    /**
+     * إعادة ربط أحداث أزرار الإجراءات
+     */
+    rebindActionButtons() {
+        const immediateBtn = document.getElementById('immediate-backup-btn');
+        const refreshBtn = document.getElementById('refresh-status-btn');
+        
+        if (immediateBtn) {
+            immediateBtn.addEventListener('click', () => this.triggerImmediateBackup());
+        }
+        
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.updateStatus());
+        }
+    }
+
+    /**
+     * تشغيل نسخ احتياطي فوري
+     */
+    async triggerImmediateBackup() {
         try {
+            console.log('⚡ تشغيل نسخ احتياطي فوري...');
+            
+            const button = document.getElementById('immediate-backup-btn');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'جاري النسخ...';
+            }
+            
             const response = await fetch('/api/v1/backup/immediate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'same-origin'
             });
             
             const data = await response.json();
             
-            if (response.ok && data.success) {
-                this.showSuccess('تم النسخ الاحتياطي بنجاح');
-                // تحديث الحالة فوراً
-                setTimeout(() => this.checkBackupStatus(), 1000);
+            if (data.success) {
+                this.showSuccessMessage('تم تشغيل النسخ الاحتياطي الفوري بنجاح');
+                // تحديث الحالة بعد النسخ
+                setTimeout(() => this.updateStatus(), 2000);
             } else {
-                this.showError(data.error || 'فشل في النسخ الاحتياطي');
+                throw new Error(data.message || 'فشل في تشغيل النسخ الاحتياطي');
             }
+            
         } catch (error) {
-            console.error('خطأ في اختبار النسخ الاحتياطي:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            console.error('❌ خطأ في النسخ الاحتياطي الفوري:', error);
+            this.showErrorMessage('فشل في تشغيل النسخ الاحتياطي: ' + error.message);
         } finally {
-            if (testBtn) {
-                testBtn.disabled = false;
-                testBtn.textContent = 'اختبار النسخ الآن';
+            const button = document.getElementById('immediate-backup-btn');
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'نسخ احتياطي فوري';
             }
         }
     }
-    
+
+    /**
+     * ربط Google Drive
+     */
     async connectGoogleDrive() {
         try {
-            console.log('🔗 بدء عملية ربط Google Drive...');
+            console.log('🔗 محاولة ربط Google Drive...');
+            this.showInfoMessage('جاري ربط Google Drive...');
             
-            // الحصول على إعدادات Google OAuth
-            const configResponse = await fetch('/api/v1/google-oauth/config');
-            const config = await configResponse.json();
-            
-            if (!config.success || !config.client_id) {
-                this.showError('إعدادات Google OAuth غير متوفرة');
-                return;
-            }
-            
-            // إعداد معاملات OAuth
-            const clientId = config.client_id;
-            const redirectUri = `${window.location.origin}/auth/google/callback`;
-            const scope = 'https://www.googleapis.com/auth/drive.file';
-            const responseType = 'code';
-            const accessType = 'offline';
-            const prompt = 'consent';
-            
-            // إضافة user_id كـ state parameter
-            let state = '';
-            try {
-                const userResponse = await fetch('/api/v1/user/info');
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    if (userData.success && userData.user) {
-                        state = userData.user.id.toString();
-                    }
-                }
-            } catch (e) {
-                console.warn('لا يمكن الحصول على معلومات المستخدم:', e);
-            }
-            
-            // بناء URL للمصادقة
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                `client_id=${encodeURIComponent(clientId)}&` +
-                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-                `scope=${encodeURIComponent(scope)}&` +
-                `response_type=${responseType}&` +
-                `access_type=${accessType}&` +
-                `prompt=${prompt}&` +
-                `state=${state}`;
-            
-            console.log('🌐 فتح نافذة المصادقة...');
-            console.log('📍 Redirect URI:', redirectUri);
-            
-            // فتح نافذة المصادقة
-            const authWindow = window.open(
-                authUrl,
-                'google-auth',
-                'width=500,height=600,scrollbars=yes,resizable=yes'
-            );
-            
-            if (!authWindow) {
-                this.showError('لا يمكن فتح نافذة المصادقة. تأكد من السماح للنوافذ المنبثقة');
-                return;
-            }
-            
-            // الاستماع لرسائل من نافذة المصادقة
-            const messageHandler = (event) => {
-                // التحقق من مصدر الرسالة للأمان
-                if (event.origin !== window.location.origin) {
-                    return;
-                }
-                
-                console.log('📨 تم استلام رسالة من نافذة OAuth:', event.data);
-                
-                if (event.data.type === 'google-auth-success') {
-                    console.log('✅ نجح ربط Google Drive');
-                    this.showSuccess('تم ربط Google Drive بنجاح');
-                    
-                    // تحديث الحالة
-                    setTimeout(() => {
-                        this.checkGoogleDriveConnection();
-                        this.checkBackupStatus();
-                    }, 1000);
-                    
-                    // إزالة مستمع الأحداث
-                    window.removeEventListener('message', messageHandler);
-                    
-                } else if (event.data.type === 'google-auth-error') {
-                    console.error('❌ فشل في ربط Google Drive:', event.data);
-                    this.showError(event.data.message || 'فشل في ربط Google Drive');
-                    
-                    // إزالة مستمع الأحداث
-                    window.removeEventListener('message', messageHandler);
-                }
-            };
-            
-            // إضافة مستمع الأحداث
-            window.addEventListener('message', messageHandler);
-            
-            // مراقبة إغلاق النافذة
-            const checkClosed = setInterval(() => {
-                if (authWindow.closed) {
-                    clearInterval(checkClosed);
-                    window.removeEventListener('message', messageHandler);
-                    console.log('🔒 تم إغلاق نافذة المصادقة');
-                }
-            }, 1000);
+            // هنا يجب تنفيذ عملية OAuth مع Google
+            // للآن سنعرض رسالة تنبيه
+            alert('ميزة ربط Google Drive قيد التطوير. يرجى المحاولة لاحقاً.');
             
         } catch (error) {
             console.error('❌ خطأ في ربط Google Drive:', error);
-            this.showError('خطأ في ربط Google Drive: ' + error.message);
+            this.showErrorMessage('فشل في ربط Google Drive: ' + error.message);
         }
     }
-    
-    monitorAuthWindow() {
-        // إضافة مستمع لرسائل النافذة
-        const messageHandler = (event) => {
-            if (event.data && event.data.type === 'google-auth-success') {
-                this.showSuccess('تم ربط Google Drive بنجاح');
-                setTimeout(() => this.checkGoogleDriveConnection(), 1000);
-                window.removeEventListener('message', messageHandler);
-            } else if (event.data && event.data.type === 'google-auth-error') {
-                this.showError('فشل في ربط Google Drive');
-                window.removeEventListener('message', messageHandler);
-            }
-        };
-        
-        window.addEventListener('message', messageHandler);
-        
-        // إزالة المستمع بعد 5 دقائق
-        setTimeout(() => {
-            window.removeEventListener('message', messageHandler);
-        }, 300000);
-    }
-    
+
+    /**
+     * قطع اتصال Google Drive
+     */
     async disconnectGoogleDrive() {
-        if (!confirm('هل أنت متأكد من قطع الاتصال مع Google Drive؟')) {
-            return;
-        }
-        
         try {
-            const response = await fetch('/api/v1/backup/google-drive/disconnect', {
+            console.log('🔌 قطع اتصال Google Drive...');
+            
+            const response = await fetch('/api/v1/google-drive/disconnect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'same-origin'
             });
             
-            if (response.ok) {
-                this.showSuccess('تم قطع الاتصال مع Google Drive');
-                setTimeout(() => this.checkGoogleDriveConnection(), 1000);
-            } else {
-                this.showError('فشل في قطع الاتصال');
-            }
-        } catch (error) {
-            console.error('خطأ في قطع الاتصال:', error);
-            this.showError('خطأ في الاتصال بالخادم');
-        }
-    }
-    
-    async checkGoogleDriveFiles() {
-        try {
-            const response = await fetch('/api/v1/backup/google-drive/backups', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
+            const data = await response.json();
             
-            if (response.ok) {
-                const data = await response.json();
-                this.showGoogleDriveFiles(data.backups || []);
+            if (data.success) {
+                this.showSuccessMessage('تم قطع الاتصال مع Google Drive');
+                this.updateStatus();
             } else {
-                this.showError('فشل في الحصول على ملفات Google Drive');
+                throw new Error(data.message || 'فشل في قطع الاتصال');
             }
+            
         } catch (error) {
-            console.error('خطأ في فحص ملفات Google Drive:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            console.error('❌ خطأ في قطع اتصال Google Drive:', error);
+            this.showErrorMessage('فشل في قطع الاتصال: ' + error.message);
         }
     }
-    
-    showGoogleDriveFiles(files) {
-        let message = 'ملفات النسخ الاحتياطي في Google Drive:\\n\\n';
-        
-        if (files.length === 0) {
-            message += 'لا توجد ملفات نسخ احتياطي';
-        } else {
-            files.forEach((file, index) => {
-                const date = new Date(file.createdTime).toLocaleString('ar-SA');
-                message += `${index + 1}. ${file.name} (${date})\\n`;
-            });
+
+    /**
+     * تحديث الحالة الداخلية
+     */
+    updateInternalState(backupStatus, driveStatus) {
+        this.state.isConnected = driveStatus?.status?.connected || false;
+        this.state.lastBackupTime = driveStatus?.status?.last_backup;
+        this.state.backupCount = driveStatus?.status?.backup_count || 0;
+        this.state.connectionStatus = this.state.isConnected ? 'connected' : 'disconnected';
+    }
+
+    /**
+     * بدء التحديث التلقائي
+     */
+    startAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
         }
         
-        alert(message);
-    }
-    
-    refreshStatus() {
-        this.checkBackupStatus();
-        this.checkGoogleDriveConnection();
-        this.showSuccess('تم تحديث الحالة');
-    }
-    
-    isRecentBackup(lastBackupTime) {
-        if (!lastBackupTime) return false;
+        this.refreshInterval = setInterval(() => {
+            this.updateStatus();
+        }, this.settings.refreshIntervalMs);
         
-        const lastBackup = new Date(lastBackupTime);
-        const now = new Date();
-        const diffHours = (now - lastBackup) / (1000 * 60 * 60);
-        
-        // اعتبار النسخة حديثة إذا كانت خلال آخر 25 ساعة
-        return diffHours < 25;
+        console.log(`🔄 تم بدء التحديث التلقائي كل ${this.settings.refreshIntervalMs / 1000} ثانية`);
     }
-    
-    formatDate(date) {
-        return date.toLocaleString('ar-SA', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
+
+    /**
+     * إيقاف التحديث التلقائي
+     */
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('⏹️ تم إيقاف التحديث التلقائي');
+        }
+    }
+
+    /**
+     * عرض حالة التحميل
+     */
+    showLoadingState() {
+        const containers = ['backup-status-container', 'google-drive-status', 'backup-stats-container'];
+        containers.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.classList.add('loading');
+            }
         });
     }
-    
-    showSuccess(message) {
+
+    /**
+     * إخفاء حالة التحميل
+     */
+    hideLoadingState() {
+        const containers = ['backup-status-container', 'google-drive-status', 'backup-stats-container'];
+        containers.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.classList.remove('loading');
+            }
+        });
+    }
+
+    /**
+     * عرض حالة الخطأ
+     */
+    showErrorState(message) {
+        const containers = ['backup-status-container', 'google-drive-status', 'backup-stats-container'];
+        containers.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.innerHTML = `
+                    <div class="error-state">
+                        <div class="error-icon">⚠️</div>
+                        <div class="error-message">${message}</div>
+                        <button onclick="backupMonitor.updateStatus()" class="btn btn-sm btn-outline-primary">
+                            إعادة المحاولة
+                        </button>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    /**
+     * عرض رسالة نجاح
+     */
+    showSuccessMessage(message) {
         this.showNotification(message, 'success');
     }
-    
-    showError(message) {
+
+    /**
+     * عرض رسالة خطأ
+     */
+    showErrorMessage(message) {
         this.showNotification(message, 'error');
     }
-    
-    showNotification(message, type) {
+
+    /**
+     * عرض رسالة معلومات
+     */
+    showInfoMessage(message) {
+        this.showNotification(message, 'info');
+    }
+
+    /**
+     * عرض إشعار
+     */
+    showNotification(message, type = 'info') {
         // إنشاء عنصر الإشعار
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
-        notification.textContent = message;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-message">${message}</span>
+                <button class="notification-close">&times;</button>
+            </div>
+        `;
         
         // إضافة الإشعار للصفحة
         document.body.appendChild(notification);
         
-        // إزالة الإشعار بعد 5 ثوان
+        // ربط حدث الإغلاق
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => {
+            notification.remove();
+        });
+        
+        // إزالة الإشعار تلقائياً بعد 5 ثوان
         setTimeout(() => {
             if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+                notification.remove();
             }
         }, 5000);
+    }
+
+    /**
+     * تحويل تكرار النسخ إلى نص
+     */
+    getFrequencyText(frequency) {
+        const frequencies = {
+            'daily': 'يومي',
+            'weekly': 'أسبوعي',
+            'monthly': 'شهري'
+        };
+        return frequencies[frequency] || frequency;
+    }
+
+    /**
+     * تنسيق التاريخ
+     */
+    formatDate(dateString) {
+        if (!dateString) return 'غير محدد';
         
-        // إضافة إمكانية الإغلاق بالنقر
-        notification.addEventListener('click', () => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        });
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('ar-SA', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'تاريخ غير صحيح';
+        }
+    }
+
+    /**
+     * تنظيف الموارد
+     */
+    destroy() {
+        this.stopAutoRefresh();
+        this.isInitialized = false;
+        console.log('🧹 تم تنظيف نظام مراقبة النسخ الاحتياطي');
     }
 }
 
+// إنشاء مثيل النظام
+let backupMonitor = null;
+
 // تهيئة النظام عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-    // التحقق من وجود عناصر النسخ الاحتياطي في الصفحة
-    if (document.getElementById('backup-status') || 
-        document.querySelector('.backup-section')) {
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('📄 تم تحميل الصفحة، بدء تهيئة نظام مراقبة النسخ الاحتياطي...');
+    
+    try {
+        backupMonitor = new BackupMonitoringSystem();
+        const success = await backupMonitor.init();
         
-        window.backupMonitor = new BackupMonitor();
-        console.log('تم تهيئة نظام مراقبة النسخ الاحتياطي');
+        if (success) {
+            console.log('✅ تم تهيئة نظام مراقبة النسخ الاحتياطي بنجاح');
+        } else {
+            console.warn('⚠️ فشل في تهيئة نظام مراقبة النسخ الاحتياطي');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تهيئة نظام مراقبة النسخ الاحتياطي:', error);
     }
 });
 
-// إضافة أنماط CSS للإشعارات
-const style = document.createElement('style');
-style.textContent = `
-    .notification {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        border-radius: 5px;
-        color: white;
-        font-weight: bold;
-        z-index: 10000;
-        cursor: pointer;
-        max-width: 300px;
-        word-wrap: break-word;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: opacity 0.3s ease;
+// تنظيف الموارد عند مغادرة الصفحة
+window.addEventListener('beforeunload', function() {
+    if (backupMonitor) {
+        backupMonitor.destroy();
     }
-    
-    .notification-success {
-        background-color: #4CAF50;
-    }
-    
-    .notification-error {
-        background-color: #f44336;
-    }
-    
-    .status-good {
-        color: #4CAF50;
-        font-weight: bold;
-    }
-    
-    .status-warning {
-        color: #ff9800;
-        font-weight: bold;
-    }
-    
-    .status-connected {
-        color: #4CAF50;
-    }
-    
-    .status-disconnected {
-        color: #f44336;
-    }
-    
-    .backup-section {
-        margin: 20px 0;
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-    }
-    
-    .backup-section h4 {
-        margin-top: 0;
-        color: #333;
-    }
-    
-    .backup-controls {
-        margin-top: 10px;
-    }
-    
-    .backup-controls button {
-        margin-right: 10px;
-        margin-bottom: 5px;
-        padding: 8px 15px;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-    
-    .backup-controls button:hover {
-        opacity: 0.8;
-    }
-    
-    .backup-controls button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-document.head.appendChild(style);
+});
+
+// تصدير النظام للاستخدام العام
+window.BackupMonitoringSystem = BackupMonitoringSystem;
+window.backupMonitor = backupMonitor;
 

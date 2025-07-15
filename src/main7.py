@@ -1311,9 +1311,7 @@ def create_app():
 
 
     # ===== API للنسخ الاحتياطي الفوري =====
-    @app.route('/api/v1/backup/immediate', methods=['POST'])
-    @login_required
-    def trigger_immediate_backup():
+
         """تشغيل نسخ احتياطي فوري للمستخدم الحالي"""
         try:
             if not backup_scheduler_available or not hasattr(app, 'backup_scheduler'):
