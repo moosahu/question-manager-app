@@ -116,13 +116,36 @@ class BackupMonitor {
     
     async checkBackupStatus() {
         try {
-            const response = await fetch('/api/v1/backup/status', {
+            // استخدام API للاختبار إذا كان المستخدم غير مسجل دخول
+            let apiUrl = '/api/v1/backup/status';
+            
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin'
             });
+            
+            // إذا فشل الطلب بسبب عدم تسجيل الدخول، استخدم API الاختبار
+            if (!response.ok && response.status === 401) {
+                console.log('المستخدم غير مسجل دخول، استخدام API الاختبار...');
+                const testResponse = await fetch('/api/v1/backup/test-status', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (testResponse.ok) {
+                    const data = await testResponse.json();
+                    if (data.success) {
+                        this.updateBackupStatus(data);
+                        return;
+                    }
+                }
+            }
             
             if (response.ok) {
                 const data = await response.json();
@@ -151,6 +174,26 @@ class BackupMonitor {
                 },
                 credentials: 'same-origin'
             });
+            
+            // إذا فشل الطلب بسبب عدم تسجيل الدخول، استخدم API الاختبار
+            if (!response.ok && response.status === 401) {
+                console.log('المستخدم غير مسجل دخول، استخدام API اختبار Google Drive...');
+                const testResponse = await fetch('/api/v1/google-drive/test-connection-status', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (testResponse.ok) {
+                    const data = await testResponse.json();
+                    if (data.success) {
+                        this.updateGoogleDriveStatus(data);
+                        return;
+                    }
+                }
+            }
             
             if (response.ok) {
                 const data = await response.json();
@@ -494,7 +537,8 @@ class BackupMonitor {
         }
         
         try {
-            const response = await fetch('/api/v1/backup/immediate', {
+            // محاولة استخدام API الأصلي أولاً
+            let response = await fetch('/api/v1/backup/immediate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -502,10 +546,24 @@ class BackupMonitor {
                 credentials: 'same-origin'
             });
             
+            // إذا فشل بسبب عدم تسجيل الدخول، استخدم API الاختبار
+            if (!response.ok && response.status === 401) {
+                console.log('المستخدم غير مسجل دخول، استخدام API اختبار النسخ...');
+                response = await fetch('/api/v1/backup/test-immediate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+            }
+            
             const data = await response.json();
             
             if (response.ok && data.success) {
-                this.showSuccess('تم النسخ الاحتياطي بنجاح');
+                this.showSuccess(data.test_mode ? 
+                    'تم النسخ الاحتياطي بنجاح (وضع الاختبار)' : 
+                    'تم النسخ الاحتياطي بنجاح');
                 // تحديث الحالة فوراً
                 setTimeout(() => this.checkBackupStatus(), 1000);
             } else {

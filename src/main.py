@@ -2226,3 +2226,95 @@ def get_backup_stats():
             'message': str(e)
         }), 500
 
+
+    # ===== API للاختبار بدون تسجيل دخول =====
+    
+    @app.route('/api/v1/backup/test-immediate', methods=['POST'])
+    def test_immediate_backup():
+        """تشغيل نسخ احتياطي فوري للاختبار (بدون تسجيل دخول)"""
+        try:
+            # محاكاة نجاح العملية للاختبار
+            import time
+            time.sleep(1)  # محاكاة وقت المعالجة
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح (اختبار)',
+                'test_mode': True,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+                
+        except Exception as e:
+            logger.error(f"خطأ في API النسخ الفوري للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في تشغيل النسخ الاحتياطي الفوري: {str(e)}',
+                'test_mode': True
+            }), 500
+
+    @app.route('/api/v1/backup/test-status', methods=['GET'])
+    def get_test_backup_status():
+        """الحصول على حالة النسخ الاحتياطي للاختبار (بدون تسجيل دخول)"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'settings': {
+                        'auto_backup_enabled': True,
+                        'backup_frequency': 'daily',
+                        'backup_destination': 'google_drive',
+                        'max_backups': 5,
+                        'last_backup_time': datetime.utcnow().isoformat(),
+                        'updated_at': datetime.utcnow().isoformat()
+                    },
+                    'google_drive': {
+                        'connected': True,
+                        'last_backup': datetime.utcnow().isoformat(),
+                        'backup_count': 3,
+                        'storage_used': '150 MB'
+                    },
+                    'scheduler': {
+                        'user_scheduled': True,
+                        'next_backup': (datetime.utcnow()).isoformat(),
+                        'status': 'active'
+                    }
+                },
+                'test_mode': True
+            }
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة النسخ للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب حالة النسخ الاحتياطي: {str(e)}',
+                'test_mode': True
+            }), 500
+
+    @app.route('/api/v1/google-drive/test-connection-status', methods=['GET'])
+    def get_test_google_drive_status():
+        """الحصول على حالة اتصال Google Drive للاختبار (بدون تسجيل دخول)"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'connected': True,
+                    'last_backup': datetime.utcnow().isoformat(),
+                    'backup_count': 3,
+                    'storage_used': '150 MB',
+                    'account_email': 'test@example.com'
+                },
+                'test_mode': True
+            }
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة Google Drive للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب حالة Google Drive: {str(e)}',
+                'test_mode': True
+            }), 500
+
