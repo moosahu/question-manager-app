@@ -487,277 +487,6 @@
         transform: none !important;
     }
 
-    /* أنماط توضيح محتوى النسخ الاحتياطي */
-    .backup-content-info {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-    }
-
-    .content-category {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 15px;
-    }
-
-    .content-category h5 {
-        margin: 0 0 15px 0;
-        color: #495057;
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .content-category h5 i {
-        color: #007bff;
-    }
-
-    .content-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .content-list li {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid #f8f9fa;
-        font-size: 14px;
-        color: #495057;
-    }
-
-    .content-list li:last-child {
-        border-bottom: none;
-    }
-
-    .content-list li i {
-        color: #28a745;
-        font-size: 12px;
-    }
-
-    .backup-size-info {
-        background: #e7f3ff;
-        border: 1px solid #b8daff;
-        border-radius: 6px;
-        padding: 15px;
-        margin-top: 15px;
-    }
-
-    .backup-size-info p {
-        margin: 0;
-        color: #004085;
-        font-size: 14px;
-    }
-
-    /* أنماط الخيارات المتقدمة */
-    .advanced-backup-options {
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 20px;
-        margin: 20px 0;
-    }
-
-    .advanced-backup-options h5 {
-        margin: 0 0 15px 0;
-        color: #495057;
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .advanced-backup-options h5 i {
-        color: #6c757d;
-    }
-
-    .backup-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #e9ecef;
-    }
-
-    /* أنماط قسم الاستعادة */
-    .restore-info {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 6px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-
-    .restore-info p {
-        margin: 0;
-        color: #856404;
-        font-size: 14px;
-    }
-
-    .restore-controls {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    /* أنماط النافذة المنبثقة للنسخ الاحتياطية */
-    .backup-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-    }
-
-    .backup-modal-content {
-        background: white;
-        border-radius: 10px;
-        max-width: 800px;
-        width: 90%;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    .backup-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        border-bottom: 1px solid #e9ecef;
-        background: #f8f9fa;
-        border-radius: 10px 10px 0 0;
-    }
-
-    .backup-modal-header h3 {
-        margin: 0;
-        color: #495057;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .close-modal {
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #6c757d;
-        padding: 5px;
-        border-radius: 50%;
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    }
-
-    .close-modal:hover {
-        background: #e9ecef;
-        color: #495057;
-    }
-
-    .backup-modal-body {
-        padding: 20px;
-    }
-
-    .backups-list {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .backup-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        background: #f8f9fa;
-        transition: all 0.3s ease;
-    }
-
-    .backup-item:hover {
-        background: #e9ecef;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-
-    .backup-info h4 {
-        margin: 0 0 10px 0;
-        color: #495057;
-        font-size: 16px;
-    }
-
-    .backup-info p {
-        margin: 5px 0;
-        color: #6c757d;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .backup-info p i {
-        width: 16px;
-        color: #007bff;
-    }
-
-    .backup-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .backup-actions button {
-        padding: 6px 12px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .backup-actions button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }
-
-    @media (max-width: 768px) {
-        .backup-item {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 15px;
-        }
-
-        .backup-actions {
-            justify-content: center;
-        }
-
-        .backup-modal-content {
-            width: 95%;
-            margin: 10px;
-        }
-    }
-
     .sync-status-info {
         margin-bottom: 20px;
     }
@@ -1647,43 +1376,6 @@ if (!document.getElementById('notification-styles')) {
             <section id="backup-settings" class="settings-section">
                 <h3><i class="fas fa-cloud-upload-alt"></i> النسخ الاحتياطي</h3>
                 
-                <!-- توضيح ما يتم نسخه احتياطياً -->
-                <div class="backup-section">
-                    <h4><i class="fas fa-info-circle"></i> ما يتم حفظه في النسخ الاحتياطي</h4>
-                    <div class="backup-content-info">
-                        <div class="content-category">
-                            <h5><i class="fas fa-question-circle"></i> بيانات الأسئلة والمحتوى</h5>
-                            <ul class="content-list">
-                                <li><i class="fas fa-check"></i> جميع الأسئلة والإجابات المضافة</li>
-                                <li><i class="fas fa-check"></i> المناهج والوحدات والدروس</li>
-                                <li><i class="fas fa-check"></i> الصور والملفات المرفقة</li>
-                                <li><i class="fas fa-check"></i> تصنيفات وعلامات الأسئلة</li>
-                            </ul>
-                        </div>
-                        <div class="content-category">
-                            <h5><i class="fas fa-user-cog"></i> إعدادات المستخدم</h5>
-                            <ul class="content-list">
-                                <li><i class="fas fa-check"></i> الملف الشخصي والبيانات الأساسية</li>
-                                <li><i class="fas fa-check"></i> إعدادات الإشعارات والتفضيلات</li>
-                                <li><i class="fas fa-check"></i> إعدادات الأمان والخصوصية</li>
-                                <li><i class="fas fa-check"></i> التكاملات ومفاتيح API</li>
-                            </ul>
-                        </div>
-                        <div class="content-category">
-                            <h5><i class="fas fa-chart-line"></i> بيانات النشاط</h5>
-                            <ul class="content-list">
-                                <li><i class="fas fa-check"></i> سجل الأنشطة والعمليات</li>
-                                <li><i class="fas fa-check"></i> الإحصائيات والتقارير</li>
-                                <li><i class="fas fa-check"></i> سجل تسجيل الدخول</li>
-                                <li><i class="fas fa-check"></i> الإشعارات والرسائل</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="backup-size-info">
-                        <p><i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> يتم نسخ جميع البيانات المذكورة أعلاه تلقائياً. حجم النسخة الاحتياطية يعتمد على كمية المحتوى المضاف.</p>
-                    </div>
-                </div>
-
                 <!-- إحصائيات النسخ الاحتياطي -->
                 <div class="backup-section">
                     <h4><i class="fas fa-chart-bar"></i> إحصائيات النسخ الاحتياطي</h4>
@@ -1741,118 +1433,42 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                 </div>
                 
-                <!-- إعدادات النسخ الاحتياطي المحسنة -->
-                <div class="backup-section">
-                    <h4><i class="fas fa-cogs"></i> إعدادات النسخ الاحتياطي</h4>
-                    <form method="post" action="{{ url_for('settings.index') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="backup_submit" value="1">
-                        
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input type="checkbox" id="تفعيل-النسخ-التلقائي" name="auto_backup_enabled" class="form-check-input">
-                                <label for="تفعيل-النسخ-التلقائي" class="form-label">
-                                    <strong>تفعيل النسخ الاحتياطي التلقائي</strong>
-                                </label>
-                            </div>
-                            <small class="form-text text-muted">
-                                عند التفعيل، سيتم إنشاء نسخ احتياطية تلقائياً حسب التكرار المحدد أدناه
-                            </small>
+                <!-- إعدادات النسخ الاحتياطي -->
+                <form method="post" action="{{ url_for('settings.index') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="backup_submit" value="1">
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" id="auto-backup-enabled" name="auto_backup_enabled" class="form-check-input">
+                            <label for="auto-backup-enabled" class="form-label">تفعيل النسخ الاحتياطي التلقائي</label>
                         </div>
-                        
-                        <div class="form-group">
-                            <label for="backup-frequency" class="form-label">تكرار النسخ الاحتياطي</label>
-                            <select id="backup-frequency" name="backup_frequency" class="form-control">
-                                <option value="daily">يومي (كل 24 ساعة)</option>
-                                <option value="weekly">أسبوعي (كل 7 أيام)</option>
-                                <option value="monthly">شهري (كل 30 يوم)</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                يحدد هذا الإعداد كم مرة سيتم إنشاء نسخة احتياطية تلقائياً
-                            </small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="backup-destination" class="form-label">وجهة النسخ الاحتياطي</label>
-                            <select id="backup-destination" name="backup_destination" class="form-control">
-                                <option value="local">محلي (على الخادم)</option>
-                                <option value="google_drive">Google Drive (سحابي)</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                <strong>محلي:</strong> يتم حفظ النسخ على الخادم مباشرة<br>
-                                <strong>Google Drive:</strong> يتم رفع النسخ إلى حسابك في Google Drive (يتطلب ربط الحساب أولاً)
-                            </small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="max-backups" class="form-label">الحد الأقصى للنسخ المحفوظة</label>
-                            <input type="number" id="max-backups" name="max_backups" class="form-control" min="1" max="50" value="5">
-                            <small class="form-text text-muted">
-                                عدد النسخ الاحتياطية التي سيتم الاحتفاظ بها. النسخ الأقدم سيتم حذفها تلقائياً
-                            </small>
-                        </div>
-
-                        <!-- خيارات النسخ المتقدمة -->
-                        <div class="advanced-backup-options">
-                            <h5><i class="fas fa-sliders-h"></i> خيارات متقدمة</h5>
-                            
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input type="checkbox" id="include-images" name="include_images" class="form-check-input" checked>
-                                    <label for="include-images" class="form-label">تضمين الصور والملفات المرفقة</label>
-                                </div>
-                                <small class="form-text text-muted">
-                                    يزيد من حجم النسخة الاحتياطية لكن يضمن حفظ جميع الملفات
-                                </small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input type="checkbox" id="compress-backup" name="compress_backup" class="form-check-input" checked>
-                                    <label for="compress-backup" class="form-label">ضغط النسخة الاحتياطية</label>
-                                </div>
-                                <small class="form-text text-muted">
-                                    يقلل من حجم الملف ويوفر مساحة التخزين
-                                </small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <div class="form-check">
-                                    <input type="checkbox" id="encrypt-backup" name="encrypt_backup" class="form-check-input">
-                                    <label for="encrypt-backup" class="form-label">تشفير النسخة الاحتياطية</label>
-                                </div>
-                                <small class="form-text text-muted">
-                                    يحمي البيانات بكلمة مرور إضافية (مستحسن للبيانات الحساسة)
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <div class="backup-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> حفظ إعدادات النسخ الاحتياطي
-                            </button>
-                            <button type="button" id="save-backup-settings" class="btn btn-success">
-                                <i class="fas fa-check"></i> تطبيق وتفعيل الآن
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- قسم استعادة النسخ الاحتياطية -->
-                <div class="backup-section">
-                    <h4><i class="fas fa-undo"></i> استعادة النسخ الاحتياطية</h4>
-                    <div class="restore-info">
-                        <p><i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> استعادة نسخة احتياطية سيؤدي إلى استبدال جميع البيانات الحالية.</p>
                     </div>
-                    <div class="restore-controls">
-                        <button type="button" id="list-backups-btn" class="btn btn-info">
-                            <i class="fas fa-list"></i> عرض النسخ المتاحة
-                        </button>
-                        <button type="button" id="upload-backup-btn" class="btn btn-warning">
-                            <i class="fas fa-upload"></i> رفع نسخة احتياطية
-                        </button>
+                    
+                    <div class="form-group">
+                        <label for="backup-frequency-select" class="form-label">تكرار النسخ الاحتياطي</label>
+                        <select id="backup-frequency-select" name="backup_frequency" class="form-control">
+                            <option value="daily">يومي</option>
+                            <option value="weekly">أسبوعي</option>
+                            <option value="monthly">شهري</option>
+                        </select>
                     </div>
-                </div>
+                    
+                    <div class="form-group">
+                        <label for="backup-destination-select" class="form-label">وجهة النسخ الاحتياطي</label>
+                        <select id="backup-destination-select" name="backup_destination" class="form-control">
+                            <option value="local">محلي</option>
+                            <option value="google_drive">Google Drive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-backups" class="form-label">الحد الأقصى للنسخ المحفوظة</label>
+                        <input type="number" id="max-backups" name="max_backups" class="form-control" min="1" max="50" value="5">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات النسخ الاحتياطي</button>
+                </form>
             </section>
         </div>
     </div>
