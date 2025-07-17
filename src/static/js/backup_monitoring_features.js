@@ -139,29 +139,50 @@ class BackupMonitor {
                 });
                 
                 if (testResponse.ok) {
-                    const data = await testResponse.json();
-                    if (data.success) {
-                        this.updateBackupStatus(data);
-                        return;
+                    // التحقق من نوع المحتوى قبل تحليل JSON
+                    const contentType = testResponse.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        try {
+                            const data = await testResponse.json();
+                            if (data.success) {
+                                this.updateBackupStatus(data);
+                                return;
+                            }
+                        } catch (jsonError) {
+                            console.error('خطأ في تحليل JSON من API الاختبار:', jsonError);
+                        }
                     }
                 }
             }
             
             if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.updateBackupStatus(data);
+                // التحقق من نوع المحتوى قبل تحليل JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.updateBackupStatus(data);
+                        } else {
+                            console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
+                            // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
+                        }
+                    } catch (jsonError) {
+                        console.error('خطأ في تحليل JSON من API الحالة:', jsonError);
+                        // محاولة قراءة الاستجابة كنص للتشخيص
+                        const textResponse = await response.text();
+                        console.error('محتوى الاستجابة:', textResponse.substring(0, 200));
+                    }
                 } else {
-                    console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
-                    this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
+                    console.error('استجابة غير JSON من API الحالة');
                 }
             } else {
-                console.error('فشل في الحصول على حالة النسخ الاحتياطي');
-                this.showError('فشل في الحصول على حالة النسخ الاحتياطي');
+                console.error('فشل في الحصول على حالة النسخ الاحتياطي:', response.status);
+                // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
             }
         } catch (error) {
             console.error('خطأ في فحص حالة النسخ الاحتياطي:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
         }
     }
     
@@ -533,18 +554,26 @@ class BackupMonitor {
         const testBtn = document.getElementById('test-backup-btn') || document.getElementById('immediate-backup-btn');
         if (testBtn) {
             testBtn.disabled = true;
-            testBtn.textContent = 'جاري الاختبار...';
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاختبار...';
         }
         
         try {
+            console.log('🔄 بدء اختبار النسخ الاحتياطي...');
+            
             // محاولة استخدام API الأصلي أولاً
             let response = await fetch('/api/v1/backup/immediate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
                 },
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    test_mode: true
+                })
             });
+            
+            console.log('📡 استجابة الخادم:', response.status, response.statusText);
             
             // إذا فشل بسبب عدم تسجيل الدخول، استخدم API الاختبار
             if (!response.ok && response.status === 401) {
@@ -553,31 +582,107 @@ class BackupMonitor {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken()
                     },
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        test_mode: true
+                    })
                 });
             }
             
-            const data = await response.json();
+            // التحقق من نوع المحتوى قبل محاولة تحليل JSON
+            const contentType = response.headers.get('content-type');
+            console.log('📄 نوع المحتوى:', contentType);
+            
+            let data;
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    console.error('❌ خطأ في تحليل JSON:', jsonError);
+                    const textResponse = await response.text();
+                    console.error('📝 محتوى الاستجابة:', textResponse);
+                    
+                    // محاولة استخراج رسالة خطأ من HTML إذا كانت موجودة
+                    if (textResponse.includes('400 Bad Request')) {
+                        throw new Error('طلب غير صحيح - تحقق من إعدادات API');
+                    } else if (textResponse.includes('500 Internal Server Error')) {
+                        throw new Error('خطأ في الخادم - تحقق من سجلات الخادم');
+                    } else {
+                        throw new Error(`خطأ في تحليل استجابة الخادم: ${textResponse.substring(0, 100)}...`);
+                    }
+                }
+            } else {
+                // إذا لم تكن الاستجابة JSON، اقرأها كنص
+                const textResponse = await response.text();
+                console.error('📝 استجابة غير JSON:', textResponse);
+                
+                if (response.ok) {
+                    // إذا كانت الاستجابة ناجحة لكن ليست JSON
+                    data = { success: true, message: 'تم اختبار النسخ الاحتياطي بنجاح' };
+                } else {
+                    // تحليل رسائل الخطأ الشائعة
+                    if (response.status === 400) {
+                        throw new Error('طلب غير صحيح - تحقق من البيانات المرسلة');
+                    } else if (response.status === 404) {
+                        throw new Error('API غير موجود - تحقق من إعدادات الخادم');
+                    } else if (response.status === 500) {
+                        throw new Error('خطأ في الخادم - تحقق من سجلات الخادم');
+                    } else {
+                        throw new Error(`خطأ من الخادم (${response.status}): ${textResponse.substring(0, 100)}...`);
+                    }
+                }
+            }
             
             if (response.ok && data.success) {
+                console.log('✅ نجح اختبار النسخ الاحتياطي');
                 this.showSuccess(data.test_mode ? 
                     'تم النسخ الاحتياطي بنجاح (وضع الاختبار)' : 
                     'تم النسخ الاحتياطي بنجاح');
                 // تحديث الحالة فوراً
                 setTimeout(() => this.checkBackupStatus(), 1000);
             } else {
-                this.showError(data.error || 'فشل في النسخ الاحتياطي');
+                console.error('❌ فشل اختبار النسخ الاحتياطي:', data);
+                this.showError(data.error || data.message || 'فشل في النسخ الاحتياطي');
             }
         } catch (error) {
-            console.error('خطأ في اختبار النسخ الاحتياطي:', error);
-            this.showError('خطأ في الاتصال بالخادم');
+            console.error('❌ خطأ في اختبار النسخ الاحتياطي:', error);
+            
+            // معالجة أنواع مختلفة من الأخطاء
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                this.showError('فشل في الاتصال بالخادم. تحقق من اتصال الإنترنت.');
+            } else if (error.message.includes('SyntaxError') || error.message.includes('JSON')) {
+                this.showError('خطأ في استجابة الخادم. قد يكون هناك مشكلة في إعدادات API.');
+            } else {
+                this.showError(error.message || 'خطأ في الاتصال بالخادم');
+            }
         } finally {
             if (testBtn) {
                 testBtn.disabled = false;
-                testBtn.textContent = testBtn.id === 'immediate-backup-btn' ? 'نسخ احتياطي فوري' : 'اختبار النسخ الآن';
+                testBtn.innerHTML = testBtn.id === 'immediate-backup-btn' ? 
+                    '<i class="fas fa-cloud-upload-alt"></i> نسخ احتياطي فوري' : 
+                    '<i class="fas fa-play"></i> اختبار النسخ الآن';
             }
         }
+    }
+    
+    getCSRFToken() {
+        // البحث عن CSRF token في عدة أماكن
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrf_token='));
+        
+        if (csrfInput) {
+            return csrfInput.value;
+        } else if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        } else if (csrfCookie) {
+            return csrfCookie.split('=')[1];
+        }
+        
+        console.warn('⚠️ لم يتم العثور على CSRF token');
+        return '';
     }
     
     async connectGoogleDrive() {
