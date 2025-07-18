@@ -91,6 +91,141 @@ class BackupMonitor {
         }
     }
     
+    // ===== دوال مساعدة للشبكة =====
+    
+    async fetchWithTimeout(url, options = {}, timeout = 10000) {
+        /**
+         * دالة fetch مع timeout
+         */
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                throw new Error(`Request timeout after ${timeout}ms`);
+            }
+            throw error;
+        }
+    }
+    
+    async parseJsonResponse(response) {
+        /**
+         * تحليل استجابة JSON مع معالجة الأخطاء
+         */
+        try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            } else {
+                console.warn('استجابة غير JSON:', contentType);
+                const textResponse = await response.text();
+                console.warn('محتوى الاستجابة:', textResponse.substring(0, 200));
+                return null;
+            }
+        } catch (error) {
+            console.error('خطأ في تحليل JSON:', error);
+            return null;
+        }
+    }
+    
+    async checkBackupStatusFallback() {
+        /**
+         * دالة احتياطية لفحص حالة النسخ الاحتياطي
+         */
+        try {
+            // محاولة استخدام endpoint بديل
+            const response = await this.fetchWithTimeout('/api/v1/backup/health', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            }, 5000);
+            
+            if (response.ok) {
+                const data = await this.parseJsonResponse(response);
+                if (data && data.success) {
+                    // تحويل بيانات health إلى تنسيق status
+                    const statusData = {
+                        success: true,
+                        status: {
+                            google_drive: {
+                                connected: data.google_drive_connected || false,
+                                last_backup: null,
+                                backup_count: 0
+                            },
+                            settings: {
+                                auto_backup_enabled: false,
+                                backup_frequency: 'daily',
+                                backup_destination: 'local',
+                                max_backups: 5
+                            },
+                            scheduler: {
+                                available: data.scheduler_available || false,
+                                running: false
+                            }
+                        }
+                    };
+                    this.updateBackupStatus(statusData);
+                    return;
+                }
+            }
+            
+            // إذا فشل كل شيء، استخدم بيانات افتراضية
+            this.updateBackupStatusWithDefaults();
+            
+        } catch (error) {
+            console.error('خطأ في fallback:', error);
+            this.updateBackupStatusWithDefaults();
+        }
+    }
+    
+    updateBackupStatusWithDefaults() {
+        /**
+         * تحديث الحالة ببيانات افتراضية
+         */
+        const defaultStatus = {
+            success: true,
+            status: {
+                google_drive: {
+                    connected: false,
+                    last_backup: null,
+                    backup_count: 0
+                },
+                settings: {
+                    auto_backup_enabled: false,
+                    backup_frequency: 'daily',
+                    backup_destination: 'local',
+                    max_backups: 5,
+                    last_backup_time: null
+                },
+                scheduler: {
+                    available: false,
+                    running: false,
+                    next_backup: null
+                }
+            }
+        };
+        
+        this.updateBackupStatus(defaultStatus);
+        
+        // عرض رسالة للمستخدم
+        if (this.statusElement) {
+            this.statusElement.textContent = 'غير متاح';
+            this.statusElement.className = 'status-warning';
+        }
+    }
+    
+    // ===== نهاية الدوال المساعدة =====
+    
     startMonitoring() {
         if (this.isMonitoring) return;
         
@@ -114,102 +249,105 @@ class BackupMonitor {
         console.log('تم إيقاف مراقبة النسخ الاحتياطي');
     }
     
-    async checkBackupStatus() {
+    async checkBackupStatus(retryCount = 0) {
+        const maxRetries = 3;
+        const retryDelay = 1000 * (retryCount + 1); // تأخير متزايد
+        
         try {
             // استخدام API للاختبار إذا كان المستخدم غير مسجل دخول
             let apiUrl = '/api/v1/backup/status';
             
-            const response = await fetch(apiUrl, {
+            const response = await this.fetchWithTimeout(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin'
-            });
+            }, 10000); // timeout 10 ثوان
             
             // إذا فشل الطلب بسبب عدم تسجيل الدخول، استخدم API الاختبار
             if (!response.ok && response.status === 401) {
                 console.log('المستخدم غير مسجل دخول، استخدام API الاختبار...');
-                const testResponse = await fetch('/api/v1/backup/test-status', {
+                const testResponse = await this.fetchWithTimeout('/api/v1/backup/test-status', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     credentials: 'same-origin'
-                });
+                }, 10000);
                 
                 if (testResponse.ok) {
-                    // التحقق من نوع المحتوى قبل تحليل JSON
-                    const contentType = testResponse.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        try {
-                            const data = await testResponse.json();
-                            if (data.success) {
-                                this.updateBackupStatus(data);
-                                return;
-                            }
-                        } catch (jsonError) {
-                            console.error('خطأ في تحليل JSON من API الاختبار:', jsonError);
-                        }
+                    const data = await this.parseJsonResponse(testResponse);
+                    if (data && data.success) {
+                        this.updateBackupStatus(data);
+                        return;
                     }
                 }
             }
             
             if (response.ok) {
-                // التحقق من نوع المحتوى قبل تحليل JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    try {
-                        const data = await response.json();
-                        if (data.success) {
-                            this.updateBackupStatus(data);
-                        } else {
-                            console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data.error);
-                            // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
-                        }
-                    } catch (jsonError) {
-                        console.error('خطأ في تحليل JSON من API الحالة:', jsonError);
-                        // محاولة قراءة الاستجابة كنص للتشخيص
-                        const textResponse = await response.text();
-                        console.error('محتوى الاستجابة:', textResponse.substring(0, 200));
-                    }
+                const data = await this.parseJsonResponse(response);
+                if (data && data.success) {
+                    this.updateBackupStatus(data);
                 } else {
-                    console.error('استجابة غير JSON من API الحالة');
+                    console.error('فشل في الحصول على حالة النسخ الاحتياطي:', data?.error);
+                    // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
                 }
+            } else if (response.status === 404) {
+                console.warn('API endpoint غير موجود، محاولة استخدام endpoint بديل...');
+                // محاولة استخدام endpoint بديل
+                await this.checkBackupStatusFallback();
             } else {
                 console.error('فشل في الحصول على حالة النسخ الاحتياطي:', response.status);
-                // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
+                
+                // إعادة المحاولة في حالة أخطاء الشبكة
+                if (retryCount < maxRetries && (response.status >= 500 || response.status === 0)) {
+                    console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+                    setTimeout(() => {
+                        this.checkBackupStatus(retryCount + 1);
+                    }, retryDelay);
+                }
             }
         } catch (error) {
             console.error('خطأ في فحص حالة النسخ الاحتياطي:', error);
-            // لا نعرض خطأ للمستخدم هنا لأن هذا فحص دوري
+            
+            // إعادة المحاولة في حالة أخطاء الشبكة
+            if (retryCount < maxRetries && (error.name === 'TypeError' || error.message.includes('fetch'))) {
+                console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+                setTimeout(() => {
+                    this.checkBackupStatus(retryCount + 1);
+                }, retryDelay);
+            }
         }
     }
     
-    async checkGoogleDriveConnection() {
+    async checkGoogleDriveConnection(retryCount = 0) {
+        const maxRetries = 3;
+        const retryDelay = 1000 * (retryCount + 1);
+        
         try {
-            const response = await fetch('/api/v1/google-drive/connection-status', {
+            const response = await this.fetchWithTimeout('/api/v1/google-drive/connection-status', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin'
-            });
+            }, 10000);
             
             // إذا فشل الطلب بسبب عدم تسجيل الدخول، استخدم API الاختبار
             if (!response.ok && response.status === 401) {
                 console.log('المستخدم غير مسجل دخول، استخدام API اختبار Google Drive...');
-                const testResponse = await fetch('/api/v1/google-drive/test-connection-status', {
+                const testResponse = await this.fetchWithTimeout('/api/v1/google-drive/test-connection-status', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     credentials: 'same-origin'
-                });
+                }, 10000);
                 
                 if (testResponse.ok) {
-                    const data = await testResponse.json();
-                    if (data.success) {
+                    const data = await this.parseJsonResponse(testResponse);
+                    if (data && data.success) {
                         this.updateGoogleDriveStatus(data);
                         return;
                     }
@@ -217,8 +355,8 @@ class BackupMonitor {
             }
             
             if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
+                const data = await this.parseJsonResponse(response);
+                if (data && data.success) {
                     this.updateGoogleDriveStatus(data);
                     
                     // إذا كان الاتصال منقطعاً، محاولة تحديث Token
@@ -227,15 +365,31 @@ class BackupMonitor {
                         await this.refreshGoogleDriveToken();
                     }
                 } else {
-                    console.error('فشل في فحص اتصال Google Drive:', data.error);
+                    console.error('فشل في فحص اتصال Google Drive:', data?.error);
                     // في حالة الفشل، عرض حالة منقطعة
                     this.updateGoogleDriveStatus({
                         success: true,
                         status: { connected: false }
                     });
                 }
+            } else if (response.status === 404) {
+                console.warn('Google Drive API endpoint غير موجود، استخدام بيانات افتراضية...');
+                this.updateGoogleDriveStatus({
+                    success: true,
+                    status: { connected: false }
+                });
             } else {
                 console.error('فشل في فحص اتصال Google Drive - HTTP:', response.status);
+                
+                // إعادة المحاولة في حالة أخطاء الخادم
+                if (retryCount < maxRetries && response.status >= 500) {
+                    console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+                    setTimeout(() => {
+                        this.checkGoogleDriveConnection(retryCount + 1);
+                    }, retryDelay);
+                    return;
+                }
+                
                 // في حالة فشل HTTP، عرض حالة منقطعة
                 this.updateGoogleDriveStatus({
                     success: true,
@@ -244,6 +398,16 @@ class BackupMonitor {
             }
         } catch (error) {
             console.error('خطأ في فحص اتصال Google Drive:', error);
+            
+            // إعادة المحاولة في حالة أخطاء الشبكة
+            if (retryCount < maxRetries && (error.name === 'TypeError' || error.message.includes('fetch') || error.message.includes('timeout'))) {
+                console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+                setTimeout(() => {
+                    this.checkGoogleDriveConnection(retryCount + 1);
+                }, retryDelay);
+                return;
+            }
+            
             // في حالة خطأ الشبكة، عرض حالة منقطعة
             this.updateGoogleDriveStatus({
                 success: true,
@@ -657,7 +821,7 @@ class BackupMonitor {
             }
             
             // محاولة استخدام API الأصلي أولاً
-            let response = await fetch('/api/v1/backup/immediate', {
+            let response = await this.fetchWithTimeout('/api/v1/backup/immediate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -668,14 +832,14 @@ class BackupMonitor {
                     test_mode: false,
                     destination: 'google_drive'
                 })
-            });
+            }, 30000); // timeout أطول للنسخ الاحتياطي
             
             console.log('📡 استجابة الخادم:', response.status, response.statusText);
             
             // إذا فشل بسبب عدم تسجيل الدخول، استخدم API الاختبار
             if (!response.ok && response.status === 401) {
                 console.log('المستخدم غير مسجل دخول، استخدام API اختبار النسخ...');
-                response = await fetch('/api/v1/backup/test-immediate', {
+                response = await this.fetchWithTimeout('/api/v1/backup/test-immediate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -686,60 +850,16 @@ class BackupMonitor {
                         test_mode: true,
                         destination: 'google_drive'
                     })
-                });
+                }, 30000);
             }
             
-            // التحقق من نوع المحتوى قبل محاولة تحليل JSON
-            const contentType = response.headers.get('content-type');
-            console.log('📄 نوع المحتوى:', contentType);
-            
-            let data;
-            if (contentType && contentType.includes('application/json')) {
-                try {
-                    data = await response.json();
-                } catch (jsonError) {
-                    console.error('❌ خطأ في تحليل JSON:', jsonError);
-                    const textResponse = await response.text();
-                    console.error('📝 محتوى الاستجابة:', textResponse);
-                    
-                    // معالجة أخطاء HTML المختلفة
-                    if (textResponse.includes('400 Bad Request')) {
-                        throw new Error('طلب غير صحيح - تحقق من إعدادات النسخ الاحتياطي');
-                    } else if (textResponse.includes('500 Internal Server Error')) {
-                        throw new Error('خطأ في الخادم - تحقق من اتصال Google Drive');
-                    } else if (textResponse.includes('403 Forbidden')) {
-                        throw new Error('غير مسموح - تحقق من صلاحيات Google Drive');
-                    } else {
-                        throw new Error(`خطأ في استجابة الخادم: ${textResponse.substring(0, 100)}...`);
-                    }
-                }
-            } else {
-                // إذا لم تكن الاستجابة JSON، اقرأها كنص
-                const textResponse = await response.text();
-                console.error('📝 استجابة غير JSON:', textResponse);
-                
-                if (response.ok) {
-                    // إذا كانت الاستجابة ناجحة لكن ليست JSON
-                    data = { success: true, message: 'تم إنشاء النسخة الاحتياطية بنجاح' };
-                } else {
-                    // تحليل رسائل الخطأ الشائعة
-                    if (response.status === 400) {
-                        throw new Error('طلب غير صحيح - تحقق من إعدادات النسخ الاحتياطي');
-                    } else if (response.status === 401) {
-                        throw new Error('غير مصرح - يرجى تسجيل الدخول مرة أخرى');
-                    } else if (response.status === 403) {
-                        throw new Error('غير مسموح - تحقق من صلاحيات Google Drive');
-                    } else if (response.status === 404) {
-                        throw new Error('API غير موجود - تحقق من إعدادات الخادم');
-                    } else if (response.status === 500) {
-                        throw new Error('خطأ في الخادم - تحقق من اتصال Google Drive');
-                    } else {
-                        throw new Error(`خطأ من الخادم (${response.status}): ${textResponse.substring(0, 100)}...`);
-                    }
-                }
+            // معالجة الاستجابة
+            let data = null;
+            if (response.ok) {
+                data = await this.parseJsonResponse(response);
             }
             
-            if (response.ok && data.success) {
+            if (response.ok && data && data.success) {
                 console.log('✅ نجح إنشاء النسخة الاحتياطية');
                 
                 const message = data.test_mode ? 
@@ -762,21 +882,47 @@ class BackupMonitor {
                 }
             } else {
                 console.error('❌ فشل في إنشاء النسخة الاحتياطية:', data);
-                this.showError(data.error || data.message || 'فشل في إنشاء النسخة الاحتياطية');
+                
+                // معالجة أنواع مختلفة من الأخطاء
+                let errorMessage = 'فشل في إنشاء النسخة الاحتياطية';
+                
+                if (response.status === 400) {
+                    errorMessage = 'طلب غير صحيح - تحقق من إعدادات النسخ الاحتياطي';
+                } else if (response.status === 401) {
+                    errorMessage = 'غير مصرح - يرجى تسجيل الدخول مرة أخرى';
+                } else if (response.status === 403) {
+                    errorMessage = 'غير مسموح - تحقق من صلاحيات Google Drive';
+                } else if (response.status === 404) {
+                    errorMessage = 'API غير موجود - تحقق من إعدادات الخادم';
+                } else if (response.status === 500) {
+                    errorMessage = 'خطأ في الخادم - تحقق من اتصال Google Drive';
+                } else if (data && data.error) {
+                    errorMessage = data.error;
+                } else if (data && data.message) {
+                    errorMessage = data.message;
+                }
+                
+                this.showError(errorMessage);
             }
         } catch (error) {
             console.error('❌ خطأ في إنشاء النسخة الاحتياطية:', error);
             
             // معالجة أنواع مختلفة من الأخطاء
+            let errorMessage = 'خطأ في إنشاء النسخة الاحتياطية';
+            
             if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                this.showError('فشل في الاتصال بالخادم. تحقق من اتصال الإنترنت.');
+                errorMessage = 'فشل في الاتصال بالخادم. تحقق من اتصال الإنترنت.';
+            } else if (error.message.includes('timeout')) {
+                errorMessage = 'انتهت مهلة العملية. قد تكون النسخة الاحتياطية كبيرة الحجم.';
             } else if (error.message.includes('SyntaxError') || error.message.includes('JSON')) {
-                this.showError('خطأ في استجابة الخادم. قد يكون هناك مشكلة في إعدادات API.');
+                errorMessage = 'خطأ في استجابة الخادم. قد يكون هناك مشكلة في إعدادات API.';
             } else if (error.message.includes('Google Drive')) {
-                this.showError('مشكلة في اتصال Google Drive. تحقق من الربط وأعد المحاولة.');
-            } else {
-                this.showError(error.message || 'خطأ في إنشاء النسخة الاحتياطية');
+                errorMessage = 'مشكلة في اتصال Google Drive. تحقق من الربط وأعد المحاولة.';
+            } else if (error.message) {
+                errorMessage = error.message;
             }
+            
+            this.showError(errorMessage);
         } finally {
             if (testBtn) {
                 testBtn.disabled = false;
