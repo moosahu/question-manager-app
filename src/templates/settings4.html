@@ -1265,65 +1265,14 @@ async function downloadUserSettingsFromGoogleDrive() {
 }
 
 function getCSRFToken() {
-    // البحث عن CSRF token في عدة أماكن مع معالجة محسنة
-    try {
-        // 1. البحث في input hidden
-        const csrfInput = document.querySelector('input[name="csrf_token"]');
-        if (csrfInput && csrfInput.value && csrfInput.value !== '') {
-            console.log('✅ تم العثور على CSRF token من input');
-            return csrfInput.value;
-        }
-        
-        // 2. البحث في meta tag
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        if (csrfMeta) {
-            const metaContent = csrfMeta.getAttribute('content');
-            if (metaContent && metaContent !== '' && metaContent !== 'dummy-token') {
-                console.log('✅ تم العثور على CSRF token من meta tag');
-                return metaContent;
-            }
-        }
-        
-        // 3. البحث في cookies
-        const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrf_token='));
-        if (csrfCookie) {
-            const cookieValue = csrfCookie.split('=')[1];
-            if (cookieValue && cookieValue !== '') {
-                console.log('✅ تم العثور على CSRF token من cookie');
-                return cookieValue;
-            }
-        }
-        
-        console.warn('⚠️ لم يتم العثور على CSRF token');
-        return '';
-        
-    } catch (error) {
-        console.error('❌ خطأ في الحصول على CSRF token:', error);
-        return '';
-    }
-}
-
-async function fetchCSRFToken() {
-    /**
-     * محاولة الحصول على CSRF token من الخادم
-     */
-    try {
-        const response = await fetch('/api/v1/csrf-token', {
-            method: 'GET',
-            credentials: 'same-origin'
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.csrf_token) {
-                console.log('✅ تم الحصول على CSRF token من الخادم');
-                return data.csrf_token;
-            }
-        }
-    } catch (error) {
-        console.error('❌ فشل في الحصول على CSRF token من الخادم:', error);
-    }
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    const csrfMeta = document.querySelector('meta[name=csrf-token]');
     
+    if (csrfInput) {
+        return csrfInput.value;
+    } else if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
     return '';
 }
 
@@ -2336,123 +2285,64 @@ function populateBackupSettings(settings) {
     }
 }
 
-// حفظ إعدادات النسخ الاحتياطي مع معالجة CSRF محسنة
-async function saveBackupSettings() {
+// حفظ إعدادات النسخ الاحتياطي مع إعادة المحاولة
+async function saveBackupSettings(retryCount = 0) {
+    const maxRetries = 3;
+    const retryDelay = 1000 * (retryCount + 1);
+    
     try {
-        console.log('💾 بدء حفظ إعدادات النسخ الاحتياطي...');
+        console.log('💾 حفظ إعدادات النسخ الاحتياطي...');
         
         // جمع البيانات من النموذج
-        const formData = {
+        const settings = {
             auto_backup_enabled: document.getElementById('auto-backup-enabled')?.checked || false,
             backup_frequency: document.getElementById('backup-frequency')?.value || 'daily',
-            include_images: document.getElementById('include-images')?.checked || false,
+            backup_destination: document.getElementById('backup-destination')?.value || 'local',
             max_backups: parseInt(document.getElementById('max-backups')?.value) || 5,
-            backup_destination: document.getElementById('backup-destination')?.value || 'google_drive'
+            backup_time: document.getElementById('backup-time')?.value || '02:00',
+            include_images: document.getElementById('include-images')?.checked || true,
+            compress_backup: document.getElementById('compress-backup')?.checked || true,
+            encrypt_backup: document.getElementById('encrypt-backup')?.checked || false
         };
         
-        console.log('📋 بيانات النموذج:', formData);
-        
-        // الحصول على CSRF token
-        let csrfToken = getCSRFToken();
-        
-        // إذا كان CSRF token فارغ، محاولة الحصول عليه من الخادم
-        if (!csrfToken || csrfToken === '') {
-            console.log('🔄 محاولة الحصول على CSRF token من الخادم...');
-            csrfToken = await fetchCSRFToken();
-        }
-        
-        // إعداد headers مع CSRF token
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-        
-        if (csrfToken && csrfToken !== '') {
-            headers['X-CSRFToken'] = csrfToken;
-            console.log('✅ تم إضافة CSRF token للطلب');
-        } else {
-            console.warn('⚠️ لم يتم العثور على CSRF token - المتابعة بدونه');
-        }
-        
-        // إرسال الطلب
-        let response = await fetch('/api/v1/backup-settings/save', {
+        const response = await fetchWithTimeout('/api/v1/backup-settings/save', {
             method: 'POST',
-            headers: headers,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
             credentials: 'same-origin',
-            body: JSON.stringify(formData)
-        });
-        
-        console.log('📡 استجابة الخادم:', response.status, response.statusText);
-        
-        // إذا فشل بسبب CSRF، محاولة الحصول على token جديد وإعادة المحاولة
-        if (!response.ok && response.status === 400) {
-            const errorText = await response.text();
-            if (errorText.includes('CSRF token is missing')) {
-                console.log('🔄 CSRF token مفقود، محاولة الحصول على token جديد...');
-                
-                // الحصول على token جديد
-                const newToken = await fetchCSRFToken();
-                if (newToken) {
-                    headers['X-CSRFToken'] = newToken;
-                    
-                    // إعادة المحاولة مع token جديد
-                    response = await fetch('/api/v1/backup-settings/save', {
-                        method: 'POST',
-                        headers: headers,
-                        credentials: 'same-origin',
-                        body: JSON.stringify(formData)
-                    });
-                    
-                    console.log('📡 استجابة الخادم بعد إعادة المحاولة:', response.status, response.statusText);
-                }
-            }
-        }
+            body: JSON.stringify(settings)
+        }, 10000);
         
         if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ تم حفظ الإعدادات بنجاح');
-                showNotification('تم حفظ إعدادات النسخ الاحتياطي بنجاح', 'success');
-            } else {
-                console.error('❌ فشل في حفظ الإعدادات:', data.error);
-                showNotification(data.error || 'فشل في حفظ الإعدادات', 'error');
+            const data = await parseJsonResponse(response);
+            if (data && data.success) {
+                console.log('✅ تم حفظ إعدادات النسخ الاحتياطي');
+                showSuccessMessage('تم حفظ إعدادات النسخ الاحتياطي بنجاح');
+                return;
             }
-        } else {
-            console.error('❌ خطأ HTTP:', response.status, response.statusText);
-            
-            // معالجة أنواع مختلفة من الأخطاء
-            let errorMessage = 'فشل في حفظ الإعدادات';
-            
-            if (response.status === 400) {
-                errorMessage = 'بيانات غير صحيحة - تحقق من الإعدادات';
-            } else if (response.status === 401) {
-                errorMessage = 'غير مصرح - يرجى تسجيل الدخول مرة أخرى';
-            } else if (response.status === 403) {
-                errorMessage = 'غير مسموح - تحقق من الصلاحيات';
-            } else if (response.status === 404) {
-                errorMessage = 'API غير موجود - تحقق من إعدادات الخادم';
-            } else if (response.status === 500) {
-                errorMessage = 'خطأ في الخادم - حاول مرة أخرى لاحقاً';
-            }
-            
-            showNotification(errorMessage, 'error');
+        } else if (response.status >= 500 && retryCount < maxRetries) {
+            console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+            setTimeout(() => {
+                saveBackupSettings(retryCount + 1);
+            }, retryDelay);
+            return;
         }
+        
+        console.error('فشل في حفظ إعدادات النسخ الاحتياطي:', response.status);
+        showErrorMessage('فشل في حفظ إعدادات النسخ الاحتياطي');
+        
     } catch (error) {
-        console.error('❌ خطأ في حفظ الإعدادات:', error);
+        console.error('خطأ في حفظ إعدادات النسخ الاحتياطي:', error);
         
-        // معالجة أنواع مختلفة من الأخطاء
-        let errorMessage = 'خطأ في حفظ الإعدادات';
-        
-        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-            errorMessage = 'فشل في الاتصال بالخادم. تحقق من اتصال الإنترنت.';
-        } else if (error.message.includes('SyntaxError') || error.message.includes('JSON')) {
-            errorMessage = 'خطأ في استجابة الخادم. قد يكون هناك مشكلة في إعدادات API.';
-        } else if (error.message) {
-            errorMessage = error.message;
+        if (retryCount < maxRetries && (error.name === 'TypeError' || error.message.includes('fetch') || error.message.includes('timeout'))) {
+            console.log(`إعادة المحاولة ${retryCount + 1}/${maxRetries} بعد ${retryDelay}ms...`);
+            setTimeout(() => {
+                saveBackupSettings(retryCount + 1);
+            }, retryDelay);
+            return;
         }
-        
-        showNotification(errorMessage, 'error');
-    }
-}
         
         showErrorMessage('خطأ في حفظ إعدادات النسخ الاحتياطي');
     }

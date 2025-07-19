@@ -3039,24 +3039,3 @@ def get_google_drive_test_connection_status():
 
 # ===== نهاية endpoints المضافة =====
 
-
-
-@api_bp.route("/csrf-token", methods=["GET"])
-def get_csrf_token():
-    """الحصول على CSRF token"""
-    try:
-        from flask_wtf.csrf import generate_csrf
-        token = generate_csrf()
-        return jsonify({
-            'success': True,
-            'csrf_token': token
-        })
-    except Exception as e:
-        logger.exception(f"Error generating CSRF token: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# ===== نهاية endpoints CSRF =====
-

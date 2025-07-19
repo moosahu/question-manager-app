@@ -118,106 +118,20 @@ class BackupMonitor {
     
     async parseJsonResponse(response) {
         /**
-         * تحليل استجابة JSON مع معالجة محسنة للأخطاء
+         * تحليل استجابة JSON مع معالجة الأخطاء
          */
         try {
             const contentType = response.headers.get('content-type');
-            
-            // التحقق من نوع المحتوى
             if (contentType && contentType.includes('application/json')) {
-                const text = await response.text();
-                
-                // التحقق من أن المحتوى ليس HTML
-                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                    console.warn('⚠️ تم استلام HTML بدلاً من JSON:', text.substring(0, 100));
-                    
-                    // محاولة استخراج رسالة الخطأ من HTML
-                    const errorMessage = this.extractErrorFromHTML(text);
-                    return {
-                        success: false,
-                        error: errorMessage || 'الخادم أرجع HTML بدلاً من JSON',
-                        html_response: true
-                    };
-                }
-                
-                // محاولة تحليل JSON
-                try {
-                    return JSON.parse(text);
-                } catch (jsonError) {
-                    console.error('❌ خطأ في تحليل JSON:', jsonError);
-                    console.error('📝 محتوى الاستجابة:', text.substring(0, 200));
-                    
-                    return {
-                        success: false,
-                        error: 'خطأ في تحليل استجابة الخادم',
-                        json_error: true,
-                        raw_response: text.substring(0, 200)
-                    };
-                }
+                return await response.json();
             } else {
-                // إذا لم يكن JSON، اقرأ كنص
-                const text = await response.text();
-                console.warn('⚠️ استجابة غير JSON:', contentType);
-                console.warn('📝 محتوى الاستجابة:', text.substring(0, 200));
-                
-                // محاولة استخراج رسالة الخطأ
-                const errorMessage = this.extractErrorFromHTML(text);
-                
-                return {
-                    success: false,
-                    error: errorMessage || 'استجابة غير متوقعة من الخادم',
-                    content_type: contentType,
-                    raw_response: text.substring(0, 200)
-                };
+                console.warn('استجابة غير JSON:', contentType);
+                const textResponse = await response.text();
+                console.warn('محتوى الاستجابة:', textResponse.substring(0, 200));
+                return null;
             }
         } catch (error) {
-            console.error('❌ خطأ في معالجة الاستجابة:', error);
-            return {
-                success: false,
-                error: 'خطأ في معالجة استجابة الخادم',
-                processing_error: true
-            };
-        }
-    }
-    
-    extractErrorFromHTML(htmlText) {
-        /**
-         * استخراج رسالة الخطأ من HTML response
-         */
-        try {
-            // البحث عن رسائل خطأ شائعة
-            if (htmlText.includes('400 Bad Request')) {
-                if (htmlText.includes('CSRF token is missing')) {
-                    return 'CSRF token مفقود - يرجى إعادة تحميل الصفحة';
-                }
-                return 'طلب غير صحيح (400)';
-            }
-            
-            if (htmlText.includes('404 Not Found')) {
-                return 'API غير موجود (404)';
-            }
-            
-            if (htmlText.includes('500 Internal Server Error')) {
-                return 'خطأ في الخادم (500)';
-            }
-            
-            if (htmlText.includes('403 Forbidden')) {
-                return 'غير مسموح (403)';
-            }
-            
-            if (htmlText.includes('401 Unauthorized')) {
-                return 'غير مصرح (401) - يرجى تسجيل الدخول';
-            }
-            
-            // محاولة استخراج عنوان الصفحة
-            const titleMatch = htmlText.match(/<title>(.*?)<\/title>/i);
-            if (titleMatch && titleMatch[1]) {
-                return titleMatch[1].trim();
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('خطأ في استخراج رسالة الخطأ:', error);
+            console.error('خطأ في تحليل JSON:', error);
             return null;
         }
     }
@@ -906,31 +820,13 @@ class BackupMonitor {
                 return;
             }
             
-            // الحصول على CSRF token
-            let csrfToken = this.getCSRFToken();
-            
-            // إذا كان CSRF token فارغ، محاولة الحصول عليه من الخادم
-            if (!csrfToken || csrfToken === '') {
-                console.log('🔄 محاولة الحصول على CSRF token من الخادم...');
-                csrfToken = await this.fetchCSRFToken();
-            }
-            
-            // إعداد headers مع CSRF token
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            
-            if (csrfToken && csrfToken !== '') {
-                headers['X-CSRFToken'] = csrfToken;
-                console.log('✅ تم إضافة CSRF token للطلب');
-            } else {
-                console.warn('⚠️ لم يتم العثور على CSRF token - المتابعة بدونه');
-            }
-            
             // محاولة استخدام API الأصلي أولاً
             let response = await this.fetchWithTimeout('/api/v1/backup/immediate', {
                 method: 'POST',
-                headers: headers,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     test_mode: false,
@@ -945,7 +841,10 @@ class BackupMonitor {
                 console.log('المستخدم غير مسجل دخول، استخدام API اختبار النسخ...');
                 response = await this.fetchWithTimeout('/api/v1/backup/test-immediate', {
                     method: 'POST',
-                    headers: headers,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken()
+                    },
                     credentials: 'same-origin',
                     body: JSON.stringify({
                         test_mode: true,
@@ -954,39 +853,9 @@ class BackupMonitor {
                 }, 30000);
             }
             
-            // إذا فشل بسبب CSRF، محاولة الحصول على token جديد وإعادة المحاولة
-            if (!response.ok && response.status === 400) {
-                const errorText = await response.text();
-                if (errorText.includes('CSRF token is missing')) {
-                    console.log('🔄 CSRF token مفقود، محاولة الحصول على token جديد...');
-                    
-                    // الحصول على token جديد
-                    const newToken = await this.fetchCSRFToken();
-                    if (newToken) {
-                        headers['X-CSRFToken'] = newToken;
-                        
-                        // إعادة المحاولة مع token جديد
-                        response = await this.fetchWithTimeout('/api/v1/backup/immediate', {
-                            method: 'POST',
-                            headers: headers,
-                            credentials: 'same-origin',
-                            body: JSON.stringify({
-                                test_mode: false,
-                                destination: 'google_drive'
-                            })
-                        }, 30000);
-                        
-                        console.log('📡 استجابة الخادم بعد إعادة المحاولة:', response.status, response.statusText);
-                    }
-                }
-            }
-            
             // معالجة الاستجابة
             let data = null;
             if (response.ok) {
-                data = await this.parseJsonResponse(response);
-            } else {
-                // محاولة قراءة رسالة الخطأ
                 data = await this.parseJsonResponse(response);
             }
             
@@ -1017,9 +886,7 @@ class BackupMonitor {
                 // معالجة أنواع مختلفة من الأخطاء
                 let errorMessage = 'فشل في إنشاء النسخة الاحتياطية';
                 
-                if (data && data.error) {
-                    errorMessage = data.error;
-                } else if (response.status === 400) {
+                if (response.status === 400) {
                     errorMessage = 'طلب غير صحيح - تحقق من إعدادات النسخ الاحتياطي';
                 } else if (response.status === 401) {
                     errorMessage = 'غير مصرح - يرجى تسجيل الدخول مرة أخرى';
@@ -1029,6 +896,10 @@ class BackupMonitor {
                     errorMessage = 'API غير موجود - تحقق من إعدادات الخادم';
                 } else if (response.status === 500) {
                     errorMessage = 'خطأ في الخادم - تحقق من اتصال Google Drive';
+                } else if (data && data.error) {
+                    errorMessage = data.error;
+                } else if (data && data.message) {
+                    errorMessage = data.message;
                 }
                 
                 this.showError(errorMessage);
@@ -1063,68 +934,20 @@ class BackupMonitor {
     }
     
     getCSRFToken() {
-        // البحث عن CSRF token في عدة أماكن مع معالجة محسنة
-        try {
-            // 1. البحث في input hidden
-            const csrfInput = document.querySelector('input[name="csrf_token"]');
-            if (csrfInput && csrfInput.value && csrfInput.value !== '') {
-                console.log('✅ تم العثور على CSRF token من input');
-                return csrfInput.value;
-            }
-            
-            // 2. البحث في meta tag
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            if (csrfMeta) {
-                const metaContent = csrfMeta.getAttribute('content');
-                if (metaContent && metaContent !== '' && metaContent !== 'dummy-token') {
-                    console.log('✅ تم العثور على CSRF token من meta tag');
-                    return metaContent;
-                }
-            }
-            
-            // 3. البحث في cookies
-            const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrf_token='));
-            if (csrfCookie) {
-                const cookieValue = csrfCookie.split('=')[1];
-                if (cookieValue && cookieValue !== '') {
-                    console.log('✅ تم العثور على CSRF token من cookie');
-                    return cookieValue;
-                }
-            }
-            
-            // 4. محاولة الحصول على token من الخادم
-            console.warn('⚠️ لم يتم العثور على CSRF token، محاولة الحصول عليه من الخادم...');
-            return this.fetchCSRFToken();
-            
-        } catch (error) {
-            console.error('❌ خطأ في الحصول على CSRF token:', error);
-            return '';
-        }
-    }
-    
-    async fetchCSRFToken() {
-        /**
-         * محاولة الحصول على CSRF token من الخادم
-         */
-        try {
-            const response = await fetch('/api/v1/csrf-token', {
-                method: 'GET',
-                credentials: 'same-origin'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.csrf_token) {
-                    console.log('✅ تم الحصول على CSRF token من الخادم');
-                    return data.csrf_token;
-                }
-            }
-        } catch (error) {
-            console.error('❌ فشل في الحصول على CSRF token من الخادم:', error);
+        // البحث عن CSRF token في عدة أماكن
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrf_token='));
+        
+        if (csrfInput) {
+            return csrfInput.value;
+        } else if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        } else if (csrfCookie) {
+            return csrfCookie.split('=')[1];
         }
         
-        // إذا فشل كل شيء، إرجاع قيمة فارغة
-        console.warn('⚠️ لم يتم العثور على CSRF token - سيتم إرسال الطلب بدون token');
+        console.warn('⚠️ لم يتم العثور على CSRF token');
         return '';
     }
     
