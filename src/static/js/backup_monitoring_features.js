@@ -3,6 +3,18 @@
  * Enhanced Backup Monitoring System
  */
 
+// حماية من التعارضات والأخطاء
+(function() {
+    'use strict';
+    
+    // التحقق من وجود الكلاس مسبقاً لتجنب التعارضات
+    if (typeof window.BackupMonitor !== 'undefined') {
+        console.warn('BackupMonitor already exists, skipping redefinition');
+        return;
+    }
+    
+    try {
+
 class BackupMonitor {
     constructor() {
         this.statusCheckInterval = null;
@@ -2200,3 +2212,18 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+    // إتاحة الكلاس عالمياً
+    window.BackupMonitor = BackupMonitor;
+    
+    } catch (error) {
+        console.error('خطأ في تحميل BackupMonitor:', error);
+        // في حالة الخطأ، إنشاء كلاس فارغ لتجنب كسر الموقع
+        window.BackupMonitor = class {
+            constructor() {
+                console.warn('BackupMonitor loaded in fallback mode');
+            }
+        };
+    }
+    
+})();
