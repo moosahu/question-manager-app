@@ -8,6 +8,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 
+# إعداد logger
+logger = logging.getLogger(__name__)
+
 try:
     from src.extensions import db
 except ImportError:
@@ -55,43 +58,59 @@ except ImportError:
         raise
 
 
-# ===== إضافات APScheduler =====
+# ===== إضافات النسخ الاحتياطي =====
 import os
 import sys
 from datetime import datetime
 
-# إضافة مسار المجلد الأب للوصول للوحدات
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# محاولة استيراد وحدات النسخ الاحتياطي
+try:
+    from src.backup_scheduler_fixed import BackupScheduler
+    backup_scheduler_available = True
+except ImportError:
+    try:
+        from backup_scheduler_fixed import BackupScheduler
+        backup_scheduler_available = True
+    except ImportError:
+        print("تحذير: لا يمكن استيراد BackupScheduler")
+        BackupScheduler = None
+        backup_scheduler_available = False
 
 try:
-    from backup_scheduler import BackupScheduler
-    from backup_settings import BackupSettings as BackupSettingsManager
-    from backup_logic import BackupLogic
-except ImportError as e:
-    print(f"تحذير: لا يمكن استيراد وحدات النسخ الاحتياطي: {e}")
-    BackupScheduler = None
-    BackupSettingsManager = None
-    BackupLogic = None
+    from src.backup_logic import perform_backup_for_user, create_backup
+    backup_logic_available = True
+except ImportError:
+    try:
+        from backup_logic import perform_backup_for_user, create_backup
+        backup_logic_available = True
+    except ImportError:
+        print("تحذير: لا يمكن استيراد backup_logic")
+        backup_logic_available = False
+        perform_backup_for_user = None
+        create_backup = None
 
 # متغيرات عامة للنسخ الاحتياطي
 backup_scheduler = None
-backup_settings_manager = None
 backup_logic = None
+google_drive_available = True
 
 def init_backup_system():
     """تهيئة نظام النسخ الاحتياطي"""
-    global backup_scheduler, backup_settings_manager, backup_logic
+    global backup_scheduler, backup_logic
     
-    if BackupScheduler and BackupSettingsManager and BackupLogic:
+    if backup_scheduler_available and BackupScheduler:
         try:
-            backup_settings_manager = BackupSettingsManager()
-            backup_logic = BackupLogic()
             backup_scheduler = BackupScheduler()
-            return True
         except Exception as e:
-            print(f"خطأ في تهيئة نظام النسخ الاحتياطي: {e}")
-            return False
-    return False
+            print(f"خطأ في تهيئة backup_scheduler: {e}")
+            backup_scheduler = None
+    
+    if backup_logic_available:
+        backup_logic = True
+    else:
+        backup_logic = None
+    
+    return backup_scheduler is not None or backup_logic is not None
 
 # تهيئة النظام عند تحميل الوحدة
 init_backup_system()
@@ -2527,4 +2546,517 @@ def backup_health_check():
             'message': f'خطأ في فحص الصحة: {str(e)}'
         }), 500
 
+# ===== APIs إضافية للنسخ الاحتياطي =====
+
+@api_bp.route("/backup/status", methods=["GET"])
+@login_required
+def get_backup_status():
+    """
+    الحصول على حالة النسخ الاحتياطي الشاملة
+    
+    Returns:
+    - حالة النسخ الاحتياطي بتنسيق JSON
+    """
+    logger.info("API request received for backup status.")
+    try:
+        user_id = current_user.id
+        
+        # الحصول على إعدادات النسخ الاحتياطي
+        backup_settings = None
+        try:
+            backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+        except Exception as e:
+            logger.warning(f"Could not fetch backup settings: {e}")
+        
+        # الحصول على حالة Google Drive
+        google_drive_status = {
+            'available': google_drive_available,
+            'connected': False,
+            'last_backup': None,
+            'backup_count': 0
+        }
+        
+        try:
+            # فحص اتصال Google Drive من session
+            google_drive_connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_google_drive_sync')
+            
+            if google_drive_connected:
+                google_drive_status['connected'] = True
+                google_drive_status['last_backup'] = last_sync
+                
+            # محاولة الحصول من قاعدة البيانات
+            if GoogleDriveToken:
+                try:
+                    db_token = GoogleDriveToken.query.filter_by(
+                        user_id=user_id, 
+                        is_active=True
+                    ).first()
+                    
+                    if db_token:
+                        google_drive_status['connected'] = True
+                        if hasattr(db_token, 'updated_at') and db_token.updated_at:
+                            google_drive_status['last_backup'] = db_token.updated_at.isoformat()
+                except Exception as e:
+                    logger.warning(f"Error querying GoogleDriveToken: {e}")
+                        
+        except Exception as e:
+            logger.warning(f"Error checking Google Drive status: {e}")
+        
+        # الحصول على حالة الجدولة
+        scheduler_status = {
+            'available': backup_scheduler is not None,
+            'running': False,
+            'user_scheduled': False,
+            'next_backup': None
+        }
+        
+        if backup_scheduler:
+            try:
+                if hasattr(backup_scheduler, 'get_status'):
+                    status = backup_scheduler.get_status()
+                    scheduler_status['running'] = status.get('scheduler_running', False)
+                
+                # البحث عن مهمة المستخدم
+                if hasattr(backup_scheduler, 'get_jobs'):
+                    jobs = backup_scheduler.get_jobs()
+                    user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
+                    
+                    if user_job:
+                        scheduler_status['user_scheduled'] = True
+                        scheduler_status['next_backup'] = user_job.get('next_run')
+                    
+            except Exception as e:
+                logger.warning(f"Error getting scheduler status: {e}")
+        
+        # تجميع الحالة النهائية
+        status = {
+            'user_id': user_id,
+            'timestamp': datetime.utcnow().isoformat(),
+            'scheduler': scheduler_status,
+            'google_drive': google_drive_status,
+            'backup_logic': {
+                'available': backup_logic_available
+            },
+            'settings': {
+                'auto_backup_enabled': backup_settings.auto_backup_enabled if backup_settings else False,
+                'backup_frequency': backup_settings.backup_frequency if backup_settings else 'daily',
+                'backup_destination': backup_settings.backup_destination if backup_settings else 'local',
+                'max_backups': backup_settings.max_backups if backup_settings else 5,
+                'backup_time': backup_settings.backup_time if backup_settings else '02:00',
+                'created_at': backup_settings.created_at.isoformat() if backup_settings and backup_settings.created_at else None,
+                'updated_at': backup_settings.updated_at.isoformat() if backup_settings and backup_settings.updated_at else None
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting backup status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/backup/immediate", methods=["POST"])
+@login_required
+def create_immediate_backup():
+    """
+    إنشاء نسخة احتياطية فورية
+    
+    Returns:
+    - نتيجة عملية النسخ الاحتياطي
+    """
+    logger.info("API request received for immediate backup.")
+    try:
+        user_id = current_user.id
+        
+        # التحقق من توفر نظام النسخ الاحتياطي
+        if not backup_logic_available or not create_backup:
+            return jsonify({
+                'success': False,
+                'error': 'نظام النسخ الاحتياطي غير متوفر'
+            }), 503
+        
+        # تنفيذ النسخ الاحتياطي
+        result = create_backup(user_id)
+        
+        if result.get('success'):
+            # تحديث session مع معلومات النسخة الجديدة
+            session['last_backup_time'] = datetime.utcnow().isoformat()
+            
+            # تحديث إعدادات قاعدة البيانات
+            try:
+                backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+                if backup_settings:
+                    backup_settings.last_backup_time = datetime.utcnow()
+                    if backup_settings.backup_count is None:
+                        backup_settings.backup_count = 1
+                    else:
+                        backup_settings.backup_count += 1
+                    db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not update backup settings: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم إنشاء النسخة الاحتياطية بنجاح',
+                'data': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'فشل في إنشاء النسخة الاحتياطية')
+            }), 500
+            
+    except Exception as e:
+        logger.exception(f"Error creating immediate backup: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/google-drive/connection-status", methods=["GET"])
+@login_required
+def get_google_drive_connection_status():
+    """
+    الحصول على حالة اتصال Google Drive
+    
+    Returns:
+    - حالة الاتصال بتنسيق JSON
+    """
+    logger.info("API request received for Google Drive connection status.")
+    try:
+        user_id = current_user.id
+        
+        # فحص حالة الاتصال
+        connection_status = {
+            'connected': False,
+            'last_sync': None,
+            'user_id': user_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        try:
+            # فحص من session
+            google_drive_connected = session.get('google_drive_connected', False)
+            last_sync = session.get('last_google_drive_sync')
+            
+            if google_drive_connected:
+                connection_status['connected'] = True
+                connection_status['last_sync'] = last_sync
+            
+            # فحص من قاعدة البيانات
+            if GoogleDriveToken:
+                try:
+                    db_token = GoogleDriveToken.query.filter_by(
+                        user_id=user_id, 
+                        is_active=True
+                    ).first()
+                    
+                    if db_token:
+                        connection_status['connected'] = True
+                        if hasattr(db_token, 'updated_at') and db_token.updated_at:
+                            connection_status['last_sync'] = db_token.updated_at.isoformat()
+                except Exception as e:
+                    logger.warning(f"Error querying GoogleDriveToken: {e}")
+                    
+        except Exception as e:
+            logger.warning(f"Error checking Google Drive connection: {e}")
+        
+        return jsonify({
+            'success': True,
+            'status': connection_status
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting Google Drive connection status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ===== نهاية APIs النسخ الاحتياطي =====
+
+
+# ===== إضافة endpoints المفقودة =====
+
+@api_bp.route("/backup-settings/load", methods=["GET"])
+@login_required
+def load_backup_settings():
+    """تحميل إعدادات النسخ الاحتياطي"""
+    try:
+        user_id = current_user.id
+        logger.info(f"Loading backup settings for user {user_id}")
+        
+        # البحث عن إعدادات المستخدم
+        backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+        
+        if backup_settings:
+            settings_data = {
+                'auto_backup_enabled': backup_settings.auto_backup_enabled,
+                'backup_frequency': backup_settings.backup_frequency,
+                'backup_destination': backup_settings.backup_destination,
+                'max_backups': backup_settings.max_backups,
+                'backup_time': backup_settings.backup_time,
+                'include_images': getattr(backup_settings, 'include_images', True),
+                'compress_backup': getattr(backup_settings, 'compress_backup', True),
+                'encrypt_backup': getattr(backup_settings, 'encrypt_backup', False),
+                'created_at': backup_settings.created_at.isoformat() if backup_settings.created_at else None,
+                'updated_at': backup_settings.updated_at.isoformat() if backup_settings.updated_at else None
+            }
+        else:
+            # إعدادات افتراضية
+            settings_data = {
+                'auto_backup_enabled': False,
+                'backup_frequency': 'daily',
+                'backup_destination': 'local',
+                'max_backups': 5,
+                'backup_time': '02:00',
+                'include_images': True,
+                'compress_backup': True,
+                'encrypt_backup': False,
+                'created_at': None,
+                'updated_at': None
+            }
+        
+        return jsonify({
+            'success': True,
+            'settings': settings_data
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error loading backup settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/backup-settings/save", methods=["POST"])
+@login_required
+def save_backup_settings():
+    """حفظ إعدادات النسخ الاحتياطي"""
+    try:
+        user_id = current_user.id
+        data = request.get_json()
+        
+        logger.info(f"Saving backup settings for user {user_id}: {data}")
+        
+        # البحث عن إعدادات موجودة أو إنشاء جديدة
+        backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
+        
+        if not backup_settings:
+            backup_settings = BackupSettings(user_id=user_id)
+            db.session.add(backup_settings)
+        
+        # تحديث الإعدادات
+        backup_settings.auto_backup_enabled = data.get('auto_backup_enabled', False)
+        backup_settings.backup_frequency = data.get('backup_frequency', 'daily')
+        backup_settings.backup_destination = data.get('backup_destination', 'local')
+        backup_settings.max_backups = data.get('max_backups', 5)
+        backup_settings.backup_time = data.get('backup_time', '02:00')
+        
+        # إعدادات متقدمة
+        if hasattr(backup_settings, 'include_images'):
+            backup_settings.include_images = data.get('include_images', True)
+        if hasattr(backup_settings, 'compress_backup'):
+            backup_settings.compress_backup = data.get('compress_backup', True)
+        if hasattr(backup_settings, 'encrypt_backup'):
+            backup_settings.encrypt_backup = data.get('encrypt_backup', False)
+        
+        backup_settings.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error saving backup settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/user-settings/sync-status", methods=["GET"])
+@login_required
+def get_user_settings_sync_status():
+    """الحصول على حالة مزامنة إعدادات المستخدم"""
+    try:
+        user_id = current_user.id
+        
+        # فحص حالة الاتصال مع Google Drive
+        google_drive_connected = session.get('google_drive_connected', False)
+        last_sync = session.get('last_google_drive_sync')
+        
+        # فحص من قاعدة البيانات أيضاً
+        if GoogleDriveToken:
+            try:
+                db_token = GoogleDriveToken.query.filter_by(
+                    user_id=user_id, 
+                    is_active=True
+                ).first()
+                
+                if db_token:
+                    google_drive_connected = True
+                    if hasattr(db_token, 'updated_at') and db_token.updated_at:
+                        last_sync = db_token.updated_at.isoformat()
+            except Exception as e:
+                logger.warning(f"Error querying GoogleDriveToken: {e}")
+        
+        sync_status = {
+            'connected': google_drive_connected,
+            'last_sync': last_sync,
+            'auto_sync_enabled': False,  # يمكن إضافة هذا للإعدادات لاحقاً
+            'sync_frequency': 'manual'   # يمكن إضافة هذا للإعدادات لاحقاً
+        }
+        
+        return jsonify({
+            'success': True,
+            'status': sync_status
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting user settings sync status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route("/backup/test-status", methods=["GET"])
+def get_backup_test_status():
+    """API اختبار لحالة النسخ الاحتياطي (للمستخدمين غير المسجلين)"""
+    try:
+        logger.info("API request received for backup test status.")
+        
+        # بيانات تجريبية للاختبار
+        test_status = {
+            'google_drive': {
+                'available': True,
+                'connected': False,
+                'last_backup': None,
+                'backup_count': 0
+            },
+            'scheduler': {
+                'available': True,
+                'running': False,
+                'next_backup': None
+            },
+            'settings': {
+                'auto_backup_enabled': False,
+                'backup_frequency': 'daily',
+                'backup_destination': 'local',
+                'max_backups': 5,
+                'backup_time': '02:00',
+                'created_at': None,
+                'updated_at': None
+            },
+            'backup_logic': {
+                'available': True
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'status': test_status,
+            'test_mode': True,
+            'message': 'هذه بيانات تجريبية للاختبار'
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting backup test status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'test_mode': True
+        }), 500
+
+@api_bp.route("/backup/test-immediate", methods=["POST"])
+def create_test_immediate_backup():
+    """API اختبار للنسخ الاحتياطي الفوري (للمستخدمين غير المسجلين)"""
+    try:
+        logger.info("API request received for test immediate backup.")
+        
+        # محاكاة عملية النسخ الاحتياطي
+        import time
+        time.sleep(2)  # محاكاة وقت المعالجة
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم إنشاء النسخة الاحتياطية التجريبية بنجاح',
+            'test_mode': True,
+            'backup_info': {
+                'created_at': datetime.utcnow().isoformat(),
+                'size': '2.5 MB',
+                'destination': 'test_mode',
+                'file_name': f'test_backup_{int(time.time())}.zip'
+            }
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error creating test immediate backup: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'test_mode': True
+        }), 500
+
+@api_bp.route("/google-drive/test-connection-status", methods=["GET"])
+def get_google_drive_test_connection_status():
+    """API اختبار لحالة اتصال Google Drive (للمستخدمين غير المسجلين)"""
+    try:
+        logger.info("API request received for Google Drive test connection status.")
+        
+        # بيانات تجريبية
+        test_connection_status = {
+            'connected': False,
+            'last_backup': None,
+            'backup_count': 0,
+            'storage_method': 'test_mode',
+            'user_id': 'test_user'
+        }
+        
+        return jsonify({
+            'success': True,
+            'status': test_connection_status,
+            'test_mode': True,
+            'message': 'هذه بيانات تجريبية لاختبار اتصال Google Drive'
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting Google Drive test connection status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'test_mode': True
+        }), 500
+
+# ===== نهاية endpoints المضافة =====
+
+
+
+@api_bp.route("/csrf-token", methods=["GET"])
+def get_csrf_token():
+    """الحصول على CSRF token"""
+    try:
+        from flask_wtf.csrf import generate_csrf
+        token = generate_csrf()
+        return jsonify({
+            'success': True,
+            'csrf_token': token
+        })
+    except Exception as e:
+        logger.exception(f"Error generating CSRF token: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===== نهاية endpoints CSRF =====
+

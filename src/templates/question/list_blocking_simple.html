@@ -1,0 +1,274 @@
+# ملف list.html المحدث - إضافات نظام المنع
+
+## التعديلات المطلوبة على ملف templates/question/list.html
+
+### 1. إضافة أزرار التحكم في أعلى الصفحة
+
+**ابحث عن:**
+```html
+<div class="btn-toolbar">
+    <a href="{{ url_for('question.add_question') }}" class="btn btn-success">إضافة سؤال جديد</a>
+</div>
+```
+
+**استبدله بـ:**
+```html
+<div class="btn-toolbar">
+    <a href="{{ url_for('question.add_question') }}" class="btn btn-success">إضافة سؤال جديد</a>
+    
+    <!-- أزرار التحكم بالمنع -->
+    <button type="button" class="btn btn-warning ms-2" id="blockSelectedBtn" disabled>
+        <i class="fas fa-ban"></i> منع المحدد
+    </button>
+    <button type="button" class="btn btn-info ms-2" id="unblockSelectedBtn" disabled>
+        <i class="fas fa-check-circle"></i> إلغاء منع المحدد
+    </button>
+    <button type="button" class="btn btn-secondary ms-2" id="selectAllBtn">
+        <i class="fas fa-check-square"></i> تحديد الكل
+    </button>
+</div>
+```
+
+---
+
+### 2. إضافة عمود Checkbox في الجدول
+
+**ابحث عن:**
+```html
+<thead class="table-dark">
+    <tr>
+        <th>رقم السؤال</th>
+```
+
+**استبدله بـ:**
+```html
+<thead class="table-dark">
+    <tr>
+        <th><input type="checkbox" id="selectAllCheckbox"></th>
+        <th>رقم السؤال</th>
+```
+
+---
+
+### 3. إضافة Checkbox لكل سؤال
+
+**ابحث عن:**
+```html
+<tr>
+    <td>{{ start_num + loop.index0 }}</td>
+```
+
+**استبدله بـ:**
+```html
+<tr {% if question.is_blocked %}class="table-warning"{% endif %}>
+    <td>
+        <input type="checkbox" class="question-checkbox" data-question-id="{{ question.question_id }}">
+    </td>
+    <td>{{ start_num + loop.index0 }}</td>
+```
+
+---
+
+### 4. إضافة مؤشر بصري للأسئلة الممنوعة
+
+**ابحث عن:**
+```html
+<td>
+    {% if question.question_text %}
+        {{ (question.question_text | truncate(100)) }}
+```
+
+**استبدله بـ:**
+```html
+<td>
+    {% if question.is_blocked %}
+        <span class="badge bg-danger me-2">ممنوع</span>
+    {% endif %}
+    {% if question.question_text %}
+        {{ (question.question_text | truncate(100)) }}
+```
+
+---
+
+### 5. إضافة أزرار منع/إلغاء منع فردي
+
+**ابحث عن:**
+```html
+<td>
+    <a href="{{ url_for('question.edit_question', question_id=question.question_id) }}" class="btn btn-sm btn-primary">تعديل</a>
+```
+
+**استبدله بـ:**
+```html
+<td>
+    <a href="{{ url_for('question.edit_question', question_id=question.question_id) }}" class="btn btn-sm btn-primary">تعديل</a>
+    
+    {% if question.is_blocked %}
+        <button class="btn btn-sm btn-success unblock-single-btn" data-question-id="{{ question.question_id }}">
+            <i class="fas fa-check"></i> إلغاء المنع
+        </button>
+    {% else %}
+        <button class="btn btn-sm btn-warning block-single-btn" data-question-id="{{ question.question_id }}">
+            <i class="fas fa-ban"></i> منع
+        </button>
+    {% endif %}
+```
+
+---
+
+### 6. إضافة JavaScript في نهاية الملف
+
+**أضف قبل `{% endblock %}`:**
+
+```html
+<script>
+// ===== نظام التحكم بمنع الأسئلة =====
+
+// تحديد/إلغاء تحديد الكل
+document.getElementById('selectAllCheckbox')?.addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.question-checkbox');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+    updateButtonStates();
+});
+
+// تحديد الكل (الزر)
+document.getElementById('selectAllBtn')?.addEventListener('click', function() {
+    const checkboxes = document.querySelectorAll('.question-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    updateButtonStates();
+});
+
+// تحديث حالة الأزرار عند تغيير التحديد
+document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', updateButtonStates);
+});
+
+function updateButtonStates() {
+    const selectedCount = document.querySelectorAll('.question-checkbox:checked').length;
+    document.getElementById('blockSelectedBtn').disabled = selectedCount === 0;
+    document.getElementById('unblockSelectedBtn').disabled = selectedCount === 0;
+}
+
+// منع الأسئلة المحددة
+document.getElementById('blockSelectedBtn')?.addEventListener('click', async function() {
+    const selectedIds = Array.from(document.querySelectorAll('.question-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.questionId));
+    
+    if (selectedIds.length === 0) return;
+    
+    if (!confirm(`هل تريد منع ${selectedIds.length} سؤال؟`)) return;
+    
+    try {
+        const response = await fetch('/api/v1/questions/bulk-block', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question_ids: selectedIds})
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('حدث خطأ: ' + (data.error || 'غير معروف'));
+        }
+    } catch (error) {
+        alert('حدث خطأ في الاتصال: ' + error.message);
+    }
+});
+
+// إلغاء منع الأسئلة المحددة
+document.getElementById('unblockSelectedBtn')?.addEventListener('click', async function() {
+    const selectedIds = Array.from(document.querySelectorAll('.question-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.questionId));
+    
+    if (selectedIds.length === 0) return;
+    
+    if (!confirm(`هل تريد إلغاء منع ${selectedIds.length} سؤال؟`)) return;
+    
+    try {
+        const response = await fetch('/api/v1/questions/bulk-unblock', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question_ids: selectedIds})
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('حدث خطأ: ' + (data.error || 'غير معروف'));
+        }
+    } catch (error) {
+        alert('حدث خطأ في الاتصال: ' + error.message);
+    }
+});
+
+// منع سؤال واحد
+document.querySelectorAll('.block-single-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const questionId = this.dataset.questionId;
+        
+        try {
+            const response = await fetch(`/api/v1/questions/${questionId}/block`, {
+                method: 'PUT'
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('حدث خطأ: ' + (data.error || 'غير معروف'));
+            }
+        } catch (error) {
+            alert('حدث خطأ في الاتصال: ' + error.message);
+        }
+    });
+});
+
+// إلغاء منع سؤال واحد
+document.querySelectorAll('.unblock-single-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const questionId = this.dataset.questionId;
+        
+        try {
+            const response = await fetch(`/api/v1/questions/${questionId}/unblock`, {
+                method: 'PUT'
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('حدث خطأ: ' + (data.error || 'غير معروف'));
+            }
+        } catch (error) {
+            alert('حدث خطأ في الاتصال: ' + error.message);
+        }
+    });
+});
+</script>
+```
+
+---
+
+## ملخص التعديلات
+
+1. ✅ أزرار في الأعلى: منع المحدد، إلغاء منع المحدد، تحديد الكل
+2. ✅ Checkbox في رأس الجدول لتحديد الكل
+3. ✅ Checkbox بجانب كل سؤال
+4. ✅ مؤشر بصري (badge) للأسئلة الممنوعة
+5. ✅ خلفية صفراء للصفوف الممنوعة
+6. ✅ أزرار منع/إلغاء منع فردي لكل سؤال
+7. ✅ JavaScript للتعامل مع API
+
+---
+
+## النتيجة النهائية
+
+- يمكن تحديد عدة أسئلة ومنعها دفعة واحدة
+- يمكن منع/إلغاء منع سؤال واحد مباشرة
+- الأسئلة الممنوعة تظهر بخلفية صفراء مع badge "ممنوع"
+- واجهة سهلة وسريعة

@@ -543,6 +543,7 @@ def get_lesson_questions(lesson_id):
             Question.query
             .options(joinedload(Question.options))
             .filter(Question.lesson_id == lesson_id)
+            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
             .order_by(Question.question_id)
             .all()
         )
@@ -571,6 +572,7 @@ def get_unit_questions_direct(unit_id):
             .join(Question.lesson)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
+            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
             .order_by(Question.question_id)
             .all()
         )
@@ -600,6 +602,7 @@ def get_course_questions_direct(course_id):
             .join(Lesson.unit)
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
+            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
             .order_by(Question.question_id)
             .all()
         )
@@ -638,6 +641,7 @@ def get_course_unit_questions(course_id, unit_id):
             .join(Question.lesson)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
+            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
             .order_by(Question.question_id)
             .all()
         )
@@ -3060,3 +3064,429 @@ def get_csrf_token():
 
 # ===== نهاية endpoints CSRF =====
 
+
+# ===================================================================
+# نظام التحكم بمنع الأسئلة - API Endpoints
+# ===================================================================
+
+@api_bp.route("/questions/<int:question_id>/block", methods=["PUT"])
+def block_question(question_id):
+    """منع سؤال واحد من الظهور في المنهج/الوحدة/الدرس"""
+    try:
+        question = Question.query.get(question_id)
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        question.is_blocked = True
+        db.session.commit()
+        
+        logger.info(f"Question {question_id} has been blocked")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم منع السؤال رقم {question_id} بنجاح',
+            'question_id': question_id,
+            'is_blocked': True
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error blocking question {question_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/<int:question_id>/unblock", methods=["PUT"])
+def unblock_question(question_id):
+    """إلغاء منع سؤال واحد"""
+    try:
+        question = Question.query.get(question_id)
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        question.is_blocked = False
+        db.session.commit()
+        
+        logger.info(f"Question {question_id} has been unblocked")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إلغاء منع السؤال رقم {question_id} بنجاح',
+            'question_id': question_id,
+            'is_blocked': False
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error unblocking question {question_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/bulk-block", methods=["POST"])
+def bulk_block_questions():
+    """منع عدة أسئلة دفعة واحدة"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        
+        if not question_ids:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم تحديد أي أسئلة'
+            }), 400
+        
+        # تحديث جميع الأسئلة المحددة
+        updated_count = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).update(
+            {Question.is_blocked: True},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Blocked {updated_count} questions: {question_ids}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم منع {updated_count} سؤال بنجاح',
+            'blocked_count': updated_count,
+            'question_ids': question_ids
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error bulk blocking questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/bulk-unblock", methods=["POST"])
+def bulk_unblock_questions():
+    """إلغاء منع عدة أسئلة دفعة واحدة"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        
+        if not question_ids:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم تحديد أي أسئلة'
+            }), 400
+        
+        # تحديث جميع الأسئلة المحددة
+        updated_count = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).update(
+            {Question.is_blocked: False},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Unblocked {updated_count} questions: {question_ids}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إلغاء منع {updated_count} سؤال بنجاح',
+            'unblocked_count': updated_count,
+            'question_ids': question_ids
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error bulk unblocking questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/lessons/<int:lesson_id>/questions/block-all", methods=["PUT"])
+def block_all_lesson_questions(lesson_id):
+    """منع جميع أسئلة درس معين"""
+    try:
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
+        
+        # منع جميع أسئلة الدرس
+        updated_count = Question.query.filter_by(
+            lesson_id=lesson_id
+        ).update(
+            {Question.is_blocked: True},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Blocked all {updated_count} questions in lesson {lesson_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم منع {updated_count} سؤال من الدرس "{lesson.name}"',
+            'lesson_id': lesson_id,
+            'blocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error blocking all questions in lesson {lesson_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/lessons/<int:lesson_id>/questions/unblock-all", methods=["PUT"])
+def unblock_all_lesson_questions(lesson_id):
+    """إلغاء منع جميع أسئلة درس معين"""
+    try:
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
+        
+        # إلغاء منع جميع أسئلة الدرس
+        updated_count = Question.query.filter_by(
+            lesson_id=lesson_id
+        ).update(
+            {Question.is_blocked: False},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Unblocked all {updated_count} questions in lesson {lesson_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إلغاء منع {updated_count} سؤال من الدرس "{lesson.name}"',
+            'lesson_id': lesson_id,
+            'unblocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error unblocking all questions in lesson {lesson_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/units/<int:unit_id>/questions/block-all", methods=["PUT"])
+def block_all_unit_questions(unit_id):
+    """منع جميع أسئلة وحدة معينة"""
+    try:
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            return jsonify({
+                'success': False,
+                'error': 'الوحدة غير موجودة'
+            }), 404
+        
+        # الحصول على جميع دروس الوحدة
+        lesson_ids = [lesson.id for lesson in unit.lessons]
+        
+        # منع جميع أسئلة الوحدة
+        updated_count = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids)
+        ).update(
+            {Question.is_blocked: True},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Blocked all {updated_count} questions in unit {unit_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم منع {updated_count} سؤال من الوحدة "{unit.name}"',
+            'unit_id': unit_id,
+            'blocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error blocking all questions in unit {unit_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/units/<int:unit_id>/questions/unblock-all", methods=["PUT"])
+def unblock_all_unit_questions(unit_id):
+    """إلغاء منع جميع أسئلة وحدة معينة"""
+    try:
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            return jsonify({
+                'success': False,
+                'error': 'الوحدة غير موجودة'
+            }), 404
+        
+        # الحصول على جميع دروس الوحدة
+        lesson_ids = [lesson.id for lesson in unit.lessons]
+        
+        # إلغاء منع جميع أسئلة الوحدة
+        updated_count = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids)
+        ).update(
+            {Question.is_blocked: False},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Unblocked all {updated_count} questions in unit {unit_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إلغاء منع {updated_count} سؤال من الوحدة "{unit.name}"',
+            'unit_id': unit_id,
+            'unblocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error unblocking all questions in unit {unit_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/courses/<int:course_id>/questions/block-all", methods=["PUT"])
+def block_all_course_questions(course_id):
+    """منع جميع أسئلة منهج معين"""
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({
+                'success': False,
+                'error': 'المنهج غير موجود'
+            }), 404
+        
+        # الحصول على جميع دروس المنهج
+        lesson_ids = []
+        for unit in course.units:
+            lesson_ids.extend([lesson.id for lesson in unit.lessons])
+        
+        # منع جميع أسئلة المنهج
+        updated_count = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids)
+        ).update(
+            {Question.is_blocked: True},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Blocked all {updated_count} questions in course {course_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم منع {updated_count} سؤال من المنهج "{course.name}"',
+            'course_id': course_id,
+            'blocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error blocking all questions in course {course_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/courses/<int:course_id>/questions/unblock-all", methods=["PUT"])
+def unblock_all_course_questions(course_id):
+    """إلغاء منع جميع أسئلة منهج معين"""
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({
+                'success': False,
+                'error': 'المنهج غير موجود'
+            }), 404
+        
+        # الحصول على جميع دروس المنهج
+        lesson_ids = []
+        for unit in course.units:
+            lesson_ids.extend([lesson.id for lesson in unit.lessons])
+        
+        # إلغاء منع جميع أسئلة المنهج
+        updated_count = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids)
+        ).update(
+            {Question.is_blocked: False},
+            synchronize_session=False
+        )
+        
+        db.session.commit()
+        
+        logger.info(f"Unblocked all {updated_count} questions in course {course_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إلغاء منع {updated_count} سؤال من المنهج "{course.name}"',
+            'course_id': course_id,
+            'unblocked_count': updated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error unblocking all questions in course {course_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/<int:question_id>/block-status", methods=["GET"])
+def get_question_block_status(question_id):
+    """الحصول على حالة منع سؤال معين"""
+    try:
+        question = Question.query.get(question_id)
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'question_id': question_id,
+            'is_blocked': question.is_blocked
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting block status for question {question_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===== نهاية نظام التحكم بمنع الأسئلة =====

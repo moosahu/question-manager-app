@@ -256,6 +256,28 @@
                     </div>
                     <!-- ====================================== -->
                     
+                    <!-- قسم منع السؤال -->
+                    <div class="card border-warning mb-3">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-ban"></i> التحكم في ظهور السؤال</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_blocked" id="is_blocked" value="1"
+                                       {% if question and question.is_blocked %}checked{% endif %}>
+                                <label class="form-check-label" for="is_blocked">
+                                    <strong>🚫 منع هذا السؤال من الظهور في المنهج/الوحدة/الدرس</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> 
+                                <strong>ملاحظة:</strong> السؤال الممنوع لن يظهر عند عرض أسئلة الدرس أو الوحدة أو المنهج، 
+                                لكنه <strong>سيظهر في الاختبارات العشوائية</strong>.
+                            </small>
+                        </div>
+                    </div>
+                    <!-- نهاية قسم منع السؤال -->
+                    
                     <div class="card-body tex2jax_ignore">
                         <button type="submit" class="btn btn-primary w-100 mb-2">{{ submit_text }}</button>
                         <a href="{{ url_for('question.list_questions') }}" class="btn btn-secondary w-100">إلغاء</a>

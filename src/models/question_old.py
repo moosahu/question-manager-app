@@ -25,9 +25,6 @@ class Question(db.Model):
     # إضافة حقل الشرح وصورة الشرح
     explanation = db.Column(db.Text, nullable=True)
     explanation_image_path = db.Column(db.String(255), nullable=True)
-    
-    # حقل منع السؤال من الظهور في المنهج/الوحدة/الدرس
-    is_blocked = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
 

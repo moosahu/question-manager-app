@@ -1050,8 +1050,7 @@ def add_question():
                 lesson_id=lesson_id,
                 image_url=q_image_path,
                 explanation=request.form.get("explanation", "").strip() or None,
-                explanation_image_path=None,
-                is_blocked=(request.form.get("is_blocked") == "1")  # معالجة حقل منع السؤال
+                explanation_image_path=None
             )
             db.session.add(new_question)
             db.session.flush()
@@ -1493,7 +1492,6 @@ def edit_question(question_id):
             question.lesson_id = lesson_id
             question.image_url = q_image_path
             question.explanation = explanation or None
-            question.is_blocked = (request.form.get("is_blocked") == "1")  # معالجة حقل منع السؤال
             
             # Track existing options to determine which to delete
             existing_option_ids = {opt.option_id for opt in question.options}
