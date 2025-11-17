@@ -1172,6 +1172,32 @@
     
     <!-- JavaScript للتحكم بمنع الأسئلة -->
     <script>
+    // دالة للحصول على CSRF token
+    function getCSRFToken() {
+        // محاولة الحصول على token من meta tag
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            return metaToken.content;
+        }
+        
+        // محاولة الحصول على token من input مخفي
+        const inputToken = document.querySelector('input[name="csrf_token"]');
+        if (inputToken) {
+            return inputToken.value;
+        }
+        
+        // محاولة الحصول على token من cookie
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrf_token' || name === 'XSRF-TOKEN') {
+                return decodeURIComponent(value);
+            }
+        }
+        
+        return null;
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
         const checkboxes = document.querySelectorAll('.question-checkbox');
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
@@ -1221,9 +1247,15 @@
                 if (!confirm(`هل أنت متأكد من منع ${selectedIds.length} سؤال؟`)) return;
                 
                 try {
+                    const csrfToken = getCSRFToken();
+                    const headers = {'Content-Type': 'application/json'};
+                    if (csrfToken) {
+                        headers['X-CSRFToken'] = csrfToken;
+                    }
+                    
                     const response = await fetch('/api/v1/questions/bulk-block', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: headers,
                         body: JSON.stringify({question_ids: selectedIds})
                     });
                     
@@ -1251,9 +1283,15 @@
                 if (!confirm(`هل أنت متأكد من إلغاء منع ${selectedIds.length} سؤال؟`)) return;
                 
                 try {
+                    const csrfToken = getCSRFToken();
+                    const headers = {'Content-Type': 'application/json'};
+                    if (csrfToken) {
+                        headers['X-CSRFToken'] = csrfToken;
+                    }
+                    
                     const response = await fetch('/api/v1/questions/bulk-unblock', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: headers,
                         body: JSON.stringify({question_ids: selectedIds})
                     });
                     
