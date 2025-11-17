@@ -263,17 +263,13 @@
                             <div class="enhanced-card-wrapper">
                                 <div class="enhanced-card question-card">
                                     <!-- رأس البطاقة المحسّن -->
-                                    <div class="enhanced-header" {% if question.is_blocked %}style="background-color: #fff3cd;"{% endif %}>
+                                    <div class="enhanced-header">
                                         <div class="question-title-section">
                                             <div class="question-header-correct-layout">
-                                                <!-- الجانب الأيمن: checkbox + رقم السؤال ومعرف السؤال -->
-                                                <div class="right-section" style="display: flex; align-items: center; gap: 10px;">
-                                                    <input type="checkbox" class="question-checkbox" data-question-id="{{ question.question_id }}" style="width: 18px; height: 18px; cursor: pointer;">
+                                                <!-- الجانب الأيمن: رقم السؤال ومعرف السؤال -->
+                                                <div class="right-section">
                                                     <span class="question-number">سؤال {{ start_num + loop.index0 }}</span>
                                                     <span class="question-id-badge">#{{ question.question_id }}</span>
-                                                    {% if question.is_blocked %}
-                                                        <span class="badge bg-warning text-dark">ممنوع</span>
-                                                    {% endif %}
                                                 </div>
                                                 <!-- الجانب الأيسر: وسم المادة ووسم الصورة -->
                                                 <div class="left-section">
@@ -353,19 +349,10 @@
                                         
                                         <!-- قدم البطاقة المحسّن -->
                                         <div class="enhanced-footer">
-                                            <div class="enhanced-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                            <div class="enhanced-actions">
                                                 <a href="{{ url_for('question.edit_question', question_id=question.question_id) }}" class="edit-btn">
                                                     <i class="fas fa-edit"></i> تعديل
                                                 </a>
-                                                {% if question.is_blocked %}
-                                                <button type="button" class="btn btn-sm btn-success" onclick="toggleBlockQuestion({{ question.question_id }}, false)">
-                                                    <i class="fas fa-check"></i> إلغاء المنع
-                                                </button>
-                                                {% else %}
-                                                <button type="button" class="btn btn-sm btn-warning" onclick="toggleBlockQuestion({{ question.question_id }}, true)">
-                                                    <i class="fas fa-ban"></i> منع
-                                                </button>
-                                                {% endif %}
                                                 <form action="{{ url_for('question.delete_question', question_id=question.question_id) }}" method="POST" class="delete-form" onsubmit="return confirm('هل أنت متأكد من حذف هذا السؤال وجميع خياراته؟');">
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <button type="submit" class="delete-btn">
@@ -1366,33 +1353,6 @@
                 }
             });
         });
-        
-        // دالة لمنع/إلغاء منع سؤال واحد (للبطاقات)
-        window.toggleBlockQuestion = async function(questionId, shouldBlock) {
-            try {
-                const csrfToken = getCSRFToken();
-                const headers = {'Content-Type': 'application/json'};
-                if (csrfToken) {
-                    headers['X-CSRFToken'] = csrfToken;
-                }
-                
-                const endpoint = shouldBlock ? 'block' : 'unblock';
-                const response = await fetch(`/api/v1/questions/${questionId}/${endpoint}`, {
-                    method: 'PUT',
-                    headers: headers
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('خطأ: ' + data.error);
-                }
-            } catch (error) {
-                alert('حدث خطأ: ' + error.message);
-            }
-        };
     });
     </script>
     {% endblock %}
