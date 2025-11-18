@@ -561,15 +561,12 @@ let showCorrectAnswerMode = false;
 
 // دالة للحصول على CSRF Token
 function getCSRFToken() {
-    // البحث في meta tag
     const metaTag = document.querySelector('meta[name="csrf-token"]');
     if (metaTag) return metaTag.getAttribute('content');
     
-    // البحث في hidden input
     const hiddenInput = document.querySelector('input[name="csrf_token"]');
     if (hiddenInput) return hiddenInput.value;
     
-    // البحث في cookies
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
@@ -583,31 +580,24 @@ function getCSRFToken() {
 document.addEventListener('DOMContentLoaded', async function() {
     await loadCourses();
     
-    // إضافة مستمعات الأحداث
     document.getElementById('courseSelect').addEventListener('change', onCourseChange);
     document.getElementById('unitSelect').addEventListener('change', onUnitChange);
     document.getElementById('startQuizBtn').addEventListener('click', startQuiz);
 });
 
-// تحميل المناهج
+// تحميل المناهج - استخدام API الموجودة
 async function loadCourses() {
     try {
-        const response = await fetch('/api/v1/quiz/courses', {
-            headers: {
-                'X-CSRFToken': getCSRFToken()
-            }
-        });
+        const response = await fetch('/api/v1/courses');
         const data = await response.json();
         
-        if (data.success) {
-            const courseSelect = document.getElementById('courseSelect');
-            data.courses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = `${course.name} (${course.question_count} سؤال)`;
-                courseSelect.appendChild(option);
-            });
-        }
+        const courseSelect = document.getElementById('courseSelect');
+        data.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.name;
+            courseSelect.appendChild(option);
+        });
     } catch (error) {
         console.error('Error loading courses:', error);
         alert('حدث خطأ في تحميل المناهج');
@@ -621,7 +611,6 @@ async function onCourseChange() {
     const lessonSelect = document.getElementById('lessonSelect');
     const startBtn = document.getElementById('startQuizBtn');
     
-    // إعادة تعيين الوحدات والدروس
     unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
     lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
     lessonSelect.disabled = true;
@@ -630,23 +619,16 @@ async function onCourseChange() {
         unitSelect.disabled = false;
         startBtn.disabled = false;
         
-        // تحميل الوحدات
         try {
-            const response = await fetch(`/api/v1/quiz/units/${courseId}`, {
-                headers: {
-                    'X-CSRFToken': getCSRFToken()
-                }
-            });
+            const response = await fetch(`/api/v1/courses/${courseId}/units`);
             const data = await response.json();
             
-            if (data.success) {
-                data.units.forEach(unit => {
-                    const option = document.createElement('option');
-                    option.value = unit.id;
-                    option.textContent = `${unit.name} (${unit.question_count} سؤال)`;
-                    unitSelect.appendChild(option);
-                });
-            }
+            data.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                unitSelect.appendChild(option);
+            });
         } catch (error) {
             console.error('Error loading units:', error);
         }
@@ -661,29 +643,21 @@ async function onUnitChange() {
     const unitId = this.value;
     const lessonSelect = document.getElementById('lessonSelect');
     
-    // إعادة تعيين الدروس
     lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
     
     if (unitId) {
         lessonSelect.disabled = false;
         
-        // تحميل الدروس
         try {
-            const response = await fetch(`/api/v1/quiz/lessons/${unitId}`, {
-                headers: {
-                    'X-CSRFToken': getCSRFToken()
-                }
-            });
+            const response = await fetch(`/api/v1/units/${unitId}/lessons`);
             const data = await response.json();
             
-            if (data.success) {
-                data.lessons.forEach(lesson => {
-                    const option = document.createElement('option');
-                    option.value = lesson.id;
-                    option.textContent = `${lesson.name} (${lesson.question_count} سؤال)`;
-                    lessonSelect.appendChild(option);
-                });
-            }
+            data.forEach(lesson => {
+                const option = document.createElement('option');
+                option.value = lesson.id;
+                option.textContent = lesson.name;
+                lessonSelect.appendChild(option);
+            });
         } catch (error) {
             console.error('Error loading lessons:', error);
         }
@@ -692,7 +666,7 @@ async function onUnitChange() {
     }
 }
 
-// بدء الاختبار
+// بدء الاختبار - استخدام API الموجودة
 async function startQuiz() {
     const courseId = document.getElementById('courseSelect').value;
     const unitId = document.getElementById('unitSelect').value;
@@ -705,36 +679,35 @@ async function startQuiz() {
         return;
     }
     
-    // بناء URL
-    let url = `/api/v1/quiz/questions?random=${randomOrder}`;
+    // بناء URL حسب الاختيار
+    let url;
     if (lessonId) {
-        url += `&lesson_id=${lessonId}`;
+        url = `/api/v1/lessons/${lessonId}/questions`;
     } else if (unitId) {
-        url += `&unit_id=${unitId}`;
+        url = `/api/v1/units/${unitId}/questions`;
     } else {
-        url += `&course_id=${courseId}`;
+        url = `/api/v1/courses/${courseId}/questions`;
     }
     
     try {
-        const response = await fetch(url, {
-            headers: {
-                'X-CSRFToken': getCSRFToken()
-            }
-        });
-        const data = await response.json();
+        const response = await fetch(url);
+        let data = await response.json();
         
-        if (data.success && data.questions.length > 0) {
-            questions = data.questions;
+        if (data && data.length > 0) {
+            // ترتيب عشوائي إذا كان مطلوباً
+            if (randomOrder) {
+                data = data.sort(() => Math.random() - 0.5);
+            }
+            
+            questions = data;
             userAnswers = new Array(questions.length).fill(null);
             currentQuestionIndex = 0;
             correctCount = 0;
             
-            // إخفاء قسم الاختيار وإظهار الاختبار
             document.getElementById('quizSelector').classList.add('hidden');
             document.getElementById('progressContainer').classList.remove('hidden');
             document.getElementById('questionCard').classList.add('active');
             
-            // عرض السؤال الأول
             displayQuestion();
         } else {
             alert('لا توجد أسئلة متاحة في النطاق المحدد');
@@ -749,30 +722,25 @@ async function startQuiz() {
 function displayQuestion() {
     const question = questions[currentQuestionIndex];
     
-    // تحديث شريط التقدم
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
     document.getElementById('progressText').textContent = `السؤال ${currentQuestionIndex + 1} من ${questions.length}`;
     document.getElementById('progressBarFill').style.width = `${progress}%`;
     
-    // تحديث رأس السؤال
     document.getElementById('questionNumber').textContent = `السؤال ${currentQuestionIndex + 1}`;
-    document.getElementById('courseName').textContent = question.course_name;
-    document.getElementById('unitName').textContent = question.unit_name;
-    document.getElementById('lessonName').textContent = question.lesson_name;
+    document.getElementById('courseName').textContent = question.course_name || 'غير محدد';
+    document.getElementById('unitName').textContent = question.unit_name || 'غير محدد';
+    document.getElementById('lessonName').textContent = question.lesson_name || 'غير محدد';
     
-    // عرض نص السؤال
-    document.getElementById('questionText').textContent = question.question_text;
+    document.getElementById('questionText').textContent = question.question_text || '';
     
-    // عرض صورة السؤال إن وجدت
     const questionImage = document.getElementById('questionImage');
-    if (question.question_image) {
-        questionImage.src = question.question_image;
+    if (question.image_url) {
+        questionImage.src = question.image_url;
         questionImage.classList.remove('hidden');
     } else {
         questionImage.classList.add('hidden');
     }
     
-    // عرض الخيارات
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = '';
     
@@ -783,17 +751,18 @@ function displayQuestion() {
         optionDiv.dataset.optionId = option.option_id;
         optionDiv.dataset.isCorrect = option.is_correct;
         
-        // إذا كان المستخدم قد أجاب على هذا السؤال مسبقاً
         if (userAnswers[currentQuestionIndex] === option.option_id) {
             optionDiv.classList.add('selected');
         }
         
+        let optionContent = option.option_text || '';
+        if (option.image_url) {
+            optionContent += `<br><img src="${option.image_url}" class="option-image" alt="صورة الخيار">`;
+        }
+        
         optionDiv.innerHTML = `
             <div class="option-letter">${letters[index]}</div>
-            <div class="option-text">
-                ${option.option_text}
-                ${option.option_image ? `<br><img src="${option.option_image}" class="option-image" alt="صورة الخيار">` : ''}
-            </div>
+            <div class="option-text">${optionContent}</div>
         `;
         
         optionDiv.addEventListener('click', function() {
@@ -803,7 +772,6 @@ function displayQuestion() {
         optionsContainer.appendChild(optionDiv);
     });
     
-    // تحديث أزرار التحكم
     document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
     document.getElementById('nextBtn').classList.toggle('hidden', currentQuestionIndex === questions.length - 1);
     document.getElementById('finishBtn').classList.toggle('hidden', currentQuestionIndex !== questions.length - 1);
@@ -812,18 +780,12 @@ function displayQuestion() {
 
 // اختيار خيار
 function selectOption(optionElement) {
-    // إزالة التحديد من جميع الخيارات
     document.querySelectorAll('.option-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-    // تحديد الخيار الحالي
     optionElement.classList.add('selected');
-    
-    // حفظ الإجابة
     userAnswers[currentQuestionIndex] = parseInt(optionElement.dataset.optionId);
-    
-    // تفعيل زر التحقق
     document.getElementById('checkBtn').disabled = false;
 }
 
@@ -842,7 +804,6 @@ function checkAnswer() {
         selectedOption.classList.add('incorrect');
         
         if (showCorrectAnswerMode) {
-            // إظهار الإجابة الصحيحة
             document.querySelectorAll('.option-item').forEach(item => {
                 if (item.dataset.isCorrect === 'true') {
                     item.classList.add('correct');
@@ -853,13 +814,11 @@ function checkAnswer() {
         alert('❌ إجابة خاطئة!');
     }
     
-    // تعطيل جميع الخيارات
     document.querySelectorAll('.option-item').forEach(item => {
         item.classList.add('disabled');
         item.style.pointerEvents = 'none';
     });
     
-    // إخفاء زر التحقق
     document.getElementById('checkBtn').classList.add('hidden');
 }
 
@@ -868,14 +827,11 @@ function nextQuestion() {
     if (currentQuestionIndex < questions.length - 1) {
         currentQuestionIndex++;
         
-        // إعادة تفعيل الخيارات
         document.querySelectorAll('.option-item').forEach(item => {
             item.style.pointerEvents = 'auto';
         });
         
-        // إظهار زر التحقق
         document.getElementById('checkBtn').classList.remove('hidden');
-        
         displayQuestion();
     }
 }
@@ -885,30 +841,24 @@ function previousQuestion() {
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
         
-        // إعادة تفعيل الخيارات
         document.querySelectorAll('.option-item').forEach(item => {
             item.style.pointerEvents = 'auto';
         });
         
-        // إظهار زر التحقق
         document.getElementById('checkBtn').classList.remove('hidden');
-        
         displayQuestion();
     }
 }
 
 // إنهاء الاختبار
 function finishQuiz() {
-    // حساب النتيجة
     const totalQuestions = questions.length;
     const incorrectCount = totalQuestions - correctCount;
     const scorePercentage = ((correctCount / totalQuestions) * 100).toFixed(1);
     
-    // إخفاء بطاقة السؤال وشريط التقدم
     document.getElementById('questionCard').classList.remove('active');
     document.getElementById('progressContainer').classList.add('hidden');
     
-    // عرض النتيجة
     document.getElementById('resultScore').textContent = `${scorePercentage}%`;
     document.getElementById('totalQuestions').textContent = totalQuestions;
     document.getElementById('correctAnswers').textContent = correctCount;
