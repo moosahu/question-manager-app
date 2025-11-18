@@ -1327,10 +1327,10 @@ function spinWheel() {
     spinTimeout = setTimeout(() => {
         const sliceAngle = 360 / studentNames.length;
         const normalizedRotation = ((currentRotation % 360) + 360) % 360;
-        // السهم في الأعلى يشير إلى 90 درجة (12 o'clock position)
+        // السهم في الأعلى يشير إلى 270 درجة (لأن الرسم يبدأ من اليمين)
         // نحسب أي قطاع يقع تحت السهم
-        const pointerAngle = 90; // السهم في الأعلى
-        const adjustedAngle = (pointerAngle - normalizedRotation + 360) % 360;
+        const pointerAngle = 270; // السهم في الأعلى
+        const adjustedAngle = (normalizedRotation + pointerAngle) % 360;
         const winnerIndex = Math.floor(adjustedAngle / sliceAngle) % studentNames.length;
         const winner = studentNames[winnerIndex];
         
