@@ -123,7 +123,7 @@
         transform: none;
     }
 
-    /* بطاقة السؤال - التصميم الجديد */
+    /* بطاقة السؤال */
     .question-card {
         background: white;
         border-radius: 15px;
@@ -149,13 +149,11 @@
         }
     }
 
-    /* شريط ملون في الأعلى */
     .card-top-bar {
         height: 8px;
         background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
     }
 
-    /* رأس البطاقة */
     .card-header {
         padding: 20px 30px;
         display: flex;
@@ -204,7 +202,6 @@
         font-weight: 600;
     }
 
-    /* محتوى السؤال */
     .question-content {
         background: #f3f4f6;
         margin: 0 20px 20px 20px;
@@ -223,7 +220,6 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
-    /* الخيارات */
     .options-container {
         padding: 0 20px 20px 20px;
     }
@@ -293,7 +289,6 @@
         margin-top: 10px;
     }
 
-    /* معلومات الدرس والوحدة */
     .card-footer {
         padding: 20px 30px;
         background: #f9fafb;
@@ -483,14 +478,14 @@
         display: none !important;
     }
 
-    /* Random Name Picker Modal */
+    /* Name Picker Modal - شاشة عرض الأسماء */
     .modal-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.8);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -507,14 +502,12 @@
 
     .modal-content {
         background: white;
-        padding: 30px;
+        padding: 40px;
         border-radius: 20px;
         width: 90%;
         max-width: 600px;
-        max-height: 90vh;
-        overflow-y: auto;
         text-align: center;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
         transform: scale(0.9);
         transition: transform 0.3s;
     }
@@ -525,8 +518,8 @@
 
     .modal-content h3 {
         color: #3b82f6;
-        margin-bottom: 20px;
-        font-size: 1.8rem;
+        margin-bottom: 25px;
+        font-size: 2rem;
     }
 
     .modal-content h3 i {
@@ -538,11 +531,11 @@
         padding: 12px;
         border: 2px solid #e0e0e0;
         border-radius: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
         font-size: 1rem;
         font-family: inherit;
         resize: vertical;
-        min-height: 80px;
+        min-height: 100px;
     }
 
     #studentNames:focus {
@@ -551,92 +544,71 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
-    #wheelContainer {
-        position: relative;
-        width: 350px;
-        height: 350px;
-        margin: 30px auto;
-    }
-
-    #wheelCanvas {
-        border-radius: 50%;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-    }
-
-    #spinBtn {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-        border: 6px solid white;
-        font-weight: bold;
-        font-size: 1.1rem;
+    /* شاشة عرض الأسماء */
+    #nameDisplay {
+        background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
         color: white;
-        cursor: pointer;
-        z-index: 2;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        transition: all 0.3s;
-    }
-
-    #spinBtn:hover {
-        transform: translate(-50%, -50%) scale(1.1);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-    }
-
-    #spinBtn:active {
-        transform: translate(-50%, -50%) scale(0.95);
-    }
-
-    #spinBtn:disabled {
-        background: #d1d5db;
-        cursor: not-allowed;
-        transform: translate(-50%, -50%);
-    }
-
-    #wheelContainer::before {
-        content: '▼';
-        font-size: 40px;
-        color: #ef4444;
-        position: absolute;
-        top: -20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 3;
-        text-shadow: 0 3px 6px rgba(0,0,0,0.3);
-    }
-
-    #winnerDisplay {
-        margin-top: 25px;
-        padding: 20px;
-        font-size: 1.8rem;
+        padding: 60px 40px;
+        border-radius: 20px;
+        font-size: 3rem;
         font-weight: bold;
-        color: #10b981;
-        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-        border-radius: 15px;
-        min-height: 70px;
+        margin: 30px 0;
+        min-height: 200px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+        transition: all 0.3s ease;
     }
 
-    #winnerDisplay.empty {
-        background: #f3f4f6;
-        color: #9ca3af;
-        font-size: 1.2rem;
-        font-weight: normal;
+    #nameDisplay.rolling {
+        animation: pulse 0.1s infinite;
     }
 
-    .modal-buttons {
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    #nameDisplay.winner {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        animation: celebrate 0.6s ease;
+    }
+
+    @keyframes celebrate {
+        0%, 100% { transform: scale(1); }
+        25% { transform: scale(1.1) rotate(-5deg); }
+        75% { transform: scale(1.1) rotate(5deg); }
+    }
+
+    .control-buttons {
         display: flex;
-        gap: 10px;
-        margin-top: 20px;
+        gap: 15px;
         justify-content: center;
+        margin-top: 25px;
+    }
+
+    .btn-start-pick {
+        background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        color: white;
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+
+    .btn-start-pick:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-start-pick:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+        transform: none;
     }
 
     .modal-close-btn {
@@ -667,24 +639,10 @@
             width: 100%;
         }
 
-        #wheelContainer {
-            width: 280px;
-            height: 280px;
-        }
-
-        #wheelCanvas {
-            width: 280px !important;
-            height: 280px !important;
-        }
-
-        #spinBtn {
-            width: 70px;
-            height: 70px;
-            font-size: 0.9rem;
-        }
-
-        #winnerDisplay {
-            font-size: 1.4rem;
+        #nameDisplay {
+            font-size: 2rem;
+            padding: 40px 20px;
+            min-height: 150px;
         }
     }
 </style>
@@ -749,10 +707,8 @@
 
     <!-- بطاقة السؤال -->
     <div class="question-card" id="questionCard">
-        <!-- شريط ملون -->
         <div class="card-top-bar"></div>
         
-        <!-- رأس البطاقة -->
         <div class="card-header">
             <div class="card-header-right">
                 <span class="question-id-badge" id="questionIdBadge">#1</span>
@@ -762,16 +718,13 @@
             <span class="lesson-badge" id="lessonBadge">كيمياء 1-2</span>
         </div>
 
-        <!-- محتوى السؤال -->
         <div class="question-content">
             <div id="questionText"></div>
             <img class="question-image hidden" id="questionImage" alt="صورة السؤال">
         </div>
 
-        <!-- الخيارات -->
         <div class="options-container" id="optionsContainer"></div>
 
-        <!-- معلومات الدرس والوحدة -->
         <div class="card-footer">
             <div class="footer-info">
                 <div class="footer-item">
@@ -836,24 +789,24 @@
     </div>
 </div>
 
-<!-- Random Name Picker Modal -->
+<!-- Name Picker Modal - شاشة اختيار الطالب -->
 <div class="modal-overlay" id="namePickerModal">
     <div class="modal-content">
-        <h3><i class="fas fa-dharmachakra"></i> عجلة اختيار الطلاب</h3>
+        <h3><i class="fas fa-random"></i> اختيار طالب عشوائي</h3>
+        
         <p style="color: #6b7280; margin-bottom: 15px;">أدخل أسماء الطلاب (كل اسم في سطر جديد)</p>
         
-        <textarea id="studentNames" rows="4" placeholder="محمد أحمد&#10;فاطمة علي&#10;عمر خالد&#10;نورة سعد"></textarea>
+        <textarea id="studentNames" rows="5" placeholder="محمد أحمد&#10;فاطمة علي&#10;عمر خالد&#10;نورة سعد&#10;سارة محمود"></textarea>
         
-        <div id="wheelContainer">
-            <canvas id="wheelCanvas" width="350" height="350"></canvas>
-            <button id="spinBtn" onclick="spinWheel()">دوّر</button>
-        </div>
-
-        <div id="winnerDisplay" class="empty">
-            <span>اضغط على زر "دوّر" لاختيار طالب</span>
+        <!-- شاشة عرض الأسماء -->
+        <div id="nameDisplay">
+            <span id="displayedName">اضغط على "ابدأ" لاختيار طالب</span>
         </div>
         
-        <div class="modal-buttons">
+        <div class="control-buttons">
+            <button class="btn-start-pick" id="startPickBtn" onclick="startNamePicking()">
+                <i class="fas fa-play"></i> ابدأ
+            </button>
             <button class="quiz-btn modal-close-btn" onclick="closeNamePicker()">
                 <i class="fas fa-times"></i> إغلاق
             </button>
@@ -872,20 +825,15 @@ let selectedCourseName = '';
 let selectedUnitName = '';
 let selectedLessonName = '';
 
-// متغيرات عجلة الأسماء
+// متغيرات اختيار الأسماء
 const namePickerModal = document.getElementById('namePickerModal');
 const studentNamesInput = document.getElementById('studentNames');
-const wheelCanvas = document.getElementById('wheelCanvas');
-const winnerDisplay = document.getElementById('winnerDisplay');
-const spinBtn = document.getElementById('spinBtn');
-const ctx = wheelCanvas.getContext('2d');
+const nameDisplay = document.getElementById('nameDisplay');
+const displayedName = document.getElementById('displayedName');
+const startPickBtn = document.getElementById('startPickBtn');
 let studentNames = [];
-let currentRotation = 0;
-let isSpinning = false;
-let spinTimeout = null;
-
-// ألوان العجلة
-const wheelColors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
+let isRolling = false;
+let rollingInterval = null;
 
 // دالة للحصول على CSRF Token
 function getCSRFToken() {
@@ -911,12 +859,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('courseSelect').addEventListener('change', onCourseChange);
     document.getElementById('unitSelect').addEventListener('change', onUnitChange);
     document.getElementById('startQuizBtn').addEventListener('click', startQuiz);
-    
-    // تحديث العجلة عند تغيير الأسماء
-    studentNamesInput.addEventListener('input', updateWheel);
-    
-    // رسم العجلة الأولية
-    drawWheel();
 });
 
 // تحميل المناهج
@@ -1017,7 +959,6 @@ async function startQuiz() {
         return;
     }
     
-    // حفظ أسماء المنهج والوحدة والدرس
     selectedCourseName = courseSelect.options[courseSelect.selectedIndex].text;
     selectedUnitName = unitId ? unitSelect.options[unitSelect.selectedIndex].text : 'غير محدد';
     selectedLessonName = lessonId ? lessonSelect.options[lessonSelect.selectedIndex].text : 'غير محدد';
@@ -1070,7 +1011,6 @@ function displayQuestion() {
     document.getElementById('questionIdBadge').textContent = `#${question.question_id}`;
     document.getElementById('questionTitle').textContent = `سؤال ${currentQuestionIndex + 1}`;
     
-    // استخدام الأسماء المحفوظة بدلاً من API
     document.getElementById('lessonBadge').textContent = selectedCourseName;
     document.getElementById('lessonName').textContent = selectedLessonName;
     document.getElementById('unitName').textContent = selectedUnitName;
@@ -1215,87 +1155,29 @@ function finishQuiz() {
     document.getElementById('quizResult').classList.add('active');
 }
 
-// --- وظائف عجلة الأسماء ---
+// --- وظائف اختيار الأسماء ---
 
-// رسم العجلة
-function drawWheel() {
-    ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-    
-    if (studentNames.length === 0) {
-        // رسم دائرة رمادية فارغة
-        ctx.fillStyle = '#e5e7eb';
-        ctx.beginPath();
-        ctx.arc(175, 175, 175, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = 'bold 18px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('أدخل أسماء الطلاب', 175, 175);
-        return;
-    }
-    
-    const sliceAngle = (2 * Math.PI) / studentNames.length;
-    
-    studentNames.forEach((name, index) => {
-        const startAngle = index * sliceAngle;
-        const endAngle = startAngle + sliceAngle;
-        
-        // رسم القطاع
-        ctx.fillStyle = wheelColors[index % wheelColors.length];
-        ctx.beginPath();
-        ctx.moveTo(175, 175);
-        ctx.arc(175, 175, 175, startAngle, endAngle);
-        ctx.closePath();
-        ctx.fill();
-        
-        // رسم الحدود
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        // كتابة الاسم
-        ctx.save();
-        ctx.translate(175, 175);
-        ctx.rotate(startAngle + sliceAngle / 2);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText(name, 100, 0);
-        ctx.restore();
-    });
-}
-
-// تحديث العجلة عند تغيير الأسماء
-function updateWheel() {
-    studentNames = studentNamesInput.value
-        .split('\n')
-        .map(name => name.trim())
-        .filter(name => name !== '');
-    
-    winnerDisplay.textContent = 'اضغط على زر "دوّر" لاختيار طالب';
-    winnerDisplay.className = 'empty';
-    drawWheel();
-}
-
-// فتح نافذة عجلة الأسماء
+// فتح نافذة اختيار الأسماء
 function openNamePicker() {
     namePickerModal.classList.add('active');
-    updateWheel();
+    displayedName.textContent = 'اضغط على "ابدأ" لاختيار طالب';
+    nameDisplay.className = '';
+    startPickBtn.disabled = false;
 }
 
-// إغلاق نافذة عجلة الأسماء
+// إغلاق نافذة اختيار الأسماء
 function closeNamePicker() {
     namePickerModal.classList.remove('active');
-    clearTimeout(spinTimeout);
+    if (rollingInterval) {
+        clearInterval(rollingInterval);
+        rollingInterval = null;
+    }
+    isRolling = false;
 }
 
-// دوران العجلة
-function spinWheel() {
-    if (isSpinning) return;
-    
+// بدء عملية اختيار الأسماء
+function startNamePicking() {
+    // قراءة الأسماء من الحقل النصي
     studentNames = studentNamesInput.value
         .split('\n')
         .map(name => name.trim())
@@ -1306,40 +1188,40 @@ function spinWheel() {
         return;
     }
     
-    isSpinning = true;
-    spinBtn.disabled = true;
-    winnerDisplay.textContent = '🎲 جاري الاختيار...';
-    winnerDisplay.className = 'empty';
+    if (isRolling) return;
     
-    // حساب زاوية الدوران العشوائية (5-10 دورات كاملة + زاوية عشوائية)
-    const minRotations = 5;
-    const maxRotations = 10;
-    const randomRotations = minRotations + Math.random() * (maxRotations - minRotations);
-    const randomDegree = Math.random() * 360;
-    const totalRotation = (randomRotations * 360) + randomDegree;
+    isRolling = true;
+    startPickBtn.disabled = true;
+    nameDisplay.className = 'rolling';
     
-    currentRotation += totalRotation;
+    let counter = 0;
+    const maxIterations = 30 + Math.floor(Math.random() * 20); // 30-50 تكرار
     
-    // تطبيق الدوران
-    wheelCanvas.style.transform = `rotate(${currentRotation}deg)`;
-    
-    // حساب الفائز بعد انتهاء الدوران
-    spinTimeout = setTimeout(() => {
-        const sliceAngle = 360 / studentNames.length;
-        const normalizedRotation = ((currentRotation % 360) + 360) % 360;
-        // السهم في الأعلى يشير إلى 270 درجة (لأن الرسم يبدأ من اليمين)
-        // نحسب أي قطاع يقع تحت السهم
-        const pointerAngle = 270; // السهم في الأعلى
-        const adjustedAngle = (normalizedRotation + pointerAngle) % 360;
-        const winnerIndex = Math.floor(adjustedAngle / sliceAngle) % studentNames.length;
-        const winner = studentNames[winnerIndex];
+    // عرض الأسماء بشكل سريع
+    rollingInterval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * studentNames.length);
+        displayedName.textContent = studentNames[randomIndex];
         
-        winnerDisplay.innerHTML = `🎉 <strong>${winner}</strong> 🎉`;
-        winnerDisplay.className = '';
+        counter++;
         
-        isSpinning = false;
-        spinBtn.disabled = false;
-    }, 5000);
+        // تباطؤ تدريجي
+        if (counter >= maxIterations) {
+            clearInterval(rollingInterval);
+            
+            // اختيار الفائز النهائي
+            const winnerIndex = Math.floor(Math.random() * studentNames.length);
+            displayedName.textContent = studentNames[winnerIndex];
+            
+            // تأثير الفوز
+            nameDisplay.className = 'winner';
+            
+            setTimeout(() => {
+                nameDisplay.className = '';
+                isRolling = false;
+                startPickBtn.disabled = false;
+            }, 2000);
+        }
+    }, 50); // تغيير الاسم كل 50 ميلي ثانية
 }
 
 // إغلاق النافذة المنبثقة عند الضغط خارجها
