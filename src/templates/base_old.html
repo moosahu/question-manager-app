@@ -6,6 +6,8 @@
     <title>إدارة الأسئلة الكيميائية</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Toastr CSS for popup notifications -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     {% block head_extra %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -63,15 +65,7 @@
         </nav>
     </header>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category }} flash" role="alert">
-                {{ message }}
-            </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    <!-- Flash messages will be handled by JavaScript and Toastr -->
 
     <main class="{% block main_class %}default-main{% endblock %}">
         {% block content %}{% endblock %}
@@ -90,15 +84,48 @@
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <!-- Toastr JavaScript for popup notifications -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    
     <script>
-        // إخفاء الرسائل بعد 5 ثوانٍ تلقائيًا
-        setTimeout(() => {
-            document.querySelectorAll('.flash').forEach(flash => {
-                flash.style.transition = 'opacity 0.5s ease';
-                flash.style.opacity = '0';
-                setTimeout(() => flash.remove(), 500);
-            });
-        }, 5000);
+        // إعداد Toastr
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+        // عرض رسائل الفلاش كإشعارات منبثقة
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category == 'success' %}
+                        toastr.success("{{ message }}");
+                    {% elif category == 'error' or category == 'danger' %}
+                        toastr.error("{{ message }}");
+                    {% elif category == 'warning' %}
+                        toastr.warning("{{ message }}");
+                    {% elif category == 'info' %}
+                        toastr.info("{{ message }}");
+                    {% else %}
+                        toastr.info("{{ message }}");
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
         // تحسين تجربة المستخدم
         document.addEventListener('DOMContentLoaded', function() {

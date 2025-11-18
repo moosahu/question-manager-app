@@ -45,6 +45,7 @@
                     <li><a href="{{ url_for('curriculum.list_courses') }}" {% if request.endpoint == 'curriculum.list_courses' %}class="active"{% endif %}><i class="fas fa-flask"></i> إدارة المنهج</a></li>
                     <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
                     <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                    <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
                     <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-user-cog"></i> تغير كلمة المرور</a></li>
                     <li><a href="{{ url_for('settings.index') }}" {% if request.endpoint == 'settings.index' %}class="active"{% endif %}><i class="fas fa-cog"></i> الإعدادات</a></li>
                     <li><a href="{{ url_for('view_notifications') }}" class="notifications-nav-link {% if request.endpoint == 'view_notifications' %}active{% endif %}">
