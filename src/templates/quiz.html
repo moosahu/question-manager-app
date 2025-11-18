@@ -644,6 +644,9 @@ let currentQuestionIndex = 0;
 let userAnswers = [];
 let correctCount = 0;
 let showCorrectAnswerMode = false;
+let selectedCourseName = '';
+let selectedUnitName = '';
+let selectedLessonName = '';
 
 // دالة للحصول على CSRF Token
 function getCSRFToken() {
@@ -754,9 +757,13 @@ async function onUnitChange() {
 
 // بدء الاختبار
 async function startQuiz() {
-    const courseId = document.getElementById('courseSelect').value;
-    const unitId = document.getElementById('unitSelect').value;
-    const lessonId = document.getElementById('lessonSelect').value;
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    const courseId = courseSelect.value;
+    const unitId = unitSelect.value;
+    const lessonId = lessonSelect.value;
     const randomOrder = document.getElementById('randomOrder').checked;
     showCorrectAnswerMode = document.getElementById('showCorrectAnswer').checked;
     
@@ -764,6 +771,11 @@ async function startQuiz() {
         alert('الرجاء اختيار منهج على الأقل');
         return;
     }
+    
+    // حفظ أسماء المنهج والوحدة والدرس
+    selectedCourseName = courseSelect.options[courseSelect.selectedIndex].text;
+    selectedUnitName = unitId ? unitSelect.options[unitSelect.selectedIndex].text : 'غير محدد';
+    selectedLessonName = lessonId ? lessonSelect.options[lessonSelect.selectedIndex].text : 'غير محدد';
     
     let url;
     if (lessonId) {
@@ -812,9 +824,11 @@ function displayQuestion() {
     
     document.getElementById('questionIdBadge').textContent = `#${question.question_id}`;
     document.getElementById('questionTitle').textContent = `سؤال ${currentQuestionIndex + 1}`;
-    document.getElementById('lessonBadge').textContent = question.lesson_name || 'غير محدد';
-    document.getElementById('lessonName').textContent = question.lesson_name || 'غير محدد';
-    document.getElementById('unitName').textContent = question.unit_name || 'غير محدد';
+    
+    // استخدام الأسماء المحفوظة بدلاً من API
+    document.getElementById('lessonBadge').textContent = selectedLessonName;
+    document.getElementById('lessonName').textContent = selectedLessonName;
+    document.getElementById('unitName').textContent = selectedUnitName;
     
     document.getElementById('questionText').textContent = question.question_text || '';
     
@@ -839,9 +853,19 @@ function displayQuestion() {
             optionDiv.classList.add('selected');
         }
         
-        let optionContent = option.option_text || '';
+        // التحقق إذا كان option_text يحتوي على URL صورة
+        let optionContent = '';
         if (option.image_url) {
-            optionContent += `<br><img src="${option.image_url}" class="option-image" alt="صورة الخيار">`;
+            // إذا كان هناك image_url، نعرض الصورة فقط
+            optionContent = `<img src="${option.image_url}" class="option-image" alt="صورة الخيار">`;
+        } else if (option.option_text) {
+            // إذا كان option_text يبدأ بـ http، نعرضه كصورة
+            if (option.option_text.startsWith('http')) {
+                optionContent = `<img src="${option.option_text}" class="option-image" alt="صورة الخيار">`;
+            } else {
+                // نص عادي
+                optionContent = option.option_text;
+            }
         }
         
         optionDiv.innerHTML = `
