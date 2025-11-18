@@ -23,6 +23,7 @@
         margin: 0;
         font-size: 2.5rem;
         font-weight: bold;
+        color: white;
     }
 
     .quiz-header p {
@@ -826,7 +827,7 @@ function displayQuestion() {
     document.getElementById('questionTitle').textContent = `سؤال ${currentQuestionIndex + 1}`;
     
     // استخدام الأسماء المحفوظة بدلاً من API
-    document.getElementById('lessonBadge').textContent = selectedLessonName;
+    document.getElementById('lessonBadge').textContent = selectedCourseName; // عرض اسم المنهج في Badge
     document.getElementById('lessonName').textContent = selectedLessonName;
     document.getElementById('unitName').textContent = selectedUnitName;
     
