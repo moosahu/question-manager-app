@@ -1634,13 +1634,3 @@ def delete_question(question_id):
         flash("حدث خطأ أثناء محاولة حذف السؤال.", "danger")
     
     return redirect(url_for("question.list_questions"))
-
-
-# ===== Route لصفحة الاختبار التفاعلي =====
-@question_bp.route('/quiz')
-@login_required
-def quiz():
-    """
-    صفحة الاختبار التفاعلي
-    """
-    return render_template('quiz.html')
