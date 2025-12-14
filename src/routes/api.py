@@ -3664,7 +3664,7 @@ def generate_exam():
 
 @api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/lessons", methods=["GET"])
 @login_required
-def get_unit_lessons(course_id, unit_id):
+def get_unit_lessons_export(course_id, unit_id):
     """
     الحصول على جميع دروس وحدة معينة
     """
