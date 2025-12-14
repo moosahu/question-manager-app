@@ -1927,7 +1927,7 @@ def export_exam_pdf():
         exam_title = data.get('exam_title', 'نموذج الاختبار')
         
         # الحصول على الأسئلة
-        questions = Question.query.filter(Question.id.in_(question_ids)).all()
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
         
         if not questions:
             return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
