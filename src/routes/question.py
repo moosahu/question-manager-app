@@ -1936,7 +1936,7 @@ def export_exam_pdf():
         questions_data = []
         for q in questions:
             question_dict = {
-                'id': q.id,
+                'id': q.question_id,
                 'text': q.text,
                 'type': q.type,
                 'options': []
