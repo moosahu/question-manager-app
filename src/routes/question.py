@@ -14,7 +14,6 @@ from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.orm import joinedload, contains_eager
 from flask_wtf import FlaskForm # إضافة استيراد FlaskForm
-from flask_wtf.csrf import csrf_exempt
 
 # Import Cloudinary
 import cloudinary
@@ -1787,7 +1786,6 @@ def header_settings():
 
 
 @question_bp.route('/save-header-settings', methods=['POST'])
-@csrf_exempt
 @login_required
 def save_header_settings():
     """حفظ إعدادات الكليشة في قاعدة البيانات"""

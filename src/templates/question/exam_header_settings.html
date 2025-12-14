@@ -11,8 +11,7 @@
                     <h2 class="mb-0">⚡️ إعدادات الكليشة (رأس الاختبار)</h2>
                 </div>
                 <div class="card-body p-4">
-                    <form id="headerSettingsForm">
-                        {{ csrf_token() }}
+                    <form id="headerSettingsForm" method="POST">
                         <!-- الجزء الأول: معلومات الدولة والوزارة -->
                         <div class="section-divider mb-4">
                             <h4 class="text-primary">📍 معلومات الدولة والوزارة</h4>
@@ -311,9 +310,12 @@
         };
 
         try {
-            // الحصول على CSRF token من النموذج
-            const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
-            const csrfToken = csrfTokenElement ? csrfTokenElement.value : '';
+            // الحصول على CSRF token من meta tag
+            const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
+            
+            console.log('الرسالة:', settings);
+            console.log('CSRF Token:', csrfToken);
             
             const response = await fetch('/questions/save-header-settings', {
                 method: 'POST',
