@@ -177,8 +177,12 @@
 <script>
     // تحميل الإعدادات عند فتح الصفحة
     document.addEventListener('DOMContentLoaded', function() {
-        loadHeaderSettings();
-        updatePreview();
+        try {
+            loadHeaderSettings();
+            updatePreview();
+        } catch (error) {
+            console.error('خطأ في تحميل الصفحة:', error);
+        }
     });
 
     // تحديث المعاينة عند تغيير أي حقل
@@ -288,11 +292,14 @@
         };
 
         try {
+            const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfTokenElement ? csrfTokenElement.content : '';
+            
             const response = await fetch('/questions/save-header-settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify(settings)
             });
