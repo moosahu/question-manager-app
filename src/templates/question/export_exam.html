@@ -663,11 +663,10 @@ async function loadQuestions() {
         const response = await fetch(endpoint);
         const data = await response.json();
         
-        if (data.success) {
-            allQuestions = data.questions || [];
-            updateQuestionsList();
-            updateStats();
-        }
+        // التعامل مع الـ API الذي يرجع array مباشرة
+        allQuestions = Array.isArray(data) ? data : (data.questions || []);
+        updateQuestionsList();
+        updateStats();
     } catch (error) {
         showError('فشل تحميل الأسئلة: ' + error.message);
     } finally {
