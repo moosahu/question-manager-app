@@ -8,10 +8,11 @@
         <div class="col-md-10 mx-auto">
             <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">⚙️ إعدادات الكليشة (رأس الاختبار)</h2>
+                    <h2 class="mb-0">⚡️ إعدادات الكليشة (رأس الاختبار)</h2>
                 </div>
                 <div class="card-body p-4">
                     <form id="headerSettingsForm">
+                        {{ csrf_token() }}
                         <!-- الجزء الأول: معلومات الدولة والوزارة -->
                         <div class="section-divider mb-4">
                             <h4 class="text-primary">📍 معلومات الدولة والوزارة</h4>
@@ -310,16 +311,22 @@
         };
 
         try {
+            // الحصول على CSRF token من النموذج
+            const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenElement ? csrfTokenElement.value : '';
+            
             const response = await fetch('/questions/save-header-settings', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify(settings)
             });
 
             if (!response.ok) {
-                console.error('خطأ في الاستجابة:', response.status);
+                const errorText = await response.text();
+                console.error('خطأ في الاستجابة:', response.status, errorText);
                 showAlert('خطأ في الحفظ: ' + response.status, 'danger');
                 return;
             }
