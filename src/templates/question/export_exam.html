@@ -533,6 +533,56 @@ let currentCourseId = null;
 let currentUnitId = null;
 let currentLessonId = null;
 
+async function downloadWord(includeAnswers) {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
+    showLoading(true);
+    try {
+        const courseSelect = document.getElementById('courseSelect');
+        const unitSelect = document.getElementById('unitSelect');
+        const lessonSelect = document.getElementById('lessonSelect');
+        const courseName = courseSelect.options[courseSelect.selectedIndex].text || '';
+        const unitName = unitSelect.options[unitSelect.selectedIndex].text || '';
+        const lessonName = lessonSelect.options[lessonSelect.selectedIndex].text || '';
+        const response = await fetch('/questions/download-exam-word', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                include_answers: includeAnswers,
+                exam_title: 'نموذج الاختبار',
+                course_name: courseName,
+                unit_name: unitName,
+                lesson_name: lessonName
+            })
+        });
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `exam_${new Date().getTime()}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showSuccess('تم تحميل الملف بنجاح');
+        } else {
+            const error = await response.json();
+            showError(error.error || 'فشل تحميل الملف');
+        }
+    } catch (error) {
+        showError('خطأ في تحميل الملف: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
 // تحميل المناهج عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
@@ -878,8 +928,52 @@ function generatePrintableDocument(questions, includeAnswers) {
             .header {
                 text-align: center;
                 margin-bottom: 30px;
-                border-bottom: 3px solid #333;
                 padding-bottom: 20px;
+            }
+            .header-top {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 20px;
+                font-size: 14px;
+                line-height: 1.8;
+            }
+            .header-right, .header-left {
+                text-align: right;
+            }
+            .header-center {
+                text-align: center;
+            }
+            .header-center img {
+                max-width: 80px;
+                margin-bottom: 10px;
+            }
+            .header-title {
+                font-size: 16px;
+                font-weight: bold;
+                margin: 15px 0;
+                border-bottom: 2px solid #333;
+                padding-bottom: 10px;
+            }
+            .header-info {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+                gap: 1px;
+                margin-bottom: 20px;
+                border: 2px solid #333;
+            }
+            .header-info-cell {
+                border: 1px solid #333;
+                padding: 10px;
+                text-align: center;
+                font-weight: bold;
+            }
+            .header-footer {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
+                margin-top: 15px;
+                font-size: 13px;
             }
             .header h1 {
                 margin: 0;
@@ -960,9 +1054,47 @@ function generatePrintableDocument(questions, includeAnswers) {
     </head>
     <body>
         <div class="header">
-            <h1>نموذج الاختبار</h1>
-            <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
-            <p>عدد الأسئلة: ${questions.length}</p>
+            <div class="header-top">
+                <div class="header-left">
+                    <div><strong>المادة:</strong> كيمياء 4</div>
+                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
+                    <div><strong>الصف:</strong> ثالث ثانوي</div>
+                </div>
+                <div class="header-center">
+                    <div><strong>المملكة العربية السعودية</strong></div>
+                    <div><strong>وزارة التعليم</strong></div>
+                </div>
+                <div class="header-right">
+                    <div><strong>الإدارة العامة للتعليم بالمنطقة الشرقية</strong></div>
+                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
+                </div>
+            </div>
+            
+            <div class="header-title">
+                اختبار كفاية الفصل الدراسي الثاني للعام الدراسي 1445ه
+            </div>
+            
+            <div class="header-info">
+                <div class="header-info-cell">الدرجة الأساسية</div>
+                <div class="header-info-cell">درجة الطالب رقماً</div>
+                <div class="header-info-cell">الدرجة كتابة</div>
+                <div class="header-info-cell">المصحح</div>
+                <div class="header-info-cell">المراجع</div>
+            </div>
+            
+            <div class="header-info">
+                <div class="header-info-cell">30</div>
+                <div class="header-info-cell"></div>
+                <div class="header-info-cell"></div>
+                <div class="header-info-cell"></div>
+                <div class="header-info-cell"></div>
+            </div>
+            
+            <div class="header-footer">
+                <div><strong>اسم الطالب:</strong> ___________</div>
+                <div><strong>الشعبة:</strong> ___________</div>
+                <div><strong>رقم الجلوس:</strong> ___________</div>
+            </div>
         </div>
         
         <div class="questions-container">
@@ -1070,60 +1202,8 @@ function showError(message) {
     alert.classList.add('active');
     setTimeout(() => alert.classList.remove('active'), 5000);
 }
+
+
+
 </script>
 {% endblock %}
-
-async function downloadWord(includeAnswers) {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل');
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const courseSelect = document.getElementById('courseSelect');
-        const unitSelect = document.getElementById('unitSelect');
-        const lessonSelect = document.getElementById('lessonSelect');
-        
-        const courseName = courseSelect.options[courseSelect.selectedIndex].text || '';
-        const unitName = unitSelect.options[unitSelect.selectedIndex].text || '';
-        const lessonName = lessonSelect.options[lessonSelect.selectedIndex].text || '';
-        
-        const response = await fetch('/questions/download-exam-word', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                include_answers: includeAnswers,
-                exam_title: 'نموذج الاختبار',
-                course_name: courseName,
-                unit_name: unitName,
-                lesson_name: lessonName
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_${new Date().getTime()}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('تم تحميل الملف بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل تحميل الملف');
-        }
-    } catch (error) {
-        showError('خطأ في تحميل الملف: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
