@@ -33,8 +33,8 @@ class ExamGenerator:
         try:
             with open(self.logo_path, 'rb') as f:
                 return base64.b64encode(f.read()).decode()
-        except:
-            return ''
+        except FileNotFoundError:
+            return None
     
     def _get_html_template(self):
         """الحصول على قالب HTML"""
@@ -175,7 +175,7 @@ class ExamGenerator:
         <!-- رأس الاختبار -->
         <div class="header">
             <!-- شعار الوزارة -->
-            {% if logo %}
+            {% if logo_available %}
             <div class="logo-container">
                 <img src="data:image/png;base64,{{ logo }}" alt="شعار الوزارة">
             </div>
@@ -315,7 +315,8 @@ class ExamGenerator:
             'exam_date': kwargs.get('exam_date', self.header_settings.get('exam_date', datetime.now().strftime('%d/%m/%Y'))),
             'questions': questions,
             'show_answers': show_answers,
-            'logo': self._get_logo_base64()
+            'logo': self._get_logo_base64(),
+            'logo_available': self._get_logo_base64() is not None
         }
         
         # تنسيق الأسئلة
