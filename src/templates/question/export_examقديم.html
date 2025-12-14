@@ -899,12 +899,7 @@ async function exportExam(includeAnswers) {
         const data = await response.json();
         
         if (data.success) {
-            // استخراج إعدادات الكليشة
-            const headerSettingsResponse = await fetch('/questions/get-header-settings');
-            const headerSettings = await headerSettingsResponse.json();
-            const settings = headerSettings.settings || {};
-            
-            generatePrintableDocument(data.questions, includeAnswers, settings);
+            generatePrintableDocument(data.questions, includeAnswers);
             showSuccess(`تم استخراج ${data.count} أسئلة بنجاح`);
         } else {
             showError(data.error || 'فشل الاستخراج');
@@ -916,7 +911,7 @@ async function exportExam(includeAnswers) {
     }
 }
 
-function generatePrintableDocument(questions, includeAnswers, headerSettings = {}) {
+function generatePrintableDocument(questions, includeAnswers) {
     let html = `
     <!DOCTYPE html>
     <html dir="rtl">
@@ -1061,17 +1056,17 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
         <div class="header">
             <div class="header-top">
                 <div class="header-left">
-                    <div><strong>المادة:</strong> ${headerSettings.subject || 'كيمياء 4'}</div>
-                    <div><strong>الزمن:</strong> ${headerSettings.time || 'ثلاث ساعات'}</div>
-                    <div><strong>الصف:</strong> ${headerSettings.grade || 'ثالث ثانوي'}</div>
+                    <div><strong>المادة:</strong> كيمياء 4</div>
+                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
+                    <div><strong>الصف:</strong> ثالث ثانوي</div>
                 </div>
                 <div class="header-center">
-                    <div><strong>${headerSettings.country || 'المملكة العربية السعودية'}</strong></div>
-                    <div><strong>${headerSettings.ministry || 'وزارة التعليم'}</strong></div>
+                    <div><strong>المملكة العربية السعودية</strong></div>
+                    <div><strong>وزارة التعليم</strong></div>
                 </div>
                 <div class="header-right">
-                    <div><strong>${headerSettings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية'}</strong></div>
-                    <div><strong>${headerSettings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية'}</strong></div>
+                    <div><strong>الإدارة العامة للتعليم بالمنطقة الشرقية</strong></div>
+                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
                 </div>
             </div>
             
@@ -1088,7 +1083,7 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
             </div>
             
             <div class="header-info">
-                <div class="header-info-cell">${headerSettings.total_score || 30}</div>
+                <div class="header-info-cell">30</div>
                 <div class="header-info-cell"></div>
                 <div class="header-info-cell"></div>
                 <div class="header-info-cell"></div>
