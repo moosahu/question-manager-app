@@ -12,6 +12,7 @@
                 </div>
                 <div class="card-body p-4">
                     <form id="headerSettingsForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <!-- الجزء الأول: معلومات الدولة والوزارة -->
                         <div class="section-divider mb-4">
                             <h4 class="text-primary">📍 معلومات الدولة والوزارة</h4>
@@ -310,9 +311,9 @@
         };
 
         try {
-            // الحصول على CSRF token من meta tag
-            const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
+            // الحصول على CSRF token من input hidden
+            const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenElement ? csrfTokenElement.value : '';
             
             console.log('الرسالة:', settings);
             console.log('CSRF Token:', csrfToken);
