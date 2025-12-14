@@ -1937,17 +1937,16 @@ def export_exam_pdf():
         for q in questions:
             question_dict = {
                 'id': q.question_id,
-                'text': q.text,
-                'type': q.type,
+                'question_text': q.question_text,
                 'options': []
             }
             
-            if q.type == 'multiple_choice':
-                for option in q.options:
-                    question_dict['options'].append({
-                        'option_text': option.text,
-                        'is_correct': option.is_correct
-                    })
+            # إضافة الخيارات
+            for option in q.options:
+                question_dict['options'].append({
+                    'option_text': option.option_text,
+                    'is_correct': option.is_correct
+                })
             
             questions_data.append(question_dict)
         
