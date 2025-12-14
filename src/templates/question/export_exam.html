@@ -910,8 +910,12 @@ async function exportExam(includeAnswers) {
             document.body.removeChild(a);
             showSuccess('تم تحميل ملف PDF بنجاح');
         } else {
-            const errorData = await response.json();
-            showError(errorData.error || 'فشل الاستخراج');
+            try {
+                const errorData = await response.json();
+                showError(errorData.error || 'فشل الاستخراج');
+            } catch (e) {
+                showError(`فشل الاستخراج: الحالة ${response.status}`);
+            }
         }
     } catch (error) {
         showError('خطأ في الاستخراج: ' + error.message);
