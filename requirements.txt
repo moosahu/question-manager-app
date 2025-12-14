@@ -9,6 +9,7 @@ Flask-Migrate>=4.0.0
 Flask-WTF>=1.2.0
 Flask-CORS>=4.0.0
 WTForms>=3.0.0
+python-docx>=0.8.11
 
 # Database Support
 PyMySQL>=1.1.0
