@@ -161,10 +161,30 @@ class ExamGenerator:
             margin-right: 20px;
         }
         
+        .options-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .option-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
         .option {
-            margin-bottom: 8px;
+            margin-bottom: 0;
             line-height: 1.6;
             font-size: 11px;
+            display: flex;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        
+        .option span {
+            flex-shrink: 0;
+            min-width: 20px;
         }
         
         /* جدول الإجابات */
@@ -314,12 +334,20 @@ class ExamGenerator:
                 <div class="question-text">{{ question.question_text }}</div>
                 <div class="options">
                     {% set letters = ['أ', 'ب', 'ج', 'د'] %}
-                    {% for option in question.options %}
-                    <div class="option">
-                        <span>{{ letters[loop.index0] if loop.index0 < 4 else loop.index0 + 1 }})</span>
-                        {{ option.option_text }}
+                    <div class="options-row">
+                        {% for option in question.options %}
+                        {% if loop.index0 % 2 == 0 %}
+                        <div class="option-column">
+                        {% endif %}
+                            <div class="option">
+                                <span><strong>{{ letters[loop.index0] if loop.index0 < 4 else loop.index0 + 1 }})&nbsp;</strong></span>
+                                {{ option.option_text }}
+                            </div>
+                        {% if loop.index0 % 2 == 1 or loop.last %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
             </div>
             {% endfor %}
@@ -656,14 +684,37 @@ class ExamGenerator:
             run.font.size = Pt(10)
         
         options = question.get('options', [])
-        for opt_idx, option in enumerate(options):
-            opt_text = cell.add_paragraph()
-            opt_text.paragraph_format.direction = 1
-            opt_text.paragraph_format.right_indent = Inches(0.2)
-            opt_text.paragraph_format.space_after = Pt(3)
-            letter = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
-            opt_run = opt_text.add_run(f"{letter}) {option.get('option_text', '')}")
-            opt_run.font.size = Pt(10)
+        if len(options) > 0:
+            num_rows = (len(options) + 1) // 2
+            options_table = cell.add_table(rows=num_rows, cols=2)
+            options_table.style = 'Table Grid'
+            
+            for row_idx in range(num_rows):
+                right_opt_idx = row_idx
+                if right_opt_idx < len(options):
+                    right_cell = options_table.rows[row_idx].cells[1]
+                    right_cell.text = ""
+                    opt_para = right_cell.paragraphs[0]
+                    opt_para.paragraph_format.direction = 1
+                    letter = letters[right_opt_idx] if right_opt_idx < len(letters) else str(right_opt_idx + 1)
+                    letter_run = opt_para.add_run(f"{letter}) ")
+                    letter_run.font.bold = True
+                    letter_run.font.size = Pt(10)
+                    opt_run = opt_para.add_run(options[right_opt_idx].get('option_text', ''))
+                    opt_run.font.size = Pt(10)
+                
+                left_opt_idx = row_idx + num_rows
+                if left_opt_idx < len(options):
+                    left_cell = options_table.rows[row_idx].cells[0]
+                    left_cell.text = ""
+                    opt_para = left_cell.paragraphs[0]
+                    opt_para.paragraph_format.direction = 1
+                    letter = letters[left_opt_idx] if left_opt_idx < len(letters) else str(left_opt_idx + 1)
+                    letter_run = opt_para.add_run(f"{letter}) ")
+                    letter_run.font.bold = True
+                    letter_run.font.size = Pt(10)
+                    opt_run = opt_para.add_run(options[left_opt_idx].get('option_text', ''))
+                    opt_run.font.size = Pt(10)
 
 
 # دالة موحدة
