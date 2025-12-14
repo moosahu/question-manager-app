@@ -1802,17 +1802,17 @@ def download_exam_word():
             download_name=f"exam_{int(time.time())}.docx"
         )
         
-    except ImportError:
-        current_app.logger.error("exam_word_generator module not found")
+    except ImportError as ie:
+        current_app.logger.error(f"Import error: {ie}")
         return jsonify({
             'success': False,
-            'error': 'وحدة توليد Word غير متاحة'
+            'error': 'وحدة توليد الاختبارات غير متاحة'
         }), 500
     except Exception as e:
         current_app.logger.exception(f"Error downloading exam word: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'خطأ في توليد الملف: {str(e)}'
         }), 500
 
 
