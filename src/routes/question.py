@@ -1755,3 +1755,89 @@ def download_exam_word():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@question_bp.route('/header-settings')
+@login_required
+def header_settings():
+    """عرض صفحة إعدادات الكليشة"""
+    return render_template('question/exam_header_settings.html')
+
+
+@question_bp.route('/save-header-settings', methods=['POST'])
+@login_required
+def save_header_settings():
+    """حفظ إعدادات الكليشة في قاعدة البيانات"""
+    try:
+        data = request.get_json()
+        
+        # البحث عن الإعدادات الموجودة أو إنشاء جديدة
+        settings = ExamHeaderSettings.query.first()
+        if not settings:
+            settings = ExamHeaderSettings()
+        
+        # تحديث البيانات
+        settings.country = data.get('country', 'المملكة العربية السعودية')
+        settings.ministry = data.get('ministry', 'وزارة التعليم')
+        settings.education_department = data.get('education_department', 'الإدارة العامة للتعليم بالمنطقة الشرقية')
+        settings.school_name = data.get('school_name', 'مدرسة عبدالرحمن بن القاسم الثانوية')
+        settings.subject = data.get('subject', 'كيمياء 4')
+        settings.time = data.get('time', 'ثلاث ساعات')
+        settings.grade = data.get('grade', 'ثالث ثانوي')
+        settings.total_score = data.get('total_score', 30)
+        settings.checker_name = data.get('checker_name', '')
+        settings.reviewer_name = data.get('reviewer_name', '')
+        settings.exam_date = data.get('exam_date', '')
+        
+        db.session.add(settings)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ الإعدادات بنجاح'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error saving header settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@question_bp.route('/get-header-settings', methods=['GET'])
+@login_required
+def get_header_settings():
+    """الحصول على إعدادات الكليشة المحفوظة"""
+    try:
+        settings = ExamHeaderSettings.query.first()
+        
+        if settings:
+            return jsonify({
+                'success': True,
+                'settings': {
+                    'country': settings.country,
+                    'ministry': settings.ministry,
+                    'education_department': settings.education_department,
+                    'school_name': settings.school_name,
+                    'subject': settings.subject,
+                    'time': settings.time,
+                    'grade': settings.grade,
+                    'total_score': settings.total_score,
+                    'checker_name': settings.checker_name,
+                    'reviewer_name': settings.reviewer_name,
+                    'exam_date': settings.exam_date
+                }
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'settings': None
+            }), 200
+            
+    except Exception as e:
+        current_app.logger.exception(f"Error getting header settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
