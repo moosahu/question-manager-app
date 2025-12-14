@@ -1816,6 +1816,124 @@ def download_exam_word():
         }), 500
 
 
+@question_bp.route('/download-exam-word', methods=['POST'])
+@login_required
+def download_exam_word():
+    """تحميل ملف Word باستخدام النظام الموحد"""
+    try:
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from exam_generator import generate_exam
+        from models.exam_header_settings import ExamHeaderSettings
+        
+        data = request.get_json()
+        question_ids = data.get("question_ids", [])
+        include_answers = data.get("include_answers", False)
+        exam_title = data.get("exam_title", "نموذج الاختبار")
+        
+        if not question_ids:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم تحديد أسئلة'
+            }), 400
+        
+        # الحصول على الأسئلة
+        questions = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).all()
+        
+        if not questions:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم العثور على الأسئلة المحددة'
+            }), 404
+        
+        # تنسيق الأسئلة
+        formatted_questions = []
+        for question in questions:
+            formatted_q = {
+                'question_id': question.question_id,
+                'question_text': question.question_text,
+                'points': 1,
+                'options': [
+                    {
+                        'option_id': opt.option_id,
+                        'option_text': opt.option_text,
+                        'is_correct': opt.is_correct
+                    }
+                    for opt in sorted(question.options, key=lambda o: o.option_id)
+                ],
+                'correct_option_id': next(
+                    (opt.option_id for opt in question.options if opt.is_correct),
+                    None
+                )
+            }
+            formatted_questions.append(formatted_q)
+        
+        # استخراج الإعدادات المحفوظة
+        header_settings = ExamHeaderSettings.query.first()
+        if header_settings:
+            country = header_settings.country or ""
+            ministry = header_settings.ministry or ""
+            education_department = header_settings.education_department or ""
+            school_name = header_settings.school_name or ""
+            subject = header_settings.subject or ""
+            time_val = header_settings.time or ""
+            grade = header_settings.grade or ""
+            total_score = header_settings.total_score or 30
+            checker_name = header_settings.checker_name or ""
+            reviewer_name = header_settings.reviewer_name or ""
+            exam_date = header_settings.exam_date or ""
+        else:
+            country = "المملكة العربية السعودية"
+            ministry = "وزارة التعليم"
+            education_department = "الإدارة العامة للتعليم"
+            school_name = ""
+            subject = ""
+            time_val = ""
+            grade = ""
+            total_score = 30
+            checker_name = ""
+            reviewer_name = ""
+            exam_date = ""
+        
+        # توليد ملف Word
+        word_bytes = generate_exam(
+            formatted_questions,
+            exam_title=exam_title,
+            output_format='word',
+            show_answers=include_answers,
+            country=country,
+            ministry=ministry,
+            education_department=education_department,
+            school_name=school_name,
+            subject=subject,
+            time=time_val,
+            grade=grade,
+            total_score=total_score,
+            checker_name=checker_name,
+            reviewer_name=reviewer_name,
+            exam_date=exam_date
+        )
+        
+        # إرسال الملف
+        return send_file(
+            io.BytesIO(word_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name=f"exam_{int(time.time())}.docx"
+        )
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error downloading exam word: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @question_bp.route('/header-settings')
 @login_required
 def header_settings():
