@@ -307,8 +307,9 @@ class ExamGenerator:
             # إنشاء مستند Word
             doc = Document()
             
-            # تعيين اتجاه النص من اليمين إلى اليسار
-            doc.paragraph_format.direction = 'RTL'
+            # تعيين اتجاه النص من اليمين إلى اليسار لجميع الفقرات
+            # ملاحظة: paragraph_format موجود في كائنات Paragraph وليس Document
+            # سيتم تطبيق RTL على كل فقرة عند إضافتها
             
             # إضافة الرأس
             header_data = {
@@ -341,12 +342,14 @@ class ExamGenerator:
                 # تنسيق النص
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
                         for run in paragraph.runs:
                             run.font.size = Pt(11)
             
             # عنوان الاختبار
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title.paragraph_format.direction = 1  # 1 = RTL
             title_run = title.add_run(exam_title)
             title_run.font.size = Pt(14)
             title_run.font.bold = True
@@ -368,6 +371,7 @@ class ExamGenerator:
                 row.cells[1].text = value
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
                         for run in paragraph.runs:
                             run.font.size = Pt(11)
             
@@ -377,40 +381,49 @@ class ExamGenerator:
             for idx, question in enumerate(questions, 1):
                 # رقم السؤال
                 q_num = doc.add_paragraph()
+                q_num.paragraph_format.direction = 1  # 1 = RTL
                 q_num_run = q_num.add_run(f"السؤال {idx}: ({question.get('points', 1)} درجات)")
                 q_num_run.font.bold = True
                 q_num_run.font.size = Pt(12)
                 
                 # نص السؤال
                 q_text = doc.add_paragraph(question.get('question_text', ''))
+                q_text.paragraph_format.direction = 1  # 1 = RTL
                 q_text.paragraph_format.right_indent = Inches(0.2)
                 
                 # الخيارات
                 options = question.get('options', [])
                 for opt_idx, option in enumerate(options):
                     opt_text = doc.add_paragraph()
+                    opt_text.paragraph_format.direction = 1  # 1 = RTL
                     opt_text.paragraph_format.right_indent = Inches(0.4)
                     letter = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
                     opt_run = opt_text.add_run(f"{letter}) {option.get('option_text', '')}")
                     opt_run.font.size = Pt(11)
                 
                 # فاصل
-                doc.add_paragraph()
+                separator = doc.add_paragraph()
+                separator.paragraph_format.direction = 1  # 1 = RTL
             
             # جدول الإجابات
             if show_answers:
-                doc.add_paragraph("مفتاح الإجابات").bold = True
+                answer_key_para = doc.add_paragraph("\u0645\u0641\u062a\u0627\u062d \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a")
+                answer_key_para.paragraph_format.direction = 1  # 1 = RTL
+                answer_key_para.runs[0].bold = True
                 
-                # إنشاء جدول الإجابات
+                # \u0625\u0646\u0634\u0627\u0621 \u062c\u062f\u0648\u0644 \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a
                 answer_table = doc.add_table(rows=2, cols=len(questions))
                 answer_table.style = 'Light Grid Accent 1'
                 
-                # رؤوس الأعمدة (أرقام الأسئلة)
+                # \u0631\u0624\u0648\u0633 \u0627\u0644\u0623\u0639\u0645\u062f\u0629 (\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0623\u0633\u0626\u0644\u0629)
                 for i in range(len(questions)):
-                    answer_table.rows[0].cells[i].text = str(i + 1)
+                    cell = answer_table.rows[0].cells[i]
+                    cell.text = str(i + 1)
+                    for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
                 
-                # الإجابات الصحيحة
-                letters = ['أ', 'ب', 'ج', 'د']
+                # \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a \u0627\u0644\u0635\u062d\u064a\u062d\u0629
+                letters = ['\u0623', '\u0628', '\u062c', '\u062f']
                 for i, question in enumerate(questions):
                     options = question.get('options', [])
                     correct_answer = ''
@@ -418,7 +431,10 @@ class ExamGenerator:
                         if option.get('is_correct') or option.get('option_id') == question.get('correct_option_id'):
                             correct_answer = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
                             break
-                    answer_table.rows[1].cells[i].text = correct_answer
+                    cell = answer_table.rows[1].cells[i]
+                    cell.text = correct_answer
+                    for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
             
             # حفظ المستند في BytesIO
             doc_bytes = io.BytesIO()
