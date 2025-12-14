@@ -1916,7 +1916,10 @@ def get_header_settings():
 def export_exam_pdf():
     """استخراج ملف PDF للاختبار باستخدام exam_generator"""
     try:
-        from exam_generator import ExamGenerator
+        try:
+            from src.routes.exam_generator import ExamGenerator
+        except ImportError:
+            from exam_generator import ExamGenerator
         
         data = request.get_json()
         question_ids = data.get('question_ids', [])
