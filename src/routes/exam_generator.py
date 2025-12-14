@@ -158,15 +158,17 @@ class ExamGenerator:
         }
         
         .options {
-            margin-right: 20px;
+            margin-right: 0;
+            margin-top: 10px;
         }
         
         .options-row {
             display: flex;
-            justify-content: flex-end;
-            gap: 40px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 60px;
+            margin-bottom: 8px;
+            flex-wrap: nowrap;
+            text-align: right;
         }
         
         .option {
