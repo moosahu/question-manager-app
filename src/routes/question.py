@@ -1698,7 +1698,8 @@ def download_exam_word():
         import os
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from exam_word_generator import generate_exam_word
+        from exam_generator import generate_exam
+        from models.exam_header_settings import ExamHeaderSettings
         
         data = request.get_json()
         question_ids = data.get("question_ids", [])
@@ -1707,6 +1708,34 @@ def download_exam_word():
         course_name = data.get("course_name", "")
         unit_name = data.get("unit_name", "")
         lesson_name = data.get("lesson_name", "")
+        
+        # استخراج الإعدادات المحفوظة
+        header_settings = ExamHeaderSettings.query.first()
+        if header_settings:
+            country = header_settings.country or ""
+            ministry = header_settings.ministry or ""
+            education_department = header_settings.education_department or ""
+            school_name = header_settings.school_name or ""
+            subject = header_settings.subject or ""
+            time = header_settings.time or ""
+            grade = header_settings.grade or ""
+            total_score = header_settings.total_score or 30
+            checker_name = header_settings.checker_name or ""
+            reviewer_name = header_settings.reviewer_name or ""
+            exam_date = header_settings.exam_date or ""
+        else:
+            # قيم افتراضية
+            country = "المملكة العربية السعودية"
+            ministry = "وزارة التعليم"
+            education_department = "الإدارة العامة للتعليم"
+            school_name = ""
+            subject = ""
+            time = ""
+            grade = ""
+            total_score = 30
+            checker_name = ""
+            reviewer_name = ""
+            exam_date = ""
         
         if not question_ids:
             return jsonify({
@@ -1746,14 +1775,23 @@ def download_exam_word():
             }
             formatted_questions.append(formatted_q)
         
-        # توليد ملف Word
-        word_bytes = generate_exam_word(
+        # توليد ملف Word باستخدام النظام الموحد
+        word_bytes = generate_exam(
             formatted_questions,
             exam_title=exam_title,
-            course_name=course_name,
-            unit_name=unit_name,
-            lesson_name=lesson_name,
-            include_answers=include_answers
+            output_format='word',
+            show_answers=include_answers,
+            country=country,
+            ministry=ministry,
+            education_department=education_department,
+            school_name=school_name,
+            subject=subject,
+            time=time,
+            grade=grade,
+            total_score=total_score,
+            checker_name=checker_name,
+            reviewer_name=reviewer_name,
+            exam_date=exam_date
         )
         
         # إرسال الملف
