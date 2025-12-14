@@ -223,6 +223,36 @@ class ExamGenerator:
                     <td class="value">{{ total_score }}</td>
                 </tr>
             </table>
+            
+            <!-- جدول الدرجات -->
+            <table class="header-table" style="margin-top: 10px;">
+                <tr>
+                    <td class="label">الدرجة الأساسية</td>
+                    <td class="label">درجة الطالب رقما</td>
+                    <td class="label">الدرجة كتابة</td>
+                    <td class="label">المصحح</td>
+                    <td class="label">المراجع</td>
+                </tr>
+                <tr>
+                    <td class="value">{{ total_score }}</td>
+                    <td class="value"></td>
+                    <td class="value"></td>
+                    <td class="value"></td>
+                    <td class="value"></td>
+                </tr>
+            </table>
+            
+            <!-- معلومات الطالب -->
+            <table class="header-table" style="margin-top: 10px;">
+                <tr>
+                    <td class="label">اسم الطالب:</td>
+                    <td class="value"></td>
+                    <td class="label">الشعبة:</td>
+                    <td class="value"></td>
+                    <td class="label">رقم الجلوس:</td>
+                    <td class="value"></td>
+                </tr>
+            </table>
         </div>
         
         <!-- الأسئلة -->
