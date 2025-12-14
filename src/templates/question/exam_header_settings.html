@@ -195,25 +195,43 @@
     async function loadHeaderSettings() {
         try {
             const response = await fetch('/questions/get-header-settings');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.settings) {
-                    const settings = data.settings;
-                    document.getElementById('country').value = settings.country || 'المملكة العربية السعودية';
-                    document.getElementById('ministry').value = settings.ministry || 'وزارة التعليم';
-                    document.getElementById('education_department').value = settings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية';
-                    document.getElementById('school_name').value = settings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية';
-                    document.getElementById('subject').value = settings.subject || 'كيمياء 4';
-                    document.getElementById('time').value = settings.time || 'ثلاث ساعات';
-                    document.getElementById('grade').value = settings.grade || 'ثالث ثانوي';
-                    document.getElementById('total_score').value = settings.total_score || '30';
-                    document.getElementById('checker_name').value = settings.checker_name || '';
-                    document.getElementById('reviewer_name').value = settings.reviewer_name || '';
-                    if (settings.exam_date) {
-                        document.getElementById('exam_date').value = settings.exam_date;
-                    }
-                    updatePreview();
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
+            if (!response.ok) {
+                console.error('خطأ في الاستجابة:', response.status);
+                return;
+            }
+            
+            const contentType = response.headers.get('content-type');
+            console.log('Content-Type:', contentType);
+            
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error('الاستجابة ليست JSON، هي:', contentType);
+                const text = await response.text();
+                console.error('محتوى الاستجابة:', text.substring(0, 200));
+                return;
+            }
+            
+            const data = await response.json();
+            console.log('البيانات المستلمة:', data);
+            
+            if (data.success && data.settings) {
+                const settings = data.settings;
+                document.getElementById('country').value = settings.country || 'المملكة العربية السعودية';
+                document.getElementById('ministry').value = settings.ministry || 'وزارة التعليم';
+                document.getElementById('education_department').value = settings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية';
+                document.getElementById('school_name').value = settings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية';
+                document.getElementById('subject').value = settings.subject || 'كيمياء 4';
+                document.getElementById('time').value = settings.time || 'ثلاث ساعات';
+                document.getElementById('grade').value = settings.grade || 'ثالث ثانوي';
+                document.getElementById('total_score').value = settings.total_score || '30';
+                document.getElementById('checker_name').value = settings.checker_name || '';
+                document.getElementById('reviewer_name').value = settings.reviewer_name || '';
+                if (settings.exam_date) {
+                    document.getElementById('exam_date').value = settings.exam_date;
                 }
+                updatePreview();
             }
         } catch (error) {
             console.error('خطأ في تحميل الإعدادات:', error);
@@ -292,18 +310,20 @@
         };
 
         try {
-            const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfTokenElement ? csrfTokenElement.content : '';
-            
             const response = await fetch('/questions/save-header-settings', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(settings)
             });
 
+            if (!response.ok) {
+                console.error('خطأ في الاستجابة:', response.status);
+                showAlert('خطأ في الحفظ: ' + response.status, 'danger');
+                return;
+            }
+            
             const data = await response.json();
             if (data.success) {
                 showAlert('تم حفظ الإعدادات بنجاح! ✅', 'success');
