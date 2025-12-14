@@ -10,6 +10,8 @@ Flask-WTF>=1.2.0
 Flask-CORS>=4.0.0
 WTForms>=3.0.0
 python-docx>=0.8.11
+weasyprint
+html2docx
 
 # Database Support
 PyMySQL>=1.1.0
