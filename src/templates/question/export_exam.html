@@ -883,7 +883,8 @@ async function exportExam(includeAnswers) {
     showLoading(true);
     
     try {
-        const response = await fetch(`${API_BASE}/questions/export`, {
+        // استخدام الروت الجديد الذي يستخدم exam_generator
+        const response = await fetch('/questions/export-exam-pdf', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -892,22 +893,25 @@ async function exportExam(includeAnswers) {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 include_answers: includeAnswers,
-                format: 'json'
+                exam_title: document.getElementById('examTitleInput')?.value || 'نموذج الاختبار'
             })
         });
         
-        const data = await response.json();
-        
-        if (data.success) {
-            // استخراج إعدادات الكليشة
-            const headerSettingsResponse = await fetch('/questions/get-header-settings');
-            const headerSettings = await headerSettingsResponse.json();
-            const settings = headerSettings.settings || {};
-            
-            generatePrintableDocument(data.questions, includeAnswers, settings);
-            showSuccess(`تم استخراج ${data.count} أسئلة بنجاح`);
+        if (response.ok) {
+            // تحميل ملف PDF مباشرة
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `exam_${new Date().getTime()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showSuccess('تم تحميل ملف PDF بنجاح');
         } else {
-            showError(data.error || 'فشل الاستخراج');
+            const errorData = await response.json();
+            showError(errorData.error || 'فشل الاستخراج');
         }
     } catch (error) {
         showError('خطأ في الاستخراج: ' + error.message);
@@ -1061,15 +1065,16 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
         <div class="header">
             <div class="header-top">
                 <div class="header-left">
-                    <div><strong>المادة:</strong> ${headerSettings.subject || 'كيمياء 4'}</div>
-                    <div><strong>الزمن:</strong> ${headerSettings.time || 'ثلاث ساعات'}</div>
-                    <div><strong>الصف:</strong> ${headerSettings.grade || 'ثالث ثانوي'}</div>
+                    <div><strong>المادة:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.subject || 'كيمياء 4'}</span></div>
+                    <div><strong>الزمن:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.time || 'ثلاث ساعات'}</span></div>
+                    <div><strong>الصف:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.grade || 'ثالث ثانوي'}</span></div>
                 </div>
-                <div class="header-center">
-                    <div><strong>${headerSettings.country || 'المملكة العربية السعودية'}</strong></div>
-                    <div><strong>${headerSettings.ministry || 'وزارة التعليم'}</strong></div>
+                <div class="header-center" style="text-align: center;">
+                    <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gKgSUNDX1BST0ZJTEUAAQEAAAKQbGNtcwQwAABtbnRyUkdCIFhZWiAAAAAAAAAAAAAAAABh" alt="وزارة التعليم" style="max-width: 80px; height: auto; margin: 0 10px;">
                 </div>
                 <div class="header-right">
+                    <div><strong>${headerSettings.country || 'المملكة العربية السعودية'}</strong></div>
+                    <div><strong>${headerSettings.ministry || 'وزارة التعليم'}</strong></div>
                     <div><strong>${headerSettings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية'}</strong></div>
                     <div><strong>${headerSettings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية'}</strong></div>
                 </div>
