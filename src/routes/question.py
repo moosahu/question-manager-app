@@ -1909,3 +1909,78 @@ def get_header_settings():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@question_bp.route('/export-exam-pdf', methods=['POST'])
+@login_required
+def export_exam_pdf():
+    """استخراج ملف PDF للاختبار باستخدام exam_generator"""
+    try:
+        from exam_generator import ExamGenerator
+        
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        include_answers = data.get('include_answers', False)
+        exam_title = data.get('exam_title', 'نموذج الاختبار')
+        
+        # الحصول على الأسئلة
+        questions = Question.query.filter(Question.id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
+        
+        # تحويل الأسئلة إلى الصيغة المطلوبة
+        questions_data = []
+        for q in questions:
+            question_dict = {
+                'id': q.id,
+                'text': q.text,
+                'type': q.type,
+                'options': []
+            }
+            
+            if q.type == 'multiple_choice':
+                for option in q.options:
+                    question_dict['options'].append({
+                        'option_text': option.text,
+                        'is_correct': option.is_correct
+                    })
+            
+            questions_data.append(question_dict)
+        
+        # الحصول على إعدادات الكليشة
+        header_settings = ExamHeaderSettings.query.first()
+        kwargs = {}
+        
+        if header_settings:
+            kwargs = {
+                'country': header_settings.country,
+                'ministry': header_settings.ministry,
+                'education_department': header_settings.education_department,
+                'school_name': header_settings.school_name,
+                'subject': header_settings.subject,
+                'time': header_settings.time,
+                'grade': header_settings.grade,
+                'total_score': header_settings.total_score
+            }
+        
+        # استخراج PDF
+        generator = ExamGenerator(header_settings=kwargs)
+        pdf_bytes = generator.generate_pdf(
+            questions_data, 
+            exam_title, 
+            include_answers,
+            **kwargs
+        )
+        
+        # إرسال الملف
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"exam_{int(time.time())}.pdf"
+        )
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error exporting PDF: {e}")
+        return jsonify({'error': str(e)}), 500
