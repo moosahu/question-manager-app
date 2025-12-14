@@ -474,15 +474,6 @@
                     <i class="fas fa-download"></i> مع الإجابات
                 </button>
             </div>
-
-            <div class="btn-group">
-                <button class="btn btn-info" id="downloadWordWithoutAnswersBtn">
-                    <i class="fas fa-file-word"></i> Word بدون إجابات
-                </button>
-                <button class="btn btn-info" id="downloadWordWithAnswersBtn">
-                    <i class="fas fa-file-word"></i> Word مع الإجابات
-                </button>
-            </div>
         </div>
 
         <!-- المحتوى الرئيسي -->
@@ -547,8 +538,6 @@ function setupEventListeners() {
     document.getElementById('clearAllBtn').addEventListener('click', clearAllSelections);
     document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => exportExam(false));
     document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
-    document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
-    document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
 }
 
 async function loadCourses() {
@@ -914,23 +903,19 @@ function generatePrintableDocument(questions, includeAnswers) {
             }
             .options {
                 margin-left: 20px;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
             }
             .option {
-                padding: 10px;
+                margin-bottom: 10px;
+                padding: 8px;
                 border-radius: 3px;
-                display: block;
-                text-align: right;
             }
             .option.correct {
                 background-color: #d4edda;
-                border-right: 4px solid #28a745;
+                border-left: 4px solid #28a745;
             }
             .option-label {
                 font-weight: bold;
-                margin-left: 10px;
+                margin-right: 10px;
             }
             .answer-key {
                 margin-top: 30px;
@@ -987,7 +972,8 @@ function generatePrintableDocument(questions, includeAnswers) {
             
             html += `
                 <div class="option ${isCorrect ? 'correct' : ''}">
-                    <span class="option-label">${optionLabel})</span> ${option.option_text}
+                    <span class="option-label">${optionLabel})</span>
+                    <span>${option.option_text}</span>
                 </div>
             `;
             
@@ -1072,58 +1058,3 @@ function showError(message) {
 }
 </script>
 {% endblock %}
-
-async function downloadWord(includeAnswers) {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل');
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const courseSelect = document.getElementById('courseSelect');
-        const unitSelect = document.getElementById('unitSelect');
-        const lessonSelect = document.getElementById('lessonSelect');
-        
-        const courseName = courseSelect.options[courseSelect.selectedIndex].text || '';
-        const unitName = unitSelect.options[unitSelect.selectedIndex].text || '';
-        const lessonName = lessonSelect.options[lessonSelect.selectedIndex].text || '';
-        
-        const response = await fetch('/questions/download-exam-word', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                include_answers: includeAnswers,
-                exam_title: 'نموذج الاختبار',
-                course_name: courseName,
-                unit_name: unitName,
-                lesson_name: lessonName
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_${new Date().getTime()}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('تم تحميل الملف بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل تحميل الملف');
-        }
-    } catch (error) {
-        showError('خطأ في تحميل الملف: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
