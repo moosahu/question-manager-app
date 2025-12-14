@@ -545,16 +545,21 @@ async function loadCourses() {
         const response = await fetch(`${API_BASE}/courses`);
         const data = await response.json();
         
-        if (data.success) {
-            const courseSelect = document.getElementById('courseSelect');
-            courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
-            
-            data.courses.forEach(course => {
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+        
+        // التعامل مع الـ API الذي يرجع array مباشرة
+        const courses = Array.isArray(data) ? data : (data.courses || []);
+        
+        if (courses.length > 0) {
+            courses.forEach(course => {
                 const option = document.createElement('option');
                 option.value = course.id;
                 option.textContent = course.name;
                 courseSelect.appendChild(option);
             });
+        } else {
+            showError('لا توجد مناهج متاحة');
         }
     } catch (error) {
         showError('فشل تحميل المناهج: ' + error.message);
@@ -581,12 +586,14 @@ async function handleCourseChange() {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/courses/${courseId}`);
+        const response = await fetch(`${API_BASE}/courses/${courseId}/units`);
         const data = await response.json();
         
-        if (data.success && data.course.units) {
-            const unitSelect = document.getElementById('unitSelect');
-            data.course.units.forEach(unit => {
+        const unitSelect = document.getElementById('unitSelect');
+        const units = Array.isArray(data) ? data : (data.units || []);
+        
+        if (units.length > 0) {
+            units.forEach(unit => {
                 const option = document.createElement('option');
                 option.value = unit.id;
                 option.textContent = unit.name;
@@ -613,9 +620,11 @@ async function handleUnitChange() {
             const response = await fetch(`${API_BASE}/courses/${currentCourseId}/units/${currentUnitId}/lessons`);
             const data = await response.json();
             
-            if (data.success && data.lessons) {
-                const lessonSelect = document.getElementById('lessonSelect');
-                data.lessons.forEach(lesson => {
+            const lessonSelect = document.getElementById('lessonSelect');
+            const lessons = Array.isArray(data) ? data : (data.lessons || []);
+            
+            if (lessons.length > 0) {
+                lessons.forEach(lesson => {
                     const option = document.createElement('option');
                     option.value = lesson.id;
                     option.textContent = lesson.name;
