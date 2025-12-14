@@ -1708,6 +1708,7 @@ def download_exam_word():
         course_name = data.get("course_name", "")
         unit_name = data.get("unit_name", "")
         lesson_name = data.get("lesson_name", "")
+        output_format = data.get("output_format", "word").lower()  # أضفنا هذا
         
         # استخراج الإعدادات المحفوظة
         header_settings = ExamHeaderSettings.query.first()
@@ -1775,11 +1776,11 @@ def download_exam_word():
             }
             formatted_questions.append(formatted_q)
         
-        # توليد ملف Word باستخدام النظام الموحد
-        word_bytes = generate_exam(
+        # توليد ملف Word أو PDF باستخدام النظام الموحد
+        file_bytes = generate_exam(
             formatted_questions,
             exam_title=exam_title,
-            output_format='word',
+            output_format=output_format,  # استخدم الصيغة المطلوبة
             show_answers=include_answers,
             country=country,
             ministry=ministry,
@@ -1794,13 +1795,21 @@ def download_exam_word():
             exam_date=exam_date
         )
         
-        # إرسال الملف
-        return send_file(
-            io.BytesIO(word_bytes),
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            as_attachment=True,
-            download_name=f"exam_{int(time.time())}.docx"
-        )
+        # إرسال الملف بالصيغة الصحيحة
+        if output_format == 'pdf':
+            return send_file(
+                io.BytesIO(file_bytes),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"exam_{int(time.time())}.pdf"
+            )
+        else:  # word
+            return send_file(
+                io.BytesIO(file_bytes),
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                as_attachment=True,
+                download_name=f"exam_{int(time.time())}.docx"
+            )
         
     except ImportError as ie:
         current_app.logger.error(f"Import error: {ie}")

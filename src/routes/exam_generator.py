@@ -433,14 +433,34 @@ class ExamGenerator:
 
 # دالة مساعدة
 def generate_exam(questions, exam_title="نموذج الاختبار", 
-                 output_format='pdf', show_answers=False, 
+                 output_format='word', show_answers=False, 
                  header_settings=None, **kwargs):
-    """دالة مساعدة لتوليد الاختبارات"""
-    generator = ExamGenerator(header_settings)
+    """
+    دالة موحدة لتوليد الاختبارات بصيغ مختلفة
     
-    if output_format.lower() == 'pdf':
-        return generator.generate_pdf(questions, exam_title, show_answers, **kwargs)
-    elif output_format.lower() == 'word':
-        return generator.generate_word(questions, exam_title, show_answers, **kwargs)
-    else:
-        raise ValueError(f"صيغة غير مدعومة: {output_format}")
+    Args:
+        questions: قائمة الأسئلة
+        exam_title: عنوان الاختبار
+        output_format: صيغة الإخراج ('word' أو 'pdf')
+        show_answers: هل يتم عرض الإجابات
+        header_settings: إعدادات الرأس
+        **kwargs: معاملات إضافية
+    
+    Returns:
+        bytes: محتوى الملف
+    """
+    try:
+        generator = ExamGenerator(header_settings or kwargs)
+        
+        if output_format.lower() == 'pdf':
+            try:
+                return generator.generate_pdf(questions, exam_title, show_answers, **kwargs)
+            except ImportError:
+                raise ImportError("weasyprint غير مثبت. الرجاء تثبيته: pip install weasyprint")
+        elif output_format.lower() == 'word':
+            return generator.generate_word(questions, exam_title, show_answers, **kwargs)
+        else:
+            raise ValueError(f"صيغة غير مدعومة: {output_format}")
+    
+    except Exception as e:
+        raise Exception(f"خطأ في توليد الاختبار: {str(e)}")
