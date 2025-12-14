@@ -1644,3 +1644,110 @@ def quiz():
     صفحة الاختبار التفاعلي
     """
     return render_template('quiz.html')
+
+
+# ===== Route لصفحة استخراج وتوليد نماذج الاختبار =====
+@question_bp.route('/export-exam')
+@login_required
+def export_exam():
+    """
+    صفحة استخراج وتوليد نماذج الاختبار
+    """
+    return render_template('question/export_exam.html')
+
+
+@question_bp.route('/download-exam-word', methods=['POST'])
+@login_required
+def download_exam_word():
+    """
+    تحميل نموذج الاختبار كملف Word
+    
+    Request JSON:
+    {
+        "question_ids": [1, 2, 3, ...],
+        "include_answers": true/false,
+        "exam_title": "عنوان الاختبار",
+        "course_name": "اسم المنهج",
+        "unit_name": "اسم الوحدة",
+        "lesson_name": "اسم الدرس"
+    }
+    """
+    try:
+        from exam_word_generator import generate_exam_word
+        
+        data = request.get_json()
+        question_ids = data.get("question_ids", [])
+        include_answers = data.get("include_answers", False)
+        exam_title = data.get("exam_title", "نموذج الاختبار")
+        course_name = data.get("course_name", "")
+        unit_name = data.get("unit_name", "")
+        lesson_name = data.get("lesson_name", "")
+        
+        if not question_ids:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم تحديد أسئلة'
+            }), 400
+        
+        # الحصول على الأسئلة من قاعدة البيانات
+        questions = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).all()
+        
+        if not questions:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم العثور على الأسئلة المحددة'
+            }), 404
+        
+        # تنسيق الأسئلة
+        formatted_questions = []
+        for question in questions:
+            formatted_q = {
+                'question_id': question.question_id,
+                'question_text': question.question_text,
+                'options': [
+                    {
+                        'option_id': opt.option_id,
+                        'option_text': opt.option_text,
+                        'is_correct': opt.is_correct
+                    }
+                    for opt in sorted(question.options, key=lambda o: o.option_id)
+                ],
+                'correct_option_id': next(
+                    (opt.option_id for opt in question.options if opt.is_correct),
+                    None
+                )
+            }
+            formatted_questions.append(formatted_q)
+        
+        # توليد ملف Word
+        word_bytes = generate_exam_word(
+            formatted_questions,
+            exam_title=exam_title,
+            course_name=course_name,
+            unit_name=unit_name,
+            lesson_name=lesson_name,
+            include_answers=include_answers
+        )
+        
+        # إرسال الملف
+        return send_file(
+            io.BytesIO(word_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name=f"exam_{int(time.time())}.docx"
+        )
+        
+    except ImportError:
+        current_app.logger.error("exam_word_generator module not found")
+        return jsonify({
+            'success': False,
+            'error': 'وحدة توليد Word غير متاحة'
+        }), 500
+    except Exception as e:
+        current_app.logger.exception(f"Error downloading exam word: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

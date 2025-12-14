@@ -3490,3 +3490,289 @@ def get_question_block_status(question_id):
         }), 500
 
 # ===== نهاية نظام التحكم بمنع الأسئلة =====
+
+
+# ===== نظام استخراج وتوليد نماذج الاختبار =====
+
+@api_bp.route("/questions/export", methods=["POST"])
+@login_required
+def export_questions():
+    """
+    استخراج الأسئلة المحددة مع نموذج الإجابة
+    
+    Request JSON:
+    {
+        "question_ids": [1, 2, 3, ...],
+        "include_answers": true/false,
+        "format": "json" or "html"
+    }
+    """
+    try:
+        data = request.get_json()
+        question_ids = data.get("question_ids", [])
+        include_answers = data.get("include_answers", False)
+        export_format = data.get("format", "json")
+        
+        if not question_ids:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم تحديد أسئلة للاستخراج'
+            }), 400
+        
+        # الحصول على الأسئلة المحددة
+        questions = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).all()
+        
+        if not questions:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم العثور على الأسئلة المحددة'
+            }), 404
+        
+        # تنسيق الأسئلة
+        formatted_questions = []
+        for question in questions:
+            formatted_q = format_question(question)
+            
+            # إذا لم نطلب الإجابات، نزيل معرف الخيار الصحيح
+            if not include_answers:
+                formatted_q.pop('correct_option_id', None)
+            
+            formatted_questions.append(formatted_q)
+        
+        if export_format == "json":
+            return jsonify({
+                'success': True,
+                'questions': formatted_questions,
+                'count': len(formatted_questions),
+                'include_answers': include_answers
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'صيغة التصدير غير مدعومة'
+            }), 400
+            
+    except Exception as e:
+        logger.exception(f"Error exporting questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/generate-exam", methods=["POST"])
+@login_required
+def generate_exam():
+    """
+    توليد نموذج اختبار عشوائي من أسئلة محددة
+    
+    Request JSON:
+    {
+        "course_id": 1,
+        "unit_id": 2,
+        "lesson_id": 3,
+        "question_count": 10,
+        "include_answers": false
+    }
+    
+    يمكن تحديد course_id فقط، أو course_id + unit_id، أو جميع المعاملات
+    """
+    try:
+        from random import shuffle
+        
+        data = request.get_json()
+        course_id = data.get("course_id")
+        unit_id = data.get("unit_id")
+        lesson_id = data.get("lesson_id")
+        question_count = data.get("question_count", 10)
+        include_answers = data.get("include_answers", False)
+        
+        if not course_id:
+            return jsonify({
+                'success': False,
+                'error': 'يجب تحديد المنهج على الأقل'
+            }), 400
+        
+        # بناء الاستعلام
+        query = Question.query.filter(Question.is_blocked == False)
+        
+        # التصفية حسب الدرس
+        if lesson_id:
+            query = query.filter(Question.lesson_id == lesson_id)
+        # التصفية حسب الوحدة
+        elif unit_id:
+            lessons = Lesson.query.filter(Lesson.unit_id == unit_id).all()
+            lesson_ids = [l.id for l in lessons]
+            query = query.filter(Question.lesson_id.in_(lesson_ids))
+        # التصفية حسب المنهج
+        else:
+            units = Unit.query.filter(Unit.course_id == course_id).all()
+            lesson_ids = []
+            for unit in units:
+                lesson_ids.extend([l.id for l in unit.lessons])
+            query = query.filter(Question.lesson_id.in_(lesson_ids))
+        
+        # الحصول على جميع الأسئلة المتاحة
+        available_questions = query.all()
+        
+        if not available_questions:
+            return jsonify({
+                'success': False,
+                'error': 'لا توجد أسئلة متاحة للاختبار'
+            }), 404
+        
+        # اختيار عشوائي من الأسئلة
+        if len(available_questions) > question_count:
+            selected_questions = []
+            indices = list(range(len(available_questions)))
+            shuffle(indices)
+            for i in range(question_count):
+                selected_questions.append(available_questions[indices[i]])
+        else:
+            selected_questions = available_questions
+        
+        # تنسيق الأسئلة
+        formatted_questions = []
+        for question in selected_questions:
+            formatted_q = format_question(question)
+            
+            # إذا لم نطلب الإجابات، نزيل معرف الخيار الصحيح
+            if not include_answers:
+                formatted_q.pop('correct_option_id', None)
+            
+            formatted_questions.append(formatted_q)
+        
+        return jsonify({
+            'success': True,
+            'exam': {
+                'questions': formatted_questions,
+                'count': len(formatted_questions),
+                'include_answers': include_answers,
+                'generated_at': datetime.utcnow().isoformat()
+            }
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error generating exam: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/lessons", methods=["GET"])
+@login_required
+def get_unit_lessons(course_id, unit_id):
+    """
+    الحصول على جميع دروس وحدة معينة
+    """
+    try:
+        unit = Unit.query.filter_by(id=unit_id, course_id=course_id).first()
+        
+        if not unit:
+            return jsonify({
+                'success': False,
+                'error': 'الوحدة غير موجودة'
+            }), 404
+        
+        lessons = [
+            {
+                'id': lesson.id,
+                'name': lesson.name,
+                'order_num': lesson.order_num
+            }
+            for lesson in sorted(unit.lessons, key=lambda l: l.order_num)
+        ]
+        
+        return jsonify({
+            'success': True,
+            'lessons': lessons
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting unit lessons: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/lessons/<int:lesson_id>/questions-count", methods=["GET"])
+@login_required
+def get_lesson_questions_count(lesson_id):
+    """
+    الحصول على عدد الأسئلة في درس معين
+    """
+    try:
+        lesson = Lesson.query.get(lesson_id)
+        
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
+        
+        # عد الأسئلة غير المحظورة
+        count = Question.query.filter(
+            Question.lesson_id == lesson_id,
+            Question.is_blocked == False
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'lesson_id': lesson_id,
+            'lesson_name': lesson.name,
+            'questions_count': count
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting lesson questions count: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/courses/<int:course_id>/questions-count", methods=["GET"])
+@login_required
+def get_course_questions_count(course_id):
+    """
+    الحصول على عدد الأسئلة في منهج معين
+    """
+    try:
+        course = Course.query.get(course_id)
+        
+        if not course:
+            return jsonify({
+                'success': False,
+                'error': 'المنهج غير موجود'
+            }), 404
+        
+        # الحصول على جميع دروس المنهج
+        lesson_ids = []
+        for unit in course.units:
+            lesson_ids.extend([lesson.id for lesson in unit.lessons])
+        
+        # عد الأسئلة غير المحظورة
+        count = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids),
+            Question.is_blocked == False
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'course_id': course_id,
+            'course_name': course.name,
+            'questions_count': count
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting course questions count: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===== نهاية نظام استخراج وتوليد نماذج الاختبار =====
