@@ -1673,6 +1673,10 @@ def download_exam_word():
     }
     """
     try:
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from exam_word_generator import generate_exam_word
         
         data = request.get_json()
