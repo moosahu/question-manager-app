@@ -1,7 +1,6 @@
 """
 نظام موحد لتوليد ملفات PDF و Word من بيانات الاختبار
 باستخدام python-docx و weasyprint
-ملف Word يطابق تماماً ملف PDF
 """
 
 from jinja2 import Template
@@ -313,9 +312,24 @@ class ExamGenerator:
         
         return pdf_bytes
     
+    def _set_cell_border(self, cell, **kwargs):
+        """دالة مساعدة لتعيين حدود الخلايا في جدول Word"""
+        tcPr = cell._element.get_or_add_tcPr()
+        tcBorders = OxmlElement('w:tcBorders')
+        
+        for edge in ('top', 'left', 'bottom', 'right'):
+            edge_element = OxmlElement(f'w:{edge}')
+            edge_element.set(qn('w:val'), 'single')
+            edge_element.set(qn('w:sz'), '12')
+            edge_element.set(qn('w:space'), '0')
+            edge_element.set(qn('w:color'), '000000')
+            tcBorders.append(edge_element)
+        
+        tcPr.append(tcBorders)
+    
     def generate_word(self, questions, exam_title="نموذج الاختبار", 
                      show_answers=False, **kwargs):
-        """توليد Word من البيانات باستخدام python-docx - مطابق تماماً لـ PDF"""
+        """توليد Word من البيانات باستخدام python-docx مع تنسيق موحد"""
         try:
             # إنشاء مستند Word
             doc = Document()
@@ -323,10 +337,10 @@ class ExamGenerator:
             # تعيين هوامش الصفحة
             sections = doc.sections
             for section in sections:
-                section.top_margin = Inches(0.75)
-                section.bottom_margin = Inches(0.75)
-                section.left_margin = Inches(0.75)
-                section.right_margin = Inches(0.75)
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
             
             # إضافة الرأس
             header_data = {
@@ -340,14 +354,10 @@ class ExamGenerator:
                 'total_score': kwargs.get('total_score', self.header_settings.get('total_score', 30)),
             }
             
-            # جدول الرأس الأول (المملكة، الوزارة، الإدارة، المدرسة)
+            # جدول الرأس
             header_table = doc.add_table(rows=4, cols=2)
-            header_table.style = 'Table Grid'
-            
-            # تعيين عرض الأعمدة
-            for row in header_table.rows:
-                row.cells[0].width = Inches(1.5)
-                row.cells[1].width = Inches(3.5)
+            header_table.style = 'Light Grid Accent 1'
+            header_table.autofit = False
             
             # ملء جدول الرأس
             header_cells = [
@@ -359,57 +369,32 @@ class ExamGenerator:
             
             for i, (label, value) in enumerate(header_cells):
                 row = header_table.rows[i]
+                # تعيين عرض الأعمدة
+                row.cells[0].width = Inches(1.5)
+                row.cells[1].width = Inches(3.5)
                 
-                # خلية التسمية
-                label_cell = row.cells[0]
-                label_cell.text = label
-                for paragraph in label_cell.paragraphs:
-                    paragraph.paragraph_format.direction = 1  # RTL
-                    for run in paragraph.runs:
-                        run.font.size = Pt(11)
-                        run.font.bold = True
-                    # خلفية رمادية للتسمية
-                    shading_elm = OxmlElement('w:shd')
-                    shading_elm.set(qn('w:fill'), 'f5f5f5')
-                    paragraph._element.get_or_add_pPr().append(shading_elm)
+                row.cells[0].text = label
+                row.cells[1].text = value
                 
-                # خلية القيمة
-                value_cell = row.cells[1]
-                value_cell.text = value
-                for paragraph in value_cell.paragraphs:
-                    paragraph.paragraph_format.direction = 1  # RTL
-                    for run in paragraph.runs:
-                        run.font.size = Pt(11)
+                # تنسيق النص
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
+                        for run in paragraph.runs:
+                            run.font.size = Pt(11)
             
             # عنوان الاختبار
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            title.paragraph_format.direction = 1  # RTL
-            title.paragraph_format.space_before = Pt(12)
-            title.paragraph_format.space_after = Pt(12)
+            title.paragraph_format.direction = 1  # 1 = RTL
             title_run = title.add_run(exam_title)
             title_run.font.size = Pt(14)
             title_run.font.bold = True
             
-            # إضافة خط تحت العنوان
-            pPr = title._element.get_or_add_pPr()
-            pBdr = OxmlElement('w:pBdr')
-            bottom = OxmlElement('w:bottom')
-            bottom.set(qn('w:val'), 'single')
-            bottom.set(qn('w:sz'), '24')
-            bottom.set(qn('w:space'), '1')
-            bottom.set(qn('w:color'), '000000')
-            pBdr.append(bottom)
-            pPr.append(pBdr)
-            
-            # جدول المعلومات الإضافية (المادة، الزمن، المستوى، الدرجة)
+            # معلومات إضافية
             info_table = doc.add_table(rows=4, cols=2)
-            info_table.style = 'Table Grid'
-            
-            # تعيين عرض الأعمدة
-            for row in info_table.rows:
-                row.cells[0].width = Inches(1.5)
-                row.cells[1].width = Inches(3.5)
+            info_table.style = 'Light Grid Accent 1'
+            info_table.autofit = False
             
             info_cells = [
                 ('المادة:', header_data['subject']),
@@ -420,91 +405,90 @@ class ExamGenerator:
             
             for i, (label, value) in enumerate(info_cells):
                 row = info_table.rows[i]
+                row.cells[0].width = Inches(1.5)
+                row.cells[1].width = Inches(3.5)
                 
-                # خلية التسمية
-                label_cell = row.cells[0]
-                label_cell.text = label
-                for paragraph in label_cell.paragraphs:
-                    paragraph.paragraph_format.direction = 1  # RTL
-                    for run in paragraph.runs:
-                        run.font.size = Pt(11)
-                        run.font.bold = True
-                    # خلفية رمادية للتسمية
-                    shading_elm = OxmlElement('w:shd')
-                    shading_elm.set(qn('w:fill'), 'f5f5f5')
-                    paragraph._element.get_or_add_pPr().append(shading_elm)
-                
-                # خلية القيمة
-                value_cell = row.cells[1]
-                value_cell.text = value
-                for paragraph in value_cell.paragraphs:
-                    paragraph.paragraph_format.direction = 1  # RTL
-                    for run in paragraph.runs:
-                        run.font.size = Pt(11)
+                row.cells[0].text = label
+                row.cells[1].text = value
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
+                        for run in paragraph.runs:
+                            run.font.size = Pt(11)
             
-            # إضافة فاصل بين الرأس والأسئلة
+            # إضافة فاصل
             doc.add_paragraph()
             
             # إضافة الأسئلة في تخطيط عمودين
             letters = ['أ', 'ب', 'ج', 'د']
             
-            # حساب عدد الصفوف المطلوبة (نصف عدد الأسئلة مقرباً لأعلى)
-            num_rows = (len(questions) + 1) // 2
-            
             # جدول للأسئلة (عمودين)
-            questions_table = doc.add_table(rows=num_rows, cols=2)
-            questions_table.style = 'Table Grid'
+            questions_table = doc.add_table(rows=len(questions), cols=2)
+            questions_table.style = 'Light Grid Accent 1'
+            questions_table.autofit = False
             
-            # تعيين عرض الأعمدة
-            for row in questions_table.rows:
-                row.cells[0].width = Inches(3.5)
-                row.cells[1].width = Inches(3.5)
-            
-            # ملء الجدول بالأسئلة (من اليمين إلى اليسار)
-            for row_idx in range(num_rows):
-                row = questions_table.rows[row_idx]
+            for idx, question in enumerate(questions):
+                row = questions_table.rows[idx]
                 
-                # الخلية اليمنى (السؤال الفردي)
-                right_cell = row.cells[1]
-                right_q_idx = row_idx
+                # تعيين عرض الأعمدة
+                for cell in row.cells:
+                    cell.width = Inches(3.25)
                 
-                # الخلية اليسرى (السؤال الزوجي)
-                left_cell = row.cells[0]
-                left_q_idx = row_idx + num_rows
-                
-                # ملء الخلية اليمنى
-                if right_q_idx < len(questions):
-                    self._fill_question_cell(right_cell, questions[right_q_idx], right_q_idx + 1, letters)
-                
-                # ملء الخلية اليسرى
-                if left_q_idx < len(questions):
-                    self._fill_question_cell(left_cell, questions[left_q_idx], left_q_idx + 1, letters)
+                # ملء الخلايا بالأسئلة
+                for col_idx, cell in enumerate(row.cells):
+                    # حذف الفقرات الافتراضية
+                    for paragraph in cell.paragraphs:
+                        p = paragraph._element
+                        p.getparent().remove(p)
+                    
+                    # حساب رقم السؤال
+                    question_idx = idx * 2 + col_idx
+                    
+                    if question_idx < len(questions):
+                        q = questions[question_idx]
+                        
+                        # رقم السؤال
+                        q_num = cell.add_paragraph()
+                        q_num.paragraph_format.direction = 1  # 1 = RTL
+                        q_num_run = q_num.add_run(f"السؤال {question_idx + 1}: ({q.get('points', 1)} درجات)")
+                        q_num_run.font.bold = True
+                        q_num_run.font.size = Pt(11)
+                        
+                        # نص السؤال
+                        q_text = cell.add_paragraph(q.get('question_text', ''))
+                        q_text.paragraph_format.direction = 1  # 1 = RTL
+                        q_text.paragraph_format.right_indent = Inches(0.2)
+                        
+                        # الخيارات
+                        options = q.get('options', [])
+                        for opt_idx, option in enumerate(options):
+                            opt_text = cell.add_paragraph()
+                            opt_text.paragraph_format.direction = 1  # 1 = RTL
+                            opt_text.paragraph_format.right_indent = Inches(0.4)
+                            letter = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
+                            opt_run = opt_text.add_run(f"{letter}) {option.get('option_text', '')}")
+                            opt_run.font.size = Pt(10)
+                    
+                    # تطبيق حدود الخلية
+                    self._set_cell_border(cell)
             
             # جدول الإجابات
             if show_answers:
                 doc.add_paragraph()
                 answer_key_para = doc.add_paragraph("مفتاح الإجابات")
-                answer_key_para.paragraph_format.direction = 1  # RTL
+                answer_key_para.paragraph_format.direction = 1  # 1 = RTL
                 answer_key_para.runs[0].bold = True
-                answer_key_para.runs[0].font.size = Pt(12)
                 
                 # إنشاء جدول الإجابات
                 answer_table = doc.add_table(rows=2, cols=len(questions))
-                answer_table.style = 'Table Grid'
+                answer_table.style = 'Light Grid Accent 1'
                 
                 # رؤوس الأعمدة (أرقام الأسئلة)
                 for i in range(len(questions)):
                     cell = answer_table.rows[0].cells[i]
                     cell.text = str(i + 1)
                     for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # RTL
-                        for run in paragraph.runs:
-                            run.font.bold = True
-                            run.font.size = Pt(10)
-                        # خلفية رمادية
-                        shading_elm = OxmlElement('w:shd')
-                        shading_elm.set(qn('w:fill'), 'f5f5f5')
-                        paragraph._element.get_or_add_pPr().append(shading_elm)
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
                 
                 # الإجابات الصحيحة
                 letters = ['أ', 'ب', 'ج', 'د']
@@ -518,9 +502,7 @@ class ExamGenerator:
                     cell = answer_table.rows[1].cells[i]
                     cell.text = correct_answer
                     for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # RTL
-                        for run in paragraph.runs:
-                            run.font.size = Pt(10)
+                        paragraph.paragraph_format.direction = 1  # 1 = RTL
             
             # حفظ المستند في BytesIO
             doc_bytes = io.BytesIO()
@@ -531,41 +513,6 @@ class ExamGenerator:
         
         except Exception as e:
             raise Exception(f"خطأ في توليد ملف Word: {str(e)}")
-    
-    def _fill_question_cell(self, cell, question, question_num, letters):
-        """دالة مساعدة لملء خلية السؤال"""
-        # حذف الفقرات الافتراضية
-        for paragraph in cell.paragraphs:
-            p = paragraph._element
-            p.getparent().remove(p)
-        
-        # رقم السؤال
-        q_num = cell.add_paragraph()
-        q_num.paragraph_format.direction = 1  # RTL
-        q_num.paragraph_format.space_after = Pt(6)
-        q_num_run = q_num.add_run(f"السؤال {question_num}: ({question.get('points', 1)} درجات)")
-        q_num_run.font.bold = True
-        q_num_run.font.size = Pt(11)
-        q_num_run.font.color.rgb = RGBColor(0, 102, 204)  # لون أزرق
-        
-        # نص السؤال
-        q_text = cell.add_paragraph(question.get('question_text', ''))
-        q_text.paragraph_format.direction = 1  # RTL
-        q_text.paragraph_format.right_indent = Inches(0.1)
-        q_text.paragraph_format.space_after = Pt(6)
-        for run in q_text.runs:
-            run.font.size = Pt(10)
-        
-        # الخيارات
-        options = question.get('options', [])
-        for opt_idx, option in enumerate(options):
-            opt_text = cell.add_paragraph()
-            opt_text.paragraph_format.direction = 1  # RTL
-            opt_text.paragraph_format.right_indent = Inches(0.2)
-            opt_text.paragraph_format.space_after = Pt(3)
-            letter = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
-            opt_run = opt_text.add_run(f"{letter}) {option.get('option_text', '')}")
-            opt_run.font.size = Pt(10)
 
 
 # دالة مساعدة
