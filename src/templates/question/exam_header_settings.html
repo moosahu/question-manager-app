@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}إعدادات الكليشة{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">⚙️ إعدادات الكليشة (رأس الاختبار)</h2>
+                </div>
+                <div class="card-body p-4">
+                    <form id="headerSettingsForm">
+                        <!-- الجزء الأول: معلومات الدولة والوزارة -->
+                        <div class="section-divider mb-4">
+                            <h4 class="text-primary">📍 معلومات الدولة والوزارة</h4>
+                            <hr>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="country" class="form-label">المملكة:</label>
+                                <input type="text" class="form-control" id="country" name="country" 
+                                       value="المملكة العربية السعودية" placeholder="المملكة العربية السعودية">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="ministry" class="form-label">الوزارة:</label>
+                                <input type="text" class="form-control" id="ministry" name="ministry" 
+                                       value="وزارة التعليم" placeholder="وزارة التعليم">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="education_department" class="form-label">الإدارة العامة للتعليم:</label>
+                                <input type="text" class="form-control" id="education_department" name="education_department" 
+                                       value="الإدارة العامة للتعليم بالمنطقة الشرقية" 
+                                       placeholder="الإدارة العامة للتعليم بالمنطقة الشرقية">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="school_name" class="form-label">اسم المدرسة:</label>
+                                <input type="text" class="form-control" id="school_name" name="school_name" 
+                                       value="مدرسة عبدالرحمن بن القاسم الثانوية" 
+                                       placeholder="اسم المدرسة">
+                            </div>
+                        </div>
+
+                        <!-- الجزء الثاني: معلومات المادة -->
+                        <div class="section-divider mb-4 mt-4">
+                            <h4 class="text-primary">📚 معلومات المادة</h4>
+                            <hr>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="subject" class="form-label">المادة:</label>
+                                <input type="text" class="form-control" id="subject" name="subject" 
+                                       value="كيمياء 4" placeholder="اسم المادة">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="time" class="form-label">الزمن:</label>
+                                <input type="text" class="form-control" id="time" name="time" 
+                                       value="ثلاث ساعات" placeholder="الزمن المخصص">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="grade" class="form-label">الصف:</label>
+                                <input type="text" class="form-control" id="grade" name="grade" 
+                                       value="ثالث ثانوي" placeholder="الصف الدراسي">
+                            </div>
+                        </div>
+
+                        <!-- الجزء الثالث: الدرجات والمصحح والمراجع -->
+                        <div class="section-divider mb-4 mt-4">
+                            <h4 class="text-primary">✅ الدرجات والتوقيعات</h4>
+                            <hr>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="total_score" class="form-label">الدرجة الأساسية:</label>
+                                <input type="number" class="form-control" id="total_score" name="total_score" 
+                                       value="30" placeholder="30">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="checker_name" class="form-label">اسم المصحح:</label>
+                                <input type="text" class="form-control" id="checker_name" name="checker_name" 
+                                       placeholder="اسم المصحح (اختياري)">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="reviewer_name" class="form-label">اسم المراجع:</label>
+                                <input type="text" class="form-control" id="reviewer_name" name="reviewer_name" 
+                                       placeholder="اسم المراجع (اختياري)">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="exam_date" class="form-label">التاريخ:</label>
+                                <input type="date" class="form-control" id="exam_date" name="exam_date">
+                            </div>
+                        </div>
+
+                        <!-- الأزرار -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="reset" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-redo"></i> إعادة تعيين
+                            </button>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> حفظ الإعدادات
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- معاينة الكليشة -->
+                    <div class="section-divider mb-4 mt-5">
+                        <h4 class="text-primary">👁️ معاينة الكليشة</h4>
+                        <hr>
+                    </div>
+
+                    <div id="headerPreview" class="border p-4 bg-light rounded" style="direction: rtl;">
+                        <!-- سيتم ملؤه بواسطة JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .section-divider {
+        border-top: 2px solid #dee2e6;
+        padding-top: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border-radius: 0.5rem;
+        border: 1px solid #ddd;
+        padding: 0.75rem;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    #headerPreview {
+        font-family: Arial, sans-serif;
+        line-height: 1.8;
+        text-align: center;
+    }
+
+    .preview-header {
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #333;
+        padding-bottom: 1rem;
+    }
+
+    .preview-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .preview-row span {
+        flex: 1;
+        text-align: center;
+    }
+</style>
+
+<script>
+    // تحميل الإعدادات عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        loadHeaderSettings();
+        updatePreview();
+    });
+
+    // تحديث المعاينة عند تغيير أي حقل
+    document.querySelectorAll('#headerSettingsForm input').forEach(input => {
+        input.addEventListener('change', updatePreview);
+        input.addEventListener('keyup', updatePreview);
+    });
+
+    // تحميل الإعدادات المحفوظة
+    async function loadHeaderSettings() {
+        try {
+            const response = await fetch('/questions/get-header-settings');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.settings) {
+                    const settings = data.settings;
+                    document.getElementById('country').value = settings.country || 'المملكة العربية السعودية';
+                    document.getElementById('ministry').value = settings.ministry || 'وزارة التعليم';
+                    document.getElementById('education_department').value = settings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية';
+                    document.getElementById('school_name').value = settings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية';
+                    document.getElementById('subject').value = settings.subject || 'كيمياء 4';
+                    document.getElementById('time').value = settings.time || 'ثلاث ساعات';
+                    document.getElementById('grade').value = settings.grade || 'ثالث ثانوي';
+                    document.getElementById('total_score').value = settings.total_score || '30';
+                    document.getElementById('checker_name').value = settings.checker_name || '';
+                    document.getElementById('reviewer_name').value = settings.reviewer_name || '';
+                    if (settings.exam_date) {
+                        document.getElementById('exam_date').value = settings.exam_date;
+                    }
+                    updatePreview();
+                }
+            }
+        } catch (error) {
+            console.error('خطأ في تحميل الإعدادات:', error);
+        }
+    }
+
+    // تحديث المعاينة
+    function updatePreview() {
+        const country = document.getElementById('country').value;
+        const ministry = document.getElementById('ministry').value;
+        const education_department = document.getElementById('education_department').value;
+        const school_name = document.getElementById('school_name').value;
+        const subject = document.getElementById('subject').value;
+        const time = document.getElementById('time').value;
+        const grade = document.getElementById('grade').value;
+        const total_score = document.getElementById('total_score').value;
+
+        const preview = `
+            <div class="preview-header">
+                <div class="preview-row">
+                    <span style="flex: 2;">${country}</span>
+                    <span style="flex: 2;">${ministry}</span>
+                    <span style="flex: 2;">المادة: ${subject}</span>
+                </div>
+                <div class="preview-row">
+                    <span style="flex: 2;">${education_department}</span>
+                    <span style="flex: 2;"></span>
+                    <span style="flex: 2;">الزمن: ${time}</span>
+                </div>
+                <div class="preview-row">
+                    <span style="flex: 2;">${school_name}</span>
+                    <span style="flex: 2;"></span>
+                    <span style="flex: 2;">الصف: ${grade}</span>
+                </div>
+            </div>
+            <div style="margin: 1rem 0; font-weight: bold;">
+                اختبار الفصل الدراسي الثاني للعام الدراسي 1445ه
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr style="border: 1px solid #333;">
+                    <td style="border: 1px solid #333; padding: 0.5rem;">المراجع</td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;">المصحح</td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;">الدرجة كتابة</td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;">درجة الطالب رقماً</td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;">الدرجة الأساسية</td>
+                </tr>
+                <tr style="border: 1px solid #333;">
+                    <td style="border: 1px solid #333; padding: 0.5rem;"></td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;"></td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;"></td>
+                    <td style="border: 1px solid #333; padding: 0.5rem;"></td>
+                    <td style="border: 1px solid #333; padding: 0.5rem; font-weight: bold;">${total_score}</td>
+                </tr>
+            </table>
+        `;
+
+        document.getElementById('headerPreview').innerHTML = preview;
+    }
+
+    // حفظ الإعدادات
+    document.getElementById('headerSettingsForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const settings = {
+            country: document.getElementById('country').value,
+            ministry: document.getElementById('ministry').value,
+            education_department: document.getElementById('education_department').value,
+            school_name: document.getElementById('school_name').value,
+            subject: document.getElementById('subject').value,
+            time: document.getElementById('time').value,
+            grade: document.getElementById('grade').value,
+            total_score: document.getElementById('total_score').value,
+            checker_name: document.getElementById('checker_name').value,
+            reviewer_name: document.getElementById('reviewer_name').value,
+            exam_date: document.getElementById('exam_date').value
+        };
+
+        try {
+            const response = await fetch('/questions/save-header-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify(settings)
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showAlert('تم حفظ الإعدادات بنجاح! ✅', 'success');
+            } else {
+                showAlert('فشل حفظ الإعدادات: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            showAlert('خطأ في حفظ الإعدادات: ' + error.message, 'danger');
+        }
+    });
+
+    // دالة لعرض التنبيهات
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.setAttribute('role', 'alert');
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('#headerSettingsForm'));
+        
+        // إزالة التنبيه بعد 5 ثوانٍ
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+</script>
+{% endblock %}
