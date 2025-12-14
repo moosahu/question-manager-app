@@ -46,6 +46,27 @@ except ImportError:
         print("Error: Could not import models.")
         raise
 
+
+class ExamHeaderSettings(db.Model):
+    __tablename__ = 'exam_header_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    country = db.Column(db.String(255), default='المملكة العربية السعودية')
+    ministry = db.Column(db.String(255), default='وزارة التعليم')
+    education_department = db.Column(db.String(255), default='الإدارة العامة للتعليم بالمنطقة الشرقية')
+    school_name = db.Column(db.String(255), default='مدرسة عبدالرحمن بن القاسم الثانوية')
+    subject = db.Column(db.String(255), default='كيمياء 4')
+    time = db.Column(db.String(255), default='ثلاث ساعات')
+    grade = db.Column(db.String(255), default='ثالث ثانوي')
+    total_score = db.Column(db.Integer, default=30)
+    checker_name = db.Column(db.String(255), nullable=True)
+    reviewer_name = db.Column(db.String(255), nullable=True)
+    exam_date = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<ExamHeaderSettings {self.id}>"
+
 # إضافة استيراد نظام الإشعارات
 try:
     from src.utils.notification_system import QuestionNotifications, SystemNotifications
