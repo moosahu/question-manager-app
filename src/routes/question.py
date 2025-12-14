@@ -1785,6 +1785,14 @@ def header_settings():
     return render_template('question/exam_header_settings.html')
 
 
+
+@question_bp.route('/header-settings')
+@login_required
+def header_settings():
+    """عرض صفحة إعدادات الكليشة"""
+    return render_template('question/exam_header_settings.html')
+
+
 @question_bp.route('/save-header-settings', methods=['POST'])
 @login_required
 def save_header_settings():
