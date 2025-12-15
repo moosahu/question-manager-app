@@ -1,29 +1,37 @@
 """
-نظام موحد لتوليد ملفات PDF و Word من بيانات الاختبار
-باستخدام python-docx و weasyprint
+نظام محسّن لتوليد ملفات PDF و Word من بيانات الاختبار
+مع شعار وزارة التعليم والتصميم الاحترافي
 """
 
 from jinja2 import Template
 from datetime import datetime
 import io
+import base64
 from weasyprint import HTML
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from PIL import Image
 
 
 class ExamGenerator:
-    """فئة موحدة لتوليد الاختبارات بصيغ مختلفة"""
+    """فئة محسّنة لتوليد الاختبارات بصيغ مختلفة"""
     
-    def __init__(self, header_settings=None):
-        """
-        تهيئة منشئ الاختبارات
-        
-        Args:
-            header_settings: قاموس يحتوي على إعدادات الكليشة
-        """
+    def __init__(self, header_settings=None, logo_path=None):
+        """تهيئة منشئ الاختبارات"""
         self.header_settings = header_settings or {}
+        self.logo_path = logo_path or '/home/ubuntu/ministry_logo.png'
         self.html_template = self._get_html_template()
+    
+    def _get_logo_base64(self):
+        """تحويل الشعار إلى base64"""
+        try:
+            with open(self.logo_path, 'rb') as f:
+                return base64.b64encode(f.read()).decode()
+        except:
+            return None
     
     def _get_html_template(self):
         """الحصول على قالب HTML"""
@@ -50,7 +58,7 @@ class ExamGenerator:
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -61,6 +69,30 @@ class ExamGenerator:
             padding: 20px;
             margin-bottom: 20px;
             text-align: center;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .logo-container img {
+            height: 80px;
+            width: auto;
+        }
+        
+        .header-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            text-align: right;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        
+        .header-info div {
+            text-align: right;
         }
         
         .header-table {
@@ -79,11 +111,11 @@ class ExamGenerator:
         .header-table .label {
             font-weight: bold;
             background-color: #f5f5f5;
-            width: 30%;
+            width: 25%;
         }
         
         .header-table .value {
-            width: 70%;
+            width: 25%;
         }
         
         .exam-title {
@@ -97,30 +129,61 @@ class ExamGenerator:
         /* الأسئلة */
         .questions {
             margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
         
         .question {
             margin-bottom: 20px;
             page-break-inside: avoid;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
         }
         
         .question-number {
             font-weight: bold;
             margin-bottom: 5px;
+            color: #0066cc;
+            font-size: 12px;
         }
         
         .question-text {
             margin-bottom: 10px;
             line-height: 1.8;
+            font-weight: 500;
+            font-size: 12px;
         }
         
         .options {
-            margin-right: 20px;
+            margin-right: 0;
+            margin-top: 10px;
+        }
+        
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 60px;
+            margin-bottom: 8px;
+            flex-wrap: nowrap;
+            text-align: right;
         }
         
         .option {
-            margin-bottom: 8px;
+            margin-bottom: 0;
             line-height: 1.6;
+            font-size: 11px;
+            display: flex;
+            align-items: flex-start;
+            gap: 5px;
+            flex: 0 1 auto;
+        }
+        
+        .option span {
+            flex-shrink: 0;
+            min-width: 20px;
         }
         
         /* جدول الإجابات */
@@ -128,6 +191,7 @@ class ExamGenerator:
             margin-top: 30px;
             border-top: 2px solid #000;
             padding-top: 20px;
+            grid-column: 1 / -1;
         }
         
         .answer-table {
@@ -140,12 +204,95 @@ class ExamGenerator:
             border: 1px solid #000;
             padding: 8px;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
         }
         
         .answer-table th {
             background-color: #f5f5f5;
             font-weight: bold;
+        }
+        
+        /* جدول المعلومات الإضافية */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        
+        .info-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: right;
+            font-size: 12px;
+        }
+        
+        .info-table .label {
+            font-weight: bold;
+            background-color: #f5f5f5;
+            width: 25%;
+        }
+        
+        .info-table .value {
+            width: 25%;
+        }
+        
+        .student-info {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            font-size: 12px;
+            line-height: 2;
+        }
+        
+        .student-info-item {
+            text-align: right;
+            border-bottom: 1px solid #000;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            gap: 20px;
+        }
+        
+        .header-left {
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.8;
+            flex: 1;
+        }
+        
+        .header-left div {
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+            margin-bottom: 5px;
+        }
+        
+        .header-center {
+            flex: 0 0 auto;
+            text-align: center;
+        }
+        
+        .header-right {
+            text-align: right;
+            font-size: 12px;
+            line-height: 1.8;
+            flex: 1;
+        }
+        
+        .header-right div {
+            margin-bottom: 3px;
+        }
+        
+        .info-section {
+            margin: 10px 0;
+            padding: 10px 0;
+            text-align: right;
+            font-size: 12px;
+            line-height: 1.8;
         }
     </style>
 </head>
@@ -153,48 +300,63 @@ class ExamGenerator:
     <div class="container">
         <!-- رأس الاختبار -->
         <div class="header">
-            <!-- معلومات الاختبار -->
-            <table class="header-table">
-                <tr>
-                    <td class="label">المملكة:</td>
-                    <td class="value">{{ country }}</td>
-                </tr>
-                <tr>
-                    <td class="label">الوزارة:</td>
-                    <td class="value">{{ ministry }}</td>
-                </tr>
-                <tr>
-                    <td class="label">الإدارة:</td>
-                    <td class="value">{{ education_department }}</td>
-                </tr>
-                <tr>
-                    <td class="label">المدرسة:</td>
-                    <td class="value">{{ school_name }}</td>
-                </tr>
-            </table>
+            <div class="header-top">
+                <div class="header-left">
+                    <div><strong>المادة:</strong> {{ subject }}</div>
+                    <div><strong>الزمن:</strong> {{ time }}</div>
+                    <div><strong>الصف:</strong> {{ grade }}</div>
+                </div>
+                
+                <div class="header-center">
+                    {% if logo %}
+                    <div class="logo-container">
+                        <img src="data:image/png;base64,{{ logo }}" alt="شعار الوزارة">
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="header-right">
+                    <div><strong>{{ country }}</strong></div>
+                    <div><strong>{{ ministry }}</strong></div>
+                    <div><strong>{{ education_department }}</strong></div>
+                    <div><strong>{{ school_name }}</strong></div>
+                </div>
+            </div>
             
-            <!-- عنوان الاختبار -->
             <div class="exam-title">{{ exam_title }}</div>
             
-            <!-- معلومات إضافية -->
             <table class="header-table">
                 <tr>
-                    <td class="label">المادة:</td>
-                    <td class="value">{{ subject }}</td>
-                </tr>
-                <tr>
-                    <td class="label">الزمن:</td>
-                    <td class="value">{{ time }}</td>
-                </tr>
-                <tr>
-                    <td class="label">المستوى:</td>
-                    <td class="value">{{ grade }}</td>
-                </tr>
-                <tr>
-                    <td class="label">الدرجة الكلية:</td>
+                    <td class="label">المراجع</td>
+                    <td class="value"></td>
+                    <td class="label">المصحح</td>
+                    <td class="value"></td>
+                    <td class="label">درجة كتابية</td>
+                    <td class="value"></td>
+                    <td class="label">درجة الطالب رقماً</td>
+                    <td class="value"></td>
+                    <td class="label">الدرجة الأساسية</td>
                     <td class="value">{{ total_score }}</td>
                 </tr>
+                <tr>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                </tr>
             </table>
+            
+            <div class="student-info">
+                <div class="student-info-item">اسم الطالب: __________</div>
+                <div class="student-info-item">الشعبة: __________</div>
+                <div class="student-info-item">رقم الجلوس: __________</div>
+            </div>
         </div>
         
         <!-- الأسئلة -->
@@ -205,43 +367,47 @@ class ExamGenerator:
                 <div class="question-text">{{ question.question_text }}</div>
                 <div class="options">
                     {% set letters = ['أ', 'ب', 'ج', 'د'] %}
-                    {% for option in question.options %}
-                    <div class="option">
-                        <span>{{ letters[loop.index0] if loop.index0 < 4 else loop.index0 + 1 }})</span>
-                        {{ option.option_text }}
+                    {% for row_idx in range(0, question.options|length, 2) %}
+                    <div class="options-row">
+                        {% for col_idx in range(2) %}
+                            {% if row_idx + col_idx < question.options|length %}
+                            <div class="option">
+                                <span><strong>{{ letters[row_idx + col_idx] if row_idx + col_idx < 4 else row_idx + col_idx + 1 }})&nbsp;</strong></span>
+                                {{ question.options[row_idx + col_idx].option_text }}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
                     </div>
                     {% endfor %}
                 </div>
             </div>
             {% endfor %}
+            
+            {% if show_answers %}
+            <div class="answer-key">
+                <div style="font-weight: bold; margin-bottom: 10px;">مفتاح الإجابات</div>
+                <table class="answer-table">
+                    <tr>
+                        {% for i in range(1, questions|length + 1) %}
+                        <th>{{ i }}</th>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        {% for question in questions %}
+                        <td>{{ question.correct_answer }}</td>
+                        {% endfor %}
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
         </div>
-        
-        <!-- جدول الإجابات -->
-        {% if show_answers %}
-        <div class="answer-key">
-            <div style="font-weight: bold; margin-bottom: 10px;">مفتاح الإجابات</div>
-            <table class="answer-table">
-                <tr>
-                    {% for i in range(1, questions|length + 1) %}
-                    <th>{{ i }}</th>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    {% for question in questions %}
-                    <td>{{ question.correct_answer }}</td>
-                    {% endfor %}
-                </tr>
-            </table>
-        </div>
-        {% endif %}
     </div>
 </body>
 </html>
 """
     
-    def generate_html(self, questions, exam_title="نموذج الاختبار", 
-                     show_answers=False, **kwargs):
-        """توليد HTML من البيانات"""
+    def _prepare_context(self, questions, exam_title, show_answers, **kwargs):
+        """تحضير السياق للقالب"""
         context = {
             'exam_title': exam_title,
             'country': kwargs.get('country', self.header_settings.get('country', 'المملكة العربية السعودية')),
@@ -252,15 +418,12 @@ class ExamGenerator:
             'time': kwargs.get('time', self.header_settings.get('time', '')),
             'grade': kwargs.get('grade', self.header_settings.get('grade', '')),
             'total_score': kwargs.get('total_score', self.header_settings.get('total_score', 30)),
-            'checker_name': kwargs.get('checker_name', self.header_settings.get('checker_name', '')),
-            'reviewer_name': kwargs.get('reviewer_name', self.header_settings.get('reviewer_name', '')),
-            'exam_date': kwargs.get('exam_date', self.header_settings.get('exam_date', datetime.now().strftime('%d/%m/%Y'))),
-            'questions': questions,
-            'show_answers': show_answers
+            'questions': [],
+            'show_answers': show_answers,
+            'logo': self._get_logo_base64()
         }
         
         # تنسيق الأسئلة
-        formatted_questions = []
         letters = ['أ', 'ب', 'ج', 'د']
         
         for question in questions:
@@ -281,37 +444,50 @@ class ExamGenerator:
                 if option.get('is_correct') or option.get('option_id') == question.get('correct_option_id'):
                     formatted_q['correct_answer'] = letters[idx] if idx < len(letters) else str(idx + 1)
             
-            formatted_questions.append(formatted_q)
+            context['questions'].append(formatted_q)
         
-        context['questions'] = formatted_questions
-        
-        # توليد HTML
+        return context
+    
+    def generate_html(self, questions, exam_title="نموذج الاختبار", 
+                     show_answers=False, **kwargs):
+        """توليد HTML من البيانات"""
+        context = self._prepare_context(questions, exam_title, show_answers, **kwargs)
         template = Template(self.html_template)
         return template.render(**context)
     
     def generate_pdf(self, questions, exam_title="نموذج الاختبار", 
                     show_answers=False, **kwargs):
-        """توليد PDF من البيانات"""
+        """توليد PDF من HTML"""
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
-        
-        # تحويل HTML إلى PDF
         html_obj = HTML(string=html_content)
         pdf_bytes = html_obj.write_pdf()
-        
         return pdf_bytes
     
     def generate_word(self, questions, exam_title="نموذج الاختبار", 
                      show_answers=False, **kwargs):
-        """توليد Word من البيانات باستخدام python-docx"""
+        """توليد Word بنفس تصميم PDF"""
         try:
             # إنشاء مستند Word
             doc = Document()
             
-            # تعيين اتجاه النص من اليمين إلى اليسار لجميع الفقرات
-            # ملاحظة: paragraph_format موجود في كائنات Paragraph وليس Document
-            # سيتم تطبيق RTL على كل فقرة عند إضافتها
+            # تعيين هوامش الصفحة
+            sections = doc.sections
+            for section in sections:
+                section.top_margin = Inches(0.75)
+                section.bottom_margin = Inches(0.75)
+                section.left_margin = Inches(0.75)
+                section.right_margin = Inches(0.75)
             
-            # إضافة الرأس
+            # إضافة الشعار
+            try:
+                logo_para = doc.add_paragraph()
+                logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = logo_para.add_run()
+                run.add_picture(self.logo_path, width=Inches(1.2))
+            except:
+                pass
+            
+            # إضافة معلومات الرأس
             header_data = {
                 'country': kwargs.get('country', self.header_settings.get('country', 'المملكة العربية السعودية')),
                 'ministry': kwargs.get('ministry', self.header_settings.get('ministry', 'وزارة التعليم')),
@@ -323,107 +499,170 @@ class ExamGenerator:
                 'total_score': kwargs.get('total_score', self.header_settings.get('total_score', 30)),
             }
             
-            # جدول الرأس
-            header_table = doc.add_table(rows=4, cols=2)
-            header_table.style = 'Light Grid Accent 1'
+            # جدول معلومات الرأس
+            header_info = doc.add_table(rows=1, cols=3)
+            header_info.style = 'Table Grid'
             
-            # ملء جدول الرأس
-            header_cells = [
-                ('المملكة:', header_data['country']),
-                ('الوزارة:', header_data['ministry']),
-                ('الإدارة:', header_data['education_department']),
-                ('المدرسة:', header_data['school_name']),
-            ]
+            cells = header_info.rows[0].cells
             
-            for i, (label, value) in enumerate(header_cells):
-                row = header_table.rows[i]
-                row.cells[0].text = label
-                row.cells[1].text = value
-                # تنسيق النص
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # 1 = RTL
-                        for run in paragraph.runs:
-                            run.font.size = Pt(11)
+            # العمود الأيمن
+            right_cell = cells[2]
+            right_cell.text = f"{header_data['country']}\n{header_data['ministry']}"
+            for paragraph in right_cell.paragraphs:
+                paragraph.paragraph_format.direction = 1
+                for run in paragraph.runs:
+                    run.font.size = Pt(11)
+                    run.font.bold = True
+            
+            # العمود الأوسط (فارغ)
+            middle_cell = cells[1]
+            middle_cell.text = ""
+            
+            # العمود الأيسر
+            left_cell = cells[0]
+            left_cell.text = f"{header_data['education_department']}\n{header_data['school_name']}"
+            for paragraph in left_cell.paragraphs:
+                paragraph.paragraph_format.direction = 1
+                for run in paragraph.runs:
+                    run.font.size = Pt(11)
+                    run.font.bold = True
             
             # عنوان الاختبار
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            title.paragraph_format.direction = 1  # 1 = RTL
+            title.paragraph_format.direction = 1
+            title.paragraph_format.space_before = Pt(12)
+            title.paragraph_format.space_after = Pt(12)
             title_run = title.add_run(exam_title)
             title_run.font.size = Pt(14)
             title_run.font.bold = True
             
-            # معلومات إضافية
-            info_table = doc.add_table(rows=4, cols=2)
-            info_table.style = 'Light Grid Accent 1'
+            # إضافة خط تحت العنوان
+            pPr = title._element.get_or_add_pPr()
+            pBdr = OxmlElement('w:pBdr')
+            bottom = OxmlElement('w:bottom')
+            bottom.set(qn('w:val'), 'single')
+            bottom.set(qn('w:sz'), '24')
+            bottom.set(qn('w:space'), '1')
+            bottom.set(qn('w:color'), '000000')
+            pBdr.append(bottom)
+            pPr.append(pBdr)
+            
+            # جدول المعلومات
+            info_table = doc.add_table(rows=2, cols=4)
+            info_table.style = 'Table Grid'
             
             info_cells = [
-                ('المادة:', header_data['subject']),
-                ('الزمن:', header_data['time']),
-                ('المستوى:', header_data['grade']),
-                ('الدرجة الكلية:', str(header_data['total_score'])),
+                ('المادة:', header_data['subject'], 'الزمن:', header_data['time']),
+                ('الصف:', header_data['grade'], 'الدرجة الكلية:', str(header_data['total_score'])),
             ]
             
-            for i, (label, value) in enumerate(info_cells):
-                row = info_table.rows[i]
-                row.cells[0].text = label
-                row.cells[1].text = value
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # 1 = RTL
+            for row_idx, row_data in enumerate(info_cells):
+                row = info_table.rows[row_idx]
+                for col_idx, (label, value) in enumerate([(row_data[0], row_data[1]), (row_data[2], row_data[3])]):
+                    label_cell = row.cells[col_idx * 2]
+                    label_cell.text = label
+                    for paragraph in label_cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1
+                        for run in paragraph.runs:
+                            run.font.size = Pt(11)
+                            run.font.bold = True
+                        self._add_shading(paragraph, 'f5f5f5')
+                    
+                    value_cell = row.cells[col_idx * 2 + 1]
+                    value_cell.text = value
+                    for paragraph in value_cell.paragraphs:
+                        paragraph.paragraph_format.direction = 1
                         for run in paragraph.runs:
                             run.font.size = Pt(11)
             
-            # إضافة الأسئلة
-            letters = ['أ', 'ب', 'ج', 'د']
+            # جدول الدرجات
+            grades_table = doc.add_table(rows=2, cols=5)
+            grades_table.style = 'Table Grid'
             
-            for idx, question in enumerate(questions, 1):
-                # رقم السؤال
-                q_num = doc.add_paragraph()
-                q_num.paragraph_format.direction = 1  # 1 = RTL
-                q_num_run = q_num.add_run(f"السؤال {idx}: ({question.get('points', 1)} درجات)")
-                q_num_run.font.bold = True
-                q_num_run.font.size = Pt(12)
+            grade_headers = ['الدرجة الأساسية', 'درجة الطالب رقماً', 'درجة كتابية', 'المصحح', 'المراجع']
+            for col_idx, header in enumerate(grade_headers):
+                cell = grades_table.rows[0].cells[col_idx]
+                cell.text = header
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.direction = 1
+                    for run in paragraph.runs:
+                        run.font.bold = True
+                        run.font.size = Pt(10)
+                    self._add_shading(paragraph, 'f5f5f5')
+            
+            # ملء الصف الثاني من جدول الدرجات
+            grades_table.rows[1].cells[0].text = str(header_data['total_score'])
+            
+            # معلومات الطالب
+            doc.add_paragraph()
+            student_info = doc.add_table(rows=1, cols=3)
+            student_info.style = 'Table Grid'
+            
+            student_fields = [
+                'اسم الطالب: __________',
+                'الشعبة: __________',
+                'رقم الجلوس: __________'
+            ]
+            
+            for col_idx, field in enumerate(student_fields):
+                cell = student_info.rows[0].cells[col_idx]
+                cell.text = field
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.direction = 1
+                    for run in paragraph.runs:
+                        run.font.size = Pt(10)
+            
+            # إضافة فاصل
+            doc.add_paragraph()
+            
+            # إضافة الأسئلة في تخطيط عمودين
+            letters = ['أ', 'ب', 'ج', 'د']
+            num_rows = (len(questions) + 1) // 2
+            
+            questions_table = doc.add_table(rows=num_rows, cols=2)
+            questions_table.style = 'Table Grid'
+            
+            for row in questions_table.rows:
+                row.cells[0].width = Inches(3.5)
+                row.cells[1].width = Inches(3.5)
+            
+            for row_idx in range(num_rows):
+                row = questions_table.rows[row_idx]
                 
-                # نص السؤال
-                q_text = doc.add_paragraph(question.get('question_text', ''))
-                q_text.paragraph_format.direction = 1  # 1 = RTL
-                q_text.paragraph_format.right_indent = Inches(0.2)
+                right_cell = row.cells[1]
+                right_q_idx = row_idx
                 
-                # الخيارات
-                options = question.get('options', [])
-                for opt_idx, option in enumerate(options):
-                    opt_text = doc.add_paragraph()
-                    opt_text.paragraph_format.direction = 1  # 1 = RTL
-                    opt_text.paragraph_format.right_indent = Inches(0.4)
-                    letter = letters[opt_idx] if opt_idx < len(letters) else str(opt_idx + 1)
-                    opt_run = opt_text.add_run(f"{letter}) {option.get('option_text', '')}")
-                    opt_run.font.size = Pt(11)
+                left_cell = row.cells[0]
+                left_q_idx = row_idx + num_rows
                 
-                # فاصل
-                separator = doc.add_paragraph()
-                separator.paragraph_format.direction = 1  # 1 = RTL
+                if right_q_idx < len(questions):
+                    self._fill_question_cell(right_cell, questions[right_q_idx], right_q_idx + 1, letters)
+                
+                if left_q_idx < len(questions):
+                    self._fill_question_cell(left_cell, questions[left_q_idx], left_q_idx + 1, letters)
             
             # جدول الإجابات
             if show_answers:
-                answer_key_para = doc.add_paragraph("\u0645\u0641\u062a\u0627\u062d \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a")
-                answer_key_para.paragraph_format.direction = 1  # 1 = RTL
+                doc.add_paragraph()
+                answer_key_para = doc.add_paragraph("مفتاح الإجابات")
+                answer_key_para.paragraph_format.direction = 1
                 answer_key_para.runs[0].bold = True
+                answer_key_para.runs[0].font.size = Pt(12)
                 
-                # \u0625\u0646\u0634\u0627\u0621 \u062c\u062f\u0648\u0644 \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a
                 answer_table = doc.add_table(rows=2, cols=len(questions))
-                answer_table.style = 'Light Grid Accent 1'
+                answer_table.style = 'Table Grid'
                 
-                # \u0631\u0624\u0648\u0633 \u0627\u0644\u0623\u0639\u0645\u062f\u0629 (\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0623\u0633\u0626\u0644\u0629)
                 for i in range(len(questions)):
                     cell = answer_table.rows[0].cells[i]
                     cell.text = str(i + 1)
                     for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # 1 = RTL
+                        paragraph.paragraph_format.direction = 1
+                        for run in paragraph.runs:
+                            run.font.bold = True
+                            run.font.size = Pt(10)
+                        self._add_shading(paragraph, 'f5f5f5')
                 
-                # \u0627\u0644\u0625\u062c\u0627\u0628\u0627\u062a \u0627\u0644\u0635\u062d\u064a\u062d\u0629
-                letters = ['\u0623', '\u0628', '\u062c', '\u062f']
                 for i, question in enumerate(questions):
                     options = question.get('options', [])
                     correct_answer = ''
@@ -434,9 +673,11 @@ class ExamGenerator:
                     cell = answer_table.rows[1].cells[i]
                     cell.text = correct_answer
                     for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.direction = 1  # 1 = RTL
+                        paragraph.paragraph_format.direction = 1
+                        for run in paragraph.runs:
+                            run.font.size = Pt(10)
             
-            # حفظ المستند في BytesIO
+            # حفظ في BytesIO
             doc_bytes = io.BytesIO()
             doc.save(doc_bytes)
             doc_bytes.seek(0)
@@ -445,38 +686,69 @@ class ExamGenerator:
         
         except Exception as e:
             raise Exception(f"خطأ في توليد ملف Word: {str(e)}")
+    
+    def _add_shading(self, paragraph, color):
+        """إضافة خلفية للفقرة"""
+        shading_elm = OxmlElement('w:shd')
+        shading_elm.set(qn('w:fill'), color)
+        paragraph._element.get_or_add_pPr().append(shading_elm)
+    
+    def _fill_question_cell(self, cell, question, question_num, letters):
+        """ملء خلية السؤال"""
+        for paragraph in cell.paragraphs:
+            p = paragraph._element
+            p.getparent().remove(p)
+        
+        q_num = cell.add_paragraph()
+        q_num.paragraph_format.direction = 1
+        q_num.paragraph_format.space_after = Pt(6)
+        q_num_run = q_num.add_run(f"السؤال {question_num}: ({question.get('points', 1)} درجات)")
+        q_num_run.font.bold = True
+        q_num_run.font.size = Pt(11)
+        q_num_run.font.color.rgb = RGBColor(0, 102, 204)
+        
+        q_text = cell.add_paragraph(question.get('question_text', ''))
+        q_text.paragraph_format.direction = 1
+        q_text.paragraph_format.right_indent = Inches(0.1)
+        q_text.paragraph_format.space_after = Pt(6)
+        for run in q_text.runs:
+            run.font.size = Pt(10)
+        
+        options = question.get('options', [])
+        if len(options) > 0:
+            for row_idx in range(0, len(options), 2):
+                opt_para = cell.add_paragraph()
+                opt_para.paragraph_format.direction = 1
+                opt_para.paragraph_format.space_after = Pt(4)
+                
+                if row_idx < len(options):
+                    letter = letters[row_idx] if row_idx < len(letters) else str(row_idx + 1)
+                    letter_run = opt_para.add_run(f"{letter}) ")
+                    letter_run.font.bold = True
+                    letter_run.font.size = Pt(10)
+                    opt_run = opt_para.add_run(options[row_idx].get('option_text', ''))
+                    opt_run.font.size = Pt(10)
+                    
+                    space_run = opt_para.add_run("                    ")
+                    space_run.font.size = Pt(10)
+                
+                if row_idx + 1 < len(options):
+                    letter = letters[row_idx + 1] if row_idx + 1 < len(letters) else str(row_idx + 2)
+                    letter_run = opt_para.add_run(f"{letter}) ")
+                    letter_run.font.bold = True
+                    letter_run.font.size = Pt(10)
+                    opt_run = opt_para.add_run(options[row_idx + 1].get('option_text', ''))
+                    opt_run.font.size = Pt(10)
 
 
-# دالة مساعدة
+# دالة موحدة
 def generate_exam(questions, exam_title="نموذج الاختبار", 
                  output_format='word', show_answers=False, 
-                 header_settings=None, **kwargs):
-    """
-    دالة موحدة لتوليد الاختبارات بصيغ مختلفة
+                 header_settings=None, logo_path=None, **kwargs):
+    """دالة موحدة لتوليد الاختبارات"""
+    generator = ExamGenerator(header_settings, logo_path)
     
-    Args:
-        questions: قائمة الأسئلة
-        exam_title: عنوان الاختبار
-        output_format: صيغة الإخراج ('word' أو 'pdf')
-        show_answers: هل يتم عرض الإجابات
-        header_settings: إعدادات الرأس
-        **kwargs: معاملات إضافية
-    
-    Returns:
-        bytes: محتوى الملف
-    """
-    try:
-        generator = ExamGenerator(header_settings or kwargs)
-        
-        if output_format.lower() == 'pdf':
-            try:
-                return generator.generate_pdf(questions, exam_title, show_answers, **kwargs)
-            except ImportError:
-                raise ImportError("weasyprint غير مثبت. الرجاء تثبيته: pip install weasyprint")
-        elif output_format.lower() == 'word':
-            return generator.generate_word(questions, exam_title, show_answers, **kwargs)
-        else:
-            raise ValueError(f"صيغة غير مدعومة: {output_format}")
-    
-    except Exception as e:
-        raise Exception(f"خطأ في توليد الاختبار: {str(e)}")
+    if output_format == 'pdf':
+        return generator.generate_pdf(questions, exam_title, show_answers, **kwargs)
+    else:
+        return generator.generate_word(questions, exam_title, show_answers, **kwargs)
