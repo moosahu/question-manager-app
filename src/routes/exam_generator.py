@@ -251,40 +251,24 @@ class ExamGenerator:
         }
         
         .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-            gap: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.8;
         }
         
         .header-left {
-            text-align: left;
-            font-size: 11px;
-            line-height: 1.6;
-            flex: 1;
-        }
-        
-        .header-left div {
-            border-bottom: 1px solid #000;
-            padding-bottom: 3px;
-            margin-bottom: 8px;
+            text-align: right;
         }
         
         .header-center {
-            flex: 0 0 120px;
             text-align: center;
         }
         
         .header-right {
             text-align: right;
-            font-size: 11px;
-            line-height: 1.6;
-            flex: 1;
-        }
-        
-        .header-right div {
-            margin-bottom: 2px;
         }
         
         .info-section {
@@ -306,18 +290,11 @@ class ExamGenerator:
                     <div><strong>الزمن:</strong> {{ time }}</div>
                     <div><strong>الصف:</strong> {{ grade }}</div>
                 </div>
-                
                 <div class="header-center">
-                    {% if logo %}
-                    <div class="logo-container">
-                        <img src="data:image/png;base64,{{ logo }}" alt="شعار الوزارة">
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <div class="header-right">
                     <div><strong>{{ country }}</strong></div>
                     <div><strong>{{ ministry }}</strong></div>
+                </div>
+                <div class="header-right">
                     <div><strong>{{ education_department }}</strong></div>
                     <div><strong>{{ school_name }}</strong></div>
                 </div>
