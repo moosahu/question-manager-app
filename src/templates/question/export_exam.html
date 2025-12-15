@@ -995,6 +995,68 @@ function generatePrintableDocument(questions, includeAnswers) {
         </style>
     </head>
     <body>
+        <!-- الكليشة (الرأس) -->
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000;">
+            <!-- الرأس العلوي -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.8;">
+                <!-- اليسار -->
+                <div style="text-align: right;">
+                    <div><strong>المادة:</strong> كيمياء 4</div>
+                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
+                    <div><strong>الصف:</strong> ثالث ثانوي</div>
+                </div>
+                <!-- المنتصف -->
+                <div style="text-align: center;">
+                    <div><strong>المملكة العربية السعودية</strong></div>
+                    <div><strong>وزارة التعليم</strong></div>
+                </div>
+                <!-- اليمين -->
+                <div style="text-align: left;">
+                    <div><strong>الإدارة العامة للتعليم بالمنطقة الشرقية</strong></div>
+                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
+                </div>
+            </div>
+            
+            <!-- العنوان -->
+            <div style="font-size: 16px; font-weight: bold; margin: 15px 0; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                اختبار كفاية الفصل الدراسي الثاني للعام الدراسي 1445ه
+            </div>
+            
+            <!-- جدول الدرجات -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #000;">
+                <tr>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المراجع</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المصحح</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة كتابية</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة الطالب رقماً</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">الدرجة الأساسية</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">30</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
+                </tr>
+            </table>
+            
+            <!-- معلومات الطالب -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px; font-size: 13px;">
+                <div style="text-align: left;"><strong>رقم الجلوس:</strong> ___________</div>
+                <div style="text-align: center;"><strong>الشعبة:</strong> ___________</div>
+                <div style="text-align: right;"><strong>اسم الطالب:</strong> ___________</div>
+            </div>
+        </div>
         
         <div class="questions-container">
     `;
