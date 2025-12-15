@@ -925,6 +925,7 @@ function generatePrintableDocument(questions, includeAnswers) {
                 padding: 20px;
                 background: white;
             }
+            /* أنماط الرأس محذوفة - استخدم exam_generator.py */
             .questions-container {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -994,49 +995,6 @@ function generatePrintableDocument(questions, includeAnswers) {
         </style>
     </head>
     <body>
-        <div class="header">
-            <div class="header-top">
-                <div class="header-left">
-                    <div><strong>المادة:</strong> كيمياء 4</div>
-                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
-                    <div><strong>الصف:</strong> ثالث ثانوي</div>
-                </div>
-                <div class="header-center">
-                    <div><strong>المملكة العربية السعودية</strong></div>
-                    <div><strong>وزارة التعليم</strong></div>
-                </div>
-                <div class="header-right">
-                    <div><strong>الإدارة العامة للتعليم بالمنطقة الشرقية</strong></div>
-                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
-                </div>
-            </div>
-            
-            <div class="header-title">
-                اختبار كفاية الفصل الدراسي الثاني للعام الدراسي 1445ه
-            </div>
-            
-            <div class="header-info">
-                <div class="header-info-cell">الدرجة الأساسية</div>
-                <div class="header-info-cell">درجة الطالب رقماً</div>
-                <div class="header-info-cell">الدرجة كتابة</div>
-                <div class="header-info-cell">المصحح</div>
-                <div class="header-info-cell">المراجع</div>
-            </div>
-            
-            <div class="header-info">
-                <div class="header-info-cell">30</div>
-                <div class="header-info-cell"></div>
-                <div class="header-info-cell"></div>
-                <div class="header-info-cell"></div>
-                <div class="header-info-cell"></div>
-            </div>
-            
-            <div class="header-footer">
-                <div><strong>اسم الطالب:</strong> ___________</div>
-                <div><strong>الشعبة:</strong> ___________</div>
-                <div><strong>رقم الجلوس:</strong> ___________</div>
-            </div>
-        </div>
         
         <div class="questions-container">
     `;
@@ -1052,6 +1010,49 @@ function generatePrintableDocument(questions, includeAnswers) {
                 <div class="question-number">السؤال ${questionNumber}</div>
                 <div class="question-text">${question.question_text}</div>
                 <div class="options">
+        `;
+        
+        question.options.forEach((option, optIndex) => {
+            const isCorrect = includeAnswers && option.option_id === question.correct_option_id;
+            const optionLabel = String.fromCharCode(97 + optIndex); // a, b, c, d
+            
+            html += `
+                <div class="option ${isCorrect ? 'correct' : ''}">
+                    <span class="option-label">${optionLabel})</span> ${option.option_text}
+                </div>
+            `;
+            
+            if (isCorrect) {
+                answers.push({ question: questionNumber, answer: optionLabel.toUpperCase() });
+            }
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+        
+        questionNumber++;
+    });
+    
+    html += `
+        </div>
+    `;
+    
+    if (includeAnswers && answers.length > 0) {
+        html += `
+            <div class="answer-key">
+                <h2>نموذج الإجابة</h2>
+                <div>
+        `;
+        
+        answers.forEach(ans => {
+            html += `<div class="answer-item">السؤال ${ans.question}: <strong>${ans.answer}</strong></div>`;
+        });
+        
+        html += `
+                </div>
+            </div>
         `;
     }
     
