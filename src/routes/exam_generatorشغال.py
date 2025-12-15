@@ -285,18 +285,18 @@ class ExamGenerator:
         <!-- رأس الاختبار -->
         <div class="header">
             <div class="header-top">
-                <div class="header-right">
-                    <div><strong>{{ country }}</strong></div>
-                    <div><strong>{{ ministry }}</strong></div>
-                    <div><strong>{{ school_name }}</strong></div>
-                </div>
-                <div class="header-center">
-                    <div style="font-size: 24px; font-weight: bold; color: #1e90ff;">وزارة التعليم</div>
-                </div>
                 <div class="header-left">
                     <div><strong>المادة:</strong> {{ subject }}</div>
                     <div><strong>الزمن:</strong> {{ time }}</div>
                     <div><strong>الصف:</strong> {{ grade }}</div>
+                </div>
+                <div class="header-center">
+                    <div><strong>{{ country }}</strong></div>
+                    <div><strong>{{ ministry }}</strong></div>
+                </div>
+                <div class="header-right">
+                    <div><strong>{{ education_department }}</strong></div>
+                    <div><strong>{{ school_name }}</strong></div>
                 </div>
             </div>
             
