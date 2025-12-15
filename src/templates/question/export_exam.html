@@ -526,6 +526,19 @@
 </div>
 
 <script>
+// تعريف إعدادات الرأس (يمكن تغييرها من قاعدة البيانات)
+const headerSettings = {
+    country: 'المملكة العربية السعودية',
+    ministry: 'وزارة التعليم',
+    education_department: 'الإدارة العامة للتعليم بالمنطقة الشرقية',
+    school_name: 'مدرسة عبدالرحمن بن القاسم الثانوية',
+    subject: 'كيمياء 4',
+    time: 'ثلاث ساعات',
+    grade: 'ثالث ثانوي',
+    total_score: 30
+};
+
+
 const API_BASE = '/api/v1';
 let allQuestions = [];
 let selectedQuestionIds = new Set();
