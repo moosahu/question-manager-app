@@ -925,65 +925,6 @@ function generatePrintableDocument(questions, includeAnswers) {
                 padding: 20px;
                 background: white;
             }
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                padding-bottom: 20px;
-            }
-            .header-top {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
-                gap: 20px;
-                margin-bottom: 20px;
-                font-size: 14px;
-                line-height: 1.8;
-            }
-            .header-right, .header-left {
-                text-align: right;
-            }
-            .header-center {
-                text-align: center;
-            }
-            .header-center img {
-                max-width: 80px;
-                margin-bottom: 10px;
-            }
-            .header-title {
-                font-size: 16px;
-                font-weight: bold;
-                margin: 15px 0;
-                border-bottom: 2px solid #333;
-                padding-bottom: 10px;
-            }
-            .header-info {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-                gap: 1px;
-                margin-bottom: 20px;
-                border: 2px solid #333;
-            }
-            .header-info-cell {
-                border: 1px solid #333;
-                padding: 10px;
-                text-align: center;
-                font-weight: bold;
-            }
-            .header-footer {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
-                gap: 20px;
-                margin-top: 15px;
-                font-size: 13px;
-            }
-            .header h1 {
-                margin: 0;
-                font-size: 24px;
-                color: #333;
-            }
-            .header p {
-                margin: 5px 0;
-                color: #666;
-            }
             .questions-container {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -1111,49 +1052,6 @@ function generatePrintableDocument(questions, includeAnswers) {
                 <div class="question-number">السؤال ${questionNumber}</div>
                 <div class="question-text">${question.question_text}</div>
                 <div class="options">
-        `;
-        
-        question.options.forEach((option, optIndex) => {
-            const isCorrect = includeAnswers && option.option_id === question.correct_option_id;
-            const optionLabel = String.fromCharCode(97 + optIndex); // a, b, c, d
-            
-            html += `
-                <div class="option ${isCorrect ? 'correct' : ''}">
-                    <span class="option-label">${optionLabel})</span> ${option.option_text}
-                </div>
-            `;
-            
-            if (isCorrect) {
-                answers.push({ question: questionNumber, answer: optionLabel.toUpperCase() });
-            }
-        });
-        
-        html += `
-                </div>
-            </div>
-        `;
-        
-        questionNumber++;
-    });
-    
-    html += `
-        </div>
-    `;
-    
-    if (includeAnswers && answers.length > 0) {
-        html += `
-            <div class="answer-key">
-                <h2>نموذج الإجابة</h2>
-                <div>
-        `;
-        
-        answers.forEach(ans => {
-            html += `<div class="answer-item">السؤال ${ans.question}: <strong>${ans.answer}</strong></div>`;
-        });
-        
-        html += `
-                </div>
-            </div>
         `;
     }
     
