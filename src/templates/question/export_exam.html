@@ -883,8 +883,7 @@ async function exportExam(includeAnswers) {
     showLoading(true);
     
     try {
-        // استخدام الروت الجديد الذي يستخدم exam_generator
-        const response = await fetch('/questions/export-exam-pdf', {
+        const response = await fetch(`${API_BASE}/questions/export`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -893,29 +892,17 @@ async function exportExam(includeAnswers) {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 include_answers: includeAnswers,
-                exam_title: document.getElementById('examTitleInput')?.value || 'نموذج الاختبار'
+                format: 'json'
             })
         });
         
-        if (response.ok) {
-            // تحميل ملف PDF مباشرة
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('تم تحميل ملف PDF بنجاح');
+        const data = await response.json();
+        
+        if (data.success) {
+            generatePrintableDocument(data.questions, includeAnswers);
+            showSuccess(`تم استخراج ${data.count} أسئلة بنجاح`);
         } else {
-            try {
-                const errorData = await response.json();
-                showError(errorData.error || 'فشل الاستخراج');
-            } catch (e) {
-                showError(`فشل الاستخراج: الحالة ${response.status}`);
-            }
+            showError(data.error || 'فشل الاستخراج');
         }
     } catch (error) {
         showError('خطأ في الاستخراج: ' + error.message);
@@ -924,7 +911,7 @@ async function exportExam(includeAnswers) {
     }
 }
 
-function generatePrintableDocument(questions, includeAnswers, headerSettings = {}) {
+function generatePrintableDocument(questions, includeAnswers) {
     let html = `
     <!DOCTYPE html>
     <html dir="rtl">
@@ -944,36 +931,21 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
                 padding-bottom: 20px;
             }
             .header-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-start;
-                gap: 30px;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
                 margin-bottom: 20px;
-                font-size: 11px;
-                line-height: 1.6;
+                font-size: 14px;
+                line-height: 1.8;
             }
-            .header-left {
-                text-align: left;
-                flex: 1;
-            }
-            .header-left div {
-                border-bottom: 1px solid #000;
-                padding-bottom: 3px;
-                margin-bottom: 8px;
-            }
-            .header-right {
+            .header-right, .header-left {
                 text-align: right;
-                flex: 1;
-            }
-            .header-right div {
-                margin-bottom: 2px;
             }
             .header-center {
                 text-align: center;
-                flex: 0 0 120px;
             }
             .header-center img {
-                max-width: 70px;
+                max-width: 80px;
                 margin-bottom: 10px;
             }
             .header-title {
@@ -988,14 +960,13 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
                 grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
                 gap: 1px;
                 margin-bottom: 20px;
-                border: 2px solid #000;
+                border: 2px solid #333;
             }
             .header-info-cell {
-                border: 1px solid #000;
+                border: 1px solid #333;
                 padding: 10px;
                 text-align: center;
                 font-weight: bold;
-                font-size: 12px;
             }
             .header-footer {
                 display: grid;
@@ -1085,18 +1056,17 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
         <div class="header">
             <div class="header-top">
                 <div class="header-left">
-                    <div><strong>المادة:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.subject || 'كيمياء 4'}</span></div>
-                    <div><strong>الزمن:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.time || 'ثلاث ساعات'}</span></div>
-                    <div><strong>الصف:</strong> <span style="border-bottom: 1px solid #000;">${headerSettings.grade || 'ثالث ثانوي'}</span></div>
+                    <div><strong>المادة:</strong> كيمياء 4</div>
+                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
+                    <div><strong>الصف:</strong> ثالث ثانوي</div>
                 </div>
-                <div class="header-center" style="text-align: center;">
-                    <!-- الشعار سيتم إضافته لاحقاً -->
+                <div class="header-center">
+                    <div><strong>المملكة العربية السعودية</strong></div>
+                    <div><strong>وزارة التعليم</strong></div>
                 </div>
                 <div class="header-right">
-                    <div><strong>${headerSettings.country || 'المملكة العربية السعودية'}</strong></div>
-                    <div><strong>${headerSettings.ministry || 'وزارة التعليم'}</strong></div>
-                    <div><strong>${headerSettings.education_department || 'الإدارة العامة للتعليم بالمنطقة الشرقية'}</strong></div>
-                    <div><strong>${headerSettings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية'}</strong></div>
+                    <div><strong>الإدارة العامة للتعليم بالمنطقة الشرقية</strong></div>
+                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
                 </div>
             </div>
             
@@ -1113,7 +1083,7 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
             </div>
             
             <div class="header-info">
-                <div class="header-info-cell">${headerSettings.total_score || 30}</div>
+                <div class="header-info-cell">30</div>
                 <div class="header-info-cell"></div>
                 <div class="header-info-cell"></div>
                 <div class="header-info-cell"></div>
