@@ -77,7 +77,7 @@ class ExamGenerator:
         }
         
         .logo-container img {
-            height: 80px;
+            height: 70px;
             width: auto;
         }
         
@@ -255,36 +255,36 @@ class ExamGenerator:
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 15px;
-            gap: 20px;
+            gap: 30px;
         }
         
         .header-left {
             text-align: left;
-            font-size: 12px;
-            line-height: 1.8;
+            font-size: 11px;
+            line-height: 1.6;
             flex: 1;
         }
         
         .header-left div {
             border-bottom: 1px solid #000;
-            padding-bottom: 2px;
-            margin-bottom: 5px;
+            padding-bottom: 3px;
+            margin-bottom: 8px;
         }
         
         .header-center {
-            flex: 0 0 auto;
+            flex: 0 0 120px;
             text-align: center;
         }
         
         .header-right {
             text-align: right;
-            font-size: 12px;
-            line-height: 1.8;
+            font-size: 11px;
+            line-height: 1.6;
             flex: 1;
         }
         
         .header-right div {
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
         
         .info-section {
