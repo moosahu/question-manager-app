@@ -944,36 +944,21 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
                 padding-bottom: 20px;
             }
             .header-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-start;
-                gap: 30px;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
                 margin-bottom: 20px;
-                font-size: 11px;
-                line-height: 1.6;
+                font-size: 14px;
+                line-height: 1.8;
             }
-            .header-left {
-                text-align: left;
-                flex: 1;
-            }
-            .header-left div {
-                border-bottom: 1px solid #000;
-                padding-bottom: 3px;
-                margin-bottom: 8px;
-            }
-            .header-right {
+            .header-right, .header-left {
                 text-align: right;
-                flex: 1;
-            }
-            .header-right div {
-                margin-bottom: 2px;
             }
             .header-center {
                 text-align: center;
-                flex: 0 0 120px;
             }
             .header-center img {
-                max-width: 70px;
+                max-width: 80px;
                 margin-bottom: 10px;
             }
             .header-title {
@@ -988,14 +973,13 @@ function generatePrintableDocument(questions, includeAnswers, headerSettings = {
                 grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
                 gap: 1px;
                 margin-bottom: 20px;
-                border: 2px solid #000;
+                border: 2px solid #333;
             }
             .header-info-cell {
-                border: 1px solid #000;
+                border: 1px solid #333;
                 padding: 10px;
                 text-align: center;
                 font-weight: bold;
-                font-size: 12px;
             }
             .header-footer {
                 display: grid;
