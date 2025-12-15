@@ -1014,9 +1014,9 @@ function generatePrintableDocument(questions, includeAnswers) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.8; direction: rtl;">
                 <!-- العمود الأول (اليمين): المملكة والوزارة والمدرسة -->
                 <div style="text-align: right;">
-                    <div><strong>${headerSettings.country || 'المملكة العربية السعودية'}</strong></div>
-                    <div><strong>${headerSettings.ministry || 'وزارة التعليم'}</strong></div>
-                    <div><strong>${headerSettings.school_name || 'مدرسة عبدالرحمن بن القاسم الثانوية'}</strong></div>
+                    <div><strong>${headerSettings.country}</strong></div>
+                    <div><strong>${headerSettings.ministry}</strong></div>
+                    <div><strong>${headerSettings.school_name}</strong></div>
                 </div>
                 <!-- العمود الثاني (المنتصف): شعار الوزارة -->
                 <div style="text-align: center;">
@@ -1024,9 +1024,9 @@ function generatePrintableDocument(questions, includeAnswers) {
                 </div>
                 <!-- العمود الثالث (اليسار): المادة والزمن والصف -->
                 <div style="text-align: left;">
-                    <div><strong>المادة:</strong> ${headerSettings.subject || 'كيمياء 4'}</div>
-                    <div><strong>الزمن:</strong> ${headerSettings.time || 'ثلاث ساعات'}</div>
-                    <div><strong>الصف:</strong> ${headerSettings.grade || 'ثالث ثانوي'}</div>
+                    <div><strong>المادة:</strong> ${headerSettings.subject}</div>
+                    <div><strong>الزمن:</strong> ${headerSettings.time}</div>
+                    <div><strong>الصف:</strong> ${headerSettings.grade}</div>
                 </div>
             </div>
             
@@ -1047,7 +1047,7 @@ function generatePrintableDocument(questions, includeAnswers) {
                     <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة الطالب رقماً</td>
                     <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
                     <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">الدرجة الأساسية</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">${headerSettings.total_score || 30}</td>
+                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">${headerSettings.total_score}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
