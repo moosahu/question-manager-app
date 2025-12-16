@@ -957,86 +957,71 @@ function generatePrintableDocument(questions, includeAnswers) {
         <meta charset="UTF-8">
         <title>نموذج الاختبار</title>
         <style>
+            /* ضبط إعدادات صفحة الطباعة لعمل هوامش بيضاء خارجية */
+            @page {
+                size: A4;
+                margin: 15mm; /* هذا الهامش الأبيض خارج الإطار (حوالي 1.5 سم من كل جهة) */
+            }
+
             body {
                 font-family: 'Times New Roman', 'Traditional Arabic', Arial, sans-serif;
                 direction: rtl;
                 background: white;
                 color: #000;
-                max-width: 210mm;
-                margin: 0 auto;
+                margin: 0; /* إزالة هوامش المتصفح الافتراضية */
                 
-                /* --- إعدادات الإطار (البرواز) --- */
-                border: 4px double #000;
-                padding: 25px;
-                min-height: 290mm;
-                box-sizing: border-box;
+                /* --- إعدادات الإطار --- */
+                border: 1px solid #000; /* خط واحد رفيع وأنيق */
+                padding: 20px;          /* مسافة داخلية بين الإطار والكلام */
+                min-height: 260mm;      /* ارتفاع ثابت لضمان ظهور الإطار كبرواز كامل للصفحة */
+                box-sizing: border-box; /* لضمان حساب الإطار ضمن المقاسات */
+                position: relative;     /* لضبط العناصر بداخله */
             }
-            /* أنماط الرأس محذوفة - استخدم exam_generator.py */
-            .questions-container {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                column-gap: 40px;
-            }
-            .question {
-                page-break-inside: avoid;
-                margin-bottom: 20px;
-                padding: 15px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-            }
-            .question-number {
-                font-weight: bold;
-                color: #667eea;
+
+            /* (باقي التنسيقات كما هي...) */
+            .header-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
                 margin-bottom: 10px;
-            }
-            .question-text {
-                margin-bottom: 15px;
-                font-weight: 600;
-            }
-            .options {
-                margin-left: 20px;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-            }
-            .option {
-                padding: 10px;
-                border-radius: 3px;
-                display: block;
-                text-align: right;
-            }
-            .option.correct {
-                background-color: #d4edda;
-                border-right: 4px solid #28a745;
-            }
-            .option-label {
+                font-size: 16px;
                 font-weight: bold;
-                margin-left: 10px;
+                line-height: 1.6;
             }
-            .answer-key {
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 3px solid #333;
+            
+            .header-right { text-align: right; width: 35%; }
+            .header-center { 
+                text-align: center; width: 30%; 
+                display: flex; flexDirection: column; justifyContent: center; alignItems: center;
             }
-            .answer-key h2 {
-                color: #333;
-                text-align: center;
-            }
-            .answer-item {
-                display: inline-block;
-                margin: 10px 20px;
-                padding: 10px 15px;
-                background: #f0f0f0;
-                border-radius: 5px;
-            }
+            .header-left { text-align: left; width: 35%; direction: ltr; }
+            .header-left-content { direction: rtl; text-align: right; display: inline-block; width: 100%; }
+            
+            .info-row { margin-bottom: 5px; white-space: nowrap; }
+            .info-label { display: inline-block; min-width: 50px; }
+            .info-value { display: inline-block; border-bottom: 1px solid #000; min-width: 120px; text-align: center; padding-bottom: 2px; }
+
+            .exam-title-main { text-align: center; font-size: 18px; font-weight: bold; margin: 15px 0; }
+            
+            .grades-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 2px solid #000; }
+            .grades-table th, .grades-table td { border: 1px solid #000; padding: 5px; text-align: center; font-weight: bold; font-family: 'Traditional Arabic', serif; }
+            .grades-table th { background-color: #e6e6e6; height: 30px; font-size: 16px; }
+            .grades-table td { height: 40px; font-size: 18px; }
+
+            .student-info-row { display: flex; justify-content: space-between; margin-top: 5px; font-weight: bold; font-size: 16px; }
+
+            .questions-wrapper { margin-top: 20px; column-count: 2; column-gap: 40px; column-rule: 1px solid #ddd; }
+            .question-box { break-inside: avoid; margin-bottom: 15px; font-size: 14px; }
+            .q-num { color: #000; font-weight: bold; display: inline-block; margin-left: 5px; }
+            .q-text { display: inline; font-weight: bold; }
+            .q-options { margin-top: 8px; margin-right: 15px; }
+            .q-option { display: block; margin-bottom: 4px; }
+            .correct-style { font-weight: bold; text-decoration: underline; }
+
             @media print {
-                body {
-                    padding: 0;
-                }
-                .question {
-                    page-break-inside: avoid;
-                }
+                .grades-table th { background-color: #e6e6e6 !important; -webkit-print-color-adjust: exact; }
+                /* إخفاء معلومات التاريخ والصفحة الافتراضية للمتصفح إذا أمكن */
+                @page { margin: 15mm; }
             }
         </style>
     </head>
