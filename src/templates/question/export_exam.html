@@ -958,10 +958,18 @@ function generatePrintableDocument(questions, includeAnswers) {
         <title>نموذج الاختبار</title>
         <style>
             body {
-                font-family: 'Arial', sans-serif;
+                font-family: 'Times New Roman', 'Traditional Arabic', Arial, sans-serif;
                 direction: rtl;
-                padding: 20px;
                 background: white;
+                color: #000;
+                max-width: 210mm;
+                margin: 0 auto;
+                
+                /* --- إعدادات الإطار (البرواز) --- */
+                border: 4px double #000;
+                padding: 25px;
+                min-height: 290mm;
+                box-sizing: border-box;
             }
             /* أنماط الرأس محذوفة - استخدم exam_generator.py */
             .questions-container {
