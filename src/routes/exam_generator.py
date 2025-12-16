@@ -1,6 +1,6 @@
 """
 نظام محسّن لتوليد ملفات PDF و Word من بيانات الاختبار
-مع شعار وزارة التعليم والتصميم الاحترافي
+(النسخة الكاملة: تشمل تصميم PDF الجديد + كود Word الأصلي)
 """
 
 from jinja2 import Template
@@ -34,349 +34,249 @@ class ExamGenerator:
             return None
     
     def _get_html_template(self):
-        """الحصول على قالب HTML"""
+        """الحصول على قالب HTML - بالتصميم الجديد (إطار وجداول)"""
         return """
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ exam_title }}</title>
     <style>
-        * {
+        @page {
+            size: A4;
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
         }
         
         body {
-            font-family: 'Arial', sans-serif;
-            direction: rtl;
-            line-height: 1.6;
-            background-color: #fff;
-            color: #333;
+            font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
         }
-        
-        .container {
-            max-width: 900px;
+
+        /* حاوية الصفحة */
+        .page-container {
+            width: 210mm;
+            min-height: 296mm;
+            padding: 15mm;
             margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        /* الإطار المزدوج */
+        .exam-frame {
+            border: 3px double #000;
             padding: 20px;
+            min-height: 265mm;
+            position: relative;
         }
-        
-        /* رأس الاختبار */
-        .header {
-            border: 2px solid #000;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .logo-container {
-            text-align: center;
-            margin-bottom: 15px;
-        }
-        
-        .logo-container img {
-            height: 70px;
-            width: auto;
-        }
-        
-        .header-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-            text-align: right;
-            font-size: 13px;
-            line-height: 1.8;
-        }
-        
-        .header-info div {
-            text-align: right;
-        }
-        
+
+        /* الرأس */
         .header-table {
             width: 100%;
-            border-collapse: collapse;
+            border: none;
             margin-bottom: 10px;
         }
-        
         .header-table td {
-            border: 1px solid #000;
-            padding: 8px;
+            border: none;
+            vertical-align: top;
+            padding: 2px;
+        }
+        
+        .header-right { text-align: right; width: 35%; font-size: 16px; font-weight: bold; line-height: 1.6; }
+        .header-center { text-align: center; width: 30%; }
+        .header-left { text-align: left; width: 35%; direction: ltr; }
+        
+        .left-info {
+            direction: rtl;
             text-align: right;
-            font-size: 12px;
-        }
-        
-        .header-table .label {
-            font-weight: bold;
-            background-color: #f5f5f5;
-            width: 25%;
-        }
-        
-        .header-table .value {
-            width: 25%;
-        }
-        
-        .exam-title {
+            display: inline-block;
+            width: 100%;
             font-size: 16px;
             font-weight: bold;
-            margin: 15px 0;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        
-        /* الأسئلة */
-        .questions {
-            margin-top: 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        .question {
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        
-        .question-number {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #0066cc;
-            font-size: 12px;
-        }
-        
-        .question-text {
-            margin-bottom: 10px;
             line-height: 1.8;
-            font-weight: 500;
-            font-size: 12px;
         }
         
-        .options {
-            margin-right: 0;
-            margin-top: 10px;
+        .underlined {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            min-width: 100px;
+            text-align: center;
         }
-        
-        .options-row {
+
+        /* جدول الدرجات */
+        .grades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            border: 2px solid #000;
+        }
+        .grades-table th, .grades-table td {
+            border: 1px solid #000;
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .grades-table th {
+            background-color: #e6e6e6;
+            height: 35px;
+        }
+        .grades-table td {
+            height: 40px;
+            font-size: 18px;
+        }
+
+        /* معلومات الطالب */
+        .student-info {
             display: flex;
             justify-content: space-between;
-            gap: 60px;
-            margin-bottom: 8px;
-            flex-wrap: nowrap;
-            text-align: right;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+            font-family: 'Traditional Arabic', serif;
         }
-        
-        .option {
-            margin-bottom: 0;
-            line-height: 1.6;
-            font-size: 11px;
+        .info-box {
             display: flex;
-            align-items: flex-start;
-            gap: 5px;
-            flex: 0 1 auto;
+            align-items: baseline;
         }
-        
-        .option span {
-            flex-shrink: 0;
-            min-width: 20px;
+        .dashed-line {
+            border-bottom: 1px solid #000;
+            flex-grow: 1;
+            margin-right: 5px;
+            min-width: 50px;
         }
-        
-        /* جدول الإجابات */
+
+        /* الأسئلة */
+        .questions-wrapper {
+            margin-top: 20px;
+            column-count: 2;
+            column-gap: 40px;
+            column-rule: 1px solid #ccc;
+        }
+        .question-box {
+            break-inside: avoid;
+            margin-bottom: 15px;
+            font-size: 15px;
+        }
+        .q-num { color: #000; font-weight: bold; margin-left: 5px; }
+        .q-text { font-weight: bold; }
+        .q-options { margin-top: 5px; margin-right: 15px; }
+        .q-option { display: block; margin-bottom: 3px; }
+
+        /* نموذج الإجابة */
         .answer-key {
             margin-top: 30px;
             border-top: 2px solid #000;
             padding-top: 20px;
-            grid-column: 1 / -1;
+            break-before: page;
         }
-        
-        .answer-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .answer-table th,
-        .answer-table td {
-            border: 1px solid #000;
-            padding: 8px;
-            text-align: center;
-            font-size: 11px;
-        }
-        
-        .answer-table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-        }
-        
-        /* جدول المعلومات الإضافية */
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-        }
-        
-        .info-table td {
-            border: 1px solid #000;
-            padding: 8px;
-            text-align: right;
-            font-size: 12px;
-        }
-        
-        .info-table .label {
-            font-weight: bold;
-            background-color: #f5f5f5;
-            width: 25%;
-        }
-        
-        .info-table .value {
-            width: 25%;
-        }
-        
-        .student-info {
-            margin-top: 15px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            font-size: 12px;
-            line-height: 2;
-        }
-        
-        .student-info-item {
-            text-align: right;
-            border-bottom: 1px solid #000;
-        }
-        
-        .header-top {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-        
-        .header-left {
-            text-align: right;
-        }
-        
-        .header-center {
-            text-align: center;
-        }
-        
-        .header-right {
-            text-align: right;
-        }
-        
-        .info-section {
-            margin: 10px 0;
-            padding: 10px 0;
-            text-align: right;
-            font-size: 12px;
-            line-height: 1.8;
-        }
+        .answer-table-key { width: 100%; border-collapse: collapse; direction: rtl; }
+        .answer-table-key th, .answer-table-key td { border: 1px solid #000; padding: 5px; text-align: center; }
+        .answer-table-key th { background-color: #f5f5f5; }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- رأس الاختبار -->
-        <div class="header">
-            <div class="header-top">
-                <div class="header-right">
-                    <div><strong>{{ country }}</strong></div>
-                    <div><strong>{{ ministry }}</strong></div>
-                    <div><strong>{{ school_name }}</strong></div>
-                </div>
-                <div class="header-center">
-                    <div style="font-size: 24px; font-weight: bold; color: #1e90ff;">وزارة التعليم</div>
-                </div>
-                <div class="header-left">
-                    <div><strong>المادة:</strong> {{ subject }}</div>
-                    <div><strong>الزمن:</strong> {{ time }}</div>
-                    <div><strong>الصف:</strong> {{ grade }}</div>
-                </div>
-            </div>
-            
-            <div class="exam-title">{{ exam_title }}</div>
+    <div class="page-container">
+        <div class="exam-frame">
             
             <table class="header-table">
                 <tr>
-                    <td class="label">المراجع</td>
-                    <td class="value"></td>
-                    <td class="label">المصحح</td>
-                    <td class="value"></td>
-                    <td class="label">درجة كتابية</td>
-                    <td class="value"></td>
-                    <td class="label">درجة الطالب رقماً</td>
-                    <td class="value"></td>
-                    <td class="label">الدرجة الأساسية</td>
-                    <td class="value">{{ total_score }}</td>
-                </tr>
-                <tr>
-                    <td class="label"></td>
-                    <td class="value"></td>
-                    <td class="label"></td>
-                    <td class="value"></td>
-                    <td class="label"></td>
-                    <td class="value"></td>
-                    <td class="label"></td>
-                    <td class="value"></td>
-                    <td class="label"></td>
-                    <td class="value"></td>
+                    <td class="header-right">
+                        <div>{{ country }}</div>
+                        <div>{{ ministry }}</div>
+                        <div>{{ education_department }}</div>
+                        <div>مدرسة {{ school_name }}</div>
+                    </td>
+                    <td class="header-center">
+                        <div style="font-size: 22px; font-weight: bold; color: #0b8c78; line-height: 1.2;">
+                            .::.::.::.<br>
+                            <span style="font-size:12px; letter-spacing:1px; color:#000;">MINISTRY OF EDUCATION</span><br>
+                            وزارة التعليم
+                        </div>
+                    </td>
+                    <td class="header-left">
+                        <div class="left-info">
+                            <div>المادة : <span class="underlined">{{ subject }}</span></div>
+                            <div>الزمن : <span class="underlined">{{ time }}</span></div>
+                            <div>الصف : <span class="underlined">{{ grade }}</span></div>
+                        </div>
+                    </td>
                 </tr>
             </table>
-            
-            <div class="student-info">
-                <div class="student-info-item">اسم الطالب: __________</div>
-                <div class="student-info-item">الشعبة: __________</div>
-                <div class="student-info-item">رقم الجلوس: __________</div>
+
+            <div style="text-align:center; font-weight:bold; font-size:18px; margin: 15px 0;">
+                {{ exam_title }}
             </div>
-        </div>
-        
-        <!-- الأسئلة -->
-        <div class="questions">
-            {% for question in questions %}
-            <div class="question">
-                <div class="question-number">السؤال {{ loop.index }}: ({{ question.points }} درجات)</div>
-                <div class="question-text">{{ question.question_text }}</div>
-                <div class="options">
-                    {% set letters = ['أ', 'ب', 'ج', 'د'] %}
-                    {% for row_idx in range(0, question.options|length, 2) %}
-                    <div class="options-row">
-                        {% for col_idx in range(2) %}
-                            {% if row_idx + col_idx < question.options|length %}
-                            <div class="option">
-                                <span><strong>{{ letters[row_idx + col_idx] if row_idx + col_idx < 4 else row_idx + col_idx + 1 }})&nbsp;</strong></span>
-                                {{ question.options[row_idx + col_idx].option_text }}
-                            </div>
-                            {% endif %}
+
+            <table class="grades-table">
+                <thead>
+                    <tr>
+                        <th>الدرجة الأساسية</th>
+                        <th>درجة الطالب رقماً</th>
+                        <th>الدرجة كتابةً</th>
+                        <th>المصحح</th>
+                        <th>المراجع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ total_score }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>{{ checker_name }}</td>
+                        <td>{{ reviewer_name }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="student-info">
+                <div class="info-box" style="width: 45%;">
+                    <span>اسم الطالب /</span><div class="dashed-line"></div>
+                </div>
+                <div class="info-box" style="width: 25%;">
+                    <span>الشعبة /</span><div class="dashed-line"></div>
+                </div>
+                <div class="info-box" style="width: 25%;">
+                    <span>رقم الجلوس /</span><div class="dashed-line"></div>
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 2px solid #000; margin: 20px 0;">
+
+            <div class="questions-wrapper">
+                {% for question in questions %}
+                <div class="question-box">
+                    <div>
+                        <span class="q-num">س{{ loop.index }}:</span>
+                        <span class="q-text">{{ question.question_text }}</span>
+                    </div>
+                    <div class="q-options">
+                        {% for option in question.options %}
+                        <div class="q-option">
+                            {{ option.letter }}) {{ option.option_text }}
+                        </div>
                         {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if show_answers %}
+            <div class="answer-key">
+                <div style="font-weight: bold; margin-bottom: 10px;">مفتاح الإجابات</div>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
+                    {% for question in questions %}
+                    <div style="border:1px solid #000; padding:5px; text-align:center;">
+                        س{{ loop.index }}: <strong>{{ question.correct_answer }}</strong>
                     </div>
                     {% endfor %}
                 </div>
             </div>
-            {% endfor %}
-            
-            {% if show_answers %}
-            <div class="answer-key">
-                <div style="font-weight: bold; margin-bottom: 10px;">مفتاح الإجابات</div>
-                <table class="answer-table">
-                    <tr>
-                        {% for i in range(1, questions|length + 1) %}
-                        <th>{{ i }}</th>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        {% for question in questions %}
-                        <td>{{ question.correct_answer }}</td>
-                        {% endfor %}
-                    </tr>
-                </table>
-            </div>
             {% endif %}
+
         </div>
     </div>
 </body>
@@ -384,17 +284,12 @@ class ExamGenerator:
 """
     
     def _prepare_context(self, questions, exam_title, show_answers, **kwargs):
-        """تحضير السياق للقالب مع ضمان أولوية البيانات الممررة"""
-        
-        # دالة مساعدة: تبحث في kwargs أولاً، ثم في إعدادات الفئة، ثم القيمة الافتراضية
-        # استخدام 'or' يضمن أنه إذا كانت القيمة موجودة ولكنها فارغة، ننتقل للتالي
+        """تحضير السياق للقالب"""
         def get_val(key, default):
             val = kwargs.get(key)
             if val: return val
-            
             val = self.header_settings.get(key)
             if val: return val
-            
             return default
 
         context = {
@@ -410,15 +305,12 @@ class ExamGenerator:
             'checker_name': get_val('checker_name', ''),
             'reviewer_name': get_val('reviewer_name', ''),
             'exam_date': get_val('exam_date', ''),
-            
             'questions': [],
             'show_answers': show_answers,
             'logo': self._get_logo_base64()
         }
         
-        # (باقي كود معالجة الأسئلة يبقى كما هو دون تغيير)
-        letters = ['أ', 'ب', 'ج', 'د']
-        
+        letters = ['a', 'b', 'c', 'd'] 
         for question in questions:
             formatted_q = {
                 'question_text': question.get('question_text', ''),
@@ -426,41 +318,36 @@ class ExamGenerator:
                 'options': [],
                 'correct_answer': ''
             }
-            
             options = question.get('options', [])
             for idx, option in enumerate(options):
+                letter = letters[idx] if idx < len(letters) else str(idx + 1)
                 formatted_q['options'].append({
-                    'letter': letters[idx] if idx < len(letters) else str(idx + 1),
+                    'letter': letter,
                     'option_text': option.get('option_text', '')
                 })
-                
                 if option.get('is_correct') or option.get('option_id') == question.get('correct_option_id'):
-                    formatted_q['correct_answer'] = letters[idx] if idx < len(letters) else str(idx + 1)
-            
+                    formatted_q['correct_answer'] = letter
             context['questions'].append(formatted_q)
-        
         return context
     
-    def generate_html(self, questions, exam_title="نموذج الاختبار", 
-                     show_answers=False, **kwargs):
-        """توليد HTML من البيانات"""
+    def generate_html(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         context = self._prepare_context(questions, exam_title, show_answers, **kwargs)
         template = Template(self.html_template)
         return template.render(**context)
     
-    def generate_pdf(self, questions, exam_title="نموذج الاختبار", 
-                    show_answers=False, **kwargs):
-        """توليد PDF من HTML"""
+    def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
         html_obj = HTML(string=html_content)
         pdf_bytes = html_obj.write_pdf()
         return pdf_bytes
     
-    def generate_word(self, questions, exam_title="نموذج الاختبار", 
-                     show_answers=False, **kwargs):
-        """توليد Word بنفس تصميم PDF"""
+    def generate_word(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
+        """توليد ملف Word كامل"""
         try:
-            # إنشاء مستند Word
+            # دالة مساعدة لجلب القيم
+            def get_val(key, default):
+                return kwargs.get(key) or self.header_settings.get(key) or default
+
             doc = Document()
             
             # تعيين هوامش الصفحة
@@ -482,14 +369,14 @@ class ExamGenerator:
             
             # إضافة معلومات الرأس
             header_data = {
-                'country': kwargs.get('country', self.header_settings.get('country', 'المملكة العربية السعودية')),
-                'ministry': kwargs.get('ministry', self.header_settings.get('ministry', 'وزارة التعليم')),
-                'education_department': kwargs.get('education_department', self.header_settings.get('education_department', 'الإدارة العامة للتعليم بالمنطقة الشرقية')),
-                'school_name': kwargs.get('school_name', self.header_settings.get('school_name', 'مدرسة عبدالرحمن بن القاسم الثانوية')),
-                'subject': kwargs.get('subject', self.header_settings.get('subject', 'كيمياء 4')),
-                'time': kwargs.get('time', self.header_settings.get('time', 'ثلاث ساعات')),
-                'grade': kwargs.get('grade', self.header_settings.get('grade', 'ثالث ثانوي')),
-                'total_score': kwargs.get('total_score', self.header_settings.get('total_score', 30)),
+                'country': get_val('country', 'المملكة العربية السعودية'),
+                'ministry': get_val('ministry', 'وزارة التعليم'),
+                'education_department': get_val('education_department', 'الإدارة العامة للتعليم بالمنطقة الشرقية'),
+                'school_name': get_val('school_name', 'مدرسة عبدالرحمن بن القاسم الثانوية'),
+                'subject': get_val('subject', 'كيمياء 4'),
+                'time': get_val('time', 'ثلاث ساعات'),
+                'grade': get_val('grade', 'ثالث ثانوي'),
+                'total_score': get_val('total_score', 30),
             }
             
             # جدول معلومات الرأس
