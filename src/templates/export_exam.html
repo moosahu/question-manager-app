@@ -526,8 +526,8 @@
 </div>
 
 <script>
-// تعريف المتغير كـ let ليقبل التحديث
-let headerSettings = {
+// تعريف إعدادات الرأس (يمكن تغييرها من قاعدة البيانات)
+const headerSettings = {
     country: 'المملكة العربية السعودية',
     ministry: 'وزارة التعليم',
     education_department: 'الإدارة العامة للتعليم بالمنطقة الشرقية',
@@ -537,30 +537,6 @@ let headerSettings = {
     grade: 'ثالث ثانوي',
     total_score: 30
 };
-
-// دالة لجلب الإعدادات الحديثة من السيرفر
-async function loadHeaderSettingsFromServer() {
-    try {
-        const response = await fetch('/questions/get-header-settings');
-        const data = await response.json();
-        
-        if (data.success && data.settings) {
-            headerSettings = {
-                country: data.settings.country || 'المملكة العربية السعودية',
-                ministry: data.settings.ministry || 'وزارة التعليم',
-                education_department: data.settings.education_department || '',
-                school_name: data.settings.school_name || '',
-                subject: data.settings.subject || '',
-                time: data.settings.time || '',
-                grade: data.settings.grade || '',
-                total_score: data.settings.total_score || 30
-            };
-            console.log("تم تحديث الكليشة من قاعدة البيانات");
-        }
-    } catch (error) {
-        console.error('فشل تحميل الكليشة:', error);
-    }
-}
 
 
 const API_BASE = '/api/v1';
@@ -624,7 +600,6 @@ async function downloadWord(includeAnswers) {
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
     setupEventListeners();
-    loadHeaderSettingsFromServer(); // <--- هذا السطر الجديد هو الأهم
 });
 
 function setupEventListeners() {
