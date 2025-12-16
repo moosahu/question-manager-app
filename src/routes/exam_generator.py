@@ -384,11 +384,18 @@ class ExamGenerator:
 """
     
     def _prepare_context(self, questions, exam_title, show_answers, **kwargs):
-        """تحضير السياق للقالب مع التأكد من أولوية المتغيرات الممررة"""
+        """تحضير السياق للقالب مع ضمان أولوية البيانات الممررة"""
         
-        # دالة مساعدة لجلب القيم: الأولوية لـ kwargs (القادمة من قاعدة البيانات) ثم الإعدادات الافتراضية
+        # دالة مساعدة: تبحث في kwargs أولاً، ثم في إعدادات الفئة، ثم القيمة الافتراضية
+        # استخدام 'or' يضمن أنه إذا كانت القيمة موجودة ولكنها فارغة، ننتقل للتالي
         def get_val(key, default):
-            return kwargs.get(key) or self.header_settings.get(key) or default
+            val = kwargs.get(key)
+            if val: return val
+            
+            val = self.header_settings.get(key)
+            if val: return val
+            
+            return default
 
         context = {
             'exam_title': exam_title,
@@ -403,13 +410,15 @@ class ExamGenerator:
             'checker_name': get_val('checker_name', ''),
             'reviewer_name': get_val('reviewer_name', ''),
             'exam_date': get_val('exam_date', ''),
+            
             'questions': [],
             'show_answers': show_answers,
             'logo': self._get_logo_base64()
         }
         
-        # بقية كود تنسيق الأسئلة كما هو
+        # (باقي كود معالجة الأسئلة يبقى كما هو دون تغيير)
         letters = ['أ', 'ب', 'ج', 'د']
+        
         for question in questions:
             formatted_q = {
                 'question_text': question.get('question_text', ''),
@@ -417,14 +426,17 @@ class ExamGenerator:
                 'options': [],
                 'correct_answer': ''
             }
+            
             options = question.get('options', [])
             for idx, option in enumerate(options):
                 formatted_q['options'].append({
                     'letter': letters[idx] if idx < len(letters) else str(idx + 1),
                     'option_text': option.get('option_text', '')
                 })
+                
                 if option.get('is_correct') or option.get('option_id') == question.get('correct_option_id'):
                     formatted_q['correct_answer'] = letters[idx] if idx < len(letters) else str(idx + 1)
+            
             context['questions'].append(formatted_q)
         
         return context
