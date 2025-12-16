@@ -1914,7 +1914,7 @@ def get_header_settings():
 @question_bp.route('/export-exam-pdf', methods=['POST'])
 @login_required
 def export_exam_pdf():
-    """استخراج ملف PDF مع التأكد من تمرير بيانات الكليشة من قاعدة البيانات"""
+    """استخراج ملف PDF للاختبار باستخدام exam_generator"""
     try:
         try:
             from src.routes.exam_generator import ExamGenerator
@@ -1926,49 +1926,56 @@ def export_exam_pdf():
         include_answers = data.get('include_answers', False)
         exam_title = data.get('exam_title', 'نموذج الاختبار')
         
-        # جلب الأسئلة
+        # الحصول على الأسئلة
         questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
         if not questions:
             return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
         
-        # تجهيز بيانات الأسئلة
+        # تحويل الأسئلة إلى الصيغة المطلوبة
         questions_data = []
         for q in questions:
-            q_dict = {'id': q.question_id, 'question_text': q.question_text, 'points': 1, 'options': []}
-            for opt in q.options:
-                q_dict['options'].append({'option_text': opt.option_text, 'is_correct': opt.is_correct})
-            questions_data.append(q_dict)
+            question_dict = {
+                'id': q.question_id,
+                'question_text': q.question_text,
+                'options': []
+            }
+            
+            # إضافة الخيارات
+            for option in q.options:
+                question_dict['options'].append({
+                    'option_text': option.option_text,
+                    'is_correct': option.is_correct
+                })
+            
+            questions_data.append(question_dict)
         
-        # --- بداية التعديل: جلب إعدادات الكليشة ---
+        # الحصول على إعدادات الكليشة
         header_settings = ExamHeaderSettings.query.first()
+        kwargs = {}
         
-        # تجهيز القيم مع وضع قيم افتراضية في حال كانت الحقول فارغة
-        settings_kwargs = {
-            'country': (header_settings.country if header_settings and header_settings.country else 'المملكة العربية السعودية'),
-            'ministry': (header_settings.ministry if header_settings and header_settings.ministry else 'وزارة التعليم'),
-            'education_department': (header_settings.education_department if header_settings and header_settings.education_department else ''),
-            'school_name': (header_settings.school_name if header_settings and header_settings.school_name else ''),
-            'subject': (header_settings.subject if header_settings and header_settings.subject else ''),
-            'time': (header_settings.time if header_settings and header_settings.time else ''),
-            'grade': (header_settings.grade if header_settings and header_settings.grade else ''),
-            'total_score': (header_settings.total_score if header_settings and header_settings.total_score else 30),
-            'checker_name': (header_settings.checker_name if header_settings and header_settings.checker_name else ''),
-            'reviewer_name': (header_settings.reviewer_name if header_settings and header_settings.reviewer_name else ''),
-            'exam_date': (header_settings.exam_date if header_settings and header_settings.exam_date else '')
-        }
+        if header_settings:
+            kwargs = {
+                'country': header_settings.country,
+                'ministry': header_settings.ministry,
+                'education_department': header_settings.education_department,
+                'school_name': header_settings.school_name,
+                'subject': header_settings.subject,
+                'time': header_settings.time,
+                'grade': header_settings.grade,
+                'total_score': header_settings.total_score
+            }
         
-        # تمرير الإعدادات عند إنشاء الكائن
-        generator = ExamGenerator(header_settings=settings_kwargs)
-        
-        # توليد الملف وتمرير الإعدادات مرة أخرى لضمان وصولها
+        # استخراج PDF
+        generator = ExamGenerator(header_settings=kwargs)
         pdf_bytes = generator.generate_pdf(
             questions_data, 
             exam_title, 
             include_answers,
-            **settings_kwargs 
+            **kwargs
         )
-        # --- نهاية التعديل ---
         
+        # إرسال الملف
         return send_file(
             io.BytesIO(pdf_bytes),
             mimetype='application/pdf',

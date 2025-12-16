@@ -384,32 +384,25 @@ class ExamGenerator:
 """
     
     def _prepare_context(self, questions, exam_title, show_answers, **kwargs):
-        """تحضير السياق للقالب مع التأكد من أولوية المتغيرات الممررة"""
-        
-        # دالة مساعدة لجلب القيم: الأولوية لـ kwargs (القادمة من قاعدة البيانات) ثم الإعدادات الافتراضية
-        def get_val(key, default):
-            return kwargs.get(key) or self.header_settings.get(key) or default
-
+        """تحضير السياق للقالب"""
         context = {
             'exam_title': exam_title,
-            'country': get_val('country', 'المملكة العربية السعودية'),
-            'ministry': get_val('ministry', 'وزارة التعليم'),
-            'education_department': get_val('education_department', 'الإدارة العامة للتعليم بالمنطقة الشرقية'),
-            'school_name': get_val('school_name', 'مدرسة عبدالرحمن بن القاسم الثانوية'),
-            'subject': get_val('subject', 'كيمياء 4'),
-            'time': get_val('time', 'ثلاث ساعات'),
-            'grade': get_val('grade', 'ثالث ثانوي'),
-            'total_score': get_val('total_score', 30),
-            'checker_name': get_val('checker_name', ''),
-            'reviewer_name': get_val('reviewer_name', ''),
-            'exam_date': get_val('exam_date', ''),
+            'country': kwargs.get('country', self.header_settings.get('country', 'المملكة العربية السعودية')),
+            'ministry': kwargs.get('ministry', self.header_settings.get('ministry', 'وزارة التعليم')),
+            'education_department': kwargs.get('education_department', self.header_settings.get('education_department', 'الإدارة العامة للتعليم بالمنطقة الشرقية')),
+            'school_name': kwargs.get('school_name', self.header_settings.get('school_name', 'مدرسة عبدالرحمن بن القاسم الثانوية')),
+            'subject': kwargs.get('subject', self.header_settings.get('subject', 'كيمياء 4')),
+            'time': kwargs.get('time', self.header_settings.get('time', 'ثلاث ساعات')),
+            'grade': kwargs.get('grade', self.header_settings.get('grade', 'ثالث ثانوي')),
+            'total_score': kwargs.get('total_score', self.header_settings.get('total_score', 30)),
             'questions': [],
             'show_answers': show_answers,
             'logo': self._get_logo_base64()
         }
         
-        # بقية كود تنسيق الأسئلة كما هو
+        # تنسيق الأسئلة
         letters = ['أ', 'ب', 'ج', 'د']
+        
         for question in questions:
             formatted_q = {
                 'question_text': question.get('question_text', ''),
@@ -417,14 +410,17 @@ class ExamGenerator:
                 'options': [],
                 'correct_answer': ''
             }
+            
             options = question.get('options', [])
             for idx, option in enumerate(options):
                 formatted_q['options'].append({
                     'letter': letters[idx] if idx < len(letters) else str(idx + 1),
                     'option_text': option.get('option_text', '')
                 })
+                
                 if option.get('is_correct') or option.get('option_id') == question.get('correct_option_id'):
                     formatted_q['correct_answer'] = letters[idx] if idx < len(letters) else str(idx + 1)
+            
             context['questions'].append(formatted_q)
         
         return context
