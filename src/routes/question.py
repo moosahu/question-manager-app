@@ -1914,12 +1914,23 @@ def get_header_settings():
 @question_bp.route('/export-exam-pdf', methods=['POST'])
 @login_required
 def export_exam_pdf():
-    """استخراج ملف PDF مع التأكد من تمرير بيانات الكليشة من قاعدة البيانات"""
+    """استخراج ملف PDF للاختبار مع جلب البيانات بشكل صحيح"""
     try:
+        # محاولة استيراد المولد
         try:
             from src.routes.exam_generator import ExamGenerator
         except ImportError:
             from exam_generator import ExamGenerator
+            
+        # محاولة استيراد نموذج الإعدادات من المسار الصحيح (كما في دالة الوورد)
+        try:
+            from src.models.exam_header_settings import ExamHeaderSettings as SettingsModel
+        except ImportError:
+            try:
+                from models.exam_header_settings import ExamHeaderSettings as SettingsModel
+            except ImportError:
+                # في حال الفشل نستخدم الكلاس المعرف محلياً
+                SettingsModel = ExamHeaderSettings
         
         data = request.get_json()
         question_ids = data.get('question_ids', [])
@@ -1928,10 +1939,11 @@ def export_exam_pdf():
         
         # جلب الأسئلة
         questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
         if not questions:
             return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
         
-        # تجهيز بيانات الأسئلة
+        # تحويل الأسئلة
         questions_data = []
         for q in questions:
             q_dict = {'id': q.question_id, 'question_text': q.question_text, 'points': 1, 'options': []}
@@ -1939,35 +1951,36 @@ def export_exam_pdf():
                 q_dict['options'].append({'option_text': opt.option_text, 'is_correct': opt.is_correct})
             questions_data.append(q_dict)
         
-        # --- بداية التعديل: جلب إعدادات الكليشة ---
-        header_settings = ExamHeaderSettings.query.first()
+        # جلب الإعدادات من قاعدة البيانات
+        # نستخدم SettingsModel الذي تم استيراده لضمان التطابق مع دالة الوورد
+        header_settings = SettingsModel.query.first()
         
-        # تجهيز القيم مع وضع قيم افتراضية في حال كانت الحقول فارغة
-        settings_kwargs = {
-            'country': (header_settings.country if header_settings and header_settings.country else 'المملكة العربية السعودية'),
-            'ministry': (header_settings.ministry if header_settings and header_settings.ministry else 'وزارة التعليم'),
-            'education_department': (header_settings.education_department if header_settings and header_settings.education_department else ''),
-            'school_name': (header_settings.school_name if header_settings and header_settings.school_name else ''),
-            'subject': (header_settings.subject if header_settings and header_settings.subject else ''),
-            'time': (header_settings.time if header_settings and header_settings.time else ''),
-            'grade': (header_settings.grade if header_settings and header_settings.grade else ''),
-            'total_score': (header_settings.total_score if header_settings and header_settings.total_score else 30),
-            'checker_name': (header_settings.checker_name if header_settings and header_settings.checker_name else ''),
-            'reviewer_name': (header_settings.reviewer_name if header_settings and header_settings.reviewer_name else ''),
-            'exam_date': (header_settings.exam_date if header_settings and header_settings.exam_date else '')
-        }
+        settings_dict = {}
+        if header_settings:
+            # استخدام or "" لضمان عدم تمرير None
+            settings_dict = {
+                'country': header_settings.country or "المملكة العربية السعودية",
+                'ministry': header_settings.ministry or "وزارة التعليم",
+                'education_department': header_settings.education_department or "",
+                'school_name': header_settings.school_name or "",
+                'subject': header_settings.subject or "",
+                'time': header_settings.time or "",
+                'grade': header_settings.grade or "",
+                'total_score': header_settings.total_score or 30,
+                'checker_name': header_settings.checker_name or "",
+                'reviewer_name': header_settings.reviewer_name or "",
+                'exam_date': header_settings.exam_date or ""
+            }
         
-        # تمرير الإعدادات عند إنشاء الكائن
-        generator = ExamGenerator(header_settings=settings_kwargs)
+        # تمرير الإعدادات إلى المنشئ وإلى دالة التوليد
+        generator = ExamGenerator(header_settings=settings_dict)
         
-        # توليد الملف وتمرير الإعدادات مرة أخرى لضمان وصولها
         pdf_bytes = generator.generate_pdf(
             questions_data, 
             exam_title, 
             include_answers,
-            **settings_kwargs 
+            **settings_dict  # فك القاموس تمريره كـ kwargs
         )
-        # --- نهاية التعديل ---
         
         return send_file(
             io.BytesIO(pdf_bytes),
