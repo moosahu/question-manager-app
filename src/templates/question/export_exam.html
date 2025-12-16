@@ -1061,31 +1061,25 @@ function generatePrintableDocument(questions, includeAnswers) {
             </div>
             
             <!-- جدول الدرجات -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #000;">
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المراجع</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المصحح</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة كتاباً</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة الطالب رقماً</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">الدرجة الأساسية</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">${headerSettings.total_score}</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                </tr>
+            <table class="grades-table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #000;">
+                <thead>
+                    <tr style="background-color: #e6e6e6; -webkit-print-color-adjust: exact;">
+                        <th style="border: 1px solid #000; padding: 5px; text-align: center; height: 30px;">المراجع</th>
+                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">المصحح</th>
+                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">الدرجة كتابةً</th>
+                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">درجة الطالب رقماً</th>
+                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">الدرجة الأساسية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 5px; height: 40px;"></td>
+                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                        <td style="border: 1px solid #000; padding: 5px; text-align: center; font-size: 20px; font-weight: bold;">${headerSettings.total_score}</td>
+                    </tr>
+                </tbody>
             </table>
             
             <!-- معلومات الطالب -->
