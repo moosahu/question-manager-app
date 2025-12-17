@@ -2257,7 +2257,7 @@ def generate_multi_models():
             
             # توليد HTML للنموذج
             model_html = render_template(
-                'exam_paper_layout_with_barcode.html',
+                'question/exam_paper_layout_with_barcode.html',
                 questions=shuffled_questions,
                 model_letter=model_letter,
                 qr_code=qr_code_data,
@@ -2270,7 +2270,7 @@ def generate_multi_models():
         # إضافة بطاقة التصحيح إذا مطلوبة
         if include_answer_sheet:
             answer_sheet_html = render_template(
-                'answer_sheet_template.html',
+                'question/answer_sheet_template.html',
                 answer_keys=answer_keys,
                 models=models,
                 questions_count=len(questions_data),
@@ -2408,7 +2408,7 @@ def preview_single_model():
         
         # توليد HTML
         html_content = render_template(
-            'exam_paper_layout_with_barcode.html',
+            'question/exam_paper_layout_with_barcode.html',
             questions=shuffled_questions,
             model_letter=model_letter,
             qr_code=qr_code_data,
