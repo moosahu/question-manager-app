@@ -956,39 +956,41 @@ async function exportExam(includeAnswers) {
     //  هذه هي الدالة الصحيحة والنهائية (بدون أي زيادات تحتها)
     // ---------------------------------------------------------
     function generatePrintableDocument(questions, includeAnswers) {
-    // 1. تجهيز المعرفات
+    // 1. تجهيز معرفات الأسئلة
     const questionIds = Array.from(selectedQuestionIds).join(',');
-    
-    // 2. إنشاء فورم مخفي
+
+    // 2. إنشاء الفورم
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/questions/preview-exam-paper';
-    form.target = '_blank';
+    form.target = '_blank'; // يفتح في صفحة جديدة
 
-    // --- (الإضافة الجديدة: جلب وإضافة رمز الحماية CSRF) ---
+    // --- (الإصلاح: إضافة رمز الحماية CSRF) ---
+    // نأخذ الرمز من الميتا تاج الموجود في رأس الصفحة
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    
     const inputCsrf = document.createElement('input');
     inputCsrf.type = 'hidden';
-    inputCsrf.name = 'csrf_token'; // هذا الاسم القياسي في Flask-WTF
+    inputCsrf.name = 'csrf_token'; // هذا الاسم الذي يبحث عنه Flask
     inputCsrf.value = csrfToken;
     form.appendChild(inputCsrf);
-    // -----------------------------------------------------
+    // ----------------------------------------
 
-    // 3. إضافة حقل معرفات الأسئلة
+    // 3. إضافة معرفات الأسئلة
     const inputIds = document.createElement('input');
     inputIds.type = 'hidden';
     inputIds.name = 'question_ids';
     inputIds.value = questionIds;
     form.appendChild(inputIds);
-    
+
     // 4. إضافة خيار الإجابات
     const inputAnswers = document.createElement('input');
     inputAnswers.type = 'hidden';
     inputAnswers.name = 'include_answers';
     inputAnswers.value = includeAnswers;
     form.appendChild(inputAnswers);
-    
-    // 5. الإرسال
+
+    // 5. الإرسال والتنظيف
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
