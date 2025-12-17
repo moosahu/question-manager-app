@@ -57,10 +57,14 @@
         .answer-key {
             margin-top: 30px; border-top: 2px solid #000; padding-top: 20px; break-before: page;
         }
+        /* تحسين لصور الأسئلة إذا وجدت */
+        .q-image { max-width: 100%; height: auto; display: block; margin: 5px 0; }
         @media print { .page-container { margin: 0; width: 100%; } }
     </style>
 </head>
 <body>
+    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+
     <div class="page-container">
         <div class="exam-frame">
             <table class="header-table">
@@ -126,12 +130,25 @@
                 <div class="question-box">
                     <div>
                         <span class="q-num">س{{ loop.index }}:</span>
-                        <span class="q-text">{{ question.question_text }}</span>
+                        <span class="q-text">
+                            {{ question.question_text if question.question_text else '' }}
+                        </span>
+                        
+                        {% if question.image_url %}
+                        <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
+                        {% endif %}
                     </div>
+                    
                     <div style="margin-top: 5px; margin-right: 15px;">
                         {% for option in question.options %}
                         <div class="q-option">
-                            {{ option.letter }}) {{ option.option_text }}
+                            <strong>{{ letters[loop.index0] }})</strong> 
+                            
+                            {{ option.option_text if option.option_text else '' }}
+                            
+                            {% if option.image_url %}
+                            <img src="{{ option.image_url }}" style="max-height: 50px; vertical-align: middle;" alt="Option">
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -145,7 +162,14 @@
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
                     {% for question in questions %}
                     <div style="border:1px solid #000; padding:5px; text-align:center;">
-                        س{{ loop.index }}: <strong>{{ question.correct_answer }}</strong>
+                        س{{ loop.index }}: 
+                        <strong>
+                            {% for option in question.options %}
+                                {% if option.is_correct %}
+                                    {{ letters[loop.index0] }}
+                                {% endif %}
+                            {% endfor %}
+                        </strong>
                     </div>
                     {% endfor %}
                 </div>
