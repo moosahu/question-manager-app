@@ -1992,7 +1992,7 @@ def export_exam_pdf():
     except Exception as e:
         current_app.logger.exception(f"Error exporting PDF: {e}")
         return jsonify({'error': str(e)}), 500
-    @question_bp.route('/preview-exam-paper', methods=['POST'])
+@question_bp.route('/preview-exam-paper', methods=['POST'])
 @login_required
 def preview_exam_paper():
     """عرض معاينة الاختبار في المتصفح باستخدام نفس القالب الموحد"""
