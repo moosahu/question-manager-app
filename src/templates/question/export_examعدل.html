@@ -620,48 +620,6 @@ async function downloadWord(includeAnswers) {
     }
 }
 
-// ========== تحميل PDF مباشرة (WeasyPrint) ==========
-async function downloadPDF(includeAnswers) {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل');
-        return;
-    }
-    showLoading(true);
-    try {
-        const response = await fetch('/questions/export-exam-pdf', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                include_answers: includeAnswers,
-                exam_title: 'نموذج الاختبار'
-            })
-        });
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('تم تحميل ملف PDF بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل تحميل الملف');
-        }
-    } catch (error) {
-        showError('خطأ في تحميل الملف: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
 // تحميل المناهج عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
@@ -675,8 +633,8 @@ function setupEventListeners() {
     document.getElementById('lessonSelect').addEventListener('change', handleLessonChange);
     document.getElementById('generateRandomBtn').addEventListener('click', generateRandomExam);
     document.getElementById('clearAllBtn').addEventListener('click', clearAllSelections);
-    document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => downloadPDF(false));
-    document.getElementById('exportWithAnswersBtn').addEventListener('click', () => downloadPDF(true));
+    document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => exportExam(false));
+    document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
     document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
     document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
 }
