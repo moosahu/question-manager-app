@@ -271,41 +271,40 @@
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
     <div class="header-wrapper">
-        {% if qr_code %}
-        <div class="qr-code-container">
-            <img src="{{ qr_code }}" alt="QR Code">
-            <div class="model-badge">نموذج {{ model_letter }}</div>
-        </div>
-        {% endif %}
-
-        <table class="header-table">
-            <tr>
-                <td class="header-right">
-                    <div>{{ country }}</div>
-                    <div>{{ ministry }}</div>
-                    <div>{{ education_department }}</div>
-                    <div>{{ school_name }}</div>
-                </td>
-                <td class="header-center">
-                    <img src="{{ logo_base64 if logo_base64 else logo_url }}" class="logo-img">
-                </td>
-                <td class="header-left">
-                    <div style="direction: rtl; text-align: left;">
-                    <div>المادة : <span>{{ subject }}</span></div>
-                    <div>الزمن : <span>{{ time }}</span></div>
-                    <div>الصف : <span>{{ grade }}</span></div>
-                    {% if model_letter %}
-                    <div style="margin-top: 5px;">
-                        <strong style="background: #f0f0f0; padding: 2px 8px; border: 1px solid #000;">
-                            النموذج: {{ model_letter }}
-                        </strong>
-                    </div>
-                    {% endif %}
-                    </div>
-                </td>
-            </tr>
-        </table>
+    
+    {# استخدام الـ default لضمان عدم الانهيار في حال غياب البيانات #}
+    {% if qr_code|default(false) %}
+    <div class="qr-code-container">
+        <img src="{{ qr_code }}" alt="QR Code">
+        <div class="model-badge">نموذج {{ model_letter|default('أ') }}</div>
     </div>
+    {% endif %}
+
+    <table class="header-table">
+        <tr>
+            <td class="header-right">
+                <div>{{ country|default('المملكة العربية السعودية') }}</div>
+                <div>{{ ministry|default('وزارة التعليم') }}</div>
+                <div>{{ school_name|default('اسم المدرسة') }}</div>
+            </td>
+            <td class="header-center">
+                {# فحص وجود الشعار بأمان #}
+                {% if logo_base64 %}
+                    <img src="{{ logo_base64 }}" class="logo-img">
+                {% elif logo_url %}
+                    <img src="{{ logo_url }}" class="logo-img">
+                {% endif %}
+            </td>
+            <td class="header-left">
+                <div style="direction: rtl; text-align: left;">
+                    <div>المادة : {{ subject|default('كيمياء') }}</div>
+                    <div>الزمن : {{ time|default('ساعة ونصف') }}</div>
+                    <div>الصف : {{ grade|default('-') }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
 
     <table class="grades-table">
         <thead>
