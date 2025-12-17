@@ -45,6 +45,29 @@
             display: block;
             min-height: 90vh;
         }
+        /* إضافة بادينج علوي لكل صفحة جديدة تبدأ بمحتوى الأسئلة */
+        .questions-wrapper {
+            margin-top: 20px;
+            width: 100%;
+            column-count: 2;
+            column-gap: 40px;
+            column-rule: 1px solid #ccc;
+            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
+            height: 100%;
+        }
+        
+        /* تطبيق هامش علوي على كل صفحة جديدة تبدأ بمحتوى الأسئلة */
+        .questions-wrapper::before {
+            content: "";
+            display: block;
+            height: 0;
+            margin-top: 100px; /* مسافة لضمان نزول المحتوى تحت الإطار */
+        }
+        
+        /* إلغاء الهامش العلوي في الصفحة الأولى */
+        .exam-content > .questions-wrapper::before {
+            margin-top: 0;
+        }
 
         /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
 	        .header-table { 
@@ -132,12 +155,20 @@
 	        @media print {
 	            .fixed-border { display: block; }
 	            .questions-wrapper { column-count: 2 !important; }
-	            /* تطبيق هامش علوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
-	            body {
-	                padding-top: 100px; /* نفس قيمة البادينج التي كانت في exam-content */
+	            
+	            /* إعادة ضبط البادينج العلوي على كل صفحة */
+	            .questions-wrapper {
+	                margin-top: 0 !important; /* إلغاء الهامش العلوي العادي */
 	            }
-	            .page-container {
-	                padding-top: 0; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
+	            
+	            /* تطبيق الهامش العلوي على كل صفحة جديدة تبدأ بمحتوى الأسئلة */
+	            .questions-wrapper::before {
+	                margin-top: 100px !important; /* مسافة لضمان نزول المحتوى تحت الإطار */
+	            }
+	            
+	            /* إلغاء الهامش العلوي في الصفحة الأولى */
+	            .exam-content > .questions-wrapper::before {
+	                margin-top: 0 !important;
 	            }
 	        }
     </style>
