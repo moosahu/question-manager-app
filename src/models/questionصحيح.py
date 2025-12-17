@@ -7,8 +7,11 @@ except ImportError:
     try:
         from extensions import db
     except ImportError:
-        print("Error: Database object 'db' could not be imported from src.extensions or extensions.")
-        raise
+        try:
+            from main import db # Adjust if your db instance is elsewhere
+        except ImportError:
+            print("Error: Database object 'db' could not be imported.")
+            raise
 
 class Question(db.Model):
     __tablename__ = 'questions'
