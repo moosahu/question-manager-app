@@ -950,28 +950,32 @@ async function exportExam(includeAnswers) {
 }
 
 
-    function generatePrintableDocument(questions, includeAnswers) {
-    // بدلاً من توليد HTML هنا، نرسل البيانات للسيرفر ليفتح صفحة المعاينة
+    // استبدل الدالة القديمة المشوهة بهذا الكود فقط
+function generatePrintableDocument(questions, includeAnswers) {
+    // 1. تجهيز المعرفات
     const questionIds = Array.from(selectedQuestionIds).join(',');
     
-    // إنشاء فورم مخفي وإرساله لفتح صفحة جديدة
+    // 2. إنشاء فورم مخفي وإرساله لفتح صفحة المعاينة الموحدة
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/questions/preview-exam-paper';
+    form.action = '/questions/preview-exam-paper'; // تأكد أن هذا الرابط مطابق للراوت في البايثون
     form.target = '_blank'; // فتح في نافذة جديدة
     
+    // 3. إضافة حقل معرفات الأسئلة
     const inputIds = document.createElement('input');
     inputIds.type = 'hidden';
     inputIds.name = 'question_ids';
     inputIds.value = questionIds;
     form.appendChild(inputIds);
     
+    // 4. إضافة خيار الإجابات
     const inputAnswers = document.createElement('input');
     inputAnswers.type = 'hidden';
     inputAnswers.name = 'include_answers';
     inputAnswers.value = includeAnswers;
     form.appendChild(inputAnswers);
     
+    // 5. الإرسال ثم الحذف
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
