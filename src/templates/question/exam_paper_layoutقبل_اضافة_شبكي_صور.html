@@ -173,7 +173,7 @@
             display: block;
         }
 
-        /* ===== الخيارات النصية (عمود واحد) ===== */
+        /* ===== الخيارات ===== */
         .options-container {
             margin-right: 8px;
             margin-top: 5px;
@@ -195,27 +195,6 @@
         .option-content {
             flex: 1;
             line-height: 1.4;
-        }
-
-        /* ===== الخيارات الصورية (شبكة 2×2) ===== */
-        .options-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 15px;
-            margin-right: 8px;
-            margin-top: 5px;
-        }
-
-        .options-grid .q-option {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0;
-        }
-
-        .options-grid .option-img {
-            height: 50px;
-            width: auto;
-            max-width: 85%;
         }
 
         /* ===== مفتاح الإجابات ===== */
@@ -331,46 +310,17 @@
             <img src="{{ question.image_url }}" class="q-image" alt="">
             {% endif %}
             
-            {# التحقق إذا كانت الخيارات صور #}
-            {% set has_image_options = [] %}
-            {% for option in question.options %}
-                {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
-                    {% set _ = has_image_options.append(1) %}
-                {% endif %}
-            {% endfor %}
-            
-            {# إذا كانت الخيارات صور - عرض شبكة 2×2 #}
-            {% if has_image_options|length > 0 %}
-            <div class="options-grid">
-                {% for option in question.options %}
-                <div class="q-option">
-                    <span class="option-char">{{ letters[loop.index0] }})</span>
-                    <div class="option-content">
-                        {% if option.option_text and not option.option_text.startswith('http') %}
-                            <span>{{ option.option_text }}</span>
-                        {% endif %}
-                        
-                        {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="">
-                        {% elif option.option_text and option.option_text.startswith('http') %}
-                            <img src="{{ option.option_text }}" class="option-img" alt="">
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            
-            {# إذا كانت الخيارات نصية - عرض عمود واحد #}
-            {% else %}
             <div class="options-container">
                 {% for option in question.options %}
                 <div class="q-option">
                     <span class="option-char">{{ letters[loop.index0] }})</span>
                     <div class="option-content">
+                        {# نص الخيار #}
                         {% if option.option_text and not option.option_text.startswith('http') %}
                             <span>{{ option.option_text }}</span>
                         {% endif %}
                         
+                        {# صورة الخيار #}
                         {% if option.image_url %}
                             <img src="{{ option.image_url }}" class="option-img" alt="">
                         {% elif option.option_text and option.option_text.startswith('http') %}
@@ -380,7 +330,6 @@
                 </div>
                 {% endfor %}
             </div>
-            {% endif %}
 
         </div>
         {% endfor %}
