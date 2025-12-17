@@ -12,32 +12,6 @@
             /* الإطار المزدوج - يتكرر في كل صفحة */
             border: 3px double #000;
             padding: 5mm;
-
-            /* عبارة اقلب الصفحة في أسفل كل صفحة */
-            @bottom-center {
-                content: element(turnpage);
-            }
-        }
-
-        /* إخفاء اقلب الصفحة في الصفحة الأخيرة */
-        @page last-page {
-            @bottom-center {
-                content: none;
-            }
-        }
-
-        /* عنصر اقلب الصفحة */
-        .turn-page-running {
-            position: running(turnpage);
-            font-family: 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
-            font-size: 13px;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        /* تطبيق صفحة أخيرة على عنصر النهاية */
-        .exam-end {
-            page: last-page;
         }
 
         /* ===== إعدادات عامة ===== */
@@ -251,15 +225,6 @@
             min-width: 80px;
         }
 
-        /* عبارة اقلب الصفحة */
-        .turn-page {
-            text-align: left;
-            font-weight: bold;
-            font-size: 13px;
-            margin-top: 20px;
-            direction: rtl;
-        }
-
         /* عبارة انتهت الأسئلة */
         .exam-end {
             text-align: center;
@@ -275,9 +240,6 @@
     </style>
 </head>
 <body>
-
-    <!-- عنصر اقلب الصفحة - يظهر في footer كل صفحة ما عدا الأخيرة -->
-    <div class="turn-page-running">اقلب الصفحة</div>
 
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
