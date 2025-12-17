@@ -4,70 +4,98 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* إعدادات الصفحة الأساسية */
+        /* إعدادات الصفحة */
         @page { 
             size: A4; 
-            margin: 15mm; /* هوامش الصفحة للطباعة */
+            margin: 0;
         }
 
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
             font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
-            margin: 0;
-            padding: 0;
             background: #fff; 
             color: #000;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
-        /* --- حاوية الصفحة الرئيسية مع الإطار --- */
-        .page-container {
+        /* --- الصفحة مع الإطار --- */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 12mm;
+            margin: 0 auto;
+            background: #fff;
             position: relative;
-            padding: 15mm;
-            min-height: 100vh;
         }
 
-        /* الإطار المزدوج حول المحتوى */
-        .page-container::before {
+        /* الإطار حول المحتوى */
+        .page::before {
             content: '';
-            position: fixed;
-            top: 10mm;
-            left: 10mm;
-            right: 10mm;
-            bottom: 10mm;
+            position: absolute;
+            top: 6mm;
+            left: 6mm;
+            right: 6mm;
+            bottom: 6mm;
             border: 3px double #000;
             pointer-events: none;
-            z-index: -1;
+            z-index: 0;
+        }
+
+        /* محتوى الصفحة */
+        .page-content {
+            position: relative;
+            z-index: 1;
         }
 
         /* --- تنسيق الرأس --- */
         .header-table { 
             width: 100%; 
-            border-bottom: 2px solid #000; 
-            margin-bottom: 15px; 
-            padding-bottom: 10px; 
             border-collapse: collapse;
+            border-bottom: 2px solid #000; 
+            margin-bottom: 10px; 
+            padding-bottom: 8px; 
         }
-        .header-table td { vertical-align: top; }
-        .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
-        .header-center { text-align: center; width: 30%; }
-        .header-left { text-align: left; width: 35%; direction: ltr; font-weight: bold; font-size: 14px; }
+        .header-table td { 
+            vertical-align: top; 
+            padding: 2px;
+        }
+        .header-right { 
+            text-align: right; 
+            width: 35%; 
+            font-weight: bold; 
+            font-size: 12px; 
+        }
+        .header-center { 
+            text-align: center; 
+            width: 30%; 
+        }
+        .header-left { 
+            text-align: left; 
+            width: 35%; 
+            direction: ltr; 
+            font-weight: bold; 
+            font-size: 12px; 
+        }
 
         /* جداول الدرجات */
         .grades-table {
             width: 100%; 
             border-collapse: collapse; 
-            margin: 10px 0; 
+            margin: 8px 0; 
             border: 2px solid #000;
-            page-break-inside: avoid;
         }
         .grades-table th, .grades-table td {
             border: 1px solid #000; 
             text-align: center; 
-            padding: 5px; 
+            padding: 4px; 
             font-weight: bold;
+            font-size: 11px;
         }
         .grades-table th { 
             background-color: #f0f0f0 !important; 
@@ -79,161 +107,158 @@
             display: flex; 
             justify-content: space-between; 
             font-weight: bold; 
-            margin: 15px 0;
+            margin: 10px 0;
             border: 1px solid #000; 
             padding: 5px;
-            page-break-inside: avoid;
+            font-size: 12px;
         }
 
-        /* --- منطقة الأسئلة (الأعمدة) --- */
+        /* --- منطقة الأسئلة --- */
         .questions-wrapper {
-            width: 100%;
             column-count: 2;
-            column-gap: 25px;
-            column-fill: auto; /* يملأ العمود الأول ثم الثاني */
+            column-gap: 15px;
+            column-fill: balance;
             direction: rtl;
         }
 
-        /* الخط الفاصل بين الأعمدة - مخصص ليبقى داخل الإطار */
+        /* خط فاصل بين الأعمدة */
         .questions-wrapper {
-            column-rule: none; /* إلغاء الخط التلقائي */
-            position: relative;
-        }
-
-        /* خط فاصل مخصص */
-        .column-divider {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: #000;
-            transform: translateX(-50%);
+            column-rule: 1px solid #000;
         }
 
         .question-box { 
-            display: inline-block; /* مهم لمنع الانقسام */
+            display: inline-block;
             width: 100%;
-            margin-bottom: 12px;
-            font-size: 14px;
-            /* منع انقسام السؤال الواحد */
+            margin-bottom: 8px;
+            font-size: 12px;
             break-inside: avoid; 
             page-break-inside: avoid;
             -webkit-column-break-inside: avoid;
         }
 
         .q-header {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             display: flex;
             align-items: baseline;
             flex-wrap: wrap;
         }
+        
         .q-num { 
             color: #000; 
             font-weight: bold; 
-            margin-left: 5px; 
+            margin-left: 4px; 
             white-space: nowrap; 
         }
+        
         .q-text { 
             font-weight: bold; 
-            line-height: 1.4; 
+            line-height: 1.3; 
         }
 
-        /* --- تنسيق الصور --- */
+        /* --- الصور --- */
         img {
-            max-width: 90% !important;
-            height: auto !important;
+            max-width: 95%;
+            max-height: 90px;
+            height: auto;
             display: block;
-            margin: 5px auto;
+            margin: 4px auto;
             object-fit: contain;
         }
         
         .q-image {
-            border: 1px dashed #999; 
+            border: 1px dashed #aaa; 
             padding: 2px;
-            max-width: 85%;
-        }
-
-        /* إخفاء الصور المكسورة وإظهار بديل */
-        img[src*="/options/"] {
-            display: none; /* إخفاء روابط الصور غير الصالحة */
-        }
-
-        /* رسالة بديلة للصور غير المتوفرة */
-        .image-placeholder {
-            border: 1px dashed #999;
-            padding: 10px;
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            margin: 5px 0;
-            background: #f9f9f9;
-        }
-
-        /* --- تنسيق الخيارات --- */
-        .q-option { 
-            display: flex; 
-            align-items: flex-start; 
-            margin-bottom: 4px;
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-        .option-char { 
-            font-weight: bold; 
-            margin-left: 5px; 
-            min-width: 18px; 
-        }
-        
-        .option-content {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
+            max-height: 80px;
         }
 
         .option-img {
-            margin-top: 3px;
-            max-width: 80%;
+            max-height: 60px;
+            max-width: 85%;
+            margin-top: 2px;
+        }
+
+        /* --- الخيارات --- */
+        .options-container {
+            margin-right: 3px;
+        }
+
+        .q-option { 
+            display: flex; 
+            align-items: flex-start; 
+            margin-bottom: 2px;
+            break-inside: avoid;
+        }
+        
+        .option-char { 
+            font-weight: bold; 
+            margin-left: 3px; 
+            min-width: 14px;
+            flex-shrink: 0;
+        }
+        
+        .option-content {
+            flex: 1;
+        }
+
+        .option-text {
+            line-height: 1.3;
         }
 
         /* --- مفتاح الإجابات --- */
         .answer-key {
+            break-before: page;
             page-break-before: always;
-            padding-top: 20mm;
+            padding-top: 10mm;
         }
 
         .answer-key-title {
             font-weight: bold; 
             margin-bottom: 10px; 
             text-align: center; 
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .answer-grid {
             display: grid; 
             grid-template-columns: repeat(5, 1fr); 
-            gap: 10px; 
+            gap: 6px; 
             direction: rtl;
         }
 
         .answer-item {
             border: 1px solid #000; 
-            padding: 5px; 
+            padding: 3px; 
             text-align: center;
+            font-size: 12px;
         }
 
-        /* --- قواعد الطباعة --- */
+        /* === قواعد الطباعة === */
         @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            .page-container {
-                padding: 5mm;
+            html, body {
+                width: 210mm;
+                height: 297mm;
             }
 
-            .page-container::before {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .page {
+                width: 100%;
+                min-height: auto;
+                padding: 10mm;
+                margin: 0;
+                page-break-after: auto;
+            }
+
+            /* إخفاء الإطار الـ CSS واستخدام إطار ثابت للطباعة */
+            .page::before {
                 position: fixed;
+                top: 5mm;
+                left: 5mm;
+                right: 5mm;
+                bottom: 5mm;
             }
 
             .question-box {
@@ -241,9 +266,30 @@
                 page-break-inside: avoid !important;
             }
 
-            /* ضمان عدم تجاوز المحتوى للإطار */
-            .questions-wrapper {
-                overflow: hidden;
+            /* تقليل حجم الصور للطباعة */
+            img {
+                max-height: 70px !important;
+            }
+            
+            .q-image {
+                max-height: 65px !important;
+            }
+            
+            .option-img {
+                max-height: 50px !important;
+            }
+        }
+
+        /* للمعاينة قبل الطباعة */
+        @media screen {
+            body {
+                background: #e0e0e0;
+                padding: 20px;
+            }
+            
+            .page {
+                box-shadow: 0 0 10px rgba(0,0,0,0.3);
+                margin-bottom: 20px;
             }
         }
 
@@ -251,126 +297,150 @@
 </head>
 <body>
 
-    <div class="page-container">
+    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
-        {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+    <div class="page">
+        <div class="page-content">
 
-        <table class="header-table">
-            <tr>
-                <td class="header-right">
-                    <div>{{ country }}</div>
-                    <div>{{ ministry }}</div>
-                    <div>{{ education_department }}</div>
-                    <div>مدرسة {{ school_name }}</div>
-                </td>
-                <td class="header-center">
-                    <div style="font-size: 18px; font-weight: bold; margin-bottom:5px;">{{ exam_title }}</div>
-                    <div>الصف: {{ grade }}</div>
-                </td>
-                <td class="header-left">
-                    <div style="direction: rtl; text-align: left;">
-                        <div>الزمن: {{ time }}</div>
-                        <div>الدرجة: {{ total_score }}</div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <table class="grades-table">
-            <thead>
+            <table class="header-table">
                 <tr>
-                    <th>الدرجة الأساسية</th>
-                    <th>درجة الطالب رقماً</th>
-                    <th>الدرجة كتابةً</th>
-                    <th>المصحح</th>
-                    <th>المراجع</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>{{ total_score }}</td>
-                    <td></td>
-                    <td></td>
-                    <td>{{ checker_name }}</td>
-                    <td>{{ reviewer_name }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="student-info">
-            <span>اسم الطالب: ............................................</span>
-            <span>الشعبة: ............</span>
-            <span>رقم الجلوس: ............</span>
-        </div>
-
-        <div class="questions-wrapper">
-            {% for question in questions %}
-            <div class="question-box">
-                
-                <div class="q-header">
-                    <span class="q-num">س{{ loop.index }}:</span>
-                    <span class="q-text">
-                        {{ question.question_text if question.question_text else '' }}
-                    </span>
-                </div>
-                
-                {% if question.image_url %}
-                    {% if question.image_url.startswith('http') or question.image_url.startswith('/') %}
-                    <img src="{{ question.image_url }}" class="q-image" alt="صورة السؤال" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div class="image-placeholder" style="display:none;">صورة غير متوفرة</div>
-                    {% else %}
-                    <div class="image-placeholder">صورة غير متوفرة</div>
-                    {% endif %}
-                {% endif %}
-                
-                <div style="margin-right: 5px;">
-                    {% for option in question.options %}
-                    <div class="q-option">
-                        <span class="option-char">{{ letters[loop.index0] }})</span>
-                        
-                        <div class="option-content">
-                            {% if option.option_text %}
-                            <span>{{ option.option_text }}</span>
-                            {% endif %}
-
-                            {% if option.image_url %}
-                                {% if option.image_url.startswith('http') %}
-                                <img src="{{ option.image_url }}" class="option-img" alt="صورة الخيار" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                <span class="image-placeholder" style="display:none; font-size:11px;">صورة</span>
-                                {% else %}
-                                <span class="image-placeholder" style="font-size:11px;">صورة غير متوفرة</span>
-                                {% endif %}
-                            {% endif %}
+                    <td class="header-right">
+                        <div>{{ country }}</div>
+                        <div>{{ ministry }}</div>
+                        <div>{{ education_department }}</div>
+                        <div>مدرسة {{ school_name }}</div>
+                    </td>
+                    <td class="header-center">
+                        <div style="font-size: 15px; font-weight: bold; margin-bottom:4px;">{{ exam_title }}</div>
+                        <div>الصف: {{ grade }}</div>
+                    </td>
+                    <td class="header-left">
+                        <div style="direction: rtl; text-align: left;">
+                            <div>الزمن: {{ time }}</div>
+                            <div>الدرجة: {{ total_score }}</div>
                         </div>
-                    </div>
-                    {% endfor %}
-                </div>
+                    </td>
+                </tr>
+            </table>
 
+            <table class="grades-table">
+                <thead>
+                    <tr>
+                        <th>الدرجة الأساسية</th>
+                        <th>درجة الطالب رقماً</th>
+                        <th>الدرجة كتابةً</th>
+                        <th>المصحح</th>
+                        <th>المراجع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ total_score }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>{{ checker_name }}</td>
+                        <td>{{ reviewer_name }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="student-info">
+                <span>اسم الطالب: ............................................</span>
+                <span>الشعبة: ............</span>
+                <span>رقم الجلوس: ............</span>
             </div>
-            {% endfor %}
-        </div>
 
-        {% if show_answers %}
-        <div class="answer-key">
-            <div class="answer-key-title">مفتاح الإجابات</div>
-            <div class="answer-grid">
+            <div class="questions-wrapper">
                 {% for question in questions %}
-                <div class="answer-item">
-                    س{{ loop.index }}: 
-                    <strong>
+                <div class="question-box">
+                    
+                    <div class="q-header">
+                        <span class="q-num">س{{ loop.index }}:</span>
+                        <span class="q-text">{{ question.question_text if question.question_text else '' }}</span>
+                    </div>
+                    
+                    {% if question.image_url %}
+                    <img src="{{ question.image_url }}" class="q-image" alt="">
+                    {% endif %}
+                    
+                    <div class="options-container">
                         {% for option in question.options %}
-                            {% if option.is_correct %}
-                                {{ letters[loop.index0] }}
-                            {% endif %}
+                        <div class="q-option">
+                            <span class="option-char">{{ letters[loop.index0] }})</span>
+                            <div class="option-content">
+                                {% if option.option_text %}
+                                <span class="option-text">{{ option.option_text }}</span>
+                                {% endif %}
+                                {% if option.image_url %}
+                                <img src="{{ option.image_url }}" class="option-img" alt="">
+                                {% endif %}
+                            </div>
+                        </div>
                         {% endfor %}
-                    </strong>
+                    </div>
+
                 </div>
                 {% endfor %}
             </div>
-        </div>
-        {% endif %}
 
+            {% if show_answers %}
+            <div class="answer-key">
+                <div class="answer-key-title">مفتاح الإجابات</div>
+                <div class="answer-grid">
+                    {% for question in questions %}
+                    <div class="answer-item">
+                        س{{ loop.index }}: 
+                        <strong>
+                            {% for option in question.options %}
+                                {% if option.is_correct %}
+                                    {{ letters[loop.index0] }}
+                                {% endif %}
+                            {% endfor %}
+                        </strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
     </div>
+
+    <script>
+        // انتظار تحميل جميع الصور قبل السماح بالطباعة
+        window.addEventListener('load', function() {
+            var images = document.querySelectorAll('img');
+            var loaded = 0;
+            var total = images.length;
+            
+            if (total === 0) {
+                console.log('لا توجد صور - جاهز للطباعة');
+                return;
+            }
+            
+            images.forEach(function(img) {
+                if (img.complete) {
+                    loaded++;
+                } else {
+                    img.addEventListener('load', function() {
+                        loaded++;
+                        if (loaded === total) {
+                            console.log('تم تحميل جميع الصور - جاهز للطباعة');
+                        }
+                    });
+                    img.addEventListener('error', function() {
+                        loaded++;
+                        this.style.display = 'none'; // إخفاء الصور التي فشل تحميلها
+                        console.log('فشل تحميل صورة');
+                    });
+                }
+            });
+            
+            if (loaded === total) {
+                console.log('جميع الصور محملة - جاهز للطباعة');
+            }
+        });
+    </script>
 
 </body>
 </html>
