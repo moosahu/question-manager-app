@@ -7,29 +7,39 @@
         /* إعدادات الصفحة الأساسية */
         @page { 
             size: A4; 
-            margin: 0; /* تصفير هوامش الصفحة والتحكم بها يدوياً عبر الـ body */
+            margin: 15mm; /* هوامش الصفحة للطباعة */
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
-            margin: 0; 
-            /* هذا البادينج هو الحل السحري لمنع التداخل في كل الصفحات */
-            /* 2.5سم من الأعلى والأسفل، 2سم من الجوانب */
-            padding: 25mm 20mm 25mm 20mm; 
+            margin: 0;
+            padding: 0;
             background: #fff; 
             color: #000;
-            box-sizing: border-box; /* لضمان حساب الهوامش بشكل صحيح */
         }
 
-        /* --- الإطار الثابت (يتكرر خلف المحتوى) --- */
-        .fixed-border {
+        /* --- حاوية الصفحة الرئيسية مع الإطار --- */
+        .page-container {
+            position: relative;
+            padding: 15mm;
+            min-height: 100vh;
+        }
+
+        /* الإطار المزدوج حول المحتوى */
+        .page-container::before {
+            content: '';
             position: fixed;
             top: 10mm;
             left: 10mm;
             right: 10mm;
             bottom: 10mm;
             border: 3px double #000;
-            z-index: -10; /* خلف كل شيء */
+            pointer-events: none;
+            z-index: -1;
         }
 
         /* --- تنسيق الرأس --- */
@@ -38,6 +48,7 @@
             border-bottom: 2px solid #000; 
             margin-bottom: 15px; 
             padding-bottom: 10px; 
+            border-collapse: collapse;
         }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
@@ -46,38 +57,65 @@
 
         /* جداول الدرجات */
         .grades-table {
-            width: 100%; border-collapse: collapse; margin: 10px 0; border: 2px solid #000;
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0; 
+            border: 2px solid #000;
             page-break-inside: avoid;
         }
         .grades-table th, .grades-table td {
-            border: 1px solid #000; text-align: center; padding: 5px; font-weight: bold;
+            border: 1px solid #000; 
+            text-align: center; 
+            padding: 5px; 
+            font-weight: bold;
         }
-        .grades-table th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
+        .grades-table th { 
+            background-color: #f0f0f0 !important; 
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
         .student-info {
-            display: flex; justify-content: space-between; font-weight: bold; margin: 15px 0;
-            border: 1px solid #000; padding: 5px;
+            display: flex; 
+            justify-content: space-between; 
+            font-weight: bold; 
+            margin: 15px 0;
+            border: 1px solid #000; 
+            padding: 5px;
             page-break-inside: avoid;
         }
 
         /* --- منطقة الأسئلة (الأعمدة) --- */
         .questions-wrapper {
             width: 100%;
-            column-count: 2; /* عمودين */
-            column-gap: 30px; 
-            column-rule: 1px solid #000; /* الخط الفاصل */
+            column-count: 2;
+            column-gap: 25px;
+            column-fill: auto; /* يملأ العمود الأول ثم الثاني */
             direction: rtl;
-            
-            /* (هام) إزالة تحديد الطول ليقف الخط عند آخر سؤال */
-            height: auto; 
-            min-height: 0; 
+        }
+
+        /* الخط الفاصل بين الأعمدة - مخصص ليبقى داخل الإطار */
+        .questions-wrapper {
+            column-rule: none; /* إلغاء الخط التلقائي */
+            position: relative;
+        }
+
+        /* خط فاصل مخصص */
+        .column-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #000;
+            transform: translateX(-50%);
         }
 
         .question-box { 
-            display: block; 
+            display: inline-block; /* مهم لمنع الانقسام */
             width: 100%;
-            margin-bottom: 15px;
-            font-size: 15px;
+            margin-bottom: 12px;
+            font-size: 14px;
             /* منع انقسام السؤال الواحد */
             break-inside: avoid; 
             page-break-inside: avoid;
@@ -88,158 +126,251 @@
             margin-bottom: 5px;
             display: flex;
             align-items: baseline;
+            flex-wrap: wrap;
         }
-        .q-num { color: #000; font-weight: bold; margin-left: 5px; white-space: nowrap; }
-        .q-text { font-weight: bold; line-height: 1.4; }
+        .q-num { 
+            color: #000; 
+            font-weight: bold; 
+            margin-left: 5px; 
+            white-space: nowrap; 
+        }
+        .q-text { 
+            font-weight: bold; 
+            line-height: 1.4; 
+        }
 
-        /* --- تنسيق الصور (التعامل مع الروابط) --- */
-        /* يضمن أن الصورة الرابط لا تخرج عن حدود العمود */
+        /* --- تنسيق الصور --- */
         img {
-            max-width: 95% !important; /* لا تتجاوز عرض العمود */
+            max-width: 90% !important;
             height: auto !important;
             display: block;
             margin: 5px auto;
-            object-fit: contain; /* تحافظ على أبعاد الصورة */
+            object-fit: contain;
         }
         
         .q-image {
             border: 1px dashed #999; 
             padding: 2px;
+            max-width: 85%;
+        }
+
+        /* إخفاء الصور المكسورة وإظهار بديل */
+        img[src*="/options/"] {
+            display: none; /* إخفاء روابط الصور غير الصالحة */
+        }
+
+        /* رسالة بديلة للصور غير المتوفرة */
+        .image-placeholder {
+            border: 1px dashed #999;
+            padding: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin: 5px 0;
+            background: #f9f9f9;
         }
 
         /* --- تنسيق الخيارات --- */
         .q-option { 
             display: flex; 
             align-items: flex-start; 
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             page-break-inside: avoid;
             break-inside: avoid;
         }
-        .option-char { font-weight: bold; margin-left: 5px; min-width: 20px; }
+        .option-char { 
+            font-weight: bold; 
+            margin-left: 5px; 
+            min-width: 18px; 
+        }
         
         .option-content {
             display: flex;
-            flex-direction: column; /* لضمان نزول الصورة تحت النص إذا وجدا معاً */
+            flex-direction: column;
             width: 100%;
         }
 
         .option-img {
             margin-top: 3px;
+            max-width: 80%;
+        }
+
+        /* --- مفتاح الإجابات --- */
+        .answer-key {
+            page-break-before: always;
+            padding-top: 20mm;
+        }
+
+        .answer-key-title {
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            text-align: center; 
+            font-size: 18px;
+        }
+
+        .answer-grid {
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 10px; 
+            direction: rtl;
+        }
+
+        .answer-item {
+            border: 1px solid #000; 
+            padding: 5px; 
+            text-align: center;
+        }
+
+        /* --- قواعد الطباعة --- */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .page-container {
+                padding: 5mm;
+            }
+
+            .page-container::before {
+                position: fixed;
+            }
+
+            .question-box {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+
+            /* ضمان عدم تجاوز المحتوى للإطار */
+            .questions-wrapper {
+                overflow: hidden;
+            }
         }
 
     </style>
 </head>
 <body>
 
-    <div class="fixed-border"></div>
+    <div class="page-container">
 
-    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+        {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
-    <table class="header-table">
-        <tr>
-            <td class="header-right">
-                <div>{{ country }}</div>
-                <div>{{ ministry }}</div>
-                <div>{{ education_department }}</div>
-                <div>مدرسة {{ school_name }}</div>
-            </td>
-            <td class="header-center">
-                <div style="font-size: 18px; font-weight: bold; margin-bottom:5px;">{{ exam_title }}</div>
-                <div>الصف: {{ grade }}</div>
-            </td>
-            <td class="header-left">
-                <div style="direction: rtl; text-align: left;">
-                    <div>الزمن: {{ time }}</div>
-                    <div>الدرجة: {{ total_score }}</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="grades-table">
-        <thead>
+        <table class="header-table">
             <tr>
-                <th>الدرجة الأساسية</th>
-                <th>درجة الطالب رقماً</th>
-                <th>الدرجة كتابةً</th>
-                <th>المصحح</th>
-                <th>المراجع</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>{{ total_score }}</td>
-                <td></td>
-                <td></td>
-                <td>{{ checker_name }}</td>
-                <td>{{ reviewer_name }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="student-info">
-        <span>اسم الطالب: ............................................</span>
-        <span>الشعبة: ............</span>
-        <span>رقم الجلوس: ............</span>
-    </div>
-
-    <div class="questions-wrapper">
-        {% for question in questions %}
-        <div class="question-box">
-            
-            <div class="q-header">
-                <span class="q-num">س{{ loop.index }}:</span>
-                <span class="q-text">
-                    {{ question.question_text if question.question_text else '' }}
-                </span>
-            </div>
-            
-            {% if question.image_url %}
-            <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
-            {% endif %}
-            
-            <div style="margin-right: 5px;">
-                {% for option in question.options %}
-                <div class="q-option">
-                    <span class="option-char">{{ letters[loop.index0] }})</span>
-                    
-                    <div class="option-content">
-                        {% if option.option_text %}
-                        <span>{{ option.option_text }}</span>
-                        {% endif %}
-
-                        {% if option.image_url %}
-                        <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
-                        {% endif %}
+                <td class="header-right">
+                    <div>{{ country }}</div>
+                    <div>{{ ministry }}</div>
+                    <div>{{ education_department }}</div>
+                    <div>مدرسة {{ school_name }}</div>
+                </td>
+                <td class="header-center">
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom:5px;">{{ exam_title }}</div>
+                    <div>الصف: {{ grade }}</div>
+                </td>
+                <td class="header-left">
+                    <div style="direction: rtl; text-align: left;">
+                        <div>الزمن: {{ time }}</div>
+                        <div>الدرجة: {{ total_score }}</div>
                     </div>
-                </div>
-                {% endfor %}
-            </div>
+                </td>
+            </tr>
+        </table>
 
+        <table class="grades-table">
+            <thead>
+                <tr>
+                    <th>الدرجة الأساسية</th>
+                    <th>درجة الطالب رقماً</th>
+                    <th>الدرجة كتابةً</th>
+                    <th>المصحح</th>
+                    <th>المراجع</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ total_score }}</td>
+                    <td></td>
+                    <td></td>
+                    <td>{{ checker_name }}</td>
+                    <td>{{ reviewer_name }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="student-info">
+            <span>اسم الطالب: ............................................</span>
+            <span>الشعبة: ............</span>
+            <span>رقم الجلوس: ............</span>
         </div>
-        {% endfor %}
-    </div>
 
-    {% if show_answers %}
-    <div style="page-break-before: always;"></div>
-    <div class="answer-key">
-        <div style="font-weight: bold; margin-bottom: 10px; text-align: center; font-size: 18px;">مفتاح الإجابات</div>
-        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
+        <div class="questions-wrapper">
             {% for question in questions %}
-            <div style="border:1px solid #000; padding:5px; text-align:center;">
-                س{{ loop.index }}: 
-                <strong>
+            <div class="question-box">
+                
+                <div class="q-header">
+                    <span class="q-num">س{{ loop.index }}:</span>
+                    <span class="q-text">
+                        {{ question.question_text if question.question_text else '' }}
+                    </span>
+                </div>
+                
+                {% if question.image_url %}
+                    {% if question.image_url.startswith('http') or question.image_url.startswith('/') %}
+                    <img src="{{ question.image_url }}" class="q-image" alt="صورة السؤال" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="image-placeholder" style="display:none;">صورة غير متوفرة</div>
+                    {% else %}
+                    <div class="image-placeholder">صورة غير متوفرة</div>
+                    {% endif %}
+                {% endif %}
+                
+                <div style="margin-right: 5px;">
                     {% for option in question.options %}
-                        {% if option.is_correct %}
-                            {{ letters[loop.index0] }}
-                        {% endif %}
+                    <div class="q-option">
+                        <span class="option-char">{{ letters[loop.index0] }})</span>
+                        
+                        <div class="option-content">
+                            {% if option.option_text %}
+                            <span>{{ option.option_text }}</span>
+                            {% endif %}
+
+                            {% if option.image_url %}
+                                {% if option.image_url.startswith('http') %}
+                                <img src="{{ option.image_url }}" class="option-img" alt="صورة الخيار" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                <span class="image-placeholder" style="display:none; font-size:11px;">صورة</span>
+                                {% else %}
+                                <span class="image-placeholder" style="font-size:11px;">صورة غير متوفرة</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endfor %}
-                </strong>
+                </div>
+
             </div>
             {% endfor %}
         </div>
+
+        {% if show_answers %}
+        <div class="answer-key">
+            <div class="answer-key-title">مفتاح الإجابات</div>
+            <div class="answer-grid">
+                {% for question in questions %}
+                <div class="answer-item">
+                    س{{ loop.index }}: 
+                    <strong>
+                        {% for option in question.options %}
+                            {% if option.is_correct %}
+                                {{ letters[loop.index0] }}
+                            {% endif %}
+                        {% endfor %}
+                    </strong>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
     </div>
-    {% endif %}
 
 </body>
 </html>
