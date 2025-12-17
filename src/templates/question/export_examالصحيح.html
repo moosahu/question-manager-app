@@ -526,6 +526,43 @@
 </div>
 
 <script>
+// تعريف المتغير كـ let ليقبل التحديث
+let headerSettings = {
+    country: 'المملكة العربية السعودية',
+    ministry: 'وزارة التعليم',
+    education_department: 'الإدارة العامة للتعليم بالمنطقة الشرقية',
+    school_name: 'مدرسة عبدالرحمن بن القاسم الثانوية',
+    subject: 'كيمياء 4',
+    time: 'ثلاث ساعات',
+    grade: 'ثالث ثانوي',
+    total_score: 30
+};
+
+// دالة لجلب الإعدادات الحديثة من السيرفر
+async function loadHeaderSettingsFromServer() {
+    try {
+        const response = await fetch('/questions/get-header-settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            headerSettings = {
+                country: data.settings.country || 'المملكة العربية السعودية',
+                ministry: data.settings.ministry || 'وزارة التعليم',
+                education_department: data.settings.education_department || '',
+                school_name: data.settings.school_name || '',
+                subject: data.settings.subject || '',
+                time: data.settings.time || '',
+                grade: data.settings.grade || '',
+                total_score: data.settings.total_score || 30
+            };
+            console.log("تم تحديث الكليشة من قاعدة البيانات");
+        }
+    } catch (error) {
+        console.error('فشل تحميل الكليشة:', error);
+    }
+}
+
+
 const API_BASE = '/api/v1';
 let allQuestions = [];
 let selectedQuestionIds = new Set();
@@ -587,6 +624,7 @@ async function downloadWord(includeAnswers) {
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
     setupEventListeners();
+    loadHeaderSettingsFromServer(); // <--- هذا السطر الجديد هو الأهم
 });
 
 function setupEventListeners() {
@@ -911,260 +949,85 @@ async function exportExam(includeAnswers) {
     }
 }
 
-function generatePrintableDocument(questions, includeAnswers) {
-    let html = `
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <title>نموذج الاختبار</title>
-        <style>
-            body {
-                font-family: 'Arial', sans-serif;
-                direction: rtl;
-                padding: 20px;
-                background: white;
-            }
-            /* أنماط الرأس محذوفة - استخدم exam_generator.py */
-            .questions-container {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                column-gap: 40px;
-            }
-            .question {
-                page-break-inside: avoid;
-                margin-bottom: 20px;
-                padding: 15px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-            }
-            .question-number {
-                font-weight: bold;
-                color: #667eea;
-                margin-bottom: 10px;
-            }
-            .question-text {
-                margin-bottom: 15px;
-                font-weight: 600;
-            }
-            .options {
-                margin-left: 20px;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-            }
-            .option {
-                padding: 10px;
-                border-radius: 3px;
-                display: block;
-                text-align: right;
-            }
-            .option.correct {
-                background-color: #d4edda;
-                border-right: 4px solid #28a745;
-            }
-            .option-label {
-                font-weight: bold;
-                margin-left: 10px;
-            }
-            .answer-key {
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 3px solid #333;
-            }
-            .answer-key h2 {
-                color: #333;
-                text-align: center;
-            }
-            .answer-item {
-                display: inline-block;
-                margin: 10px 20px;
-                padding: 10px 15px;
-                background: #f0f0f0;
-                border-radius: 5px;
-            }
-            @media print {
-                body {
-                    padding: 0;
-                }
-                .question {
-                    page-break-inside: avoid;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <!-- الكليشة (الرأس) -->
-        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000;">
-            <!-- الرأس العلوي -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.8; direction: rtl;">
-                <!-- العمود الأول (اليمين): المملكة والوزارة والمدرسة -->
-                <div style="text-align: right;">
-                    <div><strong>المملكة العربية السعودية</strong></div>
-                    <div><strong>وزارة التعليم</strong></div>
-                    <div><strong>مدرسة عبدالرحمن بن القاسم الثانوية</strong></div>
-                </div>
-                <!-- العمود الثاني (المنتصف): شعار الوزارة -->
-                <div style="text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #1e90ff;">وزارة التعليم</div>
-                </div>
-                <!-- العمود الثالث (اليسار): المادة والزمن والصف -->
-                <div style="text-align: left;">
-                    <div><strong>المادة:</strong> كيمياء 4</div>
-                    <div><strong>الزمن:</strong> ثلاث ساعات</div>
-                    <div><strong>الصف:</strong> ثالث ثانوي</div>
-                </div>
-            </div>
-            
-            <!-- العنوان -->
-            <div style="font-size: 16px; font-weight: bold; margin: 15px 0; border-bottom: 2px solid #000; padding-bottom: 10px;">
-                اختبار كفاية الفصل الدراسي الثاني للعام الدراسي 1445ه
-            </div>
-            
-            <!-- جدول الدرجات -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #000;">
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المراجع</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">المصحح</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة كتابية</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">درجة الطالب رقماً</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">الدرجة الأساسية</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">30</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;"></td>
-                </tr>
-            </table>
-            
-            <!-- معلومات الطالب -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px; font-size: 13px;">
-                <div style="text-align: left;"><strong>رقم الجلوس:</strong> ___________</div>
-                <div style="text-align: center;"><strong>الشعبة:</strong> ___________</div>
-                <div style="text-align: right;"><strong>اسم الطالب:</strong> ___________</div>
-            </div>
-        </div>
-        
-        <div class="questions-container">
-    `;
+
+// ... (الكود السابق للدوال exportExam وغيرها) ...
+
+    // ---------------------------------------------------------
+    //  هذه هي الدالة الصحيحة والنهائية (بدون أي زيادات تحتها)
+    // ---------------------------------------------------------
+    function generatePrintableDocument(questions, includeAnswers) {
+    // 1. تجهيز معرفات الأسئلة
+    const questionIds = Array.from(selectedQuestionIds).join(',');
+
+    // 2. إنشاء الفورم
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/questions/preview-exam-paper';
+    form.target = '_blank'; // يفتح في صفحة جديدة
+
+    // --- (الإصلاح: إضافة رمز الحماية CSRF) ---
+    // نأخذ الرمز من الميتا تاج الموجود في رأس الصفحة
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     
-    let questionNumber = 1;
-    let answers = [];
-    
-    questions.forEach((question, index) => {
-        const column = index % 2 === 0 ? 'left' : 'right';
-        
-        html += `
-            <div class="question">
-                <div class="question-number">السؤال ${questionNumber}</div>
-                <div class="question-text">${question.question_text}</div>
-                <div class="options">
-        `;
-        
-        question.options.forEach((option, optIndex) => {
-            const isCorrect = includeAnswers && option.option_id === question.correct_option_id;
-            const optionLabel = String.fromCharCode(97 + optIndex); // a, b, c, d
-            
-            html += `
-                <div class="option ${isCorrect ? 'correct' : ''}">
-                    <span class="option-label">${optionLabel})</span> ${option.option_text}
-                </div>
-            `;
-            
-            if (isCorrect) {
-                answers.push({ question: questionNumber, answer: optionLabel.toUpperCase() });
-            }
-        });
-        
-        html += `
-                </div>
-            </div>
-        `;
-        
-        questionNumber++;
-    });
-    
-    html += `
-        </div>
-    `;
-    
-    if (includeAnswers && answers.length > 0) {
-        html += `
-            <div class="answer-key">
-                <h2>نموذج الإجابة</h2>
-                <div>
-        `;
-        
-        answers.forEach(ans => {
-            html += `<div class="answer-item">السؤال ${ans.question}: <strong>${ans.answer}</strong></div>`;
-        });
-        
-        html += `
-                </div>
-            </div>
-        `;
+    const inputCsrf = document.createElement('input');
+    inputCsrf.type = 'hidden';
+    inputCsrf.name = 'csrf_token'; // هذا الاسم الذي يبحث عنه Flask
+    inputCsrf.value = csrfToken;
+    form.appendChild(inputCsrf);
+    // ----------------------------------------
+
+    // 3. إضافة معرفات الأسئلة
+    const inputIds = document.createElement('input');
+    inputIds.type = 'hidden';
+    inputIds.name = 'question_ids';
+    inputIds.value = questionIds;
+    form.appendChild(inputIds);
+
+    // 4. إضافة خيار الإجابات
+    const inputAnswers = document.createElement('input');
+    inputAnswers.type = 'hidden';
+    inputAnswers.name = 'include_answers';
+    inputAnswers.value = includeAnswers;
+    form.appendChild(inputAnswers);
+
+    // 5. الإرسال والتنظيف
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+    // (( قمنا هنا بحذف كل كود html += و window.open القديم الذي كان يسبب المشكلة ))
+
+    function updateStats() {
+        document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+        document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
     }
-    
-    html += `
-    </body>
-    </html>
-    `;
-    
-    // فتح نافذة جديدة وطباعة
-    const printWindow = window.open('', '', 'width=1200,height=800');
-    printWindow.document.write(html);
-    printWindow.document.close();
-    
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
 
-function updateStats() {
-    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
-    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
-}
+    function showPreview(exam) {
+        const previewSection = document.getElementById('previewSection');
+        document.getElementById('previewQuestionsCount').textContent = exam.count;
+        document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+        previewSection.style.display = 'block';
+        previewSection.scrollIntoView({ behavior: 'smooth' });
+    }
 
-function showPreview(exam) {
-    const previewSection = document.getElementById('previewSection');
-    document.getElementById('previewQuestionsCount').textContent = exam.count;
-    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
-    previewSection.style.display = 'block';
-    previewSection.scrollIntoView({ behavior: 'smooth' });
-}
+    function showLoading(show) {
+        document.getElementById('loadingIndicator').classList.toggle('active', show);
+    }
 
-function showLoading(show) {
-    document.getElementById('loadingIndicator').classList.toggle('active', show);
-}
+    function showSuccess(message) {
+        const alert = document.getElementById('successAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
-function showSuccess(message) {
-    const alert = document.getElementById('successAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
-
-function showError(message) {
-    const alert = document.getElementById('errorAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
-
-
+    function showError(message) {
+        const alert = document.getElementById('errorAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
 </script>
 {% endblock %}
