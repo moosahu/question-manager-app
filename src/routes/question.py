@@ -1992,3 +1992,59 @@ def export_exam_pdf():
     except Exception as e:
         current_app.logger.exception(f"Error exporting PDF: {e}")
         return jsonify({'error': str(e)}), 500
+    @question_bp.route('/preview-exam-paper', methods=['POST'])
+@login_required
+def preview_exam_paper():
+    """عرض معاينة الاختبار في المتصفح باستخدام نفس القالب الموحد"""
+    try:
+        try:
+            from src.routes.exam_generator import ExamGenerator
+        except ImportError:
+            from exam_generator import ExamGenerator
+            
+        try:
+            from src.models.exam_header_settings import ExamHeaderSettings
+        except ImportError:
+            from models.exam_header_settings import ExamHeaderSettings
+
+        # استقبال البيانات من الفورم
+        question_ids_str = request.form.get('question_ids', '')
+        if not question_ids_str:
+             return "لا توجد أسئلة محددة", 400
+             
+        question_ids = [int(x) for x in question_ids_str.split(',')]
+        include_answers = request.form.get('include_answers') == 'true'
+        
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        questions_data = []
+        for q in questions:
+            q_dict = {'id': q.question_id, 'question_text': q.question_text, 'points': 1, 'options': []}
+            for opt in q.options:
+                q_dict['options'].append({'option_text': opt.option_text, 'is_correct': opt.is_correct, 'option_id': opt.option_id})
+            q_dict['correct_option_id'] = next((o.option_id for o in q.options if o.is_correct), None)
+            questions_data.append(q_dict)
+
+        header_settings = ExamHeaderSettings.query.first()
+        settings_dict = {
+            'country': header_settings.country or "المملكة العربية السعودية",
+            'ministry': header_settings.ministry or "وزارة التعليم",
+            'education_department': header_settings.education_department or "",
+            'school_name': header_settings.school_name or "",
+            'subject': header_settings.subject or "",
+            'time': header_settings.time or "",
+            'grade': header_settings.grade or "",
+            'total_score': header_settings.total_score or 30,
+            'checker_name': header_settings.checker_name or "",
+            'reviewer_name': header_settings.reviewer_name or "",
+            'exam_date': header_settings.exam_date or ""
+        }
+        
+        generator = ExamGenerator(header_settings=settings_dict)
+        # توليد HTML فقط للعرض في المتصفح
+        html_content = generator.generate_html(questions_data, "نموذج الاختبار", include_answers, **settings_dict)
+        
+        return html_content
+        
+    except Exception as e:
+        return f"Error: {str(e)}", 500
