@@ -147,6 +147,15 @@
             margin: 5px auto;
             object-fit: contain;
         }
+
+        /* شعار وزارة التعليم */
+        .logo-img {
+            max-width: none !important;
+            max-height: none !important;
+            height: 130px !important;
+            width: auto !important;
+            margin: 0 auto;
+        }
         
         .q-image {
             border: 1px dashed #999; 
@@ -230,7 +239,7 @@
                 <div>{{ school_name }}</div>
             </td>
             <td class="header-center" style="vertical-align: top;">
-                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" style="height: 180px; width: auto;">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" class="logo-img">
                     </td>
             <td class="header-left">
                 <div style="direction: rtl; text-align: left;">
