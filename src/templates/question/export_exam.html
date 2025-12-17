@@ -950,102 +950,73 @@ async function exportExam(includeAnswers) {
 }
 
 
-    // استبدل الدالة القديمة المشوهة بهذا الكود فقط
-function generatePrintableDocument(questions, includeAnswers) {
-    // 1. تجهيز المعرفات
-    const questionIds = Array.from(selectedQuestionIds).join(',');
-    
-    // 2. إنشاء فورم مخفي وإرساله لفتح صفحة المعاينة الموحدة
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/questions/preview-exam-paper'; // تأكد أن هذا الرابط مطابق للراوت في البايثون
-    form.target = '_blank'; // فتح في نافذة جديدة
-    
-    // 3. إضافة حقل معرفات الأسئلة
-    const inputIds = document.createElement('input');
-    inputIds.type = 'hidden';
-    inputIds.name = 'question_ids';
-    inputIds.value = questionIds;
-    form.appendChild(inputIds);
-    
-    // 4. إضافة خيار الإجابات
-    const inputAnswers = document.createElement('input');
-    inputAnswers.type = 'hidden';
-    inputAnswers.name = 'include_answers';
-    inputAnswers.value = includeAnswers;
-    form.appendChild(inputAnswers);
-    
-    // 5. الإرسال ثم الحذف
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-}
+// ... (الكود السابق للدوال exportExam وغيرها) ...
 
-    // إضافة نموذج الإجابة إذا تم طلبه
-    if (includeAnswers && answers.length > 0) {
-        html += `
-            <div class="answer-key">
-                <h3 style="text-align: center;">نموذج الإجابة</h3>
-                <div class="answer-key-grid">
-        `;
+    // ---------------------------------------------------------
+    //  هذه هي الدالة الصحيحة والنهائية (بدون أي زيادات تحتها)
+    // ---------------------------------------------------------
+    function generatePrintableDocument(questions, includeAnswers) {
+        // 1. تجهيز المعرفات
+        const questionIds = Array.from(selectedQuestionIds).join(',');
         
-        answers.forEach(ans => {
-            html += `<div class="answer-box">س${ans.q}: <b>${ans.a}</b></div>`;
-        });
+        // 2. إنشاء فورم مخفي وإرساله لفتح صفحة المعاينة الموحدة
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/questions/preview-exam-paper'; 
+        form.target = '_blank'; // فتح في نافذة جديدة
         
-        html += `
-                </div>
-            </div>
-        `;
+        // 3. إضافة حقل معرفات الأسئلة
+        const inputIds = document.createElement('input');
+        inputIds.type = 'hidden';
+        inputIds.name = 'question_ids';
+        inputIds.value = questionIds;
+        form.appendChild(inputIds);
+        
+        // 4. إضافة خيار الإجابات
+        const inputAnswers = document.createElement('input');
+        inputAnswers.type = 'hidden';
+        inputAnswers.name = 'include_answers';
+        inputAnswers.value = includeAnswers;
+        form.appendChild(inputAnswers);
+        
+        // 5. الإرسال ثم الحذف من الصفحة
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     }
-    
-    html += `
-        </div> </body>
-    </html>
-    `;
-    
-    // فتح نافذة الطباعة
-    const printWindow = window.open('', '', 'width=1200,height=800');
-    printWindow.document.write(html);
-    printWindow.document.close();
-    
-    setTimeout(() => {
-        printWindow.print();
-    }, 500);
-}
 
-function updateStats() {
-    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
-    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
-}
+    // (( قمنا هنا بحذف كل كود html += و window.open القديم الذي كان يسبب المشكلة ))
 
-function showPreview(exam) {
-    const previewSection = document.getElementById('previewSection');
-    document.getElementById('previewQuestionsCount').textContent = exam.count;
-    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
-    previewSection.style.display = 'block';
-    previewSection.scrollIntoView({ behavior: 'smooth' });
-}
+    function updateStats() {
+        document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+        document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
+    }
 
-function showLoading(show) {
-    document.getElementById('loadingIndicator').classList.toggle('active', show);
-}
+    function showPreview(exam) {
+        const previewSection = document.getElementById('previewSection');
+        document.getElementById('previewQuestionsCount').textContent = exam.count;
+        document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+        previewSection.style.display = 'block';
+        previewSection.scrollIntoView({ behavior: 'smooth' });
+    }
 
-function showSuccess(message) {
-    const alert = document.getElementById('successAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
+    function showLoading(show) {
+        document.getElementById('loadingIndicator').classList.toggle('active', show);
+    }
 
-function showError(message) {
-    const alert = document.getElementById('errorAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
+    function showSuccess(message) {
+        const alert = document.getElementById('successAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
-
+    function showError(message) {
+        const alert = document.getElementById('errorAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
 </script>
 {% endblock %}
