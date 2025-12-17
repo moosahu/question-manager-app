@@ -1953,7 +1953,7 @@ def export_exam_pdf():
         
         # جلب الإعدادات من قاعدة البيانات
         # نستخدم SettingsModel الذي تم استيراده لضمان التطابق مع دالة الوورد
-        header_settings = db.session.query(SettingsModel).first()
+        header_settings = SettingsModel.query.first()
         
         settings_dict = {}
         if header_settings:
