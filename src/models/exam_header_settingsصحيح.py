@@ -4,15 +4,12 @@
 
 from flask_sqlalchemy import SQLAlchemy
 
-# محاولة استيراد db من extensions (بدلاً من main.py لتجنب الاستيراد الدوري)
+# محاولة استيراد db من main.py
 try:
-    from src.extensions import db
+    from main import db
 except ImportError:
-    try:
-        from extensions import db
-    except ImportError:
-        # إذا فشل الاستيراد، نستخدم SQLAlchemy الافتراضي
-        db = SQLAlchemy()
+    # إذا فشل الاستيراد، نستخدم SQLAlchemy الافتراضي
+    db = SQLAlchemy()
 
 
 class ExamHeaderSettings(db.Model):
