@@ -951,12 +951,13 @@ async function exportExam(includeAnswers) {
 
 
     function generatePrintableDocument(questions, includeAnswers) {
+    // بدلاً من توليد HTML هنا، نرسل البيانات للسيرفر ليفتح صفحة المعاينة
     const questionIds = Array.from(selectedQuestionIds).join(',');
     
-    // إنشاء فورم مخفي وإرساله لفتح صفحة المعاينة الموحدة
+    // إنشاء فورم مخفي وإرساله لفتح صفحة جديدة
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/questions/preview-exam-paper'; // الرابط الجديد الذي أنشأناه في الخطوة 3
+    form.action = '/questions/preview-exam-paper';
     form.target = '_blank'; // فتح في نافذة جديدة
     
     const inputIds = document.createElement('input');
@@ -975,10 +976,7 @@ async function exportExam(includeAnswers) {
     form.submit();
     document.body.removeChild(form);
 }
-    
-    html += `
-            </div> `;
-    
+
     // إضافة نموذج الإجابة إذا تم طلبه
     if (includeAnswers && answers.length > 0) {
         html += `
