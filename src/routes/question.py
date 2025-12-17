@@ -1997,15 +1997,14 @@ def export_exam_pdf():
 def preview_exam_paper():
     """عرض معاينة الاختبار في المتصفح باستخدام نفس القالب الموحد"""
     try:
+        # استيراد المولد فقط (لأنه غير موجود في هذا الملف)
         try:
             from src.routes.exam_generator import ExamGenerator
         except ImportError:
             from exam_generator import ExamGenerator
             
-        try:
-            from src.models.exam_header_settings import ExamHeaderSettings
-        except ImportError:
-            from models.exam_header_settings import ExamHeaderSettings
+        # ملاحظة: لا نقم باستيراد ExamHeaderSettings هنا 
+        # لأننا سنستخدم الكلاس المعرف في السطر 48 من هذا الملف مباشرة.
 
         # استقبال البيانات من الفورم
         question_ids_str = request.form.get('question_ids', '')
@@ -2014,6 +2013,8 @@ def preview_exam_paper():
              
         question_ids = [int(x) for x in question_ids_str.split(',')]
         include_answers = request.form.get('include_answers') == 'true'
+        
+        # ... (باقي الكود كما هو تماماً) ...
         
         questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
         
