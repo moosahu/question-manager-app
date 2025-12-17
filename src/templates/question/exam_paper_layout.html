@@ -38,44 +38,24 @@
             padding: 10mm; /* هامش لضمان عدم خروج النص عن الورقة */
         }
 
-        /* --- 2. حل مشكلة الصفحة الثانية --- */
-        .exam-content {
-            /* إزالة البادينج العلوي من exam-content وتطبيقه على body في وضع الطباعة */
-            padding: 25px; 
-            display: block;
-            min-height: 90vh;
-        }
-        /* إضافة بادينج علوي لكل صفحة جديدة تبدأ بمحتوى الأسئلة */
-        .questions-wrapper {
-            margin-top: 20px;
-            width: 100%;
-            column-count: 2;
-            column-gap: 40px;
-            column-rule: 1px solid #ccc;
-            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
-            height: 100%;
-        }
-        
-        /* تطبيق هامش علوي على كل صفحة جديدة تبدأ بمحتوى الأسئلة */
-        .questions-wrapper::before {
-            content: "";
-            display: block;
-            height: 0;
-            margin-top: 100px; /* مسافة لضمان نزول المحتوى تحت الإطار */
-        }
-        
-        /* إلغاء الهامش العلوي في الصفحة الأولى */
-        .exam-content > .questions-wrapper::before {
-            margin-top: 0;
-        }
+	        /* --- 2. حل مشكلة الصفحة الثانية --- */
+	        .exam-content {
+	            /* إزالة البادينج العلوي من exam-content وتطبيقه على body في وضع الطباعة */
+	            padding: 25px; 
+	            display: block;
+	            min-height: 90vh;
+	            /* حل مشكلة انتقال المحتوى إلى أعلى الصفحة التالية */
+	            page-break-after: avoid;
+	        }
 
-        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
+	        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
 	        .header-table { 
 	            width: 100%; 
 	            border-bottom: 2px solid #000; 
 	            margin-bottom: 20px; 
 	            padding-bottom: 10px; 
-	            margin-top: -80px; /* تعويض الهامش العلوي الجديد في body لصفحة البداية فقط */
+	            margin-top: -100px; /* تعويض الهامش العلوي الجديد في body لصفحة البداية فقط */
+	            page-break-inside: avoid;
 	        }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
@@ -100,16 +80,16 @@
             page-break-inside: avoid;
         }
 
-        /* --- تنسيق الأعمدة --- */
-        .questions-wrapper {
-            margin-top: 20px;
-            width: 100%;
-            column-count: 2;
-            column-gap: 40px;
-            column-rule: 1px solid #ccc;
-            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
-            height: 100%;
-        }
+		        /* --- تنسيق الأعمدة --- */
+	        .questions-wrapper {
+	            margin-top: 20px;
+	            width: 100%;
+	            column-count: 2;
+	            column-gap: 40px;
+	            column-rule: 1px solid #ccc;
+	            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
+	            height: 100%;
+	        }
 
         .question-box { 
             display: block; 
@@ -135,6 +115,8 @@
 	            print-color-adjust: exact;
 	            /* التأكد من أن الصور لا تسبب كسر الصفحة بشكل سيئ */
 	            page-break-inside: avoid;
+	            /* حل مشكلة الصور التي لا تظهر */
+	            background-color: transparent !important;
 	        }
 
         .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
@@ -155,20 +137,12 @@
 	        @media print {
 	            .fixed-border { display: block; }
 	            .questions-wrapper { column-count: 2 !important; }
-	            
-	            /* إعادة ضبط البادينج العلوي على كل صفحة */
-	            .questions-wrapper {
-	                margin-top: 0 !important; /* إلغاء الهامش العلوي العادي */
+	            /* تطبيق هامش علوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
+	            body {
+	                padding-top: 100px; 
 	            }
-	            
-	            /* تطبيق الهامش العلوي على كل صفحة جديدة تبدأ بمحتوى الأسئلة */
-	            .questions-wrapper::before {
-	                margin-top: 100px !important; /* مسافة لضمان نزول المحتوى تحت الإطار */
-	            }
-	            
-	            /* إلغاء الهامش العلوي في الصفحة الأولى */
-	            .exam-content > .questions-wrapper::before {
-	                margin-top: 0 !important;
+	            .page-container {
+	                padding-top: 0; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
 	            }
 	        }
     </style>
