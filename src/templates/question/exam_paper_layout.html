@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* إعدادات الطباعة الأساسية */
+        /* إعدادات الصفحة والطباعة */
         @page { 
             size: A4; 
-            margin: 10mm; /* الهوامش الخارجية للصفحة */
+            margin: 10mm; 
         }
 
         body {
@@ -20,40 +20,36 @@
             print-color-adjust: exact;
         }
 
+        /* --- هذا هو العنصر الجديد: الإطار الثابت --- */
+        /* هذا الإطار سينطبع على كل صفحة تلقائياً بملء الورقة */
+        .fixed-border {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 3px double #000;
+            box-sizing: border-box;
+            z-index: 100; /* لضمان ظهوره فوق الخلفية */
+            pointer-events: none; /* حتى لا يعيق تحديد النص */
+        }
+
         .page-container {
             width: 100%;
             margin: 0 auto; 
             box-sizing: border-box;
+            position: relative;
         }
 
-        /* الإطار الرئيسي */
-        .exam-frame {
-            border: 3px double #000; 
-            
-            /* --- التعديل الأول: زيادة المسافة العلوية لإنزال المحتوى في الصفحة الثانية --- */
-            padding: 50px 20px 20px 20px; 
-            
-            position: relative;
-            background-color: #fff;
+        /* حاوية المحتوى (ألغينا منها الإطار لأننا وضعناه في الخلفية) */
+        .exam-content {
+            padding: 20px; /* مسافة أمان لكي لا يلتصق النص بالإطار الثابت */
+            display: block;
             min-height: 95vh;
-            
-            /* تكرار الإطار في كل صفحة */
-            -webkit-box-decoration-break: clone;
-            box-decoration-break: clone;
-            
-            display: block; 
         }
 
         /* جداول الرأس */
-        .header-table { 
-            width: 100%; 
-            border: none; 
-            margin-bottom: 10px;
-            
-            /* --- التعديل الثاني: سحب الرأس للأعلى في الصفحة الأولى فقط لتعويض النزول --- */
-            margin-top: -30px; 
-        }
-        
+        .header-table { width: 100%; border: none; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
         .header-table td { border: none; vertical-align: top; padding: 2px; }
         .header-right { text-align: right; width: 35%; font-size: 16px; font-weight: bold; line-height: 1.6; }
         .header-center { text-align: center; width: 30%; }
@@ -90,32 +86,31 @@
         .info-box { display: flex; align-items: baseline; }
         .dashed-line { border-bottom: 1px solid #000; flex-grow: 1; margin-right: 5px; min-width: 50px; }
 
-        /* تنسيق الأعمدة */
+        /* تنسيق الأعمدة للأسئلة */
         .questions-wrapper {
             margin-top: 20px;
             width: 100%;
             
-            /* إعدادات الأعمدة */
+            /* تفعيل العمودين */
             -webkit-column-count: 2;
             -moz-column-count: 2;
             column-count: 2;
             
-            -webkit-column-gap: 30px; 
-            -moz-column-gap: 30px;
-            column-gap: 30px;
+            -webkit-column-gap: 40px; 
+            -moz-column-gap: 40px;
+            column-gap: 40px;
             
-            -webkit-column-rule: 1px solid #ccc;
-            -moz-column-rule: 1px solid #ccc;
+            -webkit-column-rule: 1px solid #ccc; /* خط فاصل خفيف بين العمودين */
             column-rule: 1px solid #ccc;
         }
 
         .question-box { 
             display: block;
             width: 100%;
-            margin-bottom: 15px;
-            font-size: 15px;
+            margin-bottom: 20px;
+            font-size: 16px;
             
-            /* منع انقسام السؤال لنصفين */
+            /* منع انقسام السؤال */
             -webkit-column-break-inside: avoid;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -123,23 +118,11 @@
 
         .q-image { max-width: 100%; height: auto; display: block; margin: 5px 0; }
 
-        /* تحسينات خاصة بوضع الطباعة */
+        /* تحسينات الطباعة */
         @media print { 
             .page-container { width: 100%; margin: 0; }
-            .exam-frame {
-                border: 3px double #000 !important;
-                margin: 0;
-                
-                /* التأكد من وجود مسافة علوية كافية عند الطباعة */
-                padding: 50px 20px 20px 20px !important; 
-            }
             
-            .header-table {
-                /* التأكد من سحب الرأس للأعلى عند الطباعة */
-                margin-top: -30px !important;
-            }
-
-            /* إجبار الأعمدة في الطباعة */
+            /* إجبار الأعمدة عند الطباعة */
             .questions-wrapper {
                 column-count: 2 !important;
                 -webkit-column-count: 2 !important;
@@ -148,10 +131,13 @@
     </style>
 </head>
 <body>
+    
+    <div class="fixed-border"></div>
+
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
     <div class="page-container">
-        <div class="exam-frame">
+        <div class="exam-content">
             <table class="header-table">
                 <tr>
                     <td class="header-right">
@@ -207,8 +193,6 @@
                 <div class="info-box" style="width: 25%;"><span>الشعبة /</span><div class="dashed-line"></div></div>
                 <div class="info-box" style="width: 25%;"><span>رقم الجلوس /</span><div class="dashed-line"></div></div>
             </div>
-
-            <hr style="border: 0; border-top: 2px solid #000; margin: 20px 0;">
 
             <div class="questions-wrapper">
                 {% for question in questions %}
