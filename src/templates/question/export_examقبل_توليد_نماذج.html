@@ -94,8 +94,7 @@
 
         .checkbox-group {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            gap: 15px;
             margin-top: 10px;
         }
 
@@ -116,109 +115,11 @@
             font-weight: 500;
         }
 
-        /* ===== قسم النماذج المتعددة ===== */
-        .models-section {
-            background: #f0f3ff;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .models-section h4 {
-            margin: 0 0 12px 0;
-            color: #667eea;
-            font-size: 0.95rem;
-        }
-
-        .models-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        .model-checkbox {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            background: white;
-            padding: 8px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .model-checkbox:hover {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-
-        .model-checkbox input:checked + span {
-            color: #667eea;
-            font-weight: bold;
-        }
-
-        .model-checkbox input {
-            cursor: pointer;
-        }
-
-        .model-letter {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        /* ===== قسم الباركود ===== */
-        .barcode-section {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .barcode-section h4 {
-            margin: 0 0 10px 0;
-            color: #856404;
-            font-size: 0.95rem;
-        }
-
-        .barcode-preview {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        .barcode-preview-icon {
-            width: 50px;
-            height: 50px;
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-        }
-
-        .barcode-preview-text {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
         .btn-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-top: 20px;
-        }
-
-        .btn-group-full {
-            grid-template-columns: 1fr;
         }
 
         .btn {
@@ -270,24 +171,6 @@
 
         .btn-warning:hover {
             background: #e0a800;
-        }
-
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .btn-info:hover {
-            background: #138496;
-        }
-
-        .btn-purple {
-            background: #6f42c1;
-            color: white;
-        }
-
-        .btn-purple:hover {
-            background: #5a32a3;
         }
 
         .questions-container {
@@ -450,7 +333,7 @@
 
         .preview-info {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
             font-size: 0.9rem;
         }
@@ -501,11 +384,7 @@
             }
 
             .preview-info {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .models-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -563,64 +442,12 @@
                 </div>
             </div>
 
-            <!-- قسم النماذج المتعددة -->
-            <div class="models-section">
-                <h4><i class="fas fa-copy"></i> توليد نماذج متعددة</h4>
-                <div class="models-grid">
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelA" value="أ" checked>
-                        <span class="model-letter">أ</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelB" value="ب">
-                        <span class="model-letter">ب</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelC" value="ج">
-                        <span class="model-letter">ج</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelD" value="د">
-                        <span class="model-letter">د</span>
-                    </label>
-                </div>
-                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
-                    <i class="fas fa-info-circle"></i> كل نموذج سيكون بترتيب مختلف للأسئلة والخيارات
-                </p>
-            </div>
-
-            <!-- قسم الباركود -->
-            <div class="barcode-section">
-                <h4><i class="fas fa-qrcode"></i> إضافة باركود QR</h4>
-                <div class="checkbox-item">
-                    <input type="checkbox" id="includeBarcode" checked>
-                    <label for="includeBarcode">إضافة باركود لكل نموذج</label>
-                </div>
-                <div class="barcode-preview" id="barcodePreview">
-                    <div class="barcode-preview-icon">
-                        <i class="fas fa-qrcode" style="font-size: 24px; color: #667eea;"></i>
-                    </div>
-                    <div class="barcode-preview-text">
-                        سيظهر في زاوية الورقة ويحتوي على:<br>
-                        المادة، النموذج، التاريخ، عدد الأسئلة
-                    </div>
-                </div>
-            </div>
-
             <div class="form-group">
                 <label>خيارات الاستخراج</label>
                 <div class="checkbox-group">
                     <div class="checkbox-item">
                         <input type="checkbox" id="includeAnswers" />
-                        <label for="includeAnswers">تضمين مفتاح الإجابات</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="includeAnswerSheet" />
-                        <label for="includeAnswerSheet">إضافة بطاقة تصحيح للمعلم</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="shuffleOptions" checked />
-                        <label for="shuffleOptions">خلط ترتيب الخيارات</label>
+                        <label for="includeAnswers">تضمين الإجابات</label>
                     </div>
                 </div>
             </div>
@@ -636,12 +463,6 @@
                 </button>
                 <button class="btn btn-secondary" id="clearAllBtn">
                     <i class="fas fa-times"></i> مسح الكل
-                </button>
-            </div>
-
-            <div class="btn-group btn-group-full" style="margin-top: 15px;">
-                <button class="btn btn-purple" id="generateMultiModelsBtn">
-                    <i class="fas fa-layer-group"></i> توليد النماذج المتعددة (PDF)
                 </button>
             </div>
 
@@ -690,10 +511,6 @@
                 <div class="preview-info-item">
                     <div class="preview-info-label">عدد الأسئلة</div>
                     <div class="preview-info-value" id="previewQuestionsCount">0</div>
-                </div>
-                <div class="preview-info-item">
-                    <div class="preview-info-label">عدد النماذج</div>
-                    <div class="preview-info-value" id="previewModelsCount">1</div>
                 </div>
                 <div class="preview-info-item">
                     <div class="preview-info-label">تاريخ الإنشاء</div>
@@ -753,74 +570,6 @@ let currentCourseId = null;
 let currentUnitId = null;
 let currentLessonId = null;
 
-// الحصول على النماذج المختارة
-function getSelectedModels() {
-    const models = [];
-    if (document.getElementById('modelA').checked) models.push('أ');
-    if (document.getElementById('modelB').checked) models.push('ب');
-    if (document.getElementById('modelC').checked) models.push('ج');
-    if (document.getElementById('modelD').checked) models.push('د');
-    return models;
-}
-
-// توليد النماذج المتعددة
-async function generateMultipleModels() {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل');
-        return;
-    }
-    
-    const selectedModels = getSelectedModels();
-    if (selectedModels.length === 0) {
-        showError('يجب اختيار نموذج واحد على الأقل');
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch('/questions/generate-multi-models', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                models: selectedModels,
-                include_answers: document.getElementById('includeAnswers').checked,
-                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-                include_barcode: document.getElementById('includeBarcode').checked,
-                shuffle_options: document.getElementById('shuffleOptions').checked
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_models_${selectedModels.join('_')}_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess(`تم توليد ${selectedModels.length} نموذج بنجاح`);
-            
-            // تحديث المعاينة
-            document.getElementById('previewModelsCount').textContent = selectedModels.length;
-            showPreviewMulti(selectedQuestionIds.size, selectedModels.length);
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل توليد النماذج');
-        }
-    } catch (error) {
-        showError('خطأ في توليد النماذج: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
 async function downloadWord(includeAnswers) {
     if (selectedQuestionIds.size === 0) {
         showError('يجب اختيار أسئلة على الأقل');
@@ -875,7 +624,7 @@ async function downloadWord(includeAnswers) {
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
     setupEventListeners();
-    loadHeaderSettingsFromServer();
+    loadHeaderSettingsFromServer(); // <--- هذا السطر الجديد هو الأهم
 });
 
 function setupEventListeners() {
@@ -888,12 +637,6 @@ function setupEventListeners() {
     document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
     document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
     document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
-    document.getElementById('generateMultiModelsBtn').addEventListener('click', generateMultipleModels);
-    
-    // تحديث معاينة الباركود
-    document.getElementById('includeBarcode').addEventListener('change', function() {
-        document.getElementById('barcodePreview').style.opacity = this.checked ? '1' : '0.5';
-    });
 }
 
 async function loadCourses() {
@@ -904,6 +647,7 @@ async function loadCourses() {
         const courseSelect = document.getElementById('courseSelect');
         courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
         
+        // التعامل مع الـ API الذي يرجع array مباشرة
         const courses = Array.isArray(data) ? data : (data.courses || []);
         
         if (courses.length > 0) {
@@ -956,6 +700,7 @@ async function handleCourseChange() {
             });
         }
         
+        // تحميل الأسئلة
         await loadQuestions();
     } catch (error) {
         showError('فشل تحميل البيانات: ' + error.message);
@@ -1017,6 +762,7 @@ async function loadQuestions() {
         const response = await fetch(endpoint);
         const data = await response.json();
         
+        // التعامل مع الـ API الذي يرجع array مباشرة
         allQuestions = Array.isArray(data) ? data : (data.questions || []);
         updateQuestionsList();
         updateStats();
@@ -1204,80 +950,84 @@ async function exportExam(includeAnswers) {
 }
 
 
-function generatePrintableDocument(questions, includeAnswers) {
+// ... (الكود السابق للدوال exportExam وغيرها) ...
+
+    // ---------------------------------------------------------
+    //  هذه هي الدالة الصحيحة والنهائية (بدون أي زيادات تحتها)
+    // ---------------------------------------------------------
+    function generatePrintableDocument(questions, includeAnswers) {
+    // 1. تجهيز معرفات الأسئلة
     const questionIds = Array.from(selectedQuestionIds).join(',');
 
+    // 2. إنشاء الفورم
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/questions/preview-exam-paper';
-    form.target = '_blank';
+    form.target = '_blank'; // يفتح في صفحة جديدة
 
+    // --- (الإصلاح: إضافة رمز الحماية CSRF) ---
+    // نأخذ الرمز من الميتا تاج الموجود في رأس الصفحة
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     
     const inputCsrf = document.createElement('input');
     inputCsrf.type = 'hidden';
-    inputCsrf.name = 'csrf_token';
+    inputCsrf.name = 'csrf_token'; // هذا الاسم الذي يبحث عنه Flask
     inputCsrf.value = csrfToken;
     form.appendChild(inputCsrf);
+    // ----------------------------------------
 
+    // 3. إضافة معرفات الأسئلة
     const inputIds = document.createElement('input');
     inputIds.type = 'hidden';
     inputIds.name = 'question_ids';
     inputIds.value = questionIds;
     form.appendChild(inputIds);
 
+    // 4. إضافة خيار الإجابات
     const inputAnswers = document.createElement('input');
     inputAnswers.type = 'hidden';
     inputAnswers.name = 'include_answers';
     inputAnswers.value = includeAnswers;
     form.appendChild(inputAnswers);
 
+    // 5. الإرسال والتنظيف
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
 }
 
-function updateStats() {
-    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
-    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
-}
+    // (( قمنا هنا بحذف كل كود html += و window.open القديم الذي كان يسبب المشكلة ))
 
-function showPreview(exam) {
-    const previewSection = document.getElementById('previewSection');
-    document.getElementById('previewQuestionsCount').textContent = exam.count;
-    document.getElementById('previewModelsCount').textContent = getSelectedModels().length || 1;
-    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
-    previewSection.style.display = 'block';
-    previewSection.scrollIntoView({ behavior: 'smooth' });
-}
+    function updateStats() {
+        document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+        document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
+    }
 
-function showPreviewMulti(questionsCount, modelsCount) {
-    const previewSection = document.getElementById('previewSection');
-    document.getElementById('previewQuestionsCount').textContent = questionsCount;
-    document.getElementById('previewModelsCount').textContent = modelsCount;
-    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
-    document.getElementById('previewStatus').textContent = 'تم التوليد ✓';
-    previewSection.style.display = 'block';
-    previewSection.scrollIntoView({ behavior: 'smooth' });
-}
+    function showPreview(exam) {
+        const previewSection = document.getElementById('previewSection');
+        document.getElementById('previewQuestionsCount').textContent = exam.count;
+        document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+        previewSection.style.display = 'block';
+        previewSection.scrollIntoView({ behavior: 'smooth' });
+    }
 
-function showLoading(show) {
-    document.getElementById('loadingIndicator').classList.toggle('active', show);
-}
+    function showLoading(show) {
+        document.getElementById('loadingIndicator').classList.toggle('active', show);
+    }
 
-function showSuccess(message) {
-    const alert = document.getElementById('successAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
+    function showSuccess(message) {
+        const alert = document.getElementById('successAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
-function showError(message) {
-    const alert = document.getElementById('errorAlert');
-    alert.textContent = message;
-    alert.classList.add('active');
-    setTimeout(() => alert.classList.remove('active'), 5000);
-}
+    function showError(message) {
+        const alert = document.getElementById('errorAlert');
+        alert.textContent = message;
+        alert.classList.add('active');
+        setTimeout(() => alert.classList.remove('active'), 5000);
+    }
 
 </script>
 {% endblock %}
