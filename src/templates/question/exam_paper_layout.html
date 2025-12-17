@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* إعدادات الصفحة والطباعة */
+        /* --- إعدادات الصفحة والطباعة --- */
         @page { 
             size: A4; 
-            margin: 0; /* الهوامش صفر ونتحكم بها من الداخل */
+            /* الهوامش الحقيقية للصفحة: تضمن عدم خروج المحتوى عن الإطار في كل الصفحات */
+            margin: 20mm; 
         }
 
         body {
@@ -20,41 +21,33 @@
             print-color-adjust: exact;
         }
 
-        /* --- 1. الإطار الثابت (يتكرر في خلفية كل صفحة) --- */
+        /* --- 1. الإطار الثابت --- */
+        /* تم تعديل مكانه ليكون بالنسبة للصفحة المطبوعة */
         .fixed-border {
             position: fixed;
-            top: 10mm;
-            left: 10mm;
-            right: 10mm;
-            bottom: 10mm;
+            top: -10mm;   /* ضبط القيم لتتناسب مع هوامش @page */
+            left: -10mm;
+            right: -10mm;
+            bottom: -10mm;
             border: 3px double #000;
-            z-index: -1; /* خلف النص */
+            z-index: -1;
             pointer-events: none;
         }
 
+        /* حاوية الصفحة لم تعد تحتاج بادينج ضخم لأننا ضبطنا هوامش @page */
         .page-container {
             width: 100%;
             box-sizing: border-box;
-            padding: 10mm; /* هامش لضمان عدم خروج النص عن الورقة */
+            /* لا نحتاج padding كبير هنا لأن الهوامش مضبوطة */
         }
 
-	        /* --- 2. حل مشكلة الصفحة الثانية --- */
-	        .exam-content {
-	            /* إزالة البادينج العلوي من exam-content وتطبيقه على body في وضع الطباعة */
-	            padding: 25px; 
-	            display: block;
-	            min-height: 90vh;
-	        }
-
-	        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
-	        .header-table { 
-	            width: 100%; 
-	            border-bottom: 2px solid #000; 
-	            margin-bottom: 20px; 
-	            padding-bottom: 10px; 
-	            margin-top: 0; /* إلغاء الهامش السالب */
-	            page-break-inside: avoid;
-	        }
+        /* --- تنسيق الرأس --- */
+        .header-table { 
+            width: 100%; 
+            border-bottom: 2px solid #000; 
+            margin-bottom: 15px; 
+            padding-bottom: 10px; 
+        }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
         .header-center { text-align: center; width: 30%; }
@@ -64,8 +57,6 @@
         .grades-table {
             width: 100%; border-collapse: collapse; margin: 10px 0; border: 2px solid #000;
             page-break-inside: avoid;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
         .grades-table th, .grades-table td {
             border: 1px solid #000; text-align: center; padding: 5px; font-weight: bold;
@@ -78,76 +69,85 @@
             page-break-inside: avoid;
         }
 
-		        /* --- تنسيق الأعمدة --- */
-	        .questions-wrapper {
-	            margin-top: 20px;
-	            width: 100%;
-	            column-count: 2;
-	            column-gap: 40px;
-	            column-rule: 1px solid #ccc;
-	            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
-	            min-height: 100vh; /* استخدام min-height بدلاً من height لضمان الامتداد */
-	        }
+        /* --- 2. تنسيق الأعمدة (حل مشكلة الخط الفاصل) --- */
+        .questions-wrapper {
+            width: 100%;
+            column-count: 2;
+            column-gap: 30px; /* مسافة بين العمودين */
+            column-rule: 1px solid #000; /* الخط الفاصل */
+            /* تمت إزالة min-height: 100vh لمنع نزول الخط تحت الإطار */
+            direction: rtl;
+        }
 
         .question-box { 
             display: block; 
             width: 100%;
             margin-bottom: 15px;
             font-size: 15px;
+            /* يمنع انقسام السؤال الواحد بين عمودين أو صفحتين */
             break-inside: avoid; 
             page-break-inside: avoid;
             -webkit-column-break-inside: avoid;
         }
 
-        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
-        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
-	        .q-image, .option-img {
-	            max-width: 95%;     /* الصورة لا تتجاوز عرض العمود */
-	            height: auto;       
-	            display: block;
-	            margin: 5px 0;
-	            border: 1px dashed #ccc; /* إطار خفيف جمالي */
-	            padding: 2px;
-	            /* حل مشكلة عدم ظهور الصور في الطباعة */
-	            -webkit-print-color-adjust: exact !important;
-	            print-color-adjust: exact !important;
-	            /* التأكد من أن الصور لا تسبب كسر الصفحة بشكل سيئ */
-	            page-break-inside: avoid;
-	            /* حل مشكلة الصور التي لا تظهر */
-	            background-color: transparent !important;
-	            filter: brightness(100%) !important; /* حل إضافي لضمان ظهور الصور */
-	        }
+        /* --- تنسيق نصوص وأرقام الأسئلة --- */
+        .q-header {
+            margin-bottom: 5px;
+            display: flex; /* لضبط محاذاة الرقم مع النص */
+            align-items: baseline;
+        }
+        .q-num { 
+            color: #000; 
+            font-weight: bold; 
+            margin-left: 5px; 
+            white-space: nowrap; 
+        }
+        .q-text { 
+            font-weight: bold; 
+            line-height: 1.4;
+        }
 
-        .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
-        .q-text { display: block; overflow-wrap: break-word; font-weight: bold; }
-        
-        /* تنسيق الخيارات ليدعم الصور */
+        /* --- 3. تنسيق الصور (حل مشكلة الصور) --- */
+        .q-image {
+            max-width: 98%;     
+            height: auto;       
+            display: block;
+            margin: 5px auto;
+            border: 1px dashed #999; 
+            padding: 2px;
+        }
+
+        /* --- تنسيق الخيارات الجديد --- */
         .q-option { 
             display: flex; 
-            flex-direction: column; /* العناصر تحت بعضها إذا وجدت صورة */
-            margin-bottom: 5px;
+            align-items: flex-start; /* محاذاة الحرف مع بداية النص/الصورة */
+            margin-bottom: 6px;
+            padding-right: 5px;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
-        .option-content {
-            display: flex;
-            align-items: flex-start;
-        }
-        .option-char { font-weight: bold; margin-left: 5px; min-width: 20px; }
 
-	        @media print {
-	            .fixed-border { display: block; }
-	            .questions-wrapper { column-count: 2 !important; }
-	            
-	            /* تطبيق الهامش العلوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
-	            body {
-	                padding-top: 100px !important;
-	            }
-	            .page-container {
-	                padding-top: 0 !important; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
-	            }
-	            .header-table {
-	                margin-top: -80px !important; /* تعويض الهامش العلوي في الصفحة الأولى */
-	            }
-	        }
+        .option-char { 
+            font-weight: bold; 
+            margin-left: 8px; 
+            min-width: 20px; /* مساحة ثابتة للحرف */
+        }
+
+        /* حاوية لمحتوى الخيار (النص + الصورة) لضمان ظهورهما بشكل مرتب */
+        .option-body {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .option-img {
+            max-width: 90%; /* الصورة لا تأخذ كامل العرض لتبقى جميلة */
+            height: auto;
+            display: block;
+            margin-top: 3px;
+            border: 1px solid #eee; /* إطار خفيف جداً */
+        }
+
     </style>
 </head>
 <body>
@@ -157,8 +157,7 @@
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
     <div class="page-container">
-        <div class="exam-content">
-            
+        
             <table class="header-table">
                 <tr>
                     <td class="header-right">
@@ -211,31 +210,31 @@
                 {% for question in questions %}
                 <div class="question-box">
                     
-                    <div style="margin-bottom: 5px;">
+                    <div class="q-header">
                         <span class="q-num">س{{ loop.index }}:</span>
                         <span class="q-text">
                             {{ question.question_text if question.question_text else '' }}
                         </span>
-                        
-                        {% if question.image_url %}
-                        <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
-                        {% endif %}
                     </div>
+                        
+                    {% if question.image_url %}
+                    <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
+                    {% endif %}
                     
-                    <div style="margin-right: 15px;">
+                    <div style="margin-right: 5px;">
                         {% for option in question.options %}
                         <div class="q-option">
-                            <div class="option-content">
-                                <span class="option-char">{{ letters[loop.index0] }})</span>
-                                
+                            <span class="option-char">{{ letters[loop.index0] }})</span>
+                            
+                            <div class="option-body">
                                 {% if option.option_text %}
                                 <span>{{ option.option_text }}</span>
                                 {% endif %}
-                            </div>
 
-                            {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
-                            {% endif %}
+                                {% if option.image_url %}
+                                <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
+                                {% endif %}
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -265,7 +264,6 @@
             </div>
             {% endif %}
             
-        </div>
     </div>
 </body>
 </html>
