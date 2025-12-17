@@ -4,15 +4,10 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* --- 1. إعدادات هوامش الصفحة الحقيقية --- */
-        /* هذا هو الحل الجذري: نحدد مساحة آمنة للمحتوى في كل الصفحات */
+        /* إعدادات الصفحة والطباعة */
         @page { 
             size: A4; 
-            /* الهامش العلوي 25 ملم يضمن نزول الأسئلة في كل الصفحات تحت الإطار */
-            margin-top: 25mm; 
-            margin-bottom: 20mm;
-            margin-right: 15mm;
-            margin-left: 15mm;
+            margin: 0; /* الهوامش صفر ونتحكم بها من الداخل */
         }
 
         body {
@@ -25,43 +20,46 @@
             print-color-adjust: exact;
         }
 
-        /* --- 2. الإطار الثابت (يتكرر في كل صفحة) --- */
+        /* --- 1. الإطار الثابت (يتكرر في خلفية كل صفحة) --- */
         .fixed-border {
             position: fixed;
-            /* نضع الإطار قريباً من الحافة (10ملم) بينما المحتوى يبدأ من (25ملم) */
             top: 10mm;
             left: 10mm;
             right: 10mm;
             bottom: 10mm;
             border: 3px double #000;
-            z-index: -1; 
+            z-index: -1; /* خلف النص */
             pointer-events: none;
         }
 
         .page-container {
             width: 100%;
             box-sizing: border-box;
-            /* لم نعد بحاجة للبادينج هنا لأن @page تكفل بالأمر */
+            padding: 10mm; /* هامش لضمان عدم خروج النص عن الورقة */
         }
 
+        /* --- 2. حل مشكلة الصفحة الثانية --- */
         .exam-content {
+            /* إضافة مسافة علوية (60px) تجبر المحتوى على النزول للأسفل في كل الصفحات */
+            padding: 60px 25px 25px 25px; 
             display: block;
-            width: 100%;
+            min-height: 90vh;
         }
 
-        /* تنسيق الرأس - إلغاء الهوامش السالبة */
+        /* تنسيق الرأس (نسحبه للأعلى في الصفحة الأولى فقط لتعويض البادينج) */
         .header-table { 
             width: 100%; 
             border-bottom: 2px solid #000; 
-            margin-bottom: 10px; 
-            padding-bottom: 5px; 
+            margin-bottom: 20px; 
+            padding-bottom: 10px; 
+            margin-top: -30px; 
         }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
         .header-center { text-align: center; width: 30%; }
         .header-left { text-align: left; width: 35%; direction: ltr; font-weight: bold; font-size: 14px; }
 
-        /* الجداول */
+        /* الجداول والمعلومات */
         .grades-table {
             width: 100%; border-collapse: collapse; margin: 10px 0; border: 2px solid #000;
             page-break-inside: avoid;
@@ -72,18 +70,18 @@
         .grades-table th { background-color: #f0f0f0 !important; }
 
         .student-info {
-            display: flex; justify-content: space-between; font-weight: bold; margin: 10px 0;
+            display: flex; justify-content: space-between; font-weight: bold; margin: 15px 0;
             border: 1px solid #000; padding: 5px;
             page-break-inside: avoid;
         }
 
-        /* --- 3. تنسيق الأعمدة --- */
+        /* --- تنسيق الأعمدة --- */
         .questions-wrapper {
-            margin-top: 10px;
+            margin-top: 20px;
             width: 100%;
             column-count: 2;
-            column-gap: 30px;
-            column-rule: 1px solid #ccc; /* الخط الفاصل بين العمودين */
+            column-gap: 40px;
+            column-rule: 1px solid #ccc;
         }
 
         .question-box { 
@@ -96,25 +94,29 @@
             -webkit-column-break-inside: avoid;
         }
 
-        /* تنسيق الصور */
+        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
         .q-image, .option-img {
-            max-width: 98%;    
+            max-width: 95%;     /* الصورة لا تتجاوز عرض العمود */
             height: auto;       
             display: block;
-            margin: 5px auto;
-            border: 1px dashed #ccc; 
+            margin: 5px 0;
+            border: 1px dashed #ccc; /* إطار خفيف جمالي */
             padding: 2px;
         }
 
         .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
         .q-text { display: block; overflow-wrap: break-word; font-weight: bold; }
         
+        /* تنسيق الخيارات ليدعم الصور */
         .q-option { 
             display: flex; 
-            flex-direction: column; 
+            flex-direction: column; /* العناصر تحت بعضها إذا وجدت صورة */
             margin-bottom: 5px;
         }
-        .option-content { display: flex; align-items: flex-start; }
+        .option-content {
+            display: flex;
+            align-items: flex-start;
+        }
         .option-char { font-weight: bold; margin-left: 5px; min-width: 20px; }
 
         @media print {
@@ -180,8 +182,6 @@
                 <span>رقم الجلوس: ............</span>
             </div>
 
-            <hr style="border: 0; border-top: 2px solid #000; margin: 10px 0 15px 0;">
-
             <div class="questions-wrapper">
                 {% for question in questions %}
                 <div class="question-box">
@@ -202,6 +202,7 @@
                         <div class="q-option">
                             <div class="option-content">
                                 <span class="option-char">{{ letters[loop.index0] }})</span>
+                                
                                 {% if option.option_text %}
                                 <span>{{ option.option_text }}</span>
                                 {% endif %}
