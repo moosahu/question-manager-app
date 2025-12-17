@@ -956,34 +956,43 @@ async function exportExam(includeAnswers) {
     //  هذه هي الدالة الصحيحة والنهائية (بدون أي زيادات تحتها)
     // ---------------------------------------------------------
     function generatePrintableDocument(questions, includeAnswers) {
-        // 1. تجهيز المعرفات
-        const questionIds = Array.from(selectedQuestionIds).join(',');
-        
-        // 2. إنشاء فورم مخفي وإرساله لفتح صفحة المعاينة الموحدة
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/questions/preview-exam-paper'; 
-        form.target = '_blank'; // فتح في نافذة جديدة
-        
-        // 3. إضافة حقل معرفات الأسئلة
-        const inputIds = document.createElement('input');
-        inputIds.type = 'hidden';
-        inputIds.name = 'question_ids';
-        inputIds.value = questionIds;
-        form.appendChild(inputIds);
-        
-        // 4. إضافة خيار الإجابات
-        const inputAnswers = document.createElement('input');
-        inputAnswers.type = 'hidden';
-        inputAnswers.name = 'include_answers';
-        inputAnswers.value = includeAnswers;
-        form.appendChild(inputAnswers);
-        
-        // 5. الإرسال ثم الحذف من الصفحة
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-    }
+    // 1. تجهيز المعرفات
+    const questionIds = Array.from(selectedQuestionIds).join(',');
+    
+    // 2. إنشاء فورم مخفي
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/questions/preview-exam-paper';
+    form.target = '_blank';
+
+    // --- (الإضافة الجديدة: جلب وإضافة رمز الحماية CSRF) ---
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const inputCsrf = document.createElement('input');
+    inputCsrf.type = 'hidden';
+    inputCsrf.name = 'csrf_token'; // هذا الاسم القياسي في Flask-WTF
+    inputCsrf.value = csrfToken;
+    form.appendChild(inputCsrf);
+    // -----------------------------------------------------
+
+    // 3. إضافة حقل معرفات الأسئلة
+    const inputIds = document.createElement('input');
+    inputIds.type = 'hidden';
+    inputIds.name = 'question_ids';
+    inputIds.value = questionIds;
+    form.appendChild(inputIds);
+    
+    // 4. إضافة خيار الإجابات
+    const inputAnswers = document.createElement('input');
+    inputAnswers.type = 'hidden';
+    inputAnswers.name = 'include_answers';
+    inputAnswers.value = includeAnswers;
+    form.appendChild(inputAnswers);
+    
+    // 5. الإرسال
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
 
     // (( قمنا هنا بحذف كل كود html += و window.open القديم الذي كان يسبب المشكلة ))
 
