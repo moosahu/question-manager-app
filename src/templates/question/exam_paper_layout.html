@@ -226,16 +226,22 @@
                 <div>{{ country }}</div>
                 <div>{{ ministry }}</div>
                 <div>{{ education_department }}</div>
-                <div>مدرسة {{ school_name }}</div>
+                <div>{{ school_name }}</div>
             </td>
             <td class="header-center">
                 <div class="exam-title">{{ exam_title }}</div>
-                <div>الصف: {{ grade }}</div>
+                
             </td>
             <td class="header-left">
                 <div style="direction: rtl; text-align: left;">
                     <div>الزمن: {{ time }}</div>
+                    <div>الصف: {{ grade }}</div>
                     <div>الدرجة: {{ total_score }}</div>
+                    <div><strong>التاريخ:</strong> ${examInfo.date}</div>
+                    <div><strong>الزمن:</strong> ${examInfo.duration}</div>
+                    <div><strong>الدرجة:</strong> ${examInfo.totalMarks}</div>
+                    <div><strong>الفصل الدراسي:</strong> ${examInfo.semester}</div>
+                    <div><strong>المعلم/ة:</strong> ${examInfo.teacherName}</div>
                 </div>
             </td>
         </tr>
