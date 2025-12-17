@@ -53,7 +53,8 @@
         
         .header-center { 
             text-align: center; 
-            width: 30%; 
+            width: 30%;
+            vertical-align: middle;
         }
         
         .header-left { 
@@ -228,8 +229,8 @@
                 <div>{{ education_department }}</div>
                 <div>{{ school_name }}</div>
             </td>
-            <td class="header-center">
-                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" style="max-height: 120px; width: auto;">
+            <td class="header-center" style="vertical-align: middle;">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" style="height: 90px; width: auto;">
                     </td>
             <td class="header-left">
                 <div style="direction: rtl; text-align: left;">
