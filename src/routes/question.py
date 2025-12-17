@@ -1975,16 +1975,12 @@ def export_exam_pdf():
         # تمرير الإعدادات إلى المنشئ وإلى دالة التوليد
         generator = ExamGenerator(header_settings=settings_dict)
         
-        # استدعاء generate_html داخل سياق معالج الطلب (حيث يكون Flask context نشطاً)
-        html_content = generator.generate_html(
+        pdf_bytes = generator.generate_pdf(
             questions_data, 
             exam_title, 
             include_answers,
             **settings_dict  # فك القاموس تمريره كـ kwargs
         )
-        
-        # تحويل HTML إلى PDF
-        pdf_bytes = generator.generate_pdf_from_html(html_content)
         
         return send_file(
             io.BytesIO(pdf_bytes),

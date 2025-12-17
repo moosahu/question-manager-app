@@ -1,10 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 
-# تعريف db و login_manager و csrf هنا بدون تهيئة التطبيق
+# تعريف db و login_manager هنا بدون تهيئة التطبيق
 db = SQLAlchemy()
 login_manager = LoginManager()
-csrf = CSRFProtect()
 
 # يمكنك إضافة امتدادات أخرى هنا إذا لزم الأمر لاحقاً
