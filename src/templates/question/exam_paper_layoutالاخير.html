@@ -289,17 +289,7 @@
                 <div class="q-option">
                     <span class="option-char">{{ letters[loop.index0] }})</span>
                     <div class="option-content">
-                        {# نص الخيار #}
-                        {% if option.option_text and not option.option_text.startswith('http') %}
-                            <span>{{ option.option_text }}</span>
-                        {% endif %}
-                        
-                        {# صورة الخيار #}
-                        {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="">
-                        {% elif option.option_text and option.option_text.startswith('http') %}
-                            <img src="{{ option.option_text }}" class="option-img" alt="">
-                        {% endif %}
+                        <span>{{ option.option_text }}</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -325,12 +315,6 @@
                         {% elif question.correct_answer == 'd' %}د
                         {% else %}{{ question.correct_answer }}
                         {% endif %}
-                    {% else %}
-                        {% for option in question.options %}
-                            {% if option.is_correct %}
-                                {{ letters[loop.index0] }}
-                            {% endif %}
-                        {% endfor %}
                     {% endif %}
                 </strong>
             </div>
