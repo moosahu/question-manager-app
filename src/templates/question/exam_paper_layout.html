@@ -7,7 +7,7 @@
         /* إعدادات الطباعة الأساسية */
         @page { 
             size: A4; 
-            margin: 10mm; /* هامش للطابعة لضمان عدم قص الحدود */
+            margin: 10mm; /* الهوامش الخارجية للصفحة */
         }
 
         body {
@@ -22,23 +22,22 @@
 
         .page-container {
             width: 100%;
-            max-width: 210mm; 
             margin: 0 auto; 
             box-sizing: border-box;
         }
 
-        /* هذا هو التعديل الجوهري للإطار */
+        /* الإطار الرئيسي */
         .exam-frame {
             border: 3px double #000; 
-            padding: 20px;
+            padding: 15px; /* تقليل الحواف قليلاً لتوفير مساحة للأعمدة */
             position: relative;
             background-color: #fff;
+            min-height: 95vh;
             
-            /* هذه الخاصية تجعل الإطار يتكرر في كل صفحة بشكل مغلق */
+            /* تكرار الإطار في كل صفحة */
             -webkit-box-decoration-break: clone;
             box-decoration-break: clone;
             
-            /* لضمان عدم التصاق النص بالحواف */
             display: block; 
         }
 
@@ -62,7 +61,7 @@
         /* جدول الدرجات */
         .grades-table {
             width: 100%; border-collapse: collapse; margin: 15px 0; border: 2px solid #000;
-            page-break-inside: avoid; /* يمنع انقسام الجدول بين صفحتين */
+            page-break-inside: avoid;
         }
         .grades-table th, .grades-table td {
             border: 1px solid #000; text-align: center; padding: 5px;
@@ -80,41 +79,54 @@
         .info-box { display: flex; align-items: baseline; }
         .dashed-line { border-bottom: 1px solid #000; flex-grow: 1; margin-right: 5px; min-width: 50px; }
 
-        /* تنسيق الأسئلة والأعمدة */
+        /* --- تنسيق الأعمدة (الجزء المعدل) --- */
         .questions-wrapper {
-            margin-top: 20px; 
-            column-count: 2; 
-            column-gap: 40px; 
+            margin-top: 20px;
+            width: 100%;
+            
+            /* إعدادات الأعمدة */
+            -webkit-column-count: 2;
+            -moz-column-count: 2;
+            column-count: 2;
+            
+            -webkit-column-gap: 30px; /* مسافة بين العمودين */
+            -moz-column-gap: 30px;
+            column-gap: 30px;
+            
+            -webkit-column-rule: 1px solid #ccc;
+            -moz-column-rule: 1px solid #ccc;
             column-rule: 1px solid #ccc;
-            column-fill: auto; /* يجعل التوزيع متوازناً بين الصفحات */
         }
 
         .question-box { 
-            /* خصائص منع انكسار السؤال */
-            break-inside: avoid-column;         
-            page-break-inside: avoid;           
-            -webkit-column-break-inside: avoid; 
+            /* التعديل الجوهري: استخدام block بدلاً من inline-block */
+            display: block;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 15px;
             
-            display: inline-block;              
-            width: 100%;                        
-            margin-bottom: 15px; 
-            font-size: 15px; 
-            vertical-align: top;
+            /* منع انقسام السؤال لنصفين */
+            -webkit-column-break-inside: avoid;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .q-image { max-width: 100%; height: auto; display: block; margin: 5px 0; }
 
-        /* تحسينات وضع الطباعة */
+        /* تحسينات خاصة بوضع الطباعة */
         @media print { 
-            .page-container { 
-                width: 100%; 
-                margin: 0; 
-                padding: 0;
-            }
+            .page-container { width: 100%; margin: 0; }
             .exam-frame {
                 border: 3px double #000 !important;
                 margin: 0;
-                min-height: 98vh; /* يضمن تمدد الإطار لكامل الصفحة */
+                /* تقليل البادينغ عند الطباعة لضمان سعة العمودين في الصفحة الثانية */
+                padding: 10px 15px; 
+            }
+            
+            /* إجبار الأعمدة في الطباعة */
+            .questions-wrapper {
+                column-count: 2 !important;
+                -webkit-column-count: 2 !important;
             }
         }
     </style>
