@@ -1,4 +1,4 @@
-from flask import render_template, current_app
+from flask import render_template
 from weasyprint import HTML
 import io
 import base64
@@ -58,30 +58,23 @@ class ExamGenerator:
             context['questions'].append(formatted_q)
         return context
 
-    def get_context(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
-        """Return context dictionary for rendering"""
-        return self._prepare_context(questions, exam_title, show_answers, **kwargs)
-    
     def generate_html(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
-        """Generate HTML string from questions (context only, rendering done by caller)"""
-        context = self.get_context(questions, exam_title, show_answers, **kwargs)
-        # استدعاء render_template داخل سياق Flask نشط
+        context = self._prepare_context(questions, exam_title, show_answers, **kwargs)
+        # هنا التغيير الجذري: استخدام القالب الموحد
         return render_template('question/exam_paper_layout.html', **context)
     
-    def generate_pdf_from_html(self, html_content):
-        """Generate PDF from HTML string"""
+    def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
+        html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
         html_obj = HTML(string=html_content)
         return html_obj.write_pdf()
 
     def generate_word(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
-        """Generate Word document (placeholder)"""
+        # اترك كود الوورد القديم هنا كما هو (يمكنك نسخه من الملف السابق إذا كنت تحتاجه)
         return b"" 
 
 def generate_exam(questions, exam_title="نموذج الاختبار", output_format='word', show_answers=False, header_settings=None, logo_path=None, **kwargs):
-    """Legacy function - use ExamGenerator directly"""
     generator = ExamGenerator(header_settings, logo_path)
     if output_format == 'pdf':
-        context = generator.get_context(questions, exam_title, show_answers, **kwargs)
-        return context
+        return generator.generate_pdf(questions, exam_title, show_answers, **kwargs)
     else:
         return generator.generate_word(questions, exam_title, show_answers, **kwargs)
