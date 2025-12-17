@@ -49,13 +49,17 @@
         .questions-wrapper {
             margin-top: 20px; column-count: 2; column-gap: 40px; column-rule: 1px solid #ccc;
         }
-        .question-box { break-inside: avoid; margin-bottom: 15px; font-size: 15px; }
-        .q-num { color: #000; font-weight: bold; margin-left: 5px; }
-        .q-text { font-weight: bold; }
-        .q-option { display: block; margin-bottom: 3px; }
-        .correct-answer { text-decoration: underline; font-weight: bold; }
-        .answer-key {
-            margin-top: 30px; border-top: 2px solid #000; padding-top: 20px; break-before: page;
+        .question-box { 
+            break-inside: avoid;                /* يمنع كسر الصندوق بين عمودين */
+            page-break-inside: avoid;           /* يمنع كسر الصندوق عند الطباعة */
+            -webkit-column-break-inside: avoid; /* ضروري لمتصفحات كروم وسفاري */
+            
+            display: inline-block;              /* هذا السطر "السحري" يحل مشكلة تداخل الأعمدة */
+            width: 100%;                        /* لضمان أخذ عرض العمود بالكامل */
+            
+            margin-bottom: 15px; 
+            font-size: 15px; 
+            vertical-align: top;
         }
         /* تحسين لصور الأسئلة إذا وجدت */
         .q-image { max-width: 100%; height: auto; display: block; margin: 5px 0; }
