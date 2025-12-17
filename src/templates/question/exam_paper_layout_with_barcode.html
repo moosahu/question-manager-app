@@ -319,7 +319,11 @@
                     <div>{{ school_name }}</div>
                 </td>
                 <td class="header-center" style="vertical-align: top;">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" class="logo-img">
+                    {% if logo_base64 %}
+                    <img src="{{ logo_base64 }}" alt="وزارة التعليم" class="logo-img">
+                    {% else %}
+                    <img src="{{ logo_url }}" alt="وزارة التعليم" class="logo-img">
+                    {% endif %}
                 </td>
                 <td class="header-left">
                     <div style="direction: rtl; text-align: left;">

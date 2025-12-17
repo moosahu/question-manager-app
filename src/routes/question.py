@@ -2201,6 +2201,20 @@ def generate_multi_models():
             'reviewer_name': settings.reviewer_name if settings else ''
         }
         
+        # تحويل الشعار لـ base64 لتجنب مشاكل WeasyPrint مع timeout
+        logo_base64 = None
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_data = f.read()
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_data).decode('utf-8')}"
+        except Exception as logo_err:
+            current_app.logger.warning(f"Could not load logo: {logo_err}")
+        
+        header_settings['logo_base64'] = logo_base64
+        header_settings['logo_url'] = url_for('static', filename='images/logo.png', _external=True)
+        
         # توليد HTML لكل نموذج
         all_models_html = []
         answer_keys = {}  # مفاتيح الإجابات لكل نموذج
@@ -2367,6 +2381,20 @@ def preview_single_model():
             'checker_name': settings.checker_name if settings else '',
             'reviewer_name': settings.reviewer_name if settings else ''
         }
+        
+        # تحويل الشعار لـ base64
+        logo_base64 = None
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_data = f.read()
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_data).decode('utf-8')}"
+        except Exception as logo_err:
+            current_app.logger.warning(f"Could not load logo: {logo_err}")
+        
+        header_settings['logo_base64'] = logo_base64
+        header_settings['logo_url'] = url_for('static', filename='images/logo.png', _external=True)
         
         # توليد الباركود
         qr_code_data = None
