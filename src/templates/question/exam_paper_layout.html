@@ -229,18 +229,17 @@
                 <div>{{ school_name }}</div>
             </td>
             <td class="header-center">
-                <div class="exam-title">{{ exam_title }}</div>
-                
-            </td>
+                        <div style="font-size: 22px; font-weight: bold; color: #0b8c78; line-height: 1.2;">
+                            .::.::.::.<br>
+                            <span style="font-size:12px; letter-spacing:1px; color:#000;">MINISTRY OF EDUCATION</span><br>
+                            وزارة التعليم
+                        </div>
+                    </td>
             <td class="header-left">
                 <div style="direction: rtl; text-align: left;">
-                    <div>المادة: {{ subject }}</div>
-                    <div>الصف: {{ grade }}</div>
-                    <div>الدرجة: {{ total_score }}</div>
-                    <div>التاريخ: {{ exam_date }}</div>
-                    <div>الزمن: {{ time }}</div>
-                    <div>الفصل الدراسي:{{ time }}</div>
-                    <div>المعلم/ة: {{ time }}</div>
+                <div>المادة : <span class="underlined">{{ subject }}</span></div>
+                <div>الزمن : <span class="underlined">{{ time }}</span></div>
+                <div>الصف : <span class="underlined">{{ grade }}</span></div>
                 </div>
             </td>
         </tr>
