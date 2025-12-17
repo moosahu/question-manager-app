@@ -4,23 +4,24 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* إعدادات الصفحة والطباعة */
+        /* إعدادات الصفحة الأساسية */
         @page { 
             size: A4; 
-            margin: 0; /* الهوامش صفر ونتحكم بها من الداخل */
+            margin: 0; /* تصفير هوامش الصفحة والتحكم بها يدوياً عبر الـ body */
         }
 
         body {
             font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
             margin: 0; 
-            padding: 0; 
+            /* هذا البادينج هو الحل السحري لمنع التداخل في كل الصفحات */
+            /* 2.5سم من الأعلى والأسفل، 2سم من الجوانب */
+            padding: 25mm 20mm 25mm 20mm; 
             background: #fff; 
             color: #000;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            box-sizing: border-box; /* لضمان حساب الهوامش بشكل صحيح */
         }
 
-        /* --- 1. الإطار الثابت (يتكرر في خلفية كل صفحة) --- */
+        /* --- الإطار الثابت (يتكرر خلف المحتوى) --- */
         .fixed-border {
             position: fixed;
             top: 10mm;
@@ -28,48 +29,30 @@
             right: 10mm;
             bottom: 10mm;
             border: 3px double #000;
-            z-index: -1; /* خلف النص */
-            pointer-events: none;
+            z-index: -10; /* خلف كل شيء */
         }
 
-        .page-container {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 10mm; /* هامش لضمان عدم خروج النص عن الورقة */
+        /* --- تنسيق الرأس --- */
+        .header-table { 
+            width: 100%; 
+            border-bottom: 2px solid #000; 
+            margin-bottom: 15px; 
+            padding-bottom: 10px; 
         }
-
-	        /* --- 2. حل مشكلة الصفحة الثانية --- */
-	        .exam-content {
-	            /* إضافة مسافة علوية (60px) تجبر المحتوى على النزول للأسفل في كل الصفحات */
-	            padding: 60px 25px 25px 25px; 
-	            display: block;
-	            min-height: 90vh;
-	        }
-
-	        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
-	        .header-table { 
-	            width: 100%; 
-	            border-bottom: 2px solid #000; 
-	            margin-bottom: 20px; 
-	            padding-bottom: 10px; 
-	            margin-top: -30px; 
-	        }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
         .header-center { text-align: center; width: 30%; }
         .header-left { text-align: left; width: 35%; direction: ltr; font-weight: bold; font-size: 14px; }
 
-        /* الجداول والمعلومات */
+        /* جداول الدرجات */
         .grades-table {
             width: 100%; border-collapse: collapse; margin: 10px 0; border: 2px solid #000;
             page-break-inside: avoid;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
         .grades-table th, .grades-table td {
             border: 1px solid #000; text-align: center; padding: 5px; font-weight: bold;
         }
-        .grades-table th { background-color: #f0f0f0 !important; }
+        .grades-table th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
 
         .student-info {
             display: flex; justify-content: space-between; font-weight: bold; margin: 15px 0;
@@ -77,73 +60,73 @@
             page-break-inside: avoid;
         }
 
-		        /* --- تنسيق الأعمدة --- */
-	        .questions-wrapper {
-	            margin-top: 20px;
-	            width: 100%;
-	            column-count: 2;
-	            column-gap: 40px;
-	            column-rule: 1px solid #ccc;
-	            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
-	            min-height: 100vh;
-	        }
+        /* --- منطقة الأسئلة (الأعمدة) --- */
+        .questions-wrapper {
+            width: 100%;
+            column-count: 2; /* عمودين */
+            column-gap: 30px; 
+            column-rule: 1px solid #000; /* الخط الفاصل */
+            direction: rtl;
+            
+            /* (هام) إزالة تحديد الطول ليقف الخط عند آخر سؤال */
+            height: auto; 
+            min-height: 0; 
+        }
 
         .question-box { 
             display: block; 
             width: 100%;
             margin-bottom: 15px;
             font-size: 15px;
+            /* منع انقسام السؤال الواحد */
             break-inside: avoid; 
             page-break-inside: avoid;
             -webkit-column-break-inside: avoid;
         }
 
-        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
-        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
-	        .q-image, .option-img {
-	            max-width: 95%;     /* الصورة لا تتجاوز عرض العمود */
-	            height: auto;       
-	            display: block;
-	            margin: 5px 0;
-	            border: 1px dashed #ccc; /* إطار خفيف جمالي */
-	            padding: 2px;
-	            /* حل مشكلة عدم ظهور الصور في الطباعة */
-	            -webkit-print-color-adjust: exact !important;
-	            print-color-adjust: exact !important;
-	            filter: brightness(100%) !important;
-	            page-break-inside: avoid;
-	        }
+        .q-header {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: baseline;
+        }
+        .q-num { color: #000; font-weight: bold; margin-left: 5px; white-space: nowrap; }
+        .q-text { font-weight: bold; line-height: 1.4; }
 
-        .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
-        .q-text { display: block; overflow-wrap: break-word; font-weight: bold; }
+        /* --- تنسيق الصور (التعامل مع الروابط) --- */
+        /* يضمن أن الصورة الرابط لا تخرج عن حدود العمود */
+        img {
+            max-width: 95% !important; /* لا تتجاوز عرض العمود */
+            height: auto !important;
+            display: block;
+            margin: 5px auto;
+            object-fit: contain; /* تحافظ على أبعاد الصورة */
+        }
         
-        /* تنسيق الخيارات ليدعم الصور */
+        .q-image {
+            border: 1px dashed #999; 
+            padding: 2px;
+        }
+
+        /* --- تنسيق الخيارات --- */
         .q-option { 
             display: flex; 
-            flex-direction: column; /* العناصر تحت بعضها إذا وجدت صورة */
+            align-items: flex-start; 
             margin-bottom: 5px;
-        }
-        .option-content {
-            display: flex;
-            align-items: flex-start;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .option-char { font-weight: bold; margin-left: 5px; min-width: 20px; }
+        
+        .option-content {
+            display: flex;
+            flex-direction: column; /* لضمان نزول الصورة تحت النص إذا وجدا معاً */
+            width: 100%;
+        }
 
-	        @media print {
-	            .fixed-border { display: block; }
-	            .questions-wrapper { column-count: 2 !important; }
-	            
-	            /* تطبيق الهامش العلوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
-	            body {
-	                padding-top: 100px !important;
-	            }
-	            .page-container {
-	                padding-top: 0 !important; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
-	            }
-	            .header-table {
-	                margin-top: -80px !important; /* تعويض الهامش العلوي في الصفحة الأولى */
-	            }
-	        }
+        .option-img {
+            margin-top: 3px;
+        }
+
     </style>
 </head>
 <body>
@@ -152,116 +135,111 @@
 
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
-    <div class="page-container">
-        <div class="exam-content">
+    <table class="header-table">
+        <tr>
+            <td class="header-right">
+                <div>{{ country }}</div>
+                <div>{{ ministry }}</div>
+                <div>{{ education_department }}</div>
+                <div>مدرسة {{ school_name }}</div>
+            </td>
+            <td class="header-center">
+                <div style="font-size: 18px; font-weight: bold; margin-bottom:5px;">{{ exam_title }}</div>
+                <div>الصف: {{ grade }}</div>
+            </td>
+            <td class="header-left">
+                <div style="direction: rtl; text-align: left;">
+                    <div>الزمن: {{ time }}</div>
+                    <div>الدرجة: {{ total_score }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="grades-table">
+        <thead>
+            <tr>
+                <th>الدرجة الأساسية</th>
+                <th>درجة الطالب رقماً</th>
+                <th>الدرجة كتابةً</th>
+                <th>المصحح</th>
+                <th>المراجع</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ total_score }}</td>
+                <td></td>
+                <td></td>
+                <td>{{ checker_name }}</td>
+                <td>{{ reviewer_name }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="student-info">
+        <span>اسم الطالب: ............................................</span>
+        <span>الشعبة: ............</span>
+        <span>رقم الجلوس: ............</span>
+    </div>
+
+    <div class="questions-wrapper">
+        {% for question in questions %}
+        <div class="question-box">
             
-            <table class="header-table">
-                <tr>
-                    <td class="header-right">
-                        <div>{{ country }}</div>
-                        <div>{{ ministry }}</div>
-                        <div>{{ education_department }}</div>
-                        <div>مدرسة {{ school_name }}</div>
-                    </td>
-                    <td class="header-center">
-                        <div style="font-size: 18px; font-weight: bold; margin-bottom:5px;">{{ exam_title }}</div>
-                        <div>الصف: {{ grade }}</div>
-                    </td>
-                    <td class="header-left">
-                        <div style="direction: rtl; text-align: left;">
-                            <div>الزمن: {{ time }}</div>
-                            <div>الدرجة: {{ total_score }}</div>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-
-            <table class="grades-table">
-                <thead>
-                    <tr>
-                        <th>الدرجة الأساسية</th>
-                        <th>درجة الطالب رقماً</th>
-                        <th>الدرجة كتابةً</th>
-                        <th>المصحح</th>
-                        <th>المراجع</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{ total_score }}</td>
-                        <td></td>
-                        <td></td>
-                        <td>{{ checker_name }}</td>
-                        <td>{{ reviewer_name }}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="student-info">
-                <span>اسم الطالب: ............................................</span>
-                <span>الشعبة: ............</span>
-                <span>رقم الجلوس: ............</span>
+            <div class="q-header">
+                <span class="q-num">س{{ loop.index }}:</span>
+                <span class="q-text">
+                    {{ question.question_text if question.question_text else '' }}
+                </span>
             </div>
-
-            <div class="questions-wrapper">
-                {% for question in questions %}
-                <div class="question-box">
+            
+            {% if question.image_url %}
+            <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
+            {% endif %}
+            
+            <div style="margin-right: 5px;">
+                {% for option in question.options %}
+                <div class="q-option">
+                    <span class="option-char">{{ letters[loop.index0] }})</span>
                     
-                    <div style="margin-bottom: 5px;">
-                        <span class="q-num">س{{ loop.index }}:</span>
-                        <span class="q-text">
-                            {{ question.question_text if question.question_text else '' }}
-                        </span>
-                        
-                        {% if question.image_url %}
-                        <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
+                    <div class="option-content">
+                        {% if option.option_text %}
+                        <span>{{ option.option_text }}</span>
+                        {% endif %}
+
+                        {% if option.image_url %}
+                        <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
                         {% endif %}
                     </div>
-                    
-                    <div style="margin-right: 15px;">
-                        {% for option in question.options %}
-                        <div class="q-option">
-                            <div class="option-content">
-                                <span class="option-char">{{ letters[loop.index0] }})</span>
-                                
-                                {% if option.option_text %}
-                                <span>{{ option.option_text }}</span>
-                                {% endif %}
-                            </div>
-
-                            {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-
                 </div>
                 {% endfor %}
             </div>
 
-            {% if show_answers %}
-            <div style="page-break-before: always;"></div>
-            <div class="answer-key">
-                <div style="font-weight: bold; margin-bottom: 10px; text-align: center; font-size: 18px;">مفتاح الإجابات</div>
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
-                    {% for question in questions %}
-                    <div style="border:1px solid #000; padding:5px; text-align:center;">
-                        س{{ loop.index }}: 
-                        <strong>
-                            {% for option in question.options %}
-                                {% if option.is_correct %}
-                                    {{ letters[loop.index0] }}
-                                {% endif %}
-                            {% endfor %}
-                        </strong>
-                    </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if show_answers %}
+    <div style="page-break-before: always;"></div>
+    <div class="answer-key">
+        <div style="font-weight: bold; margin-bottom: 10px; text-align: center; font-size: 18px;">مفتاح الإجابات</div>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
+            {% for question in questions %}
+            <div style="border:1px solid #000; padding:5px; text-align:center;">
+                س{{ loop.index }}: 
+                <strong>
+                    {% for option in question.options %}
+                        {% if option.is_correct %}
+                            {{ letters[loop.index0] }}
+                        {% endif %}
                     {% endfor %}
-                </div>
+                </strong>
             </div>
-            {% endif %}
-            
+            {% endfor %}
         </div>
     </div>
+    {% endif %}
+
 </body>
 </html>
