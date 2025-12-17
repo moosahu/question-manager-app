@@ -40,11 +40,10 @@
 
 	        /* --- 2. حل مشكلة الصفحة الثانية --- */
 	        .exam-content {
-	            /* إضافة مسافة علوية (100px) لضمان نزول المحتوى تحت الإطار في كل الصفحات */
-	            padding: 100px 25px 25px 25px; 
+	            /* إزالة البادينج العلوي من exam-content وتطبيقه على body في وضع الطباعة */
+	            padding: 25px; 
 	            display: block;
 	            min-height: 90vh;
-	            /* إزالة خاصية page-break-after: avoid; التي قد تسبب مشاكل */
 	        }
 
 	        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
@@ -53,7 +52,7 @@
 	            border-bottom: 2px solid #000; 
 	            margin-bottom: 20px; 
 	            padding-bottom: 10px; 
-	            margin-top: -80px; /* تعويض الهامش العلوي الجديد في exam-content */
+	            margin-top: 0; /* إلغاء الهامش السالب */
 	            page-break-inside: avoid;
 	        }
         .header-table td { vertical-align: top; }
@@ -116,6 +115,7 @@
 	            page-break-inside: avoid;
 	            /* حل مشكلة الصور التي لا تظهر */
 	            background-color: transparent !important;
+	            filter: brightness(100%) !important; /* حل إضافي لضمان ظهور الصور */
 	        }
 
         .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
@@ -136,12 +136,16 @@
 	        @media print {
 	            .fixed-border { display: block; }
 	            .questions-wrapper { column-count: 2 !important; }
-	            /* حل مشكلة انتقال المحتوى إلى أعلى الصفحة التالية */
-	            .exam-content {
+	            
+	            /* تطبيق الهامش العلوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
+	            body {
 	                padding-top: 100px !important;
 	            }
+	            .page-container {
+	                padding-top: 0 !important; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
+	            }
 	            .header-table {
-	                margin-top: -80px !important;
+	                margin-top: -80px !important; /* تعويض الهامش العلوي في الصفحة الأولى */
 	            }
 	        }
     </style>
