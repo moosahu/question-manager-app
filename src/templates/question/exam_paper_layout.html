@@ -4,12 +4,17 @@
     <meta charset="UTF-8">
     <title>{{ exam_title }}</title>
     <style>
-        /* ===== إعدادات الصفحة للطباعة ===== */
-        @page { 
-            size: A4; 
-            margin: 10mm;
+        /* ===== إعدادات الصفحة لـ WeasyPrint ===== */
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+            
+            /* الإطار المزدوج - يتكرر في كل صفحة */
+            border: 3px double #000;
+            padding: 5mm;
         }
 
+        /* ===== إعدادات عامة ===== */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -17,25 +22,11 @@
         }
 
         body {
-            font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
-            background: #fff; 
-            color: #000;
+            font-family: 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
             font-size: 14px;
             line-height: 1.5;
-            /* padding داخلي لإبعاد المحتوى عن الإطار */
-            padding: 18mm 15mm;
-        }
-
-        /* ===== الإطار المزدوج الثابت ===== */
-        .page-border {
-            position: fixed;
-            top: 5mm;
-            left: 5mm;
-            right: 5mm;
-            bottom: 5mm;
-            border: 3px double #000;
-            pointer-events: none;
-            z-index: 9999;
+            color: #000;
+            direction: rtl;
         }
 
         /* ===== الرأس ===== */
@@ -43,8 +34,8 @@
             width: 100%; 
             border-collapse: collapse;
             border-bottom: 2px solid #000; 
-            margin-bottom: 12px; 
             padding-bottom: 10px; 
+            margin-bottom: 12px;
         }
         
         .header-table td { 
@@ -57,7 +48,7 @@
             width: 35%; 
             font-weight: bold; 
             font-size: 13px;
-            line-height: 1.6;
+            line-height: 1.7;
         }
         
         .header-center { 
@@ -85,22 +76,19 @@
             border-collapse: collapse; 
             margin: 10px 0; 
             border: 2px solid #000;
-            page-break-inside: avoid;
         }
         
         .grades-table th, 
         .grades-table td {
             border: 1px solid #000; 
             text-align: center; 
-            padding: 5px; 
+            padding: 6px; 
             font-weight: bold;
             font-size: 12px;
         }
         
         .grades-table th { 
-            background-color: #f0f0f0 !important; 
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            background-color: #f0f0f0;
         }
 
         /* ===== معلومات الطالب ===== */
@@ -110,42 +98,35 @@
             font-weight: bold; 
             margin: 12px 0;
             border: 1px solid #000; 
-            padding: 6px 10px;
+            padding: 8px 12px;
             font-size: 13px;
-            page-break-inside: avoid;
         }
 
-        /* ===== منطقة الأسئلة (عمودين) ===== */
+        /* ===== الأسئلة - عمودين ===== */
         .questions-wrapper {
-            width: 100%;
             column-count: 2;
             column-gap: 20px;
             column-rule: 1px solid #000;
             column-fill: auto;
-            direction: rtl;
         }
 
-        /* ===== السؤال الواحد ===== */
+        /* ===== السؤال ===== */
         .question-box { 
             display: inline-block;
             width: 100%;
             margin-bottom: 12px;
             font-size: 13px;
-            /* منع تقسيم السؤال بين صفحتين أو عمودين */
-            break-inside: avoid; 
+            break-inside: avoid;
             page-break-inside: avoid;
-            -webkit-column-break-inside: avoid;
         }
 
         .q-header {
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             display: flex;
             align-items: baseline;
-            flex-wrap: wrap;
         }
         
         .q-num { 
-            color: #000; 
             font-weight: bold; 
             margin-left: 5px; 
             white-space: nowrap; 
@@ -153,13 +134,13 @@
         
         .q-text { 
             font-weight: bold; 
-            line-height: 1.4; 
+            line-height: 1.5; 
         }
 
         /* ===== الصور ===== */
         img {
-            max-width: 95%;
-            max-height: 100px;
+            max-width: 90%;
+            max-height: 90px;
             height: auto;
             display: block;
             margin: 5px auto;
@@ -169,34 +150,32 @@
         .q-image {
             border: 1px dashed #999; 
             padding: 2px;
-            max-height: 90px;
+            max-height: 80px;
         }
 
         .option-img {
-            max-height: 70px;
-            max-width: 90%;
+            max-height: 60px;
+            max-width: 85%;
             margin-top: 3px;
         }
 
         /* ===== الخيارات ===== */
         .options-container {
-            margin-right: 5px;
-            margin-top: 3px;
+            margin-right: 8px;
+            margin-top: 5px;
         }
 
         .q-option { 
             display: flex; 
             align-items: flex-start; 
-            margin-bottom: 3px;
+            margin-bottom: 4px;
             break-inside: avoid;
-            page-break-inside: avoid;
         }
         
         .option-char { 
             font-weight: bold; 
-            margin-left: 4px; 
+            margin-left: 5px; 
             min-width: 18px;
-            flex-shrink: 0;
         }
         
         .option-content {
@@ -206,89 +185,37 @@
 
         /* ===== مفتاح الإجابات ===== */
         .answer-key {
-            break-before: page;
             page-break-before: always;
-            padding-top: 15mm;
+            padding-top: 10px;
         }
 
         .answer-key-title {
             font-weight: bold; 
-            margin-bottom: 12px; 
+            margin-bottom: 15px; 
             text-align: center; 
             font-size: 18px;
         }
 
         .answer-grid {
-            display: grid; 
-            grid-template-columns: repeat(5, 1fr); 
-            gap: 8px; 
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
             direction: rtl;
+            justify-content: flex-start;
         }
 
         .answer-item {
             border: 1px solid #000; 
-            padding: 5px; 
+            padding: 6px 12px; 
             text-align: center;
             font-size: 13px;
-        }
-
-        /* ===== قواعد الطباعة ===== */
-        @media print {
-            html, body {
-                width: 210mm;
-                height: 297mm;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            body {
-                padding: 15mm 12mm;
-            }
-
-            .page-border {
-                position: fixed;
-            }
-
-            .question-box {
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
-
-            /* تصغير الصور قليلاً للطباعة */
-            img {
-                max-height: 85px !important;
-            }
-            
-            .option-img {
-                max-height: 60px !important;
-            }
-        }
-
-        /* ===== معاينة على الشاشة ===== */
-        @media screen {
-            html {
-                background: #888;
-            }
-            
-            body {
-                width: 210mm;
-                min-height: 297mm;
-                margin: 20px auto;
-                background: white;
-                box-shadow: 0 0 20px rgba(0,0,0,0.3);
-            }
-
-            .page-border {
-                position: absolute;
-            }
+            width: calc(20% - 10px);
+            min-width: 80px;
         }
 
     </style>
 </head>
 <body>
-
-    <!-- الإطار المزدوج -->
-    <div class="page-border"></div>
 
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
@@ -354,7 +281,7 @@
             </div>
             
             {% if question.image_url %}
-            <img src="{{ question.image_url }}" class="q-image" alt="صورة السؤال">
+            <img src="{{ question.image_url }}" class="q-image" alt="">
             {% endif %}
             
             <div class="options-container">
@@ -362,11 +289,16 @@
                 <div class="q-option">
                     <span class="option-char">{{ letters[loop.index0] }})</span>
                     <div class="option-content">
-                        {% if option.option_text %}
-                        <span>{{ option.option_text }}</span>
+                        {# نص الخيار #}
+                        {% if option.option_text and not option.option_text.startswith('http') %}
+                            <span>{{ option.option_text }}</span>
                         {% endif %}
+                        
+                        {# صورة الخيار #}
                         {% if option.image_url %}
-                        <img src="{{ option.image_url }}" class="option-img" alt="صورة الخيار">
+                            <img src="{{ option.image_url }}" class="option-img" alt="">
+                        {% elif option.option_text and option.option_text.startswith('http') %}
+                            <img src="{{ option.option_text }}" class="option-img" alt="">
                         {% endif %}
                     </div>
                 </div>
@@ -386,41 +318,26 @@
             <div class="answer-item">
                 س{{ loop.index }}: 
                 <strong>
-                    {% for option in question.options %}
-                        {% if option.is_correct %}
-                            {{ letters[loop.index0] }}
+                    {% if question.correct_answer %}
+                        {% if question.correct_answer == 'a' %}أ
+                        {% elif question.correct_answer == 'b' %}ب
+                        {% elif question.correct_answer == 'c' %}ج
+                        {% elif question.correct_answer == 'd' %}د
+                        {% else %}{{ question.correct_answer }}
                         {% endif %}
-                    {% endfor %}
+                    {% else %}
+                        {% for option in question.options %}
+                            {% if option.is_correct %}
+                                {{ letters[loop.index0] }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 </strong>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
-
-    <!-- سكريبت انتظار تحميل الصور -->
-    <script>
-        // انتظار تحميل الصور قبل الطباعة
-        window.onload = function() {
-            var images = document.images;
-            var loaded = 0;
-            var total = images.length;
-            
-            if (total === 0) return;
-            
-            for (var i = 0; i < total; i++) {
-                if (images[i].complete) {
-                    loaded++;
-                } else {
-                    images[i].onload = function() { loaded++; };
-                    images[i].onerror = function() { 
-                        loaded++; 
-                        this.style.display = 'none';
-                    };
-                }
-            }
-        };
-    </script>
 
 </body>
 </html>
