@@ -5,16 +5,16 @@
     <title>{{ exam_title }}</title>
     <style>
         /* إعدادات الصفحة والطباعة */
-        @page {
-            size: A4;
-            margin: 0; /* لا توجد هوامش خارجية للصفحة */
+        @page { 
+            size: A4; 
+            margin: 0; /* الهوامش صفر ونتحكم بها من الداخل */
         }
 
         body {
             font-family: 'Traditional Arabic', 'Times New Roman', Arial, serif;
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
+            margin: 0; 
+            padding: 0; 
+            background: #fff; 
             color: #000;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -28,48 +28,43 @@
             right: 10mm;
             bottom: 10mm;
             border: 3px double #000;
-            z-index: -1; /* خلف المحتوى */
-            pointer-events: none; /* لا يتفاعل مع الفأرة */
+            z-index: -1; /* خلف النص */
+            pointer-events: none;
         }
 
-        /* حاوية لكل صفحة لضمان وجود الهوامش الداخلية */
         .page-container {
-            padding: 10mm; /* هوامش داخلية تحاكي هوامش الصفحة */
-            box-sizing: border-box;
             width: 100%;
-            page-break-after: always; /* كل حاوية في صفحة جديدة */
-        }
-        .page-container:last-child {
-            page-break-after: auto;
+            box-sizing: border-box;
+            padding: 10mm; /* هامش لضمان عدم خروج النص عن الورقة */
         }
 
         /* --- 2. حل مشكلة الصفحة الثانية --- */
         .exam-content {
-            /* مساحة داخلية للمحتوى لضمان عدم تداخله مع الإطار */
-            padding: 25px;
-            height: calc(100vh - 20mm); /* ارتفاع كامل ضمن الهوامش */
-            box-sizing: border-box;
+            /* إزالة البادينج العلوي من exam-content وتطبيقه على body في وضع الطباعة */
+            padding: 25px; 
+            display: block;
+            min-height: 90vh;
         }
 
-        /* تنسيق رأس الصفحة */
-        .header-table {
-            width: 100%;
-            border-bottom: 2px solid #000;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-        }
+        /* تنسيق الرأس (تمت إزالة الهامش السالب ليتناسب مع البادينج الجديد) */
+	        .header-table { 
+	            width: 100%; 
+	            border-bottom: 2px solid #000; 
+	            margin-bottom: 20px; 
+	            padding-bottom: 10px; 
+	            margin-top: -80px; /* تعويض الهامش العلوي الجديد في body لصفحة البداية فقط */
+	        }
         .header-table td { vertical-align: top; }
         .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 14px; }
         .header-center { text-align: center; width: 30%; }
         .header-left { text-align: left; width: 35%; direction: ltr; font-weight: bold; font-size: 14px; }
 
-        /* تنسيق الجداول الأخرى */
-        .grades-table, .student-info {
-            page-break-inside: avoid; /* منع كسر العنصر بين الصفحات */
-        }
-
+        /* الجداول والمعلومات */
         .grades-table {
             width: 100%; border-collapse: collapse; margin: 10px 0; border: 2px solid #000;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .grades-table th, .grades-table td {
             border: 1px solid #000; text-align: center; padding: 5px; font-weight: bold;
@@ -79,6 +74,7 @@
         .student-info {
             display: flex; justify-content: space-between; font-weight: bold; margin: 15px 0;
             border: 1px solid #000; padding: 5px;
+            page-break-inside: avoid;
         }
 
         /* --- تنسيق الأعمدة --- */
@@ -88,37 +84,44 @@
             column-count: 2;
             column-gap: 40px;
             column-rule: 1px solid #ccc;
-            height: 100%; /* تأكد من أن الحاوية تأخذ الارتفاع المتاح */
+            /* لضمان امتداد الخط الفاصل إلى أسفل الصفحة */
+            height: 100%;
         }
 
-        .question-box {
-            display: inline-block; /* يفضل على block لتجنب مشاكل الأعمدة */
+        .question-box { 
+            display: block; 
             width: 100%;
             margin-bottom: 15px;
             font-size: 15px;
-            break-inside: avoid; /* منع كسر السؤال بين الأعمدة أو الصفحات */
+            break-inside: avoid; 
             page-break-inside: avoid;
+            -webkit-column-break-inside: avoid;
         }
 
         /* --- 3. تنسيق الصور (Images Logic CSS) --- */
-        .q-image, .option-img {
-            max-width: 95%; /* الصورة لا تتجاوز عرض الحاوية */
-            height: auto;
-            display: block;
-            margin: 5px auto; /* توسيط الصورة */
-            border: 1px dashed #ccc;
-            padding: 2px;
-        }
+        /* --- 3. تنسيق الصور (Images Logic CSS) --- */
+	        .q-image, .option-img {
+	            max-width: 95%;     /* الصورة لا تتجاوز عرض العمود */
+	            height: auto;       
+	            display: block;
+	            margin: 5px 0;
+	            border: 1px dashed #ccc; /* إطار خفيف جمالي */
+	            padding: 2px;
+	            /* حل مشكلة عدم ظهور الصور في الطباعة */
+	            -webkit-print-color-adjust: exact;
+	            print-color-adjust: exact;
+	            /* التأكد من أن الصور لا تسبب كسر الصفحة بشكل سيئ */
+	            page-break-inside: avoid;
+	        }
 
         .q-num { color: #000; font-weight: bold; float: right; margin-left: 5px; }
         .q-text { display: block; overflow-wrap: break-word; font-weight: bold; }
-
-        /* تنسيق الخيارات لدعم الصور والنصوص */
-        .q-option {
-            display: flex;
-            flex-direction: column;
+        
+        /* تنسيق الخيارات ليدعم الصور */
+        .q-option { 
+            display: flex; 
+            flex-direction: column; /* العناصر تحت بعضها إذا وجدت صورة */
             margin-bottom: 5px;
-            margin-right: 15px;
         }
         .option-content {
             display: flex;
@@ -126,18 +129,17 @@
         }
         .option-char { font-weight: bold; margin-left: 5px; min-width: 20px; }
 
-        /* إعدادات خاصة بالطباعة */
-        @media print {
-            body {
-                background-color: #fff; /* خلفية بيضاء للطباعة */
-            }
-            .fixed-border {
-                display: block; /* تأكيد ظهور الإطار عند الطباعة */
-            }
-            .questions-wrapper {
-                column-count: 2 !important; /* فرض عمودين عند الطباعة */
-            }
-        }
+	        @media print {
+	            .fixed-border { display: block; }
+	            .questions-wrapper { column-count: 2 !important; }
+	            /* تطبيق هامش علوي على كل صفحة لضمان نزول المحتوى تحت الإطار */
+	            body {
+	                padding-top: 100px; /* نفس قيمة البادينج التي كانت في exam-content */
+	            }
+	            .page-container {
+	                padding-top: 0; /* إزالة البادينج العلوي من page-container لتجنب التكرار */
+	            }
+	        }
     </style>
 </head>
 <body>
@@ -148,7 +150,7 @@
 
     <div class="page-container">
         <div class="exam-content">
-
+            
             <table class="header-table">
                 <tr>
                     <td class="header-right">
@@ -200,31 +202,31 @@
             <div class="questions-wrapper">
                 {% for question in questions %}
                 <div class="question-box">
-
+                    
                     <div style="margin-bottom: 5px;">
                         <span class="q-num">س{{ loop.index }}:</span>
                         <span class="q-text">
                             {{ question.question_text if question.question_text else '' }}
                         </span>
-
+                        
                         {% if question.image_url %}
-                        <img src="{{ question.image_url }}" class="q-image" alt="صورة السؤال">
+                        <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
                         {% endif %}
                     </div>
-
-                    <div>
+                    
+                    <div style="margin-right: 15px;">
                         {% for option in question.options %}
                         <div class="q-option">
                             <div class="option-content">
                                 <span class="option-char">{{ letters[loop.index0] }})</span>
-
+                                
                                 {% if option.option_text %}
                                 <span>{{ option.option_text }}</span>
                                 {% endif %}
                             </div>
 
                             {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="صورة الخيار">
+                            <img src="{{ option.image_url }}" class="option-img" alt="Option Image">
                             {% endif %}
                         </div>
                         {% endfor %}
@@ -233,30 +235,29 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>
-    </div>
 
-    {% if show_answers %}
-    <div class="page-container">
-        <div class="exam-content answer-key">
-            <div style="font-weight: bold; margin-bottom: 10px; text-align: center; font-size: 18px;">مفتاح الإجابات</div>
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
-                {% for question in questions %}
-                <div style="border:1px solid #000; padding:5px; text-align:center;">
-                    س{{ loop.index }}:
-                    <strong>
-                        {% for option in question.options %}
-                            {% if option.is_correct %}
-                                {{ letters[loop.index0] }}
-                            {% endif %}
-                        {% endfor %}
-                    </strong>
+            {% if show_answers %}
+            <div style="page-break-before: always;"></div>
+            <div class="answer-key">
+                <div style="font-weight: bold; margin-bottom: 10px; text-align: center; font-size: 18px;">مفتاح الإجابات</div>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; direction: rtl;">
+                    {% for question in questions %}
+                    <div style="border:1px solid #000; padding:5px; text-align:center;">
+                        س{{ loop.index }}: 
+                        <strong>
+                            {% for option in question.options %}
+                                {% if option.is_correct %}
+                                    {{ letters[loop.index0] }}
+                                {% endif %}
+                            {% endfor %}
+                        </strong>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
+            {% endif %}
+            
         </div>
     </div>
-    {% endif %}
-
 </body>
 </html>
