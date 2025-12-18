@@ -35,14 +35,10 @@
             margin-bottom: 12px;
         }
 
-        /* ===== الباركود في الزاوية ===== */
+        /* الباركود في الزاوية - تم تعديله ليكون متناسقاً مع الجدول */
         .qr-code-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 70px;
             text-align: center;
-            z-index: 10;
+            width: 70px;
         }
 
         .qr-code-container img {
@@ -94,10 +90,23 @@
         .header-left { 
             text-align: left; 
             width: 35%; 
-            direction: ltr; 
-            font-weight: bold; 
-            font-size: 13px;
-            padding-left: 75px; /* مساحة للباركود */
+        }
+
+        /* تنسيق توزيع الباركود والمعلومات في الجهة اليسرى */
+        .left-content-flex {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 15px;
+            direction: ltr; /* لجعل الباركود في أقصى اليسار */
+        }
+
+        .info-details {
+            direction: rtl; /* العودة للعربية داخل النصوص */
+            text-align: right;
+            line-height: 1.7;
+            font-weight: bold;
+            flex: 1;
         }
 
         /* ===== الشعار ===== */
@@ -292,14 +301,6 @@
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
     <div class="header-wrapper">
-        {% if qr_code %}
-        <div class="qr-code-container">
-            <img src="{{ qr_code }}" alt="QR">
-            <div class="model-badge">{{ model_letter }}</div>
-        </div>
-        {% endif %}
-
-        <!-- رأس الصفحة -->
         <table class="header-table">
             <tr>
                 <td class="header-right">
@@ -314,16 +315,17 @@
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    <div style="overflow: hidden;">
+                    <div class="left-content-flex">
                         {% if qr_code %}
-                        <div style="float: left; width: 70px; text-align: center; margin-left: 10px;">
-                            <img src="{{ qr_code }}" alt="QR" style="width: 55px; height: 55px;">
+                        <div class="qr-code-container">
+                            <img src="{{ qr_code }}" alt="QR">
                             {% if model_letter and model_letter != '' %}
                                 <div class="model-badge">{{ model_letter }}</div>
                             {% endif %}
                         </div>
                         {% endif %}
-                        <div style="direction: rtl; text-align: left; line-height: 1.7;">
+
+                        <div class="info-details">
                             <div>المادة : {{ subject }}</div>
                             <div>الزمن : {{ time }}</div>
                             <div>الصف : {{ grade }}</div>
@@ -331,12 +333,12 @@
                                 <div><strong>النموذج : {{ model_letter }}</strong></div>
                             {% endif %}
                         </div>
+                    </div>
                 </td>
             </tr>
         </table>
     </div>
 
-    <!-- جدول الدرجات -->
     <table class="grades-table">
         <thead>
             <tr>
@@ -358,14 +360,12 @@
         </tbody>
     </table>
 
-    <!-- معلومات الطالب -->
     <div class="student-info">
         <span>اسم الطالب: ............................................</span>
         <span>الشعبة: ............</span>
         <span>رقم الجلوس: ............</span>
     </div>
 
-    <!-- الأسئلة -->
     <div class="questions-wrapper">
         {% for question in questions %}
         <div class="question-box">
@@ -434,7 +434,6 @@
         {% endfor %}
     </div>
 
-    <!-- عبارة انتهت الأسئلة -->
     <div class="exam-end">
         <div class="end-text">
             انتهت الأسئلة<br>
@@ -443,7 +442,6 @@
         </div>
     </div>
 
-    <!-- مفتاح الإجابات -->
     {% if show_answers %}
     <div class="answer-key">
         <div class="answer-key-title">مفتاح الإجابات - نموذج {{ model_letter }}</div>
