@@ -954,23 +954,56 @@ async function confirmAndPrint() {
     }
 }
 
-function renderStudentPreviewTable(students) {
-    const container = document.getElementById('questionsContent'); 
-    let html = `
-        <div class="preview-header" style="background:#f0fff4; padding:15px; border:1px solid #28a745; border-radius:8px;">
-            <h3><i class="fas fa-check-circle"></i> تمت قراءة الأسماء بنجاح</h3>
-            
-            <button class="btn btn-success" onclick="confirmAndPrint()" style="margin-top:10px;">
-                <i class="fas fa-print"></i> تأكيد وفتح المعاينة للطباعة
-            </button>
-            
-        </div>
-        <table class="table" style="width:100%; margin-top:20px; border-collapse: collapse;">
-            <thead><tr style="background:#eee;"><th>الاسم</th><th>الرقم الأكاديمي</th><th>الشعبة</th></tr></thead>
-            <tbody>
-    `;
-    // ... تكملة كود إضافة الصفوف (rows) ...
+// 1. المعاينة
+async function previewStudentList() {
+    const fileInput = document.getElementById('studentListFile');
+    const formData = new FormData();
+    formData.append('student_file', fileInput.files[0]);
+    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
 
+    showLoading(true);
+    try {
+        const response = await fetch('/questions/preview-students', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+            currentStudents = data.students; // حفظ البيانات هنا
+            renderStudentPreviewTable(data.students);
+            showSuccess('تمت قراءة الأسماء');
+        } else { showError(data.error); }
+    } catch (e) { showError('خطأ في السيرفر'); }
+    finally { showLoading(false); }
+}
+
+// 2. الطباعة
+async function confirmAndPrint() {
+    if (!currentStudents || currentStudents.length === 0) { 
+        showError('يرجى معاينة الطلاب أولاً'); return; 
+    }
+    
+    showLoading(true);
+    try {
+        const response = await fetch('/questions/print-remark-sheets', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
+            },
+            body: JSON.stringify({ 
+                students: currentStudents, 
+                question_count: selectedQuestionIds.size || 20 
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.print(); }, 500);
+        } else { showError(data.error); }
+    } catch (e) { showError('خطأ في الاتصال'); }
+    finally { showLoading(false); }
+}
 // دالة إضافية لإظهار زر التوليد النهائي بعد المعاينة
 function addFinalGenerateButton() {
     const container = document.getElementById('questionsContent');
