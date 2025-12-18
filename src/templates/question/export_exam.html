@@ -1029,25 +1029,28 @@ async function confirmAndPrint() {
 
     showLoading(true);
     try {
-        const response = await fetch('/api/v1/questions/generate-remark-omr', {
+        const response = await fetch('/api/v1/questions/print-remark-sheets', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
                 students: currentStudents,
-                header_settings: headerSettings 
+                question_count: selectedQuestionIds.size
             })
         });
 
         if (response.ok) {
-            const htmlResult = await response.text();
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(htmlResult);
-            printWindow.document.close();
-            showSuccess('تم توليد أوراق الإجابة بنجاح وجاهزة للطباعة.');
+            const data = await response.json();
+            if (data.success && data.html_content) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(data.html_content);
+                printWindow.document.close();
+                showSuccess('تم توليد أوراق الإجابة بنجاح وجاهزة للطباعة.');
+            } else {
+                showError(data.error || 'فشل توليد أوراق الإجابة.');
+            }
         } else {
             const errorData = await response.json().catch(() => ({ error: 'فشل توليد أوراق الإجابة' }));
             showError(errorData.error || 'فشل توليد أوراق الإجابة.');
