@@ -79,14 +79,14 @@
             width: 35%; 
         }
 
-        /* تنسيق الباركود والمعلومات "جنبه مباشرة"
+        /* تنسيق لجعل الباركود ملتصق بالمعلومات (جنبه مباشرة)
         */
         .barcode-info-group {
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
-            gap: 5px; 
-            direction: ltr; 
+            gap: 8px; /* مسافة صغيرة ليكون الباركود بجانب النص */
+            direction: ltr; /* لضمان ترتيب الباركود على اليسار والنص يتبعه لليمين */
         }
 
         .qr-side {
@@ -102,7 +102,7 @@
         }
 
         .details-side {
-            direction: rtl; 
+            direction: rtl; /* العودة للعربية للنصوص */
             text-align: right;
             line-height: 1.7;
             font-weight: bold;
@@ -171,7 +171,7 @@
         }
 
         /* =============================================
-           تنسيق الأسئلة (عمودين) 
+           الأسئلة (تنسيق العمودين) 
            =============================================
         */
         .questions-wrapper {
@@ -208,13 +208,14 @@
         }
 
         /* =============================================
-           تنسيق الصور (مزاحة لليمين وتحت السؤال) 
+           تنسيق الصور (تحت السؤال مباشرة ومزاحة لليمين) 
            =============================================
         */
         .q-image {
             display: block;
+            /* يضمن المحاذاة لليمين في سياق RTL */
             margin-right: 0; 
-            margin-left: auto;
+            margin-left: auto; 
             margin-top: 5px;
             margin-bottom: 10px;
             max-width: 95%;
@@ -240,7 +241,6 @@
         .options-container {
             margin-right: 8px;
             margin-top: 5px;
-            clear: both;
         }
 
         .q-option { 
@@ -267,7 +267,6 @@
             gap: 8px 15px;
             margin-right: 8px;
             margin-top: 5px;
-            clear: both;
         }
 
         .options-grid .q-option {
@@ -292,7 +291,7 @@
         }
 
         /* =============================================
-           مفتاح الإجابات 
+           مفتاح الإجابات (Key) 
            =============================================
         */
         .answer-key {
@@ -334,6 +333,7 @@
         
         <table class="header-table">
             <tr>
+                
                 <td class="header-right">
                     <div>
                         {{ country|default('المملكة العربية السعودية', true) }}
@@ -356,11 +356,13 @@
                 </td>
                 
                 <td class="header-left">
+                    
                     <div class="barcode-info-group">
                         
                         {% if qr_code %}
                             <div class="qr-side">
                                 <img src="{{ qr_code }}" alt="QR">
+                                
                                 {% if model_letter and model_letter != '' %}
                                     <div class="model-badge">
                                         {{ model_letter }}
@@ -379,6 +381,7 @@
                             <div>
                                 الصف : {{ grade }}
                             </div>
+                            
                             {% if model_letter and model_letter != '' %}
                                 <div>
                                     <strong>النموذج : {{ model_letter }}</strong>
@@ -387,7 +390,9 @@
                         </div>
                         
                     </div>
+                    
                 </td>
+                
             </tr>
         </table>
         
@@ -456,11 +461,13 @@
                 {% if has_image_options|length > 0 %}
                     
                     <div class="options-grid">
+                        
                         {% for option in question.options %}
                             <div class="q-option">
                                 <span class="option-char">
                                     {{ letters[loop.index0] }})
                                 </span>
+                                
                                 <div class="option-content">
                                     {% if option.option_text and not option.option_text.startswith('http') %}
                                         <span>{{ option.option_text }}</span>
@@ -472,25 +479,31 @@
                                         <img src="{{ option.option_text }}" class="option-img">
                                     {% endif %}
                                 </div>
+                                
                             </div>
                         {% endfor %}
+                        
                     </div>
                     
                 {% else %}
                 
                     <div class="options-container">
+                        
                         {% for option in question.options %}
                             <div class="q-option">
                                 <span class="option-char">
                                     {{ letters[loop.index0] }})
                                 </span>
+                                
                                 <div class="option-content">
                                     {% if option.option_text %}
                                         {{ option.option_text }}
                                     {% endif %}
                                 </div>
+                                
                             </div>
                         {% endfor %}
+                        
                     </div>
                     
                 {% endif %}
@@ -505,7 +518,8 @@
         <div class="end-text">
             انتهت الأسئلة
             <br>
-            مع تمنياتي لكم بالتوفيق والنجاح - معلم المادة : أ. حسين الموسى
+            مع تمنياتي لكم بالتوفيق والنجاح -
+             معلم المادة : أ. حسين الموسى
         </div>
     </div>
 
@@ -518,6 +532,7 @@
             </div>
             
             <div class="answer-grid">
+                
                 {% for question in questions %}
                     <div class="answer-item">
                         س{{ loop.index }}: 
@@ -530,6 +545,7 @@
                         </strong>
                     </div>
                 {% endfor %}
+                
             </div>
             
         </div>
