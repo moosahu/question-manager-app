@@ -109,8 +109,8 @@
                         <div>الزمن : {{ time }}</div>
                         <div>الصف : {{ grade }}</div>
                         
-                        {# النموذج يظهر فقط إذا لم يكن هناك باركود #}
-                        {% if model_letter and model_letter != '' and (qr_code is not defined or qr_code is none or qr_code == '' or qr_code == false) %}
+                        {# النموذج يظهر دائماً إذا كان هناك حرف نموذج #}
+                        {% if model_letter and model_letter != '' %}
                             <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
                         {% endif %}
                     </div>
