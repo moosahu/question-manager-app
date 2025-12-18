@@ -749,7 +749,7 @@ let headerSettings = {
 // دالة لجلب الإعدادات الحديثة من السيرفر
 async function loadHeaderSettingsFromServer() {
     try {
-        const response = await fetch('/questions/get-header-settings');
+        const response = await fetch('/api/v1/questions/get-header-settings');
         const data = await response.json();
         
         if (data.success && data.settings) {
@@ -805,7 +805,7 @@ async function generateMultipleModels() {
     showLoading(true);
     
     try {
-        const response = await fetch('/questions/generate-multi-models', {
+        const response = await fetch('/api/v1/questions/generate-multi-models', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -863,7 +863,7 @@ async function previewMultipleModels() {
     showLoading(true);
     
     try {
-        const response = await fetch('/questions/preview-multi-models', {
+        const response = await fetch('/api/v1/questions/preview-multi-models', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -950,7 +950,7 @@ async function previewStudentList() {
 
     showLoading(true);
     try {
-        const response = await fetch('/questions/preview-students', {
+        const response = await fetch('/api/v1/questions/preview-students', {
             method: 'POST',
             body: formData,
             headers: {
@@ -1029,7 +1029,7 @@ async function confirmAndPrint() {
 
     showLoading(true);
     try {
-        const response = await fetch('/questions/generate-remark-omr', {
+        const response = await fetch('/api/v1/questions/generate-remark-omr', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1379,7 +1379,7 @@ function generatePrintableDocument(questions, includeAnswers) {
 
     showLoading(true);
 
-    fetch('/questions/preview-multi-models', {
+    fetch('/api/v1/questions/preview-multi-models', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
