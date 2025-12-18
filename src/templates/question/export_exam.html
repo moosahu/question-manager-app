@@ -654,8 +654,8 @@
             <div style="background: #f0fff4; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-bottom: 20px; margin-top: 15px;">
                 <h4 style="color: #22543d; margin-top: 0;"><i class="fas fa-user-graduate"></i> نماذج إجابة Remark</h4>
                 <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
-                <button class="btn btn-success" onclick="previewStudentList()" style="width: 100%; margin-top: 10px;">
-                    قراءة ومعاينة بيانات الطلاب
+                <button class="btn btn-success" onclick="confirmAndPrint()" style="margin-top:10px;">
+                   <i class="fas fa-print"></i> تأكيد وفتح المعاينة للطباعة
                 </button>
             </div>
 
@@ -914,51 +914,41 @@ function setupEventListeners() {
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
-async function confirmAndGenerate() {
-    // التأكد من اختيار الأسئلة لتحديد عدد الفقرات
-    if (selectedQuestionIds.size === 0) { 
-        showError('يرجى اختيار الأسئلة من القائمة أولاً لتحديد عدد فقرات ورقة الإجابة'); 
-        return; 
-    }
-    
+async function confirmAndPrint() {
+    if (currentStudents.length === 0) { showError('يرجى معاينة الطلاب أولاً'); return; }
+
     showLoading(true);
     try {
-        const response = await fetch('/questions/generate-remark-sheets', {
+        const response = await fetch('/questions/print-remark-sheets', {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json', 
+                'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
             },
             body: JSON.stringify({ 
                 students: currentStudents, 
-                question_count: selectedQuestionIds.size 
+                question_count: selectedQuestionIds.size || 20 
             })
         });
 
         const data = await response.json();
-        if (data.success && data.pdf) {
-            // تحويل Base64 إلى Blob لضمان تحميل الملف كاملاً دون نقص
-            const byteCharacters = atob(data.pdf);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], {type: 'application/pdf'});
+        if (data.success && data.html_content) {
+            // فتح نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
             
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Remark_Answer_Sheets_${new Date().getTime()}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            window.URL.revokeObjectURL(url);
-            showSuccess('تم توليد وتحميل الملف بنجاح');
+            // إعطاء مهلة بسيطة لتحميل التنسيقات ثم فتح نافذة الطباعة
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+            
+            showSuccess('تم تجهيز الأوراق للطباعة');
         } else {
-            showError(data.error || 'السيرفر لم يقم بإرسال الملف');
+            showError(data.error);
         }
     } catch (e) {
-        showError('حدث خطأ أثناء محاولة التوليد، قد يكون عدد الطلاب كبيراً جداً');
+        showError('خطأ في الاتصال بالسيرفر');
     } finally {
         showLoading(false);
     }

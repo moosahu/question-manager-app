@@ -2560,29 +2560,30 @@ def generate_remark_sheets():
         # إرجاع رسالة خطأ واضحة في حال الانهيار
         return jsonify({'error': f'فشل التوليد: {str(e)}'}), 500
 
-@question_bp.route('/preview-students', methods=['POST'])
+@question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
-def preview_students():
-    """
-    قراءة ملف الإكسل وعرض الأسماء للمعاينة قبل التوليد الثقيل للـ PDF
-    """
+def print_remark_sheets():
     try:
-        file = request.files.get('student_file')
-        if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+        data = request.get_json()
+        students = data.get('students', [])
+        q_count = int(data.get('question_count', 20))
         
-        # قراءة الملف
-        df = pd.read_excel(file)
-        
-        # التأكد من وجود الأعمدة المطلوبة
-        required_columns = ['الاسم', 'الرقم الأكاديمي', 'الشعبة']
-        for col in required_columns:
-            if col not in df.columns:
-                return jsonify({'error': f'العمود "{col}" مفقود من ملف الإكسل'}), 400
-        
-        # تحويل البيانات لقاموس لإرسالها للمعاينة
-        students = df[required_columns].fillna('').to_dict(orient='records')
-        
-        return jsonify({'success': True, 'students': students})
+        # جلب إعدادات الكليشة (اللوجو والوزارة)
+        settings = ExamHeaderSettings.query.first()
+        settings_dict = settings.__dict__.copy() if settings else {}
+        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
+
+        all_html = ""
+        for student in students:
+            # نمرر البيانات كما هي لأننا عالجنا الهمزات في خطوة المعاينة
+            all_html += render_template('question/remark_answer_sheet.html', 
+                                     student=student, 
+                                     question_count=q_count,
+                                     **settings_dict)
+            # فاصل صفحات للطباعة
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        # نرسل HTML للمتصفح بدلاً من توليد PDF في السيرفر لتجنب الانهيار
+        return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
-        return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
