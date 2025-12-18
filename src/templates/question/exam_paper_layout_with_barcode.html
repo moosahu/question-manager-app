@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4;
-            margin: 15mm;
+            margin: 12mm 10mm 12mm 10mm;
         }
 
         * {
@@ -17,275 +17,318 @@
 
         body {
             font-family: Arial, Tahoma, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
+            font-size: 11px;
+            line-height: 1.3;
             color: #000;
             direction: rtl;
         }
 
+        /* ===== الرأس ===== */
         .header-wrapper {
             position: relative;
-            margin-bottom: 10px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
+            margin-bottom: 8px;
+            border: 2px solid #000;
+            padding: 8px;
         }
 
-        .qr-code-container {
+        .qr-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 70px;
+            top: 5px;
+            left: 5px;
             text-align: center;
         }
 
-        .qr-code-container img {
-            width: 55px;
-            height: 55px;
+        .qr-container img {
+            width: 50px;
+            height: 50px;
         }
 
         .model-badge {
             background: #000;
             color: #fff;
             font-weight: bold;
-            font-size: 12px;
-            padding: 2px 8px;
+            font-size: 11px;
+            padding: 2px 6px;
             margin-top: 2px;
             display: inline-block;
         }
 
-        .header-content {
-            display: table;
+        .header-table {
             width: 100%;
+            border-collapse: collapse;
         }
 
-        .header-right, .header-center, .header-left {
-            display: table-cell;
+        .header-table td {
             vertical-align: top;
-            padding: 3px;
+            padding: 2px;
         }
 
-        .header-right { 
-            text-align: right; 
-            width: 35%; 
+        .header-right {
+            text-align: right;
+            width: 35%;
             font-weight: bold;
-            font-size: 11px;
-            line-height: 1.6;
+            font-size: 10px;
+            line-height: 1.5;
         }
-        
-        .header-center { 
-            text-align: center; 
+
+        .header-center {
+            text-align: center;
             width: 30%;
         }
-        
-        .header-left { 
-            text-align: left; 
-            width: 35%; 
+
+        .header-left {
+            text-align: left;
+            width: 35%;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 10px;
+            padding-left: 60px;
         }
 
         .logo-img {
-            height: 80px;
+            height: 65px;
             width: auto;
         }
 
+        /* ===== جدول الدرجات ===== */
         .grades-table {
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 8px 0; 
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0;
             border: 1px solid #000;
         }
-        
+
         .grades-table th, .grades-table td {
-            border: 1px solid #000; 
-            text-align: center; 
-            padding: 4px;
-            font-size: 10px;
-        }
-        
-        .grades-table th { 
-            background: #f0f0f0;
-        }
-
-        .student-info {
-            font-weight: bold; 
-            margin: 8px 0;
-            padding: 6px;
             border: 1px solid #000;
-            font-size: 11px;
+            text-align: center;
+            padding: 3px;
+            font-size: 9px;
         }
 
-        .question-box { 
-            margin-bottom: 10px;
-            padding: 5px 0;
-            border-bottom: 1px dotted #ccc;
+        .grades-table th {
+            background: #e0e0e0;
+        }
+
+        /* ===== بيانات الطالب ===== */
+        .student-info {
+            font-weight: bold;
+            margin: 6px 0;
+            padding: 5px;
+            border: 1px solid #000;
+            font-size: 10px;
+            background: #f9f9f9;
+        }
+
+        /* ===== منطقة الأسئلة بعمودين ===== */
+        .questions-area {
+            column-count: 2;
+            column-gap: 15px;
+            column-rule: 1px solid #ccc;
+        }
+
+        .question-box {
+            break-inside: avoid;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px dotted #999;
         }
 
         .q-header {
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
-        
-        .q-num { 
-            font-weight: bold; 
-            margin-left: 5px;
+
+        .q-num {
+            font-weight: bold;
+            color: #333;
         }
-        
-        .q-text { 
+
+        .q-text {
             font-weight: bold;
         }
 
         .q-image {
-            max-width: 200px;
-            max-height: 80px;
-            margin: 5px 0;
+            max-width: 180px;
+            max-height: 70px;
+            margin: 3px 0;
         }
 
-        .options-container {
-            margin-right: 15px;
-            margin-top: 5px;
+        /* ===== الخيارات النصية ===== */
+        .options-list {
+            margin-right: 12px;
+            margin-top: 3px;
         }
 
-        .q-option { 
-            margin-bottom: 3px;
-        }
-        
-        .option-char { 
-            font-weight: bold; 
-            margin-left: 5px;
+        .option-item {
+            margin-bottom: 2px;
+            font-size: 10px;
         }
 
-        .option-img {
-            height: 40px;
-            width: auto;
-            max-width: 150px;
+        .option-char {
+            font-weight: bold;
+            margin-left: 3px;
         }
 
-        /* شبكة 2×2 للخيارات الصورية */
+        /* ===== الخيارات الصورية - شبكة 2×2 ===== */
         .options-grid {
             display: table;
             width: 100%;
-            margin-top: 5px;
+            margin-top: 3px;
         }
 
         .options-row {
             display: table-row;
         }
 
-        .options-grid .q-option {
+        .options-row .option-item {
             display: table-cell;
             width: 50%;
-            padding: 3px;
-            vertical-align: top;
+            padding: 2px;
+            vertical-align: middle;
         }
 
-        .exam-end {
+        .option-img {
+            height: 35px;
+            width: auto;
+            max-width: 80px;
+            vertical-align: middle;
+        }
+
+        /* ===== نهاية الاختبار ===== */
+        .exam-footer {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px solid #000;
             font-weight: bold;
+            font-size: 11px;
         }
 
-        .answer-key {
+        /* ===== مفتاح الإجابات ===== */
+        .answer-key-section {
             page-break-before: always;
-            padding-top: 10px;
+            padding-top: 15px;
         }
 
         .answer-key-title {
-            font-weight: bold; 
-            margin-bottom: 10px; 
-            text-align: center; 
+            text-align: center;
+            font-weight: bold;
             font-size: 14px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f0f0f0;
+            border: 1px solid #000;
         }
 
-        .answer-item {
-            display: inline-block;
-            border: 1px solid #000; 
+        .answer-key-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .answer-key-row {
+            display: table-row;
+        }
+
+        .answer-key-item {
+            display: table-cell;
+            border: 1px solid #000;
             padding: 4px 8px;
-            margin: 3px;
+            text-align: center;
             font-size: 11px;
+            width: 10%;
+        }
+
+        .answer-key-item.header {
+            background: #333;
+            color: #fff;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+{% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
-    <div class="header-wrapper">
-        {% if qr_code %}
-        <div class="qr-code-container">
-            <img src="{{ qr_code }}" alt="QR">
-            <div class="model-badge">{{ model_letter }}</div>
-        </div>
-        {% endif %}
+<!-- ===== رأس الصفحة ===== -->
+<div class="header-wrapper">
+    {% if qr_code %}
+    <div class="qr-container">
+        <img src="{{ qr_code }}" alt="QR">
+        <div class="model-badge">{{ model_letter }}</div>
+    </div>
+    {% endif %}
 
-        <div class="header-content">
-            <div class="header-right">
+    <table class="header-table">
+        <tr>
+            <td class="header-right">
                 <div>{{ country|default('المملكة العربية السعودية', true) }}</div>
                 <div>{{ ministry|default('وزارة التعليم', true) }}</div>
                 <div>{{ education_department|default('', true) }}</div>
                 <div>{{ school_name|default('', true) }}</div>
-            </div>
-            <div class="header-center">
+            </td>
+            <td class="header-center">
                 {% if logo_base64 %}
                 <img src="{{ logo_base64 }}" alt="الشعار" class="logo-img">
                 {% endif %}
-            </div>
-            <div class="header-left">
+            </td>
+            <td class="header-left">
                 <div>المادة: {{ subject|default('', true) }}</div>
                 <div>الزمن: {{ time|default('', true) }}</div>
                 <div>الصف: {{ grade|default('', true) }}</div>
-                <div><strong>النموذج: {{ model_letter }}</strong></div>
-            </div>
-        </div>
-    </div>
-
-    <table class="grades-table">
-        <tr>
-            <th>الدرجة</th>
-            <th>رقماً</th>
-            <th>كتابةً</th>
-            <th>المصحح</th>
-            <th>المراجع</th>
-        </tr>
-        <tr>
-            <td>{{ total_score|default(30, true) }}</td>
-            <td></td>
-            <td></td>
-            <td>{{ checker_name|default('', true) }}</td>
-            <td>{{ reviewer_name|default('', true) }}</td>
+                <div style="margin-top:3px; font-size:12px;"><strong>النموذج: {{ model_letter }}</strong></div>
+            </td>
         </tr>
     </table>
+</div>
 
-    <div class="student-info">
-        اسم الطالب: ............................ | الشعبة: .......... | رقم الجلوس: ..........
-    </div>
+<!-- ===== جدول الدرجات ===== -->
+<table class="grades-table">
+    <tr>
+        <th>الدرجة الأساسية</th>
+        <th>درجة الطالب رقماً</th>
+        <th>الدرجة كتابةً</th>
+        <th>المصحح</th>
+        <th>المراجع</th>
+    </tr>
+    <tr>
+        <td>{{ total_score|default(30, true) }}</td>
+        <td></td>
+        <td></td>
+        <td>{{ checker_name|default('', true) }}</td>
+        <td>{{ reviewer_name|default('', true) }}</td>
+    </tr>
+</table>
 
+<!-- ===== بيانات الطالب ===== -->
+<div class="student-info">
+    اسم الطالب: ............................................ | الشعبة: ............ | رقم الجلوس: ............
+</div>
+
+<!-- ===== منطقة الأسئلة بعمودين ===== -->
+<div class="questions-area">
     {% for question in questions %}
     <div class="question-box">
         <div class="q-header">
             <span class="q-num">س{{ loop.index }}:</span>
             <span class="q-text">{{ question.question_text|default('', true) }}</span>
         </div>
-        
+
         {% if question.image_url %}
         <img src="{{ question.image_url }}" class="q-image" alt="">
         {% endif %}
-        
+
         {# التحقق من وجود صور في الخيارات #}
-        {% set has_images = namespace(value=false) %}
+        {% set has_images = [] %}
         {% for opt in question.options %}
-            {% if opt.image_url %}
-                {% set has_images.value = true %}
-            {% endif %}
+            {% if opt.image_url %}{% set _ = has_images.append(1) %}{% endif %}
         {% endfor %}
-        
-        {% if has_images.value %}
-        {# عرض شبكة 2×2 للصور #}
+
+        {% if has_images|length > 0 %}
+        {# شبكة 2×2 للخيارات الصورية #}
         <div class="options-grid">
             <div class="options-row">
                 {% for opt in question.options[:2] %}
-                <div class="q-option">
+                <div class="option-item">
                     <span class="option-char">{{ letters[loop.index0] }})</span>
-                    {% if opt.option_text and not (opt.option_text.startswith('http') if opt.option_text else false) %}
+                    {% if opt.option_text and opt.option_text|length < 50 %}
                     <span>{{ opt.option_text }}</span>
                     {% endif %}
                     {% if opt.image_url %}
@@ -297,9 +340,9 @@
             {% if question.options|length > 2 %}
             <div class="options-row">
                 {% for opt in question.options[2:4] %}
-                <div class="q-option">
+                <div class="option-item">
                     <span class="option-char">{{ letters[loop.index0 + 2] }})</span>
-                    {% if opt.option_text and not (opt.option_text.startswith('http') if opt.option_text else false) %}
+                    {% if opt.option_text and opt.option_text|length < 50 %}
                     <span>{{ opt.option_text }}</span>
                     {% endif %}
                     {% if opt.image_url %}
@@ -311,10 +354,10 @@
             {% endif %}
         </div>
         {% else %}
-        {# عرض عمود واحد للنص #}
-        <div class="options-container">
+        {# عرض عمود واحد للخيارات النصية #}
+        <div class="options-list">
             {% for opt in question.options %}
-            <div class="q-option">
+            <div class="option-item">
                 <span class="option-char">{{ letters[loop.index0] }})</span>
                 <span>{{ opt.option_text|default('', true) }}</span>
             </div>
@@ -323,26 +366,37 @@
         {% endif %}
     </div>
     {% endfor %}
+</div>
 
-    <div class="exam-end">
-        انتهت الأسئلة - مع تمنياتي لكم بالتوفيق
-    </div>
+<!-- ===== نهاية الاختبار ===== -->
+<div class="exam-footer">
+    انتهت الأسئلة - مع تمنياتي لكم بالتوفيق
+</div>
 
-    {% if show_answers %}
-    <div class="answer-key">
-        <div class="answer-key-title">مفتاح الإجابات - نموذج {{ model_letter }}</div>
-        <div>
-            {% for question in questions %}
-            <span class="answer-item">
-                س{{ loop.index }}: 
-                {% for opt in question.options %}
-                    {% if opt.is_correct %}{{ letters[loop.index0] }}{% endif %}
-                {% endfor %}
-            </span>
+{% if show_answers %}
+<!-- ===== مفتاح الإجابات ===== -->
+<div class="answer-key-section">
+    <div class="answer-key-title">مفتاح الإجابات - نموذج {{ model_letter }}</div>
+    <div class="answer-key-grid">
+        {% for row in range(0, questions|length, 10) %}
+        <div class="answer-key-row">
+            {% for i in range(row, [row + 10, questions|length]|min) %}
+            <div class="answer-key-item header">س{{ i + 1 }}</div>
             {% endfor %}
         </div>
+        <div class="answer-key-row">
+            {% for i in range(row, [row + 10, questions|length]|min) %}
+            <div class="answer-key-item">
+                {% for opt in questions[i].options %}
+                    {% if opt.is_correct %}{{ letters[loop.index0] }}{% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
 </body>
 </html>
