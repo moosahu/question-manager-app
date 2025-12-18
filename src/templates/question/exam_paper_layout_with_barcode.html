@@ -318,7 +318,9 @@
                         <div>المادة : {{ subject|default('', true) }}</div>
                         <div>الزمن : {{ time|default('', true) }}</div>
                         <div>الصف : {{ grade|default('', true) }}</div>
+                        {% if not qr_code %}
                         <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
