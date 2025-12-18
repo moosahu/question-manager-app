@@ -181,11 +181,7 @@
                 <td class="q-num">س{{ i + 1 }}</td>
                 {% for model in models %}
                 <td class="answer-cell">
-                    {# تعديل برمجي لضمان عدم حدوث خطأ KeyError في السيرفر #}
-                    {% set current_model_data = answer_keys.get(model, []) %}
-                    {% set answer_item = current_model_data[i] if current_model_data|length > i else none %}
-                    {% set answer = answer_item.answer if answer_item else '-' %}
-                    
+                    {% set answer = answer_keys[model][i].answer if answer_keys[model][i] else '-' %}
                     <span class="{% if answer == 'أ' %}answer-a{% elif answer == 'ب' %}answer-b{% elif answer == 'ج' %}answer-c{% elif answer == 'د' %}answer-d{% endif %}">
                         {{ answer }}
                     </span>

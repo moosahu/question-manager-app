@@ -2151,6 +2151,7 @@ def generate_multi_models():
         from weasyprint import HTML as WeasyHTML
         
         data = request.get_json()
+        current_app.logger.info(f"Received data for multi-models: {data}")
         
         question_ids = data.get('question_ids', [])
         models = data.get('models', ['أ'])  # النماذج المطلوبة
@@ -2162,29 +2163,35 @@ def generate_multi_models():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
+        current_app.logger.info(f"Processing {len(question_ids)} questions for models: {models}")
+        
         # جلب الأسئلة من قاعدة البيانات
         questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
         
+        current_app.logger.info(f"Found {len(questions)} questions in database")
+        
         # تحويل الأسئلة لقاموس
         questions_data = []
         for q in questions:
             q_dict = {
                 'question_id': q.question_id,
-                'question_text': q.question_text,
-                'image_url': q.image_url,
+                'question_text': q.question_text or '',
+                'image_url': getattr(q, 'image_url', None) or '',
                 'options': []
             }
             for opt in q.options:
                 q_dict['options'].append({
-                    'option_id': opt.option_id,
-                    'option_text': opt.option_text,
-                    'image_url': opt.image_url,
-                    'is_correct': opt.is_correct
+                    'option_id': getattr(opt, 'option_id', None),
+                    'option_text': getattr(opt, 'option_text', '') or '',
+                    'image_url': getattr(opt, 'image_url', None) or '',
+                    'is_correct': getattr(opt, 'is_correct', False)
                 })
             questions_data.append(q_dict)
+        
+        current_app.logger.info(f"Converted {len(questions_data)} questions to dict")
         
         # جلب إعدادات الهيدر
         settings = ExamHeaderSettings.query.first()
@@ -2262,6 +2269,7 @@ def generate_multi_models():
                 model_letter=model_letter,
                 qr_code=qr_code_data,
                 show_answers=include_answers,
+                exam_title=f"نموذج الاختبار - {model_letter}",
                 **header_settings
             )
             
@@ -2278,19 +2286,19 @@ def generate_multi_models():
             )
             all_models_html.append(answer_sheet_html)
         
-        # دمج كل النماذج في HTML واحد
-        combined_html = """
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                @page { size: A4; margin: 0; }
-                .page-break { page-break-after: always; }
-            </style>
-        </head>
-        <body>
-        """
+        # دمج كل النماذج في HTML واحد - مبسط للأداء
+        combined_html = """<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 15mm; }
+.page-break { page-break-after: always; }
+body { font-family: Arial, Tahoma, sans-serif; font-size: 12px; }
+</style>
+</head>
+<body>
+"""
         
         for i, model_html in enumerate(all_models_html):
             combined_html += model_html
@@ -2299,9 +2307,18 @@ def generate_multi_models():
         
         combined_html += "</body></html>"
         
-        # تحويل لـ PDF
+        current_app.logger.info(f"Combined HTML length: {len(combined_html)} chars")
+        
+        # تحويل لـ PDF مع timeout handling
         pdf_buffer = io.BytesIO()
-        WeasyHTML(string=combined_html, base_url=request.host_url).write_pdf(pdf_buffer)
+        try:
+            # استخدام base_url محلي لتجنب HTTP requests
+            WeasyHTML(string=combined_html, base_url='/').write_pdf(pdf_buffer)
+        except Exception as pdf_err:
+            current_app.logger.error(f"WeasyPrint PDF generation failed: {pdf_err}")
+            # Fallback: إرجاع HTML بدلاً من PDF
+            return combined_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        
         pdf_buffer.seek(0)
         
         return send_file(
