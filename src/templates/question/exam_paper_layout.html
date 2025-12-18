@@ -54,7 +54,7 @@
         .question-box { display: block; width: 100%; margin-bottom: 15px; break-inside: avoid; }
         .q-header { margin-bottom: 5px; font-weight: bold; }
 
-        /* المربع المتقطع للصور (طلبك الأساسي) */
+        /* المربع المتقطع للصور */
         .dashed-img-container {
             border: 1px dashed #999; padding: 5px; margin: 8px auto; 
             width: fit-content; max-width: 95%; text-align: center;
@@ -84,7 +84,7 @@
         {% if qr_code %}
         <div class="qr-code-container">
             <img src="{{ qr_code }}" alt="QR">
-            {# يظهر رمز النموذج فقط إذا لم يكن فارغاً #}
+            {# يظهر رمز النموذج في مربع أسود بجانب الباركود #}
             {% if model_letter and model_letter != '' %}
                 <div class="model-badge">{{ model_letter }}</div>
             {% endif %}
@@ -109,8 +109,9 @@
                         <div>المادة : {{ subject }}</div>
                         <div>الزمن : {{ time }}</div>
                         <div>الصف : {{ grade }}</div>
-                        {# يختفي السطر بالكامل إذا لم يتم اختيار نموذج #}
-                        {% if model_letter and model_letter != '' %}
+                        
+                        {# المنطق المطور: يختفي النص إذا كان النموذج فارغاً أو إذا كان الباركود موجوداً (لمنع التكرار) #}
+                        {% if model_letter and model_letter != '' and not qr_code %}
                             <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
                         {% endif %}
                     </div>
