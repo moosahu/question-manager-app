@@ -1261,44 +1261,57 @@ async function exportExam(includeAnswers) {
 }
 
 
+// الدالة المعدلة لضمان ظهور الصور والمربع المتقطع في النماذج العادية
 function generatePrintableDocument(questions, includeAnswers) {
-    const questionIds = Array.from(selectedQuestionIds).join(',');
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/questions/preview-exam-paper';
-    form.target = '_blank';
+    showLoading(true);
 
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    
-    const inputCsrf = document.createElement('input');
-    inputCsrf.type = 'hidden';
-    inputCsrf.name = 'csrf_token';
-    inputCsrf.value = csrfToken;
-    form.appendChild(inputCsrf);
-
-    const inputIds = document.createElement('input');
-    inputIds.type = 'hidden';
-    inputIds.name = 'question_ids';
-    inputIds.value = questionIds;
-    form.appendChild(inputIds);
-
-    const inputAnswers = document.createElement('input');
-    inputAnswers.type = 'hidden';
-    inputAnswers.name = 'include_answers';
-    inputAnswers.value = includeAnswers;
-    form.appendChild(inputAnswers);
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    // توجيه الطلب إلى محرك "المعاينة المتعددة" لأنه هو الذي يحتوي على تنسيق الصور الصحيح
+    fetch('/questions/preview-multi-models', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            question_ids: Array.from(selectedQuestionIds),
+            models: ['أ'], // نرسل نموذج واحد فقط ليظهر كاختبار عادي
+            include_answers: includeAnswers,
+            include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
+            include_barcode: document.getElementById('includeBarcode').checked,
+            shuffle_options: document.getElementById('shuffleOptions').checked
+        })
+    })
+    .then(response => {
+        if (response.ok) return response.text();
+        throw new Error('فشل في توليد المعاينة');
+    })
+    .then(html => {
+        // فتح المعاينة في نافذة جديدة (نفس طريقة المتعدد)
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(html);
+        printWindow.document.close();
+        showSuccess('تم توليد النموذج بنجاح - الصور ستظهر الآن');
+    })
+    .catch(error => {
+        showError('خطأ في الاستخراج: ' + error.message);
+    })
+    .finally(() => {
+        showLoading(false);
+    });
 }
 
+// دالة تحديث الإحصائيات (بقيت كما هي دون نقص)
 function updateStats() {
     document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
     document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
 }
 
+// دالة عرض المعاينة للنموذج العادي (بقيت كما هي)
 function showPreview(exam) {
     const previewSection = document.getElementById('previewSection');
     document.getElementById('previewQuestionsCount').textContent = exam.count;
@@ -1308,6 +1321,7 @@ function showPreview(exam) {
     previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
+// دالة عرض المعاينة للنماذج المتعددة (بقيت كما هي)
 function showPreviewMulti(questionsCount, modelsCount) {
     const previewSection = document.getElementById('previewSection');
     document.getElementById('previewQuestionsCount').textContent = questionsCount;
@@ -1318,10 +1332,12 @@ function showPreviewMulti(questionsCount, modelsCount) {
     previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
+// دالة إظهار مؤشر التحميل (بقيت كما هي)
 function showLoading(show) {
     document.getElementById('loadingIndicator').classList.toggle('active', show);
 }
 
+// دالة إظهار رسالة النجاح (بقيت كما هي)
 function showSuccess(message) {
     const alert = document.getElementById('successAlert');
     alert.textContent = message;
@@ -1329,6 +1345,7 @@ function showSuccess(message) {
     setTimeout(() => alert.classList.remove('active'), 5000);
 }
 
+// دالة إظهار رسالة الخطأ (بقيت كما هي)
 function showError(message) {
     const alert = document.getElementById('errorAlert');
     alert.textContent = message;
