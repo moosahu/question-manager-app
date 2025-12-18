@@ -2546,7 +2546,7 @@ def preview_students():
     except Exception as e:
         return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
 
-# 2. دالة الطباعة: ترسل HTML فقط لتجنب الانهيار (SIGKILL)
+# 2. دالة الطباعة: توليد أوراق Remark من ملف remark_answer_sheet.html
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2555,13 +2555,15 @@ def print_remark_sheets():
         students = data.get('students', [])
         q_count = int(data.get('question_count', 20))
         
+        # جلب إعدادات الكليشة من قاعدة البيانات
         settings = ExamHeaderSettings.query.first()
         settings_dict = settings.__dict__.copy() if settings else {}
-        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
+        if '_sa_instance_state' in settings_dict:
+            del settings_dict['_sa_instance_state']
 
         all_html = ""
         for student in students:
-            # بناء أوراق الطلاب في صفحة HTML واحدة
+            # ملء الشيت الجاهز بيانات كل طالب
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      question_count=q_count,
