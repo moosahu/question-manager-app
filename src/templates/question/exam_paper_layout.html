@@ -26,7 +26,7 @@
         .header-wrapper { position: relative; margin-bottom: 12px; }
 
         .qr-code-container {
-            display: inline-block; vertical-align: top; margin-left: 10px;
+            display: inline-block; vertical-align: top; text-align: center;
         }
         .qr-code-container img { width: 55px; height: 55px; display: block; margin: 0 auto; }
 
@@ -40,7 +40,8 @@
         .header-center { text-align: center; width: 30%; vertical-align: top; }
         .header-left { text-align: left; width: 35%; font-weight: bold; font-size: 13px; vertical-align: top; }
         
-        .header-left-content { display: inline-block; vertical-align: top; direction: rtl; text-align: left; }
+        .left-content-wrapper { display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 10px; }
+        .header-left-text { direction: rtl; text-align: left; line-height: 1.7; }
 
         .logo-img { height: 110px; width: auto; margin: 0 auto; display: block; }
 
@@ -97,20 +98,22 @@
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    {% if qr_code %}
-                    <div class="qr-code-container">
-                        <img src="{{ qr_code }}" alt="QR">
-                        {% if model_letter and model_letter != '' %}
-                            <div class="model-badge">{{ model_letter }}</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="header-left-content">
-                        <div>المادة : {{ subject }}</div>
-                        <div>الزمن : {{ time }}</div>
-                        <div>الصف : {{ grade }}</div>
-                        {% if model_letter and model_letter != '' %}
-                            <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
+                    <div class="left-content-wrapper">
+                        <div class="header-left-text">
+                            <div>المادة : {{ subject }}</div>
+                            <div>الزمن : {{ time }}</div>
+                            <div>الصف : {{ grade }}</div>
+                            {% if model_letter and model_letter != '' %}
+                                <div><strong>النموذج : {{ model_letter }}</strong></div>
+                            {% endif %}
+                        </div>
+                        {% if qr_code %}
+                        <div class="qr-code-container">
+                            <img src="{{ qr_code }}" alt="QR">
+                            {% if model_letter and model_letter != '' %}
+                                <div class="model-badge">{{ model_letter }}</div>
+                            {% endif %}
+                        </div>
                         {% endif %}
                     </div>
                 </td>
