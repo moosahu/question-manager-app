@@ -2515,7 +2515,7 @@ def preview_multi_models():
         return jsonify({'error': str(e)}), 500
 
 
-# 1. دالة المعاينة: لقراءة ملف الإكسل ومعالجة مشكلة الهمزة
+# 1. تعديل دالة المعاينة لتوحيد أسماء الحقول (للتوافق مع القالب)
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
@@ -2525,28 +2525,26 @@ def preview_students():
             return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
         
         df = pd.read_excel(file)
-        
-        # تنظيف أسماء الأعمدة من المسافات
         df.columns = [str(c).strip() for c in df.columns]
         
         students = []
         for _, row in df.iterrows():
-            # معالجة مرنة للهمزة (الأكاديمي / الاكاديمي) لضمان القراءة
+            # استخدام مفاتيح باللغة الإنجليزية لتطابق المتغيرات في قالب HTML
             academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'
             name = row.get('الاسم') or row.get('اسم الطالب') or '....................'
             section = row.get('الشعبة') or row.get('الشعبه') or '....'
             
             students.append({
-                'الاسم': str(name),
-                'الرقم الأكاديمي': str(academic_id),
-                'الشعبة': str(section)
+                'name': str(name),
+                'academic_id': str(academic_id),
+                'section': str(section)
             })
         
         return jsonify({'success': True, 'students': students})
     except Exception as e:
         return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
 
-# 2. دالة الطباعة: توليد أوراق Remark من ملف remark_answer_sheet.html
+# 2. تعديل دالة الطباعة لتعتمد كلياً على البيانات المخزنة والكليشة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2556,20 +2554,38 @@ def print_remark_sheets():
         q_count = int(data.get('question_count', 20))
         
         # جلب إعدادات الكليشة من قاعدة البيانات
+        from src.models.question import ExamHeaderSettings # تأكد من المسار الصحيح
         settings = ExamHeaderSettings.query.first()
-        settings_dict = settings.__dict__.copy() if settings else {}
-        if '_sa_instance_state' in settings_dict:
-            del settings_dict['_sa_instance_state']
+        
+        # تجهيز سياق البيانات (Context) من قاعدة البيانات
+        header_context = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else 'كيمياء',
+            'logo_base64': ''
+        }
+
+        # معالجة الشعار: تحويله لـ Base64 لضمان ظهوره عند الطباعة بدون مشاكل مسارات
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"تعذر تحميل الشعار لورقة ريمارك: {e}")
 
         all_html = ""
+        # توليد الأوراق لكل الطلاب مع دمج الكليشة
         for student in students:
-            # ملء الشيت الجاهز بيانات كل طالب
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      question_count=q_count,
-                                     **settings_dict)
+                                     **header_context) # تمرير الكليشة مباشرة
             all_html += '<div style="page-break-after: always;"></div>'
 
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
+        current_app.logger.exception("خطأ أثناء تجهيز أوراق ريمارك")
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500

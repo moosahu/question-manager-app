@@ -954,30 +954,25 @@ async function previewStudentList() {
             method: 'POST',
             body: formData,
             headers: {
+                // CSRF Token مطلوب لضمان الأمان في Flask
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
             }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'خطأ غير معروف من الخادم' }));
-            throw new Error(errorData.error || `خطأ في الخادم: ${response.statusText}`);
-        }
-
         const data = await response.json();
         if (data.success && data.students) {
-            currentStudents = data.students; // تخزين قائمة الطلاب
-            renderStudentPreviewTable(data.students); // عرض جدول المعاينة
-            showSuccess(`تمت قراءة ${data.students.length} اسم بنجاح.`);
+            currentStudents = data.students; // تخزين القائمة محلياً للطباعة لاحقاً
+            renderStudentPreviewTable(data.students); // تحديث الجدول في الصفحة
+            showSuccess(`تمت قراءة ${data.students.length} طالب بنجاح.`);
             
-            // إظهار زر الطباعة النهائي وإخفاء زر المعاينة
+            // إظهار زر الطباعة النهائي
             document.getElementById('finalPrintBtnContainer').style.display = 'block';
             document.getElementById('previewStudentsBtn').style.display = 'none';
         } else {
             showError(data.error || 'فشل في قراءة ملف الطلاب.');
         }
     } catch (e) {
-        showError('خطأ في الاتصال بالخادم لمعاينة الطلاب: ' + e.message);
-        currentStudents = [];
+        showError('خطأ في الاتصال بالسيرفر: ' + e.message);
     } finally {
         showLoading(false);
     }
@@ -991,26 +986,22 @@ function renderStudentPreviewTable(students) {
     let tableRows = students.map((student, index) => `
         <tr>
             <td>${index + 1}</td>
-            <td>${student.name || 'اسم غير متوفر'}</td>
-            <td>${student.id || 'رقم جلوس غير متوفر'}</td>
+            <td>${student.name}</td>
+            <td>${student.academic_id}</td>
+            <td>${student.section}</td>
         </tr>
     `).join('');
 
     container.innerHTML = `
-        <h3 style="text-align:center; margin-bottom: 15px;">معاينة قائمة الطلاب</h3>
-        <table class="table table-bordered" style="text-align: right; width: 100%; border-collapse: collapse;">
+        <h3 style="text-align:center;">معاينة قائمة الطلاب (سيتم طباعة ورقة لكل اسم)</h3>
+        <table class="table" style="width: 100%; border-collapse: collapse; text-align: right;">
             <thead>
-                <tr style="background: #667eea; color: white;">
-                    <th scope="col" style="border: 1px solid #ddd; padding: 10px;">#</th>
-                    <th scope="col" style="border: 1px solid #ddd; padding: 10px;">اسم الطالب</th>
-                    <th scope="col" style="border: 1px solid #ddd; padding: 10px;">رقم الجلوس</th>
+                <tr style="background: #f8f9fa;">
+                    <th>#</th><th>الاسم</th><th>الرقم الأكاديمي</th><th>الشعبة</th>
                 </tr>
             </thead>
-            <tbody>
-                ${tableRows}
-            </tbody>
+            <tbody>${tableRows}</tbody>
         </table>
-        <p style="text-align:center; color: #666; margin-top: 20px;">تأكد من صحة الأسماء وأرقام الجلوس قبل المتابعة.</p>
     `;
 }
 
@@ -1018,12 +1009,11 @@ function renderStudentPreviewTable(students) {
  * الخطوة 2: الدالة النهائية التي ترسل الطلب لإنشاء أوراق الإجابة للطباعة
  */
 async function confirmAndPrint() {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل لتوليد نماذج الإجابة.');
-        return;
-    }
+    // التأكد من اختيار أسئلة لتحديد عدد الدوائر في ورقة الإجابة
+    const qCount = selectedQuestionIds.size > 0 ? selectedQuestionIds.size : 20;
+
     if (currentStudents.length === 0) {
-        showError('لم يتم العثور على قائمة الطلاب. الرجاء معاينة ملف Excel أولاً.');
+        showError('قائمة الطلاب فارغة، يرجى إعادة رفع الملف.');
         return;
     }
 
@@ -1037,26 +1027,30 @@ async function confirmAndPrint() {
             },
             body: JSON.stringify({
                 students: currentStudents,
-                question_count: selectedQuestionIds.size
+                question_count: qCount
             })
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.html_content) {
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(data.html_content);
-                printWindow.document.close();
-                showSuccess('تم توليد أوراق الإجابة بنجاح وجاهزة للطباعة.');
-            } else {
-                showError(data.error || 'فشل توليد أوراق الإجابة.');
-            }
+        const data = await response.json();
+        if (data.success && data.html_content) {
+            // فتح نافذة منبثقة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
+            
+            // انتظر قليلاً لتحميل الصور (الشعار) ثم افتح أمر الطباعة
+            printWindow.onload = function() {
+                printWindow.focus();
+                printWindow.print();
+                // اختياري: إغلاق النافذة بعد الطباعة
+                // printWindow.close();
+            };
+            showSuccess('تم تجهيز أوراق الإجابة للطباعة.');
         } else {
-            const errorData = await response.json().catch(() => ({ error: 'فشل توليد أوراق الإجابة' }));
-            showError(errorData.error || 'فشل توليد أوراق الإجابة.');
+            showError(data.error || 'فشل توليد أوراق الطباعة.');
         }
     } catch (error) {
-        showError('خطأ في الاتصال بالسيرفر عند توليد نماذج Remark: ' + error.message);
+        showError('خطأ تقني: ' + error.message);
     } finally {
         showLoading(false);
     }
