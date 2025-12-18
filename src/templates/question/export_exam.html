@@ -914,39 +914,51 @@ function setupEventListeners() {
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
-async function previewStudentList() {
-    const fileInput = document.getElementById('studentListFile');
-    if (!fileInput.files.length) {
-        showError('الرجاء اختيار ملف Excel أولاً');
-        return;
+async function confirmAndGenerate() {
+    // التأكد من اختيار الأسئلة لتحديد عدد الفقرات
+    if (selectedQuestionIds.size === 0) { 
+        showError('يرجى اختيار الأسئلة من القائمة أولاً لتحديد عدد فقرات ورقة الإجابة'); 
+        return; 
     }
-
-    const formData = new FormData();
-    formData.append('student_file', fileInput.files[0]);
-    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
-
+    
     showLoading(true);
-
     try {
-        const response = await fetch('/questions/preview-students', {
+        const response = await fetch('/questions/generate-remark-sheets', {
             method: 'POST',
-            body: formData
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
+            },
+            body: JSON.stringify({ 
+                students: currentStudents, 
+                question_count: selectedQuestionIds.size 
+            })
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            // عرض جدول الأسماء في منطقة المعاينة (وسط الصفحة)
-            renderStudentPreviewTable(data.students);
-            showSuccess(`تمت قراءة ${data.students.length} طالب بنجاح. يمكنك الآن مراجعتهم.`);
+        const data = await response.json();
+        if (data.success && data.pdf) {
+            // تحويل Base64 إلى Blob لضمان تحميل الملف كاملاً دون نقص
+            const byteCharacters = atob(data.pdf);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], {type: 'application/pdf'});
             
-            // إضافة زر التوليد الفعلي بعد نجاح المعاينة لضمان عدم استهلاك الذاكرة عشوائياً
-            addFinalGenerateButton(); 
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Remark_Answer_Sheets_${new Date().getTime()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            window.URL.revokeObjectURL(url);
+            showSuccess('تم توليد وتحميل الملف بنجاح');
         } else {
-            const error = await response.json();
-            showError(error.error || 'فشل في قراءة ملف الطلاب');
+            showError(data.error || 'السيرفر لم يقم بإرسال الملف');
         }
-    } catch (error) {
-        showError('خطأ في الاتصال بالسيرفر');
+    } catch (e) {
+        showError('حدث خطأ أثناء محاولة التوليد، قد يكون عدد الطلاب كبيراً جداً');
     } finally {
         showLoading(false);
     }

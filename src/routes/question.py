@@ -2518,49 +2518,47 @@ def preview_multi_models():
 @question_bp.route('/generate-remark-sheets', methods=['POST'])
 @login_required
 def generate_remark_sheets():
+    from flask import db # تأكد من استيراد قاعدة البيانات لإغلاقها مؤقتاً
     try:
-        file = request.files.get('student_file')
-        if not file: return jsonify({'error': 'ملف الطلاب مطلوب'}), 400
+        data = request.get_json()
+        students = data.get('students', [])
+        q_count = int(data.get('question_count', 20))
         
-        # قراءة البيانات ودعم الأعمدة بالعربي
-        df = pd.read_excel(file)
-        students = df.to_dict(orient='records')
-        
+        # جلب الإعدادات قبل البدء
         settings = ExamHeaderSettings.query.first()
-        logo_base64 = ""
-        try:
-            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
-            if os.path.exists(logo_path):
-                with open(logo_path, 'rb') as f:
-                    logo_base64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        except: pass
+        settings_dict = settings.__dict__.copy() if settings else {}
+        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
 
         from weasyprint import HTML as WeasyHTML
+        import base64
+        import io
+
         all_html = ""
         for student in students:
-            # تخصيص البيانات لكل طالب مع دعم مرن لمسميات الأعمدة
+            # التأكد من مطابقة الأسماء للمتغيرات في القالب
             s_data = {
-                # يبحث عن الاسم أو اسم الطالب
-                'name': student.get('الاسم') or student.get('اسم الطالب') or '....................',
-                
-                # يبحث عن الرقم الأكاديمي بالهمزة أو بدونها ليتوافق مع ملفك
-                'academic_id': student.get('الرقم الأكاديمي') or student.get('الرقم الاكاديمي') or '..........',
-                
-                # يبحث عن الشعبة بالتاء المربوطة أو الهاء
-                'section': student.get('الشعبة') or student.get('الشعبه') or '....'
+                'name': student.get('الاسم') or '....................',
+                'academic_id': student.get('الرقم الأكاديمي') or '..........',
+                'section': student.get('الشعبة') or '....'
             }
+            
+            # بناء صفحة كل طالب
             all_html += render_template('question/remark_answer_sheet.html', 
-                                     student=s_data, logo_base64=logo_base64,
-                                     **(settings.__dict__ if settings else {}))
+                                     student=s_data, 
+                                     question_count=q_count,
+                                     **settings_dict)
             all_html += '<div style="page-break-after: always;"></div>'
 
+        # توليد PDF
         pdf_buf = io.BytesIO()
-        WeasyHTML(string=all_html, base_url='/').write_pdf(pdf_buf)
+        WeasyHTML(string=all_html).write_pdf(pdf_buf)
         pdf_buf.seek(0)
-        return send_file(pdf_buf, mimetype='application/pdf', as_attachment=True, 
-                        download_name=f'Remark_OMR_{datetime.now().strftime("%Y%m%d")}.pdf')
+        
+        pdf_base64 = base64.b64encode(pdf_buf.read()).decode('utf-8')
+        return jsonify({'success': True, 'pdf': pdf_base64})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # إرجاع رسالة خطأ واضحة في حال الانهيار
+        return jsonify({'error': f'فشل التوليد: {str(e)}'}), 500
 
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
