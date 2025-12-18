@@ -99,26 +99,24 @@
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    <table style="width: 100%; border: none; direction: ltr;">
-                        <tr>
-                            <td style="vertical-align: top; direction: rtl; text-align: left; border: none; padding: 0 5px; line-height: 1.7;">
-                                <div>المادة : {{ subject }}</div>
-                                <div>الزمن : {{ time }}</div>
-                                <div>الصف : {{ grade }}</div>
-                                {% if model_letter and model_letter != '' %}
-                                    <div><strong>النموذج : {{ model_letter }}</strong></div>
-                                {% endif %}
-                            </td>
-                            {% if qr_code %}
-                            <td style="width: 70px; vertical-align: top; text-align: center; border: none; padding: 0;">
-                                <img src="{{ qr_code }}" alt="QR" style="width: 55px; height: 55px;">
-                                {% if model_letter and model_letter != '' %}
-                                    <div class="model-badge">{{ model_letter }}</div>
-                                {% endif %}
-                            </td>
+                    <div style="overflow: hidden;">
+                        {% if qr_code %}
+                        <div style="float: left; width: 70px; text-align: center; margin-left: 10px;">
+                            <img src="{{ qr_code }}" alt="QR" style="width: 55px; height: 55px;">
+                            {% if model_letter and model_letter != '' %}
+                                <div class="model-badge">{{ model_letter }}</div>
                             {% endif %}
-                        </tr>
-                    </table>
+                        </div>
+                        {% endif %}
+                        <div style="direction: rtl; text-align: left; line-height: 1.7;">
+                            <div>المادة : {{ subject }}</div>
+                            <div>الزمن : {{ time }}</div>
+                            <div>الصف : {{ grade }}</div>
+                            {% if model_letter and model_letter != '' %}
+                                <div><strong>النموذج : {{ model_letter }}</strong></div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
             </tr>
         </table>
