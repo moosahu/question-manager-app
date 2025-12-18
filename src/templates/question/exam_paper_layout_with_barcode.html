@@ -29,37 +29,12 @@
             direction: rtl;
         }
 
-        /* ===== الرأس مع الباركود ===== */
+        /* ===== الرأس ===== */
         .header-wrapper {
             position: relative;
             margin-bottom: 12px;
         }
 
-        /* الباركود في الزاوية - تم تعديله ليكون متناسقاً مع الجدول */
-        .qr-code-container {
-            text-align: center;
-            width: 70px;
-        }
-
-        .qr-code-container img {
-            width: 55px;
-            height: 55px;
-            display: block;
-            margin: 0 auto;
-        }
-
-        .model-badge {
-            background: #000;
-            color: #fff;
-            font-weight: bold;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 3px;
-            margin-top: 2px;
-            display: inline-block;
-        }
-
-        /* ===== الرأس ===== */
         .header-table { 
             width: 100%; 
             border-collapse: collapse;
@@ -92,21 +67,45 @@
             width: 35%; 
         }
 
-        /* تنسيق توزيع الباركود والمعلومات في الجهة اليسرى */
-        .left-content-flex {
+        /* تنسيق لجعل الباركود ملتصق بالمعلومات */
+        .barcode-info-group {
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
-            gap: 15px;
-            direction: ltr; /* لجعل الباركود في أقصى اليسار */
+            gap: 5px; /* مسافة صغيرة جداً ليكون "جنبه" تماماً */
+            direction: ltr; /* لجعل الباركود في أقصى اليسار والمعلومات تتبعه */
         }
 
-        .info-details {
-            direction: rtl; /* العودة للعربية داخل النصوص */
+        .qr-side {
+            text-align: center;
+            width: 65px;
+        }
+
+        .qr-side img {
+            width: 55px;
+            height: 55px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .details-side {
+            direction: rtl; /* العودة للعربية للنصوص */
             text-align: right;
             line-height: 1.7;
             font-weight: bold;
-            flex: 1;
+            font-size: 13px;
+            white-space: nowrap; /* لمنع تشتت الأسطر */
+        }
+
+        .model-badge {
+            background: #000;
+            color: #fff;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-top: 2px;
+            display: inline-block;
         }
 
         /* ===== الشعار ===== */
@@ -208,7 +207,7 @@
             display: block;
         }
 
-        /* ===== الخيارات النصية (عمود واحد) ===== */
+        /* ===== الخيارات النصية ===== */
         .options-container {
             margin-right: 8px;
             margin-top: 5px;
@@ -245,12 +244,6 @@
             display: flex;
             align-items: center;
             margin-bottom: 0;
-        }
-
-        .options-grid .option-img {
-            height: 50px;
-            width: auto;
-            max-width: 85%;
         }
 
         /* عبارة انتهت الأسئلة */
@@ -315,9 +308,9 @@
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    <div class="left-content-flex">
+                    <div class="barcode-info-group">
                         {% if qr_code %}
-                        <div class="qr-code-container">
+                        <div class="qr-side">
                             <img src="{{ qr_code }}" alt="QR">
                             {% if model_letter and model_letter != '' %}
                                 <div class="model-badge">{{ model_letter }}</div>
@@ -325,7 +318,7 @@
                         </div>
                         {% endif %}
 
-                        <div class="info-details">
+                        <div class="details-side">
                             <div>المادة : {{ subject }}</div>
                             <div>الزمن : {{ time }}</div>
                             <div>الصف : {{ grade }}</div>
@@ -379,7 +372,6 @@
             <img src="{{ question.image_url }}" class="q-image" alt="">
             {% endif %}
             
-            {# التحقق إذا كانت الخيارات صور #}
             {% set has_image_options = [] %}
             {% for option in question.options %}
                 {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
@@ -387,7 +379,6 @@
                 {% endif %}
             {% endfor %}
             
-            {# إذا كانت الخيارات صور - عرض شبكة 2×2 #}
             {% if has_image_options|length > 0 %}
             <div class="options-grid">
                 {% for option in question.options %}
@@ -397,7 +388,6 @@
                         {% if option.option_text and not option.option_text.startswith('http') %}
                             <span>{{ option.option_text }}</span>
                         {% endif %}
-                        
                         {% if option.image_url %}
                             <img src="{{ option.image_url }}" class="option-img" alt="">
                         {% elif option.option_text and option.option_text.startswith('http') %}
@@ -407,29 +397,18 @@
                 </div>
                 {% endfor %}
             </div>
-            
-            {# إذا كانت الخيارات نصية - عرض عمود واحد #}
             {% else %}
             <div class="options-container">
                 {% for option in question.options %}
                 <div class="q-option">
                     <span class="option-char">{{ letters[loop.index0] }})</span>
                     <div class="option-content">
-                        {% if option.option_text and not option.option_text.startswith('http') %}
-                            <span>{{ option.option_text }}</span>
-                        {% endif %}
-                        
-                        {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="">
-                        {% elif option.option_text and option.option_text.startswith('http') %}
-                            <img src="{{ option.option_text }}" class="option-img" alt="">
-                        {% endif %}
+                        {% if option.option_text %}{{ option.option_text }}{% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
-
         </div>
         {% endfor %}
     </div>
@@ -437,8 +416,7 @@
     <div class="exam-end">
         <div class="end-text">
             انتهت الأسئلة<br>
-            مع تمنياتي لكم بالتوفيق والنجاح
-             معلم المادة : أ. حسين الموسى
+            مع تمنياتي لكم بالتوفيق والنجاح - معلم المادة : أ. حسين الموسى
         </div>
     </div>
 
@@ -451,9 +429,7 @@
                 س{{ loop.index }}: 
                 <strong>
                     {% for option in question.options %}
-                        {% if option.is_correct %}
-                            {{ letters[loop.index0] }}
-                        {% endif %}
+                        {% if option.is_correct %}{{ letters[loop.index0] }}{% endif %}
                     {% endfor %}
                 </strong>
             </div>
