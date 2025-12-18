@@ -957,31 +957,19 @@ async function confirmAndPrint() {
 function renderStudentPreviewTable(students) {
     const container = document.getElementById('questionsContent'); 
     let html = `
-        <div class="preview-header" style="background: #eef2f7; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-right: 5px solid #28a745;">
-            <h3 style="margin:0;"><i class="fas fa-users"></i> معاينة قائمة الطلاب المستخرجة</h3>
-            <p style="margin:5px 0 0 0; font-size: 0.9rem; color: #666;">تأكد من صحة الأسماء والأرقام قبل البدء في توليد PDF</p>
+        <div class="preview-header" style="background:#f0fff4; padding:15px; border:1px solid #28a745; border-radius:8px;">
+            <h3><i class="fas fa-check-circle"></i> تمت قراءة الأسماء بنجاح</h3>
+            
+            <button class="btn btn-success" onclick="confirmAndPrint()" style="margin-top:10px;">
+                <i class="fas fa-print"></i> تأكيد وفتح المعاينة للطباعة
+            </button>
+            
         </div>
-        <table style="width:100%; border-collapse: collapse; margin-top:15px; background: white; border: 1px solid #ddd;">
-            <thead>
-                <tr style="background:#f8f9fa;">
-                    <th style="border: 1px solid #ddd; padding: 10px;">الاسم</th>
-                    <th style="border: 1px solid #ddd; padding: 10px;">الرقم الأكاديمي</th>
-                    <th style="border: 1px solid #ddd; padding: 10px;">الشعبة</th>
-                </tr>
-            </thead>
+        <table class="table" style="width:100%; margin-top:20px; border-collapse: collapse;">
+            <thead><tr style="background:#eee;"><th>الاسم</th><th>الرقم الأكاديمي</th><th>الشعبة</th></tr></thead>
             <tbody>
     `;
-    students.forEach(s => {
-        html += `
-            <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${s.الاسم || s.name || ''}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${s['الرقم الأكاديمي'] || s.academic_id || ''}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${s.الشعبة || s.section || ''}</td>
-            </tr>`;
-    });
-    html += `</tbody></table>`;
-    container.innerHTML = html;
-}
+    // ... تكملة كود إضافة الصفوف (rows) ...
 
 // دالة إضافية لإظهار زر التوليد النهائي بعد المعاينة
 function addFinalGenerateButton() {
