@@ -1261,16 +1261,24 @@ async function exportExam(includeAnswers) {
 }
 
 
-// الدالة المعدلة لضمان ظهور الصور والمربع المتقطع في النماذج العادية
+// --- دالة استخراج وتوليد النموذج (المطورة) ---
 function generatePrintableDocument(questions, includeAnswers) {
     if (selectedQuestionIds.size === 0) {
         showError('يجب اختيار أسئلة على الأقل');
         return;
     }
 
+    // الحصول على النماذج المختارة (أ، ب، ج، د)
+    const selectedModels = getSelectedModels();
+    
+    /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
+       لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
+    */
+    const modelsToSend = selectedModels.length > 0 ? selectedModels : [''];
+
     showLoading(true);
 
-    // توجيه الطلب إلى محرك "المعاينة المتعددة" لأنه هو الذي يحتوي على تنسيق الصور الصحيح
+    // استخدام مسار "preview-multi-models" لأنه يدعم تنسيقات الصور المتطورة والباركود
     fetch('/questions/preview-multi-models', {
         method: 'POST',
         headers: {
@@ -1279,7 +1287,7 @@ function generatePrintableDocument(questions, includeAnswers) {
         },
         body: JSON.stringify({
             question_ids: Array.from(selectedQuestionIds),
-            models: ['أ'], // نرسل نموذج واحد فقط ليظهر كاختبار عادي
+            models: modelsToSend, 
             include_answers: includeAnswers,
             include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
             include_barcode: document.getElementById('includeBarcode').checked,
@@ -1291,27 +1299,26 @@ function generatePrintableDocument(questions, includeAnswers) {
         throw new Error('فشل في توليد المعاينة');
     })
     .then(html => {
-        // فتح المعاينة في نافذة جديدة (نفس طريقة المتعدد)
+        // فتح المعاينة في نافذة جديدة
         const printWindow = window.open('', '_blank');
         printWindow.document.write(html);
         printWindow.document.close();
-        showSuccess('تم توليد النموذج بنجاح - الصور ستظهر الآن');
+        showSuccess('تم توليد النموذج بنجاح');
     })
     .catch(error => {
-        showError('خطأ في الاستخراج: ' + error.message);
+        showError('خطأ: ' + error.message);
     })
     .finally(() => {
         showLoading(false);
     });
 }
 
-// دالة تحديث الإحصائيات (بقيت كما هي دون نقص)
+// --- الدوال المساعدة (لضمان عمل الواجهة بالكامل) ---
 function updateStats() {
     document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
     document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
 }
 
-// دالة عرض المعاينة للنموذج العادي (بقيت كما هي)
 function showPreview(exam) {
     const previewSection = document.getElementById('previewSection');
     document.getElementById('previewQuestionsCount').textContent = exam.count;
@@ -1321,7 +1328,6 @@ function showPreview(exam) {
     previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// دالة عرض المعاينة للنماذج المتعددة (بقيت كما هي)
 function showPreviewMulti(questionsCount, modelsCount) {
     const previewSection = document.getElementById('previewSection');
     document.getElementById('previewQuestionsCount').textContent = questionsCount;
@@ -1332,12 +1338,10 @@ function showPreviewMulti(questionsCount, modelsCount) {
     previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// دالة إظهار مؤشر التحميل (بقيت كما هي)
 function showLoading(show) {
     document.getElementById('loadingIndicator').classList.toggle('active', show);
 }
 
-// دالة إظهار رسالة النجاح (بقيت كما هي)
 function showSuccess(message) {
     const alert = document.getElementById('successAlert');
     alert.textContent = message;
@@ -1345,7 +1349,6 @@ function showSuccess(message) {
     setTimeout(() => alert.classList.remove('active'), 5000);
 }
 
-// دالة إظهار رسالة الخطأ (بقيت كما هي)
 function showError(message) {
     const alert = document.getElementById('errorAlert');
     alert.textContent = message;
