@@ -3911,13 +3911,51 @@ def generate_remark_omr():
                 'error': 'بيانات ناقصة'
             }), 400
         
-        # قالب HTML محسّن للطباعة
+        # قالب HTML مطابق لـ remark_answer_sheet.html
         html_template = '''<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أوراق الإجابة</title>
+    <style>
+        @page { size: A4; margin: 10mm; border: 2px solid #000; }
+        body { font-family: 'Arial', sans-serif; font-size: 12px; color: #000; margin: 0; padding: 10px; }
+        
+        /* الكليشة العلوية */
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .header-table td { vertical-align: top; padding: 2px; font-weight: bold; }
+        .school-info { width: 40%; text-align: right; }
+        .exam-info { width: 20%; text-align: center; }
+        .ministry-logo { width: 40%; text-align: left; }
+
+        /* منطقة بيانات الطالب الرئيسية */
+        .student-data-area { border: 2px solid #000; margin-bottom: 10px; padding: 5px; }
+        .data-title { background: #eee; text-align: center; font-weight: bold; border-bottom: 1px solid #000; padding: 3px; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table td { border: 1px solid #000; padding: 5px; font-weight: bold; }
+
+        /* التعليمات */
+        .instructions-box { border: 1px solid #000; padding: 5px; margin-bottom: 10px; font-size: 10px; }
+        .instructions-title { font-weight: bold; color: #ff0000; text-decoration: underline; }
+
+        /* جداول رصد الدرجات */
+        .grading-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; text-align: center; }
+        .grading-table th, .grading-table td { border: 1px solid #000; padding: 3px; }
+
+        /* شبكة الدوائر (Bubbles) */
+        .omr-container { display: flex; justify-content: space-between; gap: 10px; }
+        .omr-column { width: 32%; }
+        .section-title { background: #ddd; padding: 3px; text-align: center; font-weight: bold; border: 1px solid #000; margin-bottom: 5px; }
+        .bubble-row { display: flex; align-items: center; margin-bottom: 4px; border-bottom: 0.5px solid #eee; padding: 2px 0; }
+        .q-num { width: 20px; font-weight: bold; text-align: center; }
+        .bubble { width: 16px; height: 16px; border: 1px solid #000; border-radius: 50%; display: inline-block; margin: 0 3px; }
+        .bubble-label { font-size: 9px; text-align: center; line-height: 16px; font-weight: bold; }
+        
+        @media print {
+            body { margin: 0; padding: 0; }
+            .page { page-break-after: always; }
+        }
+    </style>
+</head>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         @page { size: A4; margin: 0.5cm; }
@@ -4027,13 +4065,16 @@ def generate_remark_omr():
         </table>
         
         <div class="omr-columns">
-            <div class="omr-column">
-                <div class="omr-title">أسئلة اختر الإجابة الصحيحة</div>
 '''
             
-            # إضافة صفوف الأسئلة
+            # حساب عدد الأسئلة وتوزيعها على 3 أعمدة
             num_questions = len(question_ids)
-            questions_per_column = (num_questions + 2) // 3
+            questions_per_column = (num_questions + 2) // 3  # توزيع متساوي على 3 أعمدة
+            
+            # العمود الأول
+            html_template += '''            <div class="omr-column">
+                <div class="omr-title">أسئلة اختر الإجابة الصحيحة</div>
+'''
             
             for i in range(1, questions_per_column + 1):
                 html_template += f'''                <div class="omr-row">
@@ -4046,11 +4087,17 @@ def generate_remark_omr():
 '''
             
             html_template += '''            </div>
-            <div class="omr-column">
+'''
+            
+            # العمود الثاني
+            html_template += '''            <div class="omr-column">
                 <div class="omr-title">تابع: اختر الإجابة</div>
 '''
             
-            for i in range(questions_per_column + 1, min(2 * questions_per_column + 1, num_questions + 1)):
+            start_q2 = questions_per_column + 1
+            end_q2 = min(2 * questions_per_column, num_questions)
+            
+            for i in range(start_q2, end_q2 + 1):
                 html_template += f'''                <div class="omr-row">
                     <div class="omr-cell">{i}</div>
                     <div class="omr-bubble"><span class="bubble-char">أ</span></div>
@@ -4061,14 +4108,27 @@ def generate_remark_omr():
 '''
             
             html_template += '''            </div>
-            <div class="omr-column">
-                <div class="omr-title">أسئلة صح (أ) / خطأ (ب)</div>
-                <div class="omr-row">
-                    <div class="omr-cell">1</div>
+'''
+            
+            # العمود الثالث
+            html_template += '''            <div class="omr-column">
+                <div class="omr-title">تابع: اختر الإجابة</div>
+'''
+            
+            start_q3 = 2 * questions_per_column + 1
+            end_q3 = num_questions
+            
+            for i in range(start_q3, end_q3 + 1):
+                html_template += f'''                <div class="omr-row">
+                    <div class="omr-cell">{i}</div>
                     <div class="omr-bubble"><span class="bubble-char">أ</span></div>
                     <div class="omr-bubble"><span class="bubble-char">ب</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ج</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">د</span></div>
                 </div>
-            </div>
+'''
+            
+            html_template += '''            </div>
         </div>
     </div>
 '''
