@@ -308,20 +308,29 @@
                     <div>{{ education_department|default('', true) }}</div>
                     <div>{{ school_name|default('', true) }}</div>
                 </td>
-                <td class="header-center" style="vertical-align: top;">
+                <td class="header-center">
                     {% if logo_base64 %}
-                    <img src="{{ logo_base64 }}" alt="وزارة التعليم" class="logo-img">
+                    <img src="{{ logo_base64 }}" class="logo-img">
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    <div style="direction: rtl; text-align: left;">
-                        <div>المادة : {{ subject|default('', true) }}</div>
-                        <div>الزمن : {{ time|default('', true) }}</div>
-                        <div>الصف : {{ grade|default('', true) }}</div>
-                        {% if not qr_code %}
-                        <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
+                    <div style="overflow: hidden;">
+                        {% if qr_code %}
+                        <div style="float: left; width: 70px; text-align: center; margin-left: 10px;">
+                            <img src="{{ qr_code }}" alt="QR" style="width: 55px; height: 55px;">
+                            {% if model_letter and model_letter != '' %}
+                                <div class="model-badge">{{ model_letter }}</div>
+                            {% endif %}
+                        </div>
                         {% endif %}
-                    </div>
+                        <div style="direction: rtl; text-align: left; line-height: 1.7;">
+                            <div>المادة : {{ subject }}</div>
+                            <div>الزمن : {{ time }}</div>
+                            <div>الصف : {{ grade }}</div>
+                            {% if model_letter and model_letter != '' %}
+                                <div><strong>النموذج : {{ model_letter }}</strong></div>
+                            {% endif %}
+                        </div>
                 </td>
             </tr>
         </table>
