@@ -2556,3 +2556,30 @@ def generate_remark_sheets():
                         download_name=f'Remark_OMR_{datetime.now().strftime("%Y%m%d")}.pdf')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@question_bp.route('/preview-students', methods=['POST'])
+@login_required
+def preview_students():
+    """
+    قراءة ملف الإكسل وعرض الأسماء للمعاينة قبل التوليد الثقيل للـ PDF
+    """
+    try:
+        file = request.files.get('student_file')
+        if not file:
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+        
+        # قراءة الملف
+        df = pd.read_excel(file)
+        
+        # التأكد من وجود الأعمدة المطلوبة
+        required_columns = ['الاسم', 'الرقم الأكاديمي', 'الشعبة']
+        for col in required_columns:
+            if col not in df.columns:
+                return jsonify({'error': f'العمود "{col}" مفقود من ملف الإكسل'}), 400
+        
+        # تحويل البيانات لقاموس لإرسالها للمعاينة
+        students = df[required_columns].fillna('').to_dict(orient='records')
+        
+        return jsonify({'success': True, 'students': students})
+    except Exception as e:
+        return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
