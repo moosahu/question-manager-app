@@ -26,7 +26,7 @@
         .header-wrapper { position: relative; margin-bottom: 12px; }
 
         .qr-code-container {
-            position: absolute; top: 0; left: 0; width: 70px; text-align: center;
+            display: inline-block; vertical-align: top; margin-left: 10px;
         }
         .qr-code-container img { width: 55px; height: 55px; display: block; margin: 0 auto; }
 
@@ -36,9 +36,11 @@
         }
 
         .header-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 13px; line-height: 1.7; }
-        .header-center { text-align: center; width: 30%; }
-        .header-left { text-align: left; width: 35%; direction: ltr; font-weight: bold; font-size: 13px; padding-left: 75px; }
+        .header-right { text-align: right; width: 35%; font-weight: bold; font-size: 13px; line-height: 1.7; vertical-align: top; }
+        .header-center { text-align: center; width: 30%; vertical-align: top; }
+        .header-left { text-align: left; width: 35%; font-weight: bold; font-size: 13px; vertical-align: top; }
+        
+        .header-left-content { display: inline-block; vertical-align: top; direction: rtl; text-align: left; }
 
         .logo-img { height: 110px; width: auto; margin: 0 auto; display: block; }
 
@@ -81,15 +83,6 @@
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ'] %}
 
     <div class="header-wrapper">
-        {% if qr_code %}
-        <div class="qr-code-container">
-            <img src="{{ qr_code }}" alt="QR">
-            {% if model_letter and model_letter != '' %}
-                <div class="model-badge">{{ model_letter }}</div>
-            {% endif %}
-        </div>
-        {% endif %}
-
         <table class="header-table">
             <tr>
                 <td class="header-right">
@@ -104,12 +97,18 @@
                     {% endif %}
                 </td>
                 <td class="header-left">
-                    <div style="direction: rtl; text-align: left;">
+                    {% if qr_code %}
+                    <div class="qr-code-container">
+                        <img src="{{ qr_code }}" alt="QR">
+                        {% if model_letter and model_letter != '' %}
+                            <div class="model-badge">{{ model_letter }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="header-left-content">
                         <div>المادة : {{ subject }}</div>
                         <div>الزمن : {{ time }}</div>
                         <div>الصف : {{ grade }}</div>
-                        
-                        {# النموذج يظهر دائماً إذا كان هناك حرف نموذج #}
                         {% if model_letter and model_letter != '' %}
                             <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
                         {% endif %}
