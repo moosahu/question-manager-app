@@ -2,12 +2,14 @@
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>{{ exam_title }}</title>
+    <title>{{ exam_title|default('نموذج الاختبار', true) }}</title>
     <style>
-        /* ===== إعدادات الصفحة لـ WeasyPrint (مطابق للأصل) ===== */
+        /* ===== إعدادات الصفحة لـ WeasyPrint (مطابق تماماً للأصل) ===== */
         @page {
             size: A4;
             margin: 20mm 15mm 20mm 15mm;
+            
+            /* الإطار المزدوج - يتكرر في كل صفحة */
             border: 3px double #000;
             padding: 5mm;
         }
@@ -27,7 +29,7 @@
             direction: rtl;
         }
 
-        /* ===== الرأس (Header) - تمت استعادة تنسيقك الأصلي ===== */
+        /* ===== الرأس (Header) - استعادة التنسيق الأصلي ===== */
         .header-table { 
             width: 100%; 
             border-collapse: collapse;
@@ -64,17 +66,23 @@
             font-size: 13px; 
         }
 
-        /* تحسين عرض الشعار لضمان عدم الاختفاء */
+        .exam-title {
+            font-size: 17px; 
+            font-weight: bold; 
+            margin-bottom: 5px;
+        }
+
+        /* شعار وزارة التعليم - استعادة القياسات الأصلية */
         .logo-img {
             max-width: none !important;
             max-height: none !important;
-            height: 110px !important;
+            height: 130px !important;
             width: auto !important;
             margin: 0 auto !important;
             display: block;
         }
 
-        /* ===== جدول الدرجات (مطابق للأصل) ===== */
+        /* ===== جدول الدرجات ===== */
         .grades-table {
             width: 100%; 
             border-collapse: collapse; 
@@ -106,7 +114,7 @@
             font-size: 13px;
         }
 
-        /* ===== الأسئلة - نظام العمودين (مع إصلاح مشكلة الاختفاء) ===== */
+        /* ===== الأسئلة - نظام العمودين (مع تحسين الظهور) ===== */
         .questions-wrapper {
             column-count: 2;
             column-gap: 20px;
@@ -114,8 +122,9 @@
             column-fill: auto;
         }
 
+        /* تم تعديل Question-box لضمان عدم اختفاء الأسئلة المختلطة */
         .question-box { 
-            display: block; /* تم التغيير من inline-block لضمان الرؤية */
+            display: block; 
             width: 100%;
             margin-bottom: 12px;
             font-size: 13px;
@@ -127,7 +136,7 @@
         .q-header {
             margin-bottom: 5px;
             display: flex;
-            align-items: flex-start;
+            align-items: baseline;
         }
         
         .q-num { 
@@ -138,14 +147,13 @@
         
         .q-text { 
             font-weight: bold; 
-            line-height: 1.5;
-            display: inline; /* لضمان ظهور النص بجانب الرقم */
+            line-height: 1.5; 
         }
 
-        /* ===== الصور - تحسينات نسخة الباركود المدمجة ===== */
+        /* ===== الصور - المربع المتقطع (طلبك الأساسي) ===== */
         img {
-            max-width: 95%;
-            max-height: 100px;
+            max-width: 90%;
+            max-height: 100px; /* زيادة الطول قليلاً */
             height: auto;
             display: block;
             margin: 5px auto;
@@ -153,9 +161,11 @@
         }
         
         .q-image {
-            border: 1px dashed #999; 
-            padding: 2px;
+            border: 1px dashed #999; /* المربع المتقطع */
+            padding: 4px;
+            max-height: 110px;
             margin: 5px auto;
+            display: block;
             clear: both;
         }
 
@@ -199,18 +209,7 @@
             margin-top: 5px;
         }
 
-        /* ===== التذييل ومفتاح الإجابة (مطابق للأصل تماماً) ===== */
-        .exam-end {
-            text-align: center;
-            margin-top: 40px;
-        }
-
-        .exam-end .end-text {
-            font-weight: bold;
-            font-size: 14px;
-            line-height: 2;
-        }
-
+        /* ===== مفتاح الإجابات ===== */
         .answer-key {
             page-break-before: always;
             padding-top: 10px;
@@ -239,6 +238,18 @@
             width: calc(20% - 10px);
             min-width: 80px;
         }
+
+        /* عبارة انتهت الأسئلة */
+        .exam-end {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .exam-end .end-text {
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 2;
+        }
     </style>
 </head>
 <body>
@@ -254,7 +265,7 @@
                 <div>{{ school_name }}</div>
             </td>
             <td class="header-center">
-                {# محاولة استخدام base64 أولاً للـ PDF ثم الرابط الثابت #}
+                {# استخدام منطق مزدوج لضمان ظهور الشعار #}
                 {% if logo_base64 %}
                     <img src="{{ logo_base64 }}" alt="Logo" class="logo-img">
                 {% else %}
@@ -263,9 +274,9 @@
             </td>
             <td class="header-left">
                 <div style="direction: rtl; text-align: left;">
-                    <div>المادة : <span class="underlined">{{ subject }}</span></div>
-                    <div>الزمن : <span class="underlined">{{ time }}</span></div>
-                    <div>الصف : <span class="underlined">{{ grade }}</span></div>
+                <div>المادة : <span class="underlined">{{ subject }}</span></div>
+                <div>الزمن : <span class="underlined">{{ time }}</span></div>
+                <div>الصف : <span class="underlined">{{ grade }}</span></div>
                 </div>
             </td>
         </tr>
@@ -304,16 +315,16 @@
             
             <div class="q-header">
                 <span class="q-num">س{{ loop.index }}:</span>
-                {# تأكد من ظهور النص #}
+                {# ظهور النص البرمجي الأصلي لضمان التوافق #}
                 <span class="q-text">{{ question.question_text if question.question_text else '' }}</span>
             </div>
             
-            {# إصلاح ظهور الصورة (سواء كانت رابط أو مسار) #}
+            {# المربع المتقطع للصورة #}
             {% if question.image_url %}
             <img src="{{ question.image_url }}" class="q-image" alt="Image">
             {% endif %}
             
-            {# فحص الخيارات (مطابق لمنطقك الأصلي) #}
+            {# فحص نوع الخيارات (صور أم نص) #}
             {% set has_image_options = [] %}
             {% for option in question.options %}
                 {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
@@ -367,7 +378,6 @@
         </div>
     </div>
 
-    {# مفتاح الإجابات (استعادة المنطق الأصلي بالكامل) #}
     {% if show_answers %}
     <div class="answer-key">
         <div class="answer-key-title">مفتاح الإجابات</div>
