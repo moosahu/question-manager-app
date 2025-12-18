@@ -114,7 +114,7 @@
             font-size: 13px;
         }
 
-        /* ===== الأسئلة - نظام العمودين (مع تحسين الظهور) ===== */
+        /* ===== الأسئلة - نظام العمودين ===== */
         .questions-wrapper {
             column-count: 2;
             column-gap: 20px;
@@ -122,7 +122,7 @@
             column-fill: auto;
         }
 
-        /* تم تعديل Question-box لضمان عدم اختفاء الأسئلة المختلطة */
+        /* تم تعديل Question-box لضمان ظهور الأسئلة المختلطة */
         .question-box { 
             display: block; 
             width: 100%;
@@ -153,7 +153,7 @@
         /* ===== الصور - المربع المتقطع (طلبك الأساسي) ===== */
         img {
             max-width: 90%;
-            max-height: 100px; /* زيادة الطول قليلاً */
+            max-height: 100px;
             height: auto;
             display: block;
             margin: 5px auto;
@@ -265,7 +265,7 @@
                 <div>{{ school_name }}</div>
             </td>
             <td class="header-center">
-                {# استخدام منطق مزدوج لضمان ظهور الشعار #}
+                {# دعم ظهور الشعار بكافة الوسائل #}
                 {% if logo_base64 %}
                     <img src="{{ logo_base64 }}" alt="Logo" class="logo-img">
                 {% else %}
@@ -315,16 +315,16 @@
             
             <div class="q-header">
                 <span class="q-num">س{{ loop.index }}:</span>
-                {# ظهور النص البرمجي الأصلي لضمان التوافق #}
+                {# استعادة منطق عرض النص من ملفك الأصلي  #}
                 <span class="q-text">{{ question.question_text if question.question_text else '' }}</span>
             </div>
             
-            {# المربع المتقطع للصورة #}
+            {# إضافة المربع المتقطع للصورة  #}
             {% if question.image_url %}
-            <img src="{{ question.image_url }}" class="q-image" alt="Image">
+            <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
             {% endif %}
             
-            {# فحص نوع الخيارات (صور أم نص) #}
+            {# فحص نوع الخيارات [cite: 1, 2] #}
             {% set has_image_options = [] %}
             {% for option in question.options %}
                 {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
