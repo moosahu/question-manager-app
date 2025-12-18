@@ -2538,11 +2538,16 @@ def generate_remark_sheets():
         from weasyprint import HTML as WeasyHTML
         all_html = ""
         for student in students:
-            # تخصيص البيانات لكل طالب [cite: 348, 350, 353]
+            # تخصيص البيانات لكل طالب مع دعم مرن لمسميات الأعمدة
             s_data = {
-                'name': student.get('الاسم', '....................'),
-                'academic_id': student.get('الرقم الأكاديمي', '..........'),
-                'section': student.get('الشعبة', '....')
+                # يبحث عن الاسم أو اسم الطالب
+                'name': student.get('الاسم') or student.get('اسم الطالب') or '....................',
+                
+                # يبحث عن الرقم الأكاديمي بالهمزة أو بدونها ليتوافق مع ملفك
+                'academic_id': student.get('الرقم الأكاديمي') or student.get('الرقم الاكاديمي') or '..........',
+                
+                # يبحث عن الشعبة بالتاء المربوطة أو الهاء
+                'section': student.get('الشعبة') or student.get('الشعبه') or '....'
             }
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=s_data, logo_base64=logo_base64,
