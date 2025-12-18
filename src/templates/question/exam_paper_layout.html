@@ -110,7 +110,7 @@
                         <div>الزمن : {{ time }}</div>
                         <div>الصف : {{ grade }}</div>
                         
-                        {# المنطق المطور: يختفي النص إذا كان النموذج فارغاً أو إذا كان الباركود موجوداً (لمنع التكرار) #}
+                        {# تم تعديل هذا الشرط بدقة: يظهر النص فقط إذا كان هناك نموذج "و" لم يتم طلب باركود #}
                         {% if model_letter and model_letter != '' and not qr_code %}
                             <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
                         {% endif %}
