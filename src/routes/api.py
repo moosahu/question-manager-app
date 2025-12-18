@@ -3911,39 +3911,52 @@ def generate_remark_omr():
                 'error': 'بيانات ناقصة'
             }), 400
         
-        # قالب HTML احترافي
+        # قالب HTML محسّن للطباعة
         html_template = '''<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أوراق الإجابة</title>
     <style>
-        @page {{ size: A4; margin: 10mm; }}
-        body {{ font-family: 'Arial', sans-serif; font-size: 12px; color: #000; margin: 0; padding: 10px; direction: rtl; }}
-        .page {{ page-break-after: always; margin-bottom: 20px; }}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 0.5cm; }
+        @media print { body { margin: 0; padding: 0; } }
         
-        .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
-        .header-table td {{ vertical-align: top; padding: 2px; font-weight: bold; }}
-        .school-info {{ width: 40%; text-align: right; }}
-        .exam-info {{ width: 20%; text-align: center; }}
+        html, body { width: 100%; height: 100%; }
+        body { font-family: 'Arial', 'Tahoma', sans-serif; font-size: 11px; color: #000; direction: rtl; background: #fff; }
         
-        .student-data-area {{ border: 2px solid #000; margin-bottom: 10px; padding: 5px; }}
-        .data-title {{ background: #eee; text-align: center; font-weight: bold; border-bottom: 1px solid #000; padding: 3px; }}
-        .data-table {{ width: 100%; border-collapse: collapse; }}
-        .data-table td {{ border: 1px solid #000; padding: 5px; font-weight: bold; }}
+        .page { width: 100%; height: 29.7cm; page-break-after: always; padding: 0.5cm; border: 1px solid #ccc; margin-bottom: 1cm; background: #fff; }
         
-        .instructions-box {{ border: 1px solid #000; padding: 5px; margin-bottom: 10px; font-size: 10px; }}
-        .instructions-title {{ font-weight: bold; color: #ff0000; text-decoration: underline; }}
+        .header-section { width: 100%; margin-bottom: 0.3cm; }
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+        .header-table td { padding: 0.2cm; border: 1px solid #000; text-align: right; font-weight: bold; font-size: 10px; line-height: 1.2; }
+        .header-left { width: 35%; }
+        .header-center { width: 30%; text-align: center; }
+        .header-right { width: 35%; text-align: left; }
         
-        .grading-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; text-align: center; }}
-        .grading-table th, .grading-table td {{ border: 1px solid #000; padding: 3px; }}
+        .instructions { width: 100%; border: 1px solid #000; padding: 0.2cm; margin-bottom: 0.3cm; font-size: 9px; background: #f9f9f9; }
+        .instructions-title { font-weight: bold; color: #d00; text-decoration: underline; display: inline; }
         
-        .omr-container {{ display: flex; justify-content: space-between; gap: 10px; }}
-        .omr-column {{ width: 32%; }}
-        .section-title {{ background: #ddd; padding: 3px; text-align: center; font-weight: bold; border: 1px solid #000; margin-bottom: 5px; }}
-        .bubble-row {{ display: flex; align-items: center; margin-bottom: 4px; border-bottom: 0.5px solid #eee; padding: 2px 0; }}
-        .q-num {{ width: 20px; font-weight: bold; text-align: center; }}
-        .bubble {{ width: 16px; height: 16px; border: 1px solid #000; border-radius: 50%; display: inline-block; margin: 0 3px; }}
-        .bubble-label {{ font-size: 9px; text-align: center; line-height: 16px; font-weight: bold; }}
+        .student-info { width: 100%; border: 2px solid #000; margin-bottom: 0.3cm; }
+        .student-info-header { background: #ddd; padding: 0.2cm; font-weight: bold; text-align: center; border-bottom: 1px solid #000; }
+        .student-info-table { width: 100%; border-collapse: collapse; }
+        .student-info-table td { border: 1px solid #000; padding: 0.3cm; font-weight: bold; font-size: 10px; }
+        
+        .grades-table { width: 100%; border-collapse: collapse; margin-bottom: 0.3cm; }
+        .grades-table td, .grades-table th { border: 1px solid #000; padding: 0.2cm; text-align: center; font-size: 9px; }
+        .grades-table th { background: #e0e0e0; font-weight: bold; }
+        
+        .omr-section { width: 100%; }
+        .omr-title { background: #ccc; border: 1px solid #000; padding: 0.2cm; font-weight: bold; text-align: center; font-size: 10px; margin-bottom: 0.2cm; }
+        .omr-row { display: table; width: 100%; margin-bottom: 0.15cm; }
+        .omr-cell { display: table-cell; border: 1px solid #999; padding: 0.2cm; width: 5%; text-align: center; font-weight: bold; font-size: 9px; }
+        .omr-bubble { display: table-cell; border: 1px solid #000; width: 4%; height: 0.4cm; text-align: center; vertical-align: middle; margin: 0 0.1cm; border-radius: 50%; }
+        .bubble-char { font-size: 8px; font-weight: bold; }
+        
+        .omr-columns { display: table; width: 100%; border-collapse: collapse; }
+        .omr-column { display: table-cell; width: 32%; padding-right: 0.5cm; vertical-align: top; }
+        .omr-column:last-child { padding-right: 0; }
     </style>
 </head>
 <body>
@@ -3951,66 +3964,71 @@ def generate_remark_omr():
         
         # إضافة ورقة لكل طالب
         for student in students:
-            html_template += f'''    <div class="page">
-        <table class="header-table">
-            <tr>
-                <td class="school-info">
-                    {header_settings.get('country', 'المملكة العربية السعودية')}<br>
-                    {header_settings.get('ministry', 'وزارة التعليم')}<br>
-                    {header_settings.get('education_department', '')}<br>
-                    {header_settings.get('school_name', '')}
-                </td>
-                <td class="exam-info">
-                    {header_settings.get('subject', 'اختبار')}<br>
-                    {header_settings.get('time', '')}
-                </td>
-            </tr>
-        </table>
-        
-        <div class="instructions-box">
-            <span class="instructions-title">تعليمات هامة:</span>
-            استخدم القلم الرصاص فقط | تأكد من تظليل فقرة واحدة فقط | لا تستخدم قلم الحبر أو المزيل
-        </div>
-        
-        <div class="student-data-area">
-            <div class="data-title">منطقة بيانات الطالب الرئيسية</div>
-            <table class="data-table">
+            html_template += '''    <div class="page">
+        <div class="header-section">
+            <table class="header-table">
                 <tr>
-                    <td colspan="2">الاسم: {student.get('name', '')}</td>
-                    <td>الشعبة: {student.get('section', '')}</td>
-                </tr>
-                <tr>
-                    <td>الرقم الأكاديمي: {student.get('id', '')}</td>
-                    <td>المقرر: {header_settings.get('subject', '')}</td>
-                    <td>النموذج: أ <div class="bubble" style="display:inline-block; margin-right:5px;"></div></td>
+                    <td class="header-left">
+                        المملكة العربية السعودية<br>
+                        وزارة التعليم<br>
+                        ''' + header_settings.get('education_department', '') + '''<br>
+                        ''' + header_settings.get('school_name', '') + '''
+                    </td>
+                    <td class="header-center">
+                        ''' + header_settings.get('subject', 'اختبار') + '''<br>
+                        ''' + header_settings.get('time', '') + '''
+                    </td>
+                    <td class="header-right" style="text-align: left;">
+                        الفصل الدراسي الأول<br>
+                        1447 هـ
+                    </td>
                 </tr>
             </table>
         </div>
         
-        <table class="grading-table">
-            <tr style="background: #eee;">
+        <div class="instructions">
+            <span class="instructions-title">تعليمات هامة:</span>
+            استخدم القلم الرصاص فقط | تأكد من تظليل فقرة واحدة فقط | لا تستخدم قلم الحبر أو المزيل
+        </div>
+        
+        <div class="student-info">
+            <div class="student-info-header">منطقة بيانات الطالب الرئيسية</div>
+            <table class="student-info-table">
+                <tr>
+                    <td style="width: 50%;">الاسم: ''' + student.get('name', '') + '''</td>
+                    <td style="width: 50%;">الرقم الأكاديمي: ''' + str(student.get('id', '')) + '''</td>
+                </tr>
+                <tr>
+                    <td style="width: 50%;">الشعبة: ''' + student.get('section', '') + '''</td>
+                    <td style="width: 50%;">المقرر: ''' + header_settings.get('subject', '') + '''</td>
+                </tr>
+            </table>
+        </div>
+        
+        <table class="grades-table">
+            <tr>
                 <th rowspan="2">الدرجة</th>
                 <th colspan="4">الجزء العشري</th>
                 <th colspan="11">الجزء الصحيح</th>
             </tr>
             <tr>
-                <td>1/4</td><td>1/2</td><td>3/4</td><td>-</td>
+                <td>3/4</td><td>1/2</td><td>1/4</td><td>-</td>
                 <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td>
             </tr>
             <tr>
-                <td>الدرجة النهائية</td>
+                <td><strong>الدرجة النهائية</strong></td>
 '''
             
             # إضافة فقاعات الدرجات
             for n in range(15):
-                html_template += '<td><div class="bubble"></div></td>'
+                html_template += '<td style="height: 0.5cm;"><div style="width: 0.3cm; height: 0.3cm; border: 1px solid #000; border-radius: 50%; margin: auto;"></div></td>'
             
             html_template += '''            </tr>
         </table>
         
-        <div class="omr-container">
+        <div class="omr-columns">
             <div class="omr-column">
-                <div class="section-title">أسئلة اختر الإجابة الصحيحة</div>
+                <div class="omr-title">أسئلة اختر الإجابة الصحيحة</div>
 '''
             
             # إضافة صفوف الأسئلة
@@ -4018,37 +4036,37 @@ def generate_remark_omr():
             questions_per_column = (num_questions + 2) // 3
             
             for i in range(1, questions_per_column + 1):
-                html_template += f'''                <div class="bubble-row">
-                    <span class="q-num">{i}</span>
-                    <div class="bubble"><div class="bubble-label">أ</div></div>
-                    <div class="bubble"><div class="bubble-label">ب</div></div>
-                    <div class="bubble"><div class="bubble-label">ج</div></div>
-                    <div class="bubble"><div class="bubble-label">د</div></div>
+                html_template += f'''                <div class="omr-row">
+                    <div class="omr-cell">{i}</div>
+                    <div class="omr-bubble"><span class="bubble-char">أ</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ب</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ج</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">د</span></div>
                 </div>
 '''
             
             html_template += '''            </div>
             <div class="omr-column">
-                <div class="section-title">تابع: اختر الإجابة</div>
+                <div class="omr-title">تابع: اختر الإجابة</div>
 '''
             
             for i in range(questions_per_column + 1, min(2 * questions_per_column + 1, num_questions + 1)):
-                html_template += f'''                <div class="bubble-row">
-                    <span class="q-num">{i}</span>
-                    <div class="bubble"><div class="bubble-label">أ</div></div>
-                    <div class="bubble"><div class="bubble-label">ب</div></div>
-                    <div class="bubble"><div class="bubble-label">ج</div></div>
-                    <div class="bubble"><div class="bubble-label">د</div></div>
+                html_template += f'''                <div class="omr-row">
+                    <div class="omr-cell">{i}</div>
+                    <div class="omr-bubble"><span class="bubble-char">أ</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ب</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ج</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">د</span></div>
                 </div>
 '''
             
             html_template += '''            </div>
             <div class="omr-column">
-                <div class="section-title">أسئلة صح (أ) / خطأ (ب)</div>
-                <div class="bubble-row">
-                    <span class="q-num">1</span>
-                    <div class="bubble"><div class="bubble-label">أ</div></div>
-                    <div class="bubble"><div class="bubble-label">ب</div></div>
+                <div class="omr-title">أسئلة صح (أ) / خطأ (ب)</div>
+                <div class="omr-row">
+                    <div class="omr-cell">1</div>
+                    <div class="omr-bubble"><span class="bubble-char">أ</span></div>
+                    <div class="omr-bubble"><span class="bubble-char">ب</span></div>
                 </div>
             </div>
         </div>
