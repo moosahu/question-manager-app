@@ -2,23 +2,32 @@
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>{{ exam_title|default('نموذج الاختبار', true) }}</title>
+    <title>{{ exam_title|default('اختبار مادة الكيمياء - الفصل الدراسي الأول', true) }}</title>
     <style>
-        /* ===== إعدادات الصفحة لـ WeasyPrint (مطابق تماماً للأصل) ===== */
+        /* =========================================
+           إعدادات الصفحة والطباعة (WeasyPrint)
+           =========================================
+        */
         @page {
             size: A4;
-            margin: 20mm 15mm 20mm 15mm;
-            
-            /* الإطار المزدوج - يتكرر في كل صفحة */
-            border: 3px double #000;
+            margin: 15mm 12mm 15mm 12mm;
+            border: 3px double #000000;
             padding: 5mm;
+            @bottom-center {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Tahoma', sans-serif;
+                font-size: 10px;
+            }
         }
 
-        /* ===== إعدادات عامة ===== */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        /* =========================================
+           التنسيقات العامة والخطوط
+           =========================================
+        */
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
         }
 
         body {
@@ -27,20 +36,28 @@
             line-height: 1.5;
             color: #000;
             direction: rtl;
+            background-color: #fff;
         }
 
-        /* ===== الرأس (Header) - استعادة التنسيق الأصلي ===== */
+        /* =========================================
+           رأس الصفحة (Header)
+           =========================================
+        */
+        .header-wrapper {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
         .header-table { 
             width: 100%; 
             border-collapse: collapse;
             border-bottom: 2px solid #000; 
             padding-bottom: 10px; 
-            margin-bottom: 12px;
         }
         
         .header-table td { 
             vertical-align: top; 
-            padding: 3px;
+            padding: 5px;
         }
         
         .header-right { 
@@ -48,14 +65,12 @@
             width: 35%; 
             font-weight: bold; 
             font-size: 13px;
-            line-height: 1.7;
+            line-height: 1.8;
         }
         
         .header-center { 
             text-align: center; 
             width: 30%;
-            vertical-align: top;
-            padding: 0 !important;
         }
         
         .header-left { 
@@ -66,23 +81,25 @@
             font-size: 13px; 
         }
 
-        .exam-title {
-            font-size: 17px; 
-            font-weight: bold; 
-            margin-bottom: 5px;
-        }
-
-        /* شعار وزارة التعليم - استعادة القياسات الأصلية */
         .logo-img {
-            max-width: none !important;
-            max-height: none !important;
-            height: 130px !important;
+            height: 120px !important;
             width: auto !important;
-            margin: 0 auto !important;
             display: block;
+            margin: 0 auto;
         }
 
-        /* ===== جدول الدرجات ===== */
+        .underlined-text {
+            border-bottom: 1px solid #000;
+            padding: 0 5px;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        /* =========================================
+           جداول الدرجات ومعلومات الطالب
+           =========================================
+        */
         .grades-table {
             width: 100%; 
             border-collapse: collapse; 
@@ -94,317 +111,323 @@
         .grades-table td {
             border: 1px solid #000; 
             text-align: center; 
-            padding: 6px; 
+            padding: 8px; 
             font-weight: bold;
             font-size: 12px;
         }
         
         .grades-table th { 
-            background-color: #f0f0f0;
+            background-color: #f2f2f2;
         }
 
-        /* ===== معلومات الطالب ===== */
-        .student-info {
+        .student-info-box {
             display: flex; 
             justify-content: space-between; 
             font-weight: bold; 
-            margin: 12px 0;
+            margin: 15px 0;
             border: 1px solid #000; 
-            padding: 8px 12px;
-            font-size: 13px;
+            padding: 10px 15px;
+            font-size: 14px;
+            background-color: #fafafa;
         }
 
-        /* ===== الأسئلة - نظام العمودين ===== */
-        .questions-wrapper {
+        /* =========================================
+           تنسيق الأسئلة (نظام العمودين)
+           =========================================
+        */
+        .questions-container {
             column-count: 2;
-            column-gap: 20px;
+            column-gap: 25px;
             column-rule: 1px solid #000;
             column-fill: auto;
         }
 
-        /* تم تعديل Question-box لضمان ظهور الأسئلة المختلطة */
-        .question-box { 
-            display: block; 
+        .question-block { 
+            display: block; /* لضمان استقرار العناصر داخلياً */
             width: 100%;
-            margin-bottom: 12px;
-            font-size: 13px;
+            margin-bottom: 20px;
             break-inside: avoid;
             page-break-inside: avoid;
             position: relative;
         }
 
-        .q-header {
-            margin-bottom: 5px;
+        .q-title-wrapper {
+            margin-bottom: 8px;
             display: flex;
-            align-items: baseline;
+            align-items: flex-start;
         }
         
-        .q-num { 
+        .q-number { 
             font-weight: bold; 
             margin-left: 5px; 
-            white-space: nowrap; 
+            color: #000;
+            white-space: nowrap;
         }
         
-        .q-text { 
+        .q-main-text { 
             font-weight: bold; 
-            line-height: 1.5; 
+            line-height: 1.6;
+            word-wrap: break-word;
         }
 
-        /* ===== الصور - المربع المتقطع (طلبك الأساسي) ===== */
-        img {
-            max-width: 90%;
-            max-height: 100px;
+        /* =========================================
+           المربع المتقطع للصور (طلبك الخاص)
+           =========================================
+        */
+        .dashed-image-box {
+            border: 1px dashed #666666; /* الإطار المتقطع */
+            padding: 8px;
+            margin: 10px auto;
+            text-align: center;
+            width: fit-content;
+            max-width: 95%;
+            background-color: #ffffff;
+        }
+
+        .dashed-image-box img {
+            max-width: 100%;
+            max-height: 150px; /* زيادة المساحة لصور الكيمياء المعقدة */
             height: auto;
             display: block;
-            margin: 5px auto;
+            margin: 0 auto;
             object-fit: contain;
         }
-        
-        .q-image {
-            border: 1px dashed #999; /* المربع المتقطع */
-            padding: 4px;
-            max-height: 110px;
-            margin: 5px auto;
-            display: block;
-            clear: both;
+
+        /* =========================================
+           تنسيق الخيارات
+           =========================================
+        */
+        .options-wrapper {
+            margin-right: 12px;
+            margin-top: 8px;
         }
 
-        .option-img {
-            height: 45px;
-            width: auto;
-            max-width: 100%;
-            margin: 2px 0;
-            display: block;
-        }
-
-        /* ===== الخيارات ===== */
-        .options-container {
-            margin-right: 8px;
-            margin-top: 5px;
-        }
-
-        .q-option { 
+        .option-item { 
             display: flex; 
-            align-items: center; 
-            margin-bottom: 4px;
+            align-items: flex-start; 
+            margin-bottom: 6px;
             break-inside: avoid;
         }
         
-        .option-char { 
+        .option-label { 
             font-weight: bold; 
-            margin-left: 5px; 
-            min-width: 18px;
+            margin-left: 8px; 
+            min-width: 22px;
+            color: #333;
         }
         
-        .option-content {
+        .option-body {
             flex: 1;
-            line-height: 1.4;
         }
 
-        .options-grid {
+        /* شبكة الخيارات (2 في كل صف) للصور */
+        .options-grid-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px 15px;
-            margin-right: 8px;
-            margin-top: 5px;
+            gap: 10px 15px;
+            margin-top: 8px;
+            margin-right: 10px;
         }
 
-        /* ===== مفتاح الإجابات ===== */
-        .answer-key {
+        .option-graphic {
+            max-height: 55px;
+            width: auto;
+            display: block;
+            margin-top: 3px;
+            border: 1px solid #eee;
+        }
+
+        /* =========================================
+           تذييل الصفحة
+           =========================================
+        */
+        .exam-footer {
+            text-align: center;
+            margin-top: 50px;
+            border-top: 1px solid #000;
+            padding-top: 15px;
+            break-inside: avoid;
+        }
+
+        .footer-message {
+            font-weight: bold;
+            font-size: 15px;
+            line-height: 2;
+        }
+
+        /* =========================================
+           مفتاح الإجابات (Logic موسع)
+           =========================================
+        */
+        .key-section {
             page-break-before: always;
-            padding-top: 10px;
+            padding-top: 20px;
         }
 
-        .answer-key-title {
-            font-weight: bold; 
-            margin-bottom: 15px; 
-            text-align: center; 
-            font-size: 18px;
+        .key-header {
+            text-align: center;
+            font-weight: bold;
+            font-size: 20px;
+            margin-bottom: 25px;
+            text-decoration: underline;
         }
 
-        .answer-grid {
+        .key-grid-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            direction: rtl;
+            gap: 12px;
             justify-content: flex-start;
         }
 
-        .answer-item {
+        .key-cell {
             border: 1px solid #000; 
-            padding: 6px 12px; 
+            padding: 10px; 
             text-align: center;
-            font-size: 13px;
-            width: calc(20% - 10px);
-            min-width: 80px;
-        }
-
-        /* عبارة انتهت الأسئلة */
-        .exam-end {
-            text-align: center;
-            margin-top: 40px;
-        }
-
-        .exam-end .end-text {
-            font-weight: bold;
             font-size: 14px;
-            line-height: 2;
+            width: calc(20% - 12px);
+            min-width: 90px;
+            background-color: #fcfcfc;
         }
+
     </style>
 </head>
 <body>
 
-    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+    {% set letters_map = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
 
-    <table class="header-table">
-        <tr>
-            <td class="header-right">
-                <div>{{ country }}</div>
-                <div>{{ ministry }}</div>
-                <div>{{ education_department }}</div>
-                <div>{{ school_name }}</div>
-            </td>
-            <td class="header-center">
-                {# دعم ظهور الشعار بكافة الوسائل #}
-                {% if logo_base64 %}
-                    <img src="{{ logo_base64 }}" alt="Logo" class="logo-img">
-                {% else %}
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="وزارة التعليم" class="logo-img">
-                {% endif %}
-            </td>
-            <td class="header-left">
-                <div style="direction: rtl; text-align: left;">
-                <div>المادة : <span class="underlined">{{ subject }}</span></div>
-                <div>الزمن : <span class="underlined">{{ time }}</span></div>
-                <div>الصف : <span class="underlined">{{ grade }}</span></div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <header class="header-wrapper">
+        <table class="header-table">
+            <tr>
+                <td class="header-right">
+                    <div>{{ country|default('المملكة العربية السعودية', true) }}</div>
+                    <div>{{ ministry|default('وزارة التعليم', true) }}</div>
+                    <div>{{ education_department|default('الإدارة العامة للتعليم', true) }}</div>
+                    <div>{{ school_name|default('ثانوية بن القاسم', true) }}</div>
+                </td>
+                <td class="header-center">
+                    {% if logo_base64 %}
+                        <img src="{{ logo_base64 }}" class="logo-img" alt="شعار الوزارة">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img" alt="Logo">
+                    {% endif %}
+                </td>
+                <td class="header-left">
+                    <div style="direction: rtl; text-align: left;">
+                        <div>المادة : <span class="underlined-text">{{ subject|default('كيمياء', true) }}</span></div>
+                        <div>الزمن : <span class="underlined-text">{{ time|default('ساعتان', true) }}</span></div>
+                        <div>الصف : <span class="underlined-text">{{ grade|default('الثالث الثانوي', true) }}</span></div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </header>
 
     <table class="grades-table">
         <thead>
             <tr>
                 <th>الدرجة الأساسية</th>
-                <th>درجة الطالب رقماً</th>
-                <th>الدرجة كتابةً</th>
-                <th>المصحح</th>
-                <th>المراجع</th>
+                <th>درجة الطالب (رقماً)</th>
+                <th>درجة الطالب (كتابةً)</th>
+                <th>اسم المصحح</th>
+                <th>اسم المراجع</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td>{{ total_score }}</td>
+                <td>{{ total_score|default(30, true) }}</td>
                 <td></td>
                 <td></td>
-                <td>{{ checker_name }}</td>
-                <td>{{ reviewer_name }}</td>
+                <td>{{ checker_name|default('................', true) }}</td>
+                <td>{{ reviewer_name|default('................', true) }}</td>
             </tr>
         </tbody>
     </table>
 
-    <div class="student-info">
-        <span>اسم الطالب: ............................................</span>
+    <section class="student-info-box">
+        <span>اسم الطالب: ............................................................................</span>
         <span>الشعبة: ............</span>
         <span>رقم الجلوس: ............</span>
-    </div>
+    </section>
 
-    <div class="questions-wrapper">
+    <main class="questions-container">
         {% for question in questions %}
-        <div class="question-box">
+        <article class="question-block">
             
-            <div class="q-header">
-                <span class="q-num">س{{ loop.index }}:</span>
-                {# استعادة منطق عرض النص من ملفك الأصلي  #}
-                <span class="q-text">{{ question.question_text if question.question_text else '' }}</span>
+            <div class="q-title-wrapper">
+                <span class="q-number">س{{ loop.index }}:</span>
+                <span class="q-main-text">{{ question.question_text if question.question_text else 'اختر الإجابة الصحيحة فيما يلي:' }}</span>
             </div>
-            
-            {# إضافة المربع المتقطع للصورة  #}
+
             {% if question.image_url %}
-            <img src="{{ question.image_url }}" class="q-image" alt="Question Image">
+            <div class="dashed-image-box">
+                <img src="{{ question.image_url }}" alt="رسم توضيحي للسؤال {{ loop.index }}">
+            </div>
             {% endif %}
-            
-            {# فحص نوع الخيارات [cite: 1, 2] #}
-            {% set has_image_options = [] %}
-            {% for option in question.options %}
-                {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
-                    {% set _ = has_image_options.append(1) %}
+
+            {% set img_check = [] %}
+            {% for opt in question.options %}
+                {% if opt.image_url or (opt.option_text and opt.option_text.startswith('http')) %}
+                    {% set _ = img_check.append(1) %}
                 {% endif %}
             {% endfor %}
-            
-            {% if has_image_options|length > 0 %}
-            <div class="options-grid">
-                {% for option in question.options %}
-                <div class="q-option">
-                    <span class="option-char">{{ letters[loop.index0] }})</span>
-                    <div class="option-content">
-                        {% if option.option_text and not option.option_text.startswith('http') %}
-                            <span>{{ option.option_text }}</span>
-                        {% endif %}
-                        
-                        {% if option.image_url %}
-                            <img src="{{ option.image_url }}" class="option-img" alt="">
-                        {% elif option.option_text and option.option_text.startswith('http') %}
-                            <img src="{{ option.option_text }}" class="option-img" alt="">
-                        {% endif %}
+
+            {% if img_check|length > 0 %}
+                <div class="options-grid-layout">
+                    {% for option in question.options %}
+                    <div class="option-item">
+                        <span class="option-label">{{ letters_map[loop.index0] }})</span>
+                        <div class="option-body">
+                            {% if option.option_text and not option.option_text.startswith('http') %}
+                                <div>{{ option.option_text }}</div>
+                            {% endif %}
+                            <img src="{{ option.image_url if option.image_url else option.option_text }}" class="option-graphic">
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
             {% else %}
-            <div class="options-container">
-                {% for option in question.options %}
-                <div class="q-option">
-                    <span class="option-char">{{ letters[loop.index0] }})</span>
-                    <div class="option-content">
-                        {% if option.option_text %}
-                            <span>{{ option.option_text }}</span>
-                        {% endif %}
+                <div class="options-wrapper">
+                    {% for option in question.options %}
+                    <div class="option-item">
+                        <span class="option-label">{{ letters_map[loop.index0] }})</span>
+                        <div class="option-body">
+                            {{ option.option_text if option.option_text else '' }}
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
             {% endif %}
 
-        </div>
+        </article>
         {% endfor %}
-    </div>
+    </main>
 
-    <div class="exam-end">
-        <div class="end-text">
+    <footer class="exam-footer">
+        <div class="footer-message">
             انتهت الأسئلة<br>
-            مع رجائي لك بالتوفيق والنجاح<br>
+            مع خالص تمنياتي لكم بالتوفيق والنجاح الدائم<br>
             معلم المادة : أ. حسين الموسى
         </div>
-    </div>
+    </footer>
 
     {% if show_answers %}
-    <div class="answer-key">
-        <div class="answer-key-title">مفتاح الإجابات</div>
-        <div class="answer-grid">
-            {% for question in questions %}
-            <div class="answer-item">
-                س{{ loop.index }}: 
-                <strong>
-                    {% if question.correct_answer %}
-                        {% if question.correct_answer == 'a' %}أ
-                        {% elif question.correct_answer == 'b' %}ب
-                        {% elif question.correct_answer == 'c' %}ج
-                        {% elif question.correct_answer == 'd' %}د
-                        {% else %}{{ question.correct_answer }}
-                        {% endif %}
-                    {% else %}
-                        {% for option in question.options %}
-                            {% if option.is_correct %}
-                                {{ letters[loop.index0] }}
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
+    <section class="key-section">
+        <h2 class="key-header">مفتاح الإجابة الرسمي - مادة الكيمياء</h2>
+        <div class="key-grid-container">
+            {% for q in questions %}
+            <div class="key-cell">
+                س{{ loop.index }}: <strong>
+                {% if q.correct_answer %}
+                    {% set ca = q.correct_answer|lower %}
+                    {% if ca == 'a' %}أ{% elif ca == 'b' %}ب{% elif ca == 'c' %}ج{% elif ca == 'd' %}د{% else %}{{ q.correct_answer }}{% endif %}
+                {% else %}
+                    {% for o in q.options %}{% if o.is_correct %}{{ letters_map[loop.index0] }}{% endif %}{% endfor %}
+                {% endif %}
                 </strong>
             </div>
             {% endfor %}
         </div>
-    </div>
+    </section>
     {% endif %}
 
 </body>
