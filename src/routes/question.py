@@ -2513,3 +2513,46 @@ def preview_multi_models():
     except Exception as e:
         current_app.logger.exception(f"Error previewing multi models: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/generate-remark-sheets', methods=['POST'])
+@login_required
+def generate_remark_sheets():
+    try:
+        file = request.files.get('student_file')
+        if not file: return jsonify({'error': 'ملف الطلاب مطلوب'}), 400
+        
+        # قراءة البيانات ودعم الأعمدة بالعربي
+        df = pd.read_excel(file)
+        students = df.to_dict(orient='records')
+        
+        settings = ExamHeaderSettings.query.first()
+        logo_base64 = ""
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except: pass
+
+        from weasyprint import HTML as WeasyHTML
+        all_html = ""
+        for student in students:
+            # تخصيص البيانات لكل طالب [cite: 348, 350, 353]
+            s_data = {
+                'name': student.get('الاسم', '....................'),
+                'academic_id': student.get('الرقم الأكاديمي', '..........'),
+                'section': student.get('الشعبة', '....')
+            }
+            all_html += render_template('question/remark_answer_sheet.html', 
+                                     student=s_data, logo_base64=logo_base64,
+                                     **(settings.__dict__ if settings else {}))
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        pdf_buf = io.BytesIO()
+        WeasyHTML(string=all_html, base_url='/').write_pdf(pdf_buf)
+        pdf_buf.seek(0)
+        return send_file(pdf_buf, mimetype='application/pdf', as_attachment=True, 
+                        download_name=f'Remark_OMR_{datetime.now().strftime("%Y%m%d")}.pdf')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
