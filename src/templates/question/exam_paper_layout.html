@@ -155,7 +155,6 @@
             </div>
             {% endif %}
 
-            {# منطق الخيارات (نفس الكود السابق لضمان الثبات) #}
             {% set has_img = [] %}
             {% for opt in question.options %}
                 {% if opt.image_url or (opt.option_text and opt.option_text.startswith('http')) %}
@@ -191,8 +190,8 @@
         {% endfor %}
     </div>
 
-    <div class=\"exam-end\">
-        <div class=\"end-text\">
+    <div class="exam-end">
+        <div class="end-text">
             انتهت الأسئلة<br>
             مع تمنياتي لكم بالتوفيق والنجاح<br>
             معلم المادة : أ. حسين الموسى
@@ -200,11 +199,11 @@
     </div>
 
     {% if show_answers %}
-    <div class=\"answer-key\">
-        <div style=\"text-align:center; font-weight:bold; margin-bottom:10px;\">مفتاح الإجابة {% if model_letter and model_letter != '' %}- نموذج {{ model_letter }}{% endif %}</div>
-        <div class=\"answer-grid\">
+    <div class="answer-key">
+        <div style="text-align:center; font-weight:bold; margin-bottom:10px;">مفتاح الإجابة {% if model_letter and model_letter != '' %}- نموذج {{ model_letter }}{% endif %}</div>
+        <div class="answer-grid">
             {% for q in questions %}
-            <div class=\"answer-item\">
+            <div class="answer-item">
                 س{{ loop.index }}: <strong>
                 {% if q.correct_answer %}
                     {% if q.correct_answer|lower == 'a' %}أ{% elif q.correct_answer|lower == 'b' %}ب{% elif q.correct_answer|lower == 'c' %}ج{% elif q.correct_answer|lower == 'd' %}د{% else %}{{ q.correct_answer }}{% endif %}
