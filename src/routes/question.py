@@ -2408,6 +2408,7 @@ def preview_multi_models():
         # توليد HTML لكل نموذج
         all_models_html = []
         answer_keys = {}
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
             # خلط الأسئلة والخيارات
@@ -2419,8 +2420,16 @@ def preview_multi_models():
                 seed=seed
             )
             
-            # حفظ مفتاح الإجابات
-            answer_keys[model_letter] = shuffled_questions['answer_key']
+            # بناء مفتاح الإجابات من الأسئلة المخلوطة
+            model_answers = []
+            for q in shuffled_questions:
+                correct_letter = ''
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        correct_letter = letters[i] if i < len(letters) else str(i+1)
+                        break
+                model_answers.append({'answer': correct_letter})
+            answer_keys[model_letter] = model_answers
             
             # توليد QR code
             qr_code_data = None
@@ -2436,7 +2445,7 @@ def preview_multi_models():
             # توليد HTML للنموذج
             model_html = render_template(
                 'question/exam_paper_layout_with_barcode.html',
-                questions=shuffled_questions['questions'],
+                questions=shuffled_questions,
                 model_letter=model_letter,
                 qr_code=qr_code_data,
                 show_answers=include_answers,
