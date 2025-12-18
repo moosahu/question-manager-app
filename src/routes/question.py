@@ -2515,51 +2515,38 @@ def preview_multi_models():
         return jsonify({'error': str(e)}), 500
 
 
-@question_bp.route('/generate-remark-sheets', methods=['POST'])
+# 1. دالة المعاينة: لقراءة ملف الإكسل ومعالجة مشكلة الهمزة
+@question_bp.route('/preview-students', methods=['POST'])
 @login_required
-def generate_remark_sheets():
-    from flask import db # تأكد من استيراد قاعدة البيانات لإغلاقها مؤقتاً
+def preview_students():
     try:
-        data = request.get_json()
-        students = data.get('students', [])
-        q_count = int(data.get('question_count', 20))
+        file = request.files.get('student_file')
+        if not file:
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
         
-        # جلب الإعدادات قبل البدء
-        settings = ExamHeaderSettings.query.first()
-        settings_dict = settings.__dict__.copy() if settings else {}
-        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
-
-        from weasyprint import HTML as WeasyHTML
-        import base64
-        import io
-
-        all_html = ""
-        for student in students:
-            # التأكد من مطابقة الأسماء للمتغيرات في القالب
-            s_data = {
-                'name': student.get('الاسم') or '....................',
-                'academic_id': student.get('الرقم الأكاديمي') or '..........',
-                'section': student.get('الشعبة') or '....'
-            }
+        df = pd.read_excel(file)
+        
+        # تنظيف أسماء الأعمدة من المسافات
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        students = []
+        for _, row in df.iterrows():
+            # معالجة مرنة للهمزة (الأكاديمي / الاكاديمي) لضمان القراءة
+            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'
+            name = row.get('الاسم') or row.get('اسم الطالب') or '....................'
+            section = row.get('الشعبة') or row.get('الشعبه') or '....'
             
-            # بناء صفحة كل طالب
-            all_html += render_template('question/remark_answer_sheet.html', 
-                                     student=s_data, 
-                                     question_count=q_count,
-                                     **settings_dict)
-            all_html += '<div style="page-break-after: always;"></div>'
-
-        # توليد PDF
-        pdf_buf = io.BytesIO()
-        WeasyHTML(string=all_html).write_pdf(pdf_buf)
-        pdf_buf.seek(0)
+            students.append({
+                'الاسم': str(name),
+                'الرقم الأكاديمي': str(academic_id),
+                'الشعبة': str(section)
+            })
         
-        pdf_base64 = base64.b64encode(pdf_buf.read()).decode('utf-8')
-        return jsonify({'success': True, 'pdf': pdf_base64})
+        return jsonify({'success': True, 'students': students})
     except Exception as e:
-        # إرجاع رسالة خطأ واضحة في حال الانهيار
-        return jsonify({'error': f'فشل التوليد: {str(e)}'}), 500
+        return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
 
+# 2. دالة الطباعة: ترسل HTML فقط لتجنب الانهيار (SIGKILL)
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2568,22 +2555,19 @@ def print_remark_sheets():
         students = data.get('students', [])
         q_count = int(data.get('question_count', 20))
         
-        # جلب إعدادات الكليشة (اللوجو والوزارة)
         settings = ExamHeaderSettings.query.first()
         settings_dict = settings.__dict__.copy() if settings else {}
         if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
 
         all_html = ""
         for student in students:
-            # نمرر البيانات كما هي لأننا عالجنا الهمزات في خطوة المعاينة
+            # بناء أوراق الطلاب في صفحة HTML واحدة
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      question_count=q_count,
                                      **settings_dict)
-            # فاصل صفحات للطباعة
             all_html += '<div style="page-break-after: always;"></div>'
 
-        # نرسل HTML للمتصفح بدلاً من توليد PDF في السيرفر لتجنب الانهيار
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500

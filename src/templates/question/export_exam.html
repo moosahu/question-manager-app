@@ -914,49 +914,10 @@ function setupEventListeners() {
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
-async function confirmAndPrint() {
-    if (currentStudents.length === 0) { showError('يرجى معاينة الطلاب أولاً'); return; }
-
-    showLoading(true);
-    try {
-        const response = await fetch('/questions/print-remark-sheets', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
-            },
-            body: JSON.stringify({ 
-                students: currentStudents, 
-                question_count: selectedQuestionIds.size || 20 
-            })
-        });
-
-        const data = await response.json();
-        if (data.success && data.html_content) {
-            // فتح نافذة جديدة للطباعة
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(data.html_content);
-            printWindow.document.close();
-            
-            // إعطاء مهلة بسيطة لتحميل التنسيقات ثم فتح نافذة الطباعة
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-            
-            showSuccess('تم تجهيز الأوراق للطباعة');
-        } else {
-            showError(data.error);
-        }
-    } catch (e) {
-        showError('خطأ في الاتصال بالسيرفر');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// 1. المعاينة
 async function previewStudentList() {
     const fileInput = document.getElementById('studentListFile');
+    if (!fileInput.files.length) { showError('الرجاء اختيار ملف Excel أولاً'); return; }
+
     const formData = new FormData();
     formData.append('student_file', fileInput.files[0]);
     formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
@@ -966,52 +927,24 @@ async function previewStudentList() {
         const response = await fetch('/questions/preview-students', { method: 'POST', body: formData });
         const data = await response.json();
         if (data.success) {
-            currentStudents = data.students; // حفظ البيانات هنا
+            currentStudents = data.students; 
             renderStudentPreviewTable(data.students);
-            showSuccess('تمت قراءة الأسماء');
+            showSuccess('تمت قراءة الأسماء بنجاح');
+            
+            // استدعاء دالة إظهار الزر الأخضر هنا
+            addFinalGenerateButton(); 
         } else { showError(data.error); }
-    } catch (e) { showError('خطأ في السيرفر'); }
+    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
     finally { showLoading(false); }
 }
-
-// 2. الطباعة
-async function confirmAndPrint() {
-    if (!currentStudents || currentStudents.length === 0) { 
-        showError('يرجى معاينة الطلاب أولاً'); return; 
-    }
-    
-    showLoading(true);
-    try {
-        const response = await fetch('/questions/print-remark-sheets', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
-            },
-            body: JSON.stringify({ 
-                students: currentStudents, 
-                question_count: selectedQuestionIds.size || 20 
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(data.html_content);
-            printWindow.document.close();
-            setTimeout(() => { printWindow.print(); }, 500);
-        } else { showError(data.error); }
-    } catch (e) { showError('خطأ في الاتصال'); }
-    finally { showLoading(false); }
-}
-// دالة إضافية لإظهار زر التوليد النهائي بعد المعاينة
+// دالة إضافية لإظهار زر التوليد النهائي (تأكيد الطباعة) بعد المعاينة
 function addFinalGenerateButton() {
     const container = document.getElementById('questionsContent');
     const btnHtml = `
-        <div style="margin-top: 20px; text-align: center; padding: 20px; background: #fff8e1; border-radius: 8px;">
-            <p>بعد التأكد من الأسماء أعلاه، اضغط للبدء في توليد أوراق الإجابة</p>
-            <button class="btn btn-success" onclick="previewStudentList()" style="width: 100%; margin-top: 10px;">
-                قراءة ومعاينة بيانات الطلاب 
+        <div style="margin-top: 20px; text-align: center; padding: 20px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe58f;">
+            <p style="color: #856404; font-weight: bold;">بعد التأكد من الأسماء أعلاه، اضغط للبدء في تجهيز الأوراق</p>
+            <button class="btn btn-success" onclick="confirmAndPrint()" style="width: 100%; margin-top: 10px; font-size: 1.2rem; padding: 12px;">
+                <i class="fas fa-print"></i> تأكيد وطباعة أوراق الإجابة
             </button>
         </div>
     `;
