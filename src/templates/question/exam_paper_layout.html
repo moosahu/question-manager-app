@@ -84,7 +84,6 @@
         {% if qr_code %}
         <div class="qr-code-container">
             <img src="{{ qr_code }}" alt="QR">
-            {# يظهر رمز النموذج في مربع أسود بجانب الباركود #}
             {% if model_letter and model_letter != '' %}
                 <div class="model-badge">{{ model_letter }}</div>
             {% endif %}
@@ -110,7 +109,7 @@
                         <div>الزمن : {{ time }}</div>
                         <div>الصف : {{ grade }}</div>
                         
-                        {# تم تعديل هذا الشرط بدقة: يظهر النص فقط إذا كان هناك نموذج "و" لم يتم طلب باركود #}
+                        {# تم تعديل هذا السطر بدقة: النص يختفي تماماً إذا كان qr_code موجوداً #}
                         {% if model_letter and model_letter != '' and not qr_code %}
                             <div style="margin-top: 5px;"><strong>النموذج : {{ model_letter }}</strong></div>
                         {% endif %}
@@ -156,7 +155,7 @@
             </div>
             {% endif %}
 
-            {# منطق الخيارات #}
+            {# منطق الخيارات (نفس الكود السابق لضمان الثبات) #}
             {% set has_img = [] %}
             {% for opt in question.options %}
                 {% if opt.image_url or (opt.option_text and opt.option_text.startswith('http')) %}
@@ -192,8 +191,8 @@
         {% endfor %}
     </div>
 
-    <div class="exam-end">
-        <div class="end-text">
+    <div class=\"exam-end\">
+        <div class=\"end-text\">
             انتهت الأسئلة<br>
             مع تمنياتي لكم بالتوفيق والنجاح<br>
             معلم المادة : أ. حسين الموسى
@@ -201,11 +200,11 @@
     </div>
 
     {% if show_answers %}
-    <div class="answer-key">
-        <div style="text-align:center; font-weight:bold; margin-bottom:10px;">مفتاح الإجابة {% if model_letter and model_letter != '' %}- نموذج {{ model_letter }}{% endif %}</div>
-        <div class="answer-grid">
+    <div class=\"answer-key\">
+        <div style=\"text-align:center; font-weight:bold; margin-bottom:10px;\">مفتاح الإجابة {% if model_letter and model_letter != '' %}- نموذج {{ model_letter }}{% endif %}</div>
+        <div class=\"answer-grid\">
             {% for q in questions %}
-            <div class="answer-item">
+            <div class=\"answer-item\">
                 س{{ loop.index }}: <strong>
                 {% if q.correct_answer %}
                     {% if q.correct_answer|lower == 'a' %}أ{% elif q.correct_answer|lower == 'b' %}ب{% elif q.correct_answer|lower == 'c' %}ج{% elif q.correct_answer|lower == 'd' %}د{% else %}{{ q.correct_answer }}{% endif %}
