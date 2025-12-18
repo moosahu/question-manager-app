@@ -3897,25 +3897,7 @@ def preview_students():
 @login_required
 def generate_remark_omr():
     """
-    توليد أوراق إجابة Remark OMR للطباعة
-    
-    Request JSON:
-    {
-        "question_ids": [1, 2, 3, ...],
-        "students": [{"name": "...", "id": "..."}, ...],
-        "header_settings": {
-            "country": "...",
-            "ministry": "...",
-            "education_department": "...",
-            "school_name": "...",
-            "subject": "...",
-            "time": "...",
-            "grade": "...",
-            "total_score": 30
-        }
-    }
-    
-    Response: HTML document for printing
+    توليد أوراق إجابة Remark OMR احترافية للطباعة
     """
     try:
         data = request.get_json()
@@ -3923,49 +3905,166 @@ def generate_remark_omr():
         students = data.get("students", [])
         header_settings = data.get("header_settings", {})
         
-        if not question_ids:
+        if not question_ids or not students:
             return jsonify({
                 'success': False,
-                'error': 'لم يتم تحديد أسئلة'
+                'error': 'بيانات ناقصة'
             }), 400
         
-        if not students:
-            return jsonify({
-                'success': False,
-                'error': 'لم يتم تحديد طلاب'
-            }), 400
+        # قالب HTML احترافي
+        html_template = '''<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {{ size: A4; margin: 10mm; }}
+        body {{ font-family: 'Arial', sans-serif; font-size: 12px; color: #000; margin: 0; padding: 10px; direction: rtl; }}
+        .page {{ page-break-after: always; margin-bottom: 20px; }}
         
-        # الحصول على الأسئلة
-        questions = Question.query.filter(
-            Question.question_id.in_(question_ids)
-        ).all()
+        .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
+        .header-table td {{ vertical-align: top; padding: 2px; font-weight: bold; }}
+        .school-info {{ width: 40%; text-align: right; }}
+        .exam-info {{ width: 20%; text-align: center; }}
         
-        if not questions:
-            return jsonify({
-                'success': False,
-                'error': 'لم يتم العثور على الأسئلة المحددة'
-            }), 404
+        .student-data-area {{ border: 2px solid #000; margin-bottom: 10px; padding: 5px; }}
+        .data-title {{ background: #eee; text-align: center; font-weight: bold; border-bottom: 1px solid #000; padding: 3px; }}
+        .data-table {{ width: 100%; border-collapse: collapse; }}
+        .data-table td {{ border: 1px solid #000; padding: 5px; font-weight: bold; }}
         
-        # تنسيق الأسئلة
-        formatted_questions = []
-        for question in questions:
-            formatted_q = format_question(question)
-            formatted_questions.append(formatted_q)
+        .instructions-box {{ border: 1px solid #000; padding: 5px; margin-bottom: 10px; font-size: 10px; }}
+        .instructions-title {{ font-weight: bold; color: #ff0000; text-decoration: underline; }}
         
-        # توليد HTML لأوراق الإجابة
-        html_content = generate_remark_answer_sheets_html(
-            students,
-            formatted_questions,
-            header_settings
-        )
+        .grading-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; text-align: center; }}
+        .grading-table th, .grading-table td {{ border: 1px solid #000; padding: 3px; }}
         
-        return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        .omr-container {{ display: flex; justify-content: space-between; gap: 10px; }}
+        .omr-column {{ width: 32%; }}
+        .section-title {{ background: #ddd; padding: 3px; text-align: center; font-weight: bold; border: 1px solid #000; margin-bottom: 5px; }}
+        .bubble-row {{ display: flex; align-items: center; margin-bottom: 4px; border-bottom: 0.5px solid #eee; padding: 2px 0; }}
+        .q-num {{ width: 20px; font-weight: bold; text-align: center; }}
+        .bubble {{ width: 16px; height: 16px; border: 1px solid #000; border-radius: 50%; display: inline-block; margin: 0 3px; }}
+        .bubble-label {{ font-size: 9px; text-align: center; line-height: 16px; font-weight: bold; }}
+    </style>
+</head>
+<body>
+'''
+        
+        # إضافة ورقة لكل طالب
+        for student in students:
+            html_template += f'''    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td class="school-info">
+                    {header_settings.get('country', 'المملكة العربية السعودية')}<br>
+                    {header_settings.get('ministry', 'وزارة التعليم')}<br>
+                    {header_settings.get('education_department', '')}<br>
+                    {header_settings.get('school_name', '')}
+                </td>
+                <td class="exam-info">
+                    {header_settings.get('subject', 'اختبار')}<br>
+                    {header_settings.get('time', '')}
+                </td>
+            </tr>
+        </table>
+        
+        <div class="instructions-box">
+            <span class="instructions-title">تعليمات هامة:</span>
+            استخدم القلم الرصاص فقط | تأكد من تظليل فقرة واحدة فقط | لا تستخدم قلم الحبر أو المزيل
+        </div>
+        
+        <div class="student-data-area">
+            <div class="data-title">منطقة بيانات الطالب الرئيسية</div>
+            <table class="data-table">
+                <tr>
+                    <td colspan="2">الاسم: {student.get('name', '')}</td>
+                    <td>الشعبة: {student.get('section', '')}</td>
+                </tr>
+                <tr>
+                    <td>الرقم الأكاديمي: {student.get('id', '')}</td>
+                    <td>المقرر: {header_settings.get('subject', '')}</td>
+                    <td>النموذج: أ <div class="bubble" style="display:inline-block; margin-right:5px;"></div></td>
+                </tr>
+            </table>
+        </div>
+        
+        <table class="grading-table">
+            <tr style="background: #eee;">
+                <th rowspan="2">الدرجة</th>
+                <th colspan="4">الجزء العشري</th>
+                <th colspan="11">الجزء الصحيح</th>
+            </tr>
+            <tr>
+                <td>1/4</td><td>1/2</td><td>3/4</td><td>-</td>
+                <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td>
+            </tr>
+            <tr>
+                <td>الدرجة النهائية</td>
+'''
+            
+            # إضافة فقاعات الدرجات
+            for n in range(15):
+                html_template += '<td><div class="bubble"></div></td>'
+            
+            html_template += '''            </tr>
+        </table>
+        
+        <div class="omr-container">
+            <div class="omr-column">
+                <div class="section-title">أسئلة اختر الإجابة الصحيحة</div>
+'''
+            
+            # إضافة صفوف الأسئلة
+            num_questions = len(question_ids)
+            questions_per_column = (num_questions + 2) // 3
+            
+            for i in range(1, questions_per_column + 1):
+                html_template += f'''                <div class="bubble-row">
+                    <span class="q-num">{i}</span>
+                    <div class="bubble"><div class="bubble-label">أ</div></div>
+                    <div class="bubble"><div class="bubble-label">ب</div></div>
+                    <div class="bubble"><div class="bubble-label">ج</div></div>
+                    <div class="bubble"><div class="bubble-label">د</div></div>
+                </div>
+'''
+            
+            html_template += '''            </div>
+            <div class="omr-column">
+                <div class="section-title">تابع: اختر الإجابة</div>
+'''
+            
+            for i in range(questions_per_column + 1, min(2 * questions_per_column + 1, num_questions + 1)):
+                html_template += f'''                <div class="bubble-row">
+                    <span class="q-num">{i}</span>
+                    <div class="bubble"><div class="bubble-label">أ</div></div>
+                    <div class="bubble"><div class="bubble-label">ب</div></div>
+                    <div class="bubble"><div class="bubble-label">ج</div></div>
+                    <div class="bubble"><div class="bubble-label">د</div></div>
+                </div>
+'''
+            
+            html_template += '''            </div>
+            <div class="omr-column">
+                <div class="section-title">أسئلة صح (أ) / خطأ (ب)</div>
+                <div class="bubble-row">
+                    <span class="q-num">1</span>
+                    <div class="bubble"><div class="bubble-label">أ</div></div>
+                    <div class="bubble"><div class="bubble-label">ب</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+'''
+        
+        html_template += '''</body>
+</html>'''
+        
+        return html_template, 200, {'Content-Type': 'text/html; charset=utf-8'}
         
     except Exception as e:
         logger.exception(f"Error generating Remark OMR: {e}")
         return jsonify({
             'success': False,
-            'error': f'خطأ في التوليد: {str(e)}'
+            'error': f'خطأ: {str(e)}'
         }), 500
 
 
