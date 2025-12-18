@@ -797,7 +797,8 @@ async function generateMultipleModels() {
                 include_answers: document.getElementById('includeAnswers').checked,
                 include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
                 include_barcode: document.getElementById('includeBarcode').checked,
-                shuffle_options: document.getElementById('shuffleOptions').checked
+                // التعديل: إجبار الخلط لضمان اختلاف حرف الإجابة الصحيحة بين النماذج
+                shuffle_options: true 
             })
         });
         
@@ -811,7 +812,7 @@ async function generateMultipleModels() {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            showSuccess(`تم توليد ${selectedModels.length} نموذج بنجاح`);
+            showSuccess(`تم توليد ${selectedModels.length} نموذج بنجاح مع توزيع إجابات مختلف`);
             
             // تحديث المعاينة
             document.getElementById('previewModelsCount').textContent = selectedModels.length;
@@ -855,73 +856,24 @@ async function previewMultipleModels() {
                 include_answers: document.getElementById('includeAnswers').checked,
                 include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
                 include_barcode: document.getElementById('includeBarcode').checked,
-                shuffle_options: document.getElementById('shuffleOptions').checked
+                // التعديل هنا: إرسال true دائماً لكسر تشابه الإجابات بين النماذج
+                shuffle_options: true 
             })
         });
         
         if (response.ok) {
             const html = await response.text();
-            // فتح نافذة جديدة وعرض HTML
+            // فتح نافذة جديدة وعرض HTML مع تفعيل الطباعة
             const printWindow = window.open('', '_blank');
             printWindow.document.write(html);
             printWindow.document.close();
-            showSuccess('تم فتح المعاينة في نافذة جديدة - اضغط على زر الطباعة');
+            showSuccess('تم فتح المعاينة - كل نموذج لديه مفتاح إجابة فريد الآن');
         } else {
             const error = await response.json();
             showError(error.error || 'فشل معاينة النماذج');
         }
     } catch (error) {
         showError('خطأ في معاينة النماذج: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function downloadWord(includeAnswers) {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل');
-        return;
-    }
-    showLoading(true);
-    try {
-        const courseSelect = document.getElementById('courseSelect');
-        const unitSelect = document.getElementById('unitSelect');
-        const lessonSelect = document.getElementById('lessonSelect');
-        const courseName = courseSelect.options[courseSelect.selectedIndex].text || '';
-        const unitName = unitSelect.options[unitSelect.selectedIndex].text || '';
-        const lessonName = lessonSelect.options[lessonSelect.selectedIndex].text || '';
-        const response = await fetch('/questions/download-exam-word', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                include_answers: includeAnswers,
-                exam_title: 'نموذج الاختبار',
-                course_name: courseName,
-                unit_name: unitName,
-                lesson_name: lessonName
-            })
-        });
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_${new Date().getTime()}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('تم تحميل الملف بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل تحميل الملف');
-        }
-    } catch (error) {
-        showError('خطأ في تحميل الملف: ' + error.message);
     } finally {
         showLoading(false);
     }

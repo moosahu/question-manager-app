@@ -2338,7 +2338,7 @@ body { font-family: Arial, Tahoma, sans-serif; font-size: 12px; }
 def preview_multi_models():
     """
     معاينة النماذج المتعددة كـ HTML في المتصفح (للطباعة)
-    هذا يتجنب مشاكل WeasyPrint timeout وتم تحديثه لضمان اختلاف الإجابات بين النماذج
+    هذا يتجنب مشاكل WeasyPrint timeout
     """
     try:
         data = request.get_json()
@@ -2348,9 +2348,7 @@ def preview_multi_models():
         include_answers = data.get('include_answers', False)
         include_answer_sheet = data.get('include_answer_sheet', False)
         include_barcode = data.get('include_barcode', True)
-        
-        # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
-        shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
+        shuffle_options = data.get('shuffle_options', True)
         
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
@@ -2361,7 +2359,7 @@ def preview_multi_models():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
         
-        # تحويل الأسئلة لقاموس (كما في كودك الأصلي)
+        # تحويل الأسئلة لقاموس
         questions_data = []
         for q in questions:
             q_dict = {
@@ -2379,7 +2377,7 @@ def preview_multi_models():
                 })
             questions_data.append(q_dict)
         
-        # جلب إعدادات الهيدر (كما في كودك الأصلي)
+        # جلب إعدادات الهيدر
         settings = ExamHeaderSettings.query.first()
         header_settings = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
@@ -2394,7 +2392,7 @@ def preview_multi_models():
             'reviewer_name': settings.reviewer_name if settings else ''
         }
         
-        # تحويل الشعار لـ base64 (كما في كودك الأصلي)
+        # تحويل الشعار لـ base64
         logo_base64 = None
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
@@ -2413,7 +2411,7 @@ def preview_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # خلط الأسئلة والخيارات (استخدام المنطق الأصلي مع ضمان استقلالية كل نموذج)
+            # خلط الأسئلة والخيارات
             seed = hash(model_letter) + idx * 1000
             shuffled_questions = shuffle_exam(
                 questions_data,
@@ -2422,11 +2420,10 @@ def preview_multi_models():
                 seed=seed
             )
             
-            # بناء مفتاح الإجابات من الأسئلة المخلوطة لهذا النموذج تحديداً
+            # بناء مفتاح الإجابات من الأسئلة المخلوطة
             model_answers = []
             for q in shuffled_questions:
                 correct_letter = ''
-                # البحث عن الإجابة الصحيحة بعد الخلط (هذا يضمن اختلاف الحرف بين النماذج)
                 for i, opt in enumerate(q.get('options', [])):
                     if opt.get('is_correct'):
                         correct_letter = letters[i] if i < len(letters) else str(i+1)
@@ -2434,7 +2431,7 @@ def preview_multi_models():
                 model_answers.append({'answer': correct_letter})
             answer_keys[model_letter] = model_answers
             
-            # توليد QR code (كما في كودك الأصلي)
+            # توليد QR code
             qr_code_data = None
             if include_barcode:
                 qr_data = {
@@ -2445,7 +2442,7 @@ def preview_multi_models():
                 }
                 qr_code_data = generate_qr_code(qr_data)
             
-            # توليد HTML للنموذج (كما في كودك الأصلي)
+            # توليد HTML للنموذج
             model_html = render_template(
                 'question/exam_paper_layout_with_barcode.html',
                 questions=shuffled_questions,
@@ -2458,7 +2455,7 @@ def preview_multi_models():
             
             all_models_html.append(model_html)
         
-        # إضافة بطاقة التصحيح (كما في كودك الأصلي)
+        # إضافة بطاقة التصحيح
         if include_answer_sheet:
             answer_sheet_html = render_template(
                 'question/answer_sheet_template.html',
@@ -2469,7 +2466,7 @@ def preview_multi_models():
             )
             all_models_html.append(answer_sheet_html)
         
-        # دمج كل النماذج في HTML واحد للطباعة (كما في كودك الأصلي)
+        # دمج كل النماذج في HTML واحد للطباعة
         combined_html = """<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -2513,3 +2510,110 @@ def preview_multi_models():
     except Exception as e:
         current_app.logger.exception(f"Error previewing multi models: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/preview-single-model', methods=['POST'])
+@login_required
+def preview_single_model():
+    """
+    معاينة نموذج واحد مع الباركود في المتصفح
+    """
+    try:
+        data = request.get_json()
+        
+        question_ids = data.get('question_ids', [])
+        model_letter = data.get('model', 'أ')
+        include_answers = data.get('include_answers', False)
+        include_barcode = data.get('include_barcode', True)
+        shuffle_options = data.get('shuffle_options', True)
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        # جلب الأسئلة
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # تحويل الأسئلة لقاموس
+        questions_data = []
+        for q in questions:
+            q_dict = {
+                'question_id': q.question_id,
+                'question_text': q.question_text,
+                'image_url': q.image_url,
+                'options': []
+            }
+            for opt in q.options:
+                q_dict['options'].append({
+                    'option_id': opt.option_id,
+                    'option_text': opt.option_text,
+                    'image_url': opt.image_url,
+                    'is_correct': opt.is_correct
+                })
+            questions_data.append(q_dict)
+        
+        # خلط الأسئلة
+        seed = hash(model_letter)
+        shuffled_questions = shuffle_exam(
+            questions_data, 
+            shuffle_questions=True, 
+            shuffle_options=shuffle_options,
+            seed=seed
+        )
+        
+        # جلب إعدادات الهيدر
+        settings = ExamHeaderSettings.query.first()
+        header_settings = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'time': settings.time if settings else '',
+            'grade': settings.grade if settings else '',
+            'total_score': settings.total_score if settings else 30,
+            'checker_name': settings.checker_name if settings else '',
+            'reviewer_name': settings.reviewer_name if settings else ''
+        }
+        
+        # تحويل الشعار لـ base64
+        logo_base64 = None
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_data = f.read()
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_data).decode('utf-8')}"
+        except Exception as logo_err:
+            current_app.logger.warning(f"Could not load logo: {logo_err}")
+        
+        header_settings['logo_base64'] = logo_base64
+        header_settings['logo_url'] = url_for('static', filename='images/logo.png', _external=True)
+        
+        # توليد الباركود
+        qr_code_data = None
+        if include_barcode:
+            qr_code_data = generate_qr_code({
+                'subject': header_settings['subject'],
+                'model': model_letter,
+                'questions_count': len(shuffled_questions),
+                'date': datetime.now().strftime('%Y-%m-%d')
+            })
+        
+        # توليد HTML
+        html_content = render_template(
+            'question/exam_paper_layout_with_barcode.html',
+            questions=shuffled_questions,
+            model_letter=model_letter,
+            qr_code=qr_code_data,
+            show_answers=include_answers,
+            **header_settings
+        )
+        
+        return html_content
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error previewing single model: {e}")
+        return f"Error: {str(e)}", 500
