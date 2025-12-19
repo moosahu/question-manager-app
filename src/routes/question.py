@@ -2516,33 +2516,20 @@ def preview_multi_models():
 
 
 # 1. تعديل دالة المعاينة لتوحيد أسماء الحقول (للتوافق مع القالب)
+# في ملف question.py - دالة preview_students
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
     try:
-        file = request.files.get('student_file')
-        if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
-        
-        df = pd.read_excel(file)
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        students = []
-        for _, row in df.iterrows():
-            # استخدام مفاتيح باللغة الإنجليزية لتطابق المتغيرات في قالب HTML
-            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'
-            name = row.get('الاسم') or row.get('اسم الطالب') or '....................'
-            section = row.get('الشعبة') or row.get('الشعبه') or '....'
-            
-            students.append({
-                'name': str(name),
-                'academic_id': str(academic_id),
-                'section': str(section)
-            })
-        
+        # ... الكود السابق للقراءة من الإكسل ...
+        students.append({
+            'name': str(name),          # تغيير من 'الاسم' إلى 'name'
+            'academic_id': str(academic_id), # تغيير من 'الرقم الأكاديمي' إلى 'academic_id'
+            'section': str(section)     # تغيير من 'الشعبة' إلى 'section'
+        })
         return jsonify({'success': True, 'students': students})
     except Exception as e:
-        return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # 2. تعديل دالة الطباعة لتعتمد كلياً على البيانات المخزنة والكليشة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
