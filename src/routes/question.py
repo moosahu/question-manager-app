@@ -2517,21 +2517,39 @@ def preview_multi_models():
 
 # 1. تعديل دالة المعاينة لتوحيد أسماء الحقول (للتوافق مع القالب)
 # في ملف question.py - دالة preview_students
+# 1. دالة المعاينة: قراءة ملف الإكسل وتجهيز البيانات للمتصفح
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
+    # تعريف القائمة فارغة في البداية لتجنب خطأ "not defined"
+    students_list = [] 
     try:
-        # ... الكود السابق للقراءة من الإكسل ...
-        students.append({
-            'name': str(name),          # تغيير من 'الاسم' إلى 'name'
-            'academic_id': str(academic_id), # تغيير من 'الرقم الأكاديمي' إلى 'academic_id'
-            'section': str(section)     # تغيير من 'الشعبة' إلى 'section'
-        })
-        return jsonify({'success': True, 'students': students})
+        file = request.files.get('student_file')
+        if not file:
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+        
+        df = pd.read_excel(file)
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        for _, row in df.iterrows():
+            # البحث عن البيانات بمسميات مختلفة لضمان المرونة
+            name = row.get('الاسم') or row.get('اسم الطالب') or row.get('Name') or '....................'
+            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or row.get('Academic ID') or '..........'
+            section = row.get('الشعبة') or row.get('الشعبه') or row.get('Section') or '....'
+            
+            # استخدام مفاتيح إنجليزية لتطابق قالب HTML (student.name, student.academic_id)
+            students_list.append({
+                'name': str(name),
+                'academic_id': str(academic_id),
+                'section': str(section)
+            })
+        
+        return jsonify({'success': True, 'students': students_list})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # إرجاع رسالة الخطأ لتظهر في الواجهة
+        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
 
-# 2. تعديل دالة الطباعة لتعتمد كلياً على البيانات المخزنة والكليشة
+# 2. دالة الطباعة: توليد أوراق Remark بناءً على البيانات والكليشة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2540,11 +2558,8 @@ def print_remark_sheets():
         students = data.get('students', [])
         q_count = int(data.get('question_count', 20))
         
-        # جلب إعدادات الكليشة من قاعدة البيانات
-        from src.models.question import ExamHeaderSettings # تأكد من المسار الصحيح
+        # جلب الكليشة من قاعدة البيانات
         settings = ExamHeaderSettings.query.first()
-        
-        # تجهيز سياق البيانات (Context) من قاعدة البيانات
         header_context = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
             'ministry': settings.ministry if settings else 'وزارة التعليم',
@@ -2554,25 +2569,23 @@ def print_remark_sheets():
             'logo_base64': ''
         }
 
-        # معالجة الشعار: تحويله لـ Base64 لضمان ظهوره عند الطباعة بدون مشاكل مسارات
+        # تحويل الشعار لـ Base64 لضمان ظهوره في الطباعة
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
             if os.path.exists(logo_path):
                 with open(logo_path, 'rb') as f:
                     header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        except Exception as e:
-            current_app.logger.warning(f"تعذر تحميل الشعار لورقة ريمارك: {e}")
+        except: pass
 
         all_html = ""
-        # توليد الأوراق لكل الطلاب مع دمج الكليشة
         for student in students:
+            # دمج بيانات الطالب مع الكليشة في قالب ريمارك
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      question_count=q_count,
-                                     **header_context) # تمرير الكليشة مباشرة
+                                     **header_context)
             all_html += '<div style="page-break-after: always;"></div>'
 
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
-        current_app.logger.exception("خطأ أثناء تجهيز أوراق ريمارك")
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
