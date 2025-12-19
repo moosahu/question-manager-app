@@ -2515,31 +2515,40 @@ def preview_multi_models():
         return jsonify({'error': str(e)}), 500
 
 
-# 1. دالة المعاينة: تعريف القائمة وتوحيد المفاتيح
-# دالة المعاينة: قراءة ملف الإكسل وتمرير البيانات للواجهة
+# 1. دالة المعاينة: قراءة ملف الإكسل وتمرير البيانات للواجهة
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
+    # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
+    final_students = [] 
     try:
         file = request.files.get('student_file')
-        if not file: return jsonify({'error': 'الرجاء اختيار ملف'}), 400
+        if not file:
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
         
         df = pd.read_excel(file)
+        # تنظيف أسماء الأعمدة من المسافات
         df.columns = [str(c).strip() for c in df.columns]
         
-        final_students = []
         for _, row in df.iterrows():
-            # استخدام مفاتيح إنجليزية لتطابق قالب remark_answer_sheet.html
+            # البحث عن البيانات بمسميات مرنة (عربي/إنجليزي) لضمان القراءة
+            name = row.get('الاسم') or row.get('اسم الطالب') or row.get('Name') or '..........'
+            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or row.get('Academic ID') or '..........'
+            section = row.get('الشعبة') or row.get('الشعبه') or row.get('Section') or '....'
+            
+            # استخدام مفاتيح إنجليزية لتطابق قالب HTML (student.name)
             final_students.append({
-                'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
-                'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
-                'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
+                'name': str(name),
+                'academic_id': str(academic_id),
+                'section': str(section)
             })
+        
         return jsonify({'success': True, 'students': final_students})
     except Exception as e:
-        return jsonify({'error': f'خطأ: {str(e)}'}), 500
+        current_app.logger.error(f"Error in preview_students: {str(e)}")
+        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
 
-# دالة الطباعة: توليد الشيت الثابت بناءً على الكليشة والأسماء
+# 2. دالة الطباعة: توليد أوراق Remark بناءً على الكليشة والأسماء المرفوعة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2547,8 +2556,9 @@ def print_remark_sheets():
         data = request.get_json()
         students_list = data.get('students', [])
         
-        # جلب الكليشة من قاعدة البيانات
+        # جلب إعدادات الكليشة من قاعدة البيانات (ExamHeaderSettings)
         settings = ExamHeaderSettings.query.first()
+        
         header_context = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
             'ministry': settings.ministry if settings else 'وزارة التعليم',
@@ -2568,7 +2578,7 @@ def print_remark_sheets():
 
         all_html = ""
         for student in students_list:
-            # استخدام القالب الثابت الذي يحتوي على الـ 40 سؤالاً والأنواع الأخرى
+            # دمج بيانات الطالب مع الكليشة في قالب ريمارك الثابت (40 سؤالاً)
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      **header_context)
@@ -2576,4 +2586,4 @@ def print_remark_sheets():
 
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
