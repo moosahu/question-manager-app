@@ -2516,31 +2516,30 @@ def preview_multi_models():
 
 
 # 1. دالة المعاينة: تعريف القائمة وتوحيد المفاتيح
+# دالة المعاينة: قراءة ملف الإكسل وتمرير البيانات للواجهة
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
-    # تعريف القائمة في البداية لتجنب خطأ "not defined"
-    final_students = [] 
     try:
         file = request.files.get('student_file')
-        if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+        if not file: return jsonify({'error': 'الرجاء اختيار ملف'}), 400
         
         df = pd.read_excel(file)
         df.columns = [str(c).strip() for c in df.columns]
         
+        final_students = []
         for _, row in df.iterrows():
-            # جمع البيانات بمفاتيح إنجليزية لتطابق قالب HTML (student.name)
+            # استخدام مفاتيح إنجليزية لتطابق قالب remark_answer_sheet.html
             final_students.append({
                 'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
                 'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
                 'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
             })
-        
         return jsonify({'success': True, 'students': final_students})
     except Exception as e:
-        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
+        return jsonify({'error': f'خطأ: {str(e)}'}), 500
 
+# دالة الطباعة: توليد الشيت الثابت بناءً على الكليشة والأسماء
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2548,7 +2547,7 @@ def print_remark_sheets():
         data = request.get_json()
         students_list = data.get('students', [])
         
-        # جلب الكليشة والشعار من قاعدة البيانات
+        # جلب الكليشة من قاعدة البيانات
         settings = ExamHeaderSettings.query.first()
         header_context = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
@@ -2569,7 +2568,7 @@ def print_remark_sheets():
 
         all_html = ""
         for student in students_list:
-            # توليد الشيت الثابت لكل طالب (يحتوي على الـ 40 سؤالاً وبقية الأنواع تلقائياً)
+            # استخدام القالب الثابت الذي يحتوي على الـ 40 سؤالاً والأنواع الأخرى
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
                                      **header_context)
@@ -2577,4 +2576,4 @@ def print_remark_sheets():
 
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
-        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500

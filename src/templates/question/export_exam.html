@@ -917,7 +917,7 @@ function setupEventListeners() {
 // 2. تعديل دالة معاينة الطلاب (Preview Students)
 // متغير لتخزين بيانات الطلاب محلياً بعد المعاينة
 // في أعلى السكربت، تأكد من تعريف المتغير
-let currentStudents = []; // تعريف المتغير في النطاق العام
+let currentStudents = []; // لتخزين الأسماء محلياً بعد المعاينة
 
 async function previewStudentList() {
     const fileInput = document.getElementById('studentListFile');
@@ -926,7 +926,6 @@ async function previewStudentList() {
 
     showLoading(true);
     try {
-        // استخدام المسار المباشر لحل مشكلة 404
         const response = await fetch('/questions/preview-students', { 
             method: 'POST',
             body: formData,
@@ -937,11 +936,12 @@ async function previewStudentList() {
         if (data.success) {
             currentStudents = data.students; 
             renderStudentPreviewTable(data.students);
-            showSuccess('تم تحميل الأسماء بنجاح.');
-            // إظهار زر الطباعة النهائي
-            document.getElementById('finalPrintBtn').style.display = 'block';
+            showSuccess('تم تحميل قائمة الطلاب بنجاح');
+            
+            // إظهار زر "تأكيد وطباعة" الأخضر
+            document.getElementById('finalPrintBtnContainer').style.display = 'block';
         } else { showError(data.error); }
-    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
+    } catch (e) { showError('خطأ في الاتصال: تأكد من المسار'); }
     finally { showLoading(false); }
 }
 
@@ -950,42 +950,27 @@ async function confirmAndPrint() {
     try {
         const response = await fetch('/questions/print-remark-sheets', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
+            },
             body: JSON.stringify({ students: currentStudents })
         });
-        const data = await response.json();
-        if (data.success) {
-            const win = window.open('', '_blank');
-            win.document.write(data.html_content);
-            win.document.close();
-        }
-    } catch (e) { showError('فشل تجهيز الطباعة'); }
-    finally { showLoading(false); }
-}
 
-async function loadCourses() {
-    try {
-        const response = await fetch(`${API_BASE}/courses`);
         const data = await response.json();
-        
-        const courseSelect = document.getElementById('courseSelect');
-        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
-        
-        const courses = Array.isArray(data) ? data : (data.courses || []);
-        
-        if (courses.length > 0) {
-            courses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = course.name;
-                courseSelect.appendChild(option);
-            });
-        } else {
-            showError('لا توجد مناهج متاحة');
+        if (data.success && data.html_content) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
+            
+            // الطباعة التلقائية عند التحميل
+            printWindow.onload = () => {
+                printWindow.focus();
+                printWindow.print();
+            };
         }
-    } catch (error) {
-        showError('فشل تحميل المناهج: ' + error.message);
-    }
+    } catch (e) { showError('فشل تجهيز الشيتات'); }
+    finally { showLoading(false); }
 }
 
 async function handleCourseChange() {
