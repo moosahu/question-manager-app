@@ -2519,8 +2519,8 @@ def preview_multi_models():
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
-    # تعريف القائمة في البداية لتجنب خطأ التعريف
-    final_students_data = [] 
+    # تعريف القائمة في البداية لتجنب خطأ "not defined"
+    final_students = [] 
     try:
         file = request.files.get('student_file')
         if not file:
@@ -2530,18 +2530,17 @@ def preview_students():
         df.columns = [str(c).strip() for c in df.columns]
         
         for _, row in df.iterrows():
-            # استخدام مفاتيح إنجليزية لتطابق قالب HTML
-            final_students_data.append({
+            # جمع البيانات بمفاتيح إنجليزية لتطابق قالب HTML (student.name)
+            final_students.append({
                 'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
                 'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
                 'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
             })
         
-        return jsonify({'success': True, 'students': final_students_data})
+        return jsonify({'success': True, 'students': final_students})
     except Exception as e:
-        return jsonify({'error': f'خطأ في المعالجة: {str(e)}'}), 500
+        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
 
-# 2. دالة الطباعة: الربط مع الكليشة وقالب Remark
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
@@ -2549,7 +2548,7 @@ def print_remark_sheets():
         data = request.get_json()
         students_list = data.get('students', [])
         
-        # جلب الكليشة من قاعدة البيانات
+        # جلب الكليشة والشعار من قاعدة البيانات
         settings = ExamHeaderSettings.query.first()
         header_context = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
@@ -2559,8 +2558,8 @@ def print_remark_sheets():
             'subject': settings.subject if settings else '',
             'logo_base64': ''
         }
-        
-        # معالجة الشعار كـ Base64 لضمان الظهور
+
+        # تحويل الشعار لـ Base64 لضمان ظهوره في الطباعة
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
             if os.path.exists(logo_path):
@@ -2570,13 +2569,12 @@ def print_remark_sheets():
 
         all_html = ""
         for student in students_list:
-            # تمرير بيانات الطالب للقالب الثابت (40 سؤالاً)
+            # توليد الشيت الثابت لكل طالب (يحتوي على الـ 40 سؤالاً وبقية الأنواع تلقائياً)
             all_html += render_template('question/remark_answer_sheet.html', 
                                      student=student, 
-                                     question_count=40, # ثابت لضمان تطابق الورقة
                                      **header_context)
             all_html += '<div style="page-break-after: always;"></div>'
 
         return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
-        return jsonify({'error': f'فشل التوليد: {str(e)}'}), 500
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
