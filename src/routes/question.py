@@ -2521,35 +2521,27 @@ def preview_multi_models():
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
-    # الخطوة الأهم: تعريف القائمة فارغة في البداية لتجنب خطأ التعريف
-    final_students = [] 
+    # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
+    all_students = [] 
     try:
         file = request.files.get('student_file')
         if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+            return jsonify({'error': 'الرجاء اختيار ملف'}), 400
         
-        # قراءة ملف الإكسل
         df = pd.read_excel(file)
-        
-        # تنظيف أسماء الأعمدة من المسافات الزائدة
         df.columns = [str(c).strip() for c in df.columns]
         
         for _, row in df.iterrows():
-            # جمع البيانات بأسماء الحقول التي يتوقعها القالب (name, academic_id, section)
-            # تم إضافة خيارات بديلة لأسماء الأعمدة لضمان القراءة الصحيحة
-            student_entry = {
+            # قراءة الأسماء بمرونة (الاسم أو اسم الطالب)
+            all_students.append({
                 'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
                 'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
                 'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
-            }
-            final_students.append(student_entry)
+            })
         
-        # إرجاع البيانات بصيغة JSON متوافقة مع ما يتوقعه ملف export_exam.html
-        return jsonify({'success': True, 'students': final_students})
+        return jsonify({'success': True, 'students': all_students})
     except Exception as e:
-        # تسجيل الخطأ في السجلات للمساعدة في التصحيح
-        current_app.logger.error(f"Error processing students file: {str(e)}")
-        return jsonify({'error': f'حدث خطأ أثناء معالجة الملف: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # 2. دالة الطباعة: توليد أوراق Remark بناءً على البيانات والكليشة
 @question_bp.route('/print-remark-sheets', methods=['POST'])

@@ -916,48 +916,56 @@ function setupEventListeners() {
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
 // 2. تعديل دالة معاينة الطلاب (Preview Students)
 // متغير لتخزين بيانات الطلاب محلياً بعد المعاينة
-let currentStudents = [];
+// أضف هذا المتغير في أعلى السكربت لضمان عدم حدوث "خطأ اتصال"
+let currentStudentsList = []; 
 
-
-// 2. معاينة الطلاب (المسار المباشر)
 async function previewStudentList() {
     const fileInput = document.getElementById('studentListFile');
-    if (!fileInput.files.length) { showError('الرجاء اختيار ملف Excel أولاً'); return; }
-
     const formData = new FormData();
     formData.append('student_file', fileInput.files[0]);
 
     showLoading(true);
     try {
+        // استخدام المسار المباشر لحل مشكلة 404
         const response = await fetch('/questions/preview-students', { 
-            method: 'POST', 
+            method: 'POST',
             body: formData,
             headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
         });
+
         const data = await response.json();
         if (data.success) {
-            currentStudents = data.students; 
+            currentStudentsList = data.students; // تخزين الأسماء
             renderStudentPreviewTable(data.students);
-            showSuccess('تمت قراءة الأسماء بنجاح');
-            addFinalGenerateButton(); // إظهار زر الطباعة الأخضر
+            showSuccess('تم تحميل الأسماء؛ يمكنك الآن الطباعة مباشرة.');
+            
+            // إظهار زر الطباعة النهائي
+            addFinalGenerateButton(); 
         } else { showError(data.error); }
-    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
+    } catch (e) { showError('خطأ في الاتصال: تأكد من المسار'); }
     finally { showLoading(false); }
 }
 
-// 3. الطباعة النهائية (تأكيد وطباعة)
 async function confirmAndPrint() {
-    // يجب استدعاء المسار الصحيح /questions/ بدلاً من /api/v1/
-    const response = await fetch('/questions/print-remark-sheets', {
-        method: 'POST',
-        body: JSON.stringify({ students: currentStudents, question_count: 20 })
-    });
-    const data = await response.json();
-    if (data.success) {
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(data.html_content); // هذا هو الربط الفعلي مع remark_answer_sheet
-        printWindow.document.close();
-    }
+    showLoading(true);
+    try {
+        const response = await fetch('/questions/print-remark-sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+            body: JSON.stringify({
+                students: currentStudentsList,
+                question_count: 40 // نثبتها على 40 لكي تطابق تصميم الشيت الثابت
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
+        }
+    } catch (e) { showError('فشل تجهيز الشيت'); }
+    finally { showLoading(false); }
 }
 
 async function loadCourses() {
