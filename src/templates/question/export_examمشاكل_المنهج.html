@@ -914,66 +914,63 @@ function setupEventListeners() {
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
+// 2. تعديل دالة معاينة الطلاب (Preview Students)
+// متغير لتخزين بيانات الطلاب محلياً بعد المعاينة
+// في أعلى السكربت، تأكد من تعريف المتغير
+let currentStudents = [];  // لتخزين الأسماء محلياً بعد المعاينة
+
 async function previewStudentList() {
     const fileInput = document.getElementById('studentListFile');
-    if (!fileInput.files.length) { showError('الرجاء اختيار ملف Excel أولاً'); return; }
-
     const formData = new FormData();
     formData.append('student_file', fileInput.files[0]);
-    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
 
     showLoading(true);
     try {
-        const response = await fetch('/questions/preview-students', { method: 'POST', body: formData });
+        const response = await fetch('/questions/preview-students', { 
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+        });
+
         const data = await response.json();
         if (data.success) {
             currentStudents = data.students; 
             renderStudentPreviewTable(data.students);
-            showSuccess('تمت قراءة الأسماء بنجاح');
+            showSuccess('تم تحميل قائمة الطلاب بنجاح');
             
-            // استدعاء دالة إظهار الزر الأخضر هنا
-            addFinalGenerateButton(); 
+            // إظهار زر "تأكيد وطباعة" الأخضر
+            document.getElementById('finalPrintBtnContainer').style.display = 'block';
         } else { showError(data.error); }
-    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
+    } catch (e) { showError('خطأ في الاتصال: تأكد من المسار'); }
     finally { showLoading(false); }
 }
-// دالة إضافية لإظهار زر التوليد النهائي (تأكيد الطباعة) بعد المعاينة
-function addFinalGenerateButton() {
-    const container = document.getElementById('questionsContent');
-    const btnHtml = `
-        <div style="margin-top: 20px; text-align: center; padding: 20px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe58f;">
-            <p style="color: #856404; font-weight: bold;">بعد التأكد من الأسماء أعلاه، اضغط للبدء في تجهيز الأوراق</p>
-            <button class="btn btn-success" onclick="confirmAndPrint()" style="width: 100%; margin-top: 10px; font-size: 1.2rem; padding: 12px;">
-                <i class="fas fa-print"></i> تأكيد وطباعة أوراق الإجابة
-            </button>
-        </div>
-    `;
-    container.innerHTML += btnHtml;
-}
 
-async function loadCourses() {
+async function confirmAndPrint() {
+    showLoading(true);
     try {
-        const response = await fetch(`${API_BASE}/courses`);
+        const response = await fetch('/questions/print-remark-sheets', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
+            },
+            body: JSON.stringify({ students: currentStudents })
+        });
+
         const data = await response.json();
-        
-        const courseSelect = document.getElementById('courseSelect');
-        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
-        
-        const courses = Array.isArray(data) ? data : (data.courses || []);
-        
-        if (courses.length > 0) {
-            courses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = course.name;
-                courseSelect.appendChild(option);
-            });
-        } else {
-            showError('لا توجد مناهج متاحة');
+        if (data.success && data.html_content) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html_content);
+            printWindow.document.close();
+            
+            // الطباعة التلقائية عند التحميل
+            printWindow.onload = () => {
+                printWindow.focus();
+                printWindow.print();
+            };
         }
-    } catch (error) {
-        showError('فشل تحميل المناهج: ' + error.message);
-    }
+    } catch (e) { showError('فشل تجهيز الشيتات'); }
+    finally { showLoading(false); }
 }
 
 async function handleCourseChange() {
