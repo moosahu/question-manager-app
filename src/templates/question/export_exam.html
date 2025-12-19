@@ -917,7 +917,7 @@ function setupEventListeners() {
 // 2. تعديل دالة معاينة الطلاب (Preview Students)
 // متغير لتخزين بيانات الطلاب محلياً بعد المعاينة
 // في أعلى السكربت، تأكد من تعريف المتغير
-let currentStudentsList = []; 
+let currentStudents = []; // تعريف المتغير في النطاق العام
 
 async function previewStudentList() {
     const fileInput = document.getElementById('studentListFile');
@@ -926,7 +926,7 @@ async function previewStudentList() {
 
     showLoading(true);
     try {
-        // حذف /api/v1 ليتوافق الرابط مع السيرفر
+        // استخدام المسار المباشر لحل مشكلة 404
         const response = await fetch('/questions/preview-students', { 
             method: 'POST',
             body: formData,
@@ -935,14 +935,13 @@ async function previewStudentList() {
 
         const data = await response.json();
         if (data.success) {
-            currentStudentsList = data.students; // حفظ البيانات للطباعة
+            currentStudents = data.students; 
             renderStudentPreviewTable(data.students);
-            showSuccess('تم تحميل قائمة الطلاب بنجاح.');
-            
-            // إظهار زر الطباعة النهائي الذي سينفذ confirmAndPrint
-            document.getElementById('finalPrintContainer').style.display = 'block';
+            showSuccess('تم تحميل الأسماء بنجاح.');
+            // إظهار زر الطباعة النهائي
+            document.getElementById('finalPrintBtn').style.display = 'block';
         } else { showError(data.error); }
-    } catch (e) { showError('خطأ في الاتصال: تأكد من مسار الرابط'); }
+    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
     finally { showLoading(false); }
 }
 
@@ -951,21 +950,16 @@ async function confirmAndPrint() {
     try {
         const response = await fetch('/questions/print-remark-sheets', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content 
-            },
-            body: JSON.stringify({ students: currentStudentsList })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+            body: JSON.stringify({ students: currentStudents })
         });
-
         const data = await response.json();
-        if (data.success && data.html_content) {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(data.html_content);
-            printWindow.document.close();
-            printWindow.print();
+        if (data.success) {
+            const win = window.open('', '_blank');
+            win.document.write(data.html_content);
+            win.document.close();
         }
-    } catch (e) { showError('فشل تجهيز الشيتات للطباعة'); }
+    } catch (e) { showError('فشل تجهيز الطباعة'); }
     finally { showLoading(false); }
 }
 
