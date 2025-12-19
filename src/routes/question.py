@@ -2515,70 +2515,46 @@ def preview_multi_models():
         return jsonify({'error': str(e)}), 500
 
 
-# 1. تعديل دالة المعاينة لتوحيد أسماء الحقول (للتوافق مع القالب)
-# في ملف question.py - دالة preview_students
-# 1. دالة المعاينة: قراءة ملف الإكسل وتجهيز البيانات للمتصفح
+# 1. دالة المعاينة: يجب أن توجد مرة واحدة فقط
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
-    # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
-    final_students = [] 
     try:
         file = request.files.get('student_file')
         if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف'}), 400
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
         
         df = pd.read_excel(file)
         df.columns = [str(c).strip() for c in df.columns]
         
+        students_list = []
         for _, row in df.iterrows():
-            # استخدام مفاتيح إنجليزية لتطابق ما هو موجود في remark_answer_sheet.html
-            final_students.append({
+            # استخدام مفاتيح إنجليزية لتطابق قالب HTML
+            students_list.append({
                 'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
                 'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
                 'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
             })
         
-        # إرجاع القائمة بالمفاتيح الصحيحة
-        return jsonify({'success': True, 'students': final_students})
+        return jsonify({'success': True, 'students': students_list})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'خطأ في قراءة الملف: {str(e)}'}), 500
 
+# 2. دالة الطباعة: يجب أن توجد مرة واحدة فقط
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
     try:
         data = request.get_json()
         students = data.get('students', [])
-        # لا نعتمد على عدد الأسئلة هنا لأن الشيت ثابت بـ 40 سؤالاً
+        # تعيين قيمة افتراضية لعدد الأسئلة إذا لم يتم إرسالها
+        q_count = int(data.get('question_count', 40)) 
         
+        # جلب إعدادات الكليشة من قاعدة البيانات
+        from src.models.question import ExamHeaderSettings
         settings = ExamHeaderSettings.query.first()
-        settings_dict = settings.__dict__.copy() if settings else {}
-        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
-
-        all_html = ""
-        for student in students:
-            # تمرير بيانات الطالب للقالب المكون من 40 سؤالاً
-            all_html += render_template('question/remark_answer_sheet.html', 
-                                     student=student, 
-                                     **settings_dict)
-            all_html += '<div style="page-break-after: always;"></div>'
-
-        return jsonify({'success': True, 'html_content': all_html})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# 2. دالة الطباعة: توليد أوراق Remark بناءً على البيانات والكليشة
-@question_bp.route('/print-remark-sheets', methods=['POST'])
-@login_required
-def print_remark_sheets():
-    try:
-        data = request.get_json()
-        students = data.get('students', [])
-        q_count = int(data.get('question_count', 20))
         
-        # جلب الكليشة من قاعدة البيانات
-        settings = ExamHeaderSettings.query.first()
+        # تجهيز البيانات للقالب
         header_context = {
             'country': settings.country if settings else 'المملكة العربية السعودية',
             'ministry': settings.ministry if settings else 'وزارة التعليم',
@@ -2588,7 +2564,7 @@ def print_remark_sheets():
             'logo_base64': ''
         }
 
-        # تحويل الشعار لـ Base64 لضمان ظهوره في الطباعة
+        # محاولة تحميل الشعار
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
             if os.path.exists(logo_path):
