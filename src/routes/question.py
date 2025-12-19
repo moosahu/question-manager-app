@@ -2522,7 +2522,7 @@ def preview_multi_models():
 @login_required
 def preview_students():
     # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
-    all_students = [] 
+    final_students = [] 
     try:
         file = request.files.get('student_file')
         if not file:
@@ -2532,14 +2532,39 @@ def preview_students():
         df.columns = [str(c).strip() for c in df.columns]
         
         for _, row in df.iterrows():
-            # قراءة الأسماء بمرونة (الاسم أو اسم الطالب)
-            all_students.append({
+            # استخدام مفاتيح إنجليزية لتطابق ما هو موجود في remark_answer_sheet.html
+            final_students.append({
                 'name': str(row.get('الاسم') or row.get('اسم الطالب') or '..........'),
                 'academic_id': str(row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or '..........'),
                 'section': str(row.get('الشعبة') or row.get('الشعبه') or '....')
             })
         
-        return jsonify({'success': True, 'students': all_students})
+        # إرجاع القائمة بالمفاتيح الصحيحة
+        return jsonify({'success': True, 'students': final_students})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@question_bp.route('/print-remark-sheets', methods=['POST'])
+@login_required
+def print_remark_sheets():
+    try:
+        data = request.get_json()
+        students = data.get('students', [])
+        # لا نعتمد على عدد الأسئلة هنا لأن الشيت ثابت بـ 40 سؤالاً
+        
+        settings = ExamHeaderSettings.query.first()
+        settings_dict = settings.__dict__.copy() if settings else {}
+        if '_sa_instance_state' in settings_dict: del settings_dict['_sa_instance_state']
+
+        all_html = ""
+        for student in students:
+            # تمرير بيانات الطالب للقالب المكون من 40 سؤالاً
+            all_html += render_template('question/remark_answer_sheet.html', 
+                                     student=student, 
+                                     **settings_dict)
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        return jsonify({'success': True, 'html_content': all_html})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
