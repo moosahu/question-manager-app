@@ -2521,33 +2521,28 @@ def preview_multi_models():
 @question_bp.route('/preview-students', methods=['POST'])
 @login_required
 def preview_students():
-    # تعريف القائمة فارغة في البداية لتجنب خطأ "not defined"
-    students_list = [] 
+    # الخطوة الأهم: تعريف القائمة فارغة في البداية
+    final_students = [] 
     try:
         file = request.files.get('student_file')
         if not file:
-            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+            return jsonify({'error': 'الرجاء اختيار ملف'}), 400
         
         df = pd.read_excel(file)
+        # تنظيف الأعمدة
         df.columns = [str(c).strip() for c in df.columns]
         
         for _, row in df.iterrows():
-            # البحث عن البيانات بمسميات مختلفة لضمان المرونة
-            name = row.get('الاسم') or row.get('اسم الطالب') or row.get('Name') or '....................'
-            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or row.get('Academic ID') or '..........'
-            section = row.get('الشعبة') or row.get('الشعبه') or row.get('Section') or '....'
-            
-            # استخدام مفاتيح إنجليزية لتطابق قالب HTML (student.name, student.academic_id)
-            students_list.append({
-                'name': str(name),
-                'academic_id': str(academic_id),
-                'section': str(section)
+            # جمع البيانات بأسماء الحقول التي يتوقعها القالب
+            final_students.append({
+                'name': str(row.get('الاسم', '..........')),
+                'academic_id': str(row.get('الرقم الأكاديمي', '..........')),
+                'section': str(row.get('الشعبة', '....'))
             })
         
-        return jsonify({'success': True, 'students': students_list})
+        return jsonify({'success': True, 'students': final_students})
     except Exception as e:
-        # إرجاع رسالة الخطأ لتظهر في الواجهة
-        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # 2. دالة الطباعة: توليد أوراق Remark بناءً على البيانات والكليشة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
