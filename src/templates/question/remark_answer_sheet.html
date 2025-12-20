@@ -8,7 +8,7 @@
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
         body { 
             font-family: 'Arial', sans-serif; 
-            margin: 0; padding: 5mm; 
+            margin: 0; padding: 3mm; 
             width: 297mm; height: 210mm; 
             overflow: hidden;
         }
@@ -17,56 +17,313 @@
             width: 100%; height: 100%; 
             border: 2px solid #000; 
             display: flex; flex-direction: column; 
-            padding: 2px;
+            padding: 0;
         }
 
         /* ===== الترويسة العلوية ===== */
         .header-row { 
-            display: grid; grid-template-columns: 250px 1fr 250px; 
-            border-bottom: 2px solid #000; height: 100px;
+            display: grid; grid-template-columns: 1fr 200px 1fr; 
+            border-bottom: 2px solid #000; height: 95px;
+            padding: 3px;
         }
 
-        /* اليمين: الترتيب المطلوب بدقة */
-        .header-right { padding: 5px; text-align: right; font-size: 12px; line-height: 1.3; }
-        .school-name { font-weight: bold; font-size: 15px; margin-top: 4px; border-top: 1px solid #eee; padding-top: 2px; }
-
-        .header-center { display: flex; align-items: center; justify-content: center; }
-        .logo-img { height: 75px; }
-
-        .header-left { padding: 5px; text-align: left; font-size: 11px; line-height: 1.5; }
-
-        /* ===== منطقة البيانات والباركود والدرجات (ارتفاع ثابت لضمان التطابق) ===== */
-        .data-row { 
-            display: grid; grid-template-columns: 320px 180px 1fr 200px; 
-            border-bottom: 2px solid #000; height: 120px;
+        /* اليمين: معلومات المدرسة والتعليمات */
+        .header-right { 
+            padding: 3px 5px; 
+            text-align: right; 
+            font-size: 11px; 
+            line-height: 1.2;
+            border-left: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-
-        .student-info { border-left: 1px solid #000; padding: 5px; font-size: 13px; }
-        .field { border-bottom: 1px dotted #000; margin-bottom: 8px; height: 22px; overflow: hidden; }
-
-        .barcode-box { border-left: 1px solid #000; text-align: center; padding: 5px; display: flex; flex-direction: column; justify-content: center; }
-        .barcode-img { height: 45px; width: 140px; }
-
-        /* جدول الدرجات ثابت الأبعاد */
-        .grades-box { border-left: 1px solid #000; padding: 2px; text-align: center; }
-        .grade-table { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
-        .grade-table th, .grade-table td { border: 1px solid #000; padding: 2px; text-align: center; }
-        .bubble-s { width: 12px; height: 12px; border: 1px solid #000; border-radius: 50%; display: inline-block; margin: 1px; }
-
-        /* النماذج الأربعة والتعليمات */
-        .instr-model-box { padding: 4px; display: flex; flex-direction: column; justify-content: space-between; }
-        .models-row { display: flex; justify-content: space-around; padding: 5px; border-bottom: 1px solid #000; }
-        .instructions-text { font-size: 9px; text-align: right; line-height: 1.2; padding-top: 2px; }
-
-        /* ===== شبكة الأسئلة (4 أعمدة ثابتة العرض) ===== */
-        .questions-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; flex-grow: 1; }
-        .q-column { border: 1.5px solid #000; background: #fff; }
-        .q-head { background: #1a5a5a; color: #fff; text-align: center; font-size: 11px; padding: 3px; font-weight: bold; }
         
-        .q-row { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 1px 4px; height: 18px; }
-        .q-num { width: 18px; font-weight: bold; font-size: 10px; }
-        .bubbles { flex: 1; display: flex; justify-content: space-around; }
-        .bubble { width: 15px; height: 15px; border: 1.5px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; }
+        .school-info {
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        
+        .school-name { 
+            font-weight: bold; 
+            font-size: 12px; 
+            margin-top: 2px;
+            color: #c41e3a;
+        }
+        
+        .instructions-section {
+            font-size: 9px;
+            line-height: 1.2;
+            border-top: 1px solid #000;
+            padding-top: 2px;
+        }
+        
+        .instructions-section strong {
+            display: block;
+            text-decoration: underline;
+            margin-bottom: 2px;
+        }
+        
+        .instructions-section ul {
+            margin: 0;
+            padding-right: 15px;
+            list-style: disc;
+        }
+        
+        .instructions-section li {
+            font-size: 8px;
+            line-height: 1.1;
+            margin: 1px 0;
+        }
+
+        .header-center { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            flex-direction: column;
+            padding: 3px;
+            border-left: 1px solid #000;
+        }
+        
+        .logo-img { 
+            height: 70px;
+            margin-bottom: 3px;
+        }
+        
+        .logo-text {
+            font-size: 10px;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .header-left { 
+            padding: 3px 5px; 
+            text-align: left; 
+            font-size: 11px; 
+            line-height: 1.3;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .exam-info {
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        
+        .exam-info strong {
+            display: block;
+            font-size: 11px;
+        }
+
+        /* ===== منطقة البيانات والباركود والدرجات ===== */
+        .data-row { 
+            display: grid; 
+            grid-template-columns: 200px 150px 1fr 180px; 
+            border-bottom: 2px solid #000; 
+            height: 105px;
+            padding: 2px;
+        }
+
+        .student-info { 
+            border-right: 1px solid #000; 
+            padding: 3px; 
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .field { 
+            border-bottom: 1px dotted #000; 
+            margin-bottom: 6px; 
+            height: 20px; 
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+        
+        .field strong {
+            font-size: 11px;
+        }
+
+        .barcode-box { 
+            border-right: 1px solid #000; 
+            text-align: center; 
+            padding: 3px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .barcode-label {
+            font-size: 9px;
+            margin-bottom: 2px;
+        }
+        
+        .barcode-img { 
+            height: 40px; 
+            width: 130px;
+            margin-bottom: 2px;
+        }
+        
+        .barcode-number {
+            font-weight: bold;
+            letter-spacing: 2px;
+            font-size: 16px;
+        }
+
+        /* جدول الدرجات */
+        .grades-box { 
+            border-right: 1px solid #000; 
+            padding: 2px; 
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .grade-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 8px; 
+            table-layout: fixed;
+        }
+        
+        .grade-table th, .grade-table td { 
+            border: 1px solid #000; 
+            padding: 1px; 
+            text-align: center;
+            height: 16px;
+        }
+        
+        .grade-table th {
+            font-weight: bold;
+            font-size: 8px;
+        }
+        
+        .bubble-s { 
+            width: 11px; 
+            height: 11px; 
+            border: 1px solid #000; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin: 0px;
+        }
+
+        /* النماذج والتعليمات */
+        .instr-model-box { 
+            padding: 3px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+        }
+        
+        .models-row { 
+            display: flex; 
+            justify-content: space-around; 
+            align-items: center;
+            padding: 2px 0;
+            border-bottom: 1px solid #000;
+            font-size: 11px;
+        }
+        
+        .model-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .instructions-text { 
+            font-size: 8px; 
+            text-align: right; 
+            line-height: 1.2; 
+            padding: 2px 0;
+        }
+        
+        .instructions-text strong {
+            display: block;
+            text-decoration: underline;
+            margin-bottom: 1px;
+        }
+        
+        .instructions-text div {
+            margin: 1px 0;
+        }
+
+        /* ===== شبكة الأسئلة (4 أعمدة) ===== */
+        .questions-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 2px; 
+            padding: 3px; 
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        
+        .q-column { 
+            border: 1px solid #000; 
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        .q-head { 
+            background: #2a5a5a; 
+            color: #fff; 
+            text-align: center; 
+            font-size: 10px; 
+            padding: 2px; 
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+        }
+        
+        .q-row { 
+            display: flex; 
+            align-items: center; 
+            border-bottom: 1px solid #ddd; 
+            padding: 1px 3px; 
+            height: 17px;
+            font-size: 10px;
+        }
+        
+        .q-num { 
+            width: 16px; 
+            font-weight: bold; 
+            font-size: 9px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .bubbles { 
+            flex: 1; 
+            display: flex; 
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 2px;
+        }
+        
+        .bubble { 
+            width: 13px; 
+            height: 13px; 
+            border: 1px solid #000; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 8px; 
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .q-footer {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            padding: 5px 2px;
+            border-top: 1px solid #000;
+            margin-top: auto;
+        }
 
     </style>
 </head>
@@ -75,18 +332,47 @@
 <div class="main-container">
     <div class="header-row">
         <div class="header-right">
-            المملكة العربية السعودية<br>
-            وزارة التعليم<br>
-            الإدارة العامة للتعليم بالمنطقة الشرقية<br>
-            <div class="school-name">مدرسة عبد الرحمن بن القاسم الثانوية</div>
+            <div class="school-info">
+                <div>المملكة العربية السعودية</div>
+                <div>وزارة التعليم</div>
+                <div class="school-name">مدرسة عبد الرحمن بن القاسم الثانوية</div>
+            </div>
+            <div class="instructions-section">
+                <strong>تعليمات هامة:</strong>
+                <ul>
+                    <li>استخدم القلم الرصاص فقط للإجابة على الأسئلة</li>
+                    <li>افرك المحايات جيداً لتوضيح الإجابة الصحيحة للسؤال</li>
+                    <li>تأكد من تظليل فقرة واحدة فقط لكل سؤال</li>
+                    <li>امسح التظليل جيداً عند تغيير الإجابة</li>
+                    <li>لا تستخدم قلم الحبر في الإجابة نهائياً</li>
+                    <li>لا تستخدم مزيل الحبر نهائياً</li>
+                </ul>
+            </div>
         </div>
+        
         <div class="header-center">
-            <img src="{{ logo_base64 }}" class="logo-img">
+            <img src="{{ logo_base64 }}" class="logo-img" alt="Logo">
+            <div class="logo-text">
+                <div style="font-weight: bold; font-size: 11px;">وزارة التعليم</div>
+                <div style="font-size: 9px;">Ministry of Education</div>
+            </div>
         </div>
+        
         <div class="header-left">
-            اختبار الفصل الدراسي الأول - 1447هـ<br>
-            المقرر: {{ subject }}<br>
-            الدور: الأول - الصف: أول ثانوي
+            <div class="exam-info">
+                <strong>اختبار الفصل الدراسي الأول - 1447هـ</strong>
+                <div>المقرر: {{ subject }}</div>
+                <div>الدور: الأول - الصف: أول ثانوي</div>
+            </div>
+            <div style="text-align: center; font-size: 10px; border-top: 1px solid #000; padding-top: 2px;">
+                <div style="margin-bottom: 2px;"><strong>نموذج</strong></div>
+                <div style="display: flex; justify-content: center; gap: 8px;">
+                    <span>د <span class="bubble"></span></span>
+                    <span>ج <span class="bubble"></span></span>
+                    <span>ب <span class="bubble"></span></span>
+                    <span>أ <span class="bubble"></span></span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -94,53 +380,55 @@
         <div class="student-info">
             <div class="field"><strong>الاسم:</strong> {{ student.name }}</div>
             <div class="field"><strong>المقرر:</strong> {{ subject }}</div>
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #000; height: 20px; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 10px;">( ) غائب &nbsp; ( ) غاش</span>
                 <span><strong>الشعبة:</strong> {{ student.section }}</span>
-                <span>( ) غائب &nbsp; ( ) غاش</span>
             </div>
+            <div class="field"><strong>الصف:</strong> أول ثانوي</div>
         </div>
 
         <div class="barcode-box">
-            <span style="font-size: 10px; margin-bottom: 2px;">الرقم الأكاديمي</span>
-            {% if student.barcode %}<img src="{{ student.barcode }}" class="barcode-img">{% endif %}
-            <div style="font-weight: bold; letter-spacing: 3px; font-size: 14px;">{{ student.academic_id }}</div>
+            <div class="barcode-label">الرقم الأكاديمي / المسجل المدني</div>
+            {% if student.barcode %}<img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">{% endif %}
+            <div class="barcode-number">{{ student.academic_id }}</div>
         </div>
 
         <div class="grades-box">
             <table class="grade-table">
                 <tr>
                     <th colspan="3">الجزء العشري</th>
-                    <th colspan="11">الجزء الصحيح (من 10)</th>
-                    <th rowspan="2" style="width:35px;">الدرجة</th>
+                    <th colspan="11">الجزء الصحيح</th>
+                    <th rowspan="2" style="width:30px;">الدرجة</th>
                 </tr>
                 <tr>
                     <td>4/3</td><td>2/1</td><td>4/1</td>
-                    {% for n in range(11) %}<td>{{ n }}</td>{% endfor %}
+                    <td>10</td><td>9</td><td>8</td><td>7</td><td>6</td><td>5</td><td>4</td><td>3</td><td>2</td><td>1</td><td>0</td>
                 </tr>
                 <tr>
                     {% for i in range(14) %}<td><span class="bubble-s"></span></td>{% endfor %}
-                    <td>نظري</td>
+                    <td style="font-size: 9px;">الجزء العملي</td>
                 </tr>
                 <tr>
                     {% for i in range(14) %}<td><span class="bubble-s"></span></td>{% endfor %}
-                    <td>عملي</td>
+                    <td style="font-size: 9px;">الجزء المقالي</td>
                 </tr>
             </table>
         </div>
 
         <div class="instr-model-box">
             <div class="models-row">
-                <strong>النموذج:</strong>
-                <span>أ <span class="bubble" style="display:inline-flex;"></span></span>
-                <span>ب <span class="bubble" style="display:inline-flex;"></span></span>
-                <span>ج <span class="bubble" style="display:inline-flex;"></span></span>
-                <span>د <span class="bubble" style="display:inline-flex;"></span></span>
+                <span style="font-weight: bold;">تظليل خاطئ</span>
+                <div style="display: flex; gap: 3px; align-items: center;">
+                    <span class="bubble" style="width:12px; height:12px; border: 1px solid #000;"></span>
+                    <span class="bubble" style="width:12px; height:12px; border: 1px solid #000; background: #000;"></span>
+                    <span class="bubble" style="width:12px; height:12px; border: 1px solid #000;"><span style="font-size: 6px;">✓</span></span>
+                </div>
             </div>
+            <div style="text-align: center; padding: 2px 0; border-bottom: 1px solid #000; font-size: 9px; font-weight: bold;">تظليل صحيح</div>
             <div class="instructions-text">
-                <strong>تعليمات هامة:</strong><br>
-                - تظليل دائرة واحدة فقط بالقلم الرصاص.<br>
-                - امسح التظليل جيداً عند التغيير.<br>
-                - يمنع استخدام المزيل نهائياً.
+                <div style="text-align: center; margin: 2px 0;">
+                    <span class="bubble" style="width:14px; height:14px; background: #000;"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -161,17 +449,15 @@
         <div class="q-column">
             <div class="q-head">صح / خطأ (1-20)</div>
             {% for i in range(1, 21) %}
-            <div class="q-row"><span class="q-num">{{ i }}</span><div class="bubbles" style="justify-content:center; gap:25px;"><span class="bubble">ص</span><span class="bubble">خ</span></div></div>
+            <div class="q-row"><span class="q-num">{{ i }}</span><div class="bubbles" style="justify-content: center; gap: 20px;"><span class="bubble">ص</span><span class="bubble">خ</span></div></div>
             {% endfor %}
         </div>
         <div class="q-column">
             <div class="q-head">المزاوجة (الربط)</div>
             {% for i in range(1, 11) %}
-            <div class="q-row"><span class="q-num">{{ i }}</span><div class="bubbles" style="font-size: 7px;"><span class="bubble">أ</span><span class="bubble">ب</span><span class="bubble">ج</span><span class="bubble">د</span><span class="bubble">هـ</span><span class="bubble">و</span><span class="bubble">ز</span></div></div>
+            <div class="q-row"><span class="q-num">{{ i }}</span><div class="bubbles" style="font-size: 7px; gap: 2px;"><span class="bubble">أ</span><span class="bubble">ب</span><span class="bubble">ج</span><span class="bubble">د</span><span class="bubble">هـ</span><span class="bubble">و</span><span class="bubble">ز</span></div></div>
             {% endfor %}
-            <div style="margin-top: 15px; text-align: center; font-weight: bold; border-top: 1px solid #000; padding-top: 10px;">
-                تمنياتنا لكم بالتوفيق والنجاح
-            </div>
+            <div class="q-footer">تمنياتنا لكم بالتوفيق والنجاح</div>
         </div>
     </div>
 </div>
