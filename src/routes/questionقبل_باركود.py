@@ -9,8 +9,6 @@ import random
 import copy
 import qrcode
 import base64
-import barcode
-from barcode.writer import ImageWriter
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app,
     send_file, jsonify # Added for sending generated files
@@ -2550,68 +2548,15 @@ def preview_students():
         current_app.logger.error(f"Error in preview_students: {str(e)}")
         return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
 
-# ============================================================
-# دالة توليد باركود الرقم الأكاديمي
-# ============================================================
-def generate_student_barcode(academic_id):
-    """
-    توليد باركود Code39 للرقم الأكاديمي
-    
-    Args:
-        academic_id: الرقم الأكاديمي للطالب (string أو int)
-        
-    Returns:
-        Base64 string للصورة
-    """
-    try:
-        # تحويل الرقم لنص وإزالة المسافات
-        academic_id_str = str(academic_id).strip()
-        
-        if not academic_id_str or academic_id_str == 'None':
-            return None
-        
-        # إنشاء باركود Code39
-        code39 = barcode.get_barcode_class('code39')
-        
-        # إعدادات الباركود
-        writer = ImageWriter()
-        writer.set_options({
-            'module_width': 0.3,
-            'module_height': 8,
-            'quiet_zone': 2,
-            'font_size': 0,
-            'text_distance': 1,
-            'write_text': False
-        })
-        
-        # إنشاء الباركود
-        barcode_obj = code39(academic_id_str, writer=writer, add_checksum=False)
-        
-        # حفظ في الذاكرة
-        buffer = io.BytesIO()
-        barcode_obj.write(buffer)
-        buffer.seek(0)
-        
-        # تحويل لـ Base64
-        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        
-        return f"data:image/png;base64,{img_base64}"
-        
-    except Exception as e:
-        current_app.logger.error(f"Error generating barcode for {academic_id}: {e}")
-        return None
-
-
 # 2. دالة الطباعة: توليد أوراق Remark بناءً على الكليشة والأسماء المرفوعة
 @question_bp.route('/print-remark-sheets', methods=['POST'])
 @login_required
 def print_remark_sheets():
-    """طباعة أوراق إجابة ريمارك مع الباركود"""
     try:
         data = request.get_json()
         students_list = data.get('students', [])
         
-        # جلب إعدادات الكليشة من قاعدة البيانات
+        # جلب إعدادات الكليشة من قاعدة البيانات (ExamHeaderSettings)
         settings = ExamHeaderSettings.query.first()
         
         header_context = {
@@ -2620,36 +2565,25 @@ def print_remark_sheets():
             'education_department': settings.education_department if settings else '',
             'school_name': settings.school_name if settings else '',
             'subject': settings.subject if settings else '',
-            'grade': settings.grade if settings else '',
             'logo_base64': ''
         }
 
-        # تحويل الشعار لـ Base64
+        # تحويل الشعار لـ Base64 لضمان ظهوره في الطباعة
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
             if os.path.exists(logo_path):
                 with open(logo_path, 'rb') as f:
                     header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-        except Exception as e:
-            current_app.logger.warning(f"Could not load logo: {e}")
+        except: pass
 
         all_html = ""
         for student in students_list:
-            # توليد الباركود للرقم الأكاديمي
-            academic_id = student.get('academic_id', '')
-            if academic_id:
-                student['barcode'] = generate_student_barcode(academic_id)
-            else:
-                student['barcode'] = None
-            
-            # توليد HTML للطالب
+            # دمج بيانات الطالب مع الكليشة في قالب ريمارك الثابت (40 سؤالاً)
             all_html += render_template('question/remark_answer_sheet.html', 
-                                       student=student, 
-                                       **header_context)
+                                     student=student, 
+                                     **header_context)
             all_html += '<div style="page-break-after: always;"></div>'
 
         return jsonify({'success': True, 'html_content': all_html})
-        
     except Exception as e:
-        current_app.logger.error(f"Error in print_remark_sheets: {str(e)}")
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
