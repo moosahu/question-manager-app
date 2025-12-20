@@ -766,6 +766,7 @@ let selectedQuestionIds = new Set();
 let currentCourseId = null;
 let currentUnitId = null;
 let currentLessonId = null;
+let currentStudents = []; // قائمة الطلاب لنماذج ريمارك
 
 // الحصول على النماذج المختارة
 function getSelectedModels() {
@@ -949,6 +950,135 @@ function addFinalGenerateButton() {
         </div>
     `;
     container.innerHTML += btnHtml;
+}
+
+// دالة عرض جدول الطلاب للمعاينة
+function renderStudentPreviewTable(students) {
+    const container = document.getElementById('questionsContent');
+    
+    if (!students || students.length === 0) {
+        container.innerHTML = `
+            <div class="no-questions">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>لم يتم العثور على طلاب في الملف</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let tableHtml = `
+        <div style="background: #e8f5e9; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="color: #2e7d32; margin-bottom: 15px;">
+                <i class="fas fa-users"></i> معاينة قائمة الطلاب (${students.length} طالب)
+            </h3>
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #4CAF50; color: white;">
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">#</th>
+                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #2e7d32;">اسم الطالب</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">الرقم الأكاديمي</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">الشعبة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    students.forEach((student, index) => {
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
+        tableHtml += `
+            <tr style="background: ${bgColor};">
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${index + 1}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${student.name || '---'}</td>
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${student.academic_id || '---'}</td>
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${student.section || '---'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = tableHtml;
+}
+
+// دالة التأكيد والطباعة النهائية لأوراق ريمارك
+async function confirmAndPrint() {
+    if (!currentStudents || currentStudents.length === 0) {
+        showError('لا توجد قائمة طلاب للطباعة');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/print-remark-sheets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                students: currentStudents
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.html_content) {
+            // فتح نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>أوراق إجابة Remark</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                            .page-break { page-break-after: always; }
+                        }
+                        @page { size: A4; margin: 10mm; }
+                        body { font-family: 'Arial', sans-serif; }
+                        .print-btn {
+                            position: fixed;
+                            top: 10px;
+                            left: 10px;
+                            padding: 15px 30px;
+                            background: #4CAF50;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 18px;
+                            z-index: 9999;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        }
+                        .print-btn:hover { background: #45a049; }
+                    </style>
+                </head>
+                <body>
+                    <button class="print-btn no-print" onclick="window.print()">🖨️ طباعة الأوراق</button>
+                    ${data.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم تجهيز ${currentStudents.length} ورقة إجابة للطباعة`);
+        } else {
+            showError(data.error || 'فشل في تجهيز أوراق الإجابة');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
 }
 
 async function loadCourses() {
