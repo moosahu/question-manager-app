@@ -18,8 +18,8 @@
         }
 
         html, body {
-            width: 210mm;
-            height: 297mm;
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             background: white;
@@ -36,12 +36,14 @@
 
         /* الحاوية الرئيسية */
         .sheet-container {
-            width: 100%;
-            height: 100%;
+            width: 297mm;
+            height: 210mm;
             border: 3px solid #000;
             display: flex;
             flex-direction: column;
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         /* ===== الترويسة ===== */
@@ -399,10 +401,6 @@
             </div>
             <div class="header-cell header-center">
                 <img src="{{ logo_base64 }}" class="logo-img" alt="Logo">
-                <div style="font-size: 8px; font-weight: bold; line-height: 1.1;">
-                    <div>وزارة التعليم</div>
-                    <div style="font-size: 7px;">Ministry of Education</div>
-                </div>
             </div>
             <div class="header-cell header-right">
                 <div style="font-size: 9px; line-height: 1.2; margin-bottom: 3px;">
