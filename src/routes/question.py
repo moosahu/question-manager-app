@@ -2351,6 +2351,7 @@ def preview_multi_models():
         include_answer_sheet = data.get('include_answer_sheet', False)
         include_barcode = data.get('include_barcode', True)
         font_size = data.get('font_size', 14)  # حجم الخط الافتراضي 14px
+        image_size = data.get('image_size', 100)  # حجم الصور الافتراضي 100%
         
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
         shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
@@ -2457,6 +2458,7 @@ def preview_multi_models():
                 show_answers=include_answers,
                 exam_title=f"نموذج الاختبار - {model_letter}",
                 font_size=font_size,
+                image_size=image_size,
                 **header_settings
             )
             

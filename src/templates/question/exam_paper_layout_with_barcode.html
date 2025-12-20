@@ -211,27 +211,57 @@
            تنسيق الصور (تحت السؤال مباشرة ومزاحة لليمين) 
            =============================================
         */
+        {% set img_scale = (image_size|default(100, true)|int) / 100 %}
+        
+        /* صورة السؤال الرئيسية */
         .q-image {
             display: block;
-            /* يضمن المحاذاة لليمين في سياق RTL */
-            margin-right: 0; 
-            margin-left: auto; 
-            margin-top: 5px;
-            margin-bottom: 10px;
-            max-width: 95%;
-            max-height: 110px;
-            border: 1px dashed #999;
-            padding: 2px;
+            margin: 8px auto 12px auto;
+            max-width: min({{ (85 * img_scale)|round|int }}%, 280px);
+            max-height: {{ (130 * img_scale)|round|int }}px;
+            width: auto;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px;
+            background: #fafafa;
             object-fit: contain;
-            clear: both;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
+        /* صور الخيارات */
         .option-img {
-            height: 45px;
-            width: auto;
-            max-width: 100%;
-            margin: 2px auto;
             display: block;
+            margin: 4px auto;
+            max-width: min(100%, 120px);
+            max-height: {{ (55 * img_scale)|round|int }}px;
+            width: auto;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 2px;
+            background: #fff;
+            object-fit: contain;
+        }
+
+        /* تنسيق خاص للصور الكيميائية (الهياكل والمعادلات) */
+        .q-image[src*="structure"],
+        .q-image[src*="formula"],
+        .q-image[src*="chem"] {
+            background: #fff;
+            padding: 8px;
+        }
+
+        /* صور الخيارات في الشبكة (grid) */
+        .options-grid .option-img {
+            max-height: {{ (65 * img_scale)|round|int }}px;
+            max-width: 100%;
+        }
+
+        /* ضمان عدم تشوه الصور */
+        img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
         }
 
         /* =============================================
@@ -246,33 +276,49 @@
         .q-option { 
             display: flex; 
             align-items: center; 
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             break-inside: avoid;
+            min-height: 28px;
         }
         
         .option-char { 
             font-weight: bold; 
-            margin-left: 5px; 
-            min-width: 18px;
+            margin-left: 6px; 
+            min-width: 20px;
+            color: #333;
         }
         
         .option-content {
             flex: 1;
-            line-height: 1.4;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
         }
 
         .options-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px 15px;
+            gap: 10px 20px;
             margin-right: 8px;
-            margin-top: 5px;
+            margin-top: 8px;
         }
 
         .options-grid .q-option {
             display: flex;
             align-items: center;
             margin-bottom: 0;
+            padding: 4px;
+            background: #fafafa;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        /* تنسيق خاص عندما تكون الخيارات صور فقط */
+        .options-grid .option-content {
+            justify-content: center;
+            text-align: center;
         }
 
         /* =============================================

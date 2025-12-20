@@ -635,6 +635,37 @@
                 </div>
             </div>
 
+            <!-- قسم حجم الصور -->
+            <div class="image-size-section" style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #1565c0; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-image"></i> حجم الصور</h4>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button type="button" class="btn btn-sm" onclick="changeImageSize(-10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <div style="flex: 1; text-align: center;">
+                        <input type="range" id="imageSizeSlider" min="60" max="180" value="100" 
+                               style="width: 100%; cursor: pointer;"
+                               oninput="updateImageSizeDisplay(this.value)">
+                        <div style="margin-top: 8px;">
+                            <span style="font-size: 0.85rem; color: #666;">حجم الصور: </span>
+                            <strong id="imageSizeValue" style="font-size: 1.1rem; color: #1565c0;">100%</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="changeImageSize(10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(70)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير (70%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(100)" style="padding: 5px 10px; background: #2196f3; color: white; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط (100%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(130)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير (130%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(150)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">أكبر (150%)</button>
+                </div>
+                <p style="font-size: 0.75rem; color: #666; margin-top: 10px; text-align: center;">
+                    <i class="fas fa-info-circle"></i> يؤثر على صور الأسئلة والخيارات
+                </p>
+            </div>
+
             <div class="form-group">
                 <label>خيارات الاستخراج</label>
                 <div class="checkbox-group">
@@ -1430,6 +1461,9 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على حجم الخط المختار
     const fontSize = getFontSize();
     
+    // الحصول على حجم الصور المختار
+    const imageSize = getImageSize();
+    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -1451,7 +1485,8 @@ function generatePrintableDocument(questions, includeAnswers) {
             include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
             include_barcode: document.getElementById('includeBarcode').checked,
             shuffle_options: document.getElementById('shuffleOptions').checked,
-            font_size: fontSize
+            font_size: fontSize,
+            image_size: imageSize
         })
     })
     .then(response => {
@@ -1537,6 +1572,29 @@ function setFontSize(size) {
 
 function getFontSize() {
     return parseInt(document.getElementById('fontSizeSlider').value);
+}
+
+// ==================== دوال حجم الصور ====================
+function updateImageSizeDisplay(value) {
+    document.getElementById('imageSizeValue').textContent = value + '%';
+}
+
+function changeImageSize(delta) {
+    const slider = document.getElementById('imageSizeSlider');
+    let newValue = parseInt(slider.value) + delta;
+    newValue = Math.max(60, Math.min(180, newValue)); // حدود من 60% إلى 180%
+    slider.value = newValue;
+    updateImageSizeDisplay(newValue);
+}
+
+function setImageSize(size) {
+    const slider = document.getElementById('imageSizeSlider');
+    slider.value = size;
+    updateImageSizeDisplay(size);
+}
+
+function getImageSize() {
+    return parseInt(document.getElementById('imageSizeSlider').value);
 }
 
 </script>
