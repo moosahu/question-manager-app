@@ -607,34 +607,6 @@
                 </div>
             </div>
 
-            <!-- قسم حجم الخط -->
-            <div class="font-size-section" style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #2e7d32; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-text-height"></i> حجم خط الأسئلة</h4>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button type="button" class="btn btn-sm" onclick="changeFontSize(-1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <div style="flex: 1; text-align: center;">
-                        <input type="range" id="fontSizeSlider" min="10" max="20" value="14" 
-                               style="width: 100%; cursor: pointer;"
-                               oninput="updateFontSizeDisplay(this.value)">
-                        <div style="margin-top: 8px;">
-                            <span style="font-size: 0.85rem; color: #666;">حجم الخط: </span>
-                            <strong id="fontSizeValue" style="font-size: 1.1rem; color: #2e7d32;">14px</strong>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-sm" onclick="changeFontSize(1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 12px;">
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(12)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">صغير (12)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(14)" style="padding: 5px 12px; background: #4caf50; color: white; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">متوسط (14)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(16)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">كبير (16)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(18)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">أكبر (18)</button>
-                </div>
-            </div>
-
             <div class="form-group">
                 <label>خيارات الاستخراج</label>
                 <div class="checkbox-group">
@@ -1427,9 +1399,6 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على النماذج المختارة (أ، ب، ج، د)
     const selectedModels = getSelectedModels();
     
-    // الحصول على حجم الخط المختار
-    const fontSize = getFontSize();
-    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -1450,8 +1419,7 @@ function generatePrintableDocument(questions, includeAnswers) {
             include_answers: includeAnswers,
             include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
             include_barcode: document.getElementById('includeBarcode').checked,
-            shuffle_options: document.getElementById('shuffleOptions').checked,
-            font_size: fontSize
+            shuffle_options: document.getElementById('shuffleOptions').checked
         })
     })
     .then(response => {
@@ -1514,29 +1482,6 @@ function showError(message) {
     alert.textContent = message;
     alert.classList.add('active');
     setTimeout(() => alert.classList.remove('active'), 5000);
-}
-
-// ==================== دوال حجم الخط ====================
-function updateFontSizeDisplay(value) {
-    document.getElementById('fontSizeValue').textContent = value + 'px';
-}
-
-function changeFontSize(delta) {
-    const slider = document.getElementById('fontSizeSlider');
-    let newValue = parseInt(slider.value) + delta;
-    newValue = Math.max(10, Math.min(20, newValue)); // حدود من 10 إلى 20
-    slider.value = newValue;
-    updateFontSizeDisplay(newValue);
-}
-
-function setFontSize(size) {
-    const slider = document.getElementById('fontSizeSlider');
-    slider.value = size;
-    updateFontSizeDisplay(size);
-}
-
-function getFontSize() {
-    return parseInt(document.getElementById('fontSizeSlider').value);
 }
 
 </script>

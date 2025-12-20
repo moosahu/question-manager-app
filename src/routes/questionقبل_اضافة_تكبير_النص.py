@@ -2350,7 +2350,6 @@ def preview_multi_models():
         include_answers = data.get('include_answers', False)
         include_answer_sheet = data.get('include_answer_sheet', False)
         include_barcode = data.get('include_barcode', True)
-        font_size = data.get('font_size', 14)  # حجم الخط الافتراضي 14px
         
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
         shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
@@ -2456,7 +2455,6 @@ def preview_multi_models():
                 qr_code=qr_code_data,
                 show_answers=include_answers,
                 exam_title=f"نموذج الاختبار - {model_letter}",
-                font_size=font_size,
                 **header_settings
             )
             
