@@ -5,7 +5,7 @@
     <style>
         @page { 
             size: A4 landscape; 
-            margin: 5mm; 
+            margin: 0; 
         }
         
         * {
@@ -14,52 +14,66 @@
             padding: 0;
         }
         
+        html, body {
+            width: 297mm;
+            height: 210mm;
+            margin: 0;
+            padding: 0;
+        }
+        
         body { 
             font-family: 'Arial', 'Tahoma', sans-serif; 
-            font-size: 9px; 
             color: #000; 
-            padding: 3px;
-            line-height: 1.1;
+            padding: 5mm;
         }
         
         .main-container {
             width: 100%;
-            border: 1px solid #000;
+            height: 100%;
+            border: 2px solid #000;
+            display: flex;
+            flex-direction: column;
         }
         
-        /* ===== الصف العلوي ===== */
-        .top-row {
+        /* ===== الصف العلوي (الهيدر) ===== */
+        .header-row {
             display: flex;
             border-bottom: 2px solid #000;
+            min-height: 85px;
         }
         
-        /* قسم الوزارة */
+        /* قسم الوزارة - يمين */
         .ministry-section {
-            width: 18%;
-            padding: 5px;
+            width: 15%;
+            padding: 4px;
             border-left: 1px solid #000;
             text-align: center;
-            font-size: 7px;
-            line-height: 1.3;
+            font-size: 8px;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         
         .ministry-section img {
-            height: 40px;
-            margin-bottom: 2px;
+            height: 35px;
+            margin-bottom: 3px;
         }
         
         /* قسم التعليمات */
         .instructions-section {
-            width: 22%;
-            padding: 5px;
+            width: 18%;
+            padding: 4px;
             border-left: 1px solid #000;
+            font-size: 7px;
         }
         
         .section-title {
-            background: #000;
+            background: #1a5a5a;
             color: #fff;
             text-align: center;
-            padding: 2px 5px;
+            padding: 3px 5px;
             font-size: 9px;
             font-weight: bold;
             margin-bottom: 3px;
@@ -67,15 +81,19 @@
         
         .instructions-list {
             font-size: 7px;
-            line-height: 1.5;
+            line-height: 1.4;
             list-style-type: disc;
-            margin-right: 10px;
+            margin-right: 12px;
+        }
+        
+        .instructions-list li {
+            margin-bottom: 1px;
         }
         
         /* قسم التظليل الصحيح */
         .shading-section {
-            width: 12%;
-            padding: 5px;
+            width: 8%;
+            padding: 4px;
             border-left: 1px solid #000;
             text-align: center;
         }
@@ -83,14 +101,14 @@
         .shading-demo {
             display: flex;
             justify-content: center;
-            gap: 5px;
-            margin-top: 5px;
+            gap: 8px;
+            margin-top: 8px;
         }
         
         /* قسم الدرجات */
         .grade-section {
-            width: 20%;
-            padding: 5px;
+            width: 28%;
+            padding: 4px;
             border-left: 1px solid #000;
         }
         
@@ -102,85 +120,81 @@
         
         .grade-table th, .grade-table td {
             border: 1px solid #000;
-            padding: 1px;
+            padding: 2px 1px;
             text-align: center;
         }
         
         .grade-table th {
             background: #e0e0e0;
+            font-size: 6px;
         }
         
         /* قسم بيانات الطالب */
         .student-section {
-            width: 28%;
-            padding: 5px;
+            width: 31%;
+            padding: 4px;
         }
         
-        .student-info {
+        .student-info-row {
             display: flex;
-            flex-wrap: wrap;
-            gap: 3px;
-            margin-bottom: 5px;
-        }
-        
-        .info-field {
             font-size: 8px;
+            margin-bottom: 2px;
         }
         
-        .info-field span {
-            font-weight: bold;
+        .student-info-row span {
+            margin-left: 15px;
+        }
+        
+        .student-info-row strong {
+            margin-left: 3px;
         }
         
         /* الباركود ورقم الجلوس */
         .barcode-area {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 5px;
-            padding: 5px;
+            gap: 8px;
+            margin-top: 3px;
+            padding: 3px;
             border: 1px solid #000;
             background: #fff;
         }
         
         .student-number {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
             font-family: 'Courier New', monospace;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
         }
         
         .barcode-img {
-            height: 35px;
+            height: 40px;
         }
         
-        /* دوائر تظليل الرقم */
-        .digit-bubbles {
-            display: flex;
-            gap: 3px;
-            margin-top: 5px;
-        }
-        
-        .digit-column {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1px;
-        }
-        
-        .digit-column .header {
-            font-weight: bold;
+        .barcode-text {
             font-size: 7px;
-            height: 12px;
+            font-family: 'Courier New', monospace;
         }
         
-        /* ===== قسم الأسئلة ===== */
+        /* نموذج الاختبار */
+        .model-section {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 9px;
+            margin-top: 3px;
+        }
+        
+        /* ===== صف الأسئلة ===== */
         .questions-row {
             display: flex;
+            flex: 1;
         }
         
         .questions-column {
             border-left: 1px solid #000;
-            padding: 3px;
+            display: flex;
+            flex-direction: column;
         }
         
         .questions-column:last-child {
@@ -189,55 +203,59 @@
         
         /* أعمدة الاختيار من متعدد */
         .mcq-col {
-            width: 12.5%;
+            width: 10%;
         }
         
         /* أعمدة صح/خطأ */
         .tf-col {
-            width: 12.5%;
+            width: 8%;
         }
         
         /* عمود المزاوجة */
         .match-col {
-            width: 25%;
+            width: 22%;
         }
         
         .col-title {
-            background: #e0e0e0;
+            background: #1a5a5a;
+            color: #fff;
             text-align: center;
             font-weight: bold;
-            font-size: 8px;
-            padding: 2px;
+            font-size: 9px;
+            padding: 3px;
             border-bottom: 1px solid #000;
         }
         
         .q-table {
             width: 100%;
             border-collapse: collapse;
+            flex: 1;
         }
         
         .q-table td {
             padding: 1px 2px;
             text-align: center;
-            font-size: 8px;
-            border-bottom: 1px solid #eee;
+            font-size: 9px;
+            border-bottom: 1px solid #ddd;
+            height: 18px;
         }
         
         .q-num {
             font-weight: bold;
-            width: 18px;
+            width: 20px;
+            font-size: 9px;
         }
         
         /* الدوائر */
         .bubble {
-            width: 12px;
-            height: 12px;
-            border: 1px solid #000;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #000;
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 6px;
+            font-size: 8px;
             font-weight: bold;
             background: #fff;
             margin: 0 1px;
@@ -249,42 +267,54 @@
         }
         
         .bubble.small {
+            width: 12px;
+            height: 12px;
+            font-size: 7px;
+        }
+        
+        .bubble.tiny {
             width: 10px;
             height: 10px;
-            font-size: 5px;
+            font-size: 6px;
         }
         
-        /* نموذج الاختبار */
-        .model-section {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 8px;
+        /* دوائر تظليل الدرجة */
+        .grade-bubble {
+            width: 11px;
+            height: 11px;
+            border: 1px solid #000;
+            border-radius: 50%;
+            display: inline-block;
         }
         
-        .model-bubbles {
-            display: flex;
-            gap: 2px;
+        @media print {
+            html, body {
+                width: 297mm;
+                height: 210mm;
+            }
+            .main-container {
+                page-break-inside: avoid;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="main-container">
-    <!-- ===== الصف العلوي ===== -->
-    <div class="top-row">
+    <!-- ===== الصف العلوي (الهيدر) ===== -->
+    <div class="header-row">
         <!-- قسم الوزارة -->
         <div class="ministry-section">
             {% if logo_base64 %}
             <img src="{{ logo_base64 }}" alt="شعار">
+            {% else %}
+            <div style="font-size: 10px; font-weight: bold;">🏛️</div>
             {% endif %}
-            <div>{{ ministry|default('وزارة التعليم') }}</div>
+            <div style="font-weight: bold;">وزارة التعليم</div>
             <div>{{ education_department|default('الإدارة العامة للتعليم بالمنطقة الشرقية') }}</div>
             <div>{{ school_name|default('') }}</div>
-            <div style="margin-top: 3px;">
-                <strong>اختبار الفصل الدراسي</strong><br>
-                العام الدراسي 1446هـ
-            </div>
+            <div style="margin-top: 3px; font-weight: bold;">اختبار الفصل الدراسي</div>
+            <div>العام الدراسي 1446هـ</div>
         </div>
         
         <!-- قسم التعليمات -->
@@ -309,7 +339,7 @@
                 <span class="bubble"></span>
             </div>
             <div style="font-size: 7px; margin-top: 5px;">
-                ✓ صحيح &nbsp;&nbsp; ✗ خاطئ
+                ✓ صحيح &nbsp; ✗ خاطئ
             </div>
         </div>
         
@@ -319,52 +349,51 @@
                 <tr>
                     <th colspan="4">الجزء العشري</th>
                     <th colspan="11">الجزء الصحيح</th>
-                    <th rowspan="2">الدرجة</th>
+                    <th rowspan="2" style="width: 45px;">الدرجة</th>
                 </tr>
                 <tr>
                     <td>4/3</td><td>2/1</td><td>4/1</td><td>-</td>
                     <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td>
                 </tr>
                 <tr>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td>الجزء العملي</td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td style="font-size: 6px;">الجزء العملي</td>
                 </tr>
                 <tr>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td><span class="bubble small"></span></td>
-                    <td>الجزء النظري</td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td><span class="grade-bubble"></span></td>
+                    <td style="font-size: 6px;">الجزء النظري</td>
                 </tr>
             </table>
-            
-            <div style="margin-top: 5px; font-size: 7px;">
-                <strong>الدرجة النهائية:</strong> _________ 
+            <div style="margin-top: 3px; font-size: 7px;">
+                <strong>الدرجة النهائية:</strong> _____________ &nbsp;&nbsp;
                 <strong>الصف:</strong> {{ grade|default('ثالث ثانوي') }}
             </div>
         </div>
@@ -373,31 +402,32 @@
         <div class="student-section">
             <div class="section-title">بيانات الطالب</div>
             
-            <div class="student-info">
-                <div class="info-field"><span>الاسم:</span> {{ student.name|default('') }}</div>
+            <div class="student-info-row">
+                <span><strong>الاسم:</strong> {{ student.name|default('') }}</span>
             </div>
-            <div class="student-info">
-                <div class="info-field"><span>الصف/الشعبة:</span> {{ student.section|default('') }}</div>
-                <div class="info-field" style="margin-right: 15px;"><span>المادة:</span> {{ subject|default('') }}</div>
+            <div class="student-info-row">
+                <span><strong>الصف/الشعبة:</strong> {{ student.section|default('') }}</span>
+                <span><strong>المادة:</strong> {{ subject|default('كيمياء 5') }}</span>
             </div>
             
             <!-- الباركود ورقم الجلوس -->
             <div class="barcode-area">
-                <div class="student-number">{{ student.academic_id|default('000000') }}</div>
                 {% if student.barcode %}
                 <img class="barcode-img" src="{{ student.barcode }}" alt="باركود">
                 {% endif %}
+                <div>
+                    <div class="student-number">{{ student.academic_id|default('000000') }}</div>
+                    <div class="barcode-text">{{ student.academic_id|default('000000') }}</div>
+                </div>
             </div>
             
             <!-- نموذج الاختبار -->
-            <div class="model-section" style="margin-top: 5px;">
-                <span><strong>نموذج:</strong></span>
-                <div class="model-bubbles">
-                    <span class="bubble">أ</span>
-                    <span class="bubble">ب</span>
-                    <span class="bubble">ج</span>
-                    <span class="bubble">د</span>
-                </div>
+            <div class="model-section">
+                <strong>نموذج:</strong>
+                <span class="bubble">أ</span>
+                <span class="bubble">ب</span>
+                <span class="bubble">ج</span>
+                <span class="bubble">د</span>
             </div>
         </div>
     </div>
@@ -412,10 +442,10 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">أ</span>
-                        <span class="bubble">ب</span>
-                        <span class="bubble">ج</span>
-                        <span class="bubble">د</span>
+                        <span class="bubble tiny">أ</span>
+                        <span class="bubble tiny">ب</span>
+                        <span class="bubble tiny">ج</span>
+                        <span class="bubble tiny">د</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -430,10 +460,10 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">أ</span>
-                        <span class="bubble">ب</span>
-                        <span class="bubble">ج</span>
-                        <span class="bubble">د</span>
+                        <span class="bubble tiny">أ</span>
+                        <span class="bubble tiny">ب</span>
+                        <span class="bubble tiny">ج</span>
+                        <span class="bubble tiny">د</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -448,10 +478,10 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">أ</span>
-                        <span class="bubble">ب</span>
-                        <span class="bubble">ج</span>
-                        <span class="bubble">د</span>
+                        <span class="bubble tiny">أ</span>
+                        <span class="bubble tiny">ب</span>
+                        <span class="bubble tiny">ج</span>
+                        <span class="bubble tiny">د</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -466,10 +496,10 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">أ</span>
-                        <span class="bubble">ب</span>
-                        <span class="bubble">ج</span>
-                        <span class="bubble">د</span>
+                        <span class="bubble tiny">أ</span>
+                        <span class="bubble tiny">ب</span>
+                        <span class="bubble tiny">ج</span>
+                        <span class="bubble tiny">د</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -484,8 +514,8 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">ص</span>
-                        <span class="bubble">خ</span>
+                        <span class="bubble tiny">ص</span>
+                        <span class="bubble tiny">خ</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -500,8 +530,8 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">ص</span>
-                        <span class="bubble">خ</span>
+                        <span class="bubble tiny">ص</span>
+                        <span class="bubble tiny">خ</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -516,16 +546,16 @@
                 <tr>
                     <td class="q-num">{{ i }}</td>
                     <td>
-                        <span class="bubble">أ</span>
-                        <span class="bubble">ب</span>
-                        <span class="bubble">ج</span>
-                        <span class="bubble">د</span>
-                        <span class="bubble">هـ</span>
-                        <span class="bubble">و</span>
-                        <span class="bubble">ز</span>
-                        <span class="bubble">ح</span>
-                        <span class="bubble">ط</span>
-                        <span class="bubble">ي</span>
+                        <span class="bubble tiny">أ</span>
+                        <span class="bubble tiny">ب</span>
+                        <span class="bubble tiny">ج</span>
+                        <span class="bubble tiny">د</span>
+                        <span class="bubble tiny">هـ</span>
+                        <span class="bubble tiny">و</span>
+                        <span class="bubble tiny">ز</span>
+                        <span class="bubble tiny">ح</span>
+                        <span class="bubble tiny">ط</span>
+                        <span class="bubble tiny">ي</span>
                     </td>
                 </tr>
                 {% endfor %}
