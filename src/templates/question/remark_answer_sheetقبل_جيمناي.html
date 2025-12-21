@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 5mm; /* هوامش صغيرة لضمان عدم القص */
+            margin: 3mm;
         }
 
         * {
@@ -19,28 +19,26 @@
             width: 100%;
             height: 100%;
             background: white;
-            /* تكبير الخط العام كما طلبت */
-            font-family: 'Segoe UI', 'Traditional Arabic', Arial, sans-serif; 
-            font-size: 14px; 
+            font-family: 'Traditional Arabic', 'Simplified Arabic', Arial, sans-serif;
+            font-size: 12px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
         .sheet-container {
-            width: 285mm; /* عرض مناسب لـ A4 landscape */
-            height: 200mm;
+            width: 290mm;
+            height: 203mm;
             display: grid;
-            grid-template-columns: 1fr 1.1fr; /* تعديل النسب لإعطاء مساحة أكبر لليسار */
+            grid-template-columns: 1fr 1fr;
             grid-template-rows: auto 1fr;
             border: 2px solid #000;
-            margin: 0 auto;
         }
 
         /* =============== القسم العلوي الأيمن =============== */
         .top-right {
             border-left: 2px solid #000;
             border-bottom: 2px solid #000;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
         }
@@ -48,64 +46,65 @@
         .logo-section {
             display: flex;
             align-items: flex-start;
-            gap: 15px;
-            margin-bottom: 8px;
+            gap: 12px;
+            margin-bottom: 6px;
         }
 
         .logo-img {
-            width: 80px;
+            width: 75px;
             height: auto;
         }
 
         .ministry-info {
             text-align: right;
-            font-size: 13px;
-            line-height: 1.5;
-            flex: 1;
+            font-size: 12px;
+            line-height: 1.6;
         }
 
         .ministry-info .title {
             font-weight: bold;
             color: #1a5c4c;
-            font-size: 15px;
+            font-size: 13px;
         }
 
         .school-name {
             font-weight: bold;
             color: #c41e3a;
-            font-size: 14px;
-            margin-top: 2px;
+            font-size: 13px;
         }
 
         .exam-info-box {
             background: #f0f7f0;
             border: 1px solid #1a5c4c;
             border-radius: 5px;
-            padding: 10px;
-            margin-top: 8px;
-            font-size: 13px;
+            padding: 8px;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .exam-info-row {
+            margin-bottom: 4px;
         }
 
         .dor-section {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             align-items: center;
-            margin-top: 8px;
+            margin-top: 5px;
         }
 
         .dor-option {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-weight: bold;
+            gap: 4px;
+            font-size: 11px;
         }
 
         .checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #000;
+            width: 15px;
+            height: 15px;
+            border: 1.5px solid #000;
             display: inline-block;
-            background: white;
         }
 
         /* صندوق التعليمات */
@@ -114,12 +113,11 @@
             border: 2px solid #f9a825;
             border-radius: 6px;
             padding: 10px;
-            margin-top: 10px;
+            margin-top: 8px;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 10px;
-            flex: 1; /* يأخذ باقي المساحة */
+            gap: 15px;
         }
 
         .instructions-content {
@@ -129,45 +127,46 @@
         .instructions-title {
             font-weight: bold;
             color: #e65100;
-            margin-bottom: 5px;
-            font-size: 15px;
+            margin-bottom: 6px;
+            font-size: 14px;
         }
 
         .instructions-list {
-            font-size: 12px;
-            line-height: 1.6;
+            font-size: 11px;
+            line-height: 1.7;
             list-style: disc;
-            padding-right: 18px;
+            padding-right: 15px;
             color: #333;
-            font-weight: bold;
         }
 
         .shading-example {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 5px;
-            min-width: 100px;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 8px;
+            background: #fff;
+            border-radius: 5px;
         }
 
         .shading-item {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
         }
 
         .bubble-correct {
-            width: 25px;
-            height: 25px;
+            width: 24px;
+            height: 24px;
             background: #000;
             border-radius: 50%;
         }
 
         .bubble-wrong {
-            width: 25px;
-            height: 25px;
+            width: 24px;
+            height: 24px;
             border: 2px solid #000;
             border-radius: 50%;
             position: relative;
@@ -179,99 +178,94 @@
         .bubble-wrong::after {
             content: "✗";
             color: #c41e3a;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
         }
 
         /* =============== القسم العلوي الأيسر =============== */
         .top-left {
             border-bottom: 2px solid #000;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
         }
 
         .student-section {
             display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 15px;
-            margin-bottom: 10px;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
         .student-name-box {
             background: #e3f2fd;
             border: 2px solid #1976d2;
             border-radius: 6px;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            padding: 10px;
         }
 
         .student-name-label {
             font-size: 12px;
-            color: #555;
-            margin-bottom: 4px;
-            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
         }
 
         .student-name {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: #1565c0;
+            min-height: 28px;
         }
 
         .academic-id-box {
             text-align: center;
-            border: 1px solid #ccc;
-            padding: 5px;
-            border-radius: 5px;
         }
 
         .status-options {
             display: flex;
-            gap: 15px;
+            gap: 20px;
             justify-content: center;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-size: 12px;
-            font-weight: bold;
         }
 
         .barcode-container {
             text-align: center;
-            margin: 2px 0;
+            margin: 8px 0;
         }
 
         .barcode-img {
-            height: 40px;
+            height: 55px;
             width: auto;
         }
 
         .academic-id-number {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
-            font-family: monospace;
-            letter-spacing: 3px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 4px;
+            margin-top: 5px;
         }
 
         .info-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-            margin: 5px 0;
+            gap: 8px;
+            margin: 10px 0;
         }
 
         .info-item {
             text-align: center;
-            border: 1px solid #000;
-            padding: 4px;
+            border: 1px solid #ddd;
+            padding: 8px;
+            border-radius: 4px;
             background: #fafafa;
         }
 
         .info-label {
             font-size: 11px;
-            color: #333;
-            font-weight: bold;
+            color: #666;
+            margin-bottom: 4px;
         }
 
         .info-value {
@@ -279,10 +273,10 @@
             font-weight: bold;
         }
 
-        /* === تحسين جدول الدرجات (المشكلة الأولى) === */
+        /* جدول الدرجات */
         .score-table-section {
-            margin-top: 5px;
-            border: 2px solid #000;
+            margin-top: 8px;
+            border: 1.5px solid #000;
         }
 
         .score-table {
@@ -290,37 +284,24 @@
             border-collapse: collapse;
         }
 
-        .score-table th {
-            background: #ddd;
+        .score-table th, .score-table td {
             border: 1px solid #000;
-            padding: 4px;
+            padding: 3px;
             text-align: center;
-            font-size: 12px; /* تكبير خط العناوين */
-            font-weight: bold;
+            font-size: 9px;
         }
 
-        .score-table td {
-            border: 1px solid #000;
-            padding: 2px;
-            text-align: center;
-            height: 35px; /* زيادة الارتفاع */
-            vertical-align: middle;
+        .score-table th {
+            background: #e8e8e8;
+            font-size: 8px;
         }
 
         .score-bubble {
-            width: 18px; /* تكبير الدوائر */
-            height: 18px;
-            border: 2px solid #000;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #000;
             border-radius: 50%;
             display: inline-block;
-            background: white;
-        }
-
-        /* رأس الجدول للأرقام */
-        .score-num-header {
-            font-size: 14px;
-            font-weight: bold;
-            display: block;
         }
 
         /* النموذج */
@@ -328,29 +309,40 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-top: 8px;
-            padding: 6px;
+            margin-top: 10px;
+            padding: 8px;
             background: #f5f5f5;
-            border: 1px solid #999;
-            justify-content: center;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .model-label {
+            font-weight: bold;
+            font-size: 12px;
         }
 
         .model-bubbles {
             display: flex;
-            gap: 20px;
+            gap: 12px;
+        }
+
+        .model-option {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
         }
 
         .model-bubble {
-            width: 28px;
-            height: 28px;
+            width: 22px;
+            height: 22px;
             border: 2px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            background: white;
         }
 
         .model-bubble.selected {
@@ -362,16 +354,12 @@
         .questions-section {
             grid-column: 1 / -1;
             display: grid;
-            /* تقسيم الأعمدة: الاختيار المتعدد أصغر، المزاوجة أكبر */
-            grid-template-columns: 1fr 1fr 0.8fr 1.2fr;
-            border-top: 2px solid #000;
+            grid-template-columns: repeat(4, 1fr);
         }
 
         .question-column {
-            border-left: 2px solid #000;
-            padding: 5px;
-            display: flex;
-            flex-direction: column;
+            border-left: 1.5px solid #000;
+            padding: 6px 8px;
         }
 
         .question-column:last-child {
@@ -380,61 +368,61 @@
 
         .column-title {
             text-align: center;
-            padding: 6px;
+            padding: 7px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             margin-bottom: 8px;
             border-radius: 4px;
             color: white;
-            border: 1px solid #000;
         }
 
-        .column-title.mcq { background: #1a5c4c; }
-        .column-title.tf { background: #e65100; }
-        .column-title.matching { background: #7b1fa2; }
+        .column-title.mcq {
+            background: #1a5c4c;
+        }
 
-        /* الشبكة الداخلية للأسئلة */
+        .column-title.tf {
+            background: #e65100;
+        }
+
+        .column-title.matching {
+            background: #7b1fa2;
+        }
+
         .questions-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* عمودين للأقسام العادية */
-            gap: 0 10px;
-        }
-        
-        /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
-        .questions-grid.matching-grid {
-            grid-template-columns: 1fr; /* عمود واحد فقط للمزاوجة */
+            grid-template-columns: 1fr 1fr;
+            gap: 3px 15px;
         }
 
         .question-row {
             display: flex;
             align-items: center;
             padding: 4px 0;
-            border-bottom: 1px solid #eee;
         }
 
         .question-num {
-            width: 25px;
+            width: 24px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
         }
 
         .answer-bubbles {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             flex: 1;
             justify-content: center;
         }
 
         .answer-bubble {
-            width: 24px; /* تكبير الدوائر */
-            height: 24px;
-            border: 2px solid #000;
+            width: 20px;
+            height: 20px;
+            border: 1.5px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
         }
 
@@ -443,28 +431,24 @@
             color: #fff;
         }
 
-        /* دوائر أصغر قليلاً للمزاوجة لتتسع الـ 6 خيارات */
-        .matching-bubble {
-            width: 22px;
-            height: 22px;
-            border: 2px solid #000;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
         /* مفتاح الإجابة */
         .answer-key-badge {
             background: #c41e3a;
             color: white;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             padding: 5px 15px;
             border-radius: 5px;
             display: inline-block;
+        }
+
+        .answer-key-header {
+            background: #ffebee;
+            border: 2px solid #c41e3a;
+            padding: 6px;
+            text-align: center;
+            margin-bottom: 8px;
+            border-radius: 5px;
         }
 
         @media print {
@@ -476,12 +460,13 @@
 <body>
 
 <div class="sheet-container">
+    <!-- =============== القسم العلوي الأيمن =============== -->
     <div class="top-right">
         <div class="logo-section">
             {% if logo_base64 %}
                 <img src="{{ logo_base64 }}" class="logo-img" alt="Logo">
             {% else %}
-                <div style="width:75px; height:75px; background:#eee; border:1px dashed #000; display:flex; align-items:center; justify-content:center;">شعار</div>
+                <img src="/static/images/logo.png" class="logo-img" alt="Logo">
             {% endif %}
             <div class="ministry-info">
                 <div class="title">{{ country|default('المملكة العربية السعودية', true) }}</div>
@@ -492,7 +477,7 @@
         </div>
 
         <div class="exam-info-box">
-            <div style="margin-bottom: 5px;">
+            <div class="exam-info-row">
                 <strong>اختبار {{ exam_type|default('نهاية', true) }} الفصل الدراسي {{ semester|default('الأول', true) }}</strong>
             </div>
             <div class="dor-section">
@@ -501,7 +486,7 @@
                 <div class="dor-option"><span class="checkbox"></span> الثاني</div>
                 <div class="dor-option"><span class="checkbox"></span> التعثر</div>
             </div>
-            <div style="margin-top: 8px;">
+            <div class="exam-info-row" style="margin-top: 5px;">
                 العام الدراسي: <strong>{{ academic_year|default('1447هـ', true) }}</strong>
             </div>
         </div>
@@ -510,28 +495,31 @@
             <div class="instructions-content">
                 <div class="instructions-title">📋 تعليمات هامة</div>
                 <ul class="instructions-list">
-                    <li>استخدم القلم الرصاص HB2 فقط للإجابة.</li>
-                    <li>تأكد من تظليل الدائرة بالكامل.</li>
-                    <li>امسح الفقرة المظللة جيداً عند التغيير.</li>
-                    <li>لا تستخدم قلم الحبر أو الطامس.</li>
+                    <li>استخدم القلم الرصاص فقط للإجابة على الأسئلة.</li>
+                    <li>اقرأ السؤال جيداً ثم حدد الإجابة الصحيحة.</li>
+                    <li>تأكد من تظليل فقرة واحدة فقط لكل سؤال.</li>
+                    <li>امسح الفقرة المظللة جيداً عند تغيير الإجابة.</li>
+                    <li>لا تترك أي سؤال بدون إجابة.</li>
+                    <li>لا تستخدم قلم الحبر أو مزيل الحبر نهائياً.</li>
                 </ul>
             </div>
             <div class="shading-example">
                 <div class="shading-item">
                     <div class="bubble-correct"></div>
-                    <span>تظليل صحيح</span>
+                    <span>تظليل صحيح ✓</span>
                 </div>
                 <div class="shading-item">
                     <div class="bubble-wrong"></div>
-                    <span>تظليل خاطئ</span>
+                    <span>تظليل خاطئ ✗</span>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- =============== القسم العلوي الأيسر =============== -->
     <div class="top-left">
         {% if is_answer_key %}
-        <div style="text-align: center; margin-bottom: 10px;">
+        <div class="answer-key-header">
             <span class="answer-key-badge">🔑 مفتاح الإجابة - للمعلم فقط</span>
         </div>
         {% endif %}
@@ -547,7 +535,7 @@
                     <div class="dor-option"><span class="checkbox"></span> غائب</div>
                     <div class="dor-option"><span class="checkbox"></span> غاش</div>
                 </div>
-                <div style="font-size: 11px; color: #666;">الرقم الأكاديمي / السجل المدني</div>
+                <div style="font-size: 10px; color: #666;">الرقم الأكاديمي / السجل المدني</div>
                 {% if student.barcode %}
                 <div class="barcode-container">
                     <img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">
@@ -560,7 +548,7 @@
         <div class="info-grid">
             <div class="info-item">
                 <div class="info-label">الدرجة النهائية</div>
-                <div class="info-value">{{ total_score|default(20, true) }} من 20</div>
+                <div class="info-value">{{ total_score|default(20, true) }} من {{ total_score|default(20, true) }}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">الصف</div>
@@ -576,59 +564,56 @@
             </div>
         </div>
 
+        <!-- جدول الدرجات -->
         <div class="score-table-section">
             <table class="score-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2" style="width: 15%;">البيان</th>
-                        <th colspan="3">الجزء العشري</th>
-                        <th colspan="11">الجزء الصحيح</th>
-                    </tr>
-                    <tr>
-                        <th><span class="score-num-header">1/4</span></th>
-                        <th><span class="score-num-header">1/2</span></th>
-                        <th><span class="score-num-header">3/4</span></th>
-                        <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
-                        <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="font-weight: bold;">العملي</td>
-                        {% for i in range(3) %}<td><span class="score-bubble"></span></td>{% endfor %}
-                        {% for i in range(11) %}<td><span class="score-bubble"></span></td>{% endfor %}
-                    </tr>
-                    <tr>
-                        <td style="font-weight: bold;">المقالي</td>
-                        {% for i in range(3) %}<td><span class="score-bubble"></span></td>{% endfor %}
-                        {% for i in range(11) %}<td><span class="score-bubble"></span></td>{% endfor %}
-                    </tr>
-                </tbody>
+                <tr>
+                    <th>الدرجة</th>
+                    <th colspan="3">الجزء العشري</th>
+                    <th colspan="11">الجزء الصحيح</th>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>1/4</td><td>1/2</td><td>3/4</td>
+                    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
+                    <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td>
+                </tr>
+                <tr>
+                    <td>الجزء العملي</td>
+                    {% for i in range(14) %}<td><span class="score-bubble"></span></td>{% endfor %}
+                </tr>
+                <tr>
+                    <td>الجزء المقالي</td>
+                    {% for i in range(14) %}<td><span class="score-bubble"></span></td>{% endfor %}
+                </tr>
             </table>
         </div>
 
+        <!-- النموذج -->
         <div class="model-section">
-            <span style="font-weight: bold; font-size: 14px;">نموذج الاختبار:</span>
+            <span class="model-label">نموذج:</span>
             <div class="model-bubbles">
-                <div style="display: flex; align-items: center; gap: 5px;">
+                <div class="model-option">
                     <span class="model-bubble {% if model_letter == 'أ' %}selected{% endif %}">أ</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
+                <div class="model-option">
                     <span class="model-bubble {% if model_letter == 'ب' %}selected{% endif %}">ب</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
+                <div class="model-option">
                     <span class="model-bubble {% if model_letter == 'ج' %}selected{% endif %}">ج</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
+                <div class="model-option">
                     <span class="model-bubble {% if model_letter == 'د' %}selected{% endif %}">د</span>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- =============== قسم الأسئلة =============== -->
     <div class="questions-section">
+        <!-- العمود 1: اختيار من متعدد 1-20 -->
         <div class="question-column">
-            <div class="column-title mcq">اختر الإجابة (1-20)</div>
+            <div class="column-title mcq">أسئلة اختر الإجابة الصحيحة</div>
             <div class="questions-grid">
                 <div>
                     {% for i in range(1, 11) %}
@@ -637,10 +622,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <span class="answer-bubble">أ</span>
-                            <span class="answer-bubble">ب</span>
-                            <span class="answer-bubble">ج</span>
-                            <span class="answer-bubble">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -652,10 +637,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <span class="answer-bubble">أ</span>
-                            <span class="answer-bubble">ب</span>
-                            <span class="answer-bubble">ج</span>
-                            <span class="answer-bubble">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -663,19 +648,21 @@
             </div>
         </div>
 
+        <!-- العمود 2: اختيار من متعدد 21-40 -->
         <div class="question-column">
-            <div class="column-title mcq">تابع (21-40)</div>
+            <div class="column-title mcq">تابع: اختر الإجابة الصحيحة</div>
             <div class="questions-grid">
                 <div>
                     {% for i in range(21, 31) %}
                     {% set q_num = i %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <span class="answer-bubble">أ</span>
-                            <span class="answer-bubble">ب</span>
-                            <span class="answer-bubble">ج</span>
-                            <span class="answer-bubble">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -683,13 +670,14 @@
                 <div>
                     {% for i in range(31, 41) %}
                     {% set q_num = i %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <span class="answer-bubble">أ</span>
-                            <span class="answer-bubble">ب</span>
-                            <span class="answer-bubble">ج</span>
-                            <span class="answer-bubble">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -697,17 +685,19 @@
             </div>
         </div>
 
+        <!-- العمود 3: صح / خطأ -->
         <div class="question-column">
-            <div class="column-title tf">صح / خطأ (41-60)</div>
+            <div class="column-title tf">أسئلة صح / خطأ</div>
             <div class="questions-grid">
                 <div>
                     {% for i in range(1, 11) %}
                     {% set q_num = i + 40 %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
-                        <div class="answer-bubbles" style="gap: 15px;">
-                            <span class="answer-bubble">ص</span>
-                            <span class="answer-bubble">خ</span>
+                        <div class="answer-bubbles" style="gap: 20px;">
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ص' %}filled{% endif %}">ص</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'خ' %}filled{% endif %}">خ</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -715,11 +705,12 @@
                 <div>
                     {% for i in range(11, 21) %}
                     {% set q_num = i + 40 %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
-                        <div class="answer-bubbles" style="gap: 15px;">
-                            <span class="answer-bubble">ص</span>
-                            <span class="answer-bubble">خ</span>
+                        <div class="answer-bubbles" style="gap: 20px;">
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ص' %}filled{% endif %}">ص</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'خ' %}filled{% endif %}">خ</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -727,21 +718,40 @@
             </div>
         </div>
 
+        <!-- العمود 4: المزاوجة -->
         <div class="question-column">
-            <div class="column-title matching">المزاوجة (61-70)</div>
-            <div class="questions-grid matching-grid">
+            <div class="column-title matching">أسئلة المزاوجة (اقرن)</div>
+            <div class="questions-grid">
                 <div>
-                    {% for i in range(1, 11) %}
+                    {% for i in range(1, 6) %}
                     {% set q_num = i + 60 %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
-                        <div class="answer-bubbles" style="gap: 4px;">
-                            <span class="matching-bubble">أ</span>
-                            <span class="matching-bubble">ب</span>
-                            <span class="matching-bubble">ج</span>
-                            <span class="matching-bubble">د</span>
-                            <span class="matching-bubble">هـ</span>
-                            <span class="matching-bubble">و</span>
+                        <div class="answer-bubbles">
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'هـ' %}filled{% endif %}">هـ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'و' %}filled{% endif %}">و</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div>
+                    {% for i in range(6, 11) %}
+                    {% set q_num = i + 60 %}
+                    {% set correct = answers.get(q_num, '') if answers else '' %}
+                    <div class="question-row">
+                        <span class="question-num">{{ i }}</span>
+                        <div class="answer-bubbles">
+                            <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'هـ' %}filled{% endif %}">هـ</span>
+                            <span class="answer-bubble {% if is_answer_key and correct == 'و' %}filled{% endif %}">و</span>
                         </div>
                     </div>
                     {% endfor %}
