@@ -2723,16 +2723,18 @@ def generate_omr_answer_key():
         header_settings = {}
         if header_settings_record:
             header_settings = {
-                'country': header_settings_record.country,
-                'ministry': header_settings_record.ministry,
-                'education_department': header_settings_record.education_department,
-                'school_name': header_settings_record.school_name,
-                'subject': header_settings_record.subject,
-                'time': header_settings_record.time,
-                'grade': header_settings_record.grade,
-                'total_score': header_settings_record.total_score,
-                'logo_base64': header_settings_record.logo_base64
+                'country': getattr(header_settings_record, 'country', 'المملكة العربية السعودية'),
+                'ministry': getattr(header_settings_record, 'ministry', 'وزارة التعليم'),
+                'education_department': getattr(header_settings_record, 'education_department', ''),
+                'school_name': getattr(header_settings_record, 'school_name', ''),
+                'subject': getattr(header_settings_record, 'subject', ''),
+                'time': getattr(header_settings_record, 'time', ''),
+                'grade': getattr(header_settings_record, 'grade', ''),
+                'total_score': getattr(header_settings_record, 'total_score', 30)
             }
+            # محاولة جلب الشعار إذا كان موجوداً
+            if hasattr(header_settings_record, 'logo_base64'):
+                header_settings['logo_base64'] = header_settings_record.logo_base64
         
         # توليد HTML لمفتاح الإجابة
         answer_key_html = render_template(

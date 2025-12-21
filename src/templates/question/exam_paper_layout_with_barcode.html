@@ -26,22 +26,13 @@
                 font-size: 11px;
                 color: #333;
             }
-        }
-        
-        /* عنصر اقلب الصفحة - يظهر في أسفل كل صفحة ما عدا الأخيرة */
-        .page-turn-notice {
-            position: fixed;
-            bottom: 5mm;
-            left: 15mm;
-            font-size: 11px;
-            color: #666;
-            font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
-        }
-        
-        /* إخفاء في الطباعة للصفحة الأخيرة - سنتحكم بها بـ CSS */
-        .exam-end ~ .page-turn-notice,
-        .answer-key-section ~ .page-turn-notice {
-            display: none !important;
+            
+            @bottom-left {
+                content: "◄ اقلب الصفحة";
+                font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
+                font-size: 11px;
+                color: #666;
+            }
         }
 
         /* =============================================
