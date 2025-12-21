@@ -2750,7 +2750,7 @@ def generate_omr_answer_key():
             **header_settings
         )
         
-        # إضافة زر الطباعة
+        # إضافة زر الطباعة - بدون header ثابت لتجنب انزياح الأوراق
         full_html = f"""<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -2760,40 +2760,40 @@ def generate_omr_answer_key():
 @media print {{
     .no-print {{ display: none !important; }}
 }}
-.print-header {{
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: #c41e3a;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    z-index: 9999;
-    font-family: Arial, sans-serif;
-}}
-.print-header button {{
-    background: white;
-    color: #c41e3a;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-right: 10px;
-}}
-.print-header button:hover {{
-    background: #f0f0f0;
+@media screen {{
+    .screen-only-header {{
+        background: #c41e3a;
+        color: white;
+        padding: 15px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }}
+    .screen-only-header button {{
+        background: white;
+        color: #c41e3a;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }}
+    .screen-only-header button:hover {{
+        background: #f0f0f0;
+    }}
 }}
 body {{
-    padding-top: 50px;
+    margin: 0;
+    padding: 0;
 }}
 </style>
 </head>
 <body>
-<div class="print-header no-print">
+<div class="screen-only-header no-print">
     <button onclick="window.print()">🖨️ طباعة مفتاح الإجابة</button>
-    <span>🔑 مفتاح إجابة OMR - النموذج {model_letter} - عدد الأسئلة: {len(questions)}</span>
+    <div style="margin-top: 10px;">🔑 مفتاح إجابة OMR - النموذج {model_letter} - عدد الأسئلة: {len(questions)}</div>
 </div>
 {answer_key_html}
 </body>
@@ -3124,7 +3124,7 @@ def generate_all_models_answer_keys():
             if idx < len(models) - 1:
                 all_keys_html += '<div style="page-break-after: always;"></div>'
         
-        # إضافة زر الطباعة
+        # إضافة زر الطباعة - بدون header ثابت لتجنب انزياح الأوراق
         full_html = f"""<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -3134,40 +3134,40 @@ def generate_all_models_answer_keys():
 @media print {{
     .no-print {{ display: none !important; }}
 }}
-.print-header {{
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: #9c27b0;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    z-index: 9999;
-    font-family: Arial, sans-serif;
-}}
-.print-header button {{
-    background: white;
-    color: #9c27b0;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-right: 10px;
-}}
-.print-header button:hover {{
-    background: #f0f0f0;
+@media screen {{
+    .screen-only-header {{
+        background: #9c27b0;
+        color: white;
+        padding: 15px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }}
+    .screen-only-header button {{
+        background: white;
+        color: #9c27b0;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }}
+    .screen-only-header button:hover {{
+        background: #f0f0f0;
+    }}
 }}
 body {{
-    padding-top: 50px;
+    margin: 0;
+    padding: 0;
 }}
 </style>
 </head>
 <body>
-<div class="print-header no-print">
+<div class="screen-only-header no-print">
     <button onclick="window.print()">🖨️ طباعة مفاتيح الإجابة</button>
-    <span>🔑 مفاتيح إجابة OMR - النماذج: {', '.join(models)} - عدد الأسئلة: {len(questions)}</span>
+    <div style="margin-top: 10px;">🔑 مفاتيح إجابة OMR - النماذج: {', '.join(models)} - عدد الأسئلة: {len(questions)}</div>
 </div>
 {all_keys_html}
 </body>
