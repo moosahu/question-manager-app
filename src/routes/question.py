@@ -2371,9 +2371,9 @@ def preview_multi_models():
             'show_student_seat_no': data.get('show_student_seat_no', True),
             'show_student_signature': data.get('show_student_signature', False),
             'name_line_length': data.get('name_line_length', 'medium'),
-            'exam_type': data.get('exam_type', ''),
-            'show_exam_date': data.get('show_exam_date', True),
-            'exam_date': data.get('exam_date', '')
+            'exam_type': data.get('exam_type', 'نهاية'),
+            'semester': data.get('semester', 'الأول'),
+            'academic_year': data.get('academic_year', '1447هـ')
         }
         
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات

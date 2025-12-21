@@ -705,25 +705,43 @@
                     </div>
                 </div>
 
-                <!-- 6. نوع الاختبار والتاريخ -->
+                <!-- 6. نوع الاختبار والفصل والعام -->
                 <div style="margin-bottom: 10px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i> نوع الاختبار:</label>
-                    <select id="examType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.85rem; margin-bottom: 10px;">
-                        <option value="">-- بدون تحديد --</option>
-                        <option value="فتري">اختبار فتري</option>
-                        <option value="نهائي">اختبار نهائي</option>
-                        <option value="تجريبي">اختبار تجريبي</option>
-                        <option value="تشخيصي">اختبار تشخيصي</option>
-                        <option value="قصير">اختبار قصير</option>
-                    </select>
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i> عنوان الاختبار (تحت الشعار):</label>
                     
-                    <div class="checkbox-item" style="margin-bottom: 8px;">
-                        <input type="checkbox" id="showExamDate" checked>
-                        <label for="showExamDate">إظهار التاريخ</label>
+                    <!-- نوع الاختبار -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">نوع الاختبار:</label>
+                        <select id="examType" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                            <option value="نهاية">نهاية</option>
+                            <option value="منتصف">منتصف</option>
+                            <option value="الفترة الأولى">الفترة الأولى</option>
+                            <option value="الفترة الثانية">الفترة الثانية</option>
+                            <option value="تشخيصي">تشخيصي</option>
+                            <option value="قصير">قصير</option>
+                        </select>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="date" id="examDateInput" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
-                        <button type="button" onclick="setTodayDate()" style="padding: 6px 12px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">اليوم</button>
+                    
+                    <!-- الفصل الدراسي -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">الفصل الدراسي:</label>
+                        <select id="semesterSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                            <option value="الأول">الأول</option>
+                            <option value="الثاني">الثاني</option>
+                            <option value="الثالث">الثالث</option>
+                        </select>
+                    </div>
+                    
+                    <!-- العام الدراسي -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">العام الدراسي:</label>
+                        <input type="text" id="academicYear" value="1447هـ" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem; text-align: center;">
+                    </div>
+                    
+                    <!-- معاينة العنوان -->
+                    <div style="background: #e8f5e9; padding: 8px; border-radius: 4px; text-align: center; font-size: 0.8rem; color: #2e7d32; margin-top: 8px;">
+                        <i class="fas fa-eye"></i> المعاينة:<br>
+                        <strong id="examTitlePreview">اختبار نهاية الفصل الدراسي الأول لعام 1447هـ</strong>
                     </div>
                 </div>
             </div>
@@ -1896,6 +1914,25 @@ function setTodayDate() {
     document.getElementById('examDateInput').value = today;
 }
 
+function updateExamTitlePreview() {
+    const examType = document.getElementById('examType').value;
+    const semester = document.getElementById('semesterSelect').value;
+    const year = document.getElementById('academicYear').value;
+    const title = `اختبار ${examType} الفصل الدراسي ${semester} لعام ${year}`;
+    document.getElementById('examTitlePreview').textContent = title;
+}
+
+// إضافة مستمعين لتحديث المعاينة
+document.addEventListener('DOMContentLoaded', function() {
+    const examType = document.getElementById('examType');
+    const semester = document.getElementById('semesterSelect');
+    const year = document.getElementById('academicYear');
+    
+    if (examType) examType.addEventListener('change', updateExamTitlePreview);
+    if (semester) semester.addEventListener('change', updateExamTitlePreview);
+    if (year) year.addEventListener('input', updateExamTitlePreview);
+});
+
 function updateButtonGroup(selector, dataAttr, value, activeColor) {
     document.querySelectorAll(selector).forEach(btn => {
         if (btn.dataset[dataAttr] === value) {
@@ -1924,8 +1961,8 @@ function getHeaderSettings() {
         show_student_signature: document.getElementById('showStudentSignature').checked,
         name_line_length: headerFormatConfig.nameLineLength,
         exam_type: document.getElementById('examType').value,
-        show_exam_date: document.getElementById('showExamDate').checked,
-        exam_date: document.getElementById('examDateInput').value
+        semester: document.getElementById('semesterSelect').value,
+        academic_year: document.getElementById('academicYear').value
     };
 }
 

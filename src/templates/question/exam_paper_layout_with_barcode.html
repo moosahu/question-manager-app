@@ -454,6 +454,13 @@
                     {% if hf.show_logo|default(true, true) and logo_base64 %}
                         <img src="{{ logo_base64 }}" class="logo-img">
                     {% endif %}
+                    <!-- عنوان الاختبار تحت الشعار -->
+                    {% set exam_type = hf.exam_type|default('نهاية', true) %}
+                    {% set semester = hf.semester|default('الأول', true) %}
+                    {% set academic_year = hf.academic_year|default('1447هـ', true) %}
+                    <div style="font-weight: bold; font-size: {{ header_font }}px; margin-top: 5px; color: #000;">
+                        اختبار {{ exam_type }} الفصل الدراسي {{ semester }} لعام {{ academic_year }}
+                    </div>
                 </td>
                 
                 <td class="header-left">
@@ -473,11 +480,6 @@
                         {% endif %}
 
                         <div class="details-side">
-                            {% if hf.exam_type|default('', true) %}
-                                <div style="color: #333; font-weight: bold;">
-                                    {{ hf.exam_type }}
-                                </div>
-                            {% endif %}
                             <div>
                                 المادة : {{ subject }}
                             </div>
@@ -487,11 +489,6 @@
                             <div>
                                 الصف : {{ grade }}
                             </div>
-                            {% if hf.show_exam_date|default(true, true) %}
-                                <div>
-                                    التاريخ : {{ hf.exam_date|default('    /    /    هـ', true) }}
-                                </div>
-                            {% endif %}
                             
                             {% if model_letter and model_letter != '' %}
                                 <div>
