@@ -2607,12 +2607,12 @@ def generate_student_barcode(academic_id):
         # إعدادات الباركود
         writer = ImageWriter()
         writer.set_options({
-            'module_width': 0.3,
-            'module_height': 8,
-            'quiet_zone': 2,
+            'module_width': 0.5,
+            'module_height': 18,
+            'quiet_zone': 4,
             'font_size': 0,
-            'text_distance': 1,
-            'write_text': False
+            'text_distance': 18,
+            'write_text': True
         })
         
         # إنشاء الباركود
