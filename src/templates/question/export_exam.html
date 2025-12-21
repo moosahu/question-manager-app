@@ -52,8 +52,26 @@
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
             position: sticky;
             top: 20px;
+        }
+        
+        /* تحسين مظهر شريط التمرير */
+        .export-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .export-sidebar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .export-sidebar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        .export-sidebar::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
         }
 
         .export-main {
@@ -1836,7 +1854,7 @@ function getLayoutSettings() {
 }
 
 // ==================== دوال تنسيقات الكليشة ====================
-let headerSettings = {
+let headerFormatConfig = {
     headerSize: 'medium',
     showLogo: true,
     logoSize: 'medium',
@@ -1854,22 +1872,22 @@ let headerSettings = {
 };
 
 function setHeaderSize(size) {
-    headerSettings.headerSize = size;
+    headerFormatConfig.headerSize = size;
     updateButtonGroup('.header-size-btn', 'size', size, '#9c27b0');
 }
 
 function setLogoSize(size) {
-    headerSettings.logoSize = size;
+    headerFormatConfig.logoSize = size;
     updateButtonGroup('.logo-size-btn', 'size', size, '#9c27b0');
 }
 
 function setQRSize(size) {
-    headerSettings.qrSize = size;
+    headerFormatConfig.qrSize = size;
     updateButtonGroup('.qr-size-btn', 'size', size, '#9c27b0');
 }
 
 function setNameLineLength(length) {
-    headerSettings.nameLineLength = length;
+    headerFormatConfig.nameLineLength = length;
     updateButtonGroup('.name-line-btn', 'length', length, '#9c27b0');
 }
 
@@ -1894,17 +1912,17 @@ function updateButtonGroup(selector, dataAttr, value, activeColor) {
 
 function getHeaderSettings() {
     return {
-        header_size: headerSettings.headerSize,
+        header_size: headerFormatConfig.headerSize,
         show_logo: document.getElementById('showLogo').checked,
-        logo_size: headerSettings.logoSize,
-        qr_size: headerSettings.qrSize,
+        logo_size: headerFormatConfig.logoSize,
+        qr_size: headerFormatConfig.qrSize,
         show_grades_table: document.getElementById('showGradesTable').checked,
         show_extra_grade_field: document.getElementById('showExtraGradeField').checked,
         show_student_name: document.getElementById('showStudentName').checked,
         show_student_class: document.getElementById('showStudentClass').checked,
         show_student_seat_no: document.getElementById('showStudentSeatNo').checked,
         show_student_signature: document.getElementById('showStudentSignature').checked,
-        name_line_length: headerSettings.nameLineLength,
+        name_line_length: headerFormatConfig.nameLineLength,
         exam_type: document.getElementById('examType').value,
         show_exam_date: document.getElementById('showExamDate').checked,
         exam_date: document.getElementById('examDateInput').value
