@@ -2684,3 +2684,121 @@ def print_remark_sheets():
     except Exception as e:
         current_app.logger.error(f"Error in print_remark_sheets: {str(e)}")
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
+
+
+# ==================== Route لاستخراج مفتاح إجابة OMR ====================
+@question_bp.route('/generate-omr-answer-key', methods=['POST'])
+@login_required
+def generate_omr_answer_key():
+    """استخراج مفتاح إجابة OMR من الأسئلة المختارة"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        model_letter = data.get('model_letter', 'أ')
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        # جلب الأسئلة مع الخيارات
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # استخراج الإجابات الصحيحة
+        answers = {}
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        
+        for i, q in enumerate(questions, 1):
+            for j, opt in enumerate(q.options):
+                if opt.is_correct:
+                    answers[i] = letters[j] if j < len(letters) else 'أ'
+                    break
+        
+        # جلب إعدادات الكليشة
+        header_settings_record = ExamHeaderSettings.query.first()
+        header_settings = {}
+        if header_settings_record:
+            header_settings = {
+                'country': header_settings_record.country,
+                'ministry': header_settings_record.ministry,
+                'education_department': header_settings_record.education_department,
+                'school_name': header_settings_record.school_name,
+                'subject': header_settings_record.subject,
+                'time': header_settings_record.time,
+                'grade': header_settings_record.grade,
+                'total_score': header_settings_record.total_score,
+                'logo_base64': header_settings_record.logo_base64
+            }
+        
+        # توليد HTML لمفتاح الإجابة
+        answer_key_html = render_template(
+            'question/remark_answer_sheet.html',
+            student={'name': '🔑 مفتاح الإجابة', 'academic_id': '---', 'section': '---', 'barcode': None},
+            is_answer_key=True,
+            answers=answers,
+            model_letter=model_letter,
+            exam_type=exam_type,
+            semester=semester,
+            academic_year=academic_year,
+            questions_count=len(questions),
+            **header_settings
+        )
+        
+        # إضافة زر الطباعة
+        full_html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>🔑 مفتاح إجابة OMR - النموذج {model_letter}</title>
+<style>
+@media print {{
+    .no-print {{ display: none !important; }}
+}}
+.print-header {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #c41e3a;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    z-index: 9999;
+    font-family: Arial, sans-serif;
+}}
+.print-header button {{
+    background: white;
+    color: #c41e3a;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 10px;
+}}
+.print-header button:hover {{
+    background: #f0f0f0;
+}}
+body {{
+    padding-top: 50px;
+}}
+</style>
+</head>
+<body>
+<div class="print-header no-print">
+    <button onclick="window.print()">🖨️ طباعة مفتاح الإجابة</button>
+    <span>🔑 مفتاح إجابة OMR - النموذج {model_letter} - عدد الأسئلة: {len(questions)}</span>
+</div>
+{answer_key_html}
+</body>
+</html>"""
+        
+        return jsonify({'success': True, 'html': full_html})
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error generating OMR answer key: {e}")
+        return jsonify({'error': str(e)}), 500

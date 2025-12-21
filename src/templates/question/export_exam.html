@@ -905,6 +905,16 @@
                 <button class="btn btn-success" onclick="previewStudentList()" style="margin-top:10px;">
                    <i class="fas fa-print"></i> تأكيد وفتح المعاينة للطباعة
                 </button>
+                
+                <!-- زر مفتاح الإجابة OMR -->
+                <div style="border-top: 1px dashed #28a745; margin-top: 12px; padding-top: 12px;">
+                    <button class="btn" onclick="generateOMRAnswerKey()" style="width: 100%; background: #c41e3a; color: white; font-weight: bold;">
+                       <i class="fas fa-key"></i> 🔑 استخراج مفتاح إجابة OMR
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        يستخرج الإجابات الصحيحة من الأسئلة المختارة ويظللها في بطاقة OMR
+                    </p>
+                </div>
             </div>
 
             <div class="btn-group">
@@ -1198,6 +1208,56 @@ function addFinalGenerateButton() {
         </div>
     `;
     container.innerHTML += btnHtml;
+}
+
+// ==================== دالة استخراج مفتاح إجابة OMR ====================
+async function generateOMRAnswerKey() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً لاستخراج مفتاح الإجابة');
+        return;
+    }
+    
+    // الحصول على النموذج المختار
+    const selectedModels = getSelectedModels();
+    const modelLetter = selectedModels.length > 0 ? selectedModels[0] : 'أ';
+    
+    // الحصول على إعدادات الكليشة
+    const headerFormatSettings = getHeaderSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/generate-omr-answer-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                model_letter: modelLetter,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة مع مفتاح الإجابة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html);
+            printWindow.document.close();
+            showSuccess('تم إنشاء مفتاح إجابة OMR بنجاح!');
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء مفتاح الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
 }
 
 // دالة عرض جدول الطلاب للمعاينة
