@@ -174,31 +174,17 @@
            الأسئلة (تنسيق العمودين) 
            =============================================
         */
-        
-        {% set col_count = columns|default(2, true) %}
-        {% set space_mode = spacing|default('normal', true) %}
-        {% set opt_layout = options_layout|default('vertical', true) %}
-        
-        /* حساب المسافة بين الأسئلة */
-        {% if space_mode == 'compact' %}
-            {% set q_margin = 6 %}
-        {% elif space_mode == 'wide' %}
-            {% set q_margin = 20 %}
-        {% else %}
-            {% set q_margin = 12 %}
-        {% endif %}
-        
         .questions-wrapper {
-            column-count: {{ col_count }};
-            column-gap: {% if col_count == 1 %}0{% elif col_count == 3 %}15px{% else %}20px{% endif %};
-            column-rule: {% if col_count > 1 %}1px solid #000{% else %}none{% endif %};
+            column-count: 2;
+            column-gap: 20px;
+            column-rule: 1px solid #000;
             column-fill: balance;
         }
 
         .question-box { 
             display: inline-block;
             width: 100%;
-            margin-bottom: {{ q_margin }}px;
+            margin-bottom: 12px;
             font-size: {{ font_size|default(14, true) }}px;
             break-inside: avoid;
             page-break-inside: avoid;
@@ -276,17 +262,6 @@
         .options-container {
             margin-right: 8px;
             margin-top: 5px;
-        }
-        
-        /* تنسيق شبكي 2×2 للخيارات النصية */
-        .options-container.grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px 15px;
-        }
-        
-        .options-container.grid-layout .q-option {
-            margin-bottom: 0;
         }
 
         .q-option { 
@@ -542,7 +517,7 @@
                     
                 {% else %}
                 
-                    <div class="options-container{% if opt_layout == 'grid' %} grid-layout{% endif %}">
+                    <div class="options-container">
                         
                         {% for option in question.options %}
                             <div class="q-option">

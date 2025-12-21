@@ -666,56 +666,6 @@
                 </p>
             </div>
 
-            <!-- قسم خيارات التنسيق المتقدمة -->
-            <div class="layout-section" style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #e65100; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-columns"></i> خيارات التنسيق</h4>
-                
-                <!-- عدد الأعمدة -->
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">عدد الأعمدة:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="column-btn" data-columns="1" onclick="setColumns(1)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-align-justify"></i><br>عمود واحد
-                        </button>
-                        <button type="button" class="column-btn active" data-columns="2" onclick="setColumns(2)" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-columns"></i><br>عمودين
-                        </button>
-                        <button type="button" class="column-btn" data-columns="3" onclick="setColumns(3)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-th"></i><br>ثلاثة
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- المسافة بين الأسئلة -->
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">المسافة بين الأسئلة:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="spacing-btn" data-spacing="compact" onclick="setSpacing('compact')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            ضيقة
-                        </button>
-                        <button type="button" class="spacing-btn active" data-spacing="normal" onclick="setSpacing('normal')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            متوسطة
-                        </button>
-                        <button type="button" class="spacing-btn" data-spacing="wide" onclick="setSpacing('wide')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            واسعة
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- تنسيق الخيارات -->
-                <div>
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">تنسيق الخيارات النصية:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="options-layout-btn active" data-layout="vertical" onclick="setOptionsLayout('vertical')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-list"></i><br>تحت بعض
-                        </button>
-                        <button type="button" class="options-layout-btn" data-layout="grid" onclick="setOptionsLayout('grid')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-th-large"></i><br>شبكي 2×2
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <div class="form-group">
                 <label>خيارات الاستخراج</label>
                 <div class="checkbox-group">
@@ -1514,9 +1464,6 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على حجم الصور المختار
     const imageSize = getImageSize();
     
-    // الحصول على إعدادات التنسيق
-    const layoutSettings = getLayoutSettings();
-    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -1539,10 +1486,7 @@ function generatePrintableDocument(questions, includeAnswers) {
             include_barcode: document.getElementById('includeBarcode').checked,
             shuffle_options: document.getElementById('shuffleOptions').checked,
             font_size: fontSize,
-            image_size: imageSize,
-            columns: layoutSettings.columns,
-            spacing: layoutSettings.spacing,
-            options_layout: layoutSettings.options_layout
+            image_size: imageSize
         })
     })
     .then(response => {
@@ -1651,67 +1595,6 @@ function setImageSize(size) {
 
 function getImageSize() {
     return parseInt(document.getElementById('imageSizeSlider').value);
-}
-
-// ==================== دوال خيارات التنسيق المتقدمة ====================
-let currentColumns = 2;
-let currentSpacing = 'normal';
-let currentOptionsLayout = 'vertical';
-
-function setColumns(num) {
-    currentColumns = num;
-    // تحديث مظهر الأزرار
-    document.querySelectorAll('.column-btn').forEach(btn => {
-        if (parseInt(btn.dataset.columns) === num) {
-            btn.style.background = '#ff9800';
-            btn.style.color = 'white';
-            btn.style.borderColor = '#ff9800';
-        } else {
-            btn.style.background = '#fff';
-            btn.style.color = '#333';
-            btn.style.borderColor = '#ddd';
-        }
-    });
-}
-
-function setSpacing(spacing) {
-    currentSpacing = spacing;
-    // تحديث مظهر الأزرار
-    document.querySelectorAll('.spacing-btn').forEach(btn => {
-        if (btn.dataset.spacing === spacing) {
-            btn.style.background = '#ff9800';
-            btn.style.color = 'white';
-            btn.style.borderColor = '#ff9800';
-        } else {
-            btn.style.background = '#fff';
-            btn.style.color = '#333';
-            btn.style.borderColor = '#ddd';
-        }
-    });
-}
-
-function setOptionsLayout(layout) {
-    currentOptionsLayout = layout;
-    // تحديث مظهر الأزرار
-    document.querySelectorAll('.options-layout-btn').forEach(btn => {
-        if (btn.dataset.layout === layout) {
-            btn.style.background = '#ff9800';
-            btn.style.color = 'white';
-            btn.style.borderColor = '#ff9800';
-        } else {
-            btn.style.background = '#fff';
-            btn.style.color = '#333';
-            btn.style.borderColor = '#ddd';
-        }
-    });
-}
-
-function getLayoutSettings() {
-    return {
-        columns: currentColumns,
-        spacing: currentSpacing,
-        options_layout: currentOptionsLayout
-    };
 }
 
 </script>

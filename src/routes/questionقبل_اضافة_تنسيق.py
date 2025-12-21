@@ -2353,11 +2353,6 @@ def preview_multi_models():
         font_size = data.get('font_size', 14)  # حجم الخط الافتراضي 14px
         image_size = data.get('image_size', 100)  # حجم الصور الافتراضي 100%
         
-        # إعدادات التنسيق المتقدمة
-        columns = data.get('columns', 2)  # عدد الأعمدة الافتراضي 2
-        spacing = data.get('spacing', 'normal')  # المسافة الافتراضية متوسطة
-        options_layout = data.get('options_layout', 'vertical')  # تنسيق الخيارات الافتراضي عمودي
-        
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
         shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
         
@@ -2464,9 +2459,6 @@ def preview_multi_models():
                 exam_title=f"نموذج الاختبار - {model_letter}",
                 font_size=font_size,
                 image_size=image_size,
-                columns=columns,
-                spacing=spacing,
-                options_layout=options_layout,
                 **header_settings
             )
             
