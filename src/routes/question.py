@@ -2804,3 +2804,377 @@ body {{
     except Exception as e:
         current_app.logger.exception(f"Error generating OMR answer key: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/print-remark-sheets-multi-models', methods=['POST'])
+@login_required
+def print_remark_sheets_multi_models():
+    """طباعة أوراق إجابة ريمارك للنماذج المتعددة"""
+    try:
+        data = request.get_json()
+        students_list = data.get('students', [])
+        models = data.get('models', ['أ'])  # النماذج المطلوبة
+        question_ids = data.get('question_ids', [])
+        shuffle_options = data.get('shuffle_options', True)
+        
+        if not students_list:
+            return jsonify({'error': 'لم يتم تحديد قائمة الطلاب'}), 400
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
+        
+        # جلب الأسئلة
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # تحويل الأسئلة لقاموس
+        questions_data = []
+        for q in questions:
+            q_dict = {
+                'question_id': q.question_id,
+                'question_text': getattr(q, 'question_text', '') or '',
+                'image_url': getattr(q, 'image_url', None) or '',
+                'options': []
+            }
+            for opt in q.options:
+                q_dict['options'].append({
+                    'option_id': getattr(opt, 'option_id', None),
+                    'option_text': getattr(opt, 'option_text', '') or '',
+                    'image_url': getattr(opt, 'image_url', None) or '',
+                    'is_correct': getattr(opt, 'is_correct', False)
+                })
+            questions_data.append(q_dict)
+        
+        # جلب إعدادات الكليشة
+        settings = ExamHeaderSettings.query.first()
+        header_context = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'grade': settings.grade if settings else '',
+            'logo_base64': ''
+        }
+
+        # تحويل الشعار لـ Base64
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"Could not load logo: {e}")
+        
+        # توليد مفاتيح الإجابة لكل نموذج
+        answer_keys = {}
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        
+        for idx, model_letter in enumerate(models):
+            # خلط الأسئلة والخيارات بنفس طريقة النماذج
+            seed = hash(model_letter) + idx * 1000
+            shuffled_questions = shuffle_exam(
+                questions_data,
+                shuffle_questions=True,
+                shuffle_options=shuffle_options,
+                seed=seed
+            )
+            
+            # بناء مفتاح الإجابات لهذا النموذج
+            model_answers = {}
+            for q_num, q in enumerate(shuffled_questions, 1):
+                correct_letter = ''
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        correct_letter = letters[i] if i < len(letters) else str(i+1)
+                        break
+                model_answers[q_num] = correct_letter
+            answer_keys[model_letter] = model_answers
+        
+        # توزيع النماذج على الطلاب بالتساوي
+        students_per_model = len(students_list) // len(models)
+        remainder = len(students_list) % len(models)
+        
+        all_html = ""
+        student_idx = 0
+        
+        for model_idx, model_letter in enumerate(models):
+            # عدد الطلاب لهذا النموذج
+            count = students_per_model + (1 if model_idx < remainder else 0)
+            
+            for _ in range(count):
+                if student_idx >= len(students_list):
+                    break
+                    
+                student = students_list[student_idx]
+                student_idx += 1
+                
+                # توليد الباركود للرقم الأكاديمي
+                academic_id = student.get('academic_id', '')
+                if academic_id:
+                    student['barcode'] = generate_student_barcode(academic_id)
+                else:
+                    student['barcode'] = None
+                
+                # إضافة معلومات النموذج
+                student['model_letter'] = model_letter
+                
+                # توليد HTML للطالب مع مفتاح إجابات النموذج
+                all_html += render_template(
+                    'question/remark_answer_sheet.html', 
+                    student=student,
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,  # لا نعرض الإجابات في ورقة الطالب
+                    questions_count=len(questions_data),
+                    **header_context
+                )
+                all_html += '<div style="page-break-after: always;"></div>'
+        
+        # إضافة مفاتيح الإجابة لكل نموذج في النهاية
+        for model_letter in models:
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                student={
+                    'name': f'🔑 مفتاح الإجابة - نموذج {model_letter}',
+                    'academic_id': '---',
+                    'section': '---',
+                    'barcode': None,
+                    'model_letter': model_letter
+                },
+                is_answer_key=True,
+                answers=answer_keys[model_letter],
+                model_letter=model_letter,
+                questions_count=len(questions_data),
+                **header_context
+            )
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        return jsonify({'success': True, 'html_content': all_html})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in print_remark_sheets_multi_models: {str(e)}")
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
+
+
+@question_bp.route('/print-blank-remark-sheets', methods=['POST'])
+@login_required
+def print_blank_remark_sheets():
+    """طباعة نماذج ريمارك فارغة للنماذج المتعددة"""
+    try:
+        data = request.get_json()
+        models = data.get('models', ['أ'])
+        count_per_model = data.get('count_per_model', 10)
+        question_ids = data.get('question_ids', [])
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
+        
+        # جلب الأسئلة لمعرفة العدد
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions_count = len(questions)
+        
+        # جلب إعدادات الكليشة
+        settings = ExamHeaderSettings.query.first()
+        header_context = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'grade': settings.grade if settings else '',
+            'logo_base64': ''
+        }
+
+        # تحويل الشعار لـ Base64
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"Could not load logo: {e}")
+        
+        all_html = ""
+        
+        # توليد نماذج فارغة لكل نموذج
+        for model_letter in models:
+            for i in range(count_per_model):
+                blank_student = {
+                    'name': '..........................................',
+                    'academic_id': '..........................................',
+                    'section': '.....',
+                    'barcode': None,
+                    'model_letter': model_letter
+                }
+                
+                all_html += render_template(
+                    'question/remark_answer_sheet.html',
+                    student=blank_student,
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,
+                    questions_count=questions_count,
+                    **header_context
+                )
+                all_html += '<div style="page-break-after: always;"></div>'
+        
+        return jsonify({'success': True, 'html_content': all_html})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in print_blank_remark_sheets: {str(e)}")
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
+
+
+@question_bp.route('/generate-all-models-answer-keys', methods=['POST'])
+@login_required
+def generate_all_models_answer_keys():
+    """استخراج مفاتيح إجابة OMR لكل النماذج"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        models = data.get('models', ['أ'])
+        shuffle_options = data.get('shuffle_options', True)
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        # جلب الأسئلة
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # تحويل الأسئلة لقاموس
+        questions_data = []
+        for q in questions:
+            q_dict = {
+                'question_id': q.question_id,
+                'question_text': getattr(q, 'question_text', '') or '',
+                'image_url': getattr(q, 'image_url', None) or '',
+                'options': []
+            }
+            for opt in q.options:
+                q_dict['options'].append({
+                    'option_id': getattr(opt, 'option_id', None),
+                    'option_text': getattr(opt, 'option_text', '') or '',
+                    'image_url': getattr(opt, 'image_url', None) or '',
+                    'is_correct': getattr(opt, 'is_correct', False)
+                })
+            questions_data.append(q_dict)
+        
+        # جلب إعدادات الكليشة
+        header_settings_record = ExamHeaderSettings.query.first()
+        header_settings = {}
+        if header_settings_record:
+            header_settings = {
+                'country': getattr(header_settings_record, 'country', 'المملكة العربية السعودية'),
+                'ministry': getattr(header_settings_record, 'ministry', 'وزارة التعليم'),
+                'education_department': getattr(header_settings_record, 'education_department', ''),
+                'school_name': getattr(header_settings_record, 'school_name', ''),
+                'subject': getattr(header_settings_record, 'subject', ''),
+                'time': getattr(header_settings_record, 'time', ''),
+                'grade': getattr(header_settings_record, 'grade', ''),
+                'total_score': getattr(header_settings_record, 'total_score', 30)
+            }
+        
+        # توليد مفاتيح الإجابة لكل نموذج
+        all_keys_html = ""
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        
+        for idx, model_letter in enumerate(models):
+            # خلط الأسئلة والخيارات
+            seed = hash(model_letter) + idx * 1000
+            shuffled_questions = shuffle_exam(
+                questions_data,
+                shuffle_questions=True,
+                shuffle_options=shuffle_options,
+                seed=seed
+            )
+            
+            # استخراج الإجابات الصحيحة
+            answers = {}
+            for q_num, q in enumerate(shuffled_questions, 1):
+                correct_letter = ''
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        correct_letter = letters[i] if i < len(letters) else str(i+1)
+                        break
+                answers[q_num] = correct_letter
+            
+            # توليد HTML لمفتاح الإجابة
+            answer_key_html = render_template(
+                'question/remark_answer_sheet.html',
+                student={'name': f'🔑 مفتاح الإجابة - نموذج {model_letter}', 'academic_id': '---', 'section': '---', 'barcode': None},
+                is_answer_key=True,
+                answers=answers,
+                model_letter=model_letter,
+                exam_type=exam_type,
+                semester=semester,
+                academic_year=academic_year,
+                questions_count=len(questions),
+                **header_settings
+            )
+            all_keys_html += answer_key_html
+            if idx < len(models) - 1:
+                all_keys_html += '<div style="page-break-after: always;"></div>'
+        
+        # إضافة زر الطباعة
+        full_html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>🔑 مفاتيح إجابة OMR - النماذج {', '.join(models)}</title>
+<style>
+@media print {{
+    .no-print {{ display: none !important; }}
+}}
+.print-header {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #9c27b0;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    z-index: 9999;
+    font-family: Arial, sans-serif;
+}}
+.print-header button {{
+    background: white;
+    color: #9c27b0;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 10px;
+}}
+.print-header button:hover {{
+    background: #f0f0f0;
+}}
+body {{
+    padding-top: 50px;
+}}
+</style>
+</head>
+<body>
+<div class="print-header no-print">
+    <button onclick="window.print()">🖨️ طباعة مفاتيح الإجابة</button>
+    <span>🔑 مفاتيح إجابة OMR - النماذج: {', '.join(models)} - عدد الأسئلة: {len(questions)}</span>
+</div>
+{all_keys_html}
+</body>
+</html>"""
+        
+        return jsonify({'success': True, 'html': full_html})
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error generating all models answer keys: {e}")
+        return jsonify({'error': str(e)}), 500

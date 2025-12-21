@@ -901,18 +901,49 @@
 
             <div style="background: #f0fff4; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-bottom: 20px; margin-top: 15px;">
                 <h4 style="color: #22543d; margin-top: 0;"><i class="fas fa-user-graduate"></i> نماذج إجابة Remark</h4>
-                <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
-                <button class="btn btn-success" onclick="previewStudentList()" style="margin-top:10px;">
-                   <i class="fas fa-print"></i> تأكيد وفتح المعاينة للطباعة
-                </button>
+                
+                <!-- خيار 1: نماذج فارغة للنماذج المتعددة -->
+                <div style="margin-bottom: 15px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-layer-group"></i> 1. نماذج فارغة (للنماذج المتعددة)
+                    </p>
+                    <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 5px;">عدد النماذج لكل نوع:</label>
+                    <input type="number" id="blankSheetsCount" value="10" min="1" max="100" style="width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;">
+                    <button class="btn btn-info" onclick="printBlankRemarkSheets()" style="margin-top:8px; background: #17a2b8; width: 100%;">
+                       <i class="fas fa-file-alt"></i> طباعة نماذج فارغة للنماذج المختارة
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        سيتم طباعة نماذج فارغة لكل نموذج محدد (أ، ب، ج، د) للتوزيع اليدوي
+                    </p>
+                </div>
+                
+                <!-- خيار 2: نماذج بأسماء الطلاب -->
+                <div style="border-top: 1px dashed #28a745; padding-top: 12px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-users"></i> 2. نماذج بأسماء الطلاب
+                    </p>
+                    <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
+                    <button class="btn btn-success" onclick="previewStudentList()" style="margin-top:10px; width: 100%;">
+                       <i class="fas fa-print"></i> طباعة مع أسماء الطلاب (نموذج واحد)
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        للنموذج الواحد فقط - يتطلب ملف Excel بأسماء الطلاب
+                    </p>
+                </div>
                 
                 <!-- زر مفتاح الإجابة OMR -->
                 <div style="border-top: 1px dashed #28a745; margin-top: 12px; padding-top: 12px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-key"></i> 3. مفاتيح الإجابة
+                    </p>
                     <button class="btn" onclick="generateOMRAnswerKey()" style="width: 100%; background: #c41e3a; color: white; font-weight: bold;">
-                       <i class="fas fa-key"></i> 🔑 استخراج مفتاح إجابة OMR
+                       <i class="fas fa-key"></i> استخراج مفتاح إجابة OMR (نموذج واحد)
+                    </button>
+                    <button class="btn" onclick="generateAllModelsAnswerKeys()" style="width: 100%; background: #9c27b0; color: white; font-weight: bold; margin-top: 8px;">
+                       <i class="fas fa-layer-group"></i> استخراج مفاتيح إجابة لكل النماذج
                     </button>
                     <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
-                        يستخرج الإجابات الصحيحة من الأسئلة المختارة ويظللها في بطاقة OMR
+                        يستخرج الإجابات الصحيحة ويظللها في بطاقات OMR
                     </p>
                 </div>
             </div>
@@ -1196,6 +1227,283 @@ async function previewStudentList() {
     } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
     finally { showLoading(false); }
 }
+
+// ==================== دالة طباعة نماذج ريمارك للنماذج المتعددة ====================
+async function previewStudentListMultiModels() {
+    const fileInput = document.getElementById('studentListFileMulti');
+    if (!fileInput.files.length) { 
+        showError('الرجاء اختيار ملف Excel أولاً'); 
+        return; 
+    }
+    
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('student_file', fileInput.files[0]);
+    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+
+    showLoading(true);
+    try {
+        // أولاً: قراءة قائمة الطلاب من الإكسل
+        const response = await fetch('/questions/preview-students', { 
+            method: 'POST', 
+            body: formData 
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            showError(data.error);
+            return;
+        }
+        
+        const students = data.students;
+        showSuccess(`تمت قراءة ${students.length} طالب/طالبة`);
+        
+        // ثانياً: توليد نماذج ريمارك للنماذج المتعددة
+        const remarkResponse = await fetch('/questions/print-remark-sheets-multi-models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                students: students,
+                models: selectedModels,
+                question_ids: Array.from(selectedQuestionIds),
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true
+            })
+        });
+        
+        const remarkData = await remarkResponse.json();
+        
+        if (remarkData.success) {
+            // فتح نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>نماذج إجابة ريمارك - نماذج متعددة</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                        }
+                        .print-header {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            background: #28a745;
+                            color: white;
+                            padding: 10px 20px;
+                            text-align: center;
+                            z-index: 9999;
+                            font-family: Arial, sans-serif;
+                        }
+                        .print-header button {
+                            background: white;
+                            color: #28a745;
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            margin-right: 10px;
+                        }
+                        .print-header button:hover {
+                            background: #f0f0f0;
+                        }
+                        body {
+                            padding-top: 50px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header no-print">
+                        <button onclick="window.print()">🖨️ طباعة النماذج</button>
+                        <span>نماذج إجابة ريمارك - ${students.length} طالب/طالبة - النماذج: ${selectedModels.join(', ')}</span>
+                    </div>
+                    ${remarkData.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${students.length} ورقة إجابة موزعة على ${selectedModels.length} نموذج`);
+        } else {
+            showError(remarkData.error || 'حدث خطأ في إنشاء نماذج الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ==================== دالة طباعة نماذج ريمارك فارغة للنماذج المتعددة ====================
+async function printBlankRemarkSheets() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+    
+    const count = parseInt(document.getElementById('blankSheetsCount').value) || 10;
+    if (count < 1 || count > 100) {
+        showError('الرجاء إدخال عدد بين 1 و 100');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/print-blank-remark-sheets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                models: selectedModels,
+                count_per_model: count,
+                question_ids: Array.from(selectedQuestionIds)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة للطباعة
+            const totalSheets = selectedModels.length * count;
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>نماذج إجابة ريمارك - فارغة</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                        }
+                        .print-header {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            background: #17a2b8;
+                            color: white;
+                            padding: 10px 20px;
+                            text-align: center;
+                            z-index: 9999;
+                            font-family: Arial, sans-serif;
+                        }
+                        .print-header button {
+                            background: white;
+                            color: #17a2b8;
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            margin-right: 10px;
+                        }
+                        .print-header button:hover {
+                            background: #f0f0f0;
+                        }
+                        body {
+                            padding-top: 50px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header no-print">
+                        <button onclick="window.print()">🖨️ طباعة النماذج</button>
+                        <span>نماذج إجابة ريمارك (فارغة) - ${totalSheets} ورقة - النماذج: ${selectedModels.join(', ')} (${count} لكل نموذج)</span>
+                    </div>
+                    ${data.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${totalSheets} ورقة إجابة فارغة (${count} لكل نموذج)`);
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء نماذج الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ==================== دالة استخراج مفاتيح إجابة لكل النماذج ====================
+async function generateAllModelsAnswerKeys() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+    
+    // الحصول على إعدادات الكليشة
+    const headerFormatSettings = getHeaderSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/generate-all-models-answer-keys', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                models: selectedModels,
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة مع مفاتيح الإجابة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${selectedModels.length} مفتاح إجابة للنماذج: ${selectedModels.join(', ')}`);
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء مفاتيح الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
 // دالة إضافية لإظهار زر التوليد النهائي (تأكيد الطباعة) بعد المعاينة
 function addFinalGenerateButton() {
     const container = document.getElementById('questionsContent');

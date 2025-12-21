@@ -5,6 +5,12 @@ import uuid
 import io # Added for reading/writing file in memory
 import pandas as pd # Added for reading Excel/CSV
 from datetime import datetime
+import random
+import copy
+import qrcode
+import base64
+import barcode
+from barcode.writer import ImageWriter
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app,
     send_file, jsonify # Added for sending generated files
@@ -1953,7 +1959,7 @@ def export_exam_pdf():
         
         # جلب الإعدادات من قاعدة البيانات
         # نستخدم SettingsModel الذي تم استيراده لضمان التطابق مع دالة الوورد
-        header_settings = SettingsModel.query.first()
+        header_settings = db.session.query(SettingsModel).first()
         
         settings_dict = {}
         if header_settings:
@@ -2049,3 +2055,752 @@ def preview_exam_paper():
         
     except Exception as e:
         return f"Error: {str(e)}", 500
+
+
+# ============================================================
+# كود توليد النماذج المتعددة مع الباركود
+# ============================================================
+
+def generate_qr_code(data_dict):
+    """
+    توليد باركود QR يحتوي على معلومات الاختبار
+    
+    Args:
+        data_dict: قاموس يحتوي على معلومات الاختبار
+        
+    Returns:
+        Base64 string للصورة
+    """
+    # تحويل البيانات لنص
+    qr_text = f"""المادة: {data_dict.get('subject', '')}
+النموذج: {data_dict.get('model', '')}
+عدد الأسئلة: {data_dict.get('questions_count', '')}
+التاريخ: {data_dict.get('date', '')}""".strip()
+    
+    # إنشاء الباركود
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=3,
+        border=2,
+    )
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # تحويل لـ Base64
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    return f"data:image/png;base64,{img_base64}"
+
+
+def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=None):
+    """
+    خلط ترتيب الأسئلة والخيارات
+    
+    Args:
+        questions: قائمة الأسئلة
+        shuffle_questions: خلط ترتيب الأسئلة
+        shuffle_options: خلط ترتيب الخيارات
+        seed: بذرة للعشوائية (لإعادة الإنتاج)
+        
+    Returns:
+        قائمة الأسئلة المخلوطة مع تتبع الإجابات الصحيحة
+    """
+    if seed is not None:
+        random.seed(seed)
+    
+    # نسخة عميقة لتجنب تعديل الأصل
+    shuffled = copy.deepcopy(questions)
+    
+    # خلط ترتيب الأسئلة
+    if shuffle_questions:
+        random.shuffle(shuffled)
+    
+    # خلط ترتيب الخيارات لكل سؤال
+    if shuffle_options:
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        for question in shuffled:
+            options = question.get('options', [])
+            if options:
+                # خلط الخيارات
+                random.shuffle(options)
+                
+                # تحديث الإجابة الصحيحة بعد الخلط
+                for i, opt in enumerate(options):
+                    if opt.get('is_correct'):
+                        question['correct_answer_index'] = i
+                        question['correct_answer_letter'] = letters[i] if i < len(letters) else str(i+1)
+                        break
+                
+                question['options'] = options
+    
+    return shuffled
+
+
+@question_bp.route('/generate-multi-models', methods=['POST'])
+@login_required
+def generate_multi_models():
+    """
+    توليد نماذج متعددة من الاختبار بترتيب مختلف + باركود
+    """
+    try:
+        # استيراد WeasyPrint
+        from weasyprint import HTML as WeasyHTML
+        
+        data = request.get_json()
+        current_app.logger.info(f"Received data for multi-models: {data}")
+        
+        question_ids = data.get('question_ids', [])
+        models = data.get('models', ['أ'])  # النماذج المطلوبة
+        include_answers = data.get('include_answers', False)
+        include_answer_sheet = data.get('include_answer_sheet', False)
+        include_barcode = data.get('include_barcode', True)
+        shuffle_options = data.get('shuffle_options', True)
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        current_app.logger.info(f"Processing {len(question_ids)} questions for models: {models}")
+        
+        # جلب الأسئلة من قاعدة البيانات
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        current_app.logger.info(f"Found {len(questions)} questions in database")
+        
+        # تحويل الأسئلة لقاموس
+        questions_data = []
+        for q in questions:
+            q_dict = {
+                'question_id': q.question_id,
+                'question_text': q.question_text or '',
+                'image_url': getattr(q, 'image_url', None) or '',
+                'options': []
+            }
+            for opt in q.options:
+                q_dict['options'].append({
+                    'option_id': getattr(opt, 'option_id', None),
+                    'option_text': getattr(opt, 'option_text', '') or '',
+                    'image_url': getattr(opt, 'image_url', None) or '',
+                    'is_correct': getattr(opt, 'is_correct', False)
+                })
+            questions_data.append(q_dict)
+        
+        current_app.logger.info(f"Converted {len(questions_data)} questions to dict")
+        
+        # جلب إعدادات الهيدر
+        settings = ExamHeaderSettings.query.first()
+        header_settings = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'time': settings.time if settings else '',
+            'grade': settings.grade if settings else '',
+            'total_score': settings.total_score if settings else 30,
+            'checker_name': settings.checker_name if settings else '',
+            'reviewer_name': settings.reviewer_name if settings else ''
+        }
+        
+        # تحويل الشعار لـ base64 لتجنب مشاكل WeasyPrint مع timeout
+        logo_base64 = None
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_data = f.read()
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_data).decode('utf-8')}"
+        except Exception as logo_err:
+            current_app.logger.warning(f"Could not load logo: {logo_err}")
+        
+        header_settings['logo_base64'] = logo_base64
+        header_settings['logo_url'] = url_for('static', filename='images/logo.png', _external=True)
+        
+        # توليد HTML لكل نموذج
+        all_models_html = []
+        answer_keys = {}  # مفاتيح الإجابات لكل نموذج
+        
+        for i, model_letter in enumerate(models):
+            # خلط الأسئلة بطريقة مختلفة لكل نموذج
+            seed = hash(model_letter) + i * 1000
+            shuffled_questions = shuffle_exam(
+                questions_data, 
+                shuffle_questions=True, 
+                shuffle_options=shuffle_options,
+                seed=seed
+            )
+            
+            # حفظ مفتاح الإجابات
+            letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+            answer_keys[model_letter] = []
+            for j, q in enumerate(shuffled_questions):
+                correct_letter = q.get('correct_answer_letter', '')
+                if not correct_letter:
+                    # البحث عن الإجابة الصحيحة
+                    for k, opt in enumerate(q['options']):
+                        if opt.get('is_correct'):
+                            correct_letter = letters[k] if k < len(letters) else str(k+1)
+                            break
+                answer_keys[model_letter].append({
+                    'question_num': j + 1,
+                    'answer': correct_letter
+                })
+            
+            # توليد الباركود
+            qr_code_data = None
+            if include_barcode:
+                qr_code_data = generate_qr_code({
+                    'subject': header_settings['subject'],
+                    'model': model_letter,
+                    'questions_count': len(shuffled_questions),
+                    'date': datetime.now().strftime('%Y-%m-%d')
+                })
+            
+            # توليد HTML للنموذج
+            model_html = render_template(
+                'question/exam_paper_layout_with_barcode.html',
+                questions=shuffled_questions,
+                model_letter=model_letter,
+                qr_code=qr_code_data,
+                show_answers=include_answers,
+                exam_title=f"نموذج الاختبار - {model_letter}",
+                **header_settings
+            )
+            
+            all_models_html.append(model_html)
+        
+        # إضافة بطاقة التصحيح إذا مطلوبة
+        if include_answer_sheet:
+            answer_sheet_html = render_template(
+                'question/answer_sheet_template.html',
+                answer_keys=answer_keys,
+                models=models,
+                questions_count=len(questions_data),
+                **header_settings
+            )
+            all_models_html.append(answer_sheet_html)
+        
+        # دمج كل النماذج في HTML واحد - مبسط للأداء
+        combined_html = """<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 15mm; }
+.page-break { page-break-after: always; }
+body { font-family: Arial, Tahoma, sans-serif; font-size: 12px; }
+</style>
+</head>
+<body>
+"""
+        
+        for i, model_html in enumerate(all_models_html):
+            combined_html += model_html
+            if i < len(all_models_html) - 1:
+                combined_html += '<div class="page-break"></div>'
+        
+        combined_html += "</body></html>"
+        
+        current_app.logger.info(f"Combined HTML length: {len(combined_html)} chars")
+        
+        # تحويل لـ PDF مع timeout handling
+        pdf_buffer = io.BytesIO()
+        try:
+            # استخدام base_url محلي لتجنب HTTP requests
+            WeasyHTML(string=combined_html, base_url='/').write_pdf(pdf_buffer)
+        except Exception as pdf_err:
+            current_app.logger.error(f"WeasyPrint PDF generation failed: {pdf_err}")
+            # Fallback: إرجاع HTML بدلاً من PDF
+            return combined_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        
+        pdf_buffer.seek(0)
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'exam_models_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        )
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error generating multi models: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/preview-multi-models', methods=['POST'])
+@login_required
+def preview_multi_models():
+    """
+    معاينة النماذج المتعددة كـ HTML في المتصفح (للطباعة)
+    هذا يتجنب مشاكل WeasyPrint timeout وتم تحديثه لضمان اختلاف الإجابات بين النماذج
+    """
+    try:
+        data = request.get_json()
+        
+        question_ids = data.get('question_ids', [])
+        models = data.get('models', ['أ'])
+        include_answers = data.get('include_answers', False)
+        include_answer_sheet = data.get('include_answer_sheet', False)
+        include_barcode = data.get('include_barcode', True)
+        font_size = data.get('font_size', 14)  # حجم الخط الافتراضي 14px
+        image_size = data.get('image_size', 100)  # حجم الصور الافتراضي 100%
+        
+        # إعدادات التنسيق المتقدمة
+        columns = data.get('columns', 2)  # عدد الأعمدة الافتراضي 2
+        spacing = data.get('spacing', 'normal')  # المسافة الافتراضية متوسطة
+        options_layout = data.get('options_layout', 'vertical')  # تنسيق الخيارات الافتراضي عمودي
+        
+        # إعدادات تنسيق الكليشة
+        header_format = {
+            'header_size': data.get('header_size', 'medium'),
+            'show_logo': data.get('show_logo', True),
+            'logo_size': data.get('logo_size', 'medium'),
+            'qr_size': data.get('qr_size', 'medium'),
+            'show_grades_table': data.get('show_grades_table', True),
+            'show_extra_grade_field': data.get('show_extra_grade_field', False),
+            'show_student_name': data.get('show_student_name', True),
+            'show_student_class': data.get('show_student_class', True),
+            'show_student_seat_no': data.get('show_student_seat_no', True),
+            'show_student_signature': data.get('show_student_signature', False),
+            'name_line_length': data.get('name_line_length', 'medium'),
+            'exam_type': data.get('exam_type', 'نهاية'),
+            'semester': data.get('semester', 'الأول'),
+            'academic_year': data.get('academic_year', '1447هـ')
+        }
+        
+        # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
+        shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        # جلب الأسئلة
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # تحويل الأسئلة لقاموس (كما في كودك الأصلي)
+        questions_data = []
+        for q in questions:
+            q_dict = {
+                'question_id': q.question_id,
+                'question_text': getattr(q, 'question_text', '') or '',
+                'image_url': getattr(q, 'image_url', None) or '',
+                'options': []
+            }
+            for opt in q.options:
+                q_dict['options'].append({
+                    'option_id': getattr(opt, 'option_id', None),
+                    'option_text': getattr(opt, 'option_text', '') or '',
+                    'image_url': getattr(opt, 'image_url', None) or '',
+                    'is_correct': getattr(opt, 'is_correct', False)
+                })
+            questions_data.append(q_dict)
+        
+        # جلب إعدادات الهيدر (كما في كودك الأصلي)
+        settings = ExamHeaderSettings.query.first()
+        header_settings = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'time': settings.time if settings else '',
+            'grade': settings.grade if settings else '',
+            'total_score': settings.total_score if settings else 30,
+            'checker_name': settings.checker_name if settings else '',
+            'reviewer_name': settings.reviewer_name if settings else ''
+        }
+        
+        # تحويل الشعار لـ base64 (كما في كودك الأصلي)
+        logo_base64 = None
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_data = f.read()
+                    logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_data).decode('utf-8')}"
+        except Exception as logo_err:
+            current_app.logger.warning(f"Could not load logo: {logo_err}")
+        
+        header_settings['logo_base64'] = logo_base64
+        
+        # توليد HTML لكل نموذج
+        all_models_html = []
+        answer_keys = {}
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        
+        for idx, model_letter in enumerate(models):
+            # خلط الأسئلة والخيارات (استخدام المنطق الأصلي مع ضمان استقلالية كل نموذج)
+            seed = hash(model_letter) + idx * 1000
+            shuffled_questions = shuffle_exam(
+                questions_data,
+                shuffle_questions=True,
+                shuffle_options=shuffle_options,
+                seed=seed
+            )
+            
+            # بناء مفتاح الإجابات من الأسئلة المخلوطة لهذا النموذج تحديداً
+            model_answers = []
+            for q in shuffled_questions:
+                correct_letter = ''
+                # البحث عن الإجابة الصحيحة بعد الخلط (هذا يضمن اختلاف الحرف بين النماذج)
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        correct_letter = letters[i] if i < len(letters) else str(i+1)
+                        break
+                model_answers.append({'answer': correct_letter})
+            answer_keys[model_letter] = model_answers
+            
+            # توليد QR code (كما في كودك الأصلي)
+            qr_code_data = None
+            if include_barcode:
+                qr_data = {
+                    'subject': header_settings.get('subject', ''),
+                    'model': model_letter,
+                    'questions': len(questions_data),
+                    'date': datetime.now().strftime('%Y-%m-%d')
+                }
+                qr_code_data = generate_qr_code(qr_data)
+            
+            # توليد HTML للنموذج (كما في كودك الأصلي)
+            model_html = render_template(
+                'question/exam_paper_layout_with_barcode.html',
+                questions=shuffled_questions,
+                model_letter=model_letter,
+                qr_code=qr_code_data,
+                show_answers=include_answers,
+                exam_title=f"نموذج الاختبار - {model_letter}",
+                font_size=font_size,
+                image_size=image_size,
+                columns=columns,
+                spacing=spacing,
+                options_layout=options_layout,
+                header_format=header_format,
+                **header_settings
+            )
+            
+            all_models_html.append(model_html)
+        
+        # إضافة بطاقة التصحيح (كما في كودك الأصلي)
+        if include_answer_sheet:
+            answer_sheet_html = render_template(
+                'question/answer_sheet_template.html',
+                answer_keys=answer_keys,
+                models=models,
+                questions_count=len(questions_data),
+                **header_settings
+            )
+            all_models_html.append(answer_sheet_html)
+        
+        # دمج كل النماذج في HTML واحد للطباعة (كما في كودك الأصلي)
+        combined_html = """<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>النماذج المتعددة</title>
+<style>
+@media print {
+    .page-break { page-break-after: always; }
+    .no-print { display: none; }
+}
+@page { size: A4; margin: 15mm; }
+.print-btn {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    padding: 15px 30px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 9999;
+}
+.print-btn:hover { background: #45a049; }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ طباعة النماذج</button>
+"""
+        
+        for i, model_html in enumerate(all_models_html):
+            combined_html += model_html
+            if i < len(all_models_html) - 1:
+                combined_html += '<div class="page-break"></div>'
+        
+        combined_html += "</body></html>"
+        
+        return combined_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error previewing multi models: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# 1. دالة المعاينة: قراءة ملف الإكسل وتمرير البيانات للواجهة
+@question_bp.route('/preview-students', methods=['POST'])
+@login_required
+def preview_students():
+    # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
+    final_students = [] 
+    try:
+        file = request.files.get('student_file')
+        if not file:
+            return jsonify({'error': 'الرجاء اختيار ملف إكسل'}), 400
+        
+        df = pd.read_excel(file)
+        # تنظيف أسماء الأعمدة من المسافات
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        for _, row in df.iterrows():
+            # البحث عن البيانات بمسميات مرنة (عربي/إنجليزي) لضمان القراءة
+            name = row.get('الاسم') or row.get('اسم الطالب') or row.get('Name') or '..........'
+            academic_id = row.get('الرقم الأكاديمي') or row.get('الرقم الاكاديمي') or row.get('Academic ID') or '..........'
+            section = row.get('الشعبة') or row.get('الشعبه') or row.get('Section') or '....'
+            
+            # استخدام مفاتيح إنجليزية لتطابق قالب HTML (student.name)
+            final_students.append({
+                'name': str(name),
+                'academic_id': str(academic_id),
+                'section': str(section)
+            })
+        
+        return jsonify({'success': True, 'students': final_students})
+    except Exception as e:
+        current_app.logger.error(f"Error in preview_students: {str(e)}")
+        return jsonify({'error': f'خطأ في معالجة الملف: {str(e)}'}), 500
+
+# ============================================================
+# دالة توليد باركود الرقم الأكاديمي
+# ============================================================
+def generate_student_barcode(academic_id):
+    """
+    توليد باركود Code39 للرقم الأكاديمي
+    
+    Args:
+        academic_id: الرقم الأكاديمي للطالب (string أو int)
+        
+    Returns:
+        Base64 string للصورة
+    """
+    try:
+        # تحويل الرقم لنص وإزالة المسافات
+        academic_id_str = str(academic_id).strip()
+        
+        if not academic_id_str or academic_id_str == 'None':
+            return None
+        
+        # إنشاء باركود Code39
+        code39 = barcode.get_barcode_class('code39')
+        
+        # إعدادات الباركود
+        writer = ImageWriter()
+        writer.set_options({
+            'module_width': 0.5,
+            'module_height': 18,
+            'quiet_zone': 4,
+            'font_size': 0,
+            'text_distance': 18,
+            'write_text': True
+        })
+        
+        # إنشاء الباركود
+        barcode_obj = code39(academic_id_str, writer=writer, add_checksum=False)
+        
+        # حفظ في الذاكرة
+        buffer = io.BytesIO()
+        barcode_obj.write(buffer)
+        buffer.seek(0)
+        
+        # تحويل لـ Base64
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        return f"data:image/png;base64,{img_base64}"
+        
+    except Exception as e:
+        current_app.logger.error(f"Error generating barcode for {academic_id}: {e}")
+        return None
+
+
+# 2. دالة الطباعة: توليد أوراق Remark بناءً على الكليشة والأسماء المرفوعة
+@question_bp.route('/print-remark-sheets', methods=['POST'])
+@login_required
+def print_remark_sheets():
+    """طباعة أوراق إجابة ريمارك مع الباركود"""
+    try:
+        data = request.get_json()
+        students_list = data.get('students', [])
+        
+        # جلب إعدادات الكليشة من قاعدة البيانات
+        settings = ExamHeaderSettings.query.first()
+        
+        header_context = {
+            'country': settings.country if settings else 'المملكة العربية السعودية',
+            'ministry': settings.ministry if settings else 'وزارة التعليم',
+            'education_department': settings.education_department if settings else '',
+            'school_name': settings.school_name if settings else '',
+            'subject': settings.subject if settings else '',
+            'grade': settings.grade if settings else '',
+            'logo_base64': ''
+        }
+
+        # تحويل الشعار لـ Base64
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"Could not load logo: {e}")
+
+        all_html = ""
+        for student in students_list:
+            # توليد الباركود للرقم الأكاديمي
+            academic_id = student.get('academic_id', '')
+            if academic_id:
+                student['barcode'] = generate_student_barcode(academic_id)
+            else:
+                student['barcode'] = None
+            
+            # توليد HTML للطالب
+            all_html += render_template('question/remark_answer_sheet.html', 
+                                       student=student, 
+                                       **header_context)
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        return jsonify({'success': True, 'html_content': all_html})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in print_remark_sheets: {str(e)}")
+        return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
+
+
+# ==================== Route لاستخراج مفتاح إجابة OMR ====================
+@question_bp.route('/generate-omr-answer-key', methods=['POST'])
+@login_required
+def generate_omr_answer_key():
+    """استخراج مفتاح إجابة OMR من الأسئلة المختارة"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+        model_letter = data.get('model_letter', 'أ')
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+        
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+        
+        # جلب الأسئلة مع الخيارات
+        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+        
+        # استخراج الإجابات الصحيحة
+        answers = {}
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        
+        for i, q in enumerate(questions, 1):
+            for j, opt in enumerate(q.options):
+                if opt.is_correct:
+                    answers[i] = letters[j] if j < len(letters) else 'أ'
+                    break
+        
+        # جلب إعدادات الكليشة
+        header_settings_record = ExamHeaderSettings.query.first()
+        header_settings = {}
+        if header_settings_record:
+            header_settings = {
+                'country': getattr(header_settings_record, 'country', 'المملكة العربية السعودية'),
+                'ministry': getattr(header_settings_record, 'ministry', 'وزارة التعليم'),
+                'education_department': getattr(header_settings_record, 'education_department', ''),
+                'school_name': getattr(header_settings_record, 'school_name', ''),
+                'subject': getattr(header_settings_record, 'subject', ''),
+                'time': getattr(header_settings_record, 'time', ''),
+                'grade': getattr(header_settings_record, 'grade', ''),
+                'total_score': getattr(header_settings_record, 'total_score', 30)
+            }
+            # محاولة جلب الشعار إذا كان موجوداً
+            if hasattr(header_settings_record, 'logo_base64'):
+                header_settings['logo_base64'] = header_settings_record.logo_base64
+        
+        # توليد HTML لمفتاح الإجابة
+        answer_key_html = render_template(
+            'question/remark_answer_sheet.html',
+            student={'name': '🔑 مفتاح الإجابة', 'academic_id': '---', 'section': '---', 'barcode': None},
+            is_answer_key=True,
+            answers=answers,
+            model_letter=model_letter,
+            exam_type=exam_type,
+            semester=semester,
+            academic_year=academic_year,
+            questions_count=len(questions),
+            **header_settings
+        )
+        
+        # إضافة زر الطباعة
+        full_html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>🔑 مفتاح إجابة OMR - النموذج {model_letter}</title>
+<style>
+@media print {{
+    .no-print {{ display: none !important; }}
+}}
+.print-header {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #c41e3a;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    z-index: 9999;
+    font-family: Arial, sans-serif;
+}}
+.print-header button {{
+    background: white;
+    color: #c41e3a;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 10px;
+}}
+.print-header button:hover {{
+    background: #f0f0f0;
+}}
+body {{
+    padding-top: 50px;
+}}
+</style>
+</head>
+<body>
+<div class="print-header no-print">
+    <button onclick="window.print()">🖨️ طباعة مفتاح الإجابة</button>
+    <span>🔑 مفتاح إجابة OMR - النموذج {model_letter} - عدد الأسئلة: {len(questions)}</span>
+</div>
+{answer_key_html}
+</body>
+</html>"""
+        
+        return jsonify({'success': True, 'html': full_html})
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error generating OMR answer key: {e}")
+        return jsonify({'error': str(e)}), 500
