@@ -2358,6 +2358,24 @@ def preview_multi_models():
         spacing = data.get('spacing', 'normal')  # المسافة الافتراضية متوسطة
         options_layout = data.get('options_layout', 'vertical')  # تنسيق الخيارات الافتراضي عمودي
         
+        # إعدادات تنسيق الكليشة
+        header_format = {
+            'header_size': data.get('header_size', 'medium'),
+            'show_logo': data.get('show_logo', True),
+            'logo_size': data.get('logo_size', 'medium'),
+            'qr_size': data.get('qr_size', 'medium'),
+            'show_grades_table': data.get('show_grades_table', True),
+            'show_extra_grade_field': data.get('show_extra_grade_field', False),
+            'show_student_name': data.get('show_student_name', True),
+            'show_student_class': data.get('show_student_class', True),
+            'show_student_seat_no': data.get('show_student_seat_no', True),
+            'show_student_signature': data.get('show_student_signature', False),
+            'name_line_length': data.get('name_line_length', 'medium'),
+            'exam_type': data.get('exam_type', ''),
+            'show_exam_date': data.get('show_exam_date', True),
+            'exam_date': data.get('exam_date', '')
+        }
+        
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
         shuffle_options = True if len(models) > 1 else data.get('shuffle_options', True)
         
@@ -2467,6 +2485,7 @@ def preview_multi_models():
                 columns=columns,
                 spacing=spacing,
                 options_layout=options_layout,
+                header_format=header_format,
                 **header_settings
             )
             

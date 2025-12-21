@@ -42,9 +42,54 @@
            الرأس (Header) 
            =============================================
         */
+        {% set hf = header_format|default({}, true) %}
+        {% set h_size = hf.header_size|default('medium', true) %}
+        {% set logo_sz = hf.logo_size|default('medium', true) %}
+        {% set qr_sz = hf.qr_size|default('medium', true) %}
+        {% set name_len = hf.name_line_length|default('medium', true) %}
+        
+        /* حساب أحجام الكليشة */
+        {% if h_size == 'small' %}
+            {% set header_font = 11 %}
+            {% set header_line_height = 1.5 %}
+        {% elif h_size == 'large' %}
+            {% set header_font = 15 %}
+            {% set header_line_height = 1.9 %}
+        {% else %}
+            {% set header_font = 13 %}
+            {% set header_line_height = 1.7 %}
+        {% endif %}
+        
+        /* حساب حجم الشعار */
+        {% if logo_sz == 'small' %}
+            {% set logo_height = 70 %}
+        {% elif logo_sz == 'large' %}
+            {% set logo_height = 130 %}
+        {% else %}
+            {% set logo_height = 100 %}
+        {% endif %}
+        
+        /* حساب حجم الباركود */
+        {% if qr_sz == 'small' %}
+            {% set qr_width = 40 %}
+        {% elif qr_sz == 'large' %}
+            {% set qr_width = 70 %}
+        {% else %}
+            {% set qr_width = 55 %}
+        {% endif %}
+        
+        /* حساب طول خط الاسم */
+        {% if name_len == 'short' %}
+            {% set name_dots = '..................' %}
+        {% elif name_len == 'long' %}
+            {% set name_dots = '........................................................................' %}
+        {% else %}
+            {% set name_dots = '..........................................' %}
+        {% endif %}
+        
         .header-wrapper {
             position: relative;
-            margin-bottom: 12px;
+            margin-bottom: {% if h_size == 'small' %}8{% elif h_size == 'large' %}16{% else %}12{% endif %}px;
         }
 
         .header-table { 
@@ -63,8 +108,8 @@
             text-align: right; 
             width: 35%; 
             font-weight: bold; 
-            font-size: 13px;
-            line-height: 1.7;
+            font-size: {{ header_font }}px;
+            line-height: {{ header_line_height }};
         }
         
         .header-center { 
@@ -91,12 +136,12 @@
 
         .qr-side {
             text-align: center;
-            width: 65px;
+            width: {{ qr_width + 10 }}px;
         }
 
         .qr-side img {
-            width: 55px;
-            height: 55px;
+            width: {{ qr_width }}px;
+            height: {{ qr_width }}px;
             display: block;
             margin: 0 auto;
         }
@@ -104,9 +149,9 @@
         .details-side {
             direction: rtl; /* العودة للعربية للنصوص */
             text-align: right;
-            line-height: 1.7;
+            line-height: {{ header_line_height }};
             font-weight: bold;
-            font-size: 13px;
+            font-size: {{ header_font }}px;
             white-space: nowrap; 
         }
 
@@ -114,7 +159,7 @@
             background: #000;
             color: #fff;
             font-weight: bold;
-            font-size: 11px;
+            font-size: {{ header_font - 2 }}px;
             padding: 1px 6px;
             border-radius: 3px;
             margin-top: 2px;
@@ -126,7 +171,7 @@
            =============================================
         */
         .logo-img {
-            height: 100px;
+            height: {{ logo_height }}px;
             width: auto;
             margin: 0 auto;
             display: block;
@@ -383,6 +428,7 @@
 <body>
 
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+    {% set hf = header_format|default({}, true) %}
 
     <div class="header-wrapper">
         
@@ -405,7 +451,7 @@
                 </td>
                 
                 <td class="header-center">
-                    {% if logo_base64 %}
+                    {% if hf.show_logo|default(true, true) and logo_base64 %}
                         <img src="{{ logo_base64 }}" class="logo-img">
                     {% endif %}
                 </td>
@@ -427,6 +473,11 @@
                         {% endif %}
 
                         <div class="details-side">
+                            {% if hf.exam_type|default('', true) %}
+                                <div style="color: #333; font-weight: bold;">
+                                    {{ hf.exam_type }}
+                                </div>
+                            {% endif %}
                             <div>
                                 المادة : {{ subject }}
                             </div>
@@ -436,6 +487,11 @@
                             <div>
                                 الصف : {{ grade }}
                             </div>
+                            {% if hf.show_exam_date|default(true, true) %}
+                                <div>
+                                    التاريخ : {{ hf.exam_date|default('    /    /    هـ', true) }}
+                                </div>
+                            {% endif %}
                             
                             {% if model_letter and model_letter != '' %}
                                 <div>
@@ -453,6 +509,7 @@
         
     </div>
 
+    {% if hf.show_grades_table|default(true, true) %}
     <table class="grades-table">
         <thead>
             <tr>
@@ -461,6 +518,9 @@
                 <th>الدرجة كتابةً</th>
                 <th>المصحح</th>
                 <th>المراجع</th>
+                {% if hf.show_extra_grade_field|default(false, true) %}
+                <th>درجة الرصد</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -476,14 +536,27 @@
                 <td>
                     {{ reviewer_name|default('', true) }}
                 </td>
+                {% if hf.show_extra_grade_field|default(false, true) %}
+                <td></td>
+                {% endif %}
             </tr>
         </tbody>
     </table>
+    {% endif %}
 
     <div class="student-info">
-        <span>اسم الطالب: ............................................</span>
-        <span>الشعبة: ............</span>
-        <span>رقم الجلوس: ............</span>
+        {% if hf.show_student_name|default(true, true) %}
+            <span>اسم الطالب: {{ name_dots }}</span>
+        {% endif %}
+        {% if hf.show_student_class|default(true, true) %}
+            <span>الشعبة: ............</span>
+        {% endif %}
+        {% if hf.show_student_seat_no|default(true, true) %}
+            <span>رقم الجلوس: ............</span>
+        {% endif %}
+        {% if hf.show_student_signature|default(false, true) %}
+            <span>التوقيع: ................</span>
+        {% endif %}
     </div>
 
     <div class="questions-wrapper">

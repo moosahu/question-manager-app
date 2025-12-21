@@ -607,6 +607,109 @@
                 </div>
             </div>
 
+            <!-- ==================== قسم تنسيقات الكليشة ==================== -->
+            <div class="header-format-section" style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #7b1fa2; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-file-alt"></i> تنسيقات الكليشة</h4>
+                
+                <!-- 1. حجم الكليشة -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">حجم الكليشة:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="header-size-btn" data-size="small" onclick="setHeaderSize('small')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">صغير</button>
+                        <button type="button" class="header-size-btn active" data-size="medium" onclick="setHeaderSize('medium')" style="flex: 1; padding: 8px; background: #9c27b0; color: white; border: 2px solid #9c27b0; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">متوسط</button>
+                        <button type="button" class="header-size-btn" data-size="large" onclick="setHeaderSize('large')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">كبير</button>
+                    </div>
+                </div>
+
+                <!-- 2. الشعار -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-image"></i> الشعار:</label>
+                    <div class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="showLogo" checked>
+                        <label for="showLogo">إظهار الشعار</label>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="logo-size-btn" data-size="small" onclick="setLogoSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
+                        <button type="button" class="logo-size-btn active" data-size="medium" onclick="setLogoSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
+                        <button type="button" class="logo-size-btn" data-size="large" onclick="setLogoSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
+                    </div>
+                </div>
+
+                <!-- 3. حجم الباركود -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-qrcode"></i> حجم الباركود:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="qr-size-btn" data-size="small" onclick="setQRSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
+                        <button type="button" class="qr-size-btn active" data-size="medium" onclick="setQRSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
+                        <button type="button" class="qr-size-btn" data-size="large" onclick="setQRSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
+                    </div>
+                </div>
+
+                <!-- 4. جدول الدرجات -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-table"></i> جدول الدرجات:</label>
+                    <div class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="showGradesTable" checked>
+                        <label for="showGradesTable">إظهار جدول الدرجات</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showExtraGradeField">
+                        <label for="showExtraGradeField">إضافة خانة درجة الرصد</label>
+                    </div>
+                </div>
+
+                <!-- 5. معلومات الطالب -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-user-graduate"></i> معلومات الطالب:</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentName" checked>
+                            <label for="showStudentName">الاسم</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentClass" checked>
+                            <label for="showStudentClass">الشعبة</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentSeatNo" checked>
+                            <label for="showStudentSeatNo">رقم الجلوس</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentSignature">
+                            <label for="showStudentSignature">التوقيع</label>
+                        </div>
+                    </div>
+                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px;">طول خط الاسم:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="name-line-btn" data-length="short" onclick="setNameLineLength('short')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">قصير</button>
+                        <button type="button" class="name-line-btn active" data-length="medium" onclick="setNameLineLength('medium')" style="flex: 1; padding: 5px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">متوسط</button>
+                        <button type="button" class="name-line-btn" data-length="long" onclick="setNameLineLength('long')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">طويل</button>
+                    </div>
+                </div>
+
+                <!-- 6. نوع الاختبار والتاريخ -->
+                <div style="margin-bottom: 10px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i> نوع الاختبار:</label>
+                    <select id="examType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.85rem; margin-bottom: 10px;">
+                        <option value="">-- بدون تحديد --</option>
+                        <option value="فتري">اختبار فتري</option>
+                        <option value="نهائي">اختبار نهائي</option>
+                        <option value="تجريبي">اختبار تجريبي</option>
+                        <option value="تشخيصي">اختبار تشخيصي</option>
+                        <option value="قصير">اختبار قصير</option>
+                    </select>
+                    
+                    <div class="checkbox-item" style="margin-bottom: 8px;">
+                        <input type="checkbox" id="showExamDate" checked>
+                        <label for="showExamDate">إظهار التاريخ</label>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="date" id="examDateInput" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                        <button type="button" onclick="setTodayDate()" style="padding: 6px 12px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">اليوم</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- قسم حجم الخط -->
             <div class="font-size-section" style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                 <h4 style="color: #2e7d32; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-text-height"></i> حجم خط الأسئلة</h4>
@@ -1517,6 +1620,9 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على إعدادات التنسيق
     const layoutSettings = getLayoutSettings();
     
+    // الحصول على إعدادات الكليشة
+    const headerFormatSettings = getHeaderSettings();
+    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -1542,7 +1648,22 @@ function generatePrintableDocument(questions, includeAnswers) {
             image_size: imageSize,
             columns: layoutSettings.columns,
             spacing: layoutSettings.spacing,
-            options_layout: layoutSettings.options_layout
+            options_layout: layoutSettings.options_layout,
+            // إعدادات الكليشة
+            header_size: headerFormatSettings.header_size,
+            show_logo: headerFormatSettings.show_logo,
+            logo_size: headerFormatSettings.logo_size,
+            qr_size: headerFormatSettings.qr_size,
+            show_grades_table: headerFormatSettings.show_grades_table,
+            show_extra_grade_field: headerFormatSettings.show_extra_grade_field,
+            show_student_name: headerFormatSettings.show_student_name,
+            show_student_class: headerFormatSettings.show_student_class,
+            show_student_seat_no: headerFormatSettings.show_student_seat_no,
+            show_student_signature: headerFormatSettings.show_student_signature,
+            name_line_length: headerFormatSettings.name_line_length,
+            exam_type: headerFormatSettings.exam_type,
+            show_exam_date: headerFormatSettings.show_exam_date,
+            exam_date: headerFormatSettings.exam_date
         })
     })
     .then(response => {
@@ -1711,6 +1832,82 @@ function getLayoutSettings() {
         columns: currentColumns,
         spacing: currentSpacing,
         options_layout: currentOptionsLayout
+    };
+}
+
+// ==================== دوال تنسيقات الكليشة ====================
+let headerSettings = {
+    headerSize: 'medium',
+    showLogo: true,
+    logoSize: 'medium',
+    qrSize: 'medium',
+    showGradesTable: true,
+    showExtraGradeField: false,
+    showStudentName: true,
+    showStudentClass: true,
+    showStudentSeatNo: true,
+    showStudentSignature: false,
+    nameLineLength: 'medium',
+    examType: '',
+    showExamDate: true,
+    examDate: ''
+};
+
+function setHeaderSize(size) {
+    headerSettings.headerSize = size;
+    updateButtonGroup('.header-size-btn', 'size', size, '#9c27b0');
+}
+
+function setLogoSize(size) {
+    headerSettings.logoSize = size;
+    updateButtonGroup('.logo-size-btn', 'size', size, '#9c27b0');
+}
+
+function setQRSize(size) {
+    headerSettings.qrSize = size;
+    updateButtonGroup('.qr-size-btn', 'size', size, '#9c27b0');
+}
+
+function setNameLineLength(length) {
+    headerSettings.nameLineLength = length;
+    updateButtonGroup('.name-line-btn', 'length', length, '#9c27b0');
+}
+
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('examDateInput').value = today;
+}
+
+function updateButtonGroup(selector, dataAttr, value, activeColor) {
+    document.querySelectorAll(selector).forEach(btn => {
+        if (btn.dataset[dataAttr] === value) {
+            btn.style.background = activeColor;
+            btn.style.color = 'white';
+            btn.style.borderColor = activeColor;
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
+        }
+    });
+}
+
+function getHeaderSettings() {
+    return {
+        header_size: headerSettings.headerSize,
+        show_logo: document.getElementById('showLogo').checked,
+        logo_size: headerSettings.logoSize,
+        qr_size: headerSettings.qrSize,
+        show_grades_table: document.getElementById('showGradesTable').checked,
+        show_extra_grade_field: document.getElementById('showExtraGradeField').checked,
+        show_student_name: document.getElementById('showStudentName').checked,
+        show_student_class: document.getElementById('showStudentClass').checked,
+        show_student_seat_no: document.getElementById('showStudentSeatNo').checked,
+        show_student_signature: document.getElementById('showStudentSignature').checked,
+        name_line_length: headerSettings.nameLineLength,
+        exam_type: document.getElementById('examType').value,
+        show_exam_date: document.getElementById('showExamDate').checked,
+        exam_date: document.getElementById('examDateInput').value
     };
 }
 
