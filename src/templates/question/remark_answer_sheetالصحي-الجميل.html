@@ -105,38 +105,33 @@
             background: #fff8e1;
             border: 1px solid #f9a825;
             border-radius: 4px;
-            padding: 8px;
+            padding: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 10px;
-            margin-top: 5px;
-        }
-
-        .instructions-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 11px;
+            flex: 1; /* تعبئة الفراغ المتبقي */
         }
 
         .instructions-list {
             list-style: none;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        .instructions-list li:before {
-            content: "• ";
-            margin-left: 5px;
-        }
-
-        /* Barcode */
-        .barcode-container {
+        .shading-example {
             display: flex;
-            align-items: center;
             gap: 10px;
         }
 
-        .barcode-img {
-            height: 35px;
-            width: auto;
+        .bubble-correct, .bubble-wrong {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
         }
+        .bubble-correct { background: #000; }
+        .bubble-wrong { border: 1.5px solid #000; position: relative; }
+        .bubble-wrong::after { content: "x"; position: absolute; left: 3px; top: -2px; font-weight: bold; }
 
         /* =============== بيانات الطالب (داخل اليمين أيضا) =============== */
         .student-section {
@@ -353,13 +348,8 @@
 
         <div class="student-section">
             <div class="student-name-box">
-                <div style="font-size:10px; margin-bottom: 3px;">اسم الطالب:</div>
-                <div class="barcode-container">
-                    <div class="student-name">{{ student.name|default('', true) }}</div>
-                    {% if student.barcode_base64 %}
-                    <img src="{{ student.barcode_base64 }}" class="barcode-img" alt="Barcode">
-                    {% endif %}
-                </div>
+                <div style="font-size:10px;">اسم الطالب:</div>
+                <div class="student-name">{{ student.name|default('', true) }}</div>
             </div>
             
             <div class="info-grid">
@@ -368,18 +358,6 @@
                 <div class="info-item"><b>المادة:</b> {{ subject|default('', true) }}</div>
                 <div class="info-item"><b>الصف:</b> {{ grade|default('', true) }}</div>
             </div>
-        </div>
-
-        <div class="instructions-box">
-            <div class="instructions-title">📋 تعليمات هامة</div>
-            <ul class="instructions-list">
-                <li>استخدم القلم الرصاص فقط للإجابة على الأسئلة.</li>
-                <li>اقرأ السؤال جيداً ثم حدد الإجابة الصحيحة.</li>
-                <li>تأكد من تظليل فقرة واحدة فقط لكل سؤال.</li>
-                <li>امسح الفقرة المظللة جيداً عند تغيير الإجابة.</li>
-                <li>لا تترك أي سؤال بدون إجابة.</li>
-                <li>لا تستخدم قلم الحبر أو مزيل الحبر نهائياً.</li>
-            </ul>
         </div>
 
         <div class="score-table-section">
@@ -404,6 +382,29 @@
                 </tr>
                 
             </table>
+        </div>
+
+        <div class="instructions-content">
+        <div class="instructions-title">📋 تعليمات هامة</div>
+            <ul class="instructions-list">
+                <li>استخدم القلم الرصاص فقط للإجابة على الأسئلة.</li>
+                <li>اقرأ السؤال جيداً ثم حدد الإجابة الصحيحة.</li>
+                <li>تأكد من تظليل فقرة واحدة فقط لكل سؤال.</li>
+                <li>امسح الفقرة المظللة جيداً عند تغيير الإجابة.</li>
+                <li>لا تترك أي سؤال بدون إجابة.</li>
+                <li>لا تستخدم قلم الحبر أو مزيل الحبر نهائياً.</li>
+            </ul>
+        </div>
+
+        <div class="shading-example" style="margin-right: 20px; text-align: center;">
+            <div class="shading-item">
+                <div class="bubble-correct"></div>
+                <div>✓ تظليل صحيح</div>
+            </div>
+            <div class="shading-item" style="margin-top: 10px;">
+                <div class="bubble-wrong"></div>
+                <div>تظليل خاطئ</div>
+            </div>
         </div>
 
         <div class="model-section">
