@@ -130,12 +130,21 @@
         .barcode-container {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 10px;
         }
 
         .barcode-img {
-            height: 35px;
+            height: 40px;
             width: auto;
+            max-width: 150px;
+        }
+        
+        .student-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1565c0;
+            flex: 1;
         }
 
         /* =============== بيانات الطالب (داخل اليمين أيضا) =============== */
@@ -148,8 +157,9 @@
         .student-name-box {
             background: #e3f2fd;
             border: 1px solid #1976d2;
-            padding: 5px;
+            padding: 8px;
             margin-bottom: 5px;
+            min-height: 55px;
         }
 
         .student-name {
@@ -356,8 +366,8 @@
                 <div style="font-size:10px; margin-bottom: 3px;">اسم الطالب:</div>
                 <div class="barcode-container">
                     <div class="student-name">{{ student.name|default('', true) }}</div>
-                    {% if student.barcode_base64 %}
-                    <img src="{{ student.barcode_base64 }}" class="barcode-img" alt="Barcode">
+                    {% if student.barcode %}
+                    <img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">
                     {% endif %}
                 </div>
             </div>
