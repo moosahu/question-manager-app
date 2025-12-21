@@ -13,11 +13,33 @@
         */
         @page {
             size: A4;
-            margin: 20mm 15mm 20mm 15mm;
+            margin: 20mm 15mm 25mm 15mm;
             
             /* الإطار المزدوج - يتكرر في كل صفحة */
             border: 3px double #000;
             padding: 5mm;
+            
+            /* ترقيم الصفحات في التذييل */
+            @bottom-center {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
+                font-size: 11px;
+                color: #333;
+            }
+            
+            @bottom-left {
+                content: "◄ اقلب الصفحة";
+                font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
+                font-size: 11px;
+                color: #666;
+            }
+        }
+        
+        /* إخفاء "اقلب الصفحة" في الصفحة الأخيرة */
+        @page :last {
+            @bottom-left {
+                content: "";
+            }
         }
 
         /* =============================================

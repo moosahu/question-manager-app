@@ -124,10 +124,6 @@
             border-radius: 50%;
             display: inline-block;
         }
-        
-        .small-bubble.filled {
-            background-color: #000;
-        }
 
         /* ===== قسم البيانات ===== */
         .data-section {
@@ -250,32 +246,6 @@
             font-size: 8px;
             font-weight: bold;
         }
-        
-        /* الفقاعة المظللة (الإجابة الصحيحة) */
-        .answer-bubble.filled {
-            background-color: #000;
-            color: #fff;
-        }
-        
-        /* علامة مفتاح الإجابة */
-        .answer-key-badge {
-            background: #c41e3a;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            padding: 5px 15px;
-            border-radius: 5px;
-            display: inline-block;
-            margin: 5px 0;
-        }
-            border: 1px solid #000;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 8px;
-            font-weight: bold;
-        }
 
         .column-footer {
             height: 25px; /* ترك المساحة فارغة كما طلبت */
@@ -305,23 +275,18 @@
             </div>
 
             <div class="header-cell header-left">
-                <div class="exam-title">
-                    {% if is_answer_key %}
-                        <span class="answer-key-badge">🔑 مفتاح الإجابة - للمعلم فقط</span>
-                    {% endif %}
-                    <br>اختبار {{ exam_type|default('نهاية', true) }} الفصل الدراسي {{ semester|default('الأول', true) }} - {{ academic_year|default('1447هـ', true) }}
-                </div>
+                <div class="exam-title">اختبار الفصل الدراسي الأول - 1447هـ</div>
                 <div style="font-size: 9px;">
                     <div>المقرر: {{ subject }}</div>
-                    <div>الصف: {{ grade }}</div>
+                    <div>الدور: الأول - الصف: أول ثانوي</div>
                 </div>
                 <div class="model-section">
                     <strong>النموذج</strong>
                     <div class="model-bubbles">
-                        <span>أ <span class="small-bubble {% if model_letter == 'أ' %}filled{% endif %}"></span></span>
-                        <span>ب <span class="small-bubble {% if model_letter == 'ب' %}filled{% endif %}"></span></span>
-                        <span>ج <span class="small-bubble {% if model_letter == 'ج' %}filled{% endif %}"></span></span>
-                        <span>د <span class="small-bubble {% if model_letter == 'د' %}filled{% endif %}"></span></span>
+                        <span>أ <span class="small-bubble"></span></span>
+                        <span>ب <span class="small-bubble"></span></span>
+                        <span>ج <span class="small-bubble"></span></span>
+                        <span>د <span class="small-bubble"></span></span>
                     </div>
                 </div>
             </div>
@@ -366,20 +331,13 @@
     <div class="questions-section">
         <div class="questions-row">
             <div class="question-column">
-                <div class="column-header">
-                    اختيار من متعدد (1-20)
-                    {% if is_answer_key %}<span class="answer-key-badge">مفتاح الإجابة</span>{% endif %}
-                </div>
+                <div class="column-header">اختيار من متعدد (1-20)</div>
                 {% for i in range(1, 21) %}
-                {% set q_num = i %}
-                {% set correct = answers.get(q_num, '') if answers else '' %}
                 <div class="question-item">
                     <span class="question-num">{{ i }}</span>
                     <div class="answer-options">
-                        <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
+                        <span class="answer-bubble">أ</span><span class="answer-bubble">ب</span>
+                        <span class="answer-bubble">ج</span><span class="answer-bubble">د</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -389,15 +347,11 @@
             <div class="question-column">
                 <div class="column-header">تابع: اختيار (21-40)</div>
                 {% for i in range(21, 41) %}
-                {% set q_num = i %}
-                {% set correct = answers.get(q_num, '') if answers else '' %}
                 <div class="question-item">
                     <span class="question-num">{{ i }}</span>
                     <div class="answer-options">
-                        <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
+                        <span class="answer-bubble">أ</span><span class="answer-bubble">ب</span>
+                        <span class="answer-bubble">ج</span><span class="answer-bubble">د</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -407,13 +361,10 @@
             <div class="question-column">
                 <div class="column-header">صح / خطأ (1-20)</div>
                 {% for i in range(1, 21) %}
-                {% set q_num = i + 40 %}
-                {% set correct = answers.get(q_num, '') if answers else '' %}
                 <div class="question-item">
                     <span class="question-num">{{ i }}</span>
                     <div class="answer-options" style="justify-content: center; gap: 30px;">
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ص' %}filled{% endif %}">ص</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'خ' %}filled{% endif %}">خ</span>
+                        <span class="answer-bubble">ص</span><span class="answer-bubble">خ</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -423,21 +374,16 @@
             <div class="question-column">
                 <div class="column-header">المزاوجة (الربط)</div>
                 {% for i in range(1, 21) %}
-                {% set q_num = i + 60 %}
-                {% set correct = answers.get(q_num, '') if answers else '' %}
                 <div class="question-item">
                     <span class="question-num">{{ i }}</span>
                     <div class="answer-options" style="font-size: 7px;">
-                        <span class="answer-bubble {% if is_answer_key and correct == 'أ' %}filled{% endif %}">أ</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ب' %}filled{% endif %}">ب</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'ج' %}filled{% endif %}">ج</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'د' %}filled{% endif %}">د</span>
-                        <span class="answer-bubble {% if is_answer_key and correct == 'هـ' %}filled{% endif %}">هـ</span>
+                        <span class="answer-bubble">أ</span><span class="answer-bubble">ب</span>
+                        <span class="answer-bubble">ج</span><span class="answer-bubble">د</span>
+                        <span class="answer-bubble">هـ</span>
                     </div>
                 </div>
                 {% endfor %}
-                <div class="column-footer"></div>
-            </div>
+                <div class="column-footer"></div> </div>
         </div>
     </div>
 </div>

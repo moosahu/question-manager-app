@@ -32,7 +32,7 @@
 
         body {
             font-family: 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
-            font-size: 14px;
+            font-size: {{ font_size|default(14, true) }}px;
             line-height: 1.5;
             color: #000;
             direction: rtl;
@@ -42,9 +42,54 @@
            الرأس (Header) 
            =============================================
         */
+        {% set hf = header_format|default({}, true) %}
+        {% set h_size = hf.header_size|default('medium', true) %}
+        {% set logo_sz = hf.logo_size|default('medium', true) %}
+        {% set qr_sz = hf.qr_size|default('medium', true) %}
+        {% set name_len = hf.name_line_length|default('medium', true) %}
+        
+        /* حساب أحجام الكليشة */
+        {% if h_size == 'small' %}
+            {% set header_font = 11 %}
+            {% set header_line_height = 1.5 %}
+        {% elif h_size == 'large' %}
+            {% set header_font = 15 %}
+            {% set header_line_height = 1.9 %}
+        {% else %}
+            {% set header_font = 13 %}
+            {% set header_line_height = 1.7 %}
+        {% endif %}
+        
+        /* حساب حجم الشعار */
+        {% if logo_sz == 'small' %}
+            {% set logo_height = 70 %}
+        {% elif logo_sz == 'large' %}
+            {% set logo_height = 130 %}
+        {% else %}
+            {% set logo_height = 100 %}
+        {% endif %}
+        
+        /* حساب حجم الباركود */
+        {% if qr_sz == 'small' %}
+            {% set qr_width = 40 %}
+        {% elif qr_sz == 'large' %}
+            {% set qr_width = 70 %}
+        {% else %}
+            {% set qr_width = 55 %}
+        {% endif %}
+        
+        /* حساب طول خط الاسم */
+        {% if name_len == 'short' %}
+            {% set name_dots = '..................' %}
+        {% elif name_len == 'long' %}
+            {% set name_dots = '........................................................................' %}
+        {% else %}
+            {% set name_dots = '..........................................' %}
+        {% endif %}
+        
         .header-wrapper {
             position: relative;
-            margin-bottom: 12px;
+            margin-bottom: {% if h_size == 'small' %}8{% elif h_size == 'large' %}16{% else %}12{% endif %}px;
         }
 
         .header-table { 
@@ -63,8 +108,8 @@
             text-align: right; 
             width: 35%; 
             font-weight: bold; 
-            font-size: 13px;
-            line-height: 1.7;
+            font-size: {{ header_font }}px;
+            line-height: {{ header_line_height }};
         }
         
         .header-center { 
@@ -91,12 +136,12 @@
 
         .qr-side {
             text-align: center;
-            width: 65px;
+            width: {{ qr_width + 10 }}px;
         }
 
         .qr-side img {
-            width: 55px;
-            height: 55px;
+            width: {{ qr_width }}px;
+            height: {{ qr_width }}px;
             display: block;
             margin: 0 auto;
         }
@@ -104,9 +149,9 @@
         .details-side {
             direction: rtl; /* العودة للعربية للنصوص */
             text-align: right;
-            line-height: 1.7;
+            line-height: {{ header_line_height }};
             font-weight: bold;
-            font-size: 13px;
+            font-size: {{ header_font }}px;
             white-space: nowrap; 
         }
 
@@ -114,7 +159,7 @@
             background: #000;
             color: #fff;
             font-weight: bold;
-            font-size: 11px;
+            font-size: {{ header_font - 2 }}px;
             padding: 1px 6px;
             border-radius: 3px;
             margin-top: 2px;
@@ -126,7 +171,7 @@
            =============================================
         */
         .logo-img {
-            height: 100px;
+            height: {{ logo_height }}px;
             width: auto;
             margin: 0 auto;
             display: block;
@@ -174,18 +219,32 @@
            الأسئلة (تنسيق العمودين) 
            =============================================
         */
+        
+        {% set col_count = columns|default(2, true) %}
+        {% set space_mode = spacing|default('normal', true) %}
+        {% set opt_layout = options_layout|default('vertical', true) %}
+        
+        /* حساب المسافة بين الأسئلة */
+        {% if space_mode == 'compact' %}
+            {% set q_margin = 6 %}
+        {% elif space_mode == 'wide' %}
+            {% set q_margin = 20 %}
+        {% else %}
+            {% set q_margin = 12 %}
+        {% endif %}
+        
         .questions-wrapper {
-            column-count: 2;
-            column-gap: 20px;
-            column-rule: 1px solid #000;
+            column-count: {{ col_count }};
+            column-gap: {% if col_count == 1 %}0{% elif col_count == 3 %}15px{% else %}20px{% endif %};
+            column-rule: {% if col_count > 1 %}1px solid #000{% else %}none{% endif %};
             column-fill: balance;
         }
 
         .question-box { 
             display: inline-block;
             width: 100%;
-            margin-bottom: 12px;
-            font-size: 13px;
+            margin-bottom: {{ q_margin }}px;
+            font-size: {{ font_size|default(14, true) }}px;
             break-inside: avoid;
             page-break-inside: avoid;
         }
@@ -211,27 +270,48 @@
            تنسيق الصور (تحت السؤال مباشرة ومزاحة لليمين) 
            =============================================
         */
+        {% set img_scale = (image_size|default(100, true)|int) / 100 %}
+        
+        /* صورة السؤال الرئيسية - تحت نص السؤال مباشرة */
         .q-image {
             display: block;
-            /* يضمن المحاذاة لليمين في سياق RTL */
-            margin-right: 0; 
-            margin-left: auto; 
-            margin-top: 5px;
-            margin-bottom: 10px;
-            max-width: 95%;
-            max-height: 110px;
-            border: 1px dashed #999;
-            padding: 2px;
+            margin: 8px 0 10px 0;
+            margin-right: 25px; /* محاذاة مع بداية نص السؤال */
+            max-width: {{ (75 * img_scale)|round|int }}%;
+            max-height: {{ (120 * img_scale)|round|int }}px;
+            width: auto;
+            height: auto;
             object-fit: contain;
-            clear: both;
+            /* إطار رمادي ناعم مع زوايا مستديرة */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px;
+            /* خلفية فاتحة وظل خفيف */
+            background: #fafafa;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
+        /* صور الخيارات - بمحاذاة حرف الإجابة */
         .option-img {
-            height: 45px;
+            display: inline-block;
+            vertical-align: middle;
+            max-width: {{ (100 * img_scale)|round|int }}px;
+            max-height: {{ (50 * img_scale)|round|int }}px;
             width: auto;
-            max-width: 100%;
-            margin: 2px auto;
-            display: block;
+            height: auto;
+            object-fit: contain;
+            margin: 0;
+            /* إطار خفيف مع زوايا مستديرة */
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 2px;
+            background: #fff;
+        }
+
+        /* صور الخيارات في الشبكة (grid) */
+        .options-grid .option-img {
+            max-height: {{ (60 * img_scale)|round|int }}px;
+            max-width: {{ (110 * img_scale)|round|int }}px;
         }
 
         /* =============================================
@@ -242,37 +322,57 @@
             margin-right: 8px;
             margin-top: 5px;
         }
+        
+        /* تنسيق شبكي 2×2 للخيارات النصية */
+        .options-container.grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 15px;
+        }
+        
+        .options-container.grid-layout .q-option {
+            margin-bottom: 0;
+        }
 
         .q-option { 
             display: flex; 
             align-items: center; 
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             break-inside: avoid;
+            min-height: 24px;
         }
         
         .option-char { 
             font-weight: bold; 
             margin-left: 5px; 
             min-width: 18px;
+            color: #333;
         }
         
         .option-content {
             flex: 1;
             line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .options-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px 15px;
+            gap: 8px 20px;
             margin-right: 8px;
-            margin-top: 5px;
+            margin-top: 6px;
         }
 
         .options-grid .q-option {
             display: flex;
             align-items: center;
             margin-bottom: 0;
+        }
+
+        .options-grid .option-content {
+            justify-content: flex-start;
         }
 
         /* =============================================
@@ -328,6 +428,7 @@
 <body>
 
     {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+    {% set hf = header_format|default({}, true) %}
 
     <div class="header-wrapper">
         
@@ -350,9 +451,16 @@
                 </td>
                 
                 <td class="header-center">
-                    {% if logo_base64 %}
+                    {% if hf.show_logo|default(true, true) and logo_base64 %}
                         <img src="{{ logo_base64 }}" class="logo-img">
                     {% endif %}
+                    <!-- عنوان الاختبار تحت الشعار -->
+                    {% set exam_type = hf.exam_type|default('نهاية', true) %}
+                    {% set semester = hf.semester|default('الأول', true) %}
+                    {% set academic_year = hf.academic_year|default('1447هـ', true) %}
+                    <div style="font-weight: bold; font-size: {{ header_font }}px; margin-top: 5px; color: #000;">
+                        اختبار {{ exam_type }} الفصل الدراسي {{ semester }} لعام {{ academic_year }}
+                    </div>
                 </td>
                 
                 <td class="header-left">
@@ -398,6 +506,7 @@
         
     </div>
 
+    {% if hf.show_grades_table|default(true, true) %}
     <table class="grades-table">
         <thead>
             <tr>
@@ -406,6 +515,9 @@
                 <th>الدرجة كتابةً</th>
                 <th>المصحح</th>
                 <th>المراجع</th>
+                {% if hf.show_extra_grade_field|default(false, true) %}
+                <th>درجة الرصد</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -421,14 +533,27 @@
                 <td>
                     {{ reviewer_name|default('', true) }}
                 </td>
+                {% if hf.show_extra_grade_field|default(false, true) %}
+                <td></td>
+                {% endif %}
             </tr>
         </tbody>
     </table>
+    {% endif %}
 
     <div class="student-info">
-        <span>اسم الطالب: ............................................</span>
-        <span>الشعبة: ............</span>
-        <span>رقم الجلوس: ............</span>
+        {% if hf.show_student_name|default(true, true) %}
+            <span>اسم الطالب: {{ name_dots }}</span>
+        {% endif %}
+        {% if hf.show_student_class|default(true, true) %}
+            <span>الشعبة: ............</span>
+        {% endif %}
+        {% if hf.show_student_seat_no|default(true, true) %}
+            <span>رقم الجلوس: ............</span>
+        {% endif %}
+        {% if hf.show_student_signature|default(false, true) %}
+            <span>التوقيع: ................</span>
+        {% endif %}
     </div>
 
     <div class="questions-wrapper">
@@ -487,7 +612,7 @@
                     
                 {% else %}
                 
-                    <div class="options-container">
+                    <div class="options-container{% if opt_layout == 'grid' %} grid-layout{% endif %}">
                         
                         {% for option in question.options %}
                             <div class="q-option">
