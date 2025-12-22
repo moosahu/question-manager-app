@@ -2229,10 +2229,8 @@ def generate_multi_models():
         answer_keys = {}  # مفاتيح الإجابات لكل نموذج
         
         for i, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة بطريقة مختلفة وعشوائية تماماً لكل نموذج
-            # استخدام الوقت + رقم النموذج + عشوائية إضافية لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + i * 999983 + random.randint(1, 100000)
+            # خلط الأسئلة بطريقة مختلفة لكل نموذج
+            seed = hash(model_letter) + i * 1000
             shuffled_questions = shuffle_exam(
                 questions_data, 
                 shuffle_questions=True, 
@@ -2442,9 +2440,8 @@ def preview_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # خلط الأسئلة والخيارات (استخدام المنطق الأصلي مع ضمان استقلالية كل نموذج)
+            seed = hash(model_letter) + idx * 1000
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -2876,9 +2873,8 @@ def print_remark_sheets_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # خلط الأسئلة والخيارات بنفس طريقة النماذج
+            seed = hash(model_letter) + idx * 1000
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -3092,9 +3088,8 @@ def generate_all_models_answer_keys():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # خلط الأسئلة والخيارات
+            seed = hash(model_letter) + idx * 1000
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
