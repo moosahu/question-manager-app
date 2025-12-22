@@ -21,14 +21,14 @@
             background: white;
             /* تكبير الخط العام كما طلبت */
             font-family: 'Segoe UI', 'Traditional Arabic', Arial, sans-serif; 
-            font-size: 14px; 
+            font-size: 12px; 
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
         .sheet-container {
             width: 285mm; /* عرض مناسب لـ A4 landscape */
-            height: 200mm;
+            height: 190mm;
             display: grid;
             grid-template-columns: 1fr 1.1fr; /* تعديل النسب لإعطاء مساحة أكبر لليسار */
             grid-template-rows: auto 1fr;
@@ -46,7 +46,7 @@
         .top-right {
             border-left: 2px solid #000;
             border-bottom: 2px solid #000;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
         }
@@ -54,32 +54,32 @@
         .logo-section {
             display: flex;
             align-items: flex-start;
-            gap: 15px;
-            margin-bottom: 8px;
+            gap: 12px;
+            margin-bottom: 6px;
         }
 
         .logo-img {
-            width: 80px;
+            width: 70px;
             height: auto;
         }
 
         .ministry-info {
             text-align: right;
-            font-size: 13px;
-            line-height: 1.5;
+            font-size: 12px;
+            line-height: 1.4;
             flex: 1;
         }
 
         .ministry-info .title {
             font-weight: bold;
             color: #1a5c4c;
-            font-size: 15px;
+            font-size: 13px;
         }
 
         .school-name {
             font-weight: bold;
             color: #c41e3a;
-            font-size: 14px;
+            font-size: 13px;
             margin-top: 2px;
         }
 
@@ -87,16 +87,16 @@
             background: #f0f7f0;
             border: 1px solid #1a5c4c;
             border-radius: 5px;
-            padding: 10px;
-            margin-top: 8px;
-            font-size: 13px;
+            padding: 8px;
+            margin-top: 6px;
+            font-size: 12px;
         }
 
         .dor-section {
             display: flex;
             gap: 20px;
             align-items: center;
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
         .dor-option {
@@ -119,12 +119,12 @@
             background: #fff8e1;
             border: 2px solid #f9a825;
             border-radius: 6px;
-            padding: 10px;
-            margin-top: 10px;
+            padding: 8px;
+            margin-top: 8px;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 10px;
+            gap: 8px;
             flex: 1; /* يأخذ باقي المساحة */
         }
 
@@ -135,15 +135,15 @@
         .instructions-title {
             font-weight: bold;
             color: #e65100;
-            margin-bottom: 5px;
-            font-size: 15px;
+            margin-bottom: 4px;
+            font-size: 13px;
         }
 
         .instructions-list {
-            font-size: 12px;
-            line-height: 1.6;
+            font-size: 11px;
+            line-height: 1.5;
             list-style: disc;
-            padding-right: 18px;
+            padding-right: 16px;
             color: #333;
             font-weight: bold;
         }
@@ -151,29 +151,29 @@
         .shading-example {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 5px;
-            min-width: 100px;
+            gap: 8px;
+            padding: 4px;
+            min-width: 90px;
         }
 
         .shading-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 13px;
+            gap: 6px;
+            font-size: 12px;
             font-weight: bold;
         }
 
         .bubble-correct {
-            width: 25px;
-            height: 25px;
+            width: 22px;
+            height: 22px;
             background: #000;
             border-radius: 50%;
         }
 
         .bubble-wrong {
-            width: 25px;
-            height: 25px;
+            width: 22px;
+            height: 22px;
             border: 2px solid #000;
             border-radius: 50%;
             position: relative;
@@ -185,14 +185,14 @@
         .bubble-wrong::after {
             content: "✗";
             color: #c41e3a;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
         }
 
         /* =============== القسم العلوي الأيسر =============== */
         .top-left {
             border-bottom: 2px solid #000;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
         }
@@ -200,29 +200,29 @@
         .student-section {
             display: grid;
             grid-template-columns: 1.5fr 1fr;
-            gap: 15px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
         .student-name-box {
             background: #e3f2fd;
             border: 2px solid #1976d2;
             border-radius: 6px;
-            padding: 8px;
+            padding: 6px;
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
 
         .student-name-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #555;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             font-weight: bold;
         }
 
         .student-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #1565c0;
         }
@@ -281,13 +281,13 @@
         }
 
         .info-value {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
         }
 
         /* === تحسين جدول الدرجات (المشكلة الأولى) === */
         .score-table-section {
-            margin-top: 5px;
+            margin-top: 4px;
             border: 2px solid #000;
         }
 
@@ -299,9 +299,9 @@
         .score-table th {
             background: #ddd;
             border: 1px solid #000;
-            padding: 4px;
+            padding: 3px;
             text-align: center;
-            font-size: 12px; /* تكبير خط العناوين */
+            font-size: 11px; /* تكبير خط العناوين */
             font-weight: bold;
         }
 
@@ -309,13 +309,13 @@
             border: 1px solid #000;
             padding: 2px;
             text-align: center;
-            height: 35px; /* زيادة الارتفاع */
+            height: 30px; /* زيادة الارتفاع */
             vertical-align: middle;
         }
 
         .score-bubble {
-            width: 18px; /* تكبير الدوائر */
-            height: 18px;
+            width: 16px; /* تكبير الدوائر */
+            height: 16px;
             border: 2px solid #000;
             border-radius: 50%;
             display: inline-block;
@@ -375,7 +375,7 @@
 
         .question-column {
             border-left: 2px solid #000;
-            padding: 5px;
+            padding: 4px;
             display: flex;
             flex-direction: column;
         }
@@ -386,10 +386,10 @@
 
         .column-title {
             text-align: center;
-            padding: 6px;
+            padding: 5px;
             font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 8px;
+            font-size: 13px;
+            margin-bottom: 6px;
             border-radius: 4px;
             color: white;
             border: 1px solid #000;
@@ -414,33 +414,33 @@
         .question-row {
             display: flex;
             align-items: center;
-            padding: 4px 0;
+            padding: 3px 0;
             border-bottom: 1px solid #eee;
         }
 
         .question-num {
-            width: 25px;
+            width: 22px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
         }
 
         .answer-bubbles {
             display: flex;
-            gap: 6px;
+            gap: 5px;
             flex: 1;
             justify-content: center;
         }
 
         .answer-bubble {
-            width: 24px; /* تكبير الدوائر */
-            height: 24px;
+            width: 22px; /* تكبير الدوائر */
+            height: 22px;
             border: 2px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
 
@@ -451,14 +451,14 @@
 
         /* دوائر أصغر قليلاً للمزاوجة لتتسع الـ 6 خيارات */
         .matching-bubble {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             border: 2px solid #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
         }
 
