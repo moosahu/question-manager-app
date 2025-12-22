@@ -2229,12 +2229,11 @@ def generate_multi_models():
         answer_keys = {}  # مفاتيح الإجابات لكل نموذج
         
         for i, model_letter in enumerate(models):
-            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
-            # هذا يضمن: 1) نفس الخلط لنفس الأسئلة+النموذج 2) اختلاف بين النماذج
+            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + أرقام أولية ضخمة متباعدة
+            # استخدام أرقام أولية ضخمة جداً لضمان اختلاف كبير بين النماذج
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            # استخدام أرقام كبيرة مختلفة لكل نموذج لضمان الاختلاف
-            random_offset = [97531, 86429, 75318, 64207][i % 4]  # أرقام أولية كبيرة
-            seed = (hash(question_ids_str + model_letter) + i * 999983 + random_offset) % (2**31)
+            random_offset = [15485863, 32452843, 49979687, 67867967][i % 4]  # أرقام أولية ضخمة
+            seed = (hash(question_ids_str + model_letter) + i * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data, 
                 shuffle_questions=True, 
@@ -2446,8 +2445,8 @@ def preview_multi_models():
         for idx, model_letter in enumerate(models):
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            random_offset = [97531, 86429, 75318, 64207][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -2881,8 +2880,8 @@ def print_remark_sheets_multi_models():
         for idx, model_letter in enumerate(models):
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            random_offset = [97531, 86429, 75318, 64207][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -3098,8 +3097,8 @@ def generate_all_models_answer_keys():
         for idx, model_letter in enumerate(models):
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            random_offset = [97531, 86429, 75318, 64207][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
