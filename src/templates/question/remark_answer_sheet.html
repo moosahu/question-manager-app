@@ -383,25 +383,24 @@
         .question-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             height: 29px; /* ارتفاع ثابت ومضغوط للأسطر */
             border-bottom: 1px solid #eee;
             padding: 0 2px;
-            flex-direction: row-reverse;
+            gap: 8px;
         }
 
         .question-num {
             font-weight: bold;
             font-size: 12px;
             width: 20px;
-            text-align: center;
+            text-align: right;
+            flex-shrink: 0;
         }
 
         .answer-bubbles {
             display: flex;
             gap: 4px;
-            flex: 1;
-            justify-content: flex-start;
         }
 
         .answer-bubble {
