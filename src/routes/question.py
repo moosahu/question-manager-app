@@ -3074,17 +3074,17 @@ def print_smart_exam_sheets():
         # جلب إعدادات الكليشة
         settings = ExamHeaderSettings.query.first()
         header_context = {
-            'country': settings.country if settings else 'المملكة العربية السعودية',
-            'ministry': settings.ministry if settings else 'وزارة التعليم',
-            'education_department': settings.education_department if settings else '',
-            'school_name': settings.school_name if settings else '',
-            'subject': settings.subject if settings else '',
-            'grade': settings.grade if settings else '',
-            'exam_type': settings.exam_type if settings else 'نهاية',
-            'semester': settings.semester if settings else 'الأول',
-            'academic_year': settings.academic_year if settings else '1447هـ',
-            'time': settings.time if settings else 'ثلاث ساعات',
-            'total_score': settings.total_score if settings else 30,
+            'country': getattr(settings, 'country', 'المملكة العربية السعودية') if settings else 'المملكة العربية السعودية',
+            'ministry': getattr(settings, 'ministry', 'وزارة التعليم') if settings else 'وزارة التعليم',
+            'education_department': getattr(settings, 'education_department', '') if settings else '',
+            'school_name': getattr(settings, 'school_name', '') if settings else '',
+            'subject': getattr(settings, 'subject', '') if settings else '',
+            'grade': getattr(settings, 'grade', '') if settings else '',
+            'exam_type': getattr(settings, 'exam_type', 'نهاية') if settings else 'نهاية',
+            'semester': getattr(settings, 'semester', 'الأول') if settings else 'الأول',
+            'academic_year': getattr(settings, 'academic_year', '1447هـ') if settings else '1447هـ',
+            'time': getattr(settings, 'time', 'ثلاث ساعات') if settings else 'ثلاث ساعات',
+            'total_score': getattr(settings, 'total_score', 30) if settings else 30,
             'logo_base64': ''
         }
 
