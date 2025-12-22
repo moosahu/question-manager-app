@@ -2053,7 +2053,7 @@ function generatePrintableDocument(questions, includeAnswers) {
             columns: layoutSettings.columns,
             spacing: layoutSettings.spacing,
             options_layout: layoutSettings.options_layout,
-            // إعدادات الكليشة - جميع الحقول
+            // إعدادات الكليشة
             header_size: headerFormatSettings.header_size,
             show_logo: headerFormatSettings.show_logo,
             logo_size: headerFormatSettings.logo_size,
@@ -2066,8 +2066,6 @@ function generatePrintableDocument(questions, includeAnswers) {
             show_student_signature: headerFormatSettings.show_student_signature,
             name_line_length: headerFormatSettings.name_line_length,
             exam_type: headerFormatSettings.exam_type,
-            semester: headerFormatSettings.semester,
-            academic_year: headerFormatSettings.academic_year,
             show_exam_date: headerFormatSettings.show_exam_date,
             exam_date: headerFormatSettings.exam_date
         })
@@ -2320,21 +2318,19 @@ function updateButtonGroup(selector, dataAttr, value, activeColor) {
 function getHeaderSettings() {
     return {
         header_size: headerFormatConfig.headerSize,
-        show_logo: document.getElementById('showLogo') ? document.getElementById('showLogo').checked : true,
+        show_logo: document.getElementById('showLogo').checked,
         logo_size: headerFormatConfig.logoSize,
         qr_size: headerFormatConfig.qrSize,
-        show_grades_table: document.getElementById('showGradesTable') ? document.getElementById('showGradesTable').checked : true,
-        show_extra_grade_field: document.getElementById('showExtraGradeField') ? document.getElementById('showExtraGradeField').checked : false,
-        show_student_name: document.getElementById('showStudentName') ? document.getElementById('showStudentName').checked : true,
-        show_student_class: document.getElementById('showStudentClass') ? document.getElementById('showStudentClass').checked : true,
-        show_student_seat_no: document.getElementById('showStudentSeatNo') ? document.getElementById('showStudentSeatNo').checked : true,
-        show_student_signature: document.getElementById('showStudentSignature') ? document.getElementById('showStudentSignature').checked : false,
+        show_grades_table: document.getElementById('showGradesTable').checked,
+        show_extra_grade_field: document.getElementById('showExtraGradeField').checked,
+        show_student_name: document.getElementById('showStudentName').checked,
+        show_student_class: document.getElementById('showStudentClass').checked,
+        show_student_seat_no: document.getElementById('showStudentSeatNo').checked,
+        show_student_signature: document.getElementById('showStudentSignature').checked,
         name_line_length: headerFormatConfig.nameLineLength,
-        exam_type: document.getElementById('examType') ? document.getElementById('examType').value : '',
-        show_exam_date: document.getElementById('showExamDate') ? document.getElementById('showExamDate').checked : true,
-        exam_date: document.getElementById('examDateInput') ? document.getElementById('examDateInput').value : '',
-        semester: document.getElementById('semesterSelect') ? document.getElementById('semesterSelect').value : '',
-        academic_year: document.getElementById('academicYear') ? document.getElementById('academicYear').value : ''
+        exam_type: document.getElementById('examType').value,
+        semester: document.getElementById('semesterSelect').value,
+        academic_year: document.getElementById('academicYear').value
     };
 }
 

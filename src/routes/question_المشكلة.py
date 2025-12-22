@@ -2373,9 +2373,7 @@ def preview_multi_models():
             'name_line_length': data.get('name_line_length', 'medium'),
             'exam_type': data.get('exam_type', 'نهاية'),
             'semester': data.get('semester', 'الأول'),
-            'academic_year': data.get('academic_year', '1447هـ'),
-            'show_exam_date': data.get('show_exam_date', True),
-            'exam_date': data.get('exam_date', '')
+            'academic_year': data.get('academic_year', '1447هـ')
         }
         
         # التعديل الأساسي: نضمن خلط الخيارات دائماً عند تعدد النماذج لكسر نمط الإجابات
