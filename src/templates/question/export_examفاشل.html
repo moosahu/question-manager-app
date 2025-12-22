@@ -1,0 +1,1676 @@
+{% extends "base.html" %}
+
+{% block title %}استخراج وتوليد نماذج الاختبار{% endblock %}
+
+{% block head_extra %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_token else 'dummy-token' }}">
+    <title>استخراج وتوليد نماذج الاختبار</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #6366f1;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--gray-50);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* ===== الحاوية الرئيسية ===== */
+        .export-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        /* ===== الهيدر ===== */
+        .export-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 24px 32px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .export-header h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        .export-header p {
+            margin: 0;
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+
+        /* ===== البطاقة الرئيسية ===== */
+        .main-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* ===== نظام التبويبات ===== */
+        .tabs-container {
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            padding: 8px 16px 0;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.2s;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: white;
+            color: var(--primary);
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        .tab-icon {
+            margin-left: 8px;
+        }
+
+        /* ===== محتوى التبويبات ===== */
+        .tab-content {
+            display: none;
+            padding: 24px;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== الأكورديون ===== */
+        .accordion {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            background: var(--gray-50);
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--gray-700);
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .accordion-header:hover {
+            background: var(--gray-100);
+        }
+
+        .accordion-header.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .accordion-icon {
+            transition: transform 0.3s;
+            font-size: 0.875rem;
+        }
+
+        .accordion-header.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .accordion-body.active {
+            max-height: 2000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .accordion-content {
+            padding: 18px;
+            background: white;
+        }
+
+        /* ===== مجموعات الحقول ===== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        /* ===== Grid للحقول ===== */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .form-grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .form-grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        /* ===== Checkboxes محسنة ===== */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: var(--gray-50);
+            border-color: var(--primary);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--gray-700);
+            font-size: 0.9375rem;
+            flex: 1;
+        }
+
+        /* ===== قسم النماذج ===== */
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .model-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .model-box:hover {
+            border-color: var(--primary);
+            background: var(--gray-50);
+        }
+
+        .model-box.selected {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .model-box input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: white;
+        }
+
+        .model-letter {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        /* ===== Sliders محسنة ===== */
+        .slider-group {
+            margin-bottom: 20px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .slider-label {
+            font-weight: 500;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        .slider-value {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .slider-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--gray-600);
+        }
+
+        .slider-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--gray-200);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ===== أزرار الخيارات ===== */
+        .options-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .option-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .option-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ===== الأزرار الرئيسية ===== */
+        .actions-bar {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 16px 24px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-200);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* ===== Loading و Alerts ===== */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 300px;
+            max-width: 500px;
+        }
+
+        .toast {
+            display: none;
+            padding: 16px 20px;
+            border-radius: 8px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .toast.active {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== القسم الإحصائي ===== */
+        .stats-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        /* ===== معاينة العنوان ===== */
+        .title-preview {
+            background: var(--gray-50);
+            border: 2px dashed var(--gray-300);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-top: 12px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .export-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+
+            .form-grid,
+            .form-grid-2,
+            .form-grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .models-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .actions-bar {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* ===== قسم الباركود ===== */
+        .barcode-info {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.875rem;
+            color: #92400e;
+        }
+
+        .barcode-info i {
+            font-size: 1.25rem;
+            color: #f59e0b;
+        }
+
+        /* ===== Help Tooltips ===== */
+        .help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--gray-300);
+            color: var(--gray-600);
+            font-size: 0.75rem;
+            cursor: help;
+            margin-right: 4px;
+        }
+
+        .help-icon:hover {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="export-container">
+    <!-- Header -->
+    <div class="export-header">
+        <h1><i class="fas fa-file-export"></i> استخراج وتوليد نماذج الاختبار</h1>
+        <p>قم بإعداد وتصدير نماذج الاختبارات مع خيارات تنسيق متقدمة</p>
+    </div>
+
+    <!-- البطاقة الرئيسية -->
+    <div class="main-card">
+        <!-- نظام التبويبات -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab(event, 'basic')">
+                    <i class="fas fa-sliders-h tab-icon"></i>
+                    الإعدادات الأساسية
+                </button>
+                <button class="tab" onclick="switchTab(event, 'models')">
+                    <i class="fas fa-copy tab-icon"></i>
+                    النماذج المتعددة
+                </button>
+                <button class="tab" onclick="switchTab(event, 'format')">
+                    <i class="fas fa-paint-brush tab-icon"></i>
+                    التنسيق والمظهر
+                </button>
+                <button class="tab" onclick="switchTab(event, 'header')">
+                    <i class="fas fa-heading tab-icon"></i>
+                    تنسيق الكليشة
+                </button>
+                <button class="tab" onclick="switchTab(event, 'export')">
+                    <i class="fas fa-download tab-icon"></i>
+                    التصدير
+                </button>
+            </div>
+        </div>
+
+        <!-- محتوى التبويبات -->
+        
+        <!-- تبويب: الإعدادات الأساسية -->
+        <div id="basic" class="tab-content active">
+            <h3 style="margin-top: 0; color: var(--gray-900); margin-bottom: 20px;">
+                <i class="fas fa-cog"></i> الإعدادات الأساسية
+            </h3>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label><i class="fas fa-book"></i> المادة الدراسية</label>
+                    <select id="subjectSelect">
+                        <option value="">-- اختر المادة --</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-alt"></i> الفصل الدراسي</label>
+                    <select id="semesterSelect">
+                        <option value="الأول">الأول</option>
+                        <option value="الثاني">الثاني</option>
+                        <option value="الثالث">الثالث</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><i class="fas fa-hashtag"></i> عدد الأسئلة</label>
+                    <input type="number" id="questionCountInput" min="1" value="20" placeholder="مثال: 20">
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-graduation-cap"></i> السنة الدراسية</label>
+                    <input type="text" id="academicYear" value="1446" placeholder="مثال: 1446">
+                </div>
+            </div>
+
+            <!-- قسم اختيار الأسئلة -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-list-check"></i> اختيار الأسئلة</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="selectAllQuestions" onchange="toggleSelectAll()">
+                                <label for="selectAllQuestions">تحديد جميع الأسئلة</label>
+                            </div>
+                        </div>
+
+                        <div id="questionsGrid" style="margin-top: 16px; max-height: 300px; overflow-y: auto;">
+                            <!-- سيتم ملء الأسئلة هنا -->
+                        </div>
+
+                        <div class="stats-panel" style="margin-top: 16px;">
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value" id="selectedQuestionsCount">0</div>
+                                    <div class="stat-label">أسئلة محددة</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" id="totalQuestionsCount">0</div>
+                                    <div class="stat-label">إجمالي الأسئلة</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- خيارات إضافية -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-tasks"></i> خيارات إضافية</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="shuffleQuestions">
+                                <label for="shuffleQuestions">خلط الأسئلة</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="shuffleChoices">
+                                <label for="shuffleChoices">خلط الخيارات</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includeAnswerKey">
+                                <label for="includeAnswerKey">تضمين ورقة الإجابات</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="includeAnswerSheet">
+                                <label for="includeAnswerSheet">تضمين ورقة الحل</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب: النماذج المتعددة -->
+        <div id="models" class="tab-content">
+            <h3 style="margin-top: 0; color: var(--gray-900); margin-bottom: 20px;">
+                <i class="fas fa-copy"></i> نماذج الاختبار المتعددة
+            </h3>
+
+            <div class="barcode-info">
+                <i class="fas fa-info-circle"></i>
+                <span>عند اختيار نماذج متعددة، سيتم توليد نماذج مختلفة مع باركود لكل طالب</span>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 12px; font-weight: 600; color: var(--gray-700);">
+                    اختر النماذج المطلوبة:
+                </label>
+                <div class="models-grid">
+                    <label class="model-box" onclick="toggleModelSelection(this)">
+                        <input type="checkbox" name="exam_models" value="أ">
+                        <span class="model-letter">أ</span>
+                    </label>
+                    <label class="model-box" onclick="toggleModelSelection(this)">
+                        <input type="checkbox" name="exam_models" value="ب">
+                        <span class="model-letter">ب</span>
+                    </label>
+                    <label class="model-box" onclick="toggleModelSelection(this)">
+                        <input type="checkbox" name="exam_models" value="ج">
+                        <span class="model-letter">ج</span>
+                    </label>
+                    <label class="model-box" onclick="toggleModelSelection(this)">
+                        <input type="checkbox" name="exam_models" value="د">
+                        <span class="model-letter">د</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- خيارات الباركود -->
+            <div class="accordion" style="margin-top: 20px;">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-barcode"></i> إعدادات الباركود</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="addBarcode" checked>
+                                <label for="addBarcode">إضافة باركود لأرقام الطلاب</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="addStudentTable" checked>
+                                <label for="addStudentTable">إضافة جدول أسماء الطلاب</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label>عدد الطلاب لكل نموذج</label>
+                            <input type="number" id="studentsPerModel" value="30" min="1" max="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب: التنسيق والمظهر -->
+        <div id="format" class="tab-content">
+            <h3 style="margin-top: 0; color: var(--gray-900); margin-bottom: 20px;">
+                <i class="fas fa-paint-brush"></i> التنسيق والمظهر
+            </h3>
+
+            <!-- حجم الخط -->
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span class="slider-label"><i class="fas fa-text-height"></i> حجم الخط</span>
+                    <span class="slider-value" id="fontSizeValue">14px</span>
+                </div>
+                <div class="slider-controls">
+                    <button class="slider-btn" onclick="changeFontSize(-1)">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="range" id="fontSizeSlider" min="10" max="20" value="14" 
+                           oninput="updateFontSizeDisplay(this.value)">
+                    <button class="slider-btn" onclick="changeFontSize(1)">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- حجم الصور -->
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span class="slider-label"><i class="fas fa-image"></i> حجم الصور</span>
+                    <span class="slider-value" id="imageSizeValue">100%</span>
+                </div>
+                <div class="slider-controls">
+                    <button class="slider-btn" onclick="changeImageSize(-10)">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="range" id="imageSizeSlider" min="60" max="180" value="100" step="10"
+                           oninput="updateImageSizeDisplay(this.value)">
+                    <button class="slider-btn" onclick="changeImageSize(10)">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- عدد الأعمدة -->
+            <div class="form-group">
+                <label><i class="fas fa-columns"></i> عدد أعمدة الأسئلة</label>
+                <div class="options-group">
+                    <button class="option-btn column-btn active" data-columns="1" onclick="setColumns(1)">
+                        <i class="fas fa-align-justify"></i> عمود واحد
+                    </button>
+                    <button class="option-btn column-btn" data-columns="2" onclick="setColumns(2)">
+                        <i class="fas fa-columns"></i> عمودين
+                    </button>
+                </div>
+            </div>
+
+            <!-- المسافات -->
+            <div class="form-group">
+                <label><i class="fas fa-arrows-alt-v"></i> التباعد بين الأسئلة</label>
+                <div class="options-group">
+                    <button class="option-btn spacing-btn" data-spacing="compact" onclick="setSpacing('compact')">
+                        مضغوط
+                    </button>
+                    <button class="option-btn spacing-btn active" data-spacing="normal" onclick="setSpacing('normal')">
+                        عادي
+                    </button>
+                    <button class="option-btn spacing-btn" data-spacing="relaxed" onclick="setSpacing('relaxed')">
+                        مريح
+                    </button>
+                </div>
+            </div>
+
+            <!-- تخطيط الخيارات -->
+            <div class="form-group">
+                <label><i class="fas fa-list"></i> تخطيط خيارات الإجابة</label>
+                <div class="options-group">
+                    <button class="option-btn options-layout-btn active" data-layout="vertical" onclick="setOptionsLayout('vertical')">
+                        <i class="fas fa-list"></i> عمودي
+                    </button>
+                    <button class="option-btn options-layout-btn" data-layout="horizontal" onclick="setOptionsLayout('horizontal')">
+                        <i class="fas fa-grip-horizontal"></i> أفقي
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب: تنسيق الكليشة -->
+        <div id="header" class="tab-content">
+            <h3 style="margin-top: 0; color: var(--gray-900); margin-bottom: 20px;">
+                <i class="fas fa-heading"></i> تنسيق الكليشة والهيدر
+            </h3>
+
+            <!-- حجم الهيدر -->
+            <div class="form-group">
+                <label><i class="fas fa-text-height"></i> حجم الهيدر</label>
+                <div class="options-group">
+                    <button class="option-btn header-size-btn" data-size="small" onclick="setHeaderSize('small')">
+                        صغير
+                    </button>
+                    <button class="option-btn header-size-btn active" data-size="medium" onclick="setHeaderSize('medium')">
+                        متوسط
+                    </button>
+                    <button class="option-btn header-size-btn" data-size="large" onclick="setHeaderSize('large')">
+                        كبير
+                    </button>
+                </div>
+            </div>
+
+            <!-- الشعار -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-image"></i> إعدادات الشعار</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showLogo" checked>
+                                <label for="showLogo">إظهار الشعار</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label>حجم الشعار</label>
+                            <div class="options-group">
+                                <button class="option-btn logo-size-btn" data-size="small" onclick="setLogoSize('small')">
+                                    صغير
+                                </button>
+                                <button class="option-btn logo-size-btn active" data-size="medium" onclick="setLogoSize('medium')">
+                                    متوسط
+                                </button>
+                                <button class="option-btn logo-size-btn" data-size="large" onclick="setLogoSize('large')">
+                                    كبير
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات الطالب -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-user"></i> معلومات الطالب</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showStudentName" checked>
+                                <label for="showStudentName">اسم الطالب</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showStudentClass" checked>
+                                <label for="showStudentClass">الصف/الفصل</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showStudentSeatNo" checked>
+                                <label for="showStudentSeatNo">رقم الجلوس</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showStudentSignature">
+                                <label for="showStudentSignature">توقيع الطالب</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label>طول خط اسم الطالب</label>
+                            <div class="options-group">
+                                <button class="option-btn name-line-btn" data-length="short" onclick="setNameLineLength('short')">
+                                    قصير
+                                </button>
+                                <button class="option-btn name-line-btn active" data-length="medium" onclick="setNameLineLength('medium')">
+                                    متوسط
+                                </button>
+                                <button class="option-btn name-line-btn" data-length="long" onclick="setNameLineLength('long')">
+                                    طويل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جدول الدرجات -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-table"></i> جدول الدرجات</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showGradesTable" checked>
+                                <label for="showGradesTable">إظهار جدول الدرجات</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showExtraGradeField">
+                                <label for="showExtraGradeField">إضافة حقل درجة إضافي</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات الاختبار -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-info-circle"></i> معلومات الاختبار</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="form-group">
+                            <label>نوع الاختبار</label>
+                            <select id="examType" onchange="updateExamTitlePreview()">
+                                <option value="نهائي">نهائي</option>
+                                <option value="فتري">فتري</option>
+                                <option value="شهري">شهري</option>
+                                <option value="قصير">قصير</option>
+                            </select>
+                        </div>
+
+                        <div class="title-preview" id="examTitlePreview">
+                            اختبار نهائي الفصل الدراسي الأول لعام 1446
+                        </div>
+
+                        <div class="checkbox-group" style="margin-top: 16px;">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showExamDate" checked>
+                                <label for="showExamDate">إظهار تاريخ الاختبار</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label>تاريخ الاختبار</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="date" id="examDateInput" style="flex: 1;">
+                                <button class="btn btn-secondary" onclick="setTodayDate()" style="padding: 10px 16px;">
+                                    <i class="fas fa-calendar-day"></i> اليوم
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span><i class="fas fa-qrcode"></i> إعدادات QR Code</span>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <div class="form-group">
+                            <label>حجم QR Code</label>
+                            <div class="options-group">
+                                <button class="option-btn qr-size-btn" data-size="small" onclick="setQRSize('small')">
+                                    صغير
+                                </button>
+                                <button class="option-btn qr-size-btn active" data-size="medium" onclick="setQRSize('medium')">
+                                    متوسط
+                                </button>
+                                <button class="option-btn qr-size-btn" data-size="large" onclick="setQRSize('large')">
+                                    كبير
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب: التصدير -->
+        <div id="export" class="tab-content">
+            <h3 style="margin-top: 0; color: var(--gray-900); margin-bottom: 20px;">
+                <i class="fas fa-download"></i> تصدير الاختبار
+            </h3>
+
+            <div class="stats-panel">
+                <h4 style="margin: 0 0 16px 0; font-size: 1.125rem;">
+                    <i class="fas fa-chart-bar"></i> ملخص الاختبار
+                </h4>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="previewQuestionsCount">0</div>
+                        <div class="stat-label">عدد الأسئلة</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="previewModelsCount">1</div>
+                        <div class="stat-label">عدد النماذج</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="previewDate">-</div>
+                        <div class="stat-label">تاريخ التوليد</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="font-size: 1rem; margin-bottom: 16px;">
+                    <i class="fas fa-file-export"></i> خيارات التصدير
+                </label>
+                
+                <button class="btn btn-primary" onclick="generateSingleExam()" style="width: 100%; margin-bottom: 12px; justify-content: center; font-size: 1rem; padding: 16px;">
+                    <i class="fas fa-file-pdf"></i>
+                    توليد نموذج واحد
+                </button>
+
+                <button class="btn btn-success" onclick="generateMultipleExams()" style="width: 100%; justify-content: center; font-size: 1rem; padding: 16px;">
+                    <i class="fas fa-copy"></i>
+                    توليد نماذج متعددة
+                </button>
+            </div>
+
+            <div class="barcode-info" style="margin-top: 20px;">
+                <i class="fas fa-lightbulb"></i>
+                <div>
+                    <strong>نصيحة:</strong> تأكد من مراجعة جميع الإعدادات قبل التوليد النهائي
+                </div>
+            </div>
+        </div>
+
+        <!-- شريط الإجراءات الثابت -->
+        <div class="actions-bar">
+            <button class="btn btn-secondary" onclick="resetSettings()">
+                <i class="fas fa-undo"></i>
+                إعادة تعيين
+            </button>
+            <button class="btn btn-primary" onclick="previewExam()">
+                <i class="fas fa-eye"></i>
+                معاينة
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingIndicator" class="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- Toast Notifications -->
+<div class="toast-container">
+    <div id="successAlert" class="toast success">
+        <i class="fas fa-check-circle toast-icon"></i>
+        <span>تمت العملية بنجاح</span>
+    </div>
+    <div id="errorAlert" class="toast error">
+        <i class="fas fa-exclamation-circle toast-icon"></i>
+        <span>حدث خطأ</span>
+    </div>
+</div>
+
+<script>
+// المتغيرات العامة
+let allQuestions = [];
+let selectedQuestionIds = new Set();
+let currentColumns = 1;
+let currentSpacing = 'normal';
+let currentOptionsLayout = 'vertical';
+
+// تبديل التبويبات
+function switchTab(event, tabId) {
+    // إخفاء جميع التبويبات
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // إزالة الحالة النشطة من جميع الأزرار
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // تفعيل التبويب المحدد
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// تبديل الأكورديون
+function toggleAccordion(header) {
+    const body = header.nextElementSibling;
+    const icon = header.querySelector('.accordion-icon');
+    
+    header.classList.toggle('active');
+    body.classList.toggle('active');
+}
+
+// اختيار النموذج
+function toggleModelSelection(box) {
+    box.classList.toggle('selected');
+}
+
+// تحميل الأسئلة
+document.getElementById('subjectSelect').addEventListener('change', function() {
+    const subjectId = this.value;
+    if (!subjectId) {
+        document.getElementById('questionsGrid').innerHTML = '';
+        allQuestions = [];
+        updateStats();
+        return;
+    }
+
+    showLoading(true);
+    fetch(`/api/questions/${subjectId}`)
+        .then(response => response.json())
+        .then(data => {
+            allQuestions = data.questions || [];
+            renderQuestions();
+            updateStats();
+            showSuccess('تم تحميل الأسئلة بنجاح');
+        })
+        .catch(error => {
+            showError('فشل في تحميل الأسئلة');
+            console.error(error);
+        })
+        .finally(() => showLoading(false));
+});
+
+function renderQuestions() {
+    const grid = document.getElementById('questionsGrid');
+    if (allQuestions.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 20px;">لا توجد أسئلة متاحة</p>';
+        return;
+    }
+
+    grid.innerHTML = allQuestions.map(q => `
+        <div class="checkbox-item">
+            <input type="checkbox" id="q_${q.id}" value="${q.id}" onchange="updateSelection()">
+            <label for="q_${q.id}">السؤال ${q.number || q.id}</label>
+        </div>
+    `).join('');
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAllQuestions').checked;
+    document.querySelectorAll('#questionsGrid input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+    });
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedQuestionIds.clear();
+    document.querySelectorAll('#questionsGrid input[type="checkbox"]:checked').forEach(cb => {
+        selectedQuestionIds.add(parseInt(cb.value));
+    });
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
+}
+
+// دوال حجم الخط
+function updateFontSizeDisplay(value) {
+    document.getElementById('fontSizeValue').textContent = value + 'px';
+}
+
+function changeFontSize(delta) {
+    const slider = document.getElementById('fontSizeSlider');
+    let newValue = parseInt(slider.value) + delta;
+    newValue = Math.max(10, Math.min(20, newValue));
+    slider.value = newValue;
+    updateFontSizeDisplay(newValue);
+}
+
+function getFontSize() {
+    return parseInt(document.getElementById('fontSizeSlider').value);
+}
+
+// دوال حجم الصور
+function updateImageSizeDisplay(value) {
+    document.getElementById('imageSizeValue').textContent = value + '%';
+}
+
+function changeImageSize(delta) {
+    const slider = document.getElementById('imageSizeSlider');
+    let newValue = parseInt(slider.value) + delta;
+    newValue = Math.max(60, Math.min(180, newValue));
+    slider.value = newValue;
+    updateImageSizeDisplay(newValue);
+}
+
+function getImageSize() {
+    return parseInt(document.getElementById('imageSizeSlider').value);
+}
+
+// دوال التخطيط
+function setColumns(num) {
+    currentColumns = num;
+    document.querySelectorAll('.column-btn').forEach(btn => {
+        if (parseInt(btn.dataset.columns) === num) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+function setSpacing(spacing) {
+    currentSpacing = spacing;
+    document.querySelectorAll('.spacing-btn').forEach(btn => {
+        if (btn.dataset.spacing === spacing) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+function setOptionsLayout(layout) {
+    currentOptionsLayout = layout;
+    document.querySelectorAll('.options-layout-btn').forEach(btn => {
+        if (btn.dataset.layout === layout) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+// دوال تنسيق الكليشة
+function setHeaderSize(size) {
+    updateButtonGroup('.header-size-btn', 'size', size);
+}
+
+function setLogoSize(size) {
+    updateButtonGroup('.logo-size-btn', 'size', size);
+}
+
+function setQRSize(size) {
+    updateButtonGroup('.qr-size-btn', 'size', size);
+}
+
+function setNameLineLength(length) {
+    updateButtonGroup('.name-line-btn', 'length', length);
+}
+
+function updateButtonGroup(selector, dataAttr, value) {
+    document.querySelectorAll(selector).forEach(btn => {
+        if (btn.dataset[dataAttr] === value) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('examDateInput').value = today;
+}
+
+function updateExamTitlePreview() {
+    const examType = document.getElementById('examType').value;
+    const semester = document.getElementById('semesterSelect').value;
+    const year = document.getElementById('academicYear').value;
+    const title = `اختبار ${examType} الفصل الدراسي ${semester} لعام ${year}`;
+    document.getElementById('examTitlePreview').textContent = title;
+}
+
+// دوال التصدير
+function generateSingleExam() {
+    if (selectedQuestionIds.size === 0) {
+        showError('الرجاء تحديد الأسئلة أولاً');
+        return;
+    }
+
+    showLoading(true);
+    
+    const data = {
+        subject_id: document.getElementById('subjectSelect').value,
+        question_ids: Array.from(selectedQuestionIds),
+        options: getExamOptions()
+    };
+
+    fetch('/generate_exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.ok) return response.text();
+        throw new Error('فشل في توليد الاختبار');
+    })
+    .then(html => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(html);
+        printWindow.document.close();
+        showSuccess('تم توليد الاختبار بنجاح');
+        updatePreviewStats();
+    })
+    .catch(error => {
+        showError(error.message);
+    })
+    .finally(() => showLoading(false));
+}
+
+function generateMultipleExams() {
+    const selectedModels = getSelectedModels();
+    
+    if (selectedQuestionIds.size === 0) {
+        showError('الرجاء تحديد الأسئلة أولاً');
+        return;
+    }
+    
+    if (selectedModels.length === 0) {
+        showError('الرجاء اختيار نموذج واحد على الأقل');
+        return;
+    }
+
+    showLoading(true);
+    
+    const data = {
+        subject_id: document.getElementById('subjectSelect').value,
+        question_ids: Array.from(selectedQuestionIds),
+        models: selectedModels,
+        options: getExamOptions()
+    };
+
+    fetch('/generate_multiple_exams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.ok) return response.text();
+        throw new Error('فشل في توليد النماذج');
+    })
+    .then(html => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(html);
+        printWindow.document.close();
+        showSuccess(`تم توليد ${selectedModels.length} نماذج بنجاح`);
+        updatePreviewStats();
+    })
+    .catch(error => {
+        showError(error.message);
+    })
+    .finally(() => showLoading(false));
+}
+
+function getSelectedModels() {
+    const models = [];
+    document.querySelectorAll('input[name="exam_models"]:checked').forEach(cb => {
+        models.push(cb.value);
+    });
+    return models;
+}
+
+function getExamOptions() {
+    return {
+        shuffle_questions: document.getElementById('shuffleQuestions').checked,
+        shuffle_choices: document.getElementById('shuffleChoices').checked,
+        include_answer_key: document.getElementById('includeAnswerKey').checked,
+        include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
+        font_size: getFontSize(),
+        image_size: getImageSize(),
+        columns: currentColumns,
+        spacing: currentSpacing,
+        options_layout: currentOptionsLayout,
+        add_barcode: document.getElementById('addBarcode')?.checked || false,
+        add_student_table: document.getElementById('addStudentTable')?.checked || false,
+        students_per_model: parseInt(document.getElementById('studentsPerModel')?.value || 30),
+        header_settings: getHeaderSettings(),
+        semester: document.getElementById('semesterSelect').value,
+        academic_year: document.getElementById('academicYear').value
+    };
+}
+
+function getHeaderSettings() {
+    return {
+        header_size: document.querySelector('.header-size-btn.active')?.dataset.size || 'medium',
+        show_logo: document.getElementById('showLogo').checked,
+        logo_size: document.querySelector('.logo-size-btn.active')?.dataset.size || 'medium',
+        qr_size: document.querySelector('.qr-size-btn.active')?.dataset.size || 'medium',
+        show_grades_table: document.getElementById('showGradesTable').checked,
+        show_extra_grade_field: document.getElementById('showExtraGradeField').checked,
+        show_student_name: document.getElementById('showStudentName').checked,
+        show_student_class: document.getElementById('showStudentClass').checked,
+        show_student_seat_no: document.getElementById('showStudentSeatNo').checked,
+        show_student_signature: document.getElementById('showStudentSignature').checked,
+        name_line_length: document.querySelector('.name-line-btn.active')?.dataset.length || 'medium',
+        exam_type: document.getElementById('examType').value,
+        show_exam_date: document.getElementById('showExamDate').checked,
+        exam_date: document.getElementById('examDateInput').value
+    };
+}
+
+function previewExam() {
+    if (selectedQuestionIds.size === 0) {
+        showError('الرجاء تحديد الأسئلة أولاً');
+        return;
+    }
+    
+    // الانتقال إلى تبويب التصدير
+    const exportTab = document.querySelector('.tab[onclick*="export"]');
+    exportTab.click();
+    
+    updatePreviewStats();
+    showSuccess('جاهز للتصدير');
+}
+
+function updatePreviewStats() {
+    document.getElementById('previewQuestionsCount').textContent = selectedQuestionIds.size;
+    document.getElementById('previewModelsCount').textContent = getSelectedModels().length || 1;
+    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+}
+
+function resetSettings() {
+    if (confirm('هل تريد إعادة تعيين جميع الإعدادات؟')) {
+        // إعادة تعيين الحقول
+        document.getElementById('fontSizeSlider').value = 14;
+        document.getElementById('imageSizeSlider').value = 100;
+        updateFontSizeDisplay(14);
+        updateImageSizeDisplay(100);
+        
+        setColumns(1);
+        setSpacing('normal');
+        setOptionsLayout('vertical');
+        
+        // إعادة تعيين checkboxes
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            if (cb.id === 'showLogo' || cb.id === 'showGradesTable' || 
+                cb.id === 'showStudentName' || cb.id === 'showStudentClass' || 
+                cb.id === 'showStudentSeatNo' || cb.id === 'showExamDate' ||
+                cb.id === 'addBarcode' || cb.id === 'addStudentTable') {
+                cb.checked = true;
+            } else {
+                cb.checked = false;
+            }
+        });
+        
+        showSuccess('تم إعادة تعيين الإعدادات');
+    }
+}
+
+// دوال المساعدة
+function showLoading(show) {
+    document.getElementById('loadingIndicator').classList.toggle('active', show);
+}
+
+function showSuccess(message) {
+    const alert = document.getElementById('successAlert');
+    alert.querySelector('span').textContent = message;
+    alert.classList.add('active');
+    setTimeout(() => alert.classList.remove('active'), 4000);
+}
+
+function showError(message) {
+    const alert = document.getElementById('errorAlert');
+    alert.querySelector('span').textContent = message;
+    alert.classList.add('active');
+    setTimeout(() => alert.classList.remove('active'), 4000);
+}
+
+// التهيئة عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // تعيين التاريخ الحالي
+    setTodayDate();
+    
+    // تحديث معاينة العنوان
+    updateExamTitlePreview();
+    
+    // إضافة مستمعين للأحداث
+    const examType = document.getElementById('examType');
+    const semester = document.getElementById('semesterSelect');
+    const year = document.getElementById('academicYear');
+    
+    if (examType) examType.addEventListener('change', updateExamTitlePreview);
+    if (semester) semester.addEventListener('change', updateExamTitlePreview);
+    if (year) year.addEventListener('input', updateExamTitlePreview);
+});
+</script>
+{% endblock %}
