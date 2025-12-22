@@ -2229,10 +2229,12 @@ def generate_multi_models():
         answer_keys = {}  # مفاتيح الإجابات لكل نموذج
         
         for i, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة بطريقة مختلفة وعشوائية تماماً لكل نموذج
-            # استخدام الوقت + رقم النموذج + عشوائية إضافية لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + i * 999983 + random.randint(1, 100000)
+            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            # استخدام hash محتوى الأسئلة + حرف النموذج لضمان:
+            # 1. نفس الخلط لنفس النموذج عند إعادة التوليد (لمطابقة مفتاح الإجابة)
+            # 2. خلط مختلف تماماً بين النماذج (لمنع الغش)
+            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
+            seed = hash(question_ids_str + model_letter + str(i)) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data, 
                 shuffle_questions=True, 
@@ -2442,9 +2444,9 @@ def preview_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
+            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -2876,9 +2878,9 @@ def print_remark_sheets_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
+            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -3092,9 +3094,9 @@ def generate_all_models_answer_keys():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: خلط الأسئلة والخيارات بطريقة عشوائية تماماً لضمان اختلاف مواقع الإجابات
-            import time
-            seed = int(time.time() * 1000000) + hash(model_letter) + idx * 999983 + random.randint(1, 100000)
+            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
+            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
