@@ -198,7 +198,7 @@
 
         .student-section {
             display: grid;
-            grid-template-columns: 1.5fr 1fr;
+            grid-template-columns: 1fr auto; /* الاسم على اليمين، الباركود+الرقم على اليسار */
             gap: 12px;
             margin-bottom: 8px;
         }
@@ -226,37 +226,48 @@
             color: #1565c0;
         }
 
-        .academic-id-box {
-            text-align: center;
+        .barcode-id-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             border: 1px solid #ccc;
-            padding: 5px;
+            padding: 5px 10px;
             border-radius: 5px;
+            background: #fafafa;
+            min-width: 150px;
         }
 
         .status-options {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
-            margin-bottom: 5px;
-            font-size: 12px;
+            margin-bottom: 3px;
+            font-size: 11px;
             font-weight: bold;
         }
 
         .barcode-container {
             text-align: center;
-            margin: 2px 0;
+            margin: 3px 0;
         }
 
         .barcode-img {
-            height: 40px;
+            height: 50px; /* تكبير الباركود */
             width: auto;
         }
 
+        .academic-id-label {
+            font-size: 9px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
         .academic-id-number {
-            font-size: 16px;
+            font-size: 20px; /* تكبير الرقم الأكاديمي */
             font-weight: bold;
             font-family: monospace;
-            letter-spacing: 3px;
+            letter-spacing: 4px;
         }
 
         .info-grid {
@@ -556,12 +567,12 @@
                 <div class="student-name">{{ student.name|default('', true) }}</div>
             </div>
 
-            <div class="academic-id-box">
+            <div class="barcode-id-box">
                 <div class="status-options">
                     <div class="dor-option"><span class="checkbox"></span> غائب</div>
                     <div class="dor-option"><span class="checkbox"></span> غاش</div>
                 </div>
-                <div style="font-size: 11px; color: #666;">الرقم الأكاديمي / السجل المدني</div>
+                <div class="academic-id-label">الرقم الأكاديمي / السجل المدني</div>
                 {% if student.barcode %}
                 <div class="barcode-container">
                     <img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">
