@@ -243,7 +243,7 @@
 
         .barcode-img {
             height: 60px; /* تكبير الباركود */
-            width: 200px; /* عرض 200 */
+            width: 1.700in; /* عرض 1.700 إنش */
             object-fit: contain;
         }
 
@@ -427,9 +427,28 @@
             gap: 0 10px;
         }
         
+        /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
+        .questions-grid > div:first-child {
+            border-left: 2px solid #ddd; /* خط على اليمين للعمود الأول */
+            padding-left: 5px;
+        }
+        
+        .questions-grid > div:last-child {
+            border-right: 2px solid #ddd; /* خط على اليسار للعمود الثاني */
+            padding-right: 5px;
+        }
+        
         /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
         .questions-grid.matching-grid {
             grid-template-columns: 1fr; /* عمود واحد فقط للمزاوجة */
+        }
+        
+        /* إلغاء الخطوط للمزاوجة لأنها عمود واحد */
+        .questions-grid.matching-grid > div {
+            border-left: none !important;
+            border-right: none !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
         }
 
         .question-row {
