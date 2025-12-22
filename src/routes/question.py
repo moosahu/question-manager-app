@@ -2229,12 +2229,12 @@ def generate_multi_models():
         answer_keys = {}  # مفاتيح الإجابات لكل نموذج
         
         for i, model_letter in enumerate(models):
-            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
-            # استخدام hash محتوى الأسئلة + حرف النموذج لضمان:
-            # 1. نفس الخلط لنفس النموذج عند إعادة التوليد (لمطابقة مفتاح الإجابة)
-            # 2. خلط مختلف تماماً بين النماذج (لمنع الغش)
+            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
+            # هذا يضمن: 1) نفس الخلط لنفس الأسئلة+النموذج 2) اختلاف بين النماذج
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            seed = hash(question_ids_str + model_letter + str(i)) % (2**31)
+            # استخدام أرقام كبيرة مختلفة لكل نموذج لضمان الاختلاف
+            random_offset = [97531, 86429, 75318, 64207][i % 4]  # أرقام أولية كبيرة
+            seed = (hash(question_ids_str + model_letter) + i * 999983 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data, 
                 shuffle_questions=True, 
@@ -2444,9 +2444,10 @@ def preview_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
+            random_offset = [97531, 86429, 75318, 64207][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -2878,9 +2879,10 @@ def print_remark_sheets_multi_models():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
+            random_offset = [97531, 86429, 75318, 64207][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -3094,9 +3096,10 @@ def generate_all_models_answer_keys():
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         
         for idx, model_letter in enumerate(models):
-            # 🔧 تحسين: seed عشوائي لكن قابل لإعادة الإنتاج لنفس الأسئلة + النموذج
+            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
-            seed = hash(question_ids_str + model_letter + str(idx)) % (2**31)
+            random_offset = [97531, 86429, 75318, 64207][idx % 4]
+            seed = (hash(question_ids_str + model_letter) + idx * 999983 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
