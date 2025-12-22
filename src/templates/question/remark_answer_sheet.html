@@ -34,12 +34,11 @@
             grid-template-rows: auto 1fr;
             border: 2px solid #000;
             margin: 0 auto;
-            page-break-after: always; /* فاصل صفحة بعد كل ورقة */
         }
         
-        /* آخر ورقة لا تحتاج page-break */
-        .sheet-container:last-of-type {
-            page-break-after: auto;
+        /* فاصل صفحة قبل كل ورقة ما عدا الأولى */
+        .sheet-container:not(:first-of-type) {
+            page-break-before: always;
         }
 
         /* =============== القسم العلوي الأيمن =============== */
