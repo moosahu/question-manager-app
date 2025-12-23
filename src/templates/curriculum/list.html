@@ -584,17 +584,18 @@
         }
     }
 
-    // تبديل حالة ظهور المنهج في البوت - متوافق مع API الموجود
+    // تبديل حالة ظهور المنهج في البوت - نسخة محدثة
     function toggleBotVisibility(courseId, button) {
-        // URL من API الموجود
         const url = `/api/v1/courses/${courseId}/toggle-bot-visibility`;
+        const csrfToken = $('input[name="csrf_token"]').val();
         
         $.ajax({
             url: url,
-            method: 'POST',  // الـ API يقبل POST
-            data: {
-                csrf_token: $('input[name="csrf_token"]').val()
-            },
+            method: 'POST',
+            contentType: 'application/json',  // تحديد نوع المحتوى
+            data: JSON.stringify({
+                csrf_token: csrfToken
+            }),
             success: function(response) {
                 if (response.success) {
                     // تحديث الزر
@@ -633,7 +634,6 @@
                 }
             },
             error: function(xhr, status, error) {
-                // معالجة الأخطاء بشكل أفضل
                 let errorMsg = 'خطأ في الاتصال بالخادم';
                 if (xhr.status === 401) {
                     errorMsg = 'يجب تسجيل الدخول أولاً';
