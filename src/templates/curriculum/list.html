@@ -592,10 +592,11 @@
         $.ajax({
             url: url,
             method: 'POST',
-            contentType: 'application/json',  // تحديد نوع المحتوى
-            data: JSON.stringify({
-                csrf_token: csrfToken
-            }),
+            headers: {
+                'X-CSRFToken': csrfToken  // إرسال CSRF token في الـ Header
+            },
+            contentType: 'application/json',
+            data: JSON.stringify({}),
             success: function(response) {
                 if (response.success) {
                     // تحديث الزر
@@ -635,7 +636,9 @@
             },
             error: function(xhr, status, error) {
                 let errorMsg = 'خطأ في الاتصال بالخادم';
-                if (xhr.status === 401) {
+                if (xhr.status === 400) {
+                    errorMsg = 'خطأ في الطلب - تأكد من CSRF token';
+                } else if (xhr.status === 401) {
                     errorMsg = 'يجب تسجيل الدخول أولاً';
                 } else if (xhr.status === 403) {
                     errorMsg = 'ليس لديك صلاحية لهذا الإجراء';
