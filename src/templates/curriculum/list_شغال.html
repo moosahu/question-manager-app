@@ -71,8 +71,8 @@
                     </div>
 
                     <!-- Units Section -->
-                    <div class="course-content" id="course-{{ course.id }}">
-                        {% if course.units %}
+                    {% if course.units %}
+                        <div class="course-content" id="course-{{ course.id }}">
                             <div class="units-list">
                                 {% for unit in course.units %}
                                     <div class="unit-item">
@@ -141,14 +141,14 @@
                                     </div>
                                 {% endfor %}
                             </div>
-                        {% endif %}
-                        <div class="add-unit-btn">
-                            <a href="{{ url_for('curriculum.add_unit', course_id=course.id) }}" class="btn btn-secondary">
-                                <i class="fas fa-plus"></i>
-                                إضافة وحدة
-                            </a>
+                            <div class="add-unit-btn">
+                                <a href="{{ url_for('curriculum.add_unit', course_id=course.id) }}" class="btn btn-secondary">
+                                    <i class="fas fa-plus"></i>
+                                    إضافة وحدة
+                                </a>
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
