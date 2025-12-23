@@ -3,7 +3,7 @@
 import logging
 import time
 from flask import Blueprint, jsonify, current_app, url_for, request, session # Added request and session
-from flask_wtf.csrf import csrf_exempt
+from functools import wraps
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
@@ -118,6 +118,17 @@ init_backup_system()
 
 # Create Blueprint
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+# دالة مخصصة لإزالة CSRF protection
+def csrf_exempt(f):
+    """Decorator to exempt a view from CSRF protection"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # تعطيل CSRF validation للـ endpoint هذا
+        return f(*args, **kwargs)
+    # وضع علامة على الدالة لتعطيل CSRF
+    decorated_function.csrf_exempt = True
+    return decorated_function
 
 logger = logging.getLogger(__name__)
 
