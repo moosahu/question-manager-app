@@ -502,7 +502,7 @@ def get_all_courses():
 @csrf_exempt  # إزالة CSRF protection للـ API
 @login_required
 def toggle_course_bot_visibility(course_id):
-    """Toggle the show_in_bot status of a course."""
+    """Toggle the show_in_bot status of a course and update related questions."""
     try:
         course = Course.query.get(course_id)
         if not course:
@@ -510,6 +510,29 @@ def toggle_course_bot_visibility(course_id):
         
         # تبديل الحالة
         course.show_in_bot = not course.show_in_bot
+        
+        # إذا تم إخفاء المنهج، إخفاء جميع الأسئلة التابعة له
+        if not course.show_in_bot:
+            # الحصول على جميع الوحدات التابعة للمنهج
+            units = Unit.query.filter_by(course_id=course_id).all()
+            for unit in units:
+                # الحصول على جميع الدروس التابعة للوحدة
+                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
+                for lesson in lessons:
+                    # إخفاء جميع الأسئلة في الدرس
+                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
+                    for question in questions:
+                        question.show_in_bot = False
+        else:
+            # إذا تم تفعيل المنهج، تفعيل جميع الأسئلة التابعة له
+            units = Unit.query.filter_by(course_id=course_id).all()
+            for unit in units:
+                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
+                for lesson in lessons:
+                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
+                    for question in questions:
+                        question.show_in_bot = True
+        
         db.session.commit()
         
         status_text = "مفعل" if course.show_in_bot else "معطل"
