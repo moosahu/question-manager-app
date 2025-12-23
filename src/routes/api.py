@@ -640,13 +640,16 @@ def get_unit_questions_direct(unit_id):
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
+        # فلتر الأسئلة بناءً على حالة المنهج الذي تابعة له
         questions = (
             Question.query
             .join(Question.lesson)
+            .join(Lesson.unit)
+            .join(Unit.course)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id)
             .all()
         )
@@ -670,6 +673,7 @@ def get_course_questions_direct(course_id):
         if not course:
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
+        # فلتر الأسئلة بناءً على حالة المنهج
         questions = (
             Question.query
             .join(Question.lesson)
@@ -677,7 +681,7 @@ def get_course_questions_direct(course_id):
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id)
             .all()
         )
@@ -735,13 +739,17 @@ def get_course_unit_questions(course_id, unit_id):
 # +++ NEW API Endpoint for All Questions +++ #
 @api_bp.route("/questions/all", methods=["GET"])
 def get_all_questions_in_db(): # Renamed function to be more descriptive
-    """Returns a list of all questions in the database that are visible in bot."""
+    """Returns a list of all questions in the database where the course is visible in bot."""
     logger.info("API request received for listing all questions in the database.")
     try:
+        # فلتر الأسئلة بناءً على حالة المنهج الذي تابعة له
         questions = (
             Question.query
+            .join(Question.lesson)
+            .join(Lesson.unit)
+            .join(Unit.course)
             .options(joinedload(Question.options)) # Eager load options
-            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id) # Optional: order by ID or another field
             .all()
         )
