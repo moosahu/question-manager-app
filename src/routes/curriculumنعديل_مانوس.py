@@ -236,6 +236,7 @@ def add_course():
                     flash(f"خطأ في إضافة المنهج: {e}", "danger")
         else:
             flash("اسم المنهج لا يمكن أن يكون فارغاً.", "danger")
+    # Pass request.form to retain data on failed POST
     return render_template("curriculum/course_form.html", title="إضافة منهج جديد", course=None, submit_text="إضافة منهج", form=form)
 
 @curriculum_bp.route("/courses/edit/<int:course_id>", methods=["GET", "POST"])
@@ -359,35 +360,6 @@ def update_course_order(course_id, direction):
         flash(f"خطأ في تحديث ترتيب المنهج: {e}", "danger")
     
     return redirect(url_for("curriculum.list_courses"))
-
-# --- API Routes for Bot Visibility ---
-
-@curriculum_bp.route("/api/v1/courses/<int:course_id>/toggle-bot-visibility", methods=["POST"])
-@login_required
-def toggle_bot_visibility(course_id):
-    """
-    API endpoint لتبديل حالة ظهور المنهج في البوت
-    """
-    try:
-        course = Course.query.get_or_404(course_id)
-        
-        # تبديل حالة البوت
-        course.show_in_bot = not course.show_in_bot
-        
-        db.session.commit()
-        
-        logger.info(f"Course {course_id} bot visibility toggled to {course.show_in_bot}")
-        
-        response = jsonify({
-            "success": True,
-            "show_in_bot": course.show_in_bot,
-            "message": f"تم {'تفعيل' if course.show_in_bot else 'إيقاف'} ظهور المنهج في البوت بنجاح"
-        })
-        return add_no_cache_headers(response)
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error toggling bot visibility for course {course_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 # --- Unit Routes ---
 
@@ -742,3 +714,4 @@ def delete_lesson_alt(lesson_id):
     """
     logger.info(f"Alternative route: Deleting lesson {lesson_id}")
     return delete_lesson(lesson_id)
+
