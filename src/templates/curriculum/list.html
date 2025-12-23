@@ -3,6 +3,9 @@
 {% block title %}إدارة المنهج{% endblock %}
 
 {% block content %}
+<!-- CSRF Token -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
 <div class="curriculum-container">
     <div class="curriculum-header">
         <h1>إدارة المنهج</h1>
