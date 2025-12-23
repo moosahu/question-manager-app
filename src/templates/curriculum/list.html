@@ -592,11 +592,9 @@
         $.ajax({
             url: url,
             method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken  // إرسال CSRF token في الـ Header
+            data: {
+                csrf_token: csrfToken  // إرسال CSRF token كـ form data
             },
-            contentType: 'application/json',
-            data: JSON.stringify({}),
             success: function(response) {
                 if (response.success) {
                     // تحديث الزر
