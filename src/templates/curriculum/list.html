@@ -592,8 +592,12 @@
         $.ajax({
             url: url,
             method: 'POST',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            },
             data: {
-                csrf_token: csrfToken  // إرسال CSRF token كـ form data
+                csrf_token: csrfToken
             },
             success: function(response) {
                 if (response.success) {
