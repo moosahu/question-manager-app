@@ -15,7 +15,6 @@ class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
-    show_in_bot = db.Column(db.Boolean, default=True, nullable=False)  # إظهار في البوت (جديد)
     units = db.relationship('Unit', backref='course', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -44,3 +43,4 @@ class Lesson(db.Model):
 
     def __repr__(self):
         return f'<Lesson {self.name}>'
+

@@ -13,24 +13,6 @@
                 <label for="name" class="form-label">اسم المنهج <span class="text-danger">*</span></label>
                 <input type="text" id="name" name="name" class="form-control" value="{{ course.name if course else request.form.get('name', '') }}" required>
             </div>
-            
-            {# خيار إظهار المنهج في البوت #}
-            <div class="mb-3">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="show_in_bot" name="show_in_bot" 
-                           {% if course %}
-                               {% if course.show_in_bot %}checked{% endif %}
-                           {% else %}
-                               checked
-                           {% endif %}>
-                    <label class="form-check-label" for="show_in_bot">
-                        <i class="fas fa-robot me-1"></i>
-                        إظهار في البوت
-                    </label>
-                </div>
-                <small class="text-muted">عند إيقاف هذا الخيار، لن يظهر المنهج في البوت ولكن سيبقى متاحاً في لوحة التحكم</small>
-            </div>
-            
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">{{ submit_text }}</button>
                 <a href="{{ url_for('curriculum.list_courses') }}" class="btn btn-secondary">إلغاء</a>

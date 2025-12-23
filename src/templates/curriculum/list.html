@@ -1,822 +1,170 @@
-{% extends "base.html" %}
+<!-- ============================================ -->
+<!-- تعديلات list.html لعرض حالة البوت -->
+<!-- ============================================ -->
 
-{% block title %}إدارة المنهج -إدارة الأسئلة الكيميائية{% endblock %}
+<!-- 1. أضف هذا الـ CSS في قسم <style> بعد تنسيقات الدروس -->
 
-{% block head_extra %}
-{% endblock %}
+/* تنسيقات حالة البوت */
+.bot-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
 
-{% block content %}
-    
-<main>
-<style>
-    /* تنسيقات خاصة بصفحة إدارة المنهج */
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    
-    .page-title {
-        font-size: 1.8rem;
-        color: #1e2a38;
-        margin: 0;
-        display: flex;
-        align-items: center;
-    }
-    
-    .page-title i {
-        margin-left: 0.5rem;
-        color: #4ecdc4;
-    }
-    
-    .add-btn {
-        background-color: #4ecdc4;
-        color: #1e2a38;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        transition: all 0.3s;
-    }
-    
-    .add-btn i {
-        margin-left: 0.5rem;
-    }
-    
-    .add-btn:hover {
-        background-color: #3dbdb4;
-        transform: translateY(-2px);
-    }
-    
-    /* تنسيقات المناهج */
-    .curriculum-container {
-        margin-bottom: 2rem;
-    }
-    
-    .course-item {
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1.5rem;
-        overflow: hidden;
-    }
-    
-    .course-header {
-        display: flex;
-        align-items: center;
-        padding: 1rem;
-        background-color: #f8f9fa;
-        cursor: pointer;
-        transition: background-color 0.3s;
-        position: relative;
-    }
-    
-    .course-header:hover {
-        background-color: #e9ecef;
-    }
-    
-    .course-indicator {
-        width: 5px;
-        height: 30px;
-        background-color: #4ecdc4;
-        margin-left: 1rem;
-        border-radius: 3px;
-    }
-    
-    .course-title {
-        flex-grow: 1;
-    }
-    
-    .course-title h3 {
-        margin: 0;
-        font-size: 1.25rem;
-        color: #1e2a38;
-    }
-    
-    .course-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .order-badge {
-        background-color: #4ecdc4;
-        color: white;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-        margin-left: 0.5rem;
-    }
-    
-    .btn-action {
-        background: none;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-    }
-    
-    .btn-action i {
-        margin-left: 0.25rem;
-    }
-    
-    .btn-edit {
-        color: #4ecdc4;
-        border-color: #4ecdc4;
-    }
-    
-    .btn-edit:hover {
-        background-color: #4ecdc4;
-        color: white;
-    }
-    
-    .btn-delete {
-        color: #ff6b6b;
-        border-color: #ff6b6b;
-    }
-    
-    .btn-delete:hover {
-        background-color: #ff6b6b;
-        color: white;
-    }
-    
-    .btn-move {
-        color: #6c757d;
-        border-color: #ced4da;
-    }
-    
-    .btn-move:hover {
-        background-color: #6c757d;
-        color: white;
-    }
-    
-    .course-content {
-        padding: 1rem;
-        display: none;
-    }
-    
-    .course-content.active {
-        display: block;
-    }
-    
-    /* تنسيقات الوحدات */
-    .units-container {
-        margin-top: 1rem;
-    }
-    
-    .units-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .units-header h4 {
-        margin: 0;
-        color: #1e2a38;
-        font-size: 1.1rem;
-    }
-    
-    .unit-item {
-        background-color: white;
-        border-radius: 6px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-        margin-bottom: 1rem;
-        overflow: hidden;
-    }
-    
-    .unit-header {
-        display: flex;
-        align-items: center;
-        padding: 0.75rem;
-        background-color: #f8f9fa;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    
-    .unit-header:hover {
-        background-color: #e9ecef;
-    }
-    
-    .unit-indicator {
-        width: 4px;
-        height: 24px;
-        background-color: #ffbe0b;
-        margin-left: 0.75rem;
-        border-radius: 2px;
-    }
-    
-    .unit-title {
-        flex-grow: 1;
-    }
-    
-    .unit-title h5 {
-        margin: 0;
-        font-size: 1.1rem;
-        color: #1e2a38;
-    }
-    
-    .unit-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .unit-content {
-        padding: 0.75rem;
-        display: none;
-    }
-    
-    .unit-content.active {
-        display: block;
-    }
-    
-    /* تنسيقات الدروس */
-    .lessons-container {
-        margin-top: 0.75rem;
-    }
-    
-    .lessons-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .lessons-header h5 {
-        margin: 0;
-        color: #1e2a38;
-        font-size: 1rem;
-    }
-    
-    .lesson-item {
-        background-color: white;
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        margin-bottom: 0.5rem;
-        overflow: hidden;
-    }
-    
-    .lesson-header {
-        display: flex;
-        align-items: center;
-        padding: 0.5rem;
-        transition: background-color 0.3s;
-    }
-    
-    .lesson-header:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .lesson-indicator {
-        width: 3px;
-        height: 20px;
-        background-color: #8a6baf;
-        margin-left: 0.5rem;
-        border-radius: 2px;
-    }
-    
-    .lesson-title {
-        flex-grow: 1;
-    }
-    
-    .lesson-title h6 {
-        margin: 0;
-        font-size: 1rem;
-        color: #1e2a38;
-    }
-    
-    .lesson-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    /* تنسيقات الرسائل الفارغة */
-    .empty-message {
-        padding: 1rem;
-        text-align: center;
-        color: #6c757d;
-        background-color: #f8f9fa;
-        border-radius: 4px;
-        margin: 1rem 0;
-    }
-    
-    /* تنسيقات السحب والإفلات */
-    .ui-sortable-helper {
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        opacity: 0.9;
-    }
-    
-    .ui-sortable-placeholder {
-        visibility: visible !important;
-        background-color: #e9ecef;
-        border: 2px dashed #ced4da;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-    }
-    
-    /* تنسيقات للشاشات الصغيرة */
-    @media (max-width: 768px) {
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .add-btn {
-            margin-top: 1rem;
-        }
-        
-        .course-header, .unit-header, .lesson-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .course-actions, .unit-actions, .lesson-actions {
-            margin-top: 0.5rem;
-            width: 100%;
-            justify-content: space-between;
-        }
-        
-        .course-indicator, .unit-indicator, .lesson-indicator {
-            width: 100%;
-            height: 3px;
-            margin-left: 0;
-            margin-bottom: 0.5rem;
-        }
-    }
-</style>
-<!-- عنوان الصفحة وزر إضافة منهج -->
-<div class="page-header">
-<h2 class="page-title">
-<i class="fas fa-flask"></i>
-        إدارة المنهج
-    </h2>
-<a class="add-btn" href="{{ url_for('curriculum.add_course') }}">
-<i class="fas fa-plus"></i>
-        إضافة منهج جديد
-    </a>
-</div>
-<!-- قائمة المناهج -->
-<div class="curriculum-container">
-    {% if courses %}
-        <div class="courses-list" id="courses-list">
-            {% for course in courses %}
-                <div class="course-item" data-id="{{ course.id }}" data-type="course">
+.bot-status.active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.bot-status.inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.bot-toggle-btn {
+    background: none;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+}
+
+.bot-toggle-btn.active {
+    color: #28a745;
+    border-color: #28a745;
+}
+
+.bot-toggle-btn.active:hover {
+    background-color: #28a745;
+    color: white;
+}
+
+.bot-toggle-btn.inactive {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.bot-toggle-btn.inactive:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.bot-toggle-btn i {
+    margin-left: 0.25rem;
+}
+
+
+<!-- 2. عدل course-header ليصبح كالتالي (استبدل الجزء الموجود) -->
+
 <div class="course-header" onclick="toggleCourse({{ course.id }})">
-<div class="course-indicator"></div>
-<div class="course-title">
-<h3>{{ course.name }}</h3>
+    <div class="course-indicator"></div>
+    <div class="course-title">
+        <h3>
+            {{ course.name }}
+            <!-- شارة حالة البوت -->
+            {% if course.show_in_bot %}
+                <span class="bot-status active" title="يظهر في البوت">
+                    <i class="fas fa-robot"></i>
+                    <span>مفعل</span>
+                </span>
+            {% else %}
+                <span class="bot-status inactive" title="لا يظهر في البوت">
+                    <i class="fas fa-robot"></i>
+                    <span>معطل</span>
+                </span>
+            {% endif %}
+        </h3>
+    </div>
+    <div class="course-actions">
+        <span class="order-badge">{{ loop.index }}</span>
+        
+        <!-- زر تبديل حالة البوت -->
+        <button class="bot-toggle-btn {% if course.show_in_bot %}active{% else %}inactive{% endif %}" 
+                onclick="event.stopPropagation(); toggleBotVisibility({{ course.id }}, this);"
+                title="{% if course.show_in_bot %}إيقاف الظهور في البوت{% else %}تفعيل الظهور في البوت{% endif %}">
+            <i class="fas fa-robot"></i>
+            {% if course.show_in_bot %}
+                <i class="fas fa-eye"></i>
+            {% else %}
+                <i class="fas fa-eye-slash"></i>
+            {% endif %}
+        </button>
+        
+        <button class="btn-action btn-move" onclick="moveItem('course', {{ course.id }}, 'up', event)">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        <button class="btn-action btn-move" onclick="moveItem('course', {{ course.id }}, 'down', event)">
+            <i class="fas fa-arrow-down"></i>
+        </button>
+        <a class="btn-action btn-edit" href="{{ url_for('curriculum.edit_course', course_id=course.id) }}">
+            <i class="fas fa-edit"></i>
+            تعديل
+        </a>
+        <button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('course', {{ course.id }}, event); return false;">
+            <i class="fas fa-trash"></i>
+            حذف
+        </button>
+    </div>
 </div>
-<div class="course-actions">
-<span class="order-badge">{{ loop.index }}</span>
-<button class="btn-action btn-move" onclick="moveItem('course', {{ course.id }}, 'up', event)">
-<i class="fas fa-arrow-up"></i>
-</button>
-<button class="btn-action btn-move" onclick="moveItem('course', {{ course.id }}, 'down', event)">
-<i class="fas fa-arrow-down"></i>
-</button>
-<a class="btn-action btn-edit" href="{{ url_for('curriculum.edit_course', course_id=course.id) }}">
-<i class="fas fa-edit"></i>
-                                تعديل
-                            </a>
-<button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('course', {{ course.id }}, event); return false;">
-<i class="fas fa-trash"></i>
-                                حذف
-                            </button>
-</div>
-</div>
-<div class="course-content" id="course-content-{{ course.id }}">
-<div class="units-container">
-<div class="units-header">
-<h4>الوحدات</h4>
-<a class="btn-action btn-edit" href="{{ url_for('curriculum.add_unit', course_id=course.id) }}">
-<i class="fas fa-plus"></i>
-                                    إضافة وحدة
-                                </a>
-</div>
-<div class="units-list" id="units-list-{{ course.id }}">
-                                {% for unit in course.units|sort(attribute='order_num') %}
-                                    <div class="unit-item" data-id="{{ unit.id }}" data-type="unit">
-<div class="unit-header" onclick="toggleUnit({{ unit.id }}, event)">
-<div class="unit-indicator"></div>
-<div class="unit-title">
-<h5>{{ unit.name }}</h5>
-</div>
-<div class="unit-actions">
-<span class="order-badge">{{ loop.index }}</span>
-<button class="btn-action btn-move" onclick="moveItem('unit', {{ unit.id }}, 'up', event)">
-<i class="fas fa-arrow-up"></i>
-</button>
-<button class="btn-action btn-move" onclick="moveItem('unit', {{ unit.id }}, 'down', event)">
-<i class="fas fa-arrow-down"></i>
-</button>
-<a class="btn-action btn-edit" href="{{ url_for('curriculum.edit_unit', unit_id=unit.id) }}">
-<i class="fas fa-edit"></i>
-                                                    تعديل
-                                                </a>
-<button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('unit', {{ unit.id }}, event); return false;">
-<i class="fas fa-trash"></i>
-                                                    حذف
-                                                </button>
-</div>
-</div>
-<div class="unit-content" id="unit-content-{{ unit.id }}">
-<div class="lessons-container">
-<div class="lessons-header">
-<h5>الدروس</h5>
-<a class="btn-action btn-edit" href="{{ url_for('curriculum.add_lesson', unit_id=unit.id) }}">
-<i class="fas fa-plus"></i>
-                                                        إضافة درس
-                                                    </a>
-</div>
-<div class="lessons-list" id="lessons-list-{{ unit.id }}">
-                                                    {% for lesson in unit.lessons|sort(attribute='order_num') %}
-                                                        <div class="lesson-item" data-id="{{ lesson.id }}" data-type="lesson">
-<div class="lesson-header">
-<div class="lesson-indicator"></div>
-<div class="lesson-title">
-<h6>{{ lesson.name }}</h6>
-</div>
-<div class="lesson-actions">
-<span class="order-badge">{{ loop.index }}</span>
-<button class="btn-action btn-move" onclick="moveItem('lesson', {{ lesson.id }}, 'up', event)">
-<i class="fas fa-arrow-up"></i>
-</button>
-<button class="btn-action btn-move" onclick="moveItem('lesson', {{ lesson.id }}, 'down', event)">
-<i class="fas fa-arrow-down"></i>
-</button>
-<a class="btn-action btn-edit" href="{{ url_for('curriculum.edit_lesson', lesson_id=lesson.id) }}">
-<i class="fas fa-edit"></i>
-                                                                        تعديل
-                                                                    </a>
-<button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('lesson', {{ lesson.id }}, event); return false;">
-<i class="fas fa-trash"></i>
-                                                                        حذف
-                                                                    </button>
-</div>
-</div>
-</div>
-                                                    {% else %}
-                                                        <div class="empty-message">لا توجد دروس في هذه الوحدة.</div>
-                                                    {% endfor %}
-                                                </div>
-</div>
-</div>
-</div>
-                                {% else %}
-                                    <div class="empty-message">لا توجد وحدات في هذا المنهج.</div>
-                                {% endfor %}
-                            </div>
-</div>
-</div>
-</div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="empty-message">لا توجد مناهج. قم بإضافة منهج جديد للبدء.</div>
-    {% endif %}
-</div>
-<!-- نوافذ الحوار -->
-<div aria-hidden="true" aria-labelledby="deleteModalLabel" class="modal fade" id="deleteModal" tabindex="-1">
-<div class="modal-dialog">
-<div class="modal-content">
-<div class="modal-header">
-<h5 class="modal-title" id="deleteModalLabel">تأكيد الحذف</h5>
-<button aria-label="إغلاق" class="btn-close" data-bs-dismiss="modal" type="button"></button>
-</div>
-<div class="modal-body">
-                هل أنت متأكد من رغبتك في حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.
-            </div>
-<div class="modal-footer">
-<button class="btn btn-secondary" data-bs-dismiss="modal" type="button">إلغاء</button>
-<a class="btn btn-danger" href="#" id="confirmDeleteBtn">تأكيد الحذف</a>
-</div>
-</div>
-</div>
-</div>
-<!-- النماذج المخفية -->
-<form id="orderForm" method="post" style="display: none;">
-<input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-</form>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-<script>
-    // متغيرات عامة
-    const ANIMATION_SPEED = 300; // سرعة الحركات بالمللي ثانية
-    let courseStates = {}; // لتخزين حالة فتح/إغلاق المناهج
-    let unitStates = {}; // لتخزين حالة فتح/إغلاق الوحدات
 
-    // عند تحميل الصفحة
-    document.addEventListener('DOMContentLoaded', function() {
-        // استعادة حالة المناهج والوحدات من التخزين المحلي
-        loadStates();
-        
-        // تطبيق حالة المناهج والوحدات
-        applyStates();
-        
-        // تهيئة وظيفة السحب والإفلات للمناهج
-        initSortable();
-    });
 
-    // تهيئة وظيفة السحب والإفلات
-    function initSortable() {
-        // تهيئة السحب والإفلات للمناهج
-        if ($("#courses-list").length) {
-            $("#courses-list").sortable({
-                handle: ".course-header",
-                placeholder: "ui-sortable-placeholder",
-                update: function(event, ui) {
-                    updateOrder('course', null);
-                }
-            });
-        }
-        
-        // تهيئة السحب والإفلات للوحدات
-        $(".units-list").each(function() {
-            const courseId = $(this).attr('id').replace('units-list-', '');
-            $(this).sortable({
-                handle: ".unit-header",
-                placeholder: "ui-sortable-placeholder",
-                update: function(event, ui) {
-                    updateOrder('unit', courseId);
-                }
-            });
-        });
-        
-        // تهيئة السحب والإفلات للدروس
-        $(".lessons-list").each(function() {
-            const unitId = $(this).attr('id').replace('lessons-list-', '');
-            $(this).sortable({
-                handle: ".lesson-header",
-                placeholder: "ui-sortable-placeholder",
-                update: function(event, ui) {
-                    updateOrder('lesson', unitId);
-                }
-            });
-        });
-    }
+<!-- 3. أضف هذه الدالة JavaScript في قسم <script> -->
 
-    // تبديل حالة عرض المنهج
-    function toggleCourse(courseId) {
-        const content = document.getElementById(`course-content-${courseId}`);
-        
-        if (content.style.display === 'none' || content.style.display === '') {
-            content.style.display = 'block';
-            courseStates[courseId] = true;
-        } else {
-            content.style.display = 'none';
-            courseStates[courseId] = false;
-        }
-        
-        saveStates();
-    }
-
-    // تبديل حالة عرض الوحدة
-    function toggleUnit(unitId, event) {
-        event.stopPropagation();
-        
-        const content = document.getElementById(`unit-content-${unitId}`);
-        
-        if (content.style.display === 'none' || content.style.display === '') {
-            content.style.display = 'block';
-            unitStates[unitId] = true;
-        } else {
-            content.style.display = 'none';
-            unitStates[unitId] = false;
-        }
-        
-        saveStates();
-    }
-
-    // حفظ الحالات في التخزين المحلي
-    function saveStates() {
-        localStorage.setItem('courseStates', JSON.stringify(courseStates));
-        localStorage.setItem('unitStates', JSON.stringify(unitStates));
-    }
-
-    // تحميل الحالات من التخزين المحلي
-    function loadStates() {
-        const savedCourseStates = localStorage.getItem('courseStates');
-        const savedUnitStates = localStorage.getItem('unitStates');
-        
-        if (savedCourseStates) {
-            courseStates = JSON.parse(savedCourseStates);
-        }
-        
-        if (savedUnitStates) {
-            unitStates = JSON.parse(savedUnitStates);
-        }
-    }
-
-    // تطبيق الحالات المحفوظة
-    function applyStates() {
-        // تطبيق حالة المناهج
-        Object.keys(courseStates).forEach(courseId => {
-            const content = document.getElementById(`course-content-${courseId}`);
-            if (content) {
-                content.style.display = courseStates[courseId] ? 'block' : 'none';
-            }
-        });
-        
-        // تطبيق حالة الوحدات
-        Object.keys(unitStates).forEach(unitId => {
-            const content = document.getElementById(`unit-content-${unitId}`);
-            if (content) {
-                content.style.display = unitStates[unitId] ? 'block' : 'none';
-            }
-        });
-    }
-
-    // تحديث ترتيب العناصر (محدث ومحسن لأزرار الأعلى والأسفل)
-    function updateOrder(type, parentId) {
-        console.log("Extracting order data...");
-        
-        let items = [];
-        let selector = '';
-        
-        if (type === 'course') {
-            selector = '#courses-list .course-item';
-        } else if (type === 'unit') {
-            selector = `#units-list-${parentId} .unit-item`;
-        } else if (type === 'lesson') {
-            selector = `#lessons-list-${parentId} .lesson-item`;
-        }
-        
-        $(selector).each(function(index) {
-            items.push($(this).data('id'));
-        });
-        
-        // إرسال البيانات إلى الخادم (طريقة محدثة)
-        $.ajax({
-            url: `/curriculum/update_bulk_order`,
-            method: 'POST',
-            data: {
-                type: type,
-                parent_id: parentId,
-                new_order: JSON.stringify(items),
-                csrf_token: $('input[name="csrf_token"]').val()
-            },
-            success: function(response) {
-                console.log('✅ Order update successful:', response);
-                if (response.success) {
-                    // تحديث أرقام الترتيب في الواجهة
-                    updateOrderBadges(selector);
-                    
-                    // إظهار رسالة نجاح
-                    showToast('تم تحديث الترتيب بنجاح', 'success');
+// تبديل حالة ظهور المنهج في البوت
+function toggleBotVisibility(courseId, button) {
+    $.ajax({
+        url: `/api/v1/courses/${courseId}/toggle-bot-visibility`,
+        method: 'POST',
+        data: {
+            csrf_token: $('input[name="csrf_token"]').val()
+        },
+        success: function(response) {
+            if (response.success) {
+                // تحديث الزر
+                if (response.show_in_bot) {
+                    button.classList.remove('inactive');
+                    button.classList.add('active');
+                    button.title = 'إيقاف الظهور في البوت';
+                    button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye"></i>';
                 } else {
-                    console.error('Error updating order:', response.error);
-                    showToast('فشل في تحديث الترتيب: ' + (response.error || 'خطأ غير معروف'), 'danger');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Order update failed:', {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    responseText: xhr.responseText,
-                    error: error
-                });
-                
-                let errorMessage = 'خطأ في الاتصال بالخادم';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMessage = xhr.responseJSON.error;
-                } else if (xhr.status === 400) {
-                    errorMessage = 'بيانات غير صالحة';
-                } else if (xhr.status === 500) {
-                    errorMessage = 'خطأ في الخادم';
+                    button.classList.remove('active');
+                    button.classList.add('inactive');
+                    button.title = 'تفعيل الظهور في البوت';
+                    button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye-slash"></i>';
                 }
                 
-                showToast('فشل في تحديث الترتيب: ' + errorMessage, 'danger');
-            }
-        });
-    }
-
-    // تحديث أرقام الترتيب في الواجهة
-    function updateOrderBadges(selector) {
-        $(selector).each(function(index) {
-            $(this).find('.order-badge').text(index + 1);
-        });
-    }
-
-    // تحريك العنصر لأعلى أو لأسفل (محدث ومحسن)
-    function moveItem(type, itemId, direction, event) {
-        event.stopPropagation();
-        
-        let item = $(`.${type}-item[data-id="${itemId}"]`);
-        let sibling = direction === 'up' ? item.prev() : item.next();
-        
-        if (sibling.length) {
-            if (direction === 'up') {
-                item.insertBefore(sibling);
+                // تحديث الشارة
+                const courseItem = button.closest('.course-item');
+                const statusBadge = courseItem.querySelector('.bot-status');
+                if (statusBadge) {
+                    if (response.show_in_bot) {
+                        statusBadge.classList.remove('inactive');
+                        statusBadge.classList.add('active');
+                        statusBadge.title = 'يظهر في البوت';
+                        statusBadge.innerHTML = '<i class="fas fa-robot"></i><span>مفعل</span>';
+                    } else {
+                        statusBadge.classList.remove('active');
+                        statusBadge.classList.add('inactive');
+                        statusBadge.title = 'لا يظهر في البوت';
+                        statusBadge.innerHTML = '<i class="fas fa-robot"></i><span>معطل</span>';
+                    }
+                }
+                
+                showToast(response.message, 'success');
             } else {
-                item.insertAfter(sibling);
+                showToast('فشل في تغيير الحالة: ' + response.error, 'danger');
             }
-            
-            // تحديد parent_id بناءً على نوع العنصر
-            let parentId = null;
-            if (type === 'unit') {
-                parentId = item.closest('.course-item').data('id');
-            } else if (type === 'lesson') {
-                parentId = item.closest('.unit-item').data('id');
-            }
-            
-            // تحديث الترتيب في قاعدة البيانات
-            updateOrder(type, parentId);
-        } else {
-            // إظهار رسالة إذا لم يكن هناك عنصر للتبديل معه
-            const message = direction === 'up' ? 'هذا العنصر في أعلى القائمة' : 'هذا العنصر في أسفل القائمة';
-            showToast(message, 'info');
+        },
+        error: function(xhr, status, error) {
+            showToast('خطأ في الاتصال بالخادم', 'danger');
         }
-    }
-
-    // تأكيد الحذف - مصحح مع منع انتشار الأحداث
-    function confirmDelete(type, itemId, event) {
-        // منع انتشار الحدث (تم استدعاؤه بالفعل في onclick)
-        
-        // تحديد المسار الصحيح للحذف بناءً على المسارات الفعلية في curriculum.py
-        let deleteUrl = '';
-        if (type === 'course') {
-            deleteUrl = `/curriculum/courses/delete/${itemId}`;
-        } else if (type === 'unit') {
-            deleteUrl = `/curriculum/units/delete/${itemId}`;
-        } else if (type === 'lesson') {
-            deleteUrl = `/curriculum/lessons/delete/${itemId}`;
-        }
-        
-        // تحديث نافذة الحوار
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        const confirmBtn = document.getElementById('confirmDeleteBtn');
-        
-        // تحديث عنوان ونص نافذة الحوار
-        const modalTitle = document.getElementById('deleteModalLabel');
-        const modalBody = document.querySelector('#deleteModal .modal-body');
-        
-        if (type === 'course') {
-            modalTitle.textContent = 'تأكيد حذف المنهج';
-            modalBody.textContent = 'هل أنت متأكد من رغبتك في حذف هذا المنهج وجميع الوحدات والدروس المرتبطة به؟ لا يمكن التراجع عن هذا الإجراء.';
-        } else if (type === 'unit') {
-            modalTitle.textContent = 'تأكيد حذف الوحدة';
-            modalBody.textContent = 'هل أنت متأكد من رغبتك في حذف هذه الوحدة وجميع الدروس المرتبطة بها؟ لا يمكن التراجع عن هذا الإجراء.';
-        } else if (type === 'lesson') {
-            modalTitle.textContent = 'تأكيد حذف الدرس';
-            modalBody.textContent = 'هل أنت متأكد من رغبتك في حذف هذا الدرس وجميع الأسئلة المرتبطة به؟ لا يمكن التراجع عن هذا الإجراء.';
-        }
-        
-        confirmBtn.href = deleteUrl;
-        modal.show();
-    }
-
-    // إظهار رسالة توست (وظيفة جديدة)
-    function showToast(message, type) {
-        // إنشاء عنصر التوست
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show`;
-        toast.setAttribute('role', 'alert');
-        toast.style.position = 'fixed';
-        toast.style.top = '20px';
-        toast.style.right = '20px';
-        toast.style.zIndex = '9999';
-        toast.style.minWidth = '300px';
-        
-        // إضافة النص
-        const textNode = document.createTextNode(message);
-        toast.appendChild(textNode);
-        
-        // إضافة زر الإغلاق
-        const closeButton = document.createElement('button');
-        closeButton.type = 'button';
-        closeButton.className = 'btn-close';
-        closeButton.setAttribute('data-bs-dismiss', 'alert');
-        closeButton.setAttribute('aria-label', 'Close');
-        toast.appendChild(closeButton);
-        
-        // إضافة التوست إلى الصفحة
-        document.body.appendChild(toast);
-        
-        // إزالة التوست بعد 5 ثوان
-        setTimeout(function() {
-            if (toast.parentNode) {
-                toast.remove();
-            }
-        }, 5000);
-    }
-</script>
-</main>
-{% endblock %}
-
+    });
+}
