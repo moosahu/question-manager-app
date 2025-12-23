@@ -646,6 +646,7 @@ def get_unit_questions_direct(unit_id):
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
             .order_by(Question.question_id)
             .all()
         )
@@ -676,6 +677,7 @@ def get_course_questions_direct(course_id):
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
             .order_by(Question.question_id)
             .all()
         )
@@ -733,12 +735,13 @@ def get_course_unit_questions(course_id, unit_id):
 # +++ NEW API Endpoint for All Questions +++ #
 @api_bp.route("/questions/all", methods=["GET"])
 def get_all_questions_in_db(): # Renamed function to be more descriptive
-    """Returns a list of all questions in the database."""
+    """Returns a list of all questions in the database that are visible in bot."""
     logger.info("API request received for listing all questions in the database.")
     try:
         questions = (
             Question.query
             .options(joinedload(Question.options)) # Eager load options
+            .filter(Question.show_in_bot == True)  # فلتر الأسئلة المرئية في البوت
             .order_by(Question.question_id) # Optional: order by ID or another field
             .all()
         )
