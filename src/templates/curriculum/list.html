@@ -584,11 +584,14 @@
         }
     }
 
-    // تبديل حالة ظهور المنهج في البوت
+    // تبديل حالة ظهور المنهج في البوت - متوافق مع API الموجود
     function toggleBotVisibility(courseId, button) {
+        // URL من API الموجود
+        const url = `/api/v1/courses/${courseId}/toggle-bot-visibility`;
+        
         $.ajax({
-            url: `/api/v1/courses/${courseId}/toggle-bot-visibility`,
-            method: 'POST',
+            url: url,
+            method: 'POST',  // الـ API يقبل POST
             data: {
                 csrf_token: $('input[name="csrf_token"]').val()
             },
@@ -630,7 +633,18 @@
                 }
             },
             error: function(xhr, status, error) {
-                showToast('خطأ في الاتصال بالخادم', 'danger');
+                // معالجة الأخطاء بشكل أفضل
+                let errorMsg = 'خطأ في الاتصال بالخادم';
+                if (xhr.status === 401) {
+                    errorMsg = 'يجب تسجيل الدخول أولاً';
+                } else if (xhr.status === 403) {
+                    errorMsg = 'ليس لديك صلاحية لهذا الإجراء';
+                } else if (xhr.status === 404) {
+                    errorMsg = 'المنهج غير موجود';
+                } else if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                showToast(errorMsg, 'danger');
             }
         });
     }
