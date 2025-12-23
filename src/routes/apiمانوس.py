@@ -3,7 +3,6 @@
 import logging
 import time
 from flask import Blueprint, jsonify, current_app, url_for, request, session # Added request and session
-from flask_wtf.csrf import csrf_exempt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
@@ -488,7 +487,6 @@ def get_all_courses():
 
 # --- API Endpoint for Toggling Course Bot Visibility --- #
 @api_bp.route("/courses/<int:course_id>/toggle-bot-visibility", methods=["PUT", "POST"])
-@csrf_exempt  # إزالة CSRF protection للـ API
 @login_required
 def toggle_course_bot_visibility(course_id):
     """Toggle the show_in_bot status of a course."""
