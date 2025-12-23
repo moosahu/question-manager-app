@@ -216,7 +216,6 @@ def add_course():
     
     if request.method == "POST":
         name = request.form.get("name")
-        show_in_bot = 'show_in_bot' in request.form  # True إذا كان checkbox محدد
         if name:
             existing_course = Course.query.filter_by(name=name).first()
             if existing_course:
@@ -224,7 +223,7 @@ def add_course():
             else:
                 # حساب أعلى قيمة ترتيب موجودة وإضافة 10 إليها
                 max_order = db.session.query(db.func.max(Course.order_num)).scalar() or 0
-                new_course = Course(name=name, order_num=max_order + 10, show_in_bot=show_in_bot)
+                new_course = Course(name=name, order_num=max_order + 10)
                 db.session.add(new_course)
                 try:
                     db.session.commit()
@@ -248,14 +247,12 @@ def edit_course(course_id):
     course = Course.query.get_or_404(course_id)
     if request.method == "POST":
         name = request.form.get("name")
-        show_in_bot = 'show_in_bot' in request.form  # True إذا كان checkbox محدد
         if name:
             existing_course = Course.query.filter(Course.name == name, Course.id != course_id).first()
             if existing_course:
                 flash("يوجد منهج آخر بهذا الاسم بالفعل.", "warning")
             else:
                 course.name = name
-                course.show_in_bot = show_in_bot
                 try:
                     db.session.commit()
                     flash("تم تحديث المنهج بنجاح!", "success")
