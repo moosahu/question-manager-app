@@ -1729,7 +1729,7 @@ async function confirmAndPrint() {
 
 async function loadCourses() {
     try {
-        const response = await fetch(`${API_BASE}/courses?show_all=true`);
+        const response = await fetch(`${API_BASE}/courses`);
         const data = await response.json();
         
         const courseSelect = document.getElementById('courseSelect');
