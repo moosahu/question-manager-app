@@ -666,7 +666,7 @@
             }
 
             // Load courses on page load
-            fetch("/api/v1/courses?show_all=true")
+            fetch("/api/v1/courses")
                 .then(response => {
                     console.log("Courses API Response:", response);
                     return response.json();
