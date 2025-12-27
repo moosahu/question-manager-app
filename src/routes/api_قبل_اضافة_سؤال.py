@@ -3,6 +3,7 @@
 import logging
 import time
 from flask import Blueprint, jsonify, current_app, url_for, request, session # Added request and session
+from functools import wraps
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
@@ -117,6 +118,17 @@ init_backup_system()
 
 # Create Blueprint
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+# دالة مخصصة لإزالة CSRF protection
+def csrf_exempt(f):
+    """Decorator to exempt a view from CSRF protection"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # تعطيل CSRF validation للـ endpoint هذا
+        return f(*args, **kwargs)
+    # وضع علامة على الدالة لتعطيل CSRF
+    decorated_function.csrf_exempt = True
+    return decorated_function
 
 logger = logging.getLogger(__name__)
 
@@ -487,9 +499,10 @@ def get_all_courses():
 
 # --- API Endpoint for Toggling Course Bot Visibility --- #
 @api_bp.route("/courses/<int:course_id>/toggle-bot-visibility", methods=["PUT", "POST"])
+@csrf_exempt  # إزالة CSRF protection للـ API
 @login_required
 def toggle_course_bot_visibility(course_id):
-    """Toggle the show_in_bot status of a course."""
+    """Toggle the show_in_bot status of a course and update related questions."""
     try:
         course = Course.query.get(course_id)
         if not course:
@@ -497,6 +510,29 @@ def toggle_course_bot_visibility(course_id):
         
         # تبديل الحالة
         course.show_in_bot = not course.show_in_bot
+        
+        # إذا تم إخفاء المنهج، إخفاء جميع الأسئلة التابعة له
+        if not course.show_in_bot:
+            # الحصول على جميع الوحدات التابعة للمنهج
+            units = Unit.query.filter_by(course_id=course_id).all()
+            for unit in units:
+                # الحصول على جميع الدروس التابعة للوحدة
+                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
+                for lesson in lessons:
+                    # إخفاء جميع الأسئلة في الدرس
+                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
+                    for question in questions:
+                        question.show_in_bot = False
+        else:
+            # إذا تم تفعيل المنهج، تفعيل جميع الأسئلة التابعة له
+            units = Unit.query.filter_by(course_id=course_id).all()
+            for unit in units:
+                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
+                for lesson in lessons:
+                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
+                    for question in questions:
+                        question.show_in_bot = True
+        
         db.session.commit()
         
         status_text = "مفعل" if course.show_in_bot else "معطل"
@@ -604,12 +640,16 @@ def get_unit_questions_direct(unit_id):
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
+        # فلتر الأسئلة بناءً على حالة المنهج الذي تابعة له
         questions = (
             Question.query
             .join(Question.lesson)
+            .join(Lesson.unit)
+            .join(Unit.course)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id)
             .all()
         )
@@ -633,6 +673,7 @@ def get_course_questions_direct(course_id):
         if not course:
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
+        # فلتر الأسئلة بناءً على حالة المنهج
         questions = (
             Question.query
             .join(Question.lesson)
@@ -640,6 +681,7 @@ def get_course_questions_direct(course_id):
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id)
             .all()
         )
@@ -697,12 +739,17 @@ def get_course_unit_questions(course_id, unit_id):
 # +++ NEW API Endpoint for All Questions +++ #
 @api_bp.route("/questions/all", methods=["GET"])
 def get_all_questions_in_db(): # Renamed function to be more descriptive
-    """Returns a list of all questions in the database."""
+    """Returns a list of all questions in the database where the course is visible in bot."""
     logger.info("API request received for listing all questions in the database.")
     try:
+        # فلتر الأسئلة بناءً على حالة المنهج الذي تابعة له
         questions = (
             Question.query
+            .join(Question.lesson)
+            .join(Lesson.unit)
+            .join(Unit.course)
             .options(joinedload(Question.options)) # Eager load options
+            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .order_by(Question.question_id) # Optional: order by ID or another field
             .all()
         )

@@ -3859,4 +3859,143 @@ def get_course_questions_count(course_id):
             'error': str(e)
         }), 500
 
+
+# ===== إضافة سؤال جديد من التطبيق =====
+@api_bp.route("/questions", methods=["POST"])
+@login_required
+def add_question_api():
+    """
+    إضافة سؤال جديد من التطبيق
+    
+    Request JSON:
+    {
+        "lesson_id": 1,
+        "question_text": "نص السؤال",
+        "image_url": "رابط الصورة (اختياري)",
+        "explanation": "شرح الإجابة (اختياري)",
+        "options": [
+            {"option_text": "الخيار 1", "is_correct": true},
+            {"option_text": "الخيار 2", "is_correct": false},
+            {"option_text": "الخيار 3", "is_correct": false},
+            {"option_text": "الخيار 4", "is_correct": false}
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم إرسال بيانات'
+            }), 400
+        
+        # التحقق من البيانات المطلوبة
+        lesson_id = data.get('lesson_id')
+        question_text = data.get('question_text', '').strip()
+        image_url = data.get('image_url', '').strip() if data.get('image_url') else None
+        explanation = data.get('explanation', '').strip() if data.get('explanation') else None
+        options = data.get('options', [])
+        
+        # التحقق من وجود lesson_id
+        if not lesson_id:
+            return jsonify({
+                'success': False,
+                'error': 'يجب تحديد الدرس (lesson_id)'
+            }), 400
+        
+        # التحقق من وجود الدرس
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
+        
+        # التحقق من وجود نص أو صورة للسؤال
+        if not question_text and not image_url:
+            return jsonify({
+                'success': False,
+                'error': 'يجب إدخال نص السؤال أو رفع صورة'
+            }), 400
+        
+        # التحقق من وجود خيارين على الأقل
+        valid_options = [opt for opt in options if opt.get('option_text', '').strip() or opt.get('image_url')]
+        if len(valid_options) < 2:
+            return jsonify({
+                'success': False,
+                'error': 'يجب إضافة خيارين صالحين على الأقل'
+            }), 400
+        
+        # التحقق من وجود إجابة صحيحة واحدة على الأقل
+        correct_options = [opt for opt in valid_options if opt.get('is_correct', False)]
+        if len(correct_options) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'يجب تحديد إجابة صحيحة واحدة على الأقل'
+            }), 400
+        
+        # إنشاء السؤال
+        question = Question(
+            lesson_id=lesson_id,
+            question_text=question_text if question_text else None,
+            image_url=image_url,
+            explanation=explanation,
+            is_blocked=False
+        )
+        db.session.add(question)
+        db.session.flush()  # للحصول على question_id
+        
+        # إضافة الخيارات
+        for opt_data in valid_options:
+            option = Option(
+                question_id=question.question_id,
+                option_text=opt_data.get('option_text', '').strip() if opt_data.get('option_text') else None,
+                image_url=opt_data.get('image_url', '').strip() if opt_data.get('image_url') else None,
+                is_correct=opt_data.get('is_correct', False)
+            )
+            db.session.add(option)
+        
+        db.session.commit()
+        
+        # تسجيل النشاط إذا كان متاحاً
+        if activity_available:
+            try:
+                activity = Activity(
+                    user_id=current_user.id if hasattr(current_user, 'id') else None,
+                    action_type='add',
+                    entity_type='question',
+                    entity_id=question.question_id,
+                    details=f'إضافة سؤال جديد في درس: {lesson.name}'
+                )
+                db.session.add(activity)
+                db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not log activity: {e}")
+        
+        logger.info(f"Question {question.question_id} added successfully via API")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تمت إضافة السؤال بنجاح',
+            'question_id': question.question_id,
+            'lesson_name': lesson.name
+        }), 201
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.exception(f"Database error adding question: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في قاعدة البيانات: {str(e)}'
+        }), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error adding question: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ===== نهاية نظام استخراج وتوليد نماذج الاختبار =====
