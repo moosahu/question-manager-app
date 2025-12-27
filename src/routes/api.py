@@ -640,8 +640,12 @@ def get_unit_questions_direct(unit_id):
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
-        # فلتر الأسئلة بناءً على حالة المنهج الذي تابعة له
-        questions = (
+        
+        # التحقق من show_all parameter
+        show_all = request.args.get('show_all', 'false').lower() == 'true'
+        
+        # بناء الاستعلام
+        query = (
             Question.query
             .join(Question.lesson)
             .join(Lesson.unit)
@@ -649,11 +653,15 @@ def get_unit_questions_direct(unit_id):
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
-            .order_by(Question.question_id)
-            .all()
         )
-        logger.info(f"Found {len(questions)} questions for unit_id: {unit_id}")
+        
+        # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
+        if not show_all:
+            query = query.filter(Course.show_in_bot == True)
+        
+        questions = query.order_by(Question.question_id).all()
+        
+        logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
     except SQLAlchemyError as e:
@@ -673,19 +681,28 @@ def get_course_questions_direct(course_id):
         if not course:
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
-        # فلتر الأسئلة بناءً على حالة المنهج
-        questions = (
+        
+        # التحقق من show_all parameter
+        show_all = request.args.get('show_all', 'false').lower() == 'true'
+        
+        # بناء الاستعلام
+        query = (
             Question.query
             .join(Question.lesson)
             .join(Lesson.unit)
+            .join(Unit.course)
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
-            .order_by(Question.question_id)
-            .all()
         )
-        logger.info(f"Found {len(questions)} questions for course_id: {course_id}")
+        
+        # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
+        if not show_all:
+            query = query.filter(Course.show_in_bot == True)
+        
+        questions = query.order_by(Question.question_id).all()
+        
+        logger.info(f"Found {len(questions)} questions for course_id: {course_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
     except SQLAlchemyError as e:
@@ -3777,6 +3794,42 @@ def get_unit_lessons_export(course_id, unit_id):
         
     except Exception as e:
         logger.exception(f"Error getting unit lessons: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/units/<int:unit_id>/questions-count", methods=["GET"])
+@login_required
+def get_unit_questions_count(unit_id):
+    """
+    الحصول على عدد الأسئلة في وحدة معينة
+    """
+    try:
+        unit = Unit.query.get(unit_id)
+        
+        if not unit:
+            return jsonify({
+                'success': False,
+                'error': 'الوحدة غير موجودة'
+            }), 404
+        
+        # عد الأسئلة غير المحظورة في كل دروس الوحدة
+        count = Question.query.join(Lesson).filter(
+            Lesson.unit_id == unit_id,
+            Question.is_blocked == False
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'unit_id': unit_id,
+            'unit_name': unit.name,
+            'questions_count': count
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting unit questions count: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
