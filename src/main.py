@@ -7,6 +7,7 @@ from flask_wtf.csrf import CSRFProtect
 from src.extensions import db
 from src.models.notification import Notification
 from datetime import datetime
+from src.routes.students import students_bp
 import uuid
 
 # إعداد نظام السجلات
