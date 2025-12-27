@@ -259,11 +259,6 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     csrf = CSRFProtect(app)  # تهيئة حماية CSRF
-    
-    # إعفاء API من CSRF (آمن لأن API محمي بـ login_required + session)
-    # التطبيقات لا تستخدم متصفح فلا تحتاج حماية CSRF
-    csrf.exempt(api_bp)
-    
     login_manager.login_view = "auth.login" # Set the login view
 
     # ===== إضافة CORS Middleware =====
