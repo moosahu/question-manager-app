@@ -3862,6 +3862,7 @@ def get_course_questions_count(course_id):
 
 # ===== إضافة سؤال جديد من التطبيق =====
 @api_bp.route("/questions", methods=["POST"])
+@csrf_exempt
 @login_required
 def add_question_api():
     """
