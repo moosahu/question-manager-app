@@ -3998,4 +3998,353 @@ def add_question_api():
         }), 500
 
 
+# ===== عرض سؤال واحد =====
+@api_bp.route("/questions/<int:question_id>", methods=["GET"])
+@login_required
+def get_question_api(question_id):
+    """
+    الحصول على تفاصيل سؤال واحد
+    """
+    try:
+        question = Question.query.options(
+            joinedload(Question.options),
+            joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+        ).get(question_id)
+        
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'question': format_question(question)
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting question {question_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ===== تعديل سؤال =====
+@api_bp.route("/questions/<int:question_id>", methods=["PUT"])
+@login_required
+def update_question_api(question_id):
+    """
+    تعديل سؤال موجود
+    
+    Request JSON:
+    {
+        "question_text": "نص السؤال الجديد",
+        "image_url": "رابط الصورة (اختياري)",
+        "explanation": "شرح الإجابة (اختياري)",
+        "is_blocked": false,
+        "options": [
+            {"option_id": 1, "option_text": "الخيار 1", "is_correct": true},
+            {"option_id": 2, "option_text": "الخيار 2", "is_correct": false}
+        ]
+    }
+    """
+    try:
+        question = Question.query.get(question_id)
+        
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم إرسال بيانات'
+            }), 400
+        
+        # تحديث بيانات السؤال
+        if 'question_text' in data:
+            question.question_text = data['question_text'].strip() if data['question_text'] else None
+        
+        if 'image_url' in data:
+            question.image_url = data['image_url'].strip() if data['image_url'] else None
+        
+        if 'explanation' in data:
+            question.explanation = data['explanation'].strip() if data['explanation'] else None
+        
+        if 'explanation_image_path' in data:
+            question.explanation_image_path = data['explanation_image_path'].strip() if data['explanation_image_path'] else None
+        
+        if 'is_blocked' in data:
+            question.is_blocked = bool(data['is_blocked'])
+        
+        if 'lesson_id' in data:
+            # التحقق من وجود الدرس الجديد
+            new_lesson = Lesson.query.get(data['lesson_id'])
+            if new_lesson:
+                question.lesson_id = data['lesson_id']
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'الدرس الجديد غير موجود'
+                }), 404
+        
+        # تحديث الخيارات إذا تم إرسالها
+        if 'options' in data and data['options']:
+            options_data = data['options']
+            
+            # التحقق من وجود خيارين على الأقل
+            valid_options = [opt for opt in options_data if opt.get('option_text', '').strip() or opt.get('image_url')]
+            if len(valid_options) < 2:
+                return jsonify({
+                    'success': False,
+                    'error': 'يجب وجود خيارين صالحين على الأقل'
+                }), 400
+            
+            # التحقق من وجود إجابة صحيحة
+            correct_options = [opt for opt in valid_options if opt.get('is_correct', False)]
+            if len(correct_options) == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'يجب تحديد إجابة صحيحة واحدة على الأقل'
+                }), 400
+            
+            # حذف الخيارات القديمة
+            Option.query.filter_by(question_id=question_id).delete()
+            
+            # إضافة الخيارات الجديدة
+            for opt_data in valid_options:
+                option = Option(
+                    question_id=question_id,
+                    option_text=opt_data.get('option_text', '').strip() if opt_data.get('option_text') else None,
+                    image_url=opt_data.get('image_url', '').strip() if opt_data.get('image_url') else None,
+                    is_correct=opt_data.get('is_correct', False)
+                )
+                db.session.add(option)
+        
+        db.session.commit()
+        
+        # تسجيل النشاط
+        if activity_available:
+            try:
+                activity = Activity(
+                    user_id=current_user.id if hasattr(current_user, 'id') else None,
+                    action_type='edit',
+                    entity_type='question',
+                    entity_id=question.question_id,
+                    details=f'تعديل سؤال: {question.question_id}'
+                )
+                db.session.add(activity)
+                db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not log activity: {e}")
+        
+        logger.info(f"Question {question_id} updated successfully via API")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم تعديل السؤال بنجاح',
+            'question_id': question_id
+        })
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.exception(f"Database error updating question: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في قاعدة البيانات: {str(e)}'
+        }), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error updating question: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ===== حذف سؤال =====
+@api_bp.route("/questions/<int:question_id>", methods=["DELETE"])
+@login_required
+def delete_question_api(question_id):
+    """
+    حذف سؤال
+    """
+    try:
+        question = Question.query.get(question_id)
+        
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        # حفظ معلومات السؤال قبل الحذف للتسجيل
+        question_text_preview = question.question_text[:50] if question.question_text else '[صورة]'
+        lesson_name = question.lesson.name if question.lesson else 'غير معروف'
+        
+        # حذف السؤال (الخيارات ستحذف تلقائياً بسبب cascade)
+        db.session.delete(question)
+        db.session.commit()
+        
+        # تسجيل النشاط
+        if activity_available:
+            try:
+                activity = Activity(
+                    user_id=current_user.id if hasattr(current_user, 'id') else None,
+                    action_type='delete',
+                    entity_type='question',
+                    entity_id=question_id,
+                    details=f'حذف سؤال من درس: {lesson_name}'
+                )
+                db.session.add(activity)
+                db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not log activity: {e}")
+        
+        logger.info(f"Question {question_id} deleted successfully via API")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حذف السؤال بنجاح'
+        })
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.exception(f"Database error deleting question: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في قاعدة البيانات: {str(e)}'
+        }), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error deleting question: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ===== حظر/إلغاء حظر سؤال =====
+@api_bp.route("/questions/<int:question_id>/toggle-block", methods=["POST"])
+@login_required
+def toggle_question_block_api(question_id):
+    """
+    تبديل حالة حظر السؤال
+    """
+    try:
+        question = Question.query.get(question_id)
+        
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': 'السؤال غير موجود'
+            }), 404
+        
+        # تبديل حالة الحظر
+        question.is_blocked = not question.is_blocked
+        db.session.commit()
+        
+        status = 'محظور' if question.is_blocked else 'مفعّل'
+        
+        logger.info(f"Question {question_id} block status toggled to {question.is_blocked}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم تغيير حالة السؤال إلى: {status}',
+            'is_blocked': question.is_blocked
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error toggling question block: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ===== البحث في الأسئلة =====
+@api_bp.route("/questions/search", methods=["GET"])
+@login_required
+def search_questions_api():
+    """
+    البحث في الأسئلة
+    
+    Query Parameters:
+    - q: نص البحث
+    - course_id: تصفية حسب المنهج
+    - unit_id: تصفية حسب الوحدة
+    - lesson_id: تصفية حسب الدرس
+    - page: رقم الصفحة (افتراضي: 1)
+    - per_page: عدد النتائج في الصفحة (افتراضي: 20)
+    """
+    try:
+        search_query = request.args.get('q', '').strip()
+        course_id = request.args.get('course_id', type=int)
+        unit_id = request.args.get('unit_id', type=int)
+        lesson_id = request.args.get('lesson_id', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # بناء الاستعلام
+        query = Question.query.options(
+            joinedload(Question.options),
+            joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+        ).filter(Question.is_blocked == False)
+        
+        # تصفية حسب الدرس
+        if lesson_id:
+            query = query.filter(Question.lesson_id == lesson_id)
+        # تصفية حسب الوحدة
+        elif unit_id:
+            lessons = Lesson.query.filter_by(unit_id=unit_id).all()
+            lesson_ids = [l.id for l in lessons]
+            query = query.filter(Question.lesson_id.in_(lesson_ids))
+        # تصفية حسب المنهج
+        elif course_id:
+            units = Unit.query.filter_by(course_id=course_id).all()
+            lesson_ids = []
+            for unit in units:
+                lesson_ids.extend([l.id for l in unit.lessons])
+            query = query.filter(Question.lesson_id.in_(lesson_ids))
+        
+        # البحث في النص
+        if search_query:
+            query = query.filter(Question.question_text.ilike(f'%{search_query}%'))
+        
+        # ترتيب حسب الأحدث
+        query = query.order_by(Question.question_id.desc())
+        
+        # تطبيق الصفحات
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # تنسيق النتائج
+        questions = [format_question(q) for q in paginated.items]
+        
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'pagination': {
+                'page': paginated.page,
+                'per_page': paginated.per_page,
+                'total': paginated.total,
+                'pages': paginated.pages,
+                'has_next': paginated.has_next,
+                'has_prev': paginated.has_prev
+            }
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error searching questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ===== نهاية نظام استخراج وتوليد نماذج الاختبار =====
