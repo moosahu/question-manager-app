@@ -13,10 +13,10 @@ from flask_login import login_required, current_user
 logger = logging.getLogger(__name__)
 
 try:
-    from src.extensions import db, csrf  # أضف csrf هنا
+    from src.extensions import db
 except ImportError:
     try:
-        from extensions import db, csrf  # وأضفها هنا أيضاً
+        from extensions import db
     except ImportError:
         try:
             from main import db # Fallback for direct run
@@ -3820,7 +3820,6 @@ def get_lesson_questions_count(lesson_id):
 
 
 @api_bp.route("/courses/<int:course_id>/questions-count", methods=["GET"])
-@csrf.exempt
 @login_required
 def get_course_questions_count(course_id):
     """
