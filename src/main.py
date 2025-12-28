@@ -272,6 +272,10 @@ def create_app():
     # التطبيقات لا تستخدم متصفح فلا تحتاج حماية CSRF
     csrf.exempt(api_bp)
     
+    # إعفاء students API من CSRF للتطبيق
+    if students_available:
+        csrf.exempt(students_bp)
+    
     login_manager.login_view = "auth.login" # Set the login view
 
     # ===== إضافة CORS Middleware =====
