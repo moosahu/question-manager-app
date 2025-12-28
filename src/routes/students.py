@@ -228,15 +228,35 @@ def api_student_login():
 def api_get_courses():
     """جلب المناهج للطالب"""
     try:
-        from src.models.curriculum import Course
+        from src.models.curriculum import Course, Unit, Lesson
+        from src.models.question import Question
+        
         courses = Course.query.filter_by(show_in_bot=True).all()
-        return jsonify({
-            'success': True,
-            'courses': [{
+        
+        result = []
+        for c in courses:
+            # حساب عدد الوحدات
+            units = Unit.query.filter_by(course_id=c.id).all()
+            units_count = len(units)
+            
+            # حساب عدد الأسئلة الإجمالي للمنهج
+            questions_count = 0
+            for u in units:
+                lessons = Lesson.query.filter_by(unit_id=u.id).all()
+                for l in lessons:
+                    questions_count += Question.query.filter_by(lesson_id=l.id).count()
+            
+            result.append({
                 'id': c.id,
                 'name': c.name,
                 'description': getattr(c, 'description', ''),
-            } for c in courses]
+                'units_count': units_count,
+                'questions_count': questions_count,
+            })
+        
+        return jsonify({
+            'success': True,
+            'courses': result
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -246,15 +266,33 @@ def api_get_courses():
 def api_get_units(course_id):
     """جلب الوحدات للطالب"""
     try:
-        from src.models.curriculum import Unit
+        from src.models.curriculum import Unit, Lesson
+        from src.models.question import Question
+        
         units = Unit.query.filter_by(course_id=course_id).all()
-        return jsonify({
-            'success': True,
-            'units': [{
+        
+        result = []
+        for u in units:
+            # حساب عدد الدروس
+            lessons = Lesson.query.filter_by(unit_id=u.id).all()
+            lessons_count = len(lessons)
+            
+            # حساب عدد الأسئلة الإجمالي للوحدة
+            questions_count = 0
+            for l in lessons:
+                questions_count += Question.query.filter_by(lesson_id=l.id).count()
+            
+            result.append({
                 'id': u.id,
                 'name': u.name,
                 'course_id': u.course_id,
-            } for u in units]
+                'lessons_count': lessons_count,
+                'questions_count': questions_count,
+            })
+        
+        return jsonify({
+            'success': True,
+            'units': result
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -265,14 +303,24 @@ def api_get_lessons(unit_id):
     """جلب الدروس للطالب"""
     try:
         from src.models.curriculum import Lesson
+        from src.models.question import Question
+        
         lessons = Lesson.query.filter_by(unit_id=unit_id).all()
-        return jsonify({
-            'success': True,
-            'lessons': [{
+        
+        result = []
+        for l in lessons:
+            # حساب عدد الأسئلة لكل درس
+            questions_count = Question.query.filter_by(lesson_id=l.id).count()
+            result.append({
                 'id': l.id,
                 'name': l.name,
                 'unit_id': l.unit_id,
-            } for l in lessons]
+                'questions_count': questions_count,
+            })
+        
+        return jsonify({
+            'success': True,
+            'lessons': result
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
