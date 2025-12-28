@@ -6,7 +6,7 @@ from datetime import datetime
 
 class Student(db.Model, UserMixin):
     """جدول الطلاب - يضيفهم الأدمن يدوياً"""
-    __tablename__ = 'students'
+    __tablename__ = 'student'
 
     id = db.Column(db.Integer, primary_key=True)
     
