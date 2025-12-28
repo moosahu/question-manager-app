@@ -527,3 +527,152 @@ def api_change_password():
             "error": str(e)
         }), 500
 
+
+# ==================== APIs نتائج الطالب ====================
+
+@students_bp.route('/api/results', methods=['GET'])
+def api_get_results():
+    """جلب نتائج الطالب"""
+    try:
+        # جلب student_id من الـ query parameter
+        student_id = request.args.get('student_id', type=int)
+        
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'student_id مطلوب'
+            }), 400
+        
+        # استيراد النموذج
+        try:
+            from src.models.student_result import StudentResult
+        except ImportError:
+            from models.student_result import StudentResult
+        
+        # جلب النتائج مرتبة بالأحدث
+        results = StudentResult.query.filter_by(student_id=student_id)\
+            .order_by(StudentResult.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'results': [r.to_dict() for r in results]
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/results/stats', methods=['GET'])
+def api_get_results_stats():
+    """جلب إحصائيات نتائج الطالب"""
+    try:
+        student_id = request.args.get('student_id', type=int)
+        
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'student_id مطلوب'
+            }), 400
+        
+        try:
+            from src.models.student_result import StudentResult
+        except ImportError:
+            from models.student_result import StudentResult
+        
+        from sqlalchemy import func
+        
+        # إجمالي الاختبارات
+        total_quizzes = StudentResult.query.filter_by(student_id=student_id).count()
+        
+        # متوسط النسبة
+        avg_score = db.session.query(func.avg(StudentResult.score_percentage))\
+            .filter(StudentResult.student_id == student_id).scalar() or 0
+        
+        # إجمالي الأسئلة المحلولة
+        total_questions = db.session.query(func.sum(StudentResult.total_questions))\
+            .filter(StudentResult.student_id == student_id).scalar() or 0
+        
+        # إجمالي الإجابات الصحيحة
+        total_correct = db.session.query(func.sum(StudentResult.correct_answers))\
+            .filter(StudentResult.student_id == student_id).scalar() or 0
+        
+        # أفضل نتيجة
+        best_score = db.session.query(func.max(StudentResult.score_percentage))\
+            .filter(StudentResult.student_id == student_id).scalar() or 0
+        
+        # آخر 7 نتائج للرسم البياني
+        recent_results = StudentResult.query.filter_by(student_id=student_id)\
+            .order_by(StudentResult.created_at.desc()).limit(7).all()
+        
+        chart_data = [{
+            'date': r.created_at.strftime('%m/%d') if r.created_at else '',
+            'score': r.score_percentage
+        } for r in reversed(recent_results)]
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_quizzes': total_quizzes,
+                'avg_score': round(avg_score, 1),
+                'total_questions': total_questions,
+                'total_correct': total_correct,
+                'best_score': round(best_score, 1),
+                'chart_data': chart_data
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/results', methods=['POST'])
+def api_save_result():
+    """حفظ نتيجة اختبار الطالب"""
+    try:
+        data = request.get_json() or request.form
+        
+        student_id = data.get('student_id')
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'student_id مطلوب'
+            }), 400
+        
+        try:
+            from src.models.student_result import StudentResult
+        except ImportError:
+            from models.student_result import StudentResult
+        
+        # إنشاء سجل جديد
+        result = StudentResult(
+            student_id=student_id,
+            quiz_type=data.get('quiz_type', 'lesson'),
+            course_id=data.get('course_id'),
+            unit_id=data.get('unit_id'),
+            lesson_id=data.get('lesson_id'),
+            quiz_name=data.get('quiz_name', 'اختبار'),
+            total_questions=data.get('total_questions', 0),
+            correct_answers=data.get('correct_answers', 0),
+            wrong_answers=data.get('wrong_answers', 0),
+            score_percentage=data.get('score_percentage', 0.0),
+            time_spent=data.get('time_spent'),
+        )
+        
+        db.session.add(result)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ النتيجة بنجاح',
+            'result_id': result.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
