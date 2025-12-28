@@ -230,21 +230,21 @@ def api_get_courses():
     try:
         from src.models.curriculum import Course, Unit, Lesson
         from src.models.question import Question
+        from sqlalchemy import func
         
         courses = Course.query.filter_by(show_in_bot=True).all()
         
         result = []
         for c in courses:
             # حساب عدد الوحدات
-            units = Unit.query.filter_by(course_id=c.id).all()
-            units_count = len(units)
+            units_count = Unit.query.filter_by(course_id=c.id).count()
             
-            # حساب عدد الأسئلة الإجمالي للمنهج
-            questions_count = 0
-            for u in units:
-                lessons = Lesson.query.filter_by(unit_id=u.id).all()
-                for l in lessons:
-                    questions_count += Question.query.filter_by(lesson_id=l.id).count()
+            # حساب عدد الأسئلة بـ query واحد
+            questions_count = db.session.query(func.count(Question.question_id)).join(
+                Lesson, Question.lesson_id == Lesson.id
+            ).join(
+                Unit, Lesson.unit_id == Unit.id
+            ).filter(Unit.course_id == c.id).scalar() or 0
             
             result.append({
                 'id': c.id,
@@ -259,6 +259,8 @@ def api_get_courses():
             'courses': result
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -268,19 +270,19 @@ def api_get_units(course_id):
     try:
         from src.models.curriculum import Unit, Lesson
         from src.models.question import Question
+        from sqlalchemy import func
         
         units = Unit.query.filter_by(course_id=course_id).all()
         
         result = []
         for u in units:
             # حساب عدد الدروس
-            lessons = Lesson.query.filter_by(unit_id=u.id).all()
-            lessons_count = len(lessons)
+            lessons_count = Lesson.query.filter_by(unit_id=u.id).count()
             
-            # حساب عدد الأسئلة الإجمالي للوحدة
-            questions_count = 0
-            for l in lessons:
-                questions_count += Question.query.filter_by(lesson_id=l.id).count()
+            # حساب عدد الأسئلة بـ query واحد
+            questions_count = db.session.query(func.count(Question.question_id)).join(
+                Lesson, Question.lesson_id == Lesson.id
+            ).filter(Lesson.unit_id == u.id).scalar() or 0
             
             result.append({
                 'id': u.id,
@@ -295,6 +297,8 @@ def api_get_units(course_id):
             'units': result
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
