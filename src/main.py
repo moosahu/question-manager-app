@@ -7,8 +7,15 @@ from flask_wtf.csrf import CSRFProtect
 from src.extensions import db
 from src.models.notification import Notification
 from datetime import datetime
-from src.routes.students import students_bp
 import uuid
+
+# استيراد students blueprint مع معالجة الخطأ
+try:
+    from src.routes.students import students_bp
+    students_available = True
+except ImportError:
+    students_available = False
+    print("⚠️ Students blueprint not available")
 
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
@@ -356,7 +363,11 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp, url_prefix="/api/v1")
-    app.register_blueprint(students_bp)
+    
+    # تسجيل students blueprint إذا كان متاحاً
+    if students_available:
+        app.register_blueprint(students_bp)
+        print("✅ Students blueprint registered successfully")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
