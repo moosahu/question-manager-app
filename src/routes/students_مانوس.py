@@ -346,8 +346,8 @@ def api_get_questions(lesson_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'option_text': o.option_text,
-                        'image_url': o.image_url,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -355,8 +355,8 @@ def api_get_questions(lesson_id):
             
             result.append({
                 'id': q.question_id,
-                'question_text': q.question_text,
-                'image_url': q.image_url,
+                'text': q.question_text,
+                'image': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
@@ -399,8 +399,8 @@ def api_get_course_questions(course_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'option_text': o.option_text,
-                        'image_url': o.image_url,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -408,8 +408,8 @@ def api_get_course_questions(course_id):
             
             result.append({
                 'id': q.question_id,
-                'question_text': q.question_text,
-                'image_url': q.image_url,
+                'text': q.question_text,
+                'image': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
@@ -447,8 +447,8 @@ def api_get_unit_questions(unit_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'option_text': o.option_text,
-                        'image_url': o.image_url,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -456,8 +456,8 @@ def api_get_unit_questions(unit_id):
             
             result.append({
                 'id': q.question_id,
-                'question_text': q.question_text,
-                'image_url': q.image_url,
+                'text': q.question_text,
+                'image': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
