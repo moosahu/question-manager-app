@@ -282,22 +282,27 @@ def api_get_lessons(unit_id):
 def api_get_questions(lesson_id):
     """جلب الأسئلة للطالب"""
     try:
-        from src.models.question import Question, Option
+        from src.models.question import Question
         questions = Question.query.filter_by(lesson_id=lesson_id).all()
         
         result = []
         for q in questions:
-            options = Option.query.filter_by(question_id=q.id).all()
+            # جلب الخيارات من العلاقة إذا كانت موجودة
+            options_list = []
+            if hasattr(q, 'options'):
+                for o in q.options:
+                    options_list.append({
+                        'id': o.id,
+                        'text': o.text,
+                        'image': getattr(o, 'image', None),
+                        'is_correct': o.is_correct,
+                    })
+            
             result.append({
                 'id': q.id,
                 'text': q.text,
                 'image': q.image,
-                'options': [{
-                    'id': o.id,
-                    'text': o.text,
-                    'image': getattr(o, 'image', None),
-                    'is_correct': o.is_correct,
-                } for o in options]
+                'options': options_list
             })
         
         return jsonify({
@@ -305,6 +310,9 @@ def api_get_questions(lesson_id):
             'questions': result
         })
     except Exception as e:
+        import traceback
+        print(f"Error in api_get_questions: {e}")
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -312,7 +320,7 @@ def api_get_questions(lesson_id):
 def api_get_course_questions(course_id):
     """جلب جميع أسئلة المنهج للطالب"""
     try:
-        from src.models.question import Question, Option
+        from src.models.question import Question
         from src.models.curriculum import Lesson, Unit
         
         # جلب جميع الوحدات في المنهج
@@ -328,17 +336,20 @@ def api_get_course_questions(course_id):
         
         result = []
         for q in questions:
-            options = Option.query.filter_by(question_id=q.id).all()
+            options_list = []
+            if hasattr(q, 'options'):
+                for o in q.options:
+                    options_list.append({
+                        'id': o.id,
+                        'text': o.text,
+                        'image': getattr(o, 'image', None),
+                        'is_correct': o.is_correct,
+                    })
             result.append({
                 'id': q.id,
                 'text': q.text,
                 'image': q.image,
-                'options': [{
-                    'id': o.id,
-                    'text': o.text,
-                    'image': getattr(o, 'image', None),
-                    'is_correct': o.is_correct,
-                } for o in options]
+                'options': options_list
             })
         
         return jsonify({
@@ -346,6 +357,8 @@ def api_get_course_questions(course_id):
             'questions': result
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -353,7 +366,7 @@ def api_get_course_questions(course_id):
 def api_get_unit_questions(unit_id):
     """جلب جميع أسئلة الوحدة للطالب"""
     try:
-        from src.models.question import Question, Option
+        from src.models.question import Question
         from src.models.curriculum import Lesson
         
         # جلب جميع الدروس في الوحدة
@@ -365,17 +378,20 @@ def api_get_unit_questions(unit_id):
         
         result = []
         for q in questions:
-            options = Option.query.filter_by(question_id=q.id).all()
+            options_list = []
+            if hasattr(q, 'options'):
+                for o in q.options:
+                    options_list.append({
+                        'id': o.id,
+                        'text': o.text,
+                        'image': getattr(o, 'image', None),
+                        'is_correct': o.is_correct,
+                    })
             result.append({
                 'id': q.id,
                 'text': q.text,
                 'image': q.image,
-                'options': [{
-                    'id': o.id,
-                    'text': o.text,
-                    'image': getattr(o, 'image', None),
-                    'is_correct': o.is_correct,
-                } for o in options]
+                'options': options_list
             })
         
         return jsonify({
@@ -383,4 +399,6 @@ def api_get_unit_questions(unit_id):
             'questions': result
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
