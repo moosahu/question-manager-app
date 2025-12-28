@@ -287,22 +287,26 @@ def api_get_questions(lesson_id):
         
         result = []
         for q in questions:
-            # جلب الخيارات من العلاقة إذا كانت موجودة
             options_list = []
+            correct_option_id = None
+            
             if hasattr(q, 'options'):
-                for o in q.options:
+                for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
-                        'id': o.id,
-                        'text': o.text,
-                        'image': getattr(o, 'image', None),
+                        'id': o.option_id,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
+                    if o.is_correct:
+                        correct_option_id = o.option_id
             
             result.append({
-                'id': q.id,
-                'text': q.text,
-                'image': q.image,
-                'options': options_list
+                'id': q.question_id,
+                'text': q.question_text,
+                'image': q.image_url,
+                'options': options_list,
+                'correct_option_id': correct_option_id,
             })
         
         return jsonify({
@@ -337,19 +341,25 @@ def api_get_course_questions(course_id):
         result = []
         for q in questions:
             options_list = []
+            correct_option_id = None
+            
             if hasattr(q, 'options'):
-                for o in q.options:
+                for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
-                        'id': o.id,
-                        'text': o.text,
-                        'image': getattr(o, 'image', None),
+                        'id': o.option_id,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
+                    if o.is_correct:
+                        correct_option_id = o.option_id
+            
             result.append({
-                'id': q.id,
-                'text': q.text,
-                'image': q.image,
-                'options': options_list
+                'id': q.question_id,
+                'text': q.question_text,
+                'image': q.image_url,
+                'options': options_list,
+                'correct_option_id': correct_option_id,
             })
         
         return jsonify({
@@ -379,19 +389,25 @@ def api_get_unit_questions(unit_id):
         result = []
         for q in questions:
             options_list = []
+            correct_option_id = None
+            
             if hasattr(q, 'options'):
-                for o in q.options:
+                for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
-                        'id': o.id,
-                        'text': o.text,
-                        'image': getattr(o, 'image', None),
+                        'id': o.option_id,
+                        'text': o.option_text,
+                        'image': o.image_url,
                         'is_correct': o.is_correct,
                     })
+                    if o.is_correct:
+                        correct_option_id = o.option_id
+            
             result.append({
-                'id': q.id,
-                'text': q.text,
-                'image': q.image,
-                'options': options_list
+                'id': q.question_id,
+                'text': q.question_text,
+                'image': q.image_url,
+                'options': options_list,
+                'correct_option_id': correct_option_id,
             })
         
         return jsonify({
