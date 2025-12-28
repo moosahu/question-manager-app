@@ -466,3 +466,60 @@ def api_get_unit_questions(unit_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+# ==================== تغيير كلمة مرور الطالب ====================
+@students_bp.route("/api/change-password", methods=["POST"])
+def api_change_password():
+    """تغيير كلمة مرور الطالب"""
+    try:
+        data = request.get_json() or request.form
+        username = data.get("username", "").strip()
+        current_password = data.get("current_password", "")
+        new_password = data.get("new_password", "")
+        
+        if not username or not current_password or not new_password:
+            return jsonify({
+                "success": False,
+                "error": "جميع الحقول مطلوبة"
+            }), 400
+        
+        if len(new_password) < 6:
+            return jsonify({
+                "success": False,
+                "error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+            }), 400
+        
+        # البحث عن الطالب
+        student = Student.query.filter_by(username=username).first()
+        
+        if not student:
+            return jsonify({
+                "success": False,
+                "error": "الطالب غير موجود"
+            }), 404
+        
+        # التحقق من كلمة المرور الحالية
+        if not student.check_password(current_password):
+            return jsonify({
+                "success": False,
+                "error": "كلمة المرور الحالية غير صحيحة"
+            }), 401
+        
+        # تحديث كلمة المرور
+        student.set_password(new_password)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "تم تغيير كلمة المرور بنجاح"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
