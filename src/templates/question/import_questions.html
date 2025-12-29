@@ -514,7 +514,7 @@
             }
 
             // Fetch and populate courses
-            fetch("/api/get-all-courses-for-import")
+            fetch("/api/v1/courses")
                 .then(response => {
                     console.log("Courses API Response:", response);
                     return response.json();

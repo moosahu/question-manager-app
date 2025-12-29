@@ -3188,23 +3188,3 @@ body {{
         current_app.logger.exception(f"Error generating all models answer keys: {e}")
         return jsonify({'error': str(e)}), 500
     
-# ============================================
-# Endpoint خاص بصفحة استيراد الأسئلة
-# ============================================
-@question_bp.route("/api/get-all-courses-for-import", methods=["GET"])
-@login_required
-def get_all_courses_for_import():
-    """
-    يرجع جميع المناهج بدون أي فلترة، لاستخدامه في صفحة استيراد الأسئلة فقط
-    """
-    try:
-        current_app.logger.info("Fetching all courses for import page")
-
-        courses = Course.query.order_by(Course.id).all()
-        data = [{"id": c.id, "name": c.name} for c in courses]
-
-        current_app.logger.info(f"Total courses returned for import: {len(data)}")
-        return jsonify(data), 200
-    except Exception as e:
-        current_app.logger.error(f"Error fetching all courses for import: {e}", exc_info=True)
-        return jsonify([]), 500
