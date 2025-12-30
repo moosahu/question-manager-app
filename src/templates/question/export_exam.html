@@ -10,758 +10,407 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* ==================== متغيرات الألوان ==================== */
-        :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --primary-color: #667eea;
-            --primary-dark: #5568d3;
-            --secondary-color: #764ba2;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --info-color: #3b82f6;
-            --purple-color: #9c27b0;
-            --bg-light: #f8f9fa;
-            --surface-white: #ffffff;
-            --text-dark: #1f2937;
-            --text-muted: #6b7280;
-            --border-color: #e5e7eb;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 15px rgba(0,0,0,0.12);
-            --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 12px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* ==================== التنسيق العام ==================== */
         .export-container {
-            max-width: 1600px;
+            max-width: 1400px;
             margin: 30px auto;
-            padding: 25px;
-            background: var(--bg-light);
-            border-radius: var(--radius-lg);
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
 
-        /* ==================== رأس الصفحة ==================== */
         .export-header {
-            background: var(--primary-gradient);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 35px 40px;
-            border-radius: var(--radius-lg);
+            padding: 30px;
+            border-radius: 10px;
             margin-bottom: 30px;
             text-align: center;
-            box-shadow: var(--shadow-lg);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .export-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
         }
 
         .export-header h1 {
             margin: 0;
             font-size: 2.5rem;
-            margin-bottom: 12px;
-            font-weight: 700;
-            position: relative;
-            z-index: 1;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
         }
 
         .export-header p {
             margin: 0;
             font-size: 1.1rem;
-            opacity: 0.95;
-            position: relative;
-            z-index: 1;
+            opacity: 0.9;
         }
 
-        /* ==================== الشبكة الرئيسية ==================== */
         .export-content {
             display: grid;
-            grid-template-columns: 420px 1fr;
+            grid-template-columns: 1fr 2fr;
             gap: 30px;
             margin-bottom: 30px;
         }
 
-        /* ==================== الشريط الجانبي ==================== */
         .export-sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
             position: sticky;
             top: 20px;
-            padding-left: 5px;
         }
         
+        /* تحسين مظهر شريط التمرير */
         .export-sidebar::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
         .export-sidebar::-webkit-scrollbar-track {
-            background: #f1f3f5;
-            border-radius: 10px;
+            background: #f1f1f1;
+            border-radius: 3px;
         }
         .export-sidebar::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        .export-sidebar::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        .export-main {
+            background: white;
+            padding: 25px;
             border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        /* ==================== البطاقات المرقمة ==================== */
-        .step-card {
-            background: var(--surface-white);
-            padding: 24px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-md);
-            border: 2px solid var(--border-color);
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .step-card.completed {
-            border-color: var(--success-color);
-        }
-
-        .step-card.active {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .step-card:hover {
-            box-shadow: var(--shadow-lg);
-        }
-
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 18px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .step-number {
-            width: 36px;
-            height: 36px;
-            background: var(--primary-gradient);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 1.1rem;
-            flex-shrink: 0;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .step-card.completed .step-number {
-            background: var(--success-color);
-        }
-
-        .step-card.completed .step-number::before {
-            content: '✓';
-            font-weight: 900;
-        }
-
-        .step-title {
-            margin: 0;
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--text-dark);
-            flex: 1;
-        }
-
-        .step-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-required {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-optional {
-            background: #e0e7ff;
-            color: #4338ca;
-        }
-
-        .step-desc {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-            line-height: 1.5;
-        }
-
-        /* ==================== النماذج ==================== */
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
-        .form-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .form-group label {
+            display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.9rem;
+            color: #333;
+            font-size: 0.95rem;
         }
 
-        .form-label i {
-            color: var(--primary-color);
-            font-size: 0.9rem;
-        }
-
-        .form-control {
+        .form-group select,
+        .form-group input {
             width: 100%;
-            padding: 11px 14px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            font-size: 0.92rem;
-            transition: var(--transition);
-            background: var(--surface-white);
-            color: var(--text-dark);
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
         }
 
-        .form-control:hover {
-            border-color: #d1d5db;
-        }
-
-        .form-control:focus {
+        .form-group select:focus,
+        .form-group input:focus {
             outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        /* ==================== النماذج المتعددة ==================== */
-        .models-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        .model-checkbox {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            background: var(--surface-white);
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            border: 2px solid var(--border-color);
-            cursor: pointer;
-            transition: var(--transition);
-            font-weight: 700;
-            font-size: 1.05rem;
-        }
-
-        .model-checkbox:hover {
-            border-color: var(--primary-color);
-            background: #f9fafb;
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .model-checkbox:has(input:checked) {
-            background: linear-gradient(135deg, #f0f3ff 0%, #e8edff 100%);
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-        }
-
-        .model-checkbox input {
-            cursor: pointer;
-            accent-color: var(--primary-color);
-        }
-
-        /* ==================== الأزرار ==================== */
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-size: 0.92rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-decoration: none;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-primary {
-            background: var(--primary-gradient);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .btn-purple {
-            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-            color: white;
-        }
-
-        .btn-info {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 2px solid var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .btn-outline:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .btn-block {
-            width: 100%;
-        }
-
-        .btn-lg {
-            padding: 16px 24px;
-            font-size: 1.05rem;
-            font-weight: 700;
-        }
-
-        /* ==================== قسم الإجراءات السريعة ==================== */
-        .quick-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        .btn-icon-only {
-            width: 44px;
-            height: 44px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* ==================== Collapsible Section ==================== */
-        .collapsible-section {
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-
-        .collapsible-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 18px;
-            background: #f9fafb;
-            cursor: pointer;
-            transition: var(--transition);
-            user-select: none;
-        }
-
-        .collapsible-header:hover {
-            background: #f3f4f6;
-        }
-
-        .collapsible-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            font-size: 0.92rem;
-            color: var(--text-dark);
-        }
-
-        .collapsible-icon {
-            transition: var(--transition);
-            color: var(--primary-color);
-        }
-
-        .collapsible-section.collapsed .collapsible-icon {
-            transform: rotate(-90deg);
-        }
-
-        .collapsible-content {
-            padding: 18px;
-            background: var(--surface-white);
-            display: block;
-        }
-
-        .collapsible-section.collapsed .collapsible-content {
-            display: none;
-        }
-
-        /* ==================== Checkboxes ==================== */
         .checkbox-group {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            margin-top: 10px;
         }
 
         .checkbox-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-            cursor: pointer;
-        }
-
-        .checkbox-item:hover {
-            background: #f9fafb;
+            gap: 8px;
         }
 
         .checkbox-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
+            width: auto;
             cursor: pointer;
-            accent-color: var(--primary-color);
         }
 
         .checkbox-item label {
             margin: 0;
             cursor: pointer;
             font-weight: 500;
-            font-size: 0.88rem;
-            color: var(--text-dark);
         }
 
-        /* ==================== Size Controls ==================== */
-        .size-buttons {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
+        /* ===== قسم النماذج المتعددة ===== */
+        .models-section {
+            background: #f0f3ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
 
-        .size-btn {
-            flex: 1;
-            padding: 8px 10px;
-            background: var(--surface-white);
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--text-dark);
+        .models-section h4 {
+            margin: 0 0 12px 0;
+            color: #667eea;
+            font-size: 0.95rem;
         }
 
-        .size-btn:hover {
-            border-color: var(--purple-color);
-            background: #f9fafb;
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
         }
 
-        .size-btn.active {
-            background: var(--purple-color);
-            color: white;
-            border-color: var(--purple-color);
-        }
-
-        .size-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .size-control-btn {
-            padding: 8px 14px;
-            background: #f3f4f6;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: var(--transition);
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-
-        .size-control-btn:hover {
-            background: #e5e7eb;
-            border-color: var(--primary-color);
-        }
-
-        .size-display {
-            flex: 1;
-            text-align: center;
-            font-weight: 600;
-            color: var(--primary-color);
-            font-size: 0.92rem;
-        }
-
-        /* ==================== File Upload ==================== */
-        .file-upload-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-            margin-top: 12px;
-        }
-
-        .file-upload-input {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .file-upload-label {
+        .model-checkbox {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 14px;
-            background: var(--surface-white);
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius-sm);
+            gap: 5px;
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
             cursor: pointer;
-            transition: var(--transition);
-            font-weight: 600;
-            color: var(--text-muted);
+            transition: all 0.3s;
         }
 
-        .file-upload-label:hover {
-            background: #f9fafb;
-            border-color: var(--success-color);
-            color: var(--success-color);
+        .model-checkbox:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
         }
 
-        .file-name-display {
-            background: #f9fafb;
-            padding: 10px 12px;
-            border-radius: var(--radius-sm);
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            margin-top: 10px;
-            text-align: center;
-            border: 1px solid var(--border-color);
+        .model-checkbox input:checked + span {
+            color: #667eea;
+            font-weight: bold;
         }
 
-        .file-name-display.has-file {
-            color: var(--success-color);
-            border-color: var(--success-color);
-            background: #f0fdf4;
-            font-weight: 600;
-        }
-
-        /* ==================== المحتوى الرئيسي ==================== */
-        .export-main {
-            background: var(--surface-white);
-            padding: 28px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-md);
-            border: 1px solid var(--border-color);
-        }
-
-        /* ==================== الإحصائيات ==================== */
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 18px;
-            margin-bottom: 25px;
-        }
-
-        .stat-card {
-            background: var(--surface-white);
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            text-align: center;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--primary-gradient);
-            opacity: 0;
-            transition: var(--transition);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-md);
-            border-color: var(--primary-color);
-        }
-
-        .stat-card:hover::before {
-            opacity: 1;
-        }
-
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-        }
-
-        .stat-label {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* ==================== بطاقات الأسئلة ==================== */
-        .questions-container {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .question-card {
-            background: var(--surface-white);
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 18px 20px;
+        .model-checkbox input {
             cursor: pointer;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
         }
 
-        .question-card::before {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: 5px;
-            background: var(--primary-gradient);
-            opacity: 0;
-            transition: var(--transition);
+        .model-letter {
+            font-size: 1.1rem;
+            font-weight: 600;
         }
 
-        .question-card:hover {
-            border-color: var(--primary-color);
-            background: #fafbfc;
-            box-shadow: var(--shadow-sm);
+        /* ===== قسم الباركود ===== */
+        .barcode-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
 
-        .question-card:hover::before {
-            opacity: 1;
+        .barcode-section h4 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 0.95rem;
         }
 
-        .question-card.selected {
-            background: linear-gradient(135deg, #f0f3ff 0%, #e8edff 100%);
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-        }
-
-        .question-card.selected::before {
-            opacity: 1;
-        }
-
-        .question-header {
+        .barcode-preview {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
+            gap: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
         }
 
-        .question-number {
-            font-weight: 700;
+        .barcode-preview-icon {
+            width: 50px;
+            height: 50px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+        }
+
+        .barcode-preview-text {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-group-full {
+            grid-template-columns: 1fr;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
             font-size: 0.95rem;
-            color: var(--primary-color);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn-purple {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .btn-purple:hover {
+            background: #5a32a3;
+        }
+
+        .questions-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .questions-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .question-item {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .question-item:hover {
+            border-color: #667eea;
+            background: #f0f3ff;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .question-item.selected {
+            border-color: #28a745;
+            background: #f0fff4;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+        }
+
+        .question-item input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
         }
 
         .question-text {
-            color: var(--text-dark);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-word;
         }
 
-        .question-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: var(--radius-sm);
-            margin: 12px 0;
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* ==================== التحميل ==================== */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
+        .question-meta {
+            font-size: 0.85rem;
+            color: #666;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            backdrop-filter: blur(4px);
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
-        .loading-content {
-            background: var(--surface-white);
-            padding: 40px;
-            border-radius: var(--radius-lg);
+        .meta-badge {
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .stats-box {
+            background: #f0f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .stats-box h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 0.95rem;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .stats-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .loading {
+            display: none;
             text-align: center;
-            box-shadow: 0 20px 25px rgba(0,0,0,0.15);
-            max-width: 300px;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
         }
 
         .spinner {
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid var(--primary-color);
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 10px;
         }
 
         @keyframes spin {
@@ -769,40 +418,90 @@
             100% { transform: rotate(360deg); }
         }
 
-        .loading-text {
-            color: var(--text-dark);
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        /* ==================== Empty State ==================== */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            color: var(--border-color);
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
             margin-bottom: 20px;
+            display: none;
         }
 
-        .empty-state h3 {
-            color: var(--text-dark);
-            font-size: 1.3rem;
-            margin-bottom: 10px;
+        .alert.active {
+            display: block;
         }
 
-        .empty-state p {
-            font-size: 0.95rem;
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
 
-        /* ==================== Responsive ==================== */
-        @media (max-width: 1200px) {
-            .export-content {
-                grid-template-columns: 380px 1fr;
-            }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #ddd;
+        }
+
+        .preview-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .preview-header h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .preview-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+
+        .preview-info-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .preview-info-label {
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .preview-info-value {
+            color: #333;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .no-questions {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .no-questions i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
         }
 
         @media (max-width: 1024px) {
@@ -812,14 +511,15 @@
 
             .export-sidebar {
                 position: relative;
-                top: auto;
-                max-height: none;
+                top: 0;
             }
-        }
 
-        @media (max-width: 768px) {
-            .export-header h1 {
-                font-size: 1.8rem;
+            .questions-container {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-info {
+                grid-template-columns: 1fr 1fr;
             }
 
             .models-grid {
@@ -827,626 +527,1735 @@
             }
         }
 
-        /* ==================== تحسينات إضافية ==================== */
-        .divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
-            margin: 20px 0;
+        /* البطاقات المرقمة */
+        .step-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.3s;
         }
-
-        input:disabled, select:disabled {
-            background: #f3f4f6;
-            cursor: not-allowed;
-            opacity: 0.6;
+        .step-card.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
         }
-
+        .step-card.completed {
+            border-color: #10b981;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        .step-card.completed .step-number {
+            background: #10b981;
+        }
+        .step-card.completed .step-number::after {
+            content: '✓';
+        }
+        .step-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .step-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .badge-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-optional {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+        .step-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon-only {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            min-width: 44px !important;
+        }
         .helper-text {
             font-size: 0.78rem;
-            color: var(--text-muted);
-            margin-top: 6px;
+            color: #6b7280;
             display: flex;
             align-items: center;
             gap: 6px;
+            background: #f0f9ff;
+            padding: 10px;
+            border-radius: 6px;
         }
 
-        .helper-text i {
-            color: var(--info-color);
-        }
     </style>
 {% endblock %}
 
 {% block content %}
 <div class="export-container">
-    <!-- Header -->
     <div class="export-header">
         <h1><i class="fas fa-file-export"></i> استخراج وتوليد نماذج الاختبار</h1>
-        <p>اتبع الخطوات بالترتيب للحصول على نماذج احترافية جاهزة للطباعة</p>
+        <p>قم باختيار الأسئلة أو توليد نموذج عشوائي للطباعة والتعديل</p>
     </div>
 
-    <!-- Main Content -->
+    <div class="alert alert-info" id="infoAlert">
+        <i class="fas fa-info-circle"></i> اختر الأسئلة من القائمة أدناه أو استخدم خيار التوليد العشوائي
+    </div>
+
+    <div class="alert alert-success" id="successAlert"></div>
+    <div class="alert alert-error" id="errorAlert"></div>
+
     <div class="export-content">
-        <!-- Sidebar - الخطوات المرتبة -->
+        <!-- الشريط الجانبي -->
         <div class="export-sidebar">
-            
             <!-- الخطوة 1: اختيار المحتوى -->
-            <div class="step-card active" id="step1">
+            <div class="step-card active" data-step="1">
                 <div class="step-header">
                     <div class="step-number">1</div>
                     <h3 class="step-title">اختيار المحتوى</h3>
                     <span class="step-badge badge-required">مطلوب</span>
                 </div>
-                <p class="step-desc">
-                    ابدأ باختيار المنهج والوحدة والدرس لتحميل الأسئلة
-                </p>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-book"></i>
-                        المنهج
-                    </label>
-                    <select id="courseSelect" class="form-control">
-                        <option value="">-- اختر منهج --</option>
-                    </select>
-                </div>
+                <p class="step-desc">ابدأ باختيار المنهج والوحدة والدرس</p>
 
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-layer-group"></i>
-                        الوحدة
-                    </label>
-                    <select id="unitSelect" class="form-control" disabled>
-                        <option value="">-- اختر وحدة --</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-bookmark"></i>
-                        الدرس
-                    </label>
-                    <select id="lessonSelect" class="form-control" disabled>
-                        <option value="">-- اختر درس --</option>
-                    </select>
-                </div>
-
-                <button class="btn btn-primary btn-block" onclick="loadQuestions()">
-                    <i class="fas fa-download"></i> تحميل الأسئلة
-                </button>
+            <div class="form-group">
+                <label for="courseSelect">المنهج <span style="color: red;">*</span></label>
+                <select id="courseSelect" required>
+                    <option value="">-- اختر المنهج --</option>
+                </select>
             </div>
 
+            <div class="form-group">
+                <label for="unitSelect">الوحدة (اختياري)</label>
+                <select id="unitSelect">
+                    <option value="">-- جميع الوحدات --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="lessonSelect">الدرس (اختياري)</label>
+                <select id="lessonSelect">
+                    <option value="">-- جميع الدروس --</option>
+                </select>
+            </div>
+
+            </div>
+            <!-- نهاية الخطوة 1 -->
+
             <!-- الخطوة 2: اختيار الأسئلة -->
-            <div class="step-card" id="step2">
+            <div class="step-card" data-step="2">
                 <div class="step-header">
                     <div class="step-number">2</div>
                     <h3 class="step-title">اختيار الأسئلة</h3>
                     <span class="step-badge badge-required">مطلوب</span>
                 </div>
-                <p class="step-desc">
-                    حدد الأسئلة المطلوبة أو اختر عشوائياً
-                </p>
+                <p class="step-desc">حدد الأسئلة أو اختر عشوائياً</p>
 
                 <div class="quick-actions">
-                    <button class="btn btn-info btn-block" onclick="generateRandomExam()">
+                    <button class="btn btn-info btn-block" id="generateRandomBtn" style="flex: 1;">
                         <i class="fas fa-random"></i> اختيار عشوائي
                     </button>
-                    <button class="btn btn-outline btn-icon-only" onclick="clearAllSelections()" title="إلغاء التحديد">
+                    <button class="btn btn-outline btn-icon-only" id="clearAllBtn" title="إلغاء">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
 
-                <div class="helper-text">
+                <div class="helper-text" style="margin-top: 12px;">
                     <i class="fas fa-info-circle"></i>
-                    انقر على الأسئلة من اليسار لتحديدها
+                    حدد الأسئلة من اليمين
+                </div>
+
+            <div class="stats-box" style="margin-top: 15px;">
+                <h3><i class="fas fa-chart-bar"></i> الإحصائيات</h3>
+                <div class="stats-item">
+                    <span>إجمالي الأسئلة:</span>
+                    <strong id="totalQuestionsCount">0</strong>
+                </div>
+                <div class="stats-item">
+                    <span>الأسئلة المختارة:</span>
+                    <strong id="selectedQuestionsCount">0</strong>
                 </div>
             </div>
 
+            </div>
+            <!-- نهاية الخطوة 2 -->
+
             <!-- الخطوة 3: اختيار النماذج -->
-            <div class="step-card" id="step3">
+            <div class="step-card" data-step="3">
                 <div class="step-header">
                     <div class="step-number">3</div>
                     <h3 class="step-title">اختيار النماذج</h3>
                     <span class="step-badge badge-required">مطلوب</span>
                 </div>
-                <p class="step-desc">
-                    اختر النماذج المطلوبة (أ، ب، ج، د) - كل نموذج بترتيب مختلف
-                </p>
-                
+                <p class="step-desc">اختر النماذج (أ، ب، ج، د)</p>
+
+            <!-- قسم النماذج المتعددة -->
+            <div class="models-section">
+                <h4><i class="fas fa-copy"></i> توليد نماذج متعددة</h4>
                 <div class="models-grid">
                     <label class="model-checkbox">
-                        <input type="checkbox" name="exam_models" value="A">
-                        <span>أ</span>
+                        <input type="checkbox" id="modelA" value="أ" checked>
+                        <span class="model-letter">أ</span>
                     </label>
                     <label class="model-checkbox">
-                        <input type="checkbox" name="exam_models" value="B">
-                        <span>ب</span>
+                        <input type="checkbox" id="modelB" value="ب">
+                        <span class="model-letter">ب</span>
                     </label>
                     <label class="model-checkbox">
-                        <input type="checkbox" name="exam_models" value="C">
-                        <span>ج</span>
+                        <input type="checkbox" id="modelC" value="ج">
+                        <span class="model-letter">ج</span>
                     </label>
                     <label class="model-checkbox">
-                        <input type="checkbox" name="exam_models" value="D">
-                        <span>د</span>
+                        <input type="checkbox" id="modelD" value="د">
+                        <span class="model-letter">د</span>
                     </label>
                 </div>
-            </div>
-
-            <!-- الخطوة 4: إعدادات الكليشة (اختياري) -->
-            <div class="step-card" id="step4">
-                <div class="step-header">
-                    <div class="step-number">4</div>
-                    <h3 class="step-title">إعدادات الكليشة</h3>
-                    <span class="step-badge badge-optional">اختياري</span>
-                </div>
-                <p class="step-desc">
-                    خصص شكل ومظهر الورقة حسب احتياجك
+                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> كل نموذج سيكون بترتيب مختلف للأسئلة والخيارات
                 </p>
+            </div>
 
-                <!-- Header Size -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleCollapse(this)">
-                        <div class="collapsible-title">
-                            <i class="fas fa-arrows-alt-v"></i>
-                            <span>حجم الرأس والشعار</span>
-                        </div>
-                        <i class="fas fa-chevron-down collapsible-icon"></i>
-                    </div>
-                    <div class="collapsible-content">
-                        <label class="form-label">حجم الرأس:</label>
-                        <div class="size-buttons">
-                            <button class="size-btn" data-size="small" onclick="setHeaderSize('small')">صغير</button>
-                            <button class="size-btn active" data-size="medium" onclick="setHeaderSize('medium')">متوسط</button>
-                            <button class="size-btn" data-size="large" onclick="setHeaderSize('large')">كبير</button>
-                        </div>
-
-                        <div style="margin-top: 12px;">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showLogo" checked>
-                                <label for="showLogo">إظهار الشعار</label>
-                            </div>
-                        </div>
-
-                        <label class="form-label" style="margin-top: 12px;">حجم الشعار:</label>
-                        <div class="size-buttons">
-                            <button class="size-btn" data-size="small" onclick="setLogoSize('small')">صغير</button>
-                            <button class="size-btn active" data-size="medium" onclick="setLogoSize('medium')">متوسط</button>
-                            <button class="size-btn" data-size="large" onclick="setLogoSize('large')">كبير</button>
-                        </div>
-                    </div>
+            <!-- قسم الباركود -->
+            <div class="barcode-section">
+                <h4><i class="fas fa-qrcode"></i> إضافة باركود QR</h4>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="includeBarcode" checked>
+                    <label for="includeBarcode">إضافة باركود لكل نموذج</label>
                 </div>
-
-                <!-- Student Info -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleCollapse(this)">
-                        <div class="collapsible-title">
-                            <i class="fas fa-user-graduate"></i>
-                            <span>معلومات الطالب</span>
-                        </div>
-                        <i class="fas fa-chevron-down collapsible-icon"></i>
+                <div class="barcode-preview" id="barcodePreview">
+                    <div class="barcode-preview-icon">
+                        <i class="fas fa-qrcode" style="font-size: 24px; color: #667eea;"></i>
                     </div>
-                    <div class="collapsible-content">
-                        <div class="checkbox-group">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showStudentName" checked>
-                                <label for="showStudentName">الاسم</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showStudentClass" checked>
-                                <label for="showStudentClass">الشعبة</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showStudentSeatNo" checked>
-                                <label for="showStudentSeatNo">رقم الجلوس</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showStudentSignature">
-                                <label for="showStudentSignature">التوقيع</label>
-                            </div>
-                        </div>
-
-                        <label class="form-label" style="margin-top: 12px;">طول خط الاسم:</label>
-                        <div class="size-buttons">
-                            <button class="size-btn" data-length="short" onclick="setNameLineLength('short')">قصير</button>
-                            <button class="size-btn active" data-length="medium" onclick="setNameLineLength('medium')">متوسط</button>
-                            <button class="size-btn" data-length="long" onclick="setNameLineLength('long')">طويل</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Exam Title -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleCollapse(this)">
-                        <div class="collapsible-title">
-                            <i class="fas fa-heading"></i>
-                            <span>عنوان الاختبار</span>
-                        </div>
-                        <i class="fas fa-chevron-down collapsible-icon"></i>
-                    </div>
-                    <div class="collapsible-content">
-                        <div class="form-group">
-                            <label class="form-label">نوع الاختبار:</label>
-                            <select id="examType" class="form-control">
-                                <option value="نهاية">نهاية</option>
-                                <option value="منتصف">منتصف</option>
-                                <option value="الفترة الأولى">الفترة الأولى</option>
-                                <option value="الفترة الثانية">الفترة الثانية</option>
-                                <option value="تشخيصي">تشخيصي</option>
-                                <option value="قصير">قصير</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">الفصل الدراسي:</label>
-                            <select id="semesterSelect" class="form-control">
-                                <option value="الأول">الأول</option>
-                                <option value="الثاني">الثاني</option>
-                                <option value="الثالث">الثالث</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">العام الدراسي:</label>
-                            <input type="text" id="academicYear" class="form-control" placeholder="1446 هـ">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Grades & QR -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleCollapse(this)">
-                        <div class="collapsible-title">
-                            <i class="fas fa-table"></i>
-                            <span>الدرجات والباركود</span>
-                        </div>
-                        <i class="fas fa-chevron-down collapsible-icon"></i>
-                    </div>
-                    <div class="collapsible-content">
-                        <div class="checkbox-group">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showGradesTable" checked>
-                                <label for="showGradesTable">جدول الدرجات</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="showExtraGradeField">
-                                <label for="showExtraGradeField">خانة درجة الرصد</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="includeBarcode" checked>
-                                <label for="includeBarcode">باركود QR</label>
-                            </div>
-                        </div>
-
-                        <label class="form-label" style="margin-top: 12px;">حجم الباركود:</label>
-                        <div class="size-buttons">
-                            <button class="size-btn" data-size="small" onclick="setQRSize('small')">صغير</button>
-                            <button class="size-btn active" data-size="medium" onclick="setQRSize('medium')">متوسط</button>
-                            <button class="size-btn" data-size="large" onclick="setQRSize('large')">كبير</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Font & Images -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleCollapse(this)">
-                        <div class="collapsible-title">
-                            <i class="fas fa-text-height"></i>
-                            <span>الخط والصور</span>
-                        </div>
-                        <i class="fas fa-chevron-down collapsible-icon"></i>
-                    </div>
-                    <div class="collapsible-content">
-                        <label class="form-label">حجم الخط:</label>
-                        <div class="size-control">
-                            <button class="size-control-btn" onclick="changeFontSize(-1)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <div class="size-display" id="fontSizeDisplay">14 pt</div>
-                            <button class="size-control-btn" onclick="changeFontSize(1)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-
-                        <div style="margin-top: 12px;">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="includeImages" checked>
-                                <label for="includeImages">إظهار صور الأسئلة</label>
-                            </div>
-                        </div>
-
-                        <label class="form-label" style="margin-top: 12px;">حجم الصور:</label>
-                        <div class="size-control">
-                            <button class="size-control-btn" onclick="changeImageSize(-10)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <div class="size-display" id="imageSizeDisplay">100%</div>
-                            <button class="size-control-btn" onclick="changeImageSize(10)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
+                    <div class="barcode-preview-text">
+                        سيظهر في زاوية الورقة ويحتوي على:<br>
+                        المادة، النموذج، التاريخ، عدد الأسئلة
                     </div>
                 </div>
             </div>
 
-            <!-- الخطوة 5: رفع قائمة الطلاب (اختياري) -->
-            <div class="step-card" id="step5">
-                <div class="step-header">
-                    <div class="step-number">5</div>
-                    <h3 class="step-title">قائمة الطلاب</h3>
-                    <span class="step-badge badge-optional">اختياري</span>
+            <!-- ==================== قسم تنسيقات الكليشة ==================== -->
+            <div class="header-format-section" style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #7b1fa2; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-file-alt"></i> تنسيقات الكليشة</h4>
+                
+                <!-- 1. حجم الكليشة -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">حجم الكليشة:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="header-size-btn" data-size="small" onclick="setHeaderSize('small')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">صغير</button>
+                        <button type="button" class="header-size-btn active" data-size="medium" onclick="setHeaderSize('medium')" style="flex: 1; padding: 8px; background: #9c27b0; color: white; border: 2px solid #9c27b0; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">متوسط</button>
+                        <button type="button" class="header-size-btn" data-size="large" onclick="setHeaderSize('large')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">كبير</button>
+                    </div>
                 </div>
-                <p class="step-desc">
-                    لطباعة نماذج بأسماء الطلاب، قم برفع ملف Excel
+
+                <!-- 2. الشعار -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-image"></i> الشعار:</label>
+                    <div class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="showLogo" checked>
+                        <label for="showLogo">إظهار الشعار</label>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="logo-size-btn" data-size="small" onclick="setLogoSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
+                        <button type="button" class="logo-size-btn active" data-size="medium" onclick="setLogoSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
+                        <button type="button" class="logo-size-btn" data-size="large" onclick="setLogoSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
+                    </div>
+                </div>
+
+                <!-- 3. حجم الباركود -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-qrcode"></i> حجم الباركود:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="qr-size-btn" data-size="small" onclick="setQRSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
+                        <button type="button" class="qr-size-btn active" data-size="medium" onclick="setQRSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
+                        <button type="button" class="qr-size-btn" data-size="large" onclick="setQRSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
+                    </div>
+                </div>
+
+                <!-- 4. جدول الدرجات -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-table"></i> جدول الدرجات:</label>
+                    <div class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="showGradesTable" checked>
+                        <label for="showGradesTable">إظهار جدول الدرجات</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="showExtraGradeField">
+                        <label for="showExtraGradeField">إضافة خانة درجة الرصد</label>
+                    </div>
+                </div>
+
+                <!-- 5. معلومات الطالب -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-user-graduate"></i> معلومات الطالب:</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentName" checked>
+                            <label for="showStudentName">الاسم</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentClass" checked>
+                            <label for="showStudentClass">الشعبة</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentSeatNo" checked>
+                            <label for="showStudentSeatNo">رقم الجلوس</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentSignature">
+                            <label for="showStudentSignature">التوقيع</label>
+                        </div>
+                    </div>
+                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px;">طول خط الاسم:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="name-line-btn" data-length="short" onclick="setNameLineLength('short')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">قصير</button>
+                        <button type="button" class="name-line-btn active" data-length="medium" onclick="setNameLineLength('medium')" style="flex: 1; padding: 5px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">متوسط</button>
+                        <button type="button" class="name-line-btn" data-length="long" onclick="setNameLineLength('long')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">طويل</button>
+                    </div>
+                </div>
+
+                <!-- 6. نوع الاختبار والفصل والعام -->
+                <div style="margin-bottom: 10px; padding: 10px; background: #fafafa; border-radius: 5px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i> عنوان الاختبار (تحت الشعار):</label>
+                    
+                    <!-- نوع الاختبار -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">نوع الاختبار:</label>
+                        <select id="examType" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                            <option value="نهاية">نهاية</option>
+                            <option value="منتصف">منتصف</option>
+                            <option value="الفترة الأولى">الفترة الأولى</option>
+                            <option value="الفترة الثانية">الفترة الثانية</option>
+                            <option value="تشخيصي">تشخيصي</option>
+                            <option value="قصير">قصير</option>
+                        </select>
+                    </div>
+                    
+                    <!-- الفصل الدراسي -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">الفصل الدراسي:</label>
+                        <select id="semesterSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                            <option value="الأول">الأول</option>
+                            <option value="الثاني">الثاني</option>
+                            <option value="الثالث">الثالث</option>
+                        </select>
+                    </div>
+                    
+                    <!-- العام الدراسي -->
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 0.75rem; color: #888;">العام الدراسي:</label>
+                        <input type="text" id="academicYear" value="1447هـ" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem; text-align: center;">
+                    </div>
+                    
+                    <!-- معاينة العنوان -->
+                    <div style="background: #e8f5e9; padding: 8px; border-radius: 4px; text-align: center; font-size: 0.8rem; color: #2e7d32; margin-top: 8px;">
+                        <i class="fas fa-eye"></i> المعاينة:<br>
+                        <strong id="examTitlePreview">اختبار نهاية الفصل الدراسي الأول لعام 1447هـ</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم حجم الخط -->
+            <div class="font-size-section" style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #2e7d32; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-text-height"></i> حجم خط الأسئلة</h4>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button type="button" class="btn btn-sm" onclick="changeFontSize(-1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <div style="flex: 1; text-align: center;">
+                        <input type="range" id="fontSizeSlider" min="10" max="20" value="14" 
+                               style="width: 100%; cursor: pointer;"
+                               oninput="updateFontSizeDisplay(this.value)">
+                        <div style="margin-top: 8px;">
+                            <span style="font-size: 0.85rem; color: #666;">حجم الخط: </span>
+                            <strong id="fontSizeValue" style="font-size: 1.1rem; color: #2e7d32;">14px</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="changeFontSize(1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 12px;">
+                    <button type="button" class="btn btn-sm" onclick="setFontSize(12)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">صغير (12)</button>
+                    <button type="button" class="btn btn-sm" onclick="setFontSize(14)" style="padding: 5px 12px; background: #4caf50; color: white; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">متوسط (14)</button>
+                    <button type="button" class="btn btn-sm" onclick="setFontSize(16)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">كبير (16)</button>
+                    <button type="button" class="btn btn-sm" onclick="setFontSize(18)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">أكبر (18)</button>
+                </div>
+            </div>
+
+            <!-- قسم حجم الصور -->
+            <div class="image-size-section" style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #1565c0; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-image"></i> حجم الصور</h4>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button type="button" class="btn btn-sm" onclick="changeImageSize(-10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <div style="flex: 1; text-align: center;">
+                        <input type="range" id="imageSizeSlider" min="60" max="180" value="100" 
+                               style="width: 100%; cursor: pointer;"
+                               oninput="updateImageSizeDisplay(this.value)">
+                        <div style="margin-top: 8px;">
+                            <span style="font-size: 0.85rem; color: #666;">حجم الصور: </span>
+                            <strong id="imageSizeValue" style="font-size: 1.1rem; color: #1565c0;">100%</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="changeImageSize(10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(70)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير (70%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(100)" style="padding: 5px 10px; background: #2196f3; color: white; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط (100%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(130)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير (130%)</button>
+                    <button type="button" class="btn btn-sm" onclick="setImageSize(150)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">أكبر (150%)</button>
+                </div>
+                <p style="font-size: 0.75rem; color: #666; margin-top: 10px; text-align: center;">
+                    <i class="fas fa-info-circle"></i> يؤثر على صور الأسئلة والخيارات
                 </p>
+            </div>
 
-                <div class="file-upload-wrapper">
-                    <input type="file" id="studentListFile" class="file-upload-input" accept=".xlsx,.xls" onchange="handleFileUpload(this)">
-                    <label for="studentListFile" class="file-upload-label">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span>اختر ملف Excel</span>
-                    </label>
+            <!-- قسم خيارات التنسيق المتقدمة -->
+            <div class="layout-section" style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #e65100; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-columns"></i> خيارات التنسيق</h4>
+                
+                <!-- عدد الأعمدة -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">عدد الأعمدة:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="column-btn" data-columns="1" onclick="setColumns(1)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-align-justify"></i><br>عمود واحد
+                        </button>
+                        <button type="button" class="column-btn active" data-columns="2" onclick="setColumns(2)" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-columns"></i><br>عمودين
+                        </button>
+                        <button type="button" class="column-btn" data-columns="3" onclick="setColumns(3)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-th"></i><br>ثلاثة
+                        </button>
+                    </div>
                 </div>
-                <div class="file-name-display" id="fileNameDisplay">
-                    <i class="fas fa-info-circle"></i> لم يتم اختيار ملف
+                
+                <!-- المسافة بين الأسئلة -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">المسافة بين الأسئلة:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="spacing-btn" data-spacing="compact" onclick="setSpacing('compact')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            ضيقة
+                        </button>
+                        <button type="button" class="spacing-btn active" data-spacing="normal" onclick="setSpacing('normal')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            متوسطة
+                        </button>
+                        <button type="button" class="spacing-btn" data-spacing="wide" onclick="setSpacing('wide')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            واسعة
+                        </button>
+                    </div>
                 </div>
+                
+                <!-- تنسيق الخيارات -->
+                <div>
+                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">تنسيق الخيارات النصية:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="options-layout-btn active" data-layout="vertical" onclick="setOptionsLayout('vertical')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-list"></i><br>تحت بعض
+                        </button>
+                        <button type="button" class="options-layout-btn" data-layout="grid" onclick="setOptionsLayout('grid')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-th-large"></i><br>شبكي 2×2
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                <button class="btn btn-outline btn-block" onclick="previewStudentList()" style="margin-top: 12px;">
-                    <i class="fas fa-eye"></i> معاينة القائمة
+            <div class="form-group">
+                <label>خيارات الاستخراج</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="includeAnswers" />
+                        <label for="includeAnswers">تضمين مفتاح الإجابات</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="includeAnswerSheet" />
+                        <label for="includeAnswerSheet">إضافة بطاقة تصحيح للمعلم</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="shuffleOptions" checked />
+                        <label for="shuffleOptions">خلط ترتيب الخيارات</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="questionCount">عدد الأسئلة (للتوليد العشوائي)</label>
+                <input type="number" id="questionCount" min="1" max="100" value="10" />
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="generateRandomBtn">
+                    <i class="fas fa-random"></i> توليد عشوائي
+                </button>
+                <button class="btn btn-secondary" id="clearAllBtn">
+                    <i class="fas fa-times"></i> مسح الكل
                 </button>
             </div>
 
-            <!-- الخطوة 6: التوليد والطباعة -->
-            <div class="step-card" id="step6">
-                <div class="step-header">
-                    <div class="step-number">6</div>
-                    <h3 class="step-title">التوليد والطباعة</h3>
-                    <span class="step-badge badge-required">مطلوب</span>
-                </div>
-                <p class="step-desc">
-                    اختر نوع الطباعة المطلوب
-                </p>
-
-                <button class="btn btn-primary btn-block btn-lg" onclick="generateMultipleModels()">
-                    <i class="fas fa-file-pdf"></i> توليد نماذج فارغة
+            <div class="btn-group btn-group-full" style="margin-top: 15px;">
+                <button class="btn btn-purple" id="generateMultiModelsBtn">
+                    <i class="fas fa-layer-group"></i> توليد النماذج المتعددة (PDF)
                 </button>
-                <div class="helper-text">
-                    نماذج جاهزة للطباعة والتوزيع
-                </div>
-
-                <div class="divider"></div>
-
-                <button class="btn btn-success btn-block" onclick="printWithStudentNames()">
-                    <i class="fas fa-users"></i> طباعة مع أسماء الطلاب
-                </button>
-                <div class="helper-text">
-                    يتطلب رفع ملف Excel في الخطوة 5
-                </div>
-
-                <div class="divider"></div>
-
-                <button class="btn btn-danger btn-block" onclick="generateOMRAnswerKey()">
-                    <i class="fas fa-key"></i> مفتاح إجابة واحد
-                </button>
-
-                <button class="btn btn-purple btn-block" onclick="generateAllModelsAnswerKeys()" style="margin-top: 10px;">
-                    <i class="fas fa-layer-group"></i> مفاتيح كل النماذج
-                </button>
-
-                <div class="divider"></div>
-
-                <button class="btn btn-info btn-block" onclick="printBlankRemarkSheets()">
-                    <i class="fas fa-clipboard"></i> ورقة ملاحظات فارغة
+            </div>
+            
+            <div class="btn-group btn-group-full" style="margin-top: 10px;">
+                <button class="btn btn-primary" id="previewMultiModelsBtn" style="background: #17a2b8;">
+                    <i class="fas fa-print"></i> معاينة وطباعة النماذج (أفضل جودة)
                 </button>
             </div>
 
+            <div style="background: #f0fff4; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-bottom: 20px; margin-top: 15px;">
+                <h4 style="color: #22543d; margin-top: 0;"><i class="fas fa-user-graduate"></i> نماذج إجابة Remark</h4>
+                
+                <!-- خيار 1: نماذج فارغة للنماذج المتعددة -->
+                <div style="margin-bottom: 15px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-layer-group"></i> 1. نماذج فارغة (للنماذج المتعددة)
+                    </p>
+                    <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 5px;">عدد النماذج لكل نوع:</label>
+                    <input type="number" id="blankSheetsCount" value="10" min="1" max="100" style="width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;">
+                    <button class="btn btn-info" onclick="printBlankRemarkSheets()" style="margin-top:8px; background: #17a2b8; width: 100%;">
+                       <i class="fas fa-file-alt"></i> طباعة نماذج فارغة للنماذج المختارة
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        سيتم طباعة نماذج فارغة لكل نموذج محدد (أ، ب، ج، د) للتوزيع اليدوي
+                    </p>
+                </div>
+                
+                <!-- خيار 2: نماذج بأسماء الطلاب -->
+                <div style="border-top: 1px dashed #28a745; padding-top: 12px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-users"></i> 2. نماذج بأسماء الطلاب
+                    </p>
+                    <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
+                    <button class="btn btn-success" onclick="previewStudentList()" style="margin-top:10px; width: 100%;">
+                       <i class="fas fa-print"></i> طباعة مع أسماء الطلاب (نموذج واحد)
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        للنموذج الواحد فقط - يتطلب ملف Excel بأسماء الطلاب
+                    </p>
+                </div>
+                
+                <!-- زر مفتاح الإجابة OMR -->
+                <div style="border-top: 1px dashed #28a745; margin-top: 12px; padding-top: 12px;">
+                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
+                        <i class="fas fa-key"></i> 3. مفاتيح الإجابة
+                    </p>
+                    <button class="btn" onclick="generateOMRAnswerKey()" style="width: 100%; background: #c41e3a; color: white; font-weight: bold;">
+                       <i class="fas fa-key"></i> استخراج مفتاح إجابة OMR (نموذج واحد)
+                    </button>
+                    <button class="btn" onclick="generateAllModelsAnswerKeys()" style="width: 100%; background: #9c27b0; color: white; font-weight: bold; margin-top: 8px;">
+                       <i class="fas fa-layer-group"></i> استخراج مفاتيح إجابة لكل النماذج
+                    </button>
+                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
+                        يستخرج الإجابات الصحيحة ويظللها في بطاقات OMR
+                    </p>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-success" id="exportWithoutAnswersBtn">
+                    <i class="fas fa-download"></i> بدون إجابات
+                </button>
+                <button class="btn btn-warning" id="exportWithAnswersBtn">
+                    <i class="fas fa-download"></i> مع الإجابات
+                </button>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-info" id="downloadWordWithoutAnswersBtn">
+                    <i class="fas fa-file-word"></i> Word بدون إجابات
+                </button>
+                <button class="btn btn-info" id="downloadWordWithAnswersBtn">
+                    <i class="fas fa-file-word"></i> Word مع الإجابات
+                </button>
+            </div>
         </div>
 
-        <!-- Main Content Area -->
+        <!-- المحتوى الرئيسي -->
         <div class="export-main">
-            <!-- Stats -->
-            <div class="stats-container">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalQuestionsCount">0</div>
-                    <div class="stat-label">إجمالي الأسئلة</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="selectedQuestionsCount">0</div>
-                    <div class="stat-label">أسئلة محددة</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="previewModelsCount">0</div>
-                    <div class="stat-label">نماذج جاهزة</div>
-                </div>
+            <h2><i class="fas fa-list"></i> الأسئلة المتاحة</h2>
+
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>جاري تحميل الأسئلة...</p>
             </div>
 
-            <!-- Questions Container -->
-            <div id="questionsContainer" class="questions-container">
-                <div class="empty-state">
-                    <i class="fas fa-clipboard-list"></i>
-                    <h3>ابدأ باختيار المحتوى</h3>
-                    <p>اختر المنهج والوحدة والدرس من الخطوة 1 لتحميل الأسئلة</p>
+            <div id="questionsContent">
+                <div class="no-questions">
+                    <i class="fas fa-inbox"></i>
+                    <p>لم يتم تحميل أسئلة بعد. اختر منهج لعرض الأسئلة.</p>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loading-content">
-        <div class="spinner"></div>
-        <div class="loading-text">جاري التحميل...</div>
+    <!-- قسم المعاينة -->
+    <div class="preview-section" id="previewSection" style="display: none;">
+        <div class="preview-header">
+            <h3><i class="fas fa-eye"></i> معاينة النموذج</h3>
+            <div class="preview-info">
+                <div class="preview-info-item">
+                    <div class="preview-info-label">عدد الأسئلة</div>
+                    <div class="preview-info-value" id="previewQuestionsCount">0</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">عدد النماذج</div>
+                    <div class="preview-info-value" id="previewModelsCount">1</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">تاريخ الإنشاء</div>
+                    <div class="preview-info-value" id="previewDate">-</div>
+                </div>
+                <div class="preview-info-item">
+                    <div class="preview-info-label">الحالة</div>
+                    <div class="preview-info-value" id="previewStatus">جاهز</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-// ==================== المتغيرات العامة ====================
-let allQuestions = [];
-let selectedQuestionIds = new Set();
-let headerFormatConfig = {
-    headerSize: 'medium',
-    logoSize: 'medium',
-    qrSize: 'medium',
-    nameLineLength: 'medium',
-    fontSize: 14,
-    imageSize: 100
+// تعريف المتغير كـ let ليقبل التحديث
+let headerSettings = {
+    country: 'المملكة العربية السعودية',
+    ministry: 'وزارة التعليم',
+    education_department: 'الإدارة العامة للتعليم بالمنطقة الشرقية',
+    school_name: 'مدرسة عبدالرحمن بن القاسم الثانوية',
+    subject: 'كيمياء 4',
+    time: 'ثلاث ساعات',
+    grade: 'ثالث ثانوي',
+    total_score: 30
 };
 
-// ==================== التهيئة ====================
+// دالة لجلب الإعدادات الحديثة من السيرفر
+async function loadHeaderSettingsFromServer() {
+    try {
+        const response = await fetch('/questions/get-header-settings');
+        const data = await response.json();
+        
+        if (data.success && data.settings) {
+            headerSettings = {
+                country: data.settings.country || 'المملكة العربية السعودية',
+                ministry: data.settings.ministry || 'وزارة التعليم',
+                education_department: data.settings.education_department || '',
+                school_name: data.settings.school_name || '',
+                subject: data.settings.subject || '',
+                time: data.settings.time || '',
+                grade: data.settings.grade || '',
+                total_score: data.settings.total_score || 30
+            };
+            console.log("تم تحديث الكليشة من قاعدة البيانات");
+        }
+    } catch (error) {
+        console.error('فشل تحميل الكليشة:', error);
+    }
+}
+
+
+const API_BASE = '/api/v1';
+let allQuestions = [];
+let selectedQuestionIds = new Set();
+let currentCourseId = null;
+let currentUnitId = null;
+let currentLessonId = null;
+let currentStudents = []; // قائمة الطلاب لنماذج ريمارك
+
+// الحصول على النماذج المختارة
+function getSelectedModels() {
+    const models = [];
+    if (document.getElementById('modelA').checked) models.push('أ');
+    if (document.getElementById('modelB').checked) models.push('ب');
+    if (document.getElementById('modelC').checked) models.push('ج');
+    if (document.getElementById('modelD').checked) models.push('د');
+    return models;
+}
+
+// توليد النماذج المتعددة
+async function generateMultipleModels() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+    
+    // 🔧 إضافة: الحصول على إعدادات التنسيق
+    const headerFormatSettings = getHeaderSettings();
+    const fontSize = getFontSize();
+    const imageSize = getImageSize();
+    const layoutSettings = getLayoutSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/generate-multi-models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                models: selectedModels,
+                include_answers: document.getElementById('includeAnswers').checked,
+                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
+                include_barcode: document.getElementById('includeBarcode').checked,
+                // التعديل: إجبار الخلط لضمان اختلاف حرف الإجابة الصحيحة بين النماذج
+                shuffle_options: true,
+                // 🔧 إضافة: إرسال إعدادات التنسيق
+                font_size: fontSize,
+                image_size: imageSize,
+                ...layoutSettings,
+                ...headerFormatSettings
+            })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `exam_models_${selectedModels.join('_')}_${new Date().getTime()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showSuccess(`تم توليد ${selectedModels.length} نموذج بنجاح مع توزيع إجابات مختلف`);
+            
+            // تحديث المعاينة
+            document.getElementById('previewModelsCount').textContent = selectedModels.length;
+            showPreviewMulti(selectedQuestionIds.size, selectedModels.length);
+        } else {
+            const error = await response.json();
+            showError(error.error || 'فشل توليد النماذج');
+        }
+    } catch (error) {
+        showError('خطأ في توليد النماذج: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// معاينة وطباعة النماذج المتعددة (أفضل جودة - يفتح في نافذة جديدة)
+async function previewMultipleModels() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+    
+    // 🔧 إضافة: الحصول على إعدادات التنسيق
+    const headerFormatSettings = getHeaderSettings();
+    const fontSize = getFontSize();
+    const imageSize = getImageSize();
+    const layoutSettings = getLayoutSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/preview-multi-models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                models: selectedModels,
+                include_answers: document.getElementById('includeAnswers').checked,
+                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
+                include_barcode: document.getElementById('includeBarcode').checked,
+                // التعديل هنا: إرسال true دائماً لكسر تشابه الإجابات بين النماذج
+                shuffle_options: true,
+                // 🔧 إضافة: إرسال إعدادات التنسيق
+                font_size: fontSize,
+                image_size: imageSize,
+                ...layoutSettings,
+                ...headerFormatSettings
+            })
+        });
+        
+        if (response.ok) {
+            const html = await response.text();
+            // فتح نافذة جديدة وعرض HTML مع تفعيل الطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(html);
+            printWindow.document.close();
+            showSuccess('تم فتح المعاينة - كل نموذج لديه مفتاح إجابة فريد الآن');
+        } else {
+            const error = await response.json();
+            showError(error.error || 'فشل معاينة النماذج');
+        }
+    } catch (error) {
+        showError('خطأ في معاينة النماذج: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// تحميل المناهج عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
-    setupEventListeners();
     loadCourses();
-    setTodayDate();
+    setupEventListeners();
     loadHeaderSettingsFromServer();
 });
 
 function setupEventListeners() {
-    const courseSelect = document.getElementById('courseSelect');
-    const unitSelect = document.getElementById('unitSelect');
-    const lessonSelect = document.getElementById('lessonSelect');
-    const examType = document.getElementById('examType');
-    const semester = document.getElementById('semesterSelect');
-    const year = document.getElementById('academicYear');
-
-    if (courseSelect) courseSelect.addEventListener('change', handleCourseChange);
-    if (unitSelect) unitSelect.addEventListener('change', handleUnitChange);
-    if (lessonSelect) lessonSelect.addEventListener('change', handleLessonChange);
-    if (examType) examType.addEventListener('change', updateExamTitlePreview);
-    if (semester) semester.addEventListener('change', updateExamTitlePreview);
-    if (year) year.addEventListener('input', updateExamTitlePreview);
-}
-
-// ==================== Collapsible Sections ====================
-function toggleCollapse(header) {
-    const section = header.closest('.collapsible-section');
-    section.classList.toggle('collapsed');
-}
-
-// ==================== Step Management ====================
-function markStepCompleted(stepNumber) {
-    const step = document.getElementById('step' + stepNumber);
-    if (step) {
-        step.classList.add('completed');
-        step.classList.remove('active');
-    }
+    document.getElementById('courseSelect').addEventListener('change', handleCourseChange);
+    document.getElementById('unitSelect').addEventListener('change', handleUnitChange);
+    document.getElementById('lessonSelect').addEventListener('change', handleLessonChange);
+    document.getElementById('generateRandomBtn').addEventListener('click', generateRandomExam);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllSelections);
+    document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => exportExam(false));
+    document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
+    document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
+    document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
+    document.getElementById('generateMultiModelsBtn').addEventListener('click', generateMultipleModels);
+    document.getElementById('previewMultiModelsBtn').addEventListener('click', previewMultipleModels);
     
-    // Activate next step
-    const nextStep = document.getElementById('step' + (stepNumber + 1));
-    if (nextStep) {
-        nextStep.classList.add('active');
-    }
-}
-
-function activateStep(stepNumber) {
-    document.querySelectorAll('.step-card').forEach(card => {
-        card.classList.remove('active');
+    // تحديث معاينة الباركود
+    document.getElementById('includeBarcode').addEventListener('change', function() {
+        document.getElementById('barcodePreview').style.opacity = this.checked ? '1' : '0.5';
     });
-    const step = document.getElementById('step' + stepNumber);
-    if (step) {
-        step.classList.add('active');
-    }
 }
 
-// ==================== تحميل البيانات ====================
-async function loadCourses() {
+// الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
+async function previewStudentList() {
+    const fileInput = document.getElementById('studentListFile');
+    if (!fileInput.files.length) { showError('الرجاء اختيار ملف Excel أولاً'); return; }
+
+    const formData = new FormData();
+    formData.append('student_file', fileInput.files[0]);
+    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+
+    showLoading(true);
     try {
-        const response = await fetch('/questions/courses');
-        const courses = await response.json();
-        
-        const courseSelect = document.getElementById('courseSelect');
-        courseSelect.innerHTML = '<option value="">-- اختر منهج --</option>';
-        
-        courses.forEach(course => {
-            const option = document.createElement('option');
-            option.value = course.id;
-            option.textContent = course.name;
-            courseSelect.appendChild(option);
-        });
-    } catch (error) {
-        showError('فشل تحميل المناهج: ' + error.message);
-    }
+        const response = await fetch('/questions/preview-students', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+            currentStudents = data.students; 
+            renderStudentPreviewTable(data.students);
+            showSuccess('تمت قراءة الأسماء بنجاح');
+            
+            // استدعاء دالة إظهار الزر الأخضر هنا
+            addFinalGenerateButton(); 
+        } else { showError(data.error); }
+    } catch (e) { showError('خطأ في الاتصال بالسيرفر'); }
+    finally { showLoading(false); }
 }
 
-async function handleCourseChange(event) {
-    const courseId = event.target.value;
-    const unitSelect = document.getElementById('unitSelect');
-    const lessonSelect = document.getElementById('lessonSelect');
+// ==================== دالة طباعة نماذج ريمارك للنماذج المتعددة ====================
+async function previewStudentListMultiModels() {
+    const fileInput = document.getElementById('studentListFileMulti');
+    if (!fileInput.files.length) { 
+        showError('الرجاء اختيار ملف Excel أولاً'); 
+        return; 
+    }
     
-    unitSelect.innerHTML = '<option value="">-- اختر وحدة --</option>';
-    lessonSelect.innerHTML = '<option value="">-- اختر درس --</option>';
-    lessonSelect.disabled = true;
-    
-    if (!courseId) {
-        unitSelect.disabled = true;
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
         return;
     }
     
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('student_file', fileInput.files[0]);
+    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+
+    showLoading(true);
     try {
-        const response = await fetch(`/questions/units/${courseId}`);
-        const units = await response.json();
+        // أولاً: قراءة قائمة الطلاب من الإكسل
+        const response = await fetch('/questions/preview-students', { 
+            method: 'POST', 
+            body: formData 
+        });
+        const data = await response.json();
         
-        units.forEach(unit => {
-            const option = document.createElement('option');
-            option.value = unit.id;
-            option.textContent = unit.name;
-            unitSelect.appendChild(option);
+        if (!data.success) {
+            showError(data.error);
+            return;
+        }
+        
+        const students = data.students;
+        showSuccess(`تمت قراءة ${students.length} طالب/طالبة`);
+        
+        // ثانياً: توليد نماذج ريمارك للنماذج المتعددة
+        const remarkResponse = await fetch('/questions/print-remark-sheets-multi-models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                students: students,
+                models: selectedModels,
+                question_ids: Array.from(selectedQuestionIds),
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true
+            })
         });
         
-        unitSelect.disabled = false;
+        const remarkData = await remarkResponse.json();
+        
+        if (remarkData.success) {
+            // فتح نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>نماذج إجابة ريمارك - نماذج متعددة</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                        }
+                        .print-header {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            background: #28a745;
+                            color: white;
+                            padding: 10px 20px;
+                            text-align: center;
+                            z-index: 9999;
+                            font-family: Arial, sans-serif;
+                        }
+                        .print-header button {
+                            background: white;
+                            color: #28a745;
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            margin-right: 10px;
+                        }
+                        .print-header button:hover {
+                            background: #f0f0f0;
+                        }
+                        body {
+                            padding-top: 50px;
+                        }
+                
+        /* البطاقات المرقمة */
+        .step-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .step-card.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        .step-card.completed {
+            border-color: #10b981;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        .step-card.completed .step-number {
+            background: #10b981;
+        }
+        .step-card.completed .step-number::after {
+            content: '✓';
+        }
+        .step-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .step-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .badge-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-optional {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+        .step-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon-only {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            min-width: 44px !important;
+        }
+        .helper-text {
+            font-size: 0.78rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f9ff;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+    </style>
+                </head>
+                <body>
+                    <div class="print-header no-print">
+                        <button onclick="window.print()">🖨️ طباعة النماذج</button>
+                        <span>نماذج إجابة ريمارك - ${students.length} طالب/طالبة - النماذج: ${selectedModels.join(', ')}</span>
+                    </div>
+                    ${remarkData.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${students.length} ورقة إجابة موزعة على ${selectedModels.length} نموذج`);
+        } else {
+            showError(remarkData.error || 'حدث خطأ في إنشاء نماذج الإجابة');
+        }
     } catch (error) {
-        showError('فشل تحميل الوحدات: ' + error.message);
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
     }
 }
 
-async function handleUnitChange(event) {
-    const unitId = event.target.value;
-    const lessonSelect = document.getElementById('lessonSelect');
-    
-    lessonSelect.innerHTML = '<option value="">-- اختر درس --</option>';
-    
-    if (!unitId) {
-        lessonSelect.disabled = true;
+// ==================== دالة طباعة نماذج ريمارك فارغة للنماذج المتعددة ====================
+async function printBlankRemarkSheets() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
         return;
     }
     
-    try {
-        const response = await fetch(`/questions/lessons/${unitId}`);
-        const lessons = await response.json();
-        
-        lessons.forEach(lesson => {
-            const option = document.createElement('option');
-            option.value = lesson.id;
-            option.textContent = lesson.name;
-            lessonSelect.appendChild(option);
-        });
-        
-        lessonSelect.disabled = false;
-    } catch (error) {
-        showError('فشل تحميل الدروس: ' + error.message);
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
     }
-}
-
-async function handleLessonChange() {
-    // يمكن تحميل الأسئلة تلقائياً أو انتظار زر التحميل
-}
-
-async function loadQuestions() {
-    const lessonId = document.getElementById('lessonSelect').value;
     
-    if (!lessonId) {
-        showError('يرجى اختيار درس أولاً');
+    const count = parseInt(document.getElementById('blankSheetsCount').value) || 10;
+    if (count < 1 || count > 100) {
+        showError('الرجاء إدخال عدد بين 1 و 100');
         return;
     }
     
     showLoading(true);
     
     try {
-        const response = await fetch(`/questions/by-lesson/${lessonId}`);
-        allQuestions = await response.json();
+        const response = await fetch('/questions/print-blank-remark-sheets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                models: selectedModels,
+                count_per_model: count,
+                question_ids: Array.from(selectedQuestionIds)
+            })
+        });
         
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة للطباعة
+            const totalSheets = selectedModels.length * count;
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>نماذج إجابة ريمارك - فارغة</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                        }
+                        .print-header {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            background: #17a2b8;
+                            color: white;
+                            padding: 10px 20px;
+                            text-align: center;
+                            z-index: 9999;
+                            font-family: Arial, sans-serif;
+                        }
+                        .print-header button {
+                            background: white;
+                            color: #17a2b8;
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            margin-right: 10px;
+                        }
+                        .print-header button:hover {
+                            background: #f0f0f0;
+                        }
+                        body {
+                            padding-top: 50px;
+                        }
+                
+        /* البطاقات المرقمة */
+        .step-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .step-card.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        .step-card.completed {
+            border-color: #10b981;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        .step-card.completed .step-number {
+            background: #10b981;
+        }
+        .step-card.completed .step-number::after {
+            content: '✓';
+        }
+        .step-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .step-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .badge-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-optional {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+        .step-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon-only {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            min-width: 44px !important;
+        }
+        .helper-text {
+            font-size: 0.78rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f9ff;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+    </style>
+                </head>
+                <body>
+                    <div class="print-header no-print">
+                        <button onclick="window.print()">🖨️ طباعة النماذج</button>
+                        <span>نماذج إجابة ريمارك (فارغة) - ${totalSheets} ورقة - النماذج: ${selectedModels.join(', ')} (${count} لكل نموذج)</span>
+                    </div>
+                    ${data.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${totalSheets} ورقة إجابة فارغة (${count} لكل نموذج)`);
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء نماذج الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ==================== دالة استخراج مفاتيح إجابة لكل النماذج ====================
+async function generateAllModelsAnswerKeys() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً');
+        return;
+    }
+    
+    const selectedModels = getSelectedModels();
+    if (selectedModels.length === 0) {
+        showError('يجب اختيار نموذج واحد على الأقل');
+        return;
+    }
+    
+    // 🔧 الحصول على إعدادات الكليشة والتنسيق
+    const headerFormatSettings = getHeaderSettings();
+    const fontSize = getFontSize();
+    const imageSize = getImageSize();
+    const layoutSettings = getLayoutSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/generate-all-models-answer-keys', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                models: selectedModels,
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year,
+                // 🔧 إضافة: إرسال إعدادات التنسيق
+                font_size: fontSize,
+                image_size: imageSize,
+                ...layoutSettings,
+                ...headerFormatSettings
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة مع مفاتيح الإجابة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html);
+            printWindow.document.close();
+            showSuccess(`تم إنشاء ${selectedModels.length} مفتاح إجابة للنماذج: ${selectedModels.join(', ')}`);
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء مفاتيح الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// دالة إضافية لإظهار زر التوليد النهائي (تأكيد الطباعة) بعد المعاينة
+function addFinalGenerateButton() {
+    const container = document.getElementById('questionsContent');
+    const btnHtml = `
+        <div style="margin-top: 20px; text-align: center; padding: 20px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe58f;">
+            <p style="color: #856404; font-weight: bold;">بعد التأكد من الأسماء أعلاه، اضغط للبدء في تجهيز الأوراق</p>
+            <button class="btn btn-success" onclick="confirmAndPrint()" style="width: 100%; margin-top: 10px; font-size: 1.2rem; padding: 12px;">
+                <i class="fas fa-print"></i> تأكيد وطباعة أوراق الإجابة
+            </button>
+        </div>
+    `;
+    container.innerHTML += btnHtml;
+}
+
+// ==================== دالة استخراج مفتاح إجابة OMR ====================
+async function generateOMRAnswerKey() {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة أولاً لاستخراج مفتاح الإجابة');
+        return;
+    }
+    
+    // الحصول على النموذج المختار
+    const selectedModels = getSelectedModels();
+    const modelLetter = selectedModels.length > 0 ? selectedModels[0] : 'أ';
+    
+    // الحصول على إعدادات الكليشة
+    const headerFormatSettings = getHeaderSettings();
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/generate-omr-answer-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                model_letter: modelLetter,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // فتح نافذة جديدة مع مفتاح الإجابة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(data.html);
+            printWindow.document.close();
+            showSuccess('تم إنشاء مفتاح إجابة OMR بنجاح!');
+        } else {
+            showError(data.error || 'حدث خطأ في إنشاء مفتاح الإجابة');
+        }
+    } catch (error) {
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// دالة عرض جدول الطلاب للمعاينة
+function renderStudentPreviewTable(students) {
+    const container = document.getElementById('questionsContent');
+    
+    if (!students || students.length === 0) {
+        container.innerHTML = `
+            <div class="no-questions">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>لم يتم العثور على طلاب في الملف</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let tableHtml = `
+        <div style="background: #e8f5e9; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="color: #2e7d32; margin-bottom: 15px;">
+                <i class="fas fa-users"></i> معاينة قائمة الطلاب (${students.length} طالب)
+            </h3>
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #4CAF50; color: white;">
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">#</th>
+                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid #2e7d32;">اسم الطالب</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">الرقم الأكاديمي</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #2e7d32;">الشعبة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    students.forEach((student, index) => {
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
+        tableHtml += `
+            <tr style="background: ${bgColor};">
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${index + 1}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${student.name || '---'}</td>
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${student.academic_id || '---'}</td>
+                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #e0e0e0;">${student.section || '---'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = tableHtml;
+}
+
+// دالة التأكيد والطباعة النهائية لأوراق ريمارك
+async function confirmAndPrint() {
+    if (!currentStudents || currentStudents.length === 0) {
+        showError('لا توجد قائمة طلاب للطباعة');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/questions/print-remark-sheets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                students: currentStudents
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.html_content) {
+            // فتح نافذة جديدة للطباعة
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>أوراق إجابة Remark</title>
+                    <style>
+                        @media print {
+                            .no-print { display: none !important; }
+                            .page-break { page-break-after: always; }
+                        }
+                        @page { size: A4; margin: 10mm; }
+                        body { font-family: 'Arial', sans-serif; }
+                        .print-btn {
+                            position: fixed;
+                            top: 10px;
+                            left: 10px;
+                            padding: 15px 30px;
+                            background: #4CAF50;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 18px;
+                            z-index: 9999;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        }
+                        .print-btn:hover { background: #45a049; }
+                
+        /* البطاقات المرقمة */
+        .step-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .step-card.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        .step-card.completed {
+            border-color: #10b981;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        .step-card.completed .step-number {
+            background: #10b981;
+        }
+        .step-card.completed .step-number::after {
+            content: '✓';
+        }
+        .step-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .step-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .badge-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-optional {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+        .step-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon-only {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            min-width: 44px !important;
+        }
+        .helper-text {
+            font-size: 0.78rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f9ff;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+    </style>
+                </head>
+                <body>
+                    <button class="print-btn no-print" onclick="window.print()">🖨️ طباعة الأوراق</button>
+                    ${data.html_content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            showSuccess(`تم تجهيز ${currentStudents.length} ورقة إجابة للطباعة`);
+        } else {
+            showError(data.error || 'فشل في تجهيز أوراق الإجابة');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError('خطأ في الاتصال بالسيرفر: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function loadCourses() {
+    try {
+        const response = await fetch(`${API_BASE}/courses?show_all=true`);
+        const data = await response.json();
+        
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+        
+        const courses = Array.isArray(data) ? data : (data.courses || []);
+        
+        if (courses.length > 0) {
+            courses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course.id;
+                option.textContent = course.name;
+                courseSelect.appendChild(option);
+            });
+        } else {
+            showError('لا توجد مناهج متاحة');
+        }
+    } catch (error) {
+        showError('فشل تحميل المناهج: ' + error.message);
+    }
+}
+
+async function handleCourseChange() {
+    const courseId = document.getElementById('courseSelect').value;
+    currentCourseId = courseId ? parseInt(courseId) : null;
+    currentUnitId = null;
+    currentLessonId = null;
+    
+    document.getElementById('unitSelect').innerHTML = '<option value="">-- جميع الوحدات --</option>';
+    document.getElementById('lessonSelect').innerHTML = '<option value="">-- جميع الدروس --</option>';
+    
+    if (!courseId) {
+        document.getElementById('questionsContent').innerHTML = `
+            <div class="no-questions">
+                <i class="fas fa-inbox"></i>
+                <p>اختر منهج لعرض الأسئلة.</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/courses/${courseId}/units`);
+        const data = await response.json();
+        
+        const unitSelect = document.getElementById('unitSelect');
+        const units = Array.isArray(data) ? data : (data.units || []);
+        
+        if (units.length > 0) {
+            units.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                unitSelect.appendChild(option);
+            });
+        }
+        
+        await loadQuestions();
+    } catch (error) {
+        showError('فشل تحميل البيانات: ' + error.message);
+    }
+}
+
+async function handleUnitChange() {
+    const unitId = document.getElementById('unitSelect').value;
+    currentUnitId = unitId ? parseInt(unitId) : null;
+    currentLessonId = null;
+    
+    document.getElementById('lessonSelect').innerHTML = '<option value="">-- جميع الدروس --</option>';
+    
+    if (currentUnitId) {
+        try {
+            const response = await fetch(`${API_BASE}/courses/${currentCourseId}/units/${currentUnitId}/lessons`);
+            const data = await response.json();
+            
+            const lessonSelect = document.getElementById('lessonSelect');
+            const lessons = Array.isArray(data) ? data : (data.lessons || []);
+            
+            if (lessons.length > 0) {
+                lessons.forEach(lesson => {
+                    const option = document.createElement('option');
+                    option.value = lesson.id;
+                    option.textContent = lesson.name;
+                    lessonSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            showError('فشل تحميل الدروس: ' + error.message);
+        }
+    }
+    
+    await loadQuestions();
+}
+
+async function handleLessonChange() {
+    const lessonId = document.getElementById('lessonSelect').value;
+    currentLessonId = lessonId ? parseInt(lessonId) : null;
+    await loadQuestions();
+}
+
+async function loadQuestions() {
+    if (!currentCourseId) return;
+    
+    showLoading(true);
+    selectedQuestionIds.clear();
+    
+    try {
+        let endpoint = `${API_BASE}/courses/${currentCourseId}/questions`;
+        
+        if (currentLessonId) {
+            endpoint = `${API_BASE}/lessons/${currentLessonId}/questions`;
+        } else if (currentUnitId) {
+            endpoint = `${API_BASE}/courses/${currentCourseId}/units/${currentUnitId}/questions`;
+        }
+        
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        
+        allQuestions = Array.isArray(data) ? data : (data.questions || []);
         updateQuestionsList();
         updateStats();
-        showSuccess(`تم تحميل ${allQuestions.length} سؤال`);
-        
-        // Mark step 1 as completed and activate step 2
-        markStepCompleted(1);
     } catch (error) {
         showError('فشل تحميل الأسئلة: ' + error.message);
     } finally {
@@ -1454,159 +2263,491 @@ async function loadQuestions() {
     }
 }
 
-// ==================== عرض الأسئلة ====================
 function updateQuestionsList() {
-    const container = document.getElementById('questionsContainer');
+    const container = document.getElementById('questionsContent');
     
     if (allQuestions.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
+            <div class="no-questions">
                 <i class="fas fa-inbox"></i>
-                <h3>لا توجد أسئلة</h3>
-                <p>لم يتم العثور على أسئلة في هذا الدرس</p>
+                <p>لا توجد أسئلة متاحة في هذا التحديد.</p>
             </div>
         `;
         return;
     }
+
+    const html = `
+        <div class="questions-container">
+            <div class="questions-column" id="column-left"></div>
+            <div class="questions-column" id="column-right"></div>
+        </div>
+    `;
     
-    container.innerHTML = '';
+    container.innerHTML = html;
     
-    allQuestions.forEach(question => {
-        const questionCard = createQuestionElement(question);
-        container.appendChild(questionCard);
+    const leftColumn = document.getElementById('column-left');
+    const rightColumn = document.getElementById('column-right');
+    
+    allQuestions.forEach((question, index) => {
+        const column = index % 2 === 0 ? leftColumn : rightColumn;
+        const questionEl = createQuestionElement(question);
+        column.appendChild(questionEl);
     });
 }
 
 function createQuestionElement(question) {
-    const card = document.createElement('div');
-    card.className = 'question-card';
-    card.dataset.questionId = question.id;
+    const div = document.createElement('div');
+    div.className = 'question-item';
+    div.id = `question-${question.question_id}`;
     
-    if (selectedQuestionIds.has(question.id)) {
-        card.classList.add('selected');
+    const isSelected = selectedQuestionIds.has(question.question_id);
+    if (isSelected) {
+        div.classList.add('selected');
     }
     
-    card.innerHTML = `
-        <div class="question-header">
-            <span class="question-number">
-                <i class="fas fa-question-circle"></i> سؤال ${question.id}
-            </span>
-        </div>
-        <div class="question-text">${question.text}</div>
-        ${question.image_url ? `<img src="${question.image_url}" class="question-image" alt="صورة السؤال">` : ''}
+    const optionsText = question.options.map((opt, i) => `${String.fromCharCode(97 + i)}) ${opt.option_text}`).join(' | ');
+    
+    div.innerHTML = `
+        <label style="display: flex; align-items: flex-start; cursor: pointer;">
+            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
+                   ${isSelected ? 'checked' : ''} style="margin-top: 3px; margin-left: 10px;" />
+            <div style="flex: 1;">
+                <div class="question-text">${question.question_text}</div>
+                <div class="question-meta">
+                    <span class="meta-badge"><i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}</span>
+                    <span class="meta-badge"><i class="fas fa-layer-group"></i> ${question.unit || 'وحدة غير محددة'}</span>
+                </div>
+            </div>
+        </label>
     `;
     
-    card.addEventListener('click', function() {
-        toggleQuestionSelection(question.id);
+    const checkbox = div.querySelector('.question-checkbox');
+    checkbox.addEventListener('change', (e) => {
+        const qId = parseInt(e.target.value);
+        if (e.target.checked) {
+            selectedQuestionIds.add(qId);
+            div.classList.add('selected');
+        } else {
+            selectedQuestionIds.delete(qId);
+            div.classList.remove('selected');
+        }
+        updateStats();
     });
     
-    return card;
+    return div;
 }
 
-function toggleQuestionSelection(questionId) {
-    const card = document.querySelector(`[data-question-id="${questionId}"]`);
-    
-    if (selectedQuestionIds.has(questionId)) {
-        selectedQuestionIds.delete(questionId);
-        card.classList.remove('selected');
-    } else {
-        selectedQuestionIds.add(questionId);
-        card.classList.add('selected');
+async function generateRandomExam() {
+    if (!currentCourseId) {
+        showError('يجب اختيار منهج أولاً');
+        return;
     }
     
-    updateStats();
+    const questionCount = parseInt(document.getElementById('questionCount').value);
     
-    // Mark step 2 as completed if questions are selected
-    if (selectedQuestionIds.size > 0) {
-        markStepCompleted(2);
+    if (questionCount < 1) {
+        showError('يجب تحديد عدد أسئلة صحيح');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch(`${API_BASE}/questions/generate-exam`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                course_id: currentCourseId,
+                unit_id: currentUnitId,
+                lesson_id: currentLessonId,
+                question_count: questionCount,
+                include_answers: false
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            selectedQuestionIds.clear();
+            data.exam.questions.forEach(q => {
+                selectedQuestionIds.add(q.question_id);
+            });
+            
+            updateQuestionsList();
+            updateStats();
+            showSuccess(`تم توليد نموذج عشوائي بـ ${data.exam.count} أسئلة`);
+            showPreview(data.exam);
+        } else {
+            showError(data.error || 'فشل توليد النموذج');
+        }
+    } catch (error) {
+        showError('خطأ في التوليد: ' + error.message);
+    } finally {
+        showLoading(false);
     }
 }
 
 function clearAllSelections() {
     selectedQuestionIds.clear();
-    document.querySelectorAll('.question-card').forEach(card => {
-        card.classList.remove('selected');
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    document.querySelectorAll('.question-item').forEach(item => {
+        item.classList.remove('selected');
     });
     updateStats();
-    showSuccess('تم إلغاء تحديد جميع الأسئلة');
+    document.getElementById('previewSection').style.display = 'none';
 }
 
-// ==================== الإحصائيات ====================
-function updateStats() {
-    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
-    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+async function exportExam(includeAnswers) {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
     
+    showLoading(true);
+    
+    try {
+        const response = await fetch(`${API_BASE}/questions/export`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                question_ids: Array.from(selectedQuestionIds),
+                include_answers: includeAnswers,
+                format: 'json'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            generatePrintableDocument(data.questions, includeAnswers);
+            showSuccess(`تم استخراج ${data.count} أسئلة بنجاح`);
+        } else {
+            showError(data.error || 'فشل الاستخراج');
+        }
+    } catch (error) {
+        showError('خطأ في الاستخراج: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+
+// --- دالة استخراج وتوليد النموذج (المطورة) ---
+function generatePrintableDocument(questions, includeAnswers) {
+    if (selectedQuestionIds.size === 0) {
+        showError('يجب اختيار أسئلة على الأقل');
+        return;
+    }
+
+    // الحصول على النماذج المختارة (أ، ب، ج، د)
     const selectedModels = getSelectedModels();
-    document.getElementById('previewModelsCount').textContent = selectedModels.length;
+    
+    // الحصول على حجم الخط المختار
+    const fontSize = getFontSize();
+    
+    // الحصول على حجم الصور المختار
+    const imageSize = getImageSize();
+    
+    // الحصول على إعدادات التنسيق
+    const layoutSettings = getLayoutSettings();
+    
+    // الحصول على إعدادات الكليشة
+    const headerFormatSettings = getHeaderSettings();
+    
+    /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
+       لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
+    */
+    const modelsToSend = selectedModels.length > 0 ? selectedModels : [''];
+
+    showLoading(true);
+
+    // استخدام مسار "preview-multi-models" لأنه يدعم تنسيقات الصور المتطورة والباركود
+    fetch('/questions/preview-multi-models', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            question_ids: Array.from(selectedQuestionIds),
+            models: modelsToSend, 
+            include_answers: includeAnswers,
+            include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
+            include_barcode: document.getElementById('includeBarcode').checked,
+            shuffle_options: document.getElementById('shuffleOptions').checked,
+            font_size: fontSize,
+            image_size: imageSize,
+            columns: layoutSettings.columns,
+            spacing: layoutSettings.spacing,
+            options_layout: layoutSettings.options_layout,
+            // إعدادات الكليشة
+            header_size: headerFormatSettings.header_size,
+            show_logo: headerFormatSettings.show_logo,
+            logo_size: headerFormatSettings.logo_size,
+            qr_size: headerFormatSettings.qr_size,
+            show_grades_table: headerFormatSettings.show_grades_table,
+            show_extra_grade_field: headerFormatSettings.show_extra_grade_field,
+            show_student_name: headerFormatSettings.show_student_name,
+            show_student_class: headerFormatSettings.show_student_class,
+            show_student_seat_no: headerFormatSettings.show_student_seat_no,
+            show_student_signature: headerFormatSettings.show_student_signature,
+            name_line_length: headerFormatSettings.name_line_length,
+            exam_type: headerFormatSettings.exam_type,
+            show_exam_date: headerFormatSettings.show_exam_date,
+            exam_date: headerFormatSettings.exam_date
+        })
+    })
+    .then(response => {
+        if (response.ok) return response.text();
+        throw new Error('فشل في توليد المعاينة');
+    })
+    .then(html => {
+        // فتح المعاينة في نافذة جديدة
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(html);
+        printWindow.document.close();
+        showSuccess('تم توليد النموذج بنجاح');
+    })
+    .catch(error => {
+        showError('خطأ: ' + error.message);
+    })
+    .finally(() => {
+        showLoading(false);
+    });
 }
 
-// ==================== الإعدادات ====================
-function setHeaderSize(size) {
-    headerFormatConfig.headerSize = size;
-    updateButtonGroup('.size-btn[data-size]', 'size', size);
+// --- الدوال المساعدة (لضمان عمل الواجهة بالكامل) ---
+function updateStats() {
+    document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
+    document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
 }
 
-function setLogoSize(size) {
-    headerFormatConfig.logoSize = size;
-    updateButtonGroup('.size-btn[data-size]', 'size', size);
+function showPreview(exam) {
+    const previewSection = document.getElementById('previewSection');
+    document.getElementById('previewQuestionsCount').textContent = exam.count;
+    document.getElementById('previewModelsCount').textContent = getSelectedModels().length || 1;
+    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+    previewSection.style.display = 'block';
+    previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-function setQRSize(size) {
-    headerFormatConfig.qrSize = size;
-    updateButtonGroup('.size-btn[data-size]', 'size', size);
+function showPreviewMulti(questionsCount, modelsCount) {
+    const previewSection = document.getElementById('previewSection');
+    document.getElementById('previewQuestionsCount').textContent = questionsCount;
+    document.getElementById('previewModelsCount').textContent = modelsCount;
+    document.getElementById('previewDate').textContent = new Date().toLocaleDateString('ar-SA');
+    document.getElementById('previewStatus').textContent = 'تم التوليد ✓';
+    previewSection.style.display = 'block';
+    previewSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-function setNameLineLength(length) {
-    headerFormatConfig.nameLineLength = length;
-    updateButtonGroup('.size-btn[data-length]', 'length', length);
+function showLoading(show) {
+    document.getElementById('loadingIndicator').classList.toggle('active', show);
+}
+
+function showSuccess(message) {
+    const alert = document.getElementById('successAlert');
+    alert.textContent = message;
+    alert.classList.add('active');
+    setTimeout(() => alert.classList.remove('active'), 5000);
+}
+
+function showError(message) {
+    const alert = document.getElementById('errorAlert');
+    alert.textContent = message;
+    alert.classList.add('active');
+    setTimeout(() => alert.classList.remove('active'), 5000);
+}
+
+// ==================== دوال حجم الخط ====================
+function updateFontSizeDisplay(value) {
+    document.getElementById('fontSizeValue').textContent = value + 'px';
 }
 
 function changeFontSize(delta) {
-    headerFormatConfig.fontSize += delta;
-    headerFormatConfig.fontSize = Math.max(10, Math.min(24, headerFormatConfig.fontSize));
-    updateFontSizeDisplay();
+    const slider = document.getElementById('fontSizeSlider');
+    let newValue = parseInt(slider.value) + delta;
+    newValue = Math.max(10, Math.min(20, newValue)); // حدود من 10 إلى 20
+    slider.value = newValue;
+    updateFontSizeDisplay(newValue);
+}
+
+function setFontSize(size) {
+    const slider = document.getElementById('fontSizeSlider');
+    slider.value = size;
+    updateFontSizeDisplay(size);
+}
+
+function getFontSize() {
+    return parseInt(document.getElementById('fontSizeSlider').value);
+}
+
+// ==================== دوال حجم الصور ====================
+function updateImageSizeDisplay(value) {
+    document.getElementById('imageSizeValue').textContent = value + '%';
 }
 
 function changeImageSize(delta) {
-    headerFormatConfig.imageSize += delta;
-    headerFormatConfig.imageSize = Math.max(50, Math.min(200, headerFormatConfig.imageSize));
-    updateImageSizeDisplay();
+    const slider = document.getElementById('imageSizeSlider');
+    let newValue = parseInt(slider.value) + delta;
+    newValue = Math.max(60, Math.min(180, newValue)); // حدود من 60% إلى 180%
+    slider.value = newValue;
+    updateImageSizeDisplay(newValue);
 }
 
-function updateFontSizeDisplay() {
-    document.getElementById('fontSizeDisplay').textContent = headerFormatConfig.fontSize + ' pt';
+function setImageSize(size) {
+    const slider = document.getElementById('imageSizeSlider');
+    slider.value = size;
+    updateImageSizeDisplay(size);
 }
 
-function updateImageSizeDisplay() {
-    document.getElementById('imageSizeDisplay').textContent = headerFormatConfig.imageSize + '%';
+function getImageSize() {
+    return parseInt(document.getElementById('imageSizeSlider').value);
 }
 
-function updateButtonGroup(selector, attr, value) {
-    document.querySelectorAll(selector).forEach(btn => {
-        if (btn.dataset[attr] === value) {
-            btn.classList.add('active');
+// ==================== دوال خيارات التنسيق المتقدمة ====================
+let currentColumns = 2;
+let currentSpacing = 'normal';
+let currentOptionsLayout = 'vertical';
+
+function setColumns(num) {
+    currentColumns = num;
+    // تحديث مظهر الأزرار
+    document.querySelectorAll('.column-btn').forEach(btn => {
+        if (parseInt(btn.dataset.columns) === num) {
+            btn.style.background = '#ff9800';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#ff9800';
         } else {
-            btn.classList.remove('active');
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
         }
     });
 }
 
-// ==================== رفع الملفات ====================
-function handleFileUpload(input) {
-    const fileDisplay = document.getElementById('fileNameDisplay');
-    if (input.files && input.files[0]) {
-        fileDisplay.innerHTML = `<i class="fas fa-file-excel"></i> ${input.files[0].name}`;
-        fileDisplay.classList.add('has-file');
-    } else {
-        fileDisplay.innerHTML = '<i class="fas fa-info-circle"></i> لم يتم اختيار ملف';
-        fileDisplay.classList.remove('has-file');
-    }
+function setSpacing(spacing) {
+    currentSpacing = spacing;
+    // تحديث مظهر الأزرار
+    document.querySelectorAll('.spacing-btn').forEach(btn => {
+        if (btn.dataset.spacing === spacing) {
+            btn.style.background = '#ff9800';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#ff9800';
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
+        }
+    });
 }
 
-// ==================== وظائف التوليد ====================
-function getSelectedModels() {
-    const checkboxes = document.querySelectorAll('input[name="exam_models"]:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
+function setOptionsLayout(layout) {
+    currentOptionsLayout = layout;
+    // تحديث مظهر الأزرار
+    document.querySelectorAll('.options-layout-btn').forEach(btn => {
+        if (btn.dataset.layout === layout) {
+            btn.style.background = '#ff9800';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#ff9800';
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
+        }
+    });
+}
+
+function getLayoutSettings() {
+    return {
+        columns: currentColumns,
+        spacing: currentSpacing,
+        options_layout: currentOptionsLayout
+    };
+}
+
+// ==================== دوال تنسيقات الكليشة ====================
+let headerFormatConfig = {
+    headerSize: 'medium',
+    showLogo: true,
+    logoSize: 'medium',
+    qrSize: 'medium',
+    showGradesTable: true,
+    showExtraGradeField: false,
+    showStudentName: true,
+    showStudentClass: true,
+    showStudentSeatNo: true,
+    showStudentSignature: false,
+    nameLineLength: 'medium',
+    examType: '',
+    showExamDate: true,
+    examDate: ''
+};
+
+function setHeaderSize(size) {
+    headerFormatConfig.headerSize = size;
+    updateButtonGroup('.header-size-btn', 'size', size, '#9c27b0');
+}
+
+function setLogoSize(size) {
+    headerFormatConfig.logoSize = size;
+    updateButtonGroup('.logo-size-btn', 'size', size, '#9c27b0');
+}
+
+function setQRSize(size) {
+    headerFormatConfig.qrSize = size;
+    updateButtonGroup('.qr-size-btn', 'size', size, '#9c27b0');
+}
+
+function setNameLineLength(length) {
+    headerFormatConfig.nameLineLength = length;
+    updateButtonGroup('.name-line-btn', 'length', length, '#9c27b0');
+}
+
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('examDateInput').value = today;
+}
+
+function updateExamTitlePreview() {
+    const examType = document.getElementById('examType').value;
+    const semester = document.getElementById('semesterSelect').value;
+    const year = document.getElementById('academicYear').value;
+    const title = `اختبار ${examType} الفصل الدراسي ${semester} لعام ${year}`;
+    document.getElementById('examTitlePreview').textContent = title;
+}
+
+// إضافة مستمعين لتحديث المعاينة
+document.addEventListener('DOMContentLoaded', function() {
+    const examType = document.getElementById('examType');
+    const semester = document.getElementById('semesterSelect');
+    const year = document.getElementById('academicYear');
+    
+    if (examType) examType.addEventListener('change', updateExamTitlePreview);
+    if (semester) semester.addEventListener('change', updateExamTitlePreview);
+    if (year) year.addEventListener('input', updateExamTitlePreview);
+});
+
+function updateButtonGroup(selector, dataAttr, value, activeColor) {
+    document.querySelectorAll(selector).forEach(btn => {
+        if (btn.dataset[dataAttr] === value) {
+            btn.style.background = activeColor;
+            btn.style.color = 'white';
+            btn.style.borderColor = activeColor;
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
+        }
+    });
 }
 
 function getHeaderSettings() {
@@ -1624,289 +2765,21 @@ function getHeaderSettings() {
         name_line_length: headerFormatConfig.nameLineLength,
         exam_type: document.getElementById('examType').value,
         semester: document.getElementById('semesterSelect').value,
-        academic_year: document.getElementById('academicYear').value,
-        font_size: headerFormatConfig.fontSize,
-        image_size: headerFormatConfig.imageSize,
-        include_images: document.getElementById('includeImages').checked
+        academic_year: document.getElementById('academicYear').value
     };
 }
 
-async function generateMultipleModels() {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة على الأقل من الخطوة 2');
-        activateStep(2);
-        return;
-    }
-    
-    const selectedModels = getSelectedModels();
-    if (selectedModels.length === 0) {
-        showError('يجب اختيار نموذج واحد على الأقل من الخطوة 3');
-        activateStep(3);
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch('/questions/generate-multi-models', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                models: selectedModels,
-                include_answers: false,
-                include_answer_sheet: true,
-                include_barcode: document.getElementById('includeBarcode').checked,
-                shuffle_options: true,
-                ...getHeaderSettings()
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_models_${selectedModels.join('_')}_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess(`✓ تم توليد ${selectedModels.length} نموذج بنجاح`);
-            markStepCompleted(6);
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل توليد النماذج');
+
+
+    // دوال البطاقات
+    function markStepCompleted(step) {
+        const card = document.querySelector(`[data-step="${step}"]`);
+        if (card) {
+            card.classList.add('completed');
+            card.classList.remove('active');
         }
-    } catch (error) {
-        showError('خطأ في توليد النماذج: ' + error.message);
-    } finally {
-        showLoading(false);
+        const next = document.querySelector(`[data-step="${step + 1}"]`);
+        if (next) next.classList.add('active');
     }
-}
-
-async function printWithStudentNames() {
-    const fileInput = document.getElementById('studentListFile');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showError('يرجى رفع ملف Excel في الخطوة 5 أولاً');
-        activateStep(5);
-        return;
-    }
-    
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة من الخطوة 2');
-        activateStep(2);
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        formData.append('question_ids', JSON.stringify(Array.from(selectedQuestionIds)));
-        formData.append('settings', JSON.stringify(getHeaderSettings()));
-        
-        const response = await fetch('/questions/print-with-students', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: formData
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_with_students_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('✓ تم طباعة النماذج مع أسماء الطلاب بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل طباعة النماذج');
-        }
-    } catch (error) {
-        showError('خطأ: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function generateOMRAnswerKey() {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة من الخطوة 2');
-        activateStep(2);
-        return;
-    }
-    
-    const selectedModels = getSelectedModels();
-    if (selectedModels.length === 0) {
-        showError('يجب اختيار نموذج من الخطوة 3');
-        activateStep(3);
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch('/questions/generate-omr-answer-key', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                models: [selectedModels[0]]
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `answer_key_${selectedModels[0]}_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess('✓ تم توليد مفتاح الإجابة بنجاح');
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل توليد مفتاح الإجابة');
-        }
-    } catch (error) {
-        showError('خطأ: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function generateAllModelsAnswerKeys() {
-    if (selectedQuestionIds.size === 0) {
-        showError('يجب اختيار أسئلة من الخطوة 2');
-        activateStep(2);
-        return;
-    }
-    
-    const selectedModels = getSelectedModels();
-    if (selectedModels.length === 0) {
-        showError('يجب اختيار نماذج من الخطوة 3');
-        activateStep(3);
-        return;
-    }
-    
-    showLoading(true);
-    
-    try {
-        const response = await fetch('/questions/generate-omr-answer-key', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                question_ids: Array.from(selectedQuestionIds),
-                models: selectedModels
-            })
-        });
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `answer_keys_all_${new Date().getTime()}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showSuccess(`✓ تم توليد مفاتيح الإجابة لـ ${selectedModels.length} نموذج`);
-        } else {
-            const error = await response.json();
-            showError(error.error || 'فشل توليد مفاتيح الإجابة');
-        }
-    } catch (error) {
-        showError('خطأ: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function generateRandomExam() {
-    if (allQuestions.length === 0) {
-        showError('لا توجد أسئلة. قم بتحميل الأسئلة من الخطوة 1 أولاً');
-        activateStep(1);
-        return;
-    }
-    
-    const numQuestions = prompt('كم عدد الأسئلة العشوائية؟', '10');
-    if (!numQuestions) return;
-    
-    const num = parseInt(numQuestions);
-    if (isNaN(num) || num <= 0 || num > allQuestions.length) {
-        showError('عدد غير صالح');
-        return;
-    }
-    
-    clearAllSelections();
-    
-    const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, num);
-    
-    selected.forEach(q => {
-        selectedQuestionIds.add(q.id);
-        const card = document.querySelector(`[data-question-id="${q.id}"]`);
-        if (card) card.classList.add('selected');
-    });
-    
-    updateStats();
-    showSuccess(`✓ تم اختيار ${num} سؤال عشوائياً`);
-    markStepCompleted(2);
-}
-
-// ==================== الوظائف المساعدة ====================
-function previewStudentList() {
-    const fileInput = document.getElementById('studentListFile');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showError('يرجى اختيار ملف Excel أولاً');
-        return;
-    }
-    showError('وظيفة المعاينة قيد التطوير');
-}
-
-function printBlankRemarkSheets() {
-    showError('هذه الوظيفة قيد التطوير');
-}
-
-function showLoading(show) {
-    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
-}
-
-function showSuccess(message) {
-    alert(message);
-}
-
-function showError(message) {
-    alert('✗ ' + message);
-}
-
-function setTodayDate() {
-    const today = new Date();
-    const hijriYear = 1446;
-    document.getElementById('academicYear').value = hijriYear + ' هـ';
-}
-
-function loadHeaderSettingsFromServer() {}
-function updateExamTitlePreview() {}
 </script>
 {% endblock %}
