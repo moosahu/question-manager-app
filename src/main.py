@@ -13,7 +13,21 @@ import uuid
 # ✅ تحميل الإعدادات والمتغيرات البيئية
 from dotenv import load_dotenv
 load_dotenv()
-from config import get_config
+
+try:
+    from config import get_config
+except ImportError:
+    try:
+        from src.config import get_config
+    except ImportError:
+        def get_config():
+            class Config:
+                SECRET_KEY = os.getenv('SECRET_KEY', 'dev')
+                SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+                SQLALCHEMY_TRACK_MODIFICATIONS = False
+                JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev')
+                JWT_ALGORITHM = 'HS256'
+            return Config()
 
 # استيراد students blueprint مع معالجة الخطأ
 try:
