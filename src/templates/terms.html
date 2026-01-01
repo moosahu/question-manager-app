@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block body_class %}terms-page{% endblock %}
+{% block main_class %}terms-main{% endblock %}
+
+{% block head_extra %}
+<style>
+    .terms-main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    
+    .terms-container {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 20px;
+        padding: 40px;
+        border: 1px solid rgba(78, 205, 196, 0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    .terms-header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 30px;
+        border-bottom: 2px solid rgba(78, 205, 196, 0.3);
+    }
+    
+    .terms-header h1 {
+        color: #4ecdc4;
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .terms-header h1 i {
+        font-size: 2rem;
+    }
+    
+    .terms-header .last-updated {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.95rem;
+    }
+    
+    .terms-section {
+        margin-bottom: 35px;
+    }
+    
+    .terms-section h2 {
+        color: #4ecdc4;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+    }
+    
+    .terms-section h2 i {
+        font-size: 1.2rem;
+        opacity: 0.8;
+    }
+    
+    .terms-section p {
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.8;
+        margin-bottom: 15px;
+        text-align: justify;
+    }
+    
+    .terms-section ul {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0;
+    }
+    
+    .terms-section ul li {
+        color: rgba(255, 255, 255, 0.85);
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        background: rgba(78, 205, 196, 0.05);
+        border-radius: 8px;
+        border-right: 3px solid #4ecdc4;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .terms-section ul li i {
+        color: #4ecdc4;
+        margin-top: 3px;
+    }
+    
+    .terms-section ol {
+        padding-right: 25px;
+        margin: 15px 0;
+    }
+    
+    .terms-section ol li {
+        color: rgba(255, 255, 255, 0.85);
+        padding: 8px 0;
+        line-height: 1.7;
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.05));
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .warning-box h3 {
+        color: #ffc107;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .highlight-box {
+        background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(78, 205, 196, 0.05));
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .highlight-box h3 {
+        color: #4ecdc4;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .contact-info {
+        background: rgba(78, 205, 196, 0.1);
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 30px;
+        text-align: center;
+    }
+    
+    .contact-info h3 {
+        color: #4ecdc4;
+        margin-bottom: 15px;
+    }
+    
+    .contact-info a {
+        color: #4ecdc4;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .contact-info a:hover {
+        color: #fff;
+        text-decoration: underline;
+    }
+    
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 25px;
+        background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-top: 30px;
+    }
+    
+    .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(78, 205, 196, 0.4);
+        color: #fff;
+    }
+    
+    @media (max-width: 768px) {
+        .terms-container {
+            padding: 25px;
+        }
+        
+        .terms-header h1 {
+            font-size: 1.8rem;
+            flex-direction: column;
+        }
+        
+        .terms-section h2 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="terms-container">
+    <div class="terms-header">
+        <h1><i class="fas fa-file-contract"></i> شروط الاستخدام</h1>
+        <p class="last-updated">آخر تحديث: يناير 2025</p>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-handshake"></i> قبول الشروط</h2>
+        <p>
+            باستخدامك لمنصة "إدارة الأسئلة الكيميائية" (المشار إليها بـ "المنصة" أو "الخدمة")، فإنك توافق على الالتزام بهذه الشروط والأحكام. إذا كنت لا توافق على أي من هذه الشروط، يُرجى عدم استخدام المنصة.
+        </p>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-info-circle"></i> وصف الخدمة</h2>
+        <p>
+            منصة "إدارة الأسئلة الكيميائية" هي منصة تعليمية متخصصة تقدم:
+        </p>
+        <ul>
+            <li><i class="fas fa-flask"></i> <span>بنك أسئلة شامل في مادة الكيمياء</span></li>
+            <li><i class="fas fa-graduation-cap"></i> <span>اختبارات تفاعلية لقياس المستوى</span></li>
+            <li><i class="fas fa-book"></i> <span>محتوى تعليمي منظم حسب المنهج الدراسي</span></li>
+            <li><i class="fas fa-chart-line"></i> <span>تتبع التقدم والإحصائيات التعليمية</span></li>
+            <li><i class="fas fa-cloud"></i> <span>نسخ احتياطي للبيانات عبر Google Drive</span></li>
+        </ul>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-user-plus"></i> التسجيل والحساب</h2>
+        <p>لاستخدام المنصة، يجب عليك:</p>
+        <ol>
+            <li>تقديم معلومات دقيقة وكاملة عند التسجيل</li>
+            <li>الحفاظ على سرية كلمة المرور الخاصة بك</li>
+            <li>إخطارنا فوراً بأي استخدام غير مصرح به لحسابك</li>
+            <li>أن تكون مسؤولاً عن جميع الأنشطة التي تتم من خلال حسابك</li>
+        </ol>
+        <div class="warning-box">
+            <h3><i class="fas fa-exclamation-triangle"></i> تنبيه مهم</h3>
+            <p>نحتفظ بالحق في تعليق أو إنهاء حسابك في حالة انتهاك هذه الشروط أو الاشتباه في أي نشاط ضار.</p>
+        </div>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-check-circle"></i> الاستخدام المقبول</h2>
+        <p>عند استخدام المنصة، توافق على:</p>
+        <ul>
+            <li><i class="fas fa-check"></i> <span>استخدام المنصة للأغراض التعليمية المشروعة فقط</span></li>
+            <li><i class="fas fa-check"></i> <span>احترام حقوق الملكية الفكرية للمحتوى</span></li>
+            <li><i class="fas fa-check"></i> <span>عدم محاولة الوصول غير المصرح به إلى أنظمتنا</span></li>
+            <li><i class="fas fa-check"></i> <span>عدم نشر أو مشاركة محتوى ضار أو غير قانوني</span></li>
+            <li><i class="fas fa-check"></i> <span>عدم استخدام المنصة لأي أغراض تجارية دون إذن</span></li>
+        </ul>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-ban"></i> الاستخدام المحظور</h2>
+        <p>يُحظر عليك:</p>
+        <ul>
+            <li><i class="fas fa-times"></i> <span>نسخ أو توزيع المحتوى دون إذن كتابي</span></li>
+            <li><i class="fas fa-times"></i> <span>استخدام برامج آلية لجمع البيانات (Scraping)</span></li>
+            <li><i class="fas fa-times"></i> <span>محاولة اختراق أو تعطيل الخدمة</span></li>
+            <li><i class="fas fa-times"></i> <span>انتحال هوية شخص آخر</span></li>
+            <li><i class="fas fa-times"></i> <span>نشر فيروسات أو برامج ضارة</span></li>
+            <li><i class="fas fa-times"></i> <span>مشاركة بيانات تسجيل الدخول مع آخرين</span></li>
+        </ul>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-copyright"></i> الملكية الفكرية</h2>
+        <p>
+            جميع المحتويات المتاحة على المنصة، بما في ذلك الأسئلة والنصوص والصور والشعارات والتصميمات، محمية بموجب قوانين حقوق النشر والملكية الفكرية. تمنحك المنصة ترخيصاً محدوداً وغير حصري لاستخدام المحتوى للأغراض التعليمية الشخصية فقط.
+        </p>
+        <div class="highlight-box">
+            <h3><i class="fas fa-info-circle"></i> ملاحظة</h3>
+            <p>لا يجوز إعادة إنتاج أو توزيع أو بيع أي محتوى من المنصة دون الحصول على إذن كتابي مسبق.</p>
+        </div>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-exclamation-circle"></i> إخلاء المسؤولية</h2>
+        <p>
+            تُقدم المنصة "كما هي" دون أي ضمانات صريحة أو ضمنية. نحن لا نضمن:
+        </p>
+        <ul>
+            <li><i class="fas fa-minus"></i> <span>أن الخدمة ستكون متاحة دون انقطاع</span></li>
+            <li><i class="fas fa-minus"></i> <span>أن المحتوى خالٍ تماماً من الأخطاء</span></li>
+            <li><i class="fas fa-minus"></i> <span>تحقيق نتائج محددة من استخدام المنصة</span></li>
+        </ul>
+        <p>
+            لن نكون مسؤولين عن أي أضرار مباشرة أو غير مباشرة ناتجة عن استخدام المنصة.
+        </p>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-user-times"></i> إنهاء الاستخدام</h2>
+        <p>
+            يمكنك إنهاء استخدامك للمنصة في أي وقت بحذف حسابك. كما نحتفظ بالحق في تعليق أو إنهاء حسابك في الحالات التالية:
+        </p>
+        <ul>
+            <li><i class="fas fa-gavel"></i> <span>انتهاك هذه الشروط والأحكام</span></li>
+            <li><i class="fas fa-user-secret"></i> <span>الاشتباه في نشاط احتيالي أو ضار</span></li>
+            <li><i class="fas fa-clock"></i> <span>عدم النشاط لفترة طويلة (أكثر من سنة)</span></li>
+            <li><i class="fas fa-balance-scale"></i> <span>لأي سبب آخر نراه مناسباً</span></li>
+        </ul>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-sync-alt"></i> التعديلات على الشروط</h2>
+        <p>
+            نحتفظ بالحق في تعديل هذه الشروط في أي وقت. سيتم إخطارك بالتغييرات الجوهرية عبر البريد الإلكتروني أو من خلال إشعار على المنصة. استمرارك في استخدام المنصة بعد التعديلات يعني موافقتك على الشروط الجديدة.
+        </p>
+    </div>
+
+    <div class="terms-section">
+        <h2><i class="fas fa-globe"></i> القانون الواجب التطبيق</h2>
+        <p>
+            تخضع هذه الشروط وتُفسر وفقاً لقوانين المملكة العربية السعودية. أي نزاع ينشأ عن استخدام المنصة يخضع للاختصاص القضائي الحصري للمحاكم المختصة في المملكة العربية السعودية.
+        </p>
+    </div>
+
+    <div class="contact-info">
+        <h3><i class="fas fa-envelope"></i> تواصل معنا</h3>
+        <p>إذا كان لديك أي أسئلة حول شروط الاستخدام، يمكنك التواصل معنا عبر:</p>
+        <p style="margin-top: 15px;">
+            <i class="fas fa-globe"></i> الموقع: <a href="https://chem-tahsili.com">chem-tahsili.com</a>
+        </p>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-right"></i>
+            العودة للرئيسية
+        </a>
+    </div>
+</div>
+{% endblock %}

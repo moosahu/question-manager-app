@@ -681,28 +681,6 @@ def create_app():
             print(f"Error deleting notification {notif_id}: {e}")
             return jsonify({'error': 'حدث خطأ في حذف الإشعار'}), 500
 
-    # ===== صفحات الخصوصية والشروط والدعم =====
-    
-    @app.route("/privacy")
-    def privacy():
-        """صفحة سياسة الخصوصية"""
-        return render_template("privacy.html")
-    
-    @app.route("/terms")
-    def terms():
-        """صفحة شروط الاستخدام"""
-        return render_template("terms.html")
-    
-    @app.route("/support")
-    def support():
-        """صفحة الدعم الفني"""
-        return render_template("support.html")
-    
-    @app.route("/home")
-    def home_page():
-        """الصفحة الرئيسية للزوار"""
-        return render_template("home.html")
-
     # ===== Google Drive APIs المفقودة =====
     
     @app.route('/api/v1/google-drive/connect', methods=['POST'])

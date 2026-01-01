@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block body_class %}privacy-page{% endblock %}
+{% block main_class %}privacy-main{% endblock %}
+
+{% block head_extra %}
+<style>
+    .privacy-main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    
+    .privacy-container {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 20px;
+        padding: 40px;
+        border: 1px solid rgba(78, 205, 196, 0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    .privacy-header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 30px;
+        border-bottom: 2px solid rgba(78, 205, 196, 0.3);
+    }
+    
+    .privacy-header h1 {
+        color: #4ecdc4;
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .privacy-header h1 i {
+        font-size: 2rem;
+    }
+    
+    .privacy-header .last-updated {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.95rem;
+    }
+    
+    .privacy-section {
+        margin-bottom: 35px;
+    }
+    
+    .privacy-section h2 {
+        color: #4ecdc4;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+    }
+    
+    .privacy-section h2 i {
+        font-size: 1.2rem;
+        opacity: 0.8;
+    }
+    
+    .privacy-section p {
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.8;
+        margin-bottom: 15px;
+        text-align: justify;
+    }
+    
+    .privacy-section ul {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0;
+    }
+    
+    .privacy-section ul li {
+        color: rgba(255, 255, 255, 0.85);
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        background: rgba(78, 205, 196, 0.05);
+        border-radius: 8px;
+        border-right: 3px solid #4ecdc4;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .privacy-section ul li i {
+        color: #4ecdc4;
+        margin-top: 3px;
+    }
+    
+    .highlight-box {
+        background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(78, 205, 196, 0.05));
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .highlight-box h3 {
+        color: #4ecdc4;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .contact-info {
+        background: rgba(78, 205, 196, 0.1);
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 30px;
+        text-align: center;
+    }
+    
+    .contact-info h3 {
+        color: #4ecdc4;
+        margin-bottom: 15px;
+    }
+    
+    .contact-info a {
+        color: #4ecdc4;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .contact-info a:hover {
+        color: #fff;
+        text-decoration: underline;
+    }
+    
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 25px;
+        background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-top: 30px;
+    }
+    
+    .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(78, 205, 196, 0.4);
+        color: #fff;
+    }
+    
+    @media (max-width: 768px) {
+        .privacy-container {
+            padding: 25px;
+        }
+        
+        .privacy-header h1 {
+            font-size: 1.8rem;
+            flex-direction: column;
+        }
+        
+        .privacy-section h2 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="privacy-container">
+    <div class="privacy-header">
+        <h1><i class="fas fa-shield-alt"></i> سياسة الخصوصية</h1>
+        <p class="last-updated">آخر تحديث: يناير 2025</p>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-info-circle"></i> مقدمة</h2>
+        <p>
+            نحن في منصة "إدارة الأسئلة الكيميائية" نلتزم بحماية خصوصية مستخدمينا. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك الشخصية عند استخدامك لمنصتنا التعليمية.
+        </p>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-database"></i> المعلومات التي نجمعها</h2>
+        <p>نقوم بجمع أنواع مختلفة من المعلومات لتقديم خدماتنا وتحسينها:</p>
+        <ul>
+            <li><i class="fas fa-user"></i> <span><strong>معلومات الحساب:</strong> الاسم، البريد الإلكتروني، واسم المستخدم عند إنشاء حساب</span></li>
+            <li><i class="fas fa-chart-line"></i> <span><strong>بيانات الاستخدام:</strong> معلومات حول كيفية تفاعلك مع المنصة والأسئلة والاختبارات</span></li>
+            <li><i class="fas fa-graduation-cap"></i> <span><strong>البيانات التعليمية:</strong> نتائج الاختبارات والتقدم في المنهج الدراسي</span></li>
+            <li><i class="fas fa-laptop"></i> <span><strong>المعلومات التقنية:</strong> نوع المتصفح، عنوان IP، ونوع الجهاز المستخدم</span></li>
+        </ul>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-cogs"></i> كيف نستخدم معلوماتك</h2>
+        <p>نستخدم المعلومات المجمعة للأغراض التالية:</p>
+        <ul>
+            <li><i class="fas fa-check"></i> <span>توفير وتحسين خدماتنا التعليمية</span></li>
+            <li><i class="fas fa-check"></i> <span>تخصيص تجربة التعلم بناءً على مستواك وتقدمك</span></li>
+            <li><i class="fas fa-check"></i> <span>إرسال إشعارات مهمة حول حسابك والتحديثات</span></li>
+            <li><i class="fas fa-check"></i> <span>تحليل أداء المنصة وتحسين جودة المحتوى</span></li>
+            <li><i class="fas fa-check"></i> <span>ضمان أمان المنصة ومنع الاستخدام غير المصرح به</span></li>
+        </ul>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-lock"></i> حماية البيانات</h2>
+        <p>
+            نتخذ إجراءات أمنية صارمة لحماية معلوماتك الشخصية:
+        </p>
+        <div class="highlight-box">
+            <h3><i class="fas fa-shield-alt"></i> إجراءاتنا الأمنية</h3>
+            <ul>
+                <li><i class="fas fa-key"></i> <span>تشفير البيانات أثناء النقل والتخزين</span></li>
+                <li><i class="fas fa-user-lock"></i> <span>نظام مصادقة ثنائية (2FA) لحماية الحسابات</span></li>
+                <li><i class="fas fa-server"></i> <span>خوادم آمنة مع نسخ احتياطية منتظمة</span></li>
+                <li><i class="fas fa-eye-slash"></i> <span>تقييد الوصول للبيانات على الموظفين المخولين فقط</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-share-alt"></i> مشاركة المعلومات</h2>
+        <p>
+            نحن لا نبيع أو نؤجر معلوماتك الشخصية لأطراف ثالثة. قد نشارك المعلومات فقط في الحالات التالية:
+        </p>
+        <ul>
+            <li><i class="fas fa-balance-scale"></i> <span>عند الضرورة للامتثال للقوانين واللوائح المعمول بها</span></li>
+            <li><i class="fas fa-cloud"></i> <span>مع مزودي الخدمات الموثوقين (مثل Google Drive للنسخ الاحتياطي) بموافقتك</span></li>
+            <li><i class="fas fa-handshake"></i> <span>لحماية حقوقنا ومستخدمينا من الأنشطة الضارة</span></li>
+        </ul>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-user-shield"></i> حقوقك</h2>
+        <p>لديك الحقوق التالية فيما يتعلق ببياناتك الشخصية:</p>
+        <ul>
+            <li><i class="fas fa-eye"></i> <span><strong>حق الوصول:</strong> طلب نسخة من بياناتك الشخصية</span></li>
+            <li><i class="fas fa-edit"></i> <span><strong>حق التصحيح:</strong> تحديث أو تصحيح معلوماتك</span></li>
+            <li><i class="fas fa-trash-alt"></i> <span><strong>حق الحذف:</strong> طلب حذف حسابك وبياناتك</span></li>
+            <li><i class="fas fa-download"></i> <span><strong>حق النقل:</strong> تصدير بياناتك بتنسيق قابل للقراءة</span></li>
+        </ul>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-cookie-bite"></i> ملفات تعريف الارتباط (Cookies)</h2>
+        <p>
+            نستخدم ملفات تعريف الارتباط لتحسين تجربتك على المنصة. تساعدنا هذه الملفات في تذكر تفضيلاتك وتحليل استخدام المنصة. يمكنك التحكم في إعدادات ملفات تعريف الارتباط من خلال متصفحك.
+        </p>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-child"></i> خصوصية الأطفال</h2>
+        <p>
+            منصتنا مصممة للاستخدام التعليمي وقد يستخدمها طلاب من مختلف الأعمار. نحن نلتزم بحماية خصوصية القاصرين ونطلب موافقة ولي الأمر عند الضرورة وفقاً للقوانين المعمول بها.
+        </p>
+    </div>
+
+    <div class="privacy-section">
+        <h2><i class="fas fa-sync-alt"></i> تحديثات السياسة</h2>
+        <p>
+            قد نقوم بتحديث سياسة الخصوصية من وقت لآخر. سيتم إخطارك بأي تغييرات جوهرية عبر البريد الإلكتروني أو من خلال إشعار على المنصة. ننصحك بمراجعة هذه الصفحة بشكل دوري.
+        </p>
+    </div>
+
+    <div class="contact-info">
+        <h3><i class="fas fa-envelope"></i> تواصل معنا</h3>
+        <p>إذا كان لديك أي أسئلة حول سياسة الخصوصية أو كيفية التعامل مع بياناتك، يمكنك التواصل معنا عبر:</p>
+        <p style="margin-top: 15px;">
+            <i class="fas fa-globe"></i> الموقع: <a href="https://chem-tahsili.com">chem-tahsili.com</a>
+        </p>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="{{ url_for('home') }}" class="back-btn">
+            <i class="fas fa-arrow-right"></i>
+            العودة للرئيسية
+        </a>
+    </div>
+</div>
+{% endblock %}
