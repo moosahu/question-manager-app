@@ -4,7 +4,7 @@
 import jwt
 from functools import wraps
 from flask import request, jsonify, current_app
-from datetime import datetime'
+from datetime import datetime
 
 
 def verify_student_token(f):
