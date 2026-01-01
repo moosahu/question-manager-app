@@ -414,13 +414,14 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
-    app.register_blueprint(api_bp, url_prefix="/api/v1")
+    app.register_blueprint(api_bp, url_prefix="/api")
     
-    # تسجيل students blueprint إذا كان متاحاً
+    # تسجيل students blueprint
     if students_available:
-        app.register_blueprint(students_bp)
+        csrf.exempt(students_bp)
+        app.register_blueprint(students_bp)  # يسجل البلوبرينت بـ url_prefix='/students'
         print("✅ Students blueprint registered successfully")
-    
+        print(f"✅ Students routes available at: /students/api/login") 
     # تسجيل registration blueprint للتسجيل الذاتي
     if registration_available:
         app.register_blueprint(registration_bp)
