@@ -4,87 +4,56 @@
 
 {% block extra_css %}
 <style>
-    /* ==================== الهيدر ==================== */
     .students-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 2.5rem;
-        border-radius: 20px;
+        padding: 2rem;
+        border-radius: 15px;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
     }
     
-    .students-header h1 {
-        margin: 0 0 0.5rem;
-        font-size: 1.8rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
-    .students-header p {
-        margin: 0;
-        opacity: 0.9;
-        font-size: 1rem;
-    }
-    
-    /* ==================== كاردات الإحصائيات ==================== */
     .stats-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
+        display: flex;
+        gap: 1rem;
         margin-bottom: 2rem;
+        flex-wrap: wrap;
     }
     
     .stat-card {
+        flex: 1;
+        min-width: 150px;
         padding: 1.5rem;
-        border-radius: 16px;
+        border-radius: 12px;
         text-align: center;
         color: white;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        transition: transform 0.3s, box-shadow 0.3s;
     }
     
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-    }
-    
-    .stat-card.total { 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-    }
-    .stat-card.active { 
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
-    }
-    .stat-card.inactive { 
-        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); 
-    }
+    .stat-card.total { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .stat-card.active { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .stat-card.inactive { background: linear-gradient(135deg, #eb3349, #f45c43); }
     
     .stat-card h3 {
-        font-size: 2.5rem;
+        font-size: 2rem;
         margin: 0;
-        font-weight: 700;
     }
     
     .stat-card p {
         margin: 0.5rem 0 0;
         opacity: 0.9;
-        font-size: 0.95rem;
     }
     
     /* ==================== كارد التسجيل الذاتي ==================== */
     .registration-control {
         background: white;
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 1.5rem;
-        border: 1px solid #eee;
+        gap: 1rem;
     }
     
     .registration-info {
@@ -94,14 +63,13 @@
     }
     
     .registration-icon {
-        width: 55px;
-        height: 55px;
-        border-radius: 14px;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     
     .registration-icon.open {
@@ -116,15 +84,34 @@
     
     .registration-text h4 {
         margin: 0;
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         color: #333;
-        font-weight: 600;
     }
     
     .registration-text p {
-        margin: 0.3rem 0 0;
+        margin: 0.25rem 0 0;
         font-size: 0.9rem;
-        color: #777;
+        color: #666;
+    }
+    
+    .registration-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .registration-status.open {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .registration-status.closed {
+        background: #f8d7da;
+        color: #721c24;
     }
     
     .registration-actions {
@@ -133,30 +120,10 @@
         align-items: center;
     }
     
-    .registration-status {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.6rem 1.2rem;
-        border-radius: 25px;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-    
-    .registration-status.open {
-        background: linear-gradient(135deg, rgba(17,153,142,0.15), rgba(56,239,125,0.15));
-        color: #0d7d71;
-    }
-    
-    .registration-status.closed {
-        background: linear-gradient(135deg, rgba(235,51,73,0.15), rgba(244,92,67,0.15));
-        color: #c62828;
-    }
-    
     .btn-toggle-reg {
         padding: 0.75rem 1.5rem;
         border: none;
-        border-radius: 12px;
+        border-radius: 10px;
         font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
@@ -164,7 +131,6 @@
         align-items: center;
         gap: 0.5rem;
         transition: all 0.3s;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
     
     .btn-toggle-reg.open {
@@ -178,230 +144,26 @@
     }
     
     .btn-toggle-reg:hover {
+        opacity: 0.9;
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     }
     
     .btn-settings-reg {
-        width: 45px;
-        height: 45px;
-        border: none;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        border-radius: 12px;
-        color: white;
+        padding: 0.75rem;
+        border: 2px solid #667eea;
+        background: white;
+        border-radius: 10px;
+        color: #667eea;
         cursor: pointer;
         transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.3);
     }
     
     .btn-settings-reg:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102,126,234,0.4);
-    }
-    
-    /* ==================== البحث والإضافة ==================== */
-    .search-box {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 16px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
-        border: 1px solid #eee;
-    }
-    
-    .search-box input {
-        flex: 1;
-        min-width: 250px;
-        padding: 0.85rem 1.25rem;
-        border: 2px solid #e8e8e8;
-        border-radius: 12px;
-        font-size: 1rem;
-        transition: all 0.3s;
-    }
-    
-    .search-box input:focus {
-        border-color: #667eea;
-        outline: none;
-        box-shadow: 0 0 0 4px rgba(102,126,234,0.1);
-    }
-    
-    .search-box .btn-primary {
-        padding: 0.85rem 1.5rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.3s;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.3);
-    }
-    
-    .search-box .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102,126,234,0.4);
-    }
-    
-    .btn-add {
-        padding: 0.85rem 1.5rem;
-        background: linear-gradient(135deg, #11998e, #38ef7d);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.3s;
-        box-shadow: 0 4px 15px rgba(17,153,142,0.3);
-    }
-    
-    .btn-add:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(17,153,142,0.4);
+        background: #667eea;
         color: white;
     }
     
-    /* ==================== جدول الطلاب ==================== */
-    .students-table {
-        width: 100%;
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        border: 1px solid #eee;
-    }
-    
-    .students-table th,
-    .students-table td {
-        padding: 1rem 1.25rem;
-        text-align: right;
-    }
-    
-    .students-table th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-weight: 600;
-        font-size: 0.95rem;
-    }
-    
-    .students-table tbody tr {
-        border-bottom: 1px solid #f0f0f0;
-        transition: background 0.2s;
-    }
-    
-    .students-table tbody tr:last-child {
-        border-bottom: none;
-    }
-    
-    .students-table tbody tr:hover {
-        background: linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05));
-    }
-    
-    .students-table td strong {
-        color: #333;
-    }
-    
-    .status-badge {
-        padding: 0.4rem 0.9rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-    
-    .status-badge.active {
-        background: linear-gradient(135deg, rgba(17,153,142,0.15), rgba(56,239,125,0.15));
-        color: #0d7d71;
-    }
-    
-    .status-badge.inactive {
-        background: linear-gradient(135deg, rgba(235,51,73,0.15), rgba(244,92,67,0.15));
-        color: #c62828;
-    }
-    
-    .last-login {
-        font-size: 0.85rem;
-        color: #888;
-    }
-    
-    .actions-cell {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .btn-action {
-        width: 38px;
-        height: 38px;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        text-decoration: none;
-        transition: all 0.3s;
-    }
-    
-    .btn-edit { 
-        background: linear-gradient(135deg, #667eea, #764ba2); 
-        box-shadow: 0 3px 10px rgba(102,126,234,0.3);
-    }
-    .btn-toggle { 
-        background: linear-gradient(135deg, #f7b731, #f5a623); 
-        box-shadow: 0 3px 10px rgba(247,183,49,0.3);
-    }
-    .btn-delete { 
-        background: linear-gradient(135deg, #eb3349, #f45c43); 
-        box-shadow: 0 3px 10px rgba(235,51,73,0.3);
-    }
-    
-    .btn-action:hover {
-        transform: translateY(-2px);
-    }
-    
-    /* ==================== الحالة الفارغة ==================== */
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        border: 1px solid #eee;
-    }
-    
-    .empty-state i {
-        font-size: 4rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
-    }
-    
-    .empty-state h3 {
-        color: #555;
-        margin-bottom: 0.5rem;
-    }
-    
-    .empty-state p {
-        color: #999;
-    }
-    
-    /* ==================== المودال ==================== */
+    /* ==================== مودال الإعدادات ==================== */
     .modal-overlay {
         display: none;
         position: fixed;
@@ -409,8 +171,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0,0,0,0.6);
-        backdrop-filter: blur(5px);
+        background: rgba(0,0,0,0.5);
         z-index: 1000;
         align-items: center;
         justify-content: center;
@@ -427,13 +188,12 @@
         max-width: 500px;
         max-height: 90vh;
         overflow-y: auto;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.25);
     }
     
     .modal-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 1.5rem 2rem;
+        padding: 1.5rem;
         border-radius: 20px 20px 0 0;
         display: flex;
         justify-content: space-between;
@@ -444,68 +204,53 @@
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        font-size: 1.2rem;
+        gap: 0.5rem;
     }
     
     .modal-close {
-        background: rgba(255,255,255,0.2);
+        background: none;
         border: none;
         color: white;
-        width: 35px;
-        height: 35px;
-        border-radius: 10px;
-        font-size: 1.3rem;
+        font-size: 1.5rem;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.3s;
-    }
-    
-    .modal-close:hover {
-        background: rgba(255,255,255,0.3);
+        padding: 0;
+        line-height: 1;
     }
     
     .modal-body {
-        padding: 1.5rem 2rem;
+        padding: 1.5rem;
     }
     
     .setting-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1.25rem;
+        padding: 1rem;
         background: #f8f9fa;
-        border-radius: 14px;
+        border-radius: 10px;
         margin-bottom: 1rem;
-        border: 1px solid #eee;
+    }
+    
+    .setting-item:last-child {
+        margin-bottom: 0;
     }
     
     .setting-info h5 {
         margin: 0;
         font-size: 1rem;
         color: #333;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .setting-info h5 i {
-        color: #667eea;
     }
     
     .setting-info p {
-        margin: 0.3rem 0 0;
+        margin: 0.25rem 0 0;
         font-size: 0.85rem;
-        color: #777;
+        color: #666;
     }
     
-    /* Toggle Switch */
     .toggle-switch {
         position: relative;
-        width: 52px;
-        height: 28px;
+        width: 50px;
+        height: 26px;
     }
     
     .toggle-switch input {
@@ -521,22 +266,21 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: #ddd;
+        background-color: #ccc;
         transition: 0.3s;
-        border-radius: 28px;
+        border-radius: 26px;
     }
     
     .toggle-slider:before {
         position: absolute;
         content: "";
-        height: 22px;
-        width: 22px;
+        height: 20px;
+        width: 20px;
         left: 3px;
         bottom: 3px;
         background-color: white;
         transition: 0.3s;
         border-radius: 50%;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     
     .toggle-switch input:checked + .toggle-slider {
@@ -549,23 +293,21 @@
     
     .message-input {
         width: 100%;
-        padding: 0.85rem 1rem;
-        border: 2px solid #e8e8e8;
-        border-radius: 12px;
-        margin-top: 0.75rem;
+        padding: 0.75rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        margin-top: 1rem;
+        font-size: 0.95rem;
         resize: vertical;
-        font-family: inherit;
-        transition: all 0.3s;
     }
     
     .message-input:focus {
         border-color: #667eea;
         outline: none;
-        box-shadow: 0 0 0 4px rgba(102,126,234,0.1);
     }
     
     .modal-footer {
-        padding: 1.25rem 2rem;
+        padding: 1rem 1.5rem;
         border-top: 1px solid #eee;
         display: flex;
         justify-content: flex-end;
@@ -574,40 +316,172 @@
     
     .btn-cancel {
         padding: 0.75rem 1.5rem;
-        background: #f5f5f5;
-        border: 1px solid #ddd;
-        border-radius: 12px;
+        border: 2px solid #ddd;
+        background: white;
+        border-radius: 10px;
         cursor: pointer;
         font-weight: 600;
-        color: #666;
-        transition: all 0.3s;
-    }
-    
-    .btn-cancel:hover {
-        background: #eee;
     }
     
     .btn-save {
         padding: 0.75rem 1.5rem;
+        border: none;
         background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
-        border: none;
-        border-radius: 12px;
+        border-radius: 10px;
         cursor: pointer;
         font-weight: 600;
+    }
+    
+    /* ==================== باقي الأنماط ==================== */
+    .search-box {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .search-box input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+    }
+    
+    .search-box input:focus {
+        border-color: #667eea;
+        outline: none;
+    }
+    
+    .btn-add {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.3);
-        transition: all 0.3s;
+        text-decoration: none;
     }
     
-    .btn-save:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+    .btn-add:hover {
+        opacity: 0.9;
+        color: white;
     }
     
-    /* ==================== Responsive ==================== */
+    .students-table {
+        width: 100%;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .students-table th {
+        background: #f8f9fa;
+        padding: 1rem;
+        text-align: right;
+        font-weight: 600;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .students-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: middle;
+    }
+    
+    .students-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge.active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-badge.inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        padding: 0.4rem 0.75rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        text-decoration: none;
+    }
+    
+    .btn-edit {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .btn-edit:hover {
+        background: #1976d2;
+        color: white;
+    }
+    
+    .btn-toggle {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .btn-toggle:hover {
+        background: #f57c00;
+        color: white;
+    }
+    
+    .btn-delete {
+        background: #ffebee;
+        color: #d32f2f;
+    }
+    
+    .btn-delete:hover {
+        background: #d32f2f;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #666;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 1rem;
+    }
+    
+    .last-login {
+        font-size: 0.8rem;
+        color: #666;
+    }
+    
+    /* Responsive */
     @media (max-width: 768px) {
         .registration-control {
             flex-direction: column;
@@ -616,19 +490,6 @@
         
         .registration-info {
             flex-direction: column;
-        }
-        
-        .registration-actions {
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        
-        .search-box {
-            flex-direction: column;
-        }
-        
-        .search-box input {
-            width: 100%;
         }
         
         .students-table {
@@ -647,23 +508,7 @@
         <p>إضافة وتعديل وإدارة حسابات الطلاب</p>
     </div>
     
-    <!-- الإحصائيات -->
-    <div class="stats-cards">
-        <div class="stat-card total">
-            <h3>{{ total }}</h3>
-            <p><i class="fas fa-users"></i> إجمالي الطلاب</p>
-        </div>
-        <div class="stat-card active">
-            <h3>{{ active }}</h3>
-            <p><i class="fas fa-check-circle"></i> طالب مفعل</p>
-        </div>
-        <div class="stat-card inactive">
-            <h3>{{ inactive }}</h3>
-            <p><i class="fas fa-times-circle"></i> طالب معطل</p>
-        </div>
-    </div>
-    
-    <!-- التحكم بالتسجيل الذاتي -->
+    <!-- ==================== التحكم بالتسجيل الذاتي ==================== -->
     <div class="registration-control">
         <div class="registration-info">
             <div class="registration-icon {{ 'open' if registration_settings.is_registration_open else 'closed' }}">
@@ -695,11 +540,27 @@
         </div>
     </div>
     
+    <!-- الإحصائيات -->
+    <div class="stats-cards">
+        <div class="stat-card total">
+            <h3>{{ total }}</h3>
+            <p><i class="fas fa-users"></i> إجمالي الطلاب</p>
+        </div>
+        <div class="stat-card active">
+            <h3>{{ active }}</h3>
+            <p><i class="fas fa-check-circle"></i> طالب مفعل</p>
+        </div>
+        <div class="stat-card inactive">
+            <h3>{{ inactive }}</h3>
+            <p><i class="fas fa-times-circle"></i> طالب معطل</p>
+        </div>
+    </div>
+    
     <!-- البحث وزر الإضافة -->
     <div class="search-box">
         <form method="GET" style="flex: 1; display: flex; gap: 1rem;">
             <input type="text" name="search" value="{{ search }}" placeholder="ابحث بالاسم أو اسم المستخدم أو الجوال...">
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn btn-primary">
                 <i class="fas fa-search"></i> بحث
             </button>
         </form>
@@ -786,14 +647,14 @@
     {% endif %}
 </div>
 
-<!-- مودال إعدادات التسجيل -->
+<!-- ==================== مودال إعدادات التسجيل ==================== -->
 <div class="modal-overlay" id="settingsModal">
     <div class="modal-content">
         <div class="modal-header">
             <h3><i class="fas fa-cog"></i> إعدادات التسجيل الذاتي</h3>
             <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
         </div>
-        <form action="{{ url_for('students.save_registration_settings') }}" method="POST">
+        <form action="{{ url_for('students.toggle_registration') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-body">
                 <!-- رقم الجوال مطلوب -->
