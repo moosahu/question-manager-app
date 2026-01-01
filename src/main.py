@@ -293,11 +293,12 @@ def create_app():
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
     
     # ==================== إعدادات الإيميل للتسجيل الذاتي ====================
-    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
     app.config['MAIL_PORT'] = 587
-    app.config['MAIL_USERNAME'] = 'chemisrty958@gmail.com'
-    app.config['MAIL_PASSWORD'] = 'hlbofgxuinmohuhw'
-    app.config['MAIL_SENDER_NAME'] = 'كيم تحصيلي'
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = 'moosahu@gmail.com' # البريد الذي سجلت به في بريفو
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = ('كيم تحصيلي', 'no-reply@chem-tahsili.com')
     
     # تهيئة خدمة الإيميل
     try:
