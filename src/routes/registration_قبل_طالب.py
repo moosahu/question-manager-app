@@ -8,7 +8,6 @@ from src.extensions import db
 from src.models.student import Student
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
-from src.middleware.auth_middleware import create_student_token
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -224,16 +223,9 @@ def verify_code():
         # تحديث آخر تسجيل دخول
         student.update_last_login()
         
-        # إنشاء JWT Token
-        token = create_student_token(
-            student_id=student.id,
-            username=student.username
-        )
-        
         return jsonify({
             'success': True,
-            'message': 'تم إنشاء الحساب بنجاح',
-            'token': token,
+            'message': 'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن',
             'student': student.to_dict(),
             'auto_login': settings.auto_activate
         })

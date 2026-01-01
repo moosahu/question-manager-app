@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.student import Student
 from functools import wraps
+from src.middleware.auth_middleware import create_student_token
 
 students_bp = Blueprint('students', __name__, url_prefix='/students')
 
@@ -247,9 +248,16 @@ def api_student_login():
     # تحديث آخر تسجيل دخول
     student.update_last_login()
     
+    # إنشاء JWT Token
+    token = create_student_token(
+        student_id=student.id,
+        username=student.username
+    )
+    
     return jsonify({
         'success': True,
         'message': 'تم تسجيل الدخول بنجاح',
+        'token': token,
         'student': student.to_dict()
     })
 

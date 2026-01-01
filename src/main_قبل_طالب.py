@@ -1,5 +1,4 @@
 import os
-import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
 from werkzeug.security import generate_password_hash
@@ -9,11 +8,6 @@ from src.extensions import db
 from src.models.notification import Notification
 from datetime import datetime
 import uuid
-
-# ✅ تحميل الإعدادات والمتغيرات البيئية
-from dotenv import load_dotenv
-load_dotenv()
-from config import get_config
 
 # استيراد students blueprint مع معالجة الخطأ
 try:
@@ -271,10 +265,10 @@ except ImportError:
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    # ✅ تحميل الإعدادات من config.py
-    app.config.from_object(get_config())
-    
     # Configuration
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
     

@@ -28,6 +28,9 @@ def admin_required(f):
 @admin_required
 def list_students():
     """عرض قائمة الطلاب"""
+    # استيراد RegistrationSettings من email_verification
+    from src.models.email_verification import RegistrationSettings
+    
     search = request.args.get('search', '')
     
     if search:
@@ -40,12 +43,16 @@ def list_students():
     active = Student.query.filter_by(is_active=True).count()
     inactive = total - active
     
+    # جلب إعدادات التسجيل الذاتي
+    registration_settings = RegistrationSettings.get_settings()
+    
     return render_template('students/list.html', 
                          students=students,
                          search=search,
                          total=total,
                          active=active,
-                         inactive=inactive)
+                         inactive=inactive,
+                         registration_settings=registration_settings)
 
 
 # ==================== إضافة طالب جديد ====================
@@ -174,6 +181,31 @@ def toggle_student(student_id):
     except Exception as e:
         db.session.rollback()
         flash(f'خطأ في تغيير الحالة: {str(e)}', 'danger')
+    
+    return redirect(url_for('students.list_students'))
+
+
+# ==================== تبديل حالة التسجيل الذاتي ====================
+@students_bp.route('/toggle-registration', methods=['POST'])
+@login_required
+@admin_required
+def toggle_registration():
+    """تبديل حالة التسجيل الذاتي للطلاب"""
+    from src.models.email_verification import RegistrationSettings
+    
+    try:
+        settings = RegistrationSettings.get_settings()
+        new_status = not settings.is_registration_open
+        
+        RegistrationSettings.update_settings(
+            is_open=new_status,
+            admin_id=current_user.id
+        )
+        
+        status_text = 'مفتوح' if new_status else 'مغلق'
+        flash(f'تم تغيير حالة التسجيل الذاتي إلى {status_text}', 'success')
+    except Exception as e:
+        flash(f'خطأ في تغيير حالة التسجيل: {str(e)}', 'danger')
     
     return redirect(url_for('students.list_students'))
 
@@ -346,8 +378,8 @@ def api_get_questions(lesson_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'text': o.option_text,
-                        'image': o.image_url,
+                        'option_text': o.option_text,
+                        'image_url': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -355,8 +387,8 @@ def api_get_questions(lesson_id):
             
             result.append({
                 'id': q.question_id,
-                'text': q.question_text,
-                'image': q.image_url,
+                'question_text': q.question_text,
+                'image_url': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
@@ -399,8 +431,8 @@ def api_get_course_questions(course_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'text': o.option_text,
-                        'image': o.image_url,
+                        'option_text': o.option_text,
+                        'image_url': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -408,8 +440,8 @@ def api_get_course_questions(course_id):
             
             result.append({
                 'id': q.question_id,
-                'text': q.question_text,
-                'image': q.image_url,
+                'question_text': q.question_text,
+                'image_url': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
@@ -447,8 +479,8 @@ def api_get_unit_questions(unit_id):
                 for o in sorted(q.options, key=lambda x: x.option_id):
                     options_list.append({
                         'id': o.option_id,
-                        'text': o.option_text,
-                        'image': o.image_url,
+                        'option_text': o.option_text,
+                        'image_url': o.image_url,
                         'is_correct': o.is_correct,
                     })
                     if o.is_correct:
@@ -456,8 +488,8 @@ def api_get_unit_questions(unit_id):
             
             result.append({
                 'id': q.question_id,
-                'text': q.question_text,
-                'image': q.image_url,
+                'question_text': q.question_text,
+                'image_url': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
             })
