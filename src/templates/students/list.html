@@ -654,7 +654,7 @@
             <h3><i class="fas fa-cog"></i> إعدادات التسجيل الذاتي</h3>
             <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
         </div>
-        <form action="{{ url_for('students.update_registration_settings') }}" method="POST">
+        <form action="{{ url_for('students.toggle_registration') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-body">
                 <!-- رقم الجوال مطلوب -->
