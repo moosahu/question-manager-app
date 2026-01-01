@@ -1,447 +1,478 @@
-{% extends "base.html" %}
-
-{% block body_class %}support-page{% endblock %}
-{% block main_class %}support-main{% endblock %}
-
-{% block head_extra %}
-<style>
-    .support-main {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 40px 20px;
-    }
-    
-    .support-container {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 20px;
-        padding: 40px;
-        border: 1px solid rgba(78, 205, 196, 0.2);
-        backdrop-filter: blur(10px);
-    }
-    
-    .support-header {
-        text-align: center;
-        margin-bottom: 40px;
-        padding-bottom: 30px;
-        border-bottom: 2px solid rgba(78, 205, 196, 0.3);
-    }
-    
-    .support-header h1 {
-        color: #4ecdc4;
-        font-size: 2.5rem;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 15px;
-    }
-    
-    .support-header h1 i {
-        font-size: 2rem;
-    }
-    
-    .support-header p {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 1.1rem;
-    }
-    
-    .support-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 25px;
-        margin-bottom: 40px;
-    }
-    
-    .support-card {
-        background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(78, 205, 196, 0.02));
-        border: 1px solid rgba(78, 205, 196, 0.2);
-        border-radius: 15px;
-        padding: 30px;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    
-    .support-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(78, 205, 196, 0.2);
-        border-color: rgba(78, 205, 196, 0.4);
-    }
-    
-    .support-card i {
-        font-size: 3rem;
-        color: #4ecdc4;
-        margin-bottom: 20px;
-    }
-    
-    .support-card h3 {
-        color: #fff;
-        font-size: 1.3rem;
-        margin-bottom: 15px;
-    }
-    
-    .support-card p {
-        color: rgba(255, 255, 255, 0.7);
-        line-height: 1.7;
-        margin-bottom: 20px;
-    }
-    
-    .support-card a {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        background: linear-gradient(135deg, #4ecdc4, #44a08d);
-        color: #fff;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .support-card a:hover {
-        transform: scale(1.05);
-        box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
-    }
-    
-    .faq-section {
-        margin-bottom: 40px;
-    }
-    
-    .faq-section h2 {
-        color: #4ecdc4;
-        font-size: 1.6rem;
-        margin-bottom: 25px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .faq-item {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(78, 205, 196, 0.15);
-        border-radius: 12px;
-        margin-bottom: 15px;
-        overflow: hidden;
-    }
-    
-    .faq-question {
-        padding: 20px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.3s ease;
-    }
-    
-    .faq-question:hover {
-        background: rgba(78, 205, 196, 0.05);
-    }
-    
-    .faq-question h4 {
-        color: #fff;
-        font-size: 1.05rem;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .faq-question h4 i {
-        color: #4ecdc4;
-        font-size: 1rem;
-    }
-    
-    .faq-question .toggle-icon {
-        color: #4ecdc4;
-        font-size: 1rem;
-        transition: transform 0.3s ease;
-    }
-    
-    .faq-item.active .faq-question .toggle-icon {
-        transform: rotate(180deg);
-    }
-    
-    .faq-answer {
-        padding: 0 20px;
-        max-height: 0;
-        overflow: hidden;
-        transition: all 0.3s ease;
-    }
-    
-    .faq-item.active .faq-answer {
-        padding: 0 20px 20px;
-        max-height: 500px;
-    }
-    
-    .faq-answer p {
-        color: rgba(255, 255, 255, 0.8);
-        line-height: 1.8;
-        margin: 0;
-    }
-    
-    .contact-section {
-        background: linear-gradient(135deg, rgba(78, 205, 196, 0.15), rgba(78, 205, 196, 0.05));
-        border: 1px solid rgba(78, 205, 196, 0.3);
-        border-radius: 15px;
-        padding: 35px;
-        text-align: center;
-    }
-    
-    .contact-section h2 {
-        color: #4ecdc4;
-        font-size: 1.5rem;
-        margin-bottom: 20px;
-    }
-    
-    .contact-section p {
-        color: rgba(255, 255, 255, 0.8);
-        margin-bottom: 25px;
-        line-height: 1.7;
-    }
-    
-    .contact-methods {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-    
-    .contact-method {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 15px 25px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(78, 205, 196, 0.2);
-        border-radius: 10px;
-        color: #fff;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    
-    .contact-method:hover {
-        background: rgba(78, 205, 196, 0.1);
-        border-color: rgba(78, 205, 196, 0.4);
-        transform: translateY(-3px);
-    }
-    
-    .contact-method i {
-        font-size: 1.3rem;
-        color: #4ecdc4;
-    }
-    
-    .back-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 25px;
-        background: linear-gradient(135deg, #4ecdc4, #44a08d);
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        margin-top: 30px;
-    }
-    
-    .back-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 20px rgba(78, 205, 196, 0.4);
-        color: #fff;
-    }
-    
-    .response-time {
-        background: rgba(46, 204, 113, 0.1);
-        border: 1px solid rgba(46, 204, 113, 0.3);
-        border-radius: 10px;
-        padding: 15px 20px;
-        margin-top: 20px;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .response-time i {
-        color: #2ecc71;
-        font-size: 1.2rem;
-    }
-    
-    .response-time span {
-        color: rgba(255, 255, 255, 0.9);
-    }
-    
-    @media (max-width: 768px) {
-        .support-container {
-            padding: 25px;
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الدعم الفني - إدارة الأسئلة الكيميائية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .page-main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
         }
         
-        .support-header h1 {
-            font-size: 1.8rem;
-            flex-direction: column;
+        .page-container {
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 40px;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .page-header h2 {
+            color: var(--dark-color);
+            font-size: 2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .page-header h2 i {
+            color: var(--primary-color);
+        }
+        
+        .page-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .support-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .support-card {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.08), rgba(52, 152, 219, 0.02));
+            border: 1px solid rgba(52, 152, 219, 0.2);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            text-align: center;
+            transition: var(--transition);
+        }
+        
+        .support-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--box-shadow);
+            border-color: var(--primary-color);
+        }
+        
+        .support-card i.card-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        .support-card h3 {
+            color: var(--dark-color);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        
+        .support-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .support-card a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: #fff;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        
+        .support-card a:hover {
+            background: var(--secondary-color);
+            transform: scale(1.05);
+        }
+        
+        .faq-section {
+            margin-bottom: 40px;
+        }
+        
+        .faq-section h3 {
+            color: var(--dark-color);
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .faq-section h3 i {
+            color: var(--primary-color);
+        }
+        
+        .faq-item {
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        .faq-question {
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+        
+        .faq-question:hover {
+            background: rgba(52, 152, 219, 0.05);
+        }
+        
+        .faq-question h4 {
+            color: var(--dark-color);
+            font-size: 1rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .faq-question h4 i {
+            color: var(--primary-color);
+        }
+        
+        .faq-question .toggle-icon {
+            color: var(--primary-color);
+            transition: transform 0.3s ease;
+        }
+        
+        .faq-item.active .faq-question .toggle-icon {
+            transform: rotate(180deg);
+        }
+        
+        .faq-answer {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .faq-item.active .faq-answer {
+            padding: 0 20px 20px;
+            max-height: 300px;
+        }
+        
+        .faq-answer p {
+            color: #555;
+            line-height: 1.8;
+            margin: 0;
+        }
+        
+        .contact-section {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(46, 204, 113, 0.05));
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-radius: var(--border-radius);
+            padding: 35px;
+            text-align: center;
+        }
+        
+        .contact-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+        }
+        
+        .contact-section p {
+            color: #555;
+            margin-bottom: 25px;
+            line-height: 1.7;
         }
         
         .contact-methods {
-            flex-direction: column;
-            align-items: stretch;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
         }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="support-container">
-    <div class="support-header">
-        <h1><i class="fas fa-headset"></i> الدعم الفني</h1>
-        <p>نحن هنا لمساعدتك! تصفح الأسئلة الشائعة أو تواصل معنا مباشرة</p>
-    </div>
-
-    <div class="support-cards">
-        <div class="support-card">
-            <i class="fas fa-question-circle"></i>
-            <h3>الأسئلة الشائعة</h3>
-            <p>ابحث في قاعدة المعرفة للعثور على إجابات سريعة لأسئلتك</p>
-            <a href="#faq"><i class="fas fa-arrow-down"></i> تصفح الأسئلة</a>
-        </div>
         
-        <div class="support-card">
-            <i class="fas fa-envelope"></i>
-            <h3>راسلنا</h3>
-            <p>أرسل لنا استفسارك وسنرد عليك في أقرب وقت ممكن</p>
-            <a href="mailto:support@chem-tahsili.com"><i class="fas fa-paper-plane"></i> إرسال رسالة</a>
-        </div>
+        .contact-method {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 25px;
+            background: white;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-radius: var(--border-radius);
+            color: var(--dark-color);
+            text-decoration: none;
+            transition: var(--transition);
+        }
         
-        <div class="support-card">
-            <i class="fas fa-book"></i>
-            <h3>دليل المستخدم</h3>
-            <p>تعلم كيفية استخدام جميع ميزات المنصة بشكل فعال</p>
-            <a href="#guide"><i class="fas fa-external-link-alt"></i> عرض الدليل</a>
-        </div>
-    </div>
-
-    <div class="faq-section" id="faq">
-        <h2><i class="fas fa-lightbulb"></i> الأسئلة الشائعة</h2>
+        .contact-method:hover {
+            border-color: var(--secondary-color);
+            transform: translateY(-3px);
+            box-shadow: var(--box-shadow);
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-user-plus"></i> كيف أقوم بإنشاء حساب جديد؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>يمكنك إنشاء حساب جديد من خلال النقر على "تسجيل" في الصفحة الرئيسية، ثم ملء النموذج بالمعلومات المطلوبة (الاسم، البريد الإلكتروني، كلمة المرور). ستتلقى رسالة تأكيد على بريدك الإلكتروني لتفعيل الحساب.</p>
-            </div>
-        </div>
+        .contact-method i {
+            font-size: 1.3rem;
+            color: var(--secondary-color);
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-key"></i> نسيت كلمة المرور، ماذا أفعل؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>في صفحة تسجيل الدخول، انقر على "نسيت كلمة المرور؟" وأدخل بريدك الإلكتروني المسجل. ستتلقى رابطاً لإعادة تعيين كلمة المرور. إذا لم تصلك الرسالة، تحقق من مجلد البريد غير المرغوب فيه.</p>
-            </div>
-        </div>
+        .response-time {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: var(--border-radius);
+            padding: 15px 20px;
+            margin-top: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-graduation-cap"></i> كيف أبدأ الاختبار التفاعلي؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>بعد تسجيل الدخول، اذهب إلى قسم "الاختبار التفاعلي" من القائمة الرئيسية. حدد المنهج والوحدة والدرس، ثم اختر عدد الأسئلة واضغط على "بدء الاختبار". يمكنك مراجعة نتائجك فور الانتهاء.</p>
-            </div>
-        </div>
+        .response-time i {
+            color: var(--primary-color);
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-cloud-upload-alt"></i> كيف أفعّل النسخ الاحتياطي على Google Drive؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>من صفحة الإعدادات، انتقل إلى قسم "النسخ الاحتياطي" وانقر على "ربط Google Drive". ستُطلب منك تسجيل الدخول بحساب Google والسماح للمنصة بالوصول. بعد الربط، يمكنك تفعيل النسخ الاحتياطي التلقائي.</p>
-            </div>
-        </div>
+        .response-time span {
+            color: #555;
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-mobile-alt"></i> هل يمكنني استخدام المنصة على الجوال؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>نعم! المنصة متوافقة تماماً مع جميع الأجهزة. يمكنك الوصول إليها عبر متصفح الجوال، كما يتوفر تطبيق Flutter للأندرويد يوفر تجربة أفضل وإمكانية العمل بدون اتصال بالإنترنت.</p>
-            </div>
-        </div>
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 25px;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: 30px;
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-file-import"></i> كيف أستورد أسئلة من ملف خارجي؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>من قسم "استيراد الأسئلة"، يمكنك رفع ملف Excel أو CSV يحتوي على الأسئلة بالتنسيق المطلوب. تأكد من اتباع قالب الاستيراد المتاح للتحميل لضمان رفع البيانات بشكل صحيح.</p>
-            </div>
-        </div>
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4);
+            background: var(--secondary-color);
+            color: #fff;
+        }
         
-        <div class="faq-item">
-            <div class="faq-question">
-                <h4><i class="fas fa-shield-alt"></i> هل بياناتي آمنة على المنصة؟</h4>
-                <i class="fas fa-chevron-down toggle-icon"></i>
-            </div>
-            <div class="faq-answer">
-                <p>نعم، نستخدم أحدث تقنيات الأمان لحماية بياناتك، بما في ذلك التشفير أثناء النقل والتخزين، والمصادقة الثنائية (2FA)، والنسخ الاحتياطية المنتظمة. يمكنك الاطلاع على سياسة الخصوصية لمزيد من التفاصيل.</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="contact-section">
-        <h2><i class="fas fa-comments"></i> لم تجد إجابتك؟ تواصل معنا</h2>
-        <p>فريق الدعم الفني جاهز لمساعدتك في أي استفسار أو مشكلة تواجهها</p>
-        
-        <div class="contact-methods">
-            <a href="mailto:support@chem-tahsili.com" class="contact-method">
-                <i class="fas fa-envelope"></i>
-                <span>support@chem-tahsili.com</span>
-            </a>
-            <a href="https://chem-tahsili.com" class="contact-method" target="_blank">
-                <i class="fas fa-globe"></i>
-                <span>chem-tahsili.com</span>
-            </a>
-        </div>
-        
-        <div class="response-time">
-            <i class="fas fa-clock"></i>
-            <span>متوسط وقت الرد: خلال 24 ساعة</span>
-        </div>
-    </div>
-
-    <div style="text-align: center;">
-        <a href="{{ url_for('index') }}" class="back-btn">
-            <i class="fas fa-arrow-right"></i>
-            العودة للرئيسية
-        </a>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // تفعيل الأسئلة الشائعة القابلة للطي
-    const faqItems = document.querySelectorAll('.faq-item');
-    
-    faqItems.forEach(item => {
-        const question = item.querySelector('.faq-question');
-        
-        question.addEventListener('click', () => {
-            // إغلاق جميع الأسئلة الأخرى
-            faqItems.forEach(otherItem => {
-                if (otherItem !== item) {
-                    otherItem.classList.remove('active');
-                }
-            });
+        @media (max-width: 768px) {
+            .page-container {
+                padding: 25px;
+            }
             
-            // تبديل حالة السؤال الحالي
-            item.classList.toggle('active');
+            .page-header h2 {
+                font-size: 1.5rem;
+                flex-direction: column;
+            }
+            
+            .contact-methods {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles-container">
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+    </div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <div class="atom">
+                    <div class="electron e1"></div>
+                    <div class="electron e2"></div>
+                    <div class="electron e3"></div>
+                    <div class="nucleus"></div>
+                </div>
+                <h1>إدارة الأسئلة الكيميائية</h1>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                <li><a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="page-main">
+        <div class="page-container">
+            <div class="page-header">
+                <h2><i class="fas fa-headset"></i> الدعم الفني</h2>
+                <p>نحن هنا لمساعدتك! تصفح الأسئلة الشائعة أو تواصل معنا مباشرة</p>
+            </div>
+
+            <div class="support-cards">
+                <div class="support-card">
+                    <i class="fas fa-question-circle card-icon"></i>
+                    <h3>الأسئلة الشائعة</h3>
+                    <p>ابحث في الأسئلة المتكررة للعثور على إجابات سريعة</p>
+                    <a href="#faq"><i class="fas fa-arrow-down"></i> تصفح الأسئلة</a>
+                </div>
+                
+                <div class="support-card">
+                    <i class="fas fa-envelope card-icon"></i>
+                    <h3>راسلنا</h3>
+                    <p>أرسل لنا استفسارك وسنرد عليك في أقرب وقت</p>
+                    <a href="mailto:support@chem-tahsili.com"><i class="fas fa-paper-plane"></i> إرسال رسالة</a>
+                </div>
+                
+                <div class="support-card">
+                    <i class="fas fa-book card-icon"></i>
+                    <h3>دليل المستخدم</h3>
+                    <p>تعلم كيفية استخدام جميع ميزات المنصة</p>
+                    <a href="#guide"><i class="fas fa-external-link-alt"></i> عرض الدليل</a>
+                </div>
+            </div>
+
+            <div class="faq-section" id="faq">
+                <h3><i class="fas fa-lightbulb"></i> الأسئلة الشائعة</h3>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-user-plus"></i> كيف أقوم بإنشاء حساب جديد؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>يمكنك إنشاء حساب جديد من خلال النقر على "تسجيل" في الصفحة الرئيسية، ثم ملء النموذج بالمعلومات المطلوبة (الاسم، البريد الإلكتروني، كلمة المرور).</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-key"></i> نسيت كلمة المرور، ماذا أفعل؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>في صفحة تسجيل الدخول، انقر على "نسيت كلمة المرور؟" وأدخل بريدك الإلكتروني المسجل. ستتلقى رابطاً لإعادة تعيين كلمة المرور.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-graduation-cap"></i> كيف أبدأ الاختبار التفاعلي؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>بعد تسجيل الدخول، اذهب إلى قسم "الاختبار التفاعلي" من القائمة. حدد المنهج والوحدة والدرس، ثم اختر عدد الأسئلة واضغط على "بدء الاختبار".</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-cloud-upload-alt"></i> كيف أفعّل النسخ الاحتياطي على Google Drive؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>من صفحة الإعدادات، انتقل إلى قسم "النسخ الاحتياطي" وانقر على "ربط Google Drive". سجّل بحساب Google واسمح للمنصة بالوصول.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-mobile-alt"></i> هل يمكنني استخدام المنصة على الجوال؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>نعم! المنصة متوافقة مع جميع الأجهزة. يمكنك الوصول إليها عبر متصفح الجوال، كما يتوفر تطبيق للأندرويد.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h4><i class="fas fa-shield-alt"></i> هل بياناتي آمنة على المنصة؟</h4>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>نعم، نستخدم أحدث تقنيات الأمان لحماية بياناتك، بما في ذلك التشفير والمصادقة الثنائية (2FA) والنسخ الاحتياطية المنتظمة.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-section">
+                <h3><i class="fas fa-comments"></i> لم تجد إجابتك؟ تواصل معنا</h3>
+                <p>فريق الدعم الفني جاهز لمساعدتك في أي استفسار</p>
+                
+                <div class="contact-methods">
+                    <a href="mailto:support@chem-tahsili.com" class="contact-method">
+                        <i class="fas fa-envelope"></i>
+                        <span>support@chem-tahsili.com</span>
+                    </a>
+                    <a href="https://chem-tahsili.com" class="contact-method" target="_blank">
+                        <i class="fas fa-globe"></i>
+                        <span>chem-tahsili.com</span>
+                    </a>
+                </div>
+                
+                <div class="response-time">
+                    <i class="fas fa-clock"></i>
+                    <span>متوسط وقت الرد: خلال 24 ساعة</span>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{ url_for('index') }}" class="back-btn">
+                    <i class="fas fa-arrow-right"></i> العودة للرئيسية
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>© 2025 إدارة الأسئلة الكيميائية - جميع الحقوق محفوظة تطوير الاستاذ حسين علي الموسى</p>
+            <div class="footer-links">
+                <a href="{{ url_for('support') }}">الدعم الفني</a>
+                <a href="{{ url_for('privacy') }}">سياسة الخصوصية</a>
+                <a href="{{ url_for('terms') }}">شروط الاستخدام</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+            const question = item.querySelector('.faq-question');
+            
+            question.addEventListener('click', () => {
+                faqItems.forEach(otherItem => {
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                    }
+                });
+                
+                item.classList.toggle('active');
+            });
         });
     });
-});
-</script>
-{% endblock %}
+    </script>
+</body>
+</html>

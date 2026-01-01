@@ -355,8 +355,8 @@
             <h2 class="about-title"><i class="fas fa-envelope"></i> اتصل بنا</h2>
             <p>للاستفسارات والدعم الفني، يرجى التواصل معنا عبر البريد الإلكتروني:</p>
             <p style="text-align: center; margin-top: 1rem;">
-                <a href="/cdn-cgi/l/email-protection#067573767669747246656e636b2b72676e756f6a6f2865696b" style="color: var(--primary-color); font-size: 1.2rem; text-decoration: none;">
-                    <i class="fas fa-envelope"></i> <span class="__cf_email__" data-cfemail="d4a7a1a4a4bba6a094b7bcb1b9f9a0b5bca7bdb8bdfab7bbb9">[email&#160;protected]</span>
+                <a href="mailto:support@chem-tahsili.com" style="color: var(--primary-color); font-size: 1.2rem; text-decoration: none;">
+                    <i class="fas fa-envelope"></i> support@chem-tahsili.com
                 </a>
             </p>
         </section>
@@ -366,14 +366,14 @@
         <div class="footer-content">
             <p>© 2025 إدارة الأسئلة الكيميائية - جميع الحقوق محفوظة تطوير الاستاذ حسين علي الموسى</p>
             <div class="footer-links">
-                <a href="{{ url_for('support') }}">الدعم الفني</a>
-                <a href="{{ url_for('privacy') }}">سياسة الخصوصية</a>
-                <a href="{{ url_for('terms') }}">شروط الاستخدام</a>
+                <a href="#" id="support-link">الدعم الفني</a>
+                <a href="#">سياسة الخصوصية</a>
+                <a href="#">شروط الاستخدام</a>
             </div>
         </div>
     </footer>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             // تحريك الروابط إلى الأقسام بسلاسة
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -392,8 +392,15 @@
                 });
             });
             
-            // توجيه رابط الدعم الفني
-            // تم نقله إلى صفحة منفصلة
+            // توجيه رابط الدعم الفني إلى قسم الاتصال
+            document.getElementById('support-link').addEventListener('click', function(e) {
+                e.preventDefault();
+                const contactSection = document.getElementById('contact');
+                window.scrollTo({
+                    top: contactSection.offsetTop - 100,
+                    behavior: 'smooth'
+                });
+            });
             
             // إنشاء روابط الجزيئات ديناميكياً
             createMoleculeBonds();
@@ -428,4 +435,13 @@
                     bond.style.left = `${centerX}px`;
                     bond.style.transformOrigin = '0 0';
                     bond.style.transform = `rotate(${angle}rad)`;
-         
+                }
+                
+                // تحديث الروابط عند التحميل وأثناء التحريك
+                updateBond();
+                setInterval(updateBond, 100);
+            });
+        }
+    </script>
+</body>
+</html>
