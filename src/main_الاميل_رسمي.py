@@ -1,4 +1,5 @@
 import os
+import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
 from werkzeug.security import generate_password_hash
@@ -9,6 +10,25 @@ from src.models.notification import Notification
 from datetime import datetime
 import uuid
 
+# ✅ تحميل الإعدادات والمتغيرات البيئية
+from dotenv import load_dotenv
+load_dotenv()
+
+try:
+    from config import get_config
+except ImportError:
+    try:
+        from src.config import get_config
+    except ImportError:
+        def get_config():
+            class Config:
+                SECRET_KEY = os.getenv('SECRET_KEY', 'dev')
+                SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+                SQLALCHEMY_TRACK_MODIFICATIONS = False
+                JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev')
+                JWT_ALGORITHM = 'HS256'
+            return Config()
+
 # استيراد students blueprint مع معالجة الخطأ
 try:
     from src.routes.students import students_bp
@@ -16,6 +36,15 @@ try:
 except ImportError:
     students_available = False
     print("⚠️ Students blueprint not available")
+
+# استيراد registration blueprint للتسجيل الذاتي
+try:
+    from src.routes.registration import registration_bp
+    registration_available = True
+    print("✅ Registration blueprint imported successfully")
+except ImportError:
+    registration_available = False
+    print("⚠️ Registration blueprint not available")
 
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
@@ -256,12 +285,28 @@ except ImportError:
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
+    # ✅ تحميل الإعدادات من config.py
+    app.config.from_object(get_config())
+    
     # Configuration
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default_secret_key_for_development")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://question_manager_db_user:tmw3obihpI6UrR0IeyVep4DE6xrEMkTS@dpg-d09o15muk2gs73dnsoq0-a.oregon-postgres.render.com/question_manager_db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
+    
+    # ==================== إعدادات الإيميل للتسجيل الذاتي ====================
+    app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = 'moosahu@gmail.com' # البريد الذي سجلت به في بريفو
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = ('كيم تحصيلي', 'no-reply@chem-tahsili.com')
+    
+    # تهيئة خدمة الإيميل
+    try:
+        from src.services.email_service import email_service
+        email_service.init_app(app)
+        print("✅ Email service initialized successfully")
+    except Exception as e:
+        print(f"⚠️ Email service not available: {e}")
     
     # Initialize extensions
     db.init_app(app)
@@ -275,6 +320,10 @@ def create_app():
     # إعفاء students API من CSRF للتطبيق
     if students_available:
         csrf.exempt(students_bp)
+    
+    # إعفاء registration API من CSRF للتطبيق
+    if registration_available:
+        csrf.exempt(registration_bp)
     
     login_manager.login_view = "auth.login" # Set the login view
 
@@ -366,12 +415,18 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
-    app.register_blueprint(api_bp, url_prefix="/api/v1")
+    app.register_blueprint(api_bp, url_prefix="/api")
     
-    # تسجيل students blueprint إذا كان متاحاً
+    # تسجيل students blueprint
     if students_available:
-        app.register_blueprint(students_bp)
+        csrf.exempt(students_bp)
+        app.register_blueprint(students_bp)  # يسجل البلوبرينت بـ url_prefix='/students'
         print("✅ Students blueprint registered successfully")
+        print(f"✅ Students routes available at: /students/api/login") 
+    # تسجيل registration blueprint للتسجيل الذاتي
+    if registration_available:
+        app.register_blueprint(registration_bp)
+        print("✅ Registration blueprint registered successfully")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
@@ -680,6 +735,28 @@ def create_app():
             db.session.rollback()
             print(f"Error deleting notification {notif_id}: {e}")
             return jsonify({'error': 'حدث خطأ في حذف الإشعار'}), 500
+
+    # ===== صفحات الخصوصية والشروط والدعم =====
+    
+    @app.route("/privacy")
+    def privacy():
+        """صفحة سياسة الخصوصية"""
+        return render_template("privacy.html")
+    
+    @app.route("/terms")
+    def terms():
+        """صفحة شروط الاستخدام"""
+        return render_template("terms.html")
+    
+    @app.route("/support")
+    def support():
+        """صفحة الدعم الفني"""
+        return render_template("support.html")
+    
+    @app.route("/home")
+    def home_page():
+        """الصفحة الرئيسية للزوار"""
+        return render_template("home.html")
 
     # ===== Google Drive APIs المفقودة =====
     
