@@ -211,37 +211,6 @@ def toggle_registration():
     return redirect(url_for('students.list_students'))
 
 
-# ==================== حفظ إعدادات التسجيل الذاتي ====================
-@students_bp.route('/save-registration-settings', methods=['POST'])
-@login_required
-@admin_required
-def save_registration_settings():
-    """حفظ إعدادات التسجيل الذاتي"""
-    from src.models.email_verification import RegistrationSettings
-    
-    try:
-        # قراءة القيم من الفورم
-        require_phone = request.form.get('require_phone') == 'on'
-        require_school = request.form.get('require_school') == 'on'
-        auto_activate = request.form.get('auto_activate') == 'on'
-        closed_message = request.form.get('closed_message', '').strip()
-        
-        # تحديث الإعدادات
-        RegistrationSettings.update_settings(
-            require_phone=require_phone,
-            require_school=require_school,
-            auto_activate=auto_activate,
-            message=closed_message if closed_message else None,
-            admin_id=current_user.id
-        )
-        
-        flash('تم حفظ إعدادات التسجيل بنجاح', 'success')
-    except Exception as e:
-        flash(f'خطأ في حفظ الإعدادات: {str(e)}', 'danger')
-    
-    return redirect(url_for('students.list_students'))
-
-
 # ==================== API للتطبيق ====================
 @students_bp.route('/api/login', methods=['POST'])
 def api_student_login():
@@ -262,7 +231,7 @@ def api_student_login():
         return jsonify({
             'success': False,
             'error': 'اسم المستخدم غير موجود'
-        }), 404
+        }), 401
     
     if not student.check_password(password):
         return jsonify({
@@ -273,7 +242,7 @@ def api_student_login():
     if not student.is_active:
         return jsonify({
             'success': False,
-            'error': 'الحساب معطل، تواصل مع الإدارة'
+            'error': 'الحساب غير مفعل، تواصل مع الإدارة'
         }), 403
     
     # تحديث آخر تسجيل دخول
@@ -744,162 +713,6 @@ def api_save_result():
         
     except Exception as e:
         db.session.rollback()
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ==================== تغيير كلمة مرور الطالب ====================
-@students_bp.route("/api/change-password", methods=["POST"])
-def api_change_password():
-    """تغيير كلمة مرور الطالب"""
-    try:
-        data = request.get_json() or request.form
-        username = data.get("username", "").strip()
-        current_password = data.get("current_password", "")
-        new_password = data.get("new_password", "")
-        
-        if not username or not current_password or not new_password:
-            return jsonify({
-                "success": False,
-                "error": "جميع الحقول مطلوبة"
-            }), 400
-        
-        if len(new_password) < 6:
-            return jsonify({
-                "success": False,
-                "error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
-            }), 400
-        
-        # البحث عن الطالب
-        student = Student.query.filter_by(username=username).first()
-        
-        if not student:
-            return jsonify({
-                "success": False,
-                "error": "الطالب غير موجود"
-            }), 404
-        
-        # التحقق من كلمة المرور الحالية
-        if not student.check_password(current_password):
-            return jsonify({
-                "success": False,
-                "error": "كلمة المرور الحالية غير صحيحة"
-            }), 401
-        
-        # تحديث كلمة المرور
-        student.set_password(new_password)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "تم تغيير كلمة المرور بنجاح"
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-
-# ==================== APIs نتائج الطالب ====================
-
-@students_bp.route('/api/results', methods=['GET'])
-def api_get_results():
-    """جلب نتائج الطالب"""
-    try:
-        # جلب student_id من الـ query parameter
-        student_id = request.args.get('student_id', type=int)
-        
-        if not student_id:
-            return jsonify({
-                'success': False,
-                'error': 'student_id مطلوب'
-            }), 400
-        
-        # استيراد النموذج
-        try:
-            from src.models.student_result import StudentResult
-        except ImportError:
-            from models.student_result import StudentResult
-        
-        # جلب النتائج مرتبة بالأحدث
-        results = StudentResult.query.filter_by(student_id=student_id)\
-            .order_by(StudentResult.created_at.desc()).all()
-        
-        return jsonify({
-            'success': True,
-            'results': [r.to_dict() for r in results]
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@students_bp.route('/api/results/stats', methods=['GET'])
-def api_get_results_stats():
-    """جلب إحصائيات نتائج الطالب"""
-    try:
-        student_id = request.args.get('student_id', type=int)
-        
-        if not student_id:
-            return jsonify({
-                'success': False,
-                'error': 'student_id مطلوب'
-            }), 400
-        
-        try:
-            from src.models.student_result import StudentResult
-        except ImportError:
-            from models.student_result import StudentResult
-        
-        from sqlalchemy import func
-        
-        # إجمالي الاختبارات
-        total_quizzes = StudentResult.query.filter_by(student_id=student_id).count()
-        
-        # متوسط النسبة
-        avg_score = db.session.query(func.avg(StudentResult.score_percentage))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # إجمالي الأسئلة المحلولة
-        total_questions = db.session.query(func.sum(StudentResult.total_questions))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # إجمالي الإجابات الصحيحة
-        total_correct = db.session.query(func.sum(StudentResult.correct_answers))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # أفضل نتيجة
-        best_score = db.session.query(func.max(StudentResult.score_percentage))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # آخر 7 نتائج للرسم البياني
-        recent_results = StudentResult.query.filter_by(student_id=student_id)\
-            .order_by(StudentResult.created_at.desc()).limit(7).all()
-        
-        chart_data = [{
-            'date': r.created_at.strftime('%m/%d') if r.created_at else '',
-            'score': r.score_percentage
-        } for r in reversed(recent_results)]
-        
-        return jsonify({
-            'success': True,
-            'stats': {
-                'total_quizzes': total_quizzes,
-                'avg_score': round(avg_score, 1),
-                'total_questions': total_questions,
-                'total_correct': total_correct,
-                'best_score': round(best_score, 1),
-                'chart_data': chart_data
-            }
-        })
-        
-    except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
