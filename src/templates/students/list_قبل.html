@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة الطلاب{% endblock %}
+
+{% block extra_css %}
+<style>
+    .students-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-cards {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        flex: 1;
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        color: white;
+    }
+    
+    .stat-card.total { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .stat-card.active { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .stat-card.inactive { background: linear-gradient(135deg, #eb3349, #f45c43); }
+    
+    .stat-card h3 {
+        font-size: 2rem;
+        margin: 0;
+    }
+    
+    .stat-card p {
+        margin: 0.5rem 0 0;
+        opacity: 0.9;
+    }
+    
+    .search-box {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .search-box input {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+    }
+    
+    .search-box input:focus {
+        border-color: #667eea;
+        outline: none;
+    }
+    
+    .btn-add {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-add:hover {
+        opacity: 0.9;
+        color: white;
+    }
+    
+    .students-table {
+        width: 100%;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .students-table th {
+        background: #f8f9fa;
+        padding: 1rem;
+        text-align: right;
+        font-weight: 600;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .students-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: middle;
+    }
+    
+    .students-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge.active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-badge.inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        padding: 0.4rem 0.75rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        text-decoration: none;
+    }
+    
+    .btn-edit {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .btn-edit:hover {
+        background: #1976d2;
+        color: white;
+    }
+    
+    .btn-toggle {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .btn-toggle:hover {
+        background: #f57c00;
+        color: white;
+    }
+    
+    .btn-delete {
+        background: #ffebee;
+        color: #d32f2f;
+    }
+    
+    .btn-delete:hover {
+        background: #d32f2f;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #666;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 1rem;
+    }
+    
+    .last-login {
+        font-size: 0.8rem;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- الهيدر -->
+    <div class="students-header">
+        <h1><i class="fas fa-user-graduate"></i> إدارة الطلاب</h1>
+        <p>إضافة وتعديل وإدارة حسابات الطلاب</p>
+    </div>
+    
+    <!-- الإحصائيات -->
+    <div class="stats-cards">
+        <div class="stat-card total">
+            <h3>{{ total }}</h3>
+            <p><i class="fas fa-users"></i> إجمالي الطلاب</p>
+        </div>
+        <div class="stat-card active">
+            <h3>{{ active }}</h3>
+            <p><i class="fas fa-check-circle"></i> طالب مفعل</p>
+        </div>
+        <div class="stat-card inactive">
+            <h3>{{ inactive }}</h3>
+            <p><i class="fas fa-times-circle"></i> طالب معطل</p>
+        </div>
+    </div>
+    
+    <!-- البحث وزر الإضافة -->
+    <div class="search-box">
+        <form method="GET" style="flex: 1; display: flex; gap: 1rem;">
+            <input type="text" name="search" value="{{ search }}" placeholder="ابحث بالاسم أو اسم المستخدم أو الجوال...">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> بحث
+            </button>
+        </form>
+        <a href="{{ url_for('students.add_student') }}" class="btn-add">
+            <i class="fas fa-plus"></i> إضافة طالب
+        </a>
+    </div>
+    
+    <!-- جدول الطلاب -->
+    {% if students %}
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>اسم المستخدم</th>
+                <th>الجوال</th>
+                <th>المدرسة</th>
+                <th>الصف</th>
+                <th>الحالة</th>
+                <th>آخر دخول</th>
+                <th>الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ student.name }}</strong></td>
+                <td>{{ student.username }}</td>
+                <td>{{ student.phone or '-' }}</td>
+                <td>{{ student.school or '-' }}</td>
+                <td>{{ student.grade or '-' }}</td>
+                <td>
+                    {% if student.is_active %}
+                        <span class="status-badge active">
+                            <i class="fas fa-check"></i> مفعل
+                        </span>
+                    {% else %}
+                        <span class="status-badge inactive">
+                            <i class="fas fa-times"></i> معطل
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if student.last_login %}
+                        <span class="last-login">{{ student.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% else %}
+                        <span class="last-login">لم يسجل دخول</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions-cell">
+                        <a href="{{ url_for('students.edit_student', student_id=student.id) }}" class="btn-action btn-edit" title="تعديل">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form action="{{ url_for('students.toggle_student', student_id=student.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-action btn-toggle" title="{% if student.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                <i class="fas fa-{% if student.is_active %}ban{% else %}check{% endif %}"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('students.delete_student', student_id=student.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('هل أنت متأكد من حذف هذا الطالب؟');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-action btn-delete" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-user-slash"></i>
+        <h3>لا يوجد طلاب</h3>
+        <p>{% if search %}لا توجد نتائج للبحث "{{ search }}"{% else %}ابدأ بإضافة طلاب جدد{% endif %}</p>
+        <a href="{{ url_for('students.add_student') }}" class="btn-add" style="display: inline-flex; margin-top: 1rem;">
+            <i class="fas fa-plus"></i> إضافة طالب
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

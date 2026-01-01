@@ -17,15 +17,6 @@ except ImportError:
     students_available = False
     print("⚠️ Students blueprint not available")
 
-# استيراد registration blueprint للتسجيل الذاتي
-try:
-    from src.routes.registration import registration_bp
-    registration_available = True
-    print("✅ Registration blueprint imported successfully")
-except ImportError:
-    registration_available = False
-    print("⚠️ Registration blueprint not available")
-
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -272,21 +263,6 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
     
-    # ==================== إعدادات الإيميل للتسجيل الذاتي ====================
-    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-    app.config['MAIL_PORT'] = 587
-    app.config['MAIL_USERNAME'] = 'chemisrty958@gmail.com'
-    app.config['MAIL_PASSWORD'] = 'hlbofgxuinmohuhw'
-    app.config['MAIL_SENDER_NAME'] = 'كيم تحصيلي'
-    
-    # تهيئة خدمة الإيميل
-    try:
-        from src.services.email_service import email_service
-        email_service.init_app(app)
-        print("✅ Email service initialized successfully")
-    except Exception as e:
-        print(f"⚠️ Email service not available: {e}")
-    
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -299,10 +275,6 @@ def create_app():
     # إعفاء students API من CSRF للتطبيق
     if students_available:
         csrf.exempt(students_bp)
-    
-    # إعفاء registration API من CSRF للتطبيق
-    if registration_available:
-        csrf.exempt(registration_bp)
     
     login_manager.login_view = "auth.login" # Set the login view
 
@@ -400,11 +372,6 @@ def create_app():
     if students_available:
         app.register_blueprint(students_bp)
         print("✅ Students blueprint registered successfully")
-    
-    # تسجيل registration blueprint للتسجيل الذاتي
-    if registration_available:
-        app.register_blueprint(registration_bp)
-        print("✅ Registration blueprint registered successfully")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
