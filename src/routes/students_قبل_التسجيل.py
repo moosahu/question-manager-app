@@ -28,9 +28,6 @@ def admin_required(f):
 @admin_required
 def list_students():
     """عرض قائمة الطلاب"""
-    # استيراد RegistrationSettings من email_verification
-    from src.models.email_verification import RegistrationSettings
-    
     search = request.args.get('search', '')
     
     if search:
@@ -43,16 +40,12 @@ def list_students():
     active = Student.query.filter_by(is_active=True).count()
     inactive = total - active
     
-    # جلب إعدادات التسجيل الذاتي
-    registration_settings = RegistrationSettings.get_settings()
-    
     return render_template('students/list.html', 
                          students=students,
                          search=search,
                          total=total,
                          active=active,
-                         inactive=inactive,
-                         registration_settings=registration_settings)
+                         inactive=inactive)
 
 
 # ==================== إضافة طالب جديد ====================
@@ -181,31 +174,6 @@ def toggle_student(student_id):
     except Exception as e:
         db.session.rollback()
         flash(f'خطأ في تغيير الحالة: {str(e)}', 'danger')
-    
-    return redirect(url_for('students.list_students'))
-
-
-# ==================== تبديل حالة التسجيل الذاتي ====================
-@students_bp.route('/toggle-registration', methods=['POST'])
-@login_required
-@admin_required
-def toggle_registration():
-    """تبديل حالة التسجيل الذاتي للطلاب"""
-    from src.models.email_verification import RegistrationSettings
-    
-    try:
-        settings = RegistrationSettings.get_settings()
-        new_status = not settings.is_registration_open
-        
-        RegistrationSettings.update_settings(
-            is_open=new_status,
-            admin_id=current_user.id
-        )
-        
-        status_text = 'مفتوح' if new_status else 'مغلق'
-        flash(f'تم تغيير حالة التسجيل الذاتي إلى {status_text}', 'success')
-    except Exception as e:
-        flash(f'خطأ في تغيير حالة التسجيل: {str(e)}', 'danger')
     
     return redirect(url_for('students.list_students'))
 
