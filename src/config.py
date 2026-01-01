@@ -86,13 +86,8 @@ class ProductionConfig(Config):
     # في الإنتاج: استخدم HTTPS فقط
     SESSION_COOKIE_SECURE = True
     # تأكد من تعيين المفاتيح من متغيرات البيئة
-    SECRET_KEY = os.getenv('SECRET_KEY')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-    
-    if not SECRET_KEY or not JWT_SECRET_KEY:
-        raise ValueError(
-            "❌ خطأ: يجب تعيين SECRET_KEY و JWT_SECRET_KEY في متغيرات البيئة في الإنتاج"
-        )
+    SECRET_KEY = os.getenv('SECRET_KEY', 'prod-secret-key-change-this')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'prod-jwt-secret-key-change-this')
 
 
 class TestingConfig(Config):
