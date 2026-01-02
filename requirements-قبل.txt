@@ -64,9 +64,6 @@ gunicorn>=21.0.0
 # Cloud Services (optional)
 cloudinary>=1.40.0
 
-# Firebase for Push Notifications
-firebase-admin>=6.4.0
-
 # Development Tools
 setuptools>=65.0.0
 wheel>=0.40.0
