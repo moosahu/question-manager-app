@@ -18,26 +18,44 @@ class NotificationService:
     def initialize(cls):
         """تهيئة Firebase Admin SDK"""
         if cls._initialized:
-            return
+            return True
         
         try:
-            # التحقق من وجود ملف بيانات اعتماد Firebase
+            # الطريقة 1: قراءة من متغير بيئة JSON مباشرة (الأفضل لـ Render)
+            firebase_creds_json = os.getenv('FIREBASE_CREDENTIALS_JSON')
+            
+            if firebase_creds_json:
+                print("📝 قراءة بيانات Firebase من FIREBASE_CREDENTIALS_JSON...")
+                try:
+                    creds_dict = json.loads(firebase_creds_json)
+                    creds = credentials.Certificate(creds_dict)
+                    firebase_admin.initialize_app(creds)
+                    cls._initialized = True
+                    print("✅ تم تهيئة Firebase بنجاح من JSON")
+                    return True
+                except json.JSONDecodeError as e:
+                    print(f"❌ خطأ في قراءة JSON: {e}")
+                    return False
+            
+            # الطريقة 2: قراءة من ملف (احتياطية)
             firebase_creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
             
-            if not firebase_creds_path or not os.path.exists(firebase_creds_path):
-                print("⚠️ تحذير: ملف بيانات اعتماد Firebase غير موجود")
-                return False
+            if firebase_creds_path and os.path.exists(firebase_creds_path):
+                print(f"📁 قراءة بيانات Firebase من ملف: {firebase_creds_path}")
+                creds = credentials.Certificate(firebase_creds_path)
+                firebase_admin.initialize_app(creds)
+                cls._initialized = True
+                print("✅ تم تهيئة Firebase بنجاح من ملف")
+                return True
             
-            # تهيئة Firebase
-            creds = credentials.Certificate(firebase_creds_path)
-            firebase_admin.initialize_app(creds)
-            
-            cls._initialized = True
-            print("✅ تم تهيئة Firebase بنجاح")
-            return True
+            # إذا لم تنجح أي طريقة
+            print("⚠️ تحذير: لم يتم العثور على FIREBASE_CREDENTIALS_JSON أو FIREBASE_CREDENTIALS_PATH")
+            return False
             
         except Exception as e:
             print(f"❌ خطأ في تهيئة Firebase: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     @staticmethod
@@ -57,11 +75,13 @@ class NotificationService:
         try:
             # إذا لم يتم تهيئة Firebase، حاول التهيئة
             if not NotificationService._initialized:
-                NotificationService.initialize()
+                if not NotificationService.initialize():
+                    print("❌ فشل في تهيئة Firebase")
+                    return False
             
             # إذا فشلت التهيئة، أرجع False
             if not NotificationService._initialized:
-                print(f"❌ لم يتم تهيئة Firebase")
+                print("❌ لم يتم تهيئة Firebase")
                 return False
             
             # إنشاء الرسالة
@@ -81,6 +101,8 @@ class NotificationService:
             
         except Exception as e:
             print(f"❌ خطأ في إرسال الإشعار: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     @staticmethod
