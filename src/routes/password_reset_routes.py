@@ -19,29 +19,24 @@ def request_password_reset():
     try:
         data = request.get_json() or request.form
         
-        # يمكن استخدام username أو email
-        identifier = data.get('email', '').strip().lower() or data.get('username', '').strip()
+        # طلب البريد الإلكتروني فقط
+        email = data.get('email', '').strip().lower()
         
-        if not identifier:
+        if not email:
             return jsonify({
                 'success': False,
-                'error': 'الإيميل أو اسم المستخدم مطلوب'
+                'error': 'البريد الإلكتروني مطلوب'
             }), 400
         
-        # البحث عن الطالب بالإيميل أو اسم المستخدم
-        student = Student.query.filter(
-            db.or_(
-                Student.email == identifier,
-                Student.username == identifier
-            )
-        ).first()
+        # البحث عن الطالب بالبريد الإلكتروني
+        student = Student.query.filter_by(email=email).first()
         
         if not student:
-            # لأسباب أمنية، نرجع نفس الرسالة حتى لو لم يكن الحساب موجوداً
+            # البريد غير موجود
             return jsonify({
-                'success': True,
-                'message': 'إذا كان الحساب موجوداً، سيتم إرسال رمز التحقق إلى البريد الإلكتروني'
-            })
+                'success': False,
+                'error': 'البريد الإلكتروني غير مسجل'
+            }), 404
         
         # التحقق من وجود إيميل للطالب
         if not student.email:
@@ -107,22 +102,17 @@ def verify_reset_code():
     try:
         data = request.get_json() or request.form
         
-        identifier = data.get('email', '').strip().lower() or data.get('username', '').strip()
+        email = data.get('email', '').strip().lower()
         code = data.get('code', '').strip()
         
-        if not identifier or not code:
+        if not email or not code:
             return jsonify({
                 'success': False,
-                'error': 'الإيميل/اسم المستخدم ورمز التحقق مطلوبان'
+                'error': 'البريد الإلكتروني ورمز التحقق مطلوبان'
             }), 400
         
         # البحث عن الطالب
-        student = Student.query.filter(
-            db.or_(
-                Student.email == identifier,
-                Student.username == identifier
-            )
-        ).first()
+        student = Student.query.filter_by(email=email).first()
         
         if not student:
             return jsonify({
@@ -268,28 +258,23 @@ def resend_reset_code():
     """إعادة إرسال رمز إعادة التعيين"""
     try:
         data = request.get_json() or request.form
-        identifier = data.get('email', '').strip().lower() or data.get('username', '').strip()
+        email = data.get('email', '').strip().lower()
         
-        if not identifier:
+        if not email:
             return jsonify({
                 'success': False,
-                'error': 'الإيميل أو اسم المستخدم مطلوب'
+                'error': 'البريد الإلكتروني مطلوب'
             }), 400
         
         # البحث عن الطالب
-        student = Student.query.filter(
-            db.or_(
-                Student.email == identifier,
-                Student.username == identifier
-            )
-        ).first()
+        student = Student.query.filter_by(email=email).first()
         
-        if not student or not student.email:
-            # لأسباب أمنية
+        if not student:
+            # البريد غير موجود
             return jsonify({
-                'success': True,
-                'message': 'إذا كان الحساب موجوداً، سيتم إرسال رمز جديد'
-            })
+                'success': False,
+                'error': 'البريد الإلكتروني غير مسجل'
+            }), 404
         
         # البحث عن طلب التحقق الأخير
         reset_request = PasswordReset.query.filter_by(
