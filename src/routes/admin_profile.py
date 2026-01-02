@@ -5,6 +5,7 @@ Endpoint لجلب بيانات الأدمن (البروفايل)
 
 from flask import Blueprint, jsonify
 from flask_login import login_required, current_user
+from flask_wtf.csrf import csrf_exempt
 from src.models.user import User
 
 admin_profile_bp = Blueprint('admin_profile', __name__, url_prefix='/api/admin')
@@ -91,6 +92,7 @@ def get_admin_email():
 
 @admin_profile_bp.route('/send-notification', methods=['POST'])
 @login_required
+@csrf_exempt
 def send_notification():
     """
     إرسال إشعار للطلاب
