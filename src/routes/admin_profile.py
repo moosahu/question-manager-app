@@ -1,13 +1,12 @@
 """
-Endpoint لجلب بيانات الأدمن (البروفايل)
-يُستخدم لجلب بيانات الأدمن بما فيها البريد الإلكتروني
+Endpoint لجلب بيانات الأدمن وإرسال الإشعارات
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from flask_wtf.csrf import csrf_exempt
 from src.models.user import User
 
+# إنشاء Blueprint بدون CSRF protection لهذا الـ endpoint
 admin_profile_bp = Blueprint('admin_profile', __name__, url_prefix='/api/admin')
 
 
@@ -92,7 +91,6 @@ def get_admin_email():
 
 @admin_profile_bp.route('/send-notification', methods=['POST'])
 @login_required
-@csrf_exempt
 def send_notification():
     """
     إرسال إشعار للطلاب
@@ -107,22 +105,23 @@ def send_notification():
             'level': str (اختياري)
         }
     """
-    from flask import request
-    from src.models.student import Student
-    from src.services.notification_service import send_fcm_notification
-    
     try:
+        print("🔔 تم استدعاء send_notification endpoint")
+        
         # التحقق من أن المستخدم الحالي هو أدمن
         if not current_user.is_admin:
+            print("❌ المستخدم ليس أدمن")
             return jsonify({
                 'success': False,
                 'error': 'ليس لديك صلاحية لإرسال الإشعارات'
             }), 403
         
         data = request.get_json()
+        print(f"📨 البيانات المستلمة: {data}")
         
         # التحقق من البيانات المطلوبة
         if not data or 'title' not in data or 'message' not in data:
+            print("❌ البيانات ناقصة")
             return jsonify({
                 'success': False,
                 'error': 'العنوان والرسالة مطلوبان'
@@ -134,24 +133,38 @@ def send_notification():
         recipient_id = data.get('recipient_id')
         level = data.get('level')
         
+        print(f"📤 إرسال إشعار: {title} - {recipient_type}")
+        
+        # استيراد المودلز المطلوبة
+        try:
+            from src.models.student import Student
+            from src.services.notification_service import send_fcm_notification
+        except ImportError:
+            print("❌ فشل في استيراد Student أو notification_service")
+            return jsonify({
+                'success': False,
+                'error': 'خطأ في النظام'
+            }), 500
+        
         # جلب الطلاب المستهدفين
         students = []
         
         if recipient_type == 'all':
-            # إرسال للجميع
             students = Student.query.all()
+            print(f"👥 إرسال لجميع الطلاب: {len(students)}")
         elif recipient_type == 'student_id' and recipient_id:
-            # إرسال لطالب معين
             student = Student.query.get(recipient_id)
             if student:
                 students = [student]
+                print(f"👤 إرسال لطالب واحد: {student.id}")
         elif recipient_type == 'level' and level:
-            # إرسال لمستوى معين
             students = Student.query.filter_by(level=level).all()
+            print(f"🎓 إرسال لمستوى {level}: {len(students)} طالب")
         
         # إرسال الإشعارات
         sent_count = 0
         failed_count = 0
+        no_token_count = 0
         
         for student in students:
             try:
@@ -168,23 +181,35 @@ def send_notification():
                     
                     if result:
                         sent_count += 1
+                        print(f"✅ تم إرسال إشعار للطالب {student.id}")
                     else:
                         failed_count += 1
+                        print(f"❌ فشل إرسال إشعار للطالب {student.id}")
+                else:
+                    no_token_count += 1
+                    print(f"⚠️ الطالب {student.id} ليس لديه FCM token")
+                    
             except Exception as e:
                 print(f"❌ خطأ في إرسال إشعار للطالب {student.id}: {e}")
                 failed_count += 1
+        
+        print(f"📊 النتيجة: {sent_count} نجح، {failed_count} فشل، {no_token_count} بدون token")
         
         return jsonify({
             'success': True,
             'message': f'تم إرسال {sent_count} إشعار بنجاح',
             'sent_count': sent_count,
             'failed_count': failed_count,
+            'no_token_count': no_token_count,
             'total': len(students)
         }), 200
         
     except Exception as e:
-        print(f"❌ خطأ في إرسال الإشعارات: {e}")
+        print(f"❌ خطأ عام في إرسال الإشعارات: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': 'حدث خطأ في إرسال الإشعارات'
+            'error': 'حدث خطأ في إرسال الإشعارات',
+            'details': str(e)
         }), 500
