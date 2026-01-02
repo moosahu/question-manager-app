@@ -117,6 +117,15 @@ class EmailService:
                         color: #666;
                         font-size: 12px;
                     }}
+                    .spam-notice {{
+                        background: #e3f2fd;
+                        color: #1565c0;
+                        padding: 12px;
+                        border-radius: 8px;
+                        margin-top: 15px;
+                        font-size: 13px;
+                        border: 1px solid #90caf9;
+                    }}
                 </style>
             </head>
             <body>
@@ -131,6 +140,9 @@ class EmailService:
                         <p class="note">أدخل هذا الرمز في التطبيق لإكمال التسجيل</p>
                         <div class="warning">
                             ⚠️ هذا الرمز صالح لمدة <strong>3 دقائق</strong> فقط
+                        </div>
+                        <div class="spam-notice">
+                            📬 لم تجد الرسالة؟ تحقق من مجلد <strong>الرسائل غير المرغوب فيها (Spam)</strong>
                         </div>
                     </div>
                     <div class="footer">
@@ -151,6 +163,8 @@ class EmailService:
             أدخل هذا الرمز في التطبيق لإكمال التسجيل.
             
             ⚠️ هذا الرمز صالح لمدة 3 دقائق فقط
+            
+            📬 لم تجد الرسالة؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam)
             
             --
             كيم تحصيلي
