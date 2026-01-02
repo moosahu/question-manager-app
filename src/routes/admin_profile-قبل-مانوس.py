@@ -4,7 +4,6 @@ Endpoint لجلب بيانات الأدمن وإرسال الإشعارات
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from flask_wtf.csrf import csrf_exempt
 from src.models.user import User
 
 # إنشاء Blueprint بدون CSRF protection لهذا الـ endpoint
@@ -92,7 +91,6 @@ def get_admin_email():
 
 @admin_profile_bp.route('/send-notification', methods=['POST'])
 @login_required
-@csrf_exempt
 def send_notification():
     """
     إرسال إشعار للطلاب
