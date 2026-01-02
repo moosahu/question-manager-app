@@ -292,19 +292,25 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
     
-    # ==================== إعدادات الإيميل للتسجيل الذاتي ====================
+    # ==================== إعدادات الإيميل للتسجيل الذاتي (Brevo) ====================
     app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = 'moosahu@gmail.com' # البريد الذي سجلت به في بريفو
-    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = ('no-reply@chem-tahsili.com')
+    app.config['MAIL_USERNAME'] = 'moosahu@gmail.com'  # البريد الذي سجلت به في بريفو
+    app.config['MAIL_PASSWORD'] = os.environ.get('BREVO_SMTP_KEY')  # ✅ SMTP Key من Brevo
+    app.config['MAIL_DEFAULT_SENDER'] = 'no-reply@chem-tahsili.com'  # ✅ لازم يكون مُفعّل في Brevo
+    app.config['MAIL_SENDER_NAME'] = 'كيم تحصيلي'
     
     # تهيئة خدمة الإيميل
     try:
         from src.services.email_service import email_service
         email_service.init_app(app)
         print("✅ Email service initialized successfully")
+        # طباعة حالة الإعدادات للتشخيص
+        if app.config.get('MAIL_PASSWORD'):
+            print("✅ BREVO_SMTP_KEY is set")
+        else:
+            print("❌ BREVO_SMTP_KEY is NOT set - check Render environment variables")
     except Exception as e:
         print(f"⚠️ Email service not available: {e}")
     

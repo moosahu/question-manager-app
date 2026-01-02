@@ -1,7 +1,6 @@
 """
 خدمة إرسال الإيميل - Email Service
 لإرسال رموز التحقق للطلاب
-متوافق مع Brevo (SendinBlue) SMTP
 """
 import smtplib
 from email.mime.text import MIMEText
@@ -18,27 +17,17 @@ class EmailService:
         self.mail_username = None
         self.mail_password = None
         self.mail_sender_name = None
-        self.mail_sender_email = None  # ✅ إضافة إيميل المرسل
         
         if app:
             self.init_app(app)
     
     def init_app(self, app):
         """تهيئة الخدمة مع التطبيق"""
-        self.mail_server = app.config.get('MAIL_SERVER', 'smtp-relay.brevo.com')
+        self.mail_server = app.config.get('MAIL_SERVER', 'smtp.gmail.com')
         self.mail_port = app.config.get('MAIL_PORT', 587)
         self.mail_username = app.config.get('MAIL_USERNAME')
         self.mail_password = app.config.get('MAIL_PASSWORD')
         self.mail_sender_name = app.config.get('MAIL_SENDER_NAME', 'كيم تحصيلي')
-        # ✅ إيميل المرسل (لازم يكون مُفعّل في Brevo)
-        self.mail_sender_email = app.config.get('MAIL_DEFAULT_SENDER', self.mail_username)
-        
-        # ✅ طباعة حالة الإعدادات للتشخيص
-        print(f"📧 Email Service Configuration:")
-        print(f"   Server: {self.mail_server}:{self.mail_port}")
-        print(f"   Username: {self.mail_username}")
-        print(f"   Password: {'✅ Set' if self.mail_password else '❌ NOT SET'}")
-        print(f"   Sender: {self.mail_sender_name} <{self.mail_sender_email}>")
     
     def send_verification_code(self, to_email, code, student_name):
         """إرسال رمز التحقق للطالب"""
@@ -160,27 +149,18 @@ class EmailService:
             
         except Exception as e:
             print(f"❌ خطأ في إرسال رمز التحقق: {e}")
-            import traceback
-            traceback.print_exc()
             return False, str(e)
     
     def _send_email(self, to_email, subject, text_content, html_content=None):
         """إرسال الإيميل"""
         try:
-            # ✅ التحقق من الإعدادات
-            if not self.mail_username:
-                print("❌ MAIL_USERNAME غير محدد")
-                return False, 'إعدادات الإيميل غير مكتملة - MAIL_USERNAME مفقود'
-            
-            if not self.mail_password:
-                print("❌ MAIL_PASSWORD غير محدد")
-                return False, 'إعدادات الإيميل غير مكتملة - MAIL_PASSWORD مفقود'
+            if not self.mail_username or not self.mail_password:
+                return False, 'إعدادات الإيميل غير مكتملة'
             
             # إنشاء الرسالة
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
-            # ✅ استخدام إيميل المرسل المُفعّل في Brevo
-            msg['From'] = f'{self.mail_sender_name} <{self.mail_sender_email}>'
+            msg['From'] = f'{self.mail_sender_name} <{self.mail_username}>'
             msg['To'] = to_email
             
             # إضافة المحتوى النصي
@@ -192,37 +172,20 @@ class EmailService:
                 part2 = MIMEText(html_content, 'html', 'utf-8')
                 msg.attach(part2)
             
-            print(f"📤 جاري الاتصال بـ {self.mail_server}:{self.mail_port}...")
-            
             # الاتصال بالسيرفر وإرسال الإيميل
-            with smtplib.SMTP(self.mail_server, self.mail_port, timeout=30) as server:
-                server.set_debuglevel(1)  # ✅ تفعيل التشخيص
-                print("📤 جاري تفعيل TLS...")
+            with smtplib.SMTP(self.mail_server, self.mail_port) as server:
                 server.starttls()
-                print(f"📤 جاري تسجيل الدخول بـ {self.mail_username}...")
                 server.login(self.mail_username, self.mail_password)
-                print(f"📤 جاري إرسال الإيميل إلى {to_email}...")
-                server.sendmail(self.mail_sender_email, to_email, msg.as_string())
+                server.sendmail(self.mail_username, to_email, msg.as_string())
             
             print(f"✅ تم إرسال الإيميل إلى {to_email}")
             return True, 'تم إرسال الإيميل بنجاح'
             
-        except smtplib.SMTPAuthenticationError as e:
-            print(f"❌ خطأ في المصادقة: {e}")
-            return False, 'خطأ في بيانات الإيميل - تأكد من SMTP Key في Brevo'
-        except smtplib.SMTPRecipientsRefused as e:
-            print(f"❌ المستلم مرفوض: {e}")
-            return False, 'الإيميل المستلم غير صحيح أو مرفوض'
-        except smtplib.SMTPSenderRefused as e:
-            print(f"❌ المرسل مرفوض: {e}")
-            return False, 'إيميل المرسل غير مُفعّل في Brevo - فعّله من لوحة التحكم'
+        except smtplib.SMTPAuthenticationError:
+            return False, 'خطأ في بيانات الإيميل'
         except smtplib.SMTPException as e:
-            print(f"❌ خطأ SMTP: {e}")
             return False, f'خطأ في إرسال الإيميل: {str(e)}'
         except Exception as e:
-            print(f"❌ خطأ غير متوقع: {e}")
-            import traceback
-            traceback.print_exc()
             return False, f'خطأ غير متوقع: {str(e)}'
 
 
