@@ -211,37 +211,6 @@ def toggle_registration():
     return redirect(url_for('students.list_students'))
 
 
-# ==================== حفظ إعدادات التسجيل الذاتي ====================
-@students_bp.route('/save-registration-settings', methods=['POST'])
-@login_required
-@admin_required
-def save_registration_settings():
-    """حفظ إعدادات التسجيل الذاتي"""
-    from src.models.email_verification import RegistrationSettings
-    
-    try:
-        # قراءة القيم من الفورم
-        require_phone = request.form.get('require_phone') == 'on'
-        require_school = request.form.get('require_school') == 'on'
-        auto_activate = request.form.get('auto_activate') == 'on'
-        closed_message = request.form.get('closed_message', '').strip()
-        
-        # تحديث الإعدادات
-        RegistrationSettings.update_settings(
-            require_phone=require_phone,
-            require_school=require_school,
-            auto_activate=auto_activate,
-            message=closed_message if closed_message else None,
-            admin_id=current_user.id
-        )
-        
-        flash('تم حفظ إعدادات التسجيل بنجاح', 'success')
-    except Exception as e:
-        flash(f'خطأ في حفظ الإعدادات: {str(e)}', 'danger')
-    
-    return redirect(url_for('students.list_students'))
-
-
 # ==================== API للتطبيق ====================
 @students_bp.route('/api/login', methods=['POST'])
 def api_student_login():
