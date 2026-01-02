@@ -55,15 +55,6 @@ except ImportError:
     password_reset_available = False
     print("⚠️ Password Reset blueprint not available")
 
-# استيراد admin profile blueprint لجلب بيانات الأدمن
-try:
-    from src.routes.admin_profile import admin_profile_bp
-    admin_profile_available = True
-    print("✅ Admin Profile blueprint imported successfully")
-except ImportError:
-    admin_profile_available = False
-    print("⚠️ Admin Profile blueprint not available")
-
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -454,12 +445,6 @@ def create_app():
     if password_reset_available:
         app.register_blueprint(password_reset_bp)
         print("✅ Password Reset blueprint registered successfully")
-    
-    # تسجيل admin profile blueprint لجلب بيانات الأدمن
-    if admin_profile_available:
-        app.register_blueprint(admin_profile_bp)
-        print("✅ Admin Profile blueprint registered successfully")
-        print("🔐 Admin profile endpoint available at: /api/admin/profile")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
