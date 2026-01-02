@@ -46,15 +46,6 @@ except ImportError:
     registration_available = False
     print("⚠️ Registration blueprint not available")
 
-# استيراد password reset blueprint لإعادة تعيين كلمة المرور
-try:
-    from src.routes.password_reset_routes import password_reset_bp
-    password_reset_available = True
-    print("✅ Password Reset blueprint imported successfully")
-except ImportError:
-    password_reset_available = False
-    print("⚠️ Password Reset blueprint not available")
-
 # إعداد نظام السجلات
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -334,10 +325,6 @@ def create_app():
     if registration_available:
         csrf.exempt(registration_bp)
     
-    # إعفاء password reset API من CSRF للتطبيق
-    if password_reset_available:
-        csrf.exempt(password_reset_bp)
-    
     login_manager.login_view = "auth.login" # Set the login view
 
     # ===== إضافة CORS Middleware =====
@@ -440,11 +427,6 @@ def create_app():
     if registration_available:
         app.register_blueprint(registration_bp)
         print("✅ Registration blueprint registered successfully")
-    
-    # تسجيل password reset blueprint لإعادة تعيين كلمة المرور
-    if password_reset_available:
-        app.register_blueprint(password_reset_bp)
-        print("✅ Password Reset blueprint registered successfully")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
