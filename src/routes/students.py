@@ -599,6 +599,60 @@ def api_change_password():
         }), 500
 
 
+# ==================== حفظ FCM Token للطالب ====================
+@students_bp.route('/api/fcm-token', methods=['POST'])
+def api_save_fcm_token():
+    """حفظ FCM Token للطالب"""
+    try:
+        data = request.get_json() or request.form
+        fcm_token = data.get('fcm_token', '').strip()
+        
+        if not fcm_token:
+            return jsonify({
+                'success': False,
+                'error': 'FCM token مطلوب'
+            }), 400
+        
+        # جلب معرف الطالب من الـ JWT token أو من البيانات
+        student_id = data.get('student_id')
+        username = data.get('username')
+        
+        # البحث عن الطالب
+        if student_id:
+            student = Student.query.get(student_id)
+        elif username:
+            student = Student.query.filter_by(username=username).first()
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'معرف الطالب أو اسم المستخدم مطلوب'
+            }), 400
+        
+        if not student:
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود'
+            }), 404
+        
+        # تحديث FCM Token
+        student.fcm_token = fcm_token
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ FCM Token بنجاح'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ==================== APIs نتائج الطالب ====================
 
 @students_bp.route('/api/results', methods=['GET'])
