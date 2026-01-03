@@ -309,6 +309,7 @@ def create_app():
     # Configuration
     app.config["UPLOAD_FOLDER"] = os.path.join(app.static_folder, "uploads")
     app.config["WTF_CSRF_ENABLED"] = True  # تفعيل حماية CSRF بشكل صريح
+    app.config["WTF_CSRF_CHECK_DEFAULT"] = False  # ✅ تعطيل CSRF للـ API endpoints
     
     # ==================== إعدادات الإيميل للتسجيل الذاتي ====================
     app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
