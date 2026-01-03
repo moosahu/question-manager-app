@@ -30,6 +30,9 @@ class Student(db.Model, UserMixin):
     
     # ملاحظات الأدمن
     notes = db.Column(db.Text, nullable=True)
+    
+    # Firebase Cloud Messaging Token
+    fcm_token = db.Column(db.String(500), nullable=True)  # للإشعارات
 
     def set_password(self, password):
         """تشفير كلمة المرور"""
@@ -79,7 +82,8 @@ class Student(db.Model, UserMixin):
             'grade': self.grade,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'fcm_token': self.fcm_token
         }
 
     def __repr__(self):
