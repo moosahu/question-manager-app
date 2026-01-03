@@ -15,16 +15,32 @@ FCM_ENABLED = False
 try:
     import firebase_admin
     from firebase_admin import credentials, messaging
+    import json
+    import os
     
     # تحقق إذا Firebase مهيأ بالفعل
     try:
         firebase_admin.get_app()
         FCM_ENABLED = True
-        print("✅ Firebase is initialized - Push Notifications enabled")
+        print("✅ Firebase already initialized - Push Notifications enabled")
     except ValueError:
-        print("⚠️  Firebase not initialized")
-        print("💡 Notifications will be saved to database only (no push notifications)")
-        FCM_ENABLED = False
+        # Firebase لم يتم تهيئته - حاول تهيئته من متغير البيئة
+        firebase_config = os.getenv('FIREBASE_CONFIG')
+        if firebase_config:
+            try:
+                creds_dict = json.loads(firebase_config)
+                cred = credentials.Certificate(creds_dict)
+                firebase_admin.initialize_app(cred)
+                FCM_ENABLED = True
+                print("✅ Firebase initialized from FIREBASE_CONFIG - Push Notifications enabled")
+            except Exception as e:
+                print(f"⚠️  Failed to initialize Firebase: {e}")
+                FCM_ENABLED = False
+        else:
+            print("⚠️  FIREBASE_CONFIG environment variable not found")
+            print("💡 Notifications will be saved to database only (no push notifications)")
+            FCM_ENABLED = False
+            
 except ImportError:
     print("⚠️  Firebase Admin SDK not installed (pip install firebase-admin)")
     FCM_ENABLED = False
