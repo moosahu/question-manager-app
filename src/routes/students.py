@@ -606,37 +606,51 @@ def api_save_fcm_token():
     try:
         data = request.get_json() or request.form
         fcm_token = data.get('fcm_token', '').strip()
+        student_id = data.get('student_id')
+        username = data.get('username')
+        
+        print(f"\n🔍 ========== FCM Token Request ==========")
+        print(f"student_id: {student_id}")
+        print(f"username: {username}")
+        print(f"token_length: {len(fcm_token)}")
+        print(f"token_preview: {fcm_token[:50]}...")
         
         if not fcm_token:
+            print(f"\u274c FCM token مفقود")
             return jsonify({
                 'success': False,
                 'error': 'FCM token مطلوب'
             }), 400
         
-        # جلب معرف الطالب من الـ JWT token أو من البيانات
-        student_id = data.get('student_id')
-        username = data.get('username')
-        
         # البحث عن الطالب
+        student = None
         if student_id:
             student = Student.query.get(student_id)
+            print(f"🔍 بحث بالمعرف: student_id={student_id}, found={student is not None}")
         elif username:
             student = Student.query.filter_by(username=username).first()
+            print(f"🔍 بحث بالاسم: username={username}, found={student is not None}")
         else:
+            print(f"\u274c لم يتم إرسال student_id أو username")
             return jsonify({
                 'success': False,
                 'error': 'معرف الطالب أو اسم المستخدم مطلوب'
             }), 400
         
         if not student:
+            print(f"\u274c الطالب غير موجود")
             return jsonify({
                 'success': False,
                 'error': 'الطالب غير موجود'
             }), 404
         
         # تحديث FCM Token
+        print(f"🔍 قبل التحديث: student.fcm_token = {student.fcm_token[:50] if student.fcm_token else 'None'}...")
         student.fcm_token = fcm_token
         db.session.commit()
+        print(f"🔍 بعد التحديث: student.fcm_token = {student.fcm_token[:50]}...")
+        print(f"\u2705 تم حفظ FCM Token بنجاح")
+        print(f"========== End FCM Token Request ==========\n")
         
         return jsonify({
             'success': True,
@@ -645,6 +659,7 @@ def api_save_fcm_token():
         
     except Exception as e:
         db.session.rollback()
+        print(f"\u274c خطأ في حفظ FCM Token: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
