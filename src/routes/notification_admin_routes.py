@@ -269,7 +269,7 @@ def send_notification():
 
 
 # ==================== جلب الإشعارات الخاصة بالطالب ====================
-@api_bp.route('/students/notifications/<int:student_id>', methods=['GET'])
+@api_bp.route('/students/api/notifications/<int:student_id>', methods=['GET'])
 def get_student_notifications(student_id):
     """جلب الإشعارات الخاصة بطالب معين"""
     # TODO: أضف التحقق من أن الطالب المسجل هو نفسه الذي يطلب الإشعارات
@@ -323,7 +323,7 @@ def get_student_notifications(student_id):
 
 
 # ==================== تحديد الإشعار كمقروء ====================
-@api_bp.route('/students/notifications/<int:notification_id>/read', methods=['POST'])
+@api_bp.route('/students/api/notifications/<int:notification_id>/read', methods=['POST'])
 def mark_notification_as_read(notification_id):
     """تحديد الإشعار كمقروء"""
     try:
@@ -423,7 +423,7 @@ def save_fcm_token():
 
 
 # ==================== حذف FCM Token ====================
-@api_bp.route('/students/delete-fcm-token', methods=['POST'])
+@api_bp.route('/students/api/delete-fcm-token', methods=['POST'])
 def delete_fcm_token():
     """حذف FCM Token للطالب (عند تسجيل الخروج)"""
     try:

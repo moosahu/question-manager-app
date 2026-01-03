@@ -10,42 +10,9 @@ from src.models.notification import Notification
 from datetime import datetime
 import uuid
 
-# إعداد نظام السجلات
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # ✅ تحميل الإعدادات والمتغيرات البيئية
 from dotenv import load_dotenv
 load_dotenv()
-
-# ✅ تهيئة Firebase Admin SDK (يجب أن يكون قبل استخدام messaging)
-try:
-    import firebase_admin
-    from firebase_admin import credentials
-    
-    # تحقق إذا Firebase لم يتم تهيئته بعد
-    try:
-        firebase_admin.get_app()
-        logger.info("✅ Firebase already initialized")
-    except ValueError:
-        # Firebase غير مهيأ، قم بتهيئته
-        if os.path.exists('serviceAccountKey.json'):
-            cred = credentials.Certificate('serviceAccountKey.json')
-            firebase_admin.initialize_app(cred)
-            logger.info("✅ Firebase initialized successfully with serviceAccountKey.json")
-        elif os.path.exists('src/serviceAccountKey.json'):
-            cred = credentials.Certificate('src/serviceAccountKey.json')
-            firebase_admin.initialize_app(cred)
-            logger.info("✅ Firebase initialized successfully with src/serviceAccountKey.json")
-        else:
-            logger.warning("⚠️  serviceAccountKey.json not found")
-            logger.warning("💡 Push notifications disabled - notifications will be saved to database only")
-except ImportError:
-    logger.warning("⚠️  Firebase Admin SDK not installed (pip install firebase-admin)")
-    logger.warning("💡 Push notifications disabled - notifications will be saved to database only")
-except Exception as e:
-    logger.error(f"❌ Firebase initialization error: {e}")
-    logger.warning("💡 Push notifications disabled - notifications will be saved to database only")
 
 try:
     from config import get_config
@@ -96,6 +63,10 @@ try:
 except ImportError:
     admin_profile_available = False
     print("⚠️ Admin Profile blueprint not available")
+
+# إعداد نظام السجلات
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
