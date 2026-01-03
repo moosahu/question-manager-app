@@ -5,7 +5,6 @@ from flask import Flask, render_template, redirect, url_for, flash, current_app,
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required, login_user
 from flask_wtf.csrf import CSRFProtect
-from flask_wtf import csrf
 from src.extensions import db
 from src.models.notification import Notification
 from datetime import datetime
@@ -2453,7 +2452,6 @@ def get_backup_stats():
 
 # ==================== إرسال الإشعارات ====================
 @app.route('/api/admin/send-notification', methods=['POST'])
-@csrf.exempt  # ✅ تعطيل CSRF للإشعارات
 @login_required
 def api_send_notification():
     """إرسال إشعار للطلاب"""
