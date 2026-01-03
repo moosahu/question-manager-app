@@ -2450,3 +2450,145 @@ def get_backup_stats():
                 'test_mode': True
             }), 500
 
+
+# ==================== إرسال الإشعارات ====================
+@app.route('/api/admin/send-notification', methods=['POST'])
+@login_required
+def api_send_notification():
+    """إرسال إشعار للطلاب"""
+    try:
+        # التحقق من أن المستخدم أدمن
+        if not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': 'ليس لديك صلاحية إرسال الإشعارات'
+            }), 403
+        
+        data = request.get_json() or request.form
+        
+        # جلب البيانات المطلوبة
+        notification_title = data.get('title', '').strip()
+        notification_body = data.get('body', '').strip()
+        recipient_type = data.get('recipient_type', 'all')  # all, student_id, level
+        recipient_id = data.get('recipient_id')  # للطالب المحدد
+        level = data.get('level')  # للمستوى المحدد
+        
+        print(f"\n🔍 ========== Send Notification Request ==========")
+        print(f"Title: {notification_title}")
+        print(f"Body: {notification_body}")
+        print(f"Recipient Type: {recipient_type}")
+        print(f"Recipient ID: {recipient_id}")
+        print(f"Level: {level}")
+        
+        # التحقق من البيانات المطلوبة
+        if not notification_title or not notification_body:
+            return jsonify({
+                'success': False,
+                'error': 'العنوان والنص مطلوبان'
+            }), 400
+        
+        # استيراد نموذج Student
+        from src.models.student import Student
+        
+        # جلب الطلاب المستهدفين
+        target_students = []
+        
+        if recipient_type == 'all':
+            # إرسال للجميع
+            target_students = Student.query.filter_by(is_active=True).all()
+            print(f"🔍 إرسال للجميع: {len(target_students)} طالب")
+            
+        elif recipient_type == 'student_id':
+            # إرسال لطالب محدد
+            if not recipient_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'معرف الطالب مطلوب'
+                }), 400
+            student = Student.query.get(recipient_id)
+            if student:
+                target_students = [student]
+                print(f"🔍 إرسال لطالب محدد: {student.username}")
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'الطالب غير موجود'
+                }), 404
+                
+        elif recipient_type == 'level':
+            # إرسال لمستوى دراسي محدد
+            if not level:
+                return jsonify({
+                    'success': False,
+                    'error': 'المستوى الدراسي مطلوب'
+                }), 400
+            target_students = Student.query.filter_by(grade=level, is_active=True).all()
+            print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
+        
+        # إرسال الإشعارات
+        sent_count = 0
+        failed_count = 0
+        
+        for student in target_students:
+            if not student.fcm_token:
+                print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
+                failed_count += 1
+                continue
+            
+            try:
+                # استيراد Firebase Admin SDK
+                import firebase_admin
+                from firebase_admin import messaging
+                
+                # إنشاء الرسالة
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=notification_title,
+                        body=notification_body,
+                    ),
+                    token=student.fcm_token,
+                )
+                
+                # إرسال الرسالة
+                response = messaging.send(message)
+                print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
+                sent_count += 1
+                
+                # حفظ الإشعار في قاعدة البيانات
+                notification = Notification(
+                    title=notification_title,
+                    body=notification_body,
+                    recipient_type='student',
+                    recipient_id=student.id,
+                    sent_by=current_user.id,
+                    status='sent'
+                )
+                db.session.add(notification)
+                
+            except Exception as e:
+                print(f"❌ خطأ في إرسال الإشعار للطالب {student.username}: {str(e)}")
+                failed_count += 1
+        
+        # حفظ التغييرات
+        db.session.commit()
+        
+        print(f"✅ تم إرسال {sent_count} إشعار بنجاح")
+        print(f"❌ فشل إرسال {failed_count} إشعار")
+        print(f"========== End Send Notification Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إرسال {sent_count} إشعار بنجاح',
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'total': len(target_students)
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في إرسال الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في إرسال الإشعارات: {str(e)}'
+        }), 500
