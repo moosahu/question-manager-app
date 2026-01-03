@@ -33,7 +33,6 @@ class Student(db.Model, UserMixin):
     
     # Firebase Cloud Messaging Token
     fcm_token = db.Column(db.String(500), nullable=True)  # للإشعارات
-    fcm_token_updated_at = db.Column(db.DateTime, nullable=True)  # آخر تحديث للـ FCM Token
 
     def set_password(self, password):
         """تشفير كلمة المرور"""
@@ -71,31 +70,6 @@ class Student(db.Model, UserMixin):
             )
         ).all()
 
-    def update_fcm_token(self, token):
-        """تحديث FCM Token"""
-        self.fcm_token = token
-        self.fcm_token_updated_at = datetime.utcnow()
-        db.session.commit()
-
-    def clear_fcm_token(self):
-        """حذف FCM Token (عند تسجيل الخروج)"""
-        self.fcm_token = None
-        self.fcm_token_updated_at = None
-        db.session.commit()
-
-    @staticmethod
-    def get_students_with_fcm_tokens():
-        """جلب الطلاب الذين لديهم FCM Tokens"""
-        return Student.query.filter(
-            Student.is_active == True,
-            Student.fcm_token.isnot(None)
-        ).all()
-
-    @staticmethod
-    def get_students_by_grade(grade):
-        """جلب الطلاب حسب الصف"""
-        return Student.query.filter_by(grade=grade, is_active=True).all()
-
     def to_dict(self):
         """تحويل لـ dictionary"""
         return {
@@ -109,8 +83,7 @@ class Student(db.Model, UserMixin):
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
-            'fcm_token': self.fcm_token,
-            'fcm_token_updated_at': self.fcm_token_updated_at.isoformat() if self.fcm_token_updated_at else None
+            'fcm_token': self.fcm_token
         }
 
     def __repr__(self):
