@@ -2453,6 +2453,7 @@ def get_backup_stats():
 
 # ==================== إرسال الإشعارات ====================
 @app.route('/api/admin/send-notification', methods=['POST'])
+@csrf_exempt  # ✅ أضف هذا السطر
 @login_required
 def api_send_notification():
     """إرسال إشعار للطلاب"""
