@@ -228,8 +228,20 @@ def send_notification():
                         print(f'⚠️  Invalid FCM token for {student.username}')
                         failed_tokens.append(student.id)
                         success_count += 1  # الإشعار محفوظ في DB
+                    except messaging.InvalidArgumentError as e:
+                        print(f'❌ Invalid argument error for {student.username}: {e}')
+                        # هذا قد يكون SenderId mismatch
+                        failed_tokens.append(student.id)
+                        success_count += 1
                     except Exception as fcm_error:
-                        print(f'❌ خطأ في إرسال الإشعار للطالب {student.username}: {fcm_error}')
+                        error_msg = str(fcm_error)
+                        print(f'❌ خطأ في إرسال الإشعار للطالب {student.username}: {error_msg}')
+                        
+                        # إذا كان SenderId mismatch، احذف الـ token
+                        if 'SenderId mismatch' in error_msg or 'mismatched' in error_msg.lower():
+                            print(f'⚠️  SenderId mismatch detected - deleting invalid token')
+                            failed_tokens.append(student.id)
+                        
                         success_count += 1  # الإشعار محفوظ في DB
                 else:
                     # FCM غير مفعل - الإشعار محفوظ في DB فقط
