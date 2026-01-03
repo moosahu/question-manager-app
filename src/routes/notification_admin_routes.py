@@ -366,7 +366,7 @@ def mark_notification_as_read(notification_id):
 
 
 # ==================== حفظ FCM Token ====================
-@api_bp.route('/students/fcm-token', methods=['POST'])
+@api_bp.route('/students/api/fcm-token', methods=['POST'])
 def save_fcm_token():
     """حفظ FCM Token للطالب"""
     try:
