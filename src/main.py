@@ -22,6 +22,7 @@ load_dotenv()
 try:
     import firebase_admin
     from firebase_admin import credentials
+    import json
     
     # تحقق إذا Firebase لم يتم تهيئته بعد
     try:
@@ -29,16 +30,32 @@ try:
         logger.info("✅ Firebase already initialized")
     except ValueError:
         # Firebase غير مهيأ، قم بتهيئته
-        if os.path.exists('serviceAccountKey.json'):
+        # الأولوية: Environment Variable (للإنتاج)
+        firebase_config_json = os.getenv('FIREBASE_CONFIG') or os.getenv('FIREBASE_CREDENTIALS_JSON')
+        
+        if firebase_config_json:
+            # استخدام Environment Variable (Render/Production)
+            try:
+                firebase_config = json.loads(firebase_config_json)
+                cred = credentials.Certificate(firebase_config)
+                firebase_admin.initialize_app(cred)
+                logger.info("✅ Firebase initialized successfully from environment variable")
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Invalid FIREBASE_CONFIG JSON: {e}")
+                logger.warning("💡 Push notifications disabled")
+        elif os.path.exists('serviceAccountKey.json'):
+            # استخدام ملف محلي (Development)
             cred = credentials.Certificate('serviceAccountKey.json')
             firebase_admin.initialize_app(cred)
             logger.info("✅ Firebase initialized successfully with serviceAccountKey.json")
         elif os.path.exists('src/serviceAccountKey.json'):
+            # استخدام ملف في مجلد src (Development)
             cred = credentials.Certificate('src/serviceAccountKey.json')
             firebase_admin.initialize_app(cred)
             logger.info("✅ Firebase initialized successfully with src/serviceAccountKey.json")
         else:
-            logger.warning("⚠️  serviceAccountKey.json not found")
+            logger.warning("⚠️  No Firebase credentials found")
+            logger.warning("💡 Set FIREBASE_CONFIG env variable or add serviceAccountKey.json file")
             logger.warning("💡 Push notifications disabled - notifications will be saved to database only")
 except ImportError:
     logger.warning("⚠️  Firebase Admin SDK not installed (pip install firebase-admin)")
