@@ -674,23 +674,22 @@ def api_save_fcm_token():
 def api_save_notification():
     """حفظ الإشعار في قاعدة البيانات"""
     try:
-        from src.models.notification import Notification
-        
         data = request.get_json() or request.form
-        student_id = data.get('student_id')
+        user_id = data.get('user_id') or data.get('student_id')
         title = data.get('title', '').strip()
         message = data.get('message', '').strip() or data.get('body', '').strip()
+        notification_type = data.get('notification_type', 'general')
         
         print(f"\n🔍 ========== Save Notification Request ==========")
-        print(f"student_id: {student_id}")
+        print(f"user_id: {user_id}")
         print(f"title: {title}")
         print(f"message: {message[:100] if message else 'None'}...")
         
-        if not student_id:
-            print(f"❌ معرف الطالب مفقود")
+        if not user_id:
+            print(f"❌ معرف المستخدم مفقود")
             return jsonify({
                 'success': False,
-                'error': 'معرف الطالب مطلوب'
+                'error': 'معرف المستخدم مطلوب'
             }), 400
         
         if not title or not message:
@@ -700,34 +699,29 @@ def api_save_notification():
                 'error': 'العنوان والرسالة مطلوبة'
             }), 400
         
-        # التحقق من وجود الطالب
-        student = Student.query.get(student_id)
-        if not student:
-            print(f"❌ الطالب غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الطالب غير موجود'
-            }), 404
-        
-        # إنشاء الإشعار
-        notification = Notification(
-            student_id=student_id,
-            title=title,
-            message=message,
-            is_read=False,
-            created_at=datetime.now()
+        # إدراج الإشعار في جدول notifications
+        result = db.session.execute(
+            db.text("""
+                INSERT INTO notifications (title, message, notification_type, user_id, is_read, created_at)
+                VALUES (:title, :message, :notification_type, :user_id, FALSE, NOW())
+            """),
+            {
+                'title': title,
+                'message': message,
+                'notification_type': notification_type,
+                'user_id': user_id
+            }
         )
-        
-        db.session.add(notification)
         db.session.commit()
         
-        print(f"✅ تم حفظ الإشعار بنجاح - ID: {notification.id}")
+        notification_id = result.lastrowid
+        print(f"✅ تم حفظ الإشعار بنجاح - ID: {notification_id}")
         print(f"========== End Save Notification Request ==========\n")
         
         return jsonify({
             'success': True,
             'message': 'تم حفظ الإشعار بنجاح',
-            'id': notification.id
+            'id': notification_id
         }), 201
         
     except Exception as e:
@@ -741,44 +735,46 @@ def api_save_notification():
         }), 500
 
 
-@students_bp.route('/api/notifications/<int:student_id>', methods=['GET'])
-def api_get_notifications(student_id):
-    """جلب إشعارات الطالب"""
+@students_bp.route('/api/notifications/<int:user_id>', methods=['GET'])
+def api_get_notifications(user_id):
+    """جلب إشعارات المستخدم"""
     try:
-        from src.models.notification import Notification
-        
         print(f"\n🔍 ========== Get Notifications Request ==========")
-        print(f"student_id: {student_id}")
+        print(f"user_id: {user_id}")
         
-        # التحقق من وجود الطالب
-        student = Student.query.get(student_id)
-        if not student:
-            print(f"❌ الطالب غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الطالب غير موجود',
-                'notifications': []
-            }), 404
+        # جلب الإشعارات من جدول notifications
+        notifications = db.session.execute(
+            db.text("""
+                SELECT id, title, message, notification_type, user_id, is_read, created_at, read_at
+                FROM notifications
+                WHERE user_id = :user_id
+                ORDER BY created_at DESC
+                LIMIT 50
+            """),
+            {'user_id': user_id}
+        ).fetchall()
         
-        # جلب الإشعارات
-        notifications = Notification.query.filter_by(
-            student_id=student_id
-        ).order_by(Notification.created_at.desc()).all()
+        result = []
+        for n in notifications:
+            result.append({
+                'id': n[0],
+                'title': n[1],
+                'message': n[2],
+                'body': n[2],
+                'notification_type': n[3],
+                'user_id': n[4],
+                'is_read': n[5],
+                'created_at': n[6].isoformat() if n[6] else None,
+                'timestamp': n[6].isoformat() if n[6] else None,
+                'read_at': n[7].isoformat() if n[7] else None
+            })
         
-        print(f"✅ تم جلب {len(notifications)} إشعار")
+        print(f"✅ تم جلب {len(result)} إشعار")
         print(f"========== End Get Notifications Request ==========\n")
         
         return jsonify({
             'success': True,
-            'notifications': [{
-                'id': n.id,
-                'title': n.title,
-                'message': n.message,
-                'body': n.message,
-                'is_read': n.is_read,
-                'created_at': n.created_at.isoformat() if n.created_at else None,
-                'timestamp': n.created_at.isoformat() if n.created_at else None
-            } for n in notifications]
+            'notifications': result
         }), 200
         
     except Exception as e:
@@ -796,35 +792,37 @@ def api_get_notifications(student_id):
 def api_mark_notification_read(notification_id):
     """تحديث حالة الإشعار إلى مقروء"""
     try:
-        from src.models.notification import Notification
-        
         data = request.get_json() or request.form
-        student_id = data.get('student_id')
+        user_id = data.get('user_id') or data.get('student_id')
         
         print(f"\n🔍 ========== Mark Notification Read Request ==========")
         print(f"notification_id: {notification_id}")
-        print(f"student_id: {student_id}")
+        print(f"user_id: {user_id}")
         
-        # جلب الإشعار
-        notification = Notification.query.get(notification_id)
-        if not notification:
+        if not user_id:
+            print(f"❌ معرف المستخدم مفقود")
+            return jsonify({
+                'success': False,
+                'error': 'معرف المستخدم مطلوب'
+            }), 400
+        
+        # تحديث الإشعار
+        result = db.session.execute(
+            db.text("""
+                UPDATE notifications
+                SET is_read = TRUE, read_at = NOW()
+                WHERE id = :id AND user_id = :user_id
+            """),
+            {'id': notification_id, 'user_id': user_id}
+        )
+        db.session.commit()
+        
+        if result.rowcount == 0:
             print(f"❌ الإشعار غير موجود")
             return jsonify({
                 'success': False,
                 'error': 'الإشعار غير موجود'
             }), 404
-        
-        # التحقق من أن الإشعار يخص الطالب
-        if student_id and notification.student_id != student_id:
-            print(f"❌ الإشعار لا يخص هذا الطالب")
-            return jsonify({
-                'success': False,
-                'error': 'الإشعار لا يخص هذا الطالب'
-            }), 403
-        
-        # تحديث الحالة
-        notification.is_read = True
-        db.session.commit()
         
         print(f"✅ تم تحديث حالة الإشعار إلى مقروء")
         print(f"========== End Mark Notification Read Request ==========\n")
