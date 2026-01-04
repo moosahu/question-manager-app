@@ -699,19 +699,19 @@ def api_save_notification():
                 'error': 'العنوان والرسالة مطلوبة'
             }), 400
         
-        # إدراج الإشعار في جدول notifications
+         # حفظ الإشعار في قاعدة البيانات
         result = db.session.execute(
             db.text("""
-                INSERT INTO notifications (title, message, notification_type, user_id, is_read, created_at)
-                VALUES (:title, :message, :notification_type, :user_id, FALSE, NOW())
+                INSERT INTO notifications (title, message, notification_type, student_id, is_read, created_at)
+                VALUES (:title, :message, :notification_type, :student_id, FALSE, NOW())
             """),
             {
                 'title': title,
-                'message': message,
-                'notification_type': notification_type,
-                'user_id': user_id
+                'message': message or body,
+                'notification_type': 'general',
+                'student_id': student_id
             }
-        )
+        ) )
         db.session.commit()
         
         notification_id = result.lastrowid
@@ -745,13 +745,13 @@ def api_get_notifications(user_id):
         # جلب الإشعارات من جدول notifications
         notifications = db.session.execute(
             db.text("""
-                SELECT id, title, message, notification_type, user_id, is_read, created_at, read_at
+                SELECT id, title, message, notification_type, student_id, is_read, created_at, read_at
                 FROM notifications
-                WHERE user_id = :user_id
+                WHERE student_id = :student_id
                 ORDER BY created_at DESC
                 LIMIT 50
             """),
-            {'user_id': user_id}
+            {'student_id': user_id}
         ).fetchall()
         
         result = []
@@ -762,7 +762,7 @@ def api_get_notifications(user_id):
                 'message': n[2],
                 'body': n[2],
                 'notification_type': n[3],
-                'user_id': n[4],
+                'student_id': n[4],
                 'is_read': n[5],
                 'created_at': n[6].isoformat() if n[6] else None,
                 'timestamp': n[6].isoformat() if n[6] else None,
@@ -804,18 +804,15 @@ def api_mark_notification_read(notification_id):
             return jsonify({
                 'success': False,
                 'error': 'معرف المستخدم مطلوب'
-            }), 400
-        
-        # تحديث الإشعار
-        result = db.session.execute(
+            }),         # تحديث حالة الإشعار
+        db.session.execute(
             db.text("""
                 UPDATE notifications
                 SET is_read = TRUE, read_at = NOW()
-                WHERE id = :id AND user_id = :user_id
+                WHERE id = :notification_id AND student_id = :student_id
             """),
-            {'id': notification_id, 'user_id': user_id}
-        )
-        db.session.commit()
+            {'notification_id': notification_id, 'student_id': user_id}
+        )db.session.commit()
         
         if result.rowcount == 0:
             print(f"❌ الإشعار غير موجود")
