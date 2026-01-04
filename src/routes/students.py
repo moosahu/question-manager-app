@@ -817,7 +817,7 @@ def api_mark_notification_read(notification_id):
             }), 400
         
         # تحديث حالة الإشعار
-        db.session.execute(
+        result = db.session.execute(
             db.text("""
                 UPDATE notifications
                 SET is_read = TRUE, read_at = NOW()
@@ -1156,15 +1156,17 @@ def api_mark_all_notifications_read(student_id):
                 'error': 'الطالب غير موجود'
             }), 404
         
-        # تحديث جميع الإشعارات
+        # تحديث جميع الإشعارات غير المقروءة فقط
+        # لا نحذف الإشعارات عند فتح الصفحة
         updated_count = Notification.query.filter_by(
             student_id=student_id,
             is_read=False
-        ).update({'is_read': True})
+        ).update({'is_read': True, 'read_at': datetime.now()})
         
         db.session.commit()
         
         print(f"✅ تم تحديث {updated_count} إشعار كمقروء")
+        print(f"⚠️  لا نحذف الإشعارات المقروءة - تبقى مرئية للطالب")
         print(f"========== End Mark All Notifications Read Request ==========\n")
         
         return jsonify({
