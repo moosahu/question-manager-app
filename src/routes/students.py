@@ -739,59 +739,8 @@ def api_save_notification():
 def api_get_notifications(user_id):
     """جلب إشعارات المستخدم"""
     try:
-        import jwt
-        import os
-        
         print(f"\n🔍 ========== Get Notifications Request ==========")
         print(f"user_id: {user_id}")
-        
-        # التحقق من الـ JWT token
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            print(f"❌ لا يوجد token")
-            return jsonify({
-                'success': False,
-                'error': 'Token مطلوب',
-                'notifications': []
-            }), 401
-        
-        try:
-            # استخراج الـ token من الـ header
-            token = auth_header.split(' ')[1] if ' ' in auth_header else auth_header
-            
-            # فك تشفير الـ token
-            decoded = jwt.decode(
-                token,
-                os.getenv('SECRET_KEY', 'your-secret-key'),
-                algorithms=['HS256']
-            )
-            
-            # التحقق من أن المستخدم يطلب إشعاراته فقط
-            token_user_id = decoded.get('student_id')
-            if token_user_id != user_id:
-                print(f"❌ محاولة الوصول لإشعارات مستخدم آخر: token_user_id={token_user_id}, requested_user_id={user_id}")
-                return jsonify({
-                    'success': False,
-                    'error': 'لا يمكنك الوصول لإشعارات مستخدم آخر',
-                    'notifications': []
-                }), 403
-            
-            print(f"✅ تم التحقق من الـ token بنجاح - user_id: {token_user_id}")
-            
-        except jwt.ExpiredSignatureError:
-            print(f"❌ الـ token منتهي الصلاحية")
-            return jsonify({
-                'success': False,
-                'error': 'الـ token منتهي الصلاحية',
-                'notifications': []
-            }), 401
-        except jwt.InvalidTokenError as e:
-            print(f"❌ الـ token غير صحيح: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': 'الـ token غير صحيح',
-                'notifications': []
-            }), 401
         
         # جلب الإشعارات من جدول notifications
         notifications = db.session.execute(
