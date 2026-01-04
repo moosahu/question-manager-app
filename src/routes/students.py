@@ -711,7 +711,7 @@ def api_save_notification():
                 'notification_type': 'general',
                 'student_id': student_id
             }
-        ) )
+        )
         db.session.commit()
         
         notification_id = result.lastrowid
@@ -804,7 +804,9 @@ def api_mark_notification_read(notification_id):
             return jsonify({
                 'success': False,
                 'error': 'معرف المستخدم مطلوب'
-            }),         # تحديث حالة الإشعار
+            }), 400
+        
+        # تحديث حالة الإشعار
         db.session.execute(
             db.text("""
                 UPDATE notifications
@@ -812,7 +814,8 @@ def api_mark_notification_read(notification_id):
                 WHERE id = :notification_id AND student_id = :student_id
             """),
             {'notification_id': notification_id, 'student_id': user_id}
-        )db.session.commit()
+        )
+        db.session.commit()
         
         if result.rowcount == 0:
             print(f"❌ الإشعار غير موجود")
