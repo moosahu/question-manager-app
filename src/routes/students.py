@@ -708,13 +708,13 @@ def api_save_notification():
         # حفظ الإشعار في قاعدة البيانات
         result = db.session.execute(
             db.text("""
-                INSERT INTO notifications (title, message, notification_type, student_id, is_read, created_at)
-                VALUES (:title, :message, :notification_type, :student_id, FALSE, :created_at)
+                INSERT INTO notifications (title, message, type, student_id, is_read, created_at)
+                VALUES (:title, :message, :type, :student_id, FALSE, :created_at)
             """),
             {
                 'title': title,
                 'message': message,
-                'notification_type': notification_type,
+                'type': notification_type,
                 'student_id': student_id,
                 'created_at': created_at
             }
@@ -752,9 +752,11 @@ def api_get_notifications(user_id):
         # جلب الإشعارات من جدول notifications
         notifications = db.session.execute(
             db.text("""
-                SELECT id, title, message, notification_type, student_id, is_read, created_at, read_at
+                SELECT id, title, message, type, student_id, is_read, created_at, read_at
                 FROM notifications
-                WHERE student_id = :student_id
+                WHERE student_id = :student_id AND type NOT IN (
+                    'admin_activity', 'security_alert', 'error', 'warning', 'failed_login', 'system_error'
+                )
                 ORDER BY created_at DESC
                 LIMIT 50
             """),
@@ -769,6 +771,7 @@ def api_get_notifications(user_id):
                 'message': n[2],
                 'body': n[2],
                 'notification_type': n[3],
+                'type': n[3],
                 'student_id': n[4],
                 'is_read': n[5],
                 'created_at': n[6].isoformat() if n[6] else None,
@@ -1002,81 +1005,8 @@ def api_save_result():
 
 
 # ==================== API لحفظ الإشعارات من Firebase ====================
-
-@stud#@students_bp.route('/api/notifications/firebase', methods=['POST'])
-#def api_save_notification_from_firebase():se():
-    """حفظ الإشعار المستقبل من Firebase مباشرة في قاعدة البيانات"""
-    try:
-        from src.models.notification import Notification
-        
-        data = request.get_json() or request.form
-        
-        # استخراج البيانات من Firebase
-        student_id = data.get('student_id') or data.get('to')
-        title = data.get('title', '').strip()
-        message = data.get('message', '').strip() or data.get('body', '').strip()
-        notification_type = data.get('notification_type', 'general')
-        
-        print(f"\n🔍 ========== Save Notification From Firebase ==========")
-        print(f"student_id: {student_id}")
-        print(f"title: {title}")
-        print(f"message: {message[:100] if message else 'None'}...")
-        print(f"notification_type: {notification_type}")
-        
-        if not student_id:
-            print(f"❌ معرف الطالب مفقود")
-            return jsonify({
-                'success': False,
-                'error': 'معرف الطالب مطلوب'
-            }), 400
-        
-        if not title or not message:
-            print(f"❌ العنوان أو الرسالة مفقودة")
-            return jsonify({
-                'success': False,
-                'error': 'العنوان والرسالة مطلوبة'
-            }), 400
-        
-        # التحقق من وجود الطالب
-        student = Student.query.get(student_id)
-        if not student:
-            print(f"❌ الطالب غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الطالب غير موجود'
-            }), 404
-        
-        # إنشاء الإشعار
-        notification = Notification(
-            student_id=student_id,
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            is_read=False,
-            created_at=datetime.now()
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"✅ تم حفظ الإشعار من Firebase بنجاح - ID: {notification.id}")
-        print(f"========== End Save Notification From Firebase ==========\n")
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم حفظ الإشعار بنجاح',
-            'id': notification.id
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ خطأ في حفظ الإشعار من Firebase: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# تم حذف هذا الـ endpoint لأنه مكرر (نفس وظيفة api_save_notification)
+# لا تستخدم هذا الـ endpoint بعد الآن
 
 
 @students_bp.route('/api/notifications/batch-save', methods=['POST'])
