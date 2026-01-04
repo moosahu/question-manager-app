@@ -2603,12 +2603,11 @@ def api_send_notification():
                 # حفظ الإشعار في قاعدة البيانات
                 notification = Notification(
                     title=notification_title,
-                    message=notification_body,
-                    type='info',
-                    student_id=student.id,
-                    user_id=current_user.id,
-                    is_read=False,
-                    created_at=datetime.now()
+                    body=notification_body,
+                    recipient_type='student',
+                    recipient_id=student.id,
+                    sent_by=current_user.id,
+                    status='sent'
                 )
                 db.session.add(notification)
                 
