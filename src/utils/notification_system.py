@@ -43,6 +43,11 @@ class NotificationSystem:
                     current_app.logger.info(f"Notification: {title} - {message}")
                     return True
             
+            # التحقق من أن واحداً على الأقل من student_id أو user_id موجود
+            if student_id is None and user_id is None:
+                current_app.logger.warning(f"Notification requires either student_id or user_id: {title}")
+                return False
+            
             # إنشاء الإشعار
             notification = Notification(
                 title=title,
@@ -206,6 +211,24 @@ class QuestionNotifications:
 
 class SystemNotifications:
     """إشعارات النظام والأمان مع حماية السياق"""
+    
+    @staticmethod
+    def notify_failed_login(username, ip_address):
+        """إشعار محاولة تسجيل دخول فاشلة"""
+        try:
+            from src.models.student import Student
+            student = Student.query.filter_by(username=username).first()
+            student_id = student.id if student else None
+        except:
+            student_id = None
+        
+        message = f"محاولة تسجيل دخول فاشلة للمستخدم: {username} من العنوان: {ip_address}"
+        return NotificationSystem.create_notification(
+            title="تنبيه أمني",
+            message=message,
+            notification_type="error",
+            student_id=student_id
+        )
     
     @staticmethod
     def notify_security_alert(message, student_id=None):

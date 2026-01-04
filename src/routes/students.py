@@ -675,17 +675,17 @@ def api_save_notification():
     """حفظ الإشعار في قاعدة البيانات"""
     try:
         data = request.get_json() or request.form
-        user_id = data.get('user_id') or data.get('student_id')
+        student_id = data.get('student_id') or data.get('user_id')
         title = data.get('title', '').strip()
         message = data.get('message', '').strip() or data.get('body', '').strip()
         notification_type = data.get('notification_type', 'general')
         
         print(f"\n🔍 ========== Save Notification Request ==========")
-        print(f"user_id: {user_id}")
+        print(f"student_id: {student_id}")
         print(f"title: {title}")
         print(f"message: {message[:100] if message else 'None'}...")
         
-        if not user_id:
+        if not student_id:
             print(f"❌ معرف المستخدم مفقود")
             return jsonify({
                 'success': False,
@@ -699,7 +699,7 @@ def api_save_notification():
                 'error': 'العنوان والرسالة مطلوبة'
             }), 400
         
-         # حفظ الإشعار في قاعدة البيانات
+        # حفظ الإشعار في قاعدة البيانات
         result = db.session.execute(
             db.text("""
                 INSERT INTO notifications (title, message, notification_type, student_id, is_read, created_at)
@@ -707,8 +707,8 @@ def api_save_notification():
             """),
             {
                 'title': title,
-                'message': message or body,
-                'notification_type': 'general',
+                'message': message,
+                'notification_type': notification_type,
                 'student_id': student_id
             }
         )
