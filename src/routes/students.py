@@ -668,6 +668,183 @@ def api_save_fcm_token():
         }), 500
 
 
+# ==================== APIs الإشعارات ====================
+
+@students_bp.route('/api/notifications/save', methods=['POST'])
+def api_save_notification():
+    """حفظ الإشعار في قاعدة البيانات"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        student_id = data.get('student_id')
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip() or data.get('body', '').strip()
+        
+        print(f"\n🔍 ========== Save Notification Request ==========")
+        print(f"student_id: {student_id}")
+        print(f"title: {title}")
+        print(f"message: {message[:100] if message else 'None'}...")
+        
+        if not student_id:
+            print(f"❌ معرف الطالب مفقود")
+            return jsonify({
+                'success': False,
+                'error': 'معرف الطالب مطلوب'
+            }), 400
+        
+        if not title or not message:
+            print(f"❌ العنوان أو الرسالة مفقودة")
+            return jsonify({
+                'success': False,
+                'error': 'العنوان والرسالة مطلوبة'
+            }), 400
+        
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود'
+            }), 404
+        
+        # إنشاء الإشعار
+        notification = Notification(
+            student_id=student_id,
+            title=title,
+            message=message,
+            is_read=False,
+            created_at=datetime.now()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        print(f"✅ تم حفظ الإشعار بنجاح - ID: {notification.id}")
+        print(f"========== End Save Notification Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ الإشعار بنجاح',
+            'id': notification.id
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ الإشعار: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@students_bp.route('/api/notifications/<int:student_id>', methods=['GET'])
+def api_get_notifications(student_id):
+    """جلب إشعارات الطالب"""
+    try:
+        from src.models.notification import Notification
+        
+        print(f"\n🔍 ========== Get Notifications Request ==========")
+        print(f"student_id: {student_id}")
+        
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود',
+                'notifications': []
+            }), 404
+        
+        # جلب الإشعارات
+        notifications = Notification.query.filter_by(
+            student_id=student_id
+        ).order_by(Notification.created_at.desc()).all()
+        
+        print(f"✅ تم جلب {len(notifications)} إشعار")
+        print(f"========== End Get Notifications Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'notifications': [{
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'body': n.message,
+                'is_read': n.is_read,
+                'created_at': n.created_at.isoformat() if n.created_at else None,
+                'timestamp': n.created_at.isoformat() if n.created_at else None
+            } for n in notifications]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'notifications': []
+        }), 500
+
+
+@students_bp.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
+def api_mark_notification_read(notification_id):
+    """تحديث حالة الإشعار إلى مقروء"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        student_id = data.get('student_id')
+        
+        print(f"\n🔍 ========== Mark Notification Read Request ==========")
+        print(f"notification_id: {notification_id}")
+        print(f"student_id: {student_id}")
+        
+        # جلب الإشعار
+        notification = Notification.query.get(notification_id)
+        if not notification:
+            print(f"❌ الإشعار غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار غير موجود'
+            }), 404
+        
+        # التحقق من أن الإشعار يخص الطالب
+        if student_id and notification.student_id != student_id:
+            print(f"❌ الإشعار لا يخص هذا الطالب")
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار لا يخص هذا الطالب'
+            }), 403
+        
+        # تحديث الحالة
+        notification.is_read = True
+        db.session.commit()
+        
+        print(f"✅ تم تحديث حالة الإشعار إلى مقروء")
+        print(f"========== End Mark Notification Read Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم تحديث حالة الإشعار'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في تحديث الإشعار: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ==================== APIs نتائج الطالب ====================
 
 @students_bp.route('/api/results', methods=['GET'])
@@ -816,3 +993,310 @@ def api_save_result():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+# ==================== API لحفظ الإشعارات من Firebase ====================
+
+@students_bp.route('/api/notifications/save-from-firebase', methods=['POST'])
+def api_save_notification_from_firebase():
+    """حفظ الإشعار المستقبل من Firebase مباشرة في قاعدة البيانات"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        
+        # استخراج البيانات من Firebase
+        student_id = data.get('student_id') or data.get('to')
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip() or data.get('body', '').strip()
+        notification_type = data.get('notification_type', 'general')
+        
+        print(f"\n🔍 ========== Save Notification From Firebase ==========")
+        print(f"student_id: {student_id}")
+        print(f"title: {title}")
+        print(f"message: {message[:100] if message else 'None'}...")
+        print(f"notification_type: {notification_type}")
+        
+        if not student_id:
+            print(f"❌ معرف الطالب مفقود")
+            return jsonify({
+                'success': False,
+                'error': 'معرف الطالب مطلوب'
+            }), 400
+        
+        if not title or not message:
+            print(f"❌ العنوان أو الرسالة مفقودة")
+            return jsonify({
+                'success': False,
+                'error': 'العنوان والرسالة مطلوبة'
+            }), 400
+        
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود'
+            }), 404
+        
+        # إنشاء الإشعار
+        notification = Notification(
+            student_id=student_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            is_read=False,
+            created_at=datetime.now()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        print(f"✅ تم حفظ الإشعار من Firebase بنجاح - ID: {notification.id}")
+        print(f"========== End Save Notification From Firebase ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ الإشعار بنجاح',
+            'id': notification.id
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ الإشعار من Firebase: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@students_bp.route('/api/notifications/batch-save', methods=['POST'])
+def api_save_notifications_batch():
+    """حفظ عدة إشعارات دفعة واحدة"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        notifications_list = data.get('notifications', [])
+        
+        print(f"\n🔍 ========== Save Notifications Batch ==========")
+        print(f"عدد الإشعارات: {len(notifications_list)}")
+        
+        if not notifications_list:
+            print(f"❌ قائمة الإشعارات فارغة")
+            return jsonify({
+                'success': False,
+                'error': 'قائمة الإشعارات مطلوبة'
+            }), 400
+        
+        saved_ids = []
+        failed_count = 0
+        
+        for notif_data in notifications_list:
+            try:
+                student_id = notif_data.get('student_id')
+                title = notif_data.get('title', '').strip()
+                message = notif_data.get('message', '').strip() or notif_data.get('body', '').strip()
+                
+                if not student_id or not title or not message:
+                    print(f"⚠️  إشعار غير كامل - تم تخطيه")
+                    failed_count += 1
+                    continue
+                
+                # التحقق من وجود الطالب
+                student = Student.query.get(student_id)
+                if not student:
+                    print(f"⚠️  الطالب {student_id} غير موجود - تم تخطيه")
+                    failed_count += 1
+                    continue
+                
+                # إنشاء الإشعار
+                notification = Notification(
+                    student_id=student_id,
+                    title=title,
+                    message=message,
+                    is_read=False,
+                    created_at=datetime.now()
+                )
+                
+                db.session.add(notification)
+                db.session.flush()
+                saved_ids.append(notification.id)
+                
+            except Exception as e:
+                print(f"❌ خطأ في حفظ إشعار: {str(e)}")
+                failed_count += 1
+                continue
+        
+        db.session.commit()
+        
+        print(f"✅ تم حفظ {len(saved_ids)} إشعار بنجاح")
+        print(f"❌ فشل {failed_count} إشعار")
+        print(f"========== End Save Notifications Batch ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم حفظ {len(saved_ids)} إشعار بنجاح',
+            'saved_count': len(saved_ids),
+            'failed_count': failed_count,
+            'saved_ids': saved_ids
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@students_bp.route('/api/notifications/unread-count/<int:student_id>', methods=['GET'])
+def api_get_unread_notifications_count(student_id):
+    """جلب عدد الإشعارات غير المقروءة"""
+    try:
+        from src.models.notification import Notification
+        
+        print(f"\n🔍 ========== Get Unread Count Request ==========")
+        print(f"student_id: {student_id}")
+        
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود',
+                'unread_count': 0
+            }), 404
+        
+        # جلب عدد الإشعارات غير المقروءة
+        unread_count = Notification.query.filter_by(
+            student_id=student_id,
+            is_read=False
+        ).count()
+        
+        print(f"✅ عدد الإشعارات غير المقروءة: {unread_count}")
+        print(f"========== End Get Unread Count Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'unread_count': unread_count
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب عدد الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'unread_count': 0
+        }), 500
+
+
+@students_bp.route('/api/notifications/mark-all-read/<int:student_id>', methods=['POST'])
+def api_mark_all_notifications_read(student_id):
+    """تحديث جميع إشعارات الطالب كمقروءة"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        
+        print(f"\n🔍 ========== Mark All Notifications Read Request ==========")
+        print(f"student_id: {student_id}")
+        
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود'
+            }), 404
+        
+        # تحديث جميع الإشعارات
+        updated_count = Notification.query.filter_by(
+            student_id=student_id,
+            is_read=False
+        ).update({'is_read': True})
+        
+        db.session.commit()
+        
+        print(f"✅ تم تحديث {updated_count} إشعار كمقروء")
+        print(f"========== End Mark All Notifications Read Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم تحديث {updated_count} إشعار',
+            'updated_count': updated_count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في تحديث الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@students_bp.route('/api/notifications/delete/<int:notification_id>', methods=['DELETE', 'POST'])
+def api_delete_notification(notification_id):
+    """حذف إشعار معين"""
+    try:
+        from src.models.notification import Notification
+        
+        data = request.get_json() or request.form
+        student_id = data.get('student_id')
+        
+        print(f"\n🔍 ========== Delete Notification Request ==========")
+        print(f"notification_id: {notification_id}")
+        print(f"student_id: {student_id}")
+        
+        # جلب الإشعار
+        notification = Notification.query.get(notification_id)
+        if not notification:
+            print(f"❌ الإشعار غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار غير موجود'
+            }), 404
+        
+        # التحقق من أن الإشعار يخص الطالب
+        if student_id and notification.student_id != student_id:
+            print(f"❌ الإشعار لا يخص هذا الطالب")
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار لا يخص هذا الطالب'
+            }), 403
+        
+        # حذف الإشعار
+        db.session.delete(notification)
+        db.session.commit()
+        
+        print(f"✅ تم حذف الإشعار بنجاح")
+        print(f"========== End Delete Notification Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حذف الإشعار بنجاح'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حذف الإشعار: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
