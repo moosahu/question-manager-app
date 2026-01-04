@@ -2608,7 +2608,7 @@ def api_send_notification():
                     student_id=student.id,
                     user_id=current_user.id,
                     is_read=False,
-                    created_at = datetime.utcnow() + timedelta(hours=3)
+                    created_at = datetime.utcnow()
                 )
                 db.session.add(notification)
                 
