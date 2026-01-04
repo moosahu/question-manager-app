@@ -679,12 +679,14 @@ def api_save_notification():
         title = data.get('title', '').strip()
         message = data.get('message', '').strip() or data.get('body', '').strip()
         notification_type = data.get('notification_type', 'general')
-        
+        created_at = data.get('created_at')
+
         print(f"\n🔍 ========== Save Notification Request ==========")
         print(f"student_id: {student_id}")
         print(f"title: {title}")
         print(f"message: {message[:100] if message else 'None'}...")
-        
+        print(f"created_at: {created_at}")
+
         if not student_id:
             print(f"❌ معرف المستخدم مفقود")
             return jsonify({
@@ -698,18 +700,23 @@ def api_save_notification():
                 'success': False,
                 'error': 'العنوان والرسالة مطلوبة'
             }), 400
-        
+
+        # استخدام الوقت الحالي إذا لم يتم توفير created_at
+        if not created_at:
+            created_at = datetime.now().isoformat()
+
         # حفظ الإشعار في قاعدة البيانات
         result = db.session.execute(
             db.text("""
                 INSERT INTO notifications (title, message, notification_type, student_id, is_read, created_at)
-                VALUES (:title, :message, :notification_type, :student_id, FALSE, NOW())
+                VALUES (:title, :message, :notification_type, :student_id, FALSE, :created_at)
             """),
             {
                 'title': title,
                 'message': message,
                 'notification_type': notification_type,
-                'student_id': student_id
+                'student_id': student_id,
+                'created_at': created_at
             }
         )
         db.session.commit()
@@ -996,8 +1003,8 @@ def api_save_result():
 
 # ==================== API لحفظ الإشعارات من Firebase ====================
 
-@students_bp.route('/api/notifications/save-from-firebase', methods=['POST'])
-def api_save_notification_from_firebase():
+@stud#@students_bp.route('/api/notifications/firebase', methods=['POST'])
+#def api_save_notification_from_firebase():se():
     """حفظ الإشعار المستقبل من Firebase مباشرة في قاعدة البيانات"""
     try:
         from src.models.notification import Notification
