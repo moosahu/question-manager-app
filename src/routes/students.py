@@ -669,7 +669,7 @@ def api_save_fcm_token():
 
 
 # ==================== APIs الإشعارات ====================
-
+'''
 @students_bp.route('/api/notifications/save', methods=['POST'])
 def api_save_notification():
     """حفظ الإشعار في قاعدة البيانات"""
@@ -740,7 +740,7 @@ def api_save_notification():
             'success': False,
             'error': str(e)
         }), 500
-
+'''
 
 @students_bp.route('/api/notifications/<int:user_id>', methods=['GET'])
 def api_get_notifications(user_id):
