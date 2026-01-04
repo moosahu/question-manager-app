@@ -10,7 +10,7 @@ class NotificationSystem:
     """النظام الأساسي للإشعارات مع حماية من أخطاء السياق"""
     
     @staticmethod
-    def create_notification(title, message, notification_type="info", student_id=None):
+    def create_notification(title, message, notification_type="info", user_id=None):
         """
         إنشاء إشعار جديد مع حماية من أخطاء السياق
         
@@ -18,7 +18,7 @@ class NotificationSystem:
             title (str): عنوان الإشعار
             message (str): محتوى الإشعار
             notification_type (str): نوع الإشعار (info, success, warning, error)
-            student_id (int): معرف الطالب (اختياري)
+            user_id (int): معرف المستخدم (اختياري)
         """
         try:
             # التحقق من وجود سياق التطبيق
@@ -47,7 +47,7 @@ class NotificationSystem:
                 title=title,
                 message=message,
                 type=notification_type,
-                student_id=student_id,
+                user_id=user_id,
                 created_at=datetime.utcnow(),
                 is_read=False
             )
@@ -75,7 +75,7 @@ class UserNotifications:
     """إشعارات خاصة بالمستخدمين مع حماية السياق"""
     
     @staticmethod
-    def notify_user_login(username, student_id=None):
+    def notify_user_login(username, user_id=None):
         """إشعار تسجيل دخول المستخدم"""
         title = "تسجيل دخول"
         message = f"تم تسجيل دخول المستخدم: {username}"
@@ -83,11 +83,11 @@ class UserNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_user_login_2fa(username, student_id=None):
+    def notify_user_login_2fa(username, user_id=None):
         """إشعار تسجيل دخول بالتحقق الثنائي"""
         title = "تسجيل دخول بالتحقق الثنائي"
         message = f"تم تسجيل دخول المستخدم بالتحقق الثنائي: {username}"
@@ -95,11 +95,11 @@ class UserNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_user_logout(username, student_id=None):
+    def notify_user_logout(username, user_id=None):
         """إشعار تسجيل خروج المستخدم"""
         title = "تسجيل خروج"
         message = f"تم تسجيل خروج المستخدم: {username}"
@@ -107,11 +107,11 @@ class UserNotifications:
             title=title,
             message=message,
             notification_type="info",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_profile_updated(username, student_id=None):
+    def notify_profile_updated(username, user_id=None):
         """إشعار تحديث الملف الشخصي"""
         title = "تحديث الملف الشخصي"
         message = f"تم تحديث الملف الشخصي للمستخدم: {username}"
@@ -119,11 +119,11 @@ class UserNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_password_changed(username, student_id=None):
+    def notify_password_changed(username, user_id=None):
         """إشعار تغيير كلمة المرور"""
         title = "تحديث كلمة المرور"
         message = f"تم تحديث كلمة المرور للمستخدم: {username}"
@@ -131,14 +131,14 @@ class UserNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
 
 class QuestionNotifications:
     """إشعارات خاصة بالأسئلة مع حماية السياق"""
     
     @staticmethod
-    def notify_question_added(lesson_name, student_id=None):
+    def notify_question_added(lesson_name, user_id=None):
         """إشعار إضافة سؤال جديد"""
         title = "إضافة سؤال جديد"
         message = f"تم إضافة سؤال جديد في درس: {lesson_name}"
@@ -146,11 +146,11 @@ class QuestionNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_question_updated(lesson_name, student_id=None):
+    def notify_question_updated(lesson_name, user_id=None):
         """إشعار تحديث سؤال"""
         title = "تحديث سؤال"
         message = f"تم تحديث سؤال في درس: {lesson_name}"
@@ -158,11 +158,11 @@ class QuestionNotifications:
             title=title,
             message=message,
             notification_type="info",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_question_deleted(lesson_name, student_id=None):
+    def notify_question_deleted(lesson_name, user_id=None):
         """إشعار حذف سؤال"""
         title = "حذف سؤال"
         message = f"تم حذف سؤال من درس: {lesson_name}"
@@ -170,11 +170,11 @@ class QuestionNotifications:
             title=title,
             message=message,
             notification_type="warning",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_questions_imported(count, student_id=None):
+    def notify_questions_imported(count, user_id=None):
         """إشعار استيراد أسئلة"""
         title = "استيراد أسئلة"
         message = f"تم استيراد {count} سؤال بنجاح"
@@ -182,11 +182,11 @@ class QuestionNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_file_uploaded(filename, folder, student_id=None):
+    def notify_file_uploaded(filename, folder, user_id=None):
         """إشعار رفع ملف"""
         title = "رفع ملف"
         message = f"تم رفع ملف: {filename} في مجلد: {folder}"
@@ -194,25 +194,25 @@ class QuestionNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
 
 class SystemNotifications:
     """إشعارات النظام والأمان مع حماية السياق"""
     
     @staticmethod
-    def notify_security_alert(message, student_id=None):
+    def notify_security_alert(message, user_id=None):
         """إشعار أمني"""
         title = "تنبيه أمني"
         return NotificationSystem.create_notification(
             title=title,
             message=message,
             notification_type="error",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_settings_updated(setting_name, student_id=None):
+    def notify_settings_updated(setting_name, user_id=None):
         """إشعار تحديث الإعدادات"""
         title = "تحديث الإعدادات"
         message = f"تم تحديث: {setting_name}"
@@ -220,11 +220,11 @@ class SystemNotifications:
             title=title,
             message=message,
             notification_type="info",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_backup_completed(student_id=None):
+    def notify_backup_completed(user_id=None):
         """إشعار اكتمال النسخ الاحتياطي"""
         title = "النسخ الاحتياطي"
         message = "تم إنشاء نسخة احتياطية بنجاح"
@@ -232,11 +232,11 @@ class SystemNotifications:
             title=title,
             message=message,
             notification_type="success",
-            student_id=student_id
+            user_id=user_id
         )
     
     @staticmethod
-    def notify_system_update(version, student_id=None):
+    def notify_system_update(version, user_id=None):
         """إشعار تحديث النظام"""
         title = "تحديث النظام"
         message = f"تم تحديث النظام إلى الإصدار: {version}"
@@ -244,30 +244,30 @@ class SystemNotifications:
             title=title,
             message=message,
             notification_type="info",
-            student_id=student_id
+            user_id=user_id
         )
 
 # دوال مساعدة للتوافق مع الإصدارات القديمة
-def create_notification(title, message, notification_type="info", student_id=None):
+def create_notification(title, message, notification_type="info", user_id=None):
     """دالة مساعدة لإنشاء إشعار مع حماية السياق"""
-    return NotificationSystem.create_notification(title, message, notification_type, student_id)
+    return NotificationSystem.create_notification(title, message, notification_type, user_id)
 
-def notify_user_action(action, username, student_id=None):
+def notify_user_action(action, username, user_id=None):
     """دالة مساعدة لإشعارات المستخدمين مع حماية السياق"""
     if action == "login":
-        return UserNotifications.notify_user_login(username, student_id)
+        return UserNotifications.notify_user_login(username, user_id)
     elif action == "logout":
-        return UserNotifications.notify_user_logout(username, student_id)
+        return UserNotifications.notify_user_logout(username, user_id)
     elif action == "profile_update":
-        return UserNotifications.notify_profile_updated(username, student_id)
+        return UserNotifications.notify_profile_updated(username, user_id)
     elif action == "password_change":
-        return UserNotifications.notify_password_changed(username, student_id)
+        return UserNotifications.notify_password_changed(username, user_id)
     else:
         return NotificationSystem.create_notification(
             title="إجراء مستخدم",
             message=f"تم تنفيذ إجراء: {action} للمستخدم: {username}",
             notification_type="info",
-            student_id=student_id
+            user_id=user_id
         )
 
 # دالة آمنة للتحقق من سياق التطبيق
