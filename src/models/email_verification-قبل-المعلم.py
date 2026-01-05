@@ -1,6 +1,6 @@
 """
 نموذج التحقق من الإيميل - Email Verification Model
-يحفظ رموز التحقق OTP للتسجيل الذاتي للطلاب والمعلمين
+يحفظ رموز التحقق OTP للتسجيل الذاتي للطلاب
 """
 from src.extensions import db
 from datetime import datetime, timedelta
@@ -16,16 +16,13 @@ class EmailVerification(db.Model):
     email = db.Column(db.String(120), nullable=False, index=True)
     code = db.Column(db.String(6), nullable=False)  # رمز 6 أرقام
     
-    # بيانات المستخدم المؤقتة
+    # بيانات الطالب المؤقتة
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(80), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
     school = db.Column(db.String(100), nullable=True)
     grade = db.Column(db.String(50), nullable=True)
-    
-    # ✅ جديد: نوع الحساب (student أو teacher)
-    account_type = db.Column(db.String(20), default='student')
     
     # حالة التحقق
     is_verified = db.Column(db.Boolean, default=False)
@@ -42,8 +39,7 @@ class EmailVerification(db.Model):
         return ''.join(random.choices(string.digits, k=6))
 
     @staticmethod
-    def create_verification(email, name, username, password_hash, 
-                           phone=None, school=None, grade=None, account_type='student'):
+    def create_verification(email, name, username, password_hash, phone=None, school=None, grade=None):
         """إنشاء طلب تحقق جديد"""
         # حذف الطلبات السابقة لنفس الإيميل
         EmailVerification.query.filter_by(email=email, is_verified=False).delete()
@@ -60,7 +56,6 @@ class EmailVerification(db.Model):
             phone=phone,
             school=school,
             grade=grade,
-            account_type=account_type,  # ✅ حفظ نوع الحساب
             expires_at=expires_at
         )
         
@@ -110,7 +105,6 @@ class EmailVerification(db.Model):
             'email': self.email,
             'name': self.name,
             'username': self.username,
-            'account_type': self.account_type,  # ✅ إضافة نوع الحساب
             'is_verified': self.is_verified,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

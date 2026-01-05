@@ -1,15 +1,14 @@
 """
-التسجيل الذاتي للطلاب والمعلمين - Registration Routes
+التسجيل الذاتي للطلاب - Student Registration Routes
 APIs للتسجيل والتحقق من الإيميل
 """
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash
 from src.extensions import db
 from src.models.student import Student
-from src.models.teacher import Teacher  # ✅ جديد: استيراد موديل المعلم
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
-from src.middleware.auth_middleware import create_student_token, create_teacher_token
+from src.middleware.auth_middleware import create_student_token
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -34,7 +33,7 @@ def get_registration_status():
         }), 500
 
 
-# ==================== الخطوة 1: تسجيل طالب جديد ====================
+# ==================== الخطوة 1: إرسال بيانات التسجيل ====================
 @registration_bp.route('/register', methods=['POST'])
 def register_student():
     """تسجيل طالب جديد وإرسال رمز التحقق"""
@@ -92,27 +91,15 @@ def register_student():
                 'error': 'اسم المدرسة مطلوب'
             }), 400
         
-        # التحقق من عدم تكرار اسم المستخدم (في الطلاب والمعلمين)
+        # التحقق من عدم تكرار اسم المستخدم
         if Student.query.filter_by(username=username).first():
             return jsonify({
                 'success': False,
                 'error': 'اسم المستخدم موجود مسبقاً'
             }), 400
         
-        if Teacher.query.filter_by(username=username).first():
-            return jsonify({
-                'success': False,
-                'error': 'اسم المستخدم موجود مسبقاً'
-            }), 400
-        
-        # التحقق من عدم تكرار الإيميل (في الطلاب والمعلمين)
+        # التحقق من عدم تكرار الإيميل
         if Student.query.filter_by(email=email).first():
-            return jsonify({
-                'success': False,
-                'error': 'الإيميل مسجل مسبقاً'
-            }), 400
-        
-        if Teacher.query.filter_by(email=email).first():
             return jsonify({
                 'success': False,
                 'error': 'الإيميل مسجل مسبقاً'
@@ -129,8 +116,7 @@ def register_student():
             password_hash=password_hash,
             phone=phone,
             school=school,
-            grade=grade,
-            account_type='student'  # ✅ تحديد نوع الحساب
+            grade=grade
         )
         
         # إرسال رمز التحقق بالإيميل
@@ -167,124 +153,6 @@ def register_student():
         }), 500
 
 
-# ==================== ✅ جديد: تسجيل معلم ====================
-@registration_bp.route('/register-teacher', methods=['POST'])
-def register_teacher():
-    """تسجيل معلم جديد وإرسال رمز التحقق"""
-    try:
-        # التحقق من حالة التسجيل
-        settings = RegistrationSettings.get_settings()
-        if not settings.is_registration_open:
-            return jsonify({
-                'success': False,
-                'error': settings.closed_message or 'التسجيل مغلق حالياً'
-            }), 403
-        
-        data = request.get_json() or request.form
-        
-        # استخراج البيانات
-        name = data.get('name', '').strip()
-        username = data.get('username', '').strip()
-        email = data.get('email', '').strip().lower()
-        password = data.get('password', '')
-        phone = data.get('phone', '').strip() or None
-        school = data.get('school', '').strip() or None
-        
-        # التحقق من البيانات المطلوبة
-        if not name or not username or not email or not password:
-            return jsonify({
-                'success': False,
-                'error': 'الاسم واسم المستخدم والإيميل وكلمة المرور مطلوبة'
-            }), 400
-        
-        # التحقق من طول كلمة المرور
-        if len(password) < 6:
-            return jsonify({
-                'success': False,
-                'error': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
-            }), 400
-        
-        # التحقق من صيغة الإيميل
-        if '@' not in email or '.' not in email:
-            return jsonify({
-                'success': False,
-                'error': 'صيغة الإيميل غير صحيحة'
-            }), 400
-        
-        # التحقق من عدم تكرار اسم المستخدم (في الطلاب والمعلمين)
-        if Student.query.filter_by(username=username).first():
-            return jsonify({
-                'success': False,
-                'error': 'اسم المستخدم موجود مسبقاً'
-            }), 400
-        
-        if Teacher.query.filter_by(username=username).first():
-            return jsonify({
-                'success': False,
-                'error': 'اسم المستخدم موجود مسبقاً'
-            }), 400
-        
-        # التحقق من عدم تكرار الإيميل (في الطلاب والمعلمين)
-        if Student.query.filter_by(email=email).first():
-            return jsonify({
-                'success': False,
-                'error': 'الإيميل مسجل مسبقاً'
-            }), 400
-        
-        if Teacher.query.filter_by(email=email).first():
-            return jsonify({
-                'success': False,
-                'error': 'الإيميل مسجل مسبقاً'
-            }), 400
-        
-        # تشفير كلمة المرور
-        password_hash = generate_password_hash(password)
-        
-        # إنشاء طلب التحقق للمعلم
-        verification = EmailVerification.create_verification(
-            email=email,
-            name=name,
-            username=username,
-            password_hash=password_hash,
-            phone=phone,
-            school=school,
-            grade=None,  # المعلم لا يحتاج صف دراسي
-            account_type='teacher'  # ✅ تحديد نوع الحساب كمعلم
-        )
-        
-        # إرسال رمز التحقق بالإيميل
-        success, message = email_service.send_verification_code(
-            to_email=email,
-            code=verification.code,
-            student_name=name  # يمكن تغيير اسم البارامتر لاحقاً
-        )
-        
-        if not success:
-            db.session.delete(verification)
-            db.session.commit()
-            return jsonify({
-                'success': False,
-                'error': f'فشل إرسال رمز التحقق: {message}'
-            }), 500
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
-            'email': email,
-            'expires_in': 180
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ خطأ في تسجيل المعلم: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': 'حدث خطأ في التسجيل'
-        }), 500
-
-
 # ==================== الخطوة 2: التحقق من الرمز ====================
 @registration_bp.route('/verify', methods=['POST'])
 def verify_code():
@@ -294,7 +162,6 @@ def verify_code():
         
         email = data.get('email', '').strip().lower()
         code = data.get('code', '').strip()
-        account_type = data.get('account_type', 'student')  # ✅ استقبال نوع الحساب
         
         if not email or not code:
             return jsonify({
@@ -323,105 +190,53 @@ def verify_code():
                 'error': message
             }), 400
         
-        # جلب نوع الحساب من طلب التحقق
-        actual_account_type = getattr(verification, 'account_type', 'student') or 'student'
+        # التحقق مرة أخرى من عدم تكرار البيانات
+        if Student.query.filter_by(username=verification.username).first():
+            return jsonify({
+                'success': False,
+                'error': 'اسم المستخدم أصبح محجوزاً. يرجى إعادة التسجيل'
+            }), 400
+        
+        if Student.query.filter_by(email=verification.email).first():
+            return jsonify({
+                'success': False,
+                'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
+            }), 400
         
         # جلب إعدادات التسجيل
         settings = RegistrationSettings.get_settings()
         
-        # ✅ إنشاء الحساب حسب النوع
-        if actual_account_type == 'teacher':
-            # التحقق من عدم تكرار البيانات للمعلمين
-            if Teacher.query.filter_by(username=verification.username).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'اسم المستخدم أصبح محجوزاً. يرجى إعادة التسجيل'
-                }), 400
-            
-            if Teacher.query.filter_by(email=verification.email).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
-                }), 400
-            
-            # إنشاء حساب المعلم
-            teacher = Teacher(
-                name=verification.name,
-                username=verification.username,
-                email=verification.email,
-                password_hash=verification.password_hash,
-                phone=verification.phone,
-                school=verification.school,
-                is_active=settings.auto_activate
-            )
-            
-            db.session.add(teacher)
-            db.session.commit()
-            
-            # تحديث آخر تسجيل دخول
-            teacher.update_last_login()
-            
-            # إنشاء JWT Token للمعلم
-            token = create_teacher_token(
-                teacher_id=teacher.id,
-                username=teacher.username
-            )
-            
-            return jsonify({
-                'success': True,
-                'message': 'تم إنشاء حساب المعلم بنجاح',
-                'token': token,
-                'teacher': teacher.to_dict(),
-                'account_type': 'teacher',
-                'auto_login': settings.auto_activate
-            })
+        # إنشاء حساب الطالب
+        student = Student(
+            name=verification.name,
+            username=verification.username,
+            email=verification.email,
+            password_hash=verification.password_hash,
+            phone=verification.phone,
+            school=verification.school,
+            grade=verification.grade,
+            is_active=settings.auto_activate  # التفعيل التلقائي حسب الإعدادات
+        )
         
-        else:
-            # التحقق من عدم تكرار البيانات للطلاب
-            if Student.query.filter_by(username=verification.username).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'اسم المستخدم أصبح محجوزاً. يرجى إعادة التسجيل'
-                }), 400
-            
-            if Student.query.filter_by(email=verification.email).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
-                }), 400
-            
-            # إنشاء حساب الطالب
-            student = Student(
-                name=verification.name,
-                username=verification.username,
-                email=verification.email,
-                password_hash=verification.password_hash,
-                phone=verification.phone,
-                school=verification.school,
-                grade=verification.grade,
-                is_active=settings.auto_activate
-            )
-            
-            db.session.add(student)
-            db.session.commit()
-            
-            # تحديث آخر تسجيل دخول
-            student.update_last_login()
-            
-            # إنشاء JWT Token للطالب
-            token = create_student_token(
-                student_id=student.id,
-                username=student.username
-            )
-            
-            return jsonify({
-                'success': True,
-                'message': 'تم إنشاء الحساب بنجاح',
-                'token': token,
-                'student': student.to_dict(),
-                'account_type': 'student',
-                'auto_login': settings.auto_activate
-            })
+        db.session.add(student)
+        db.session.commit()
+        
+        # تحديث آخر تسجيل دخول
+        student.update_last_login()
+        
+        # إنشاء JWT Token
+        token = create_student_token(
+            student_id=student.id,
+            username=student.username
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم إنشاء الحساب بنجاح',
+            'token': token,
+            'student': student.to_dict(),
+            'auto_login': settings.auto_activate
+        })
         
     except Exception as e:
         db.session.rollback()
