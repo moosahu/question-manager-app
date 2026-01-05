@@ -35,12 +35,6 @@ class Student(db.Model, UserMixin):
     fcm_token = db.Column(db.String(500), nullable=True)  # للإشعارات
     fcm_token_updated_at = db.Column(db.DateTime, nullable=True)  # آخر تحديث للـ FCM Token
 
-    # ✅ جديد: بيانات الجهاز للتسجيل من جهاز واحد
-    device_id = db.Column(db.String(255), nullable=True)  # معرف الجهاز الفريد
-    device_name = db.Column(db.String(255), nullable=True)  # اسم الجهاز
-    last_device_login = db.Column(db.DateTime, nullable=True)  # آخر تسجيل دخول من الجهاز
-    session_token = db.Column(db.String(255), nullable=True)  # توكن الجلسة (للأمان الإضافي)
-
     def set_password(self, password):
         """تشفير كلمة المرور"""
         self.password_hash = generate_password_hash(password)
@@ -53,35 +47,6 @@ class Student(db.Model, UserMixin):
         """تحديث وقت آخر تسجيل دخول"""
         self.last_login = datetime.utcnow()
         db.session.commit()
-
-    # ✅ جديد: تحديث معلومات الجهاز
-    def update_device_info(self, device_id, device_name=None):
-        """تحديث معلومات الجهاز عند تسجيل الدخول"""
-        self.device_id = device_id
-        self.device_name = device_name or 'جهاز غير معروف'
-        self.last_device_login = datetime.utcnow()
-        db.session.commit()
-
-    # ✅ جديد: إزالة ربط الجهاز
-    def clear_device_info(self):
-        """إزالة ربط الجهاز عند تسجيل الخروج"""
-        self.device_id = None
-        self.device_name = None
-        self.last_device_login = None
-        self.session_token = None
-        db.session.commit()
-
-    # ✅ جديد: التحقق من الجهاز
-    def is_same_device(self, device_id):
-        """التحقق من أن الجهاز هو نفسه المسجل"""
-        if not self.device_id:
-            return True  # لا يوجد جهاز مسجل
-        return self.device_id == device_id
-
-    # ✅ جديد: هل الجهاز مسجل؟
-    def has_registered_device(self):
-        """التحقق من وجود جهاز مسجل"""
-        return self.device_id is not None
 
     @staticmethod
     def get_active_students():
@@ -131,14 +96,6 @@ class Student(db.Model, UserMixin):
         """جلب الطلاب حسب الصف"""
         return Student.query.filter_by(grade=grade, is_active=True).all()
 
-    # ✅ جديد: جلب الطلاب الذين لديهم أجهزة مسجلة
-    @staticmethod
-    def get_students_with_devices():
-        """جلب الطلاب الذين لديهم أجهزة مسجلة"""
-        return Student.query.filter(
-            Student.device_id.isnot(None)
-        ).all()
-
     def to_dict(self):
         """تحويل لـ dictionary"""
         return {
@@ -153,11 +110,7 @@ class Student(db.Model, UserMixin):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             'fcm_token': self.fcm_token,
-            'fcm_token_updated_at': self.fcm_token_updated_at.isoformat() if self.fcm_token_updated_at else None,
-            # ✅ جديد: معلومات الجهاز
-            'device_id': self.device_id,
-            'device_name': self.device_name,
-            'last_device_login': self.last_device_login.isoformat() if self.last_device_login else None,
+            'fcm_token_updated_at': self.fcm_token_updated_at.isoformat() if self.fcm_token_updated_at else None
         }
 
     def __repr__(self):
