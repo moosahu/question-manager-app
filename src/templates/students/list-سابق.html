@@ -731,7 +731,6 @@
                 <th>المدرسة</th>
                 <th>الصف</th>
                 <th>الحالة</th>
-                <th>الجهاز</th>
                 <th>آخر دخول</th>
                 <th>الإجراءات</th>
             </tr>
@@ -753,17 +752,6 @@
                     {% else %}
                         <span class="status-badge inactive">
                             <i class="fas fa-times"></i> معطل
-                        </span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if student.device_id %}
-                        <span class="status-badge active" title="{{ student.device_name or 'جهاز مسجل' }}" style="cursor: help;">
-                            <i class="fas fa-mobile-alt"></i> مسجل
-                        </span>
-                    {% else %}
-                        <span class="status-badge" style="background: #eee; color: #999;">
-                            <i class="fas fa-times"></i> -
                         </span>
                     {% endif %}
                 </td>
