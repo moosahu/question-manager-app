@@ -528,6 +528,75 @@ def api_teacher_logout():
         }), 500
 
 
+# ==================== ✅ جديد: API التحقق من جلسة المعلم ====================
+@students_bp.route('/api/verify-teacher-session', methods=['POST'])
+def api_verify_teacher_session():
+    """التحقق من صلاحية جلسة المعلم"""
+    try:
+        from src.models.teacher import Teacher
+        
+        data = request.get_json() or request.form
+        teacher_id = data.get('teacher_id')
+        device_id = data.get('device_id')
+        session_token = data.get('session_token')
+        
+        print(f"\n🔍 ========== Verify Teacher Session ==========")
+        print(f"Teacher ID: {teacher_id}")
+        print(f"Device ID: {device_id}")
+        
+        if not teacher_id:
+            return jsonify({
+                'valid': False,
+                'error': 'معرف المعلم مطلوب'
+            }), 400
+        
+        teacher = Teacher.query.get(teacher_id)
+        
+        if not teacher:
+            return jsonify({
+                'valid': False,
+                'error': 'المعلم غير موجود'
+            }), 404
+        
+        if not teacher.is_active:
+            return jsonify({
+                'valid': False,
+                'error': 'حسابك معطل',
+                'error_code': 'ACCOUNT_DISABLED'
+            })
+        
+        # التحقق من الجهاز
+        if device_id and teacher.device_id and teacher.device_id != device_id:
+            return jsonify({
+                'valid': False,
+                'error': 'تم تسجيل الدخول من جهاز آخر',
+                'error_code': 'DEVICE_CHANGED'
+            })
+        
+        # التحقق من session_token
+        if session_token and teacher.session_token and teacher.session_token != session_token:
+            return jsonify({
+                'valid': False,
+                'error': 'انتهت صلاحية الجلسة',
+                'error_code': 'SESSION_EXPIRED'
+            })
+        
+        print(f"✅ جلسة المعلم صالحة: {teacher.username}")
+        print(f"========== End Verify Teacher Session ==========\n")
+        
+        return jsonify({
+            'valid': True,
+            'teacher': teacher.to_dict()
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في التحقق من جلسة المعلم: {str(e)}")
+        return jsonify({
+            'valid': False,
+            'error': 'حدث خطأ في التحقق'
+        }), 500
+
+
 # ==================== ✅ جديد: API تسجيل خروج الطالب ====================
 @students_bp.route('/api/logout', methods=['POST'])
 def api_student_logout():
