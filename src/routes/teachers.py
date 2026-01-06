@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.teacher import Teacher
+from src.models.email_verification import RegistrationSettings  # ✅ جديد
 from functools import wraps
 from datetime import datetime
 
@@ -41,12 +42,16 @@ def list_teachers():
     active = Teacher.query.filter_by(is_active=True).count()
     inactive = total - active
     
+    # ✅ جديد: جلب حالة التسجيل
+    settings = RegistrationSettings.get_settings()
+    
     return render_template('teachers/list.html', 
                          teachers=teachers,
                          search=search,
                          total=total,
                          active=active,
-                         inactive=inactive)
+                         inactive=inactive,
+                         is_teacher_registration_open=settings.is_teacher_registration_open)  # ✅ جديد
 
 
 # ==================== إضافة معلم جديد ====================
@@ -192,3 +197,29 @@ def reset_teacher_device(teacher_id):
         flash(f'خطأ في إزالة ربط الجهاز: {str(e)}', 'danger')
     
     return redirect(url_for('teachers.edit_teacher', teacher_id=teacher_id))
+
+
+# ==================== ✅ جديد: تبديل حالة التسجيل الذاتي ====================
+@teachers_bp.route('/toggle-registration', methods=['POST'])
+@login_required
+@admin_required
+def toggle_registration():
+    """تبديل حالة التسجيل الذاتي للمعلمين"""
+    try:
+        settings = RegistrationSettings.get_settings()
+        new_status = not settings.is_teacher_registration_open
+        
+        RegistrationSettings.update_settings(
+            is_teacher_open=new_status,
+            admin_id=current_user.id
+        )
+        
+        if new_status:
+            flash('تم فتح التسجيل الذاتي للمعلمين ✓', 'success')
+        else:
+            flash('تم إغلاق التسجيل الذاتي للمعلمين', 'warning')
+            
+    except Exception as e:
+        flash(f'خطأ في تغيير حالة التسجيل: {str(e)}', 'danger')
+    
+    return redirect(url_for('teachers.list_teachers'))

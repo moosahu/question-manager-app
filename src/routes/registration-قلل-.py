@@ -6,10 +6,10 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash
 from src.extensions import db
 from src.models.student import Student
-from src.models.teacher import Teacher  # ✅ جديد
+from src.models.teacher import Teacher  # ✅ جديد: استيراد موديل المعلم
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
-from src.middleware.auth_middleware import create_student_token, create_teacher_token  # ✅ جديد
+from src.middleware.auth_middleware import create_student_token, create_teacher_token
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -17,29 +17,16 @@ registration_bp = Blueprint('registration', __name__, url_prefix='/api/registrat
 # ==================== التحقق من حالة التسجيل ====================
 @registration_bp.route('/status', methods=['GET'])
 def get_registration_status():
-    """التحقق من حالة التسجيل (مفتوح/مغلق) للطلاب والمعلمين"""
+    """التحقق من حالة التسجيل (مفتوح/مغلق)"""
     try:
         settings = RegistrationSettings.get_settings()
-        account_type = request.args.get('type', 'student')  # ✅ جديد: نوع الحساب
-        
-        if account_type == 'teacher':
-            # إعدادات المعلمين
-            return jsonify({
-                'success': True,
-                'is_open': settings.is_teacher_registration_open,
-                'message': settings.teacher_closed_message if not settings.is_teacher_registration_open else None,
-                'require_phone': settings.teacher_require_phone,
-                'require_school': settings.teacher_require_school,
-            })
-        else:
-            # إعدادات الطلاب (الافتراضي)
-            return jsonify({
-                'success': True,
-                'is_open': settings.is_registration_open,
-                'message': settings.closed_message if not settings.is_registration_open else None,
-                'require_phone': settings.require_phone,
-                'require_school': settings.require_school,
-            })
+        return jsonify({
+            'success': True,
+            'is_open': settings.is_registration_open,
+            'message': settings.closed_message if not settings.is_registration_open else None,
+            'require_phone': settings.require_phone,
+            'require_school': settings.require_school,
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -47,7 +34,7 @@ def get_registration_status():
         }), 500
 
 
-# ==================== الخطوة 1: إرسال بيانات التسجيل ====================
+# ==================== الخطوة 1: تسجيل طالب جديد ====================
 @registration_bp.route('/register', methods=['POST'])
 def register_student():
     """تسجيل طالب جديد وإرسال رمز التحقق"""
@@ -105,15 +92,27 @@ def register_student():
                 'error': 'اسم المدرسة مطلوب'
             }), 400
         
-        # التحقق من عدم تكرار اسم المستخدم
+        # التحقق من عدم تكرار اسم المستخدم (في الطلاب والمعلمين)
         if Student.query.filter_by(username=username).first():
             return jsonify({
                 'success': False,
                 'error': 'اسم المستخدم موجود مسبقاً'
             }), 400
         
-        # التحقق من عدم تكرار الإيميل
+        if Teacher.query.filter_by(username=username).first():
+            return jsonify({
+                'success': False,
+                'error': 'اسم المستخدم موجود مسبقاً'
+            }), 400
+        
+        # التحقق من عدم تكرار الإيميل (في الطلاب والمعلمين)
         if Student.query.filter_by(email=email).first():
+            return jsonify({
+                'success': False,
+                'error': 'الإيميل مسجل مسبقاً'
+            }), 400
+        
+        if Teacher.query.filter_by(email=email).first():
             return jsonify({
                 'success': False,
                 'error': 'الإيميل مسجل مسبقاً'
@@ -130,7 +129,8 @@ def register_student():
             password_hash=password_hash,
             phone=phone,
             school=school,
-            grade=grade
+            grade=grade,
+            account_type='student'  # ✅ تحديد نوع الحساب
         )
         
         # إرسال رمز التحقق بالإيميل
@@ -174,10 +174,10 @@ def register_teacher():
     try:
         # التحقق من حالة التسجيل
         settings = RegistrationSettings.get_settings()
-        if not settings.is_teacher_registration_open:
+        if not settings.is_registration_open:
             return jsonify({
                 'success': False,
-                'error': settings.teacher_closed_message or 'تسجيل المعلمين مغلق حالياً'
+                'error': settings.closed_message or 'التسجيل مغلق حالياً'
             }), 403
         
         data = request.get_json() or request.form
@@ -211,33 +211,26 @@ def register_teacher():
                 'error': 'صيغة الإيميل غير صحيحة'
             }), 400
         
-        # التحقق من الحقول الإضافية المطلوبة
-        if settings.teacher_require_phone and not phone:
-            return jsonify({
-                'success': False,
-                'error': 'رقم الجوال مطلوب'
-            }), 400
-        
-        if settings.teacher_require_school and not school:
-            return jsonify({
-                'success': False,
-                'error': 'اسم المدرسة مطلوب'
-            }), 400
-        
         # التحقق من عدم تكرار اسم المستخدم (في الطلاب والمعلمين)
-        if Teacher.query.filter_by(username=username).first():
-            return jsonify({
-                'success': False,
-                'error': 'اسم المستخدم موجود مسبقاً'
-            }), 400
-        
         if Student.query.filter_by(username=username).first():
             return jsonify({
                 'success': False,
                 'error': 'اسم المستخدم موجود مسبقاً'
             }), 400
         
-        # التحقق من عدم تكرار الإيميل
+        if Teacher.query.filter_by(username=username).first():
+            return jsonify({
+                'success': False,
+                'error': 'اسم المستخدم موجود مسبقاً'
+            }), 400
+        
+        # التحقق من عدم تكرار الإيميل (في الطلاب والمعلمين)
+        if Student.query.filter_by(email=email).first():
+            return jsonify({
+                'success': False,
+                'error': 'الإيميل مسجل مسبقاً'
+            }), 400
+        
         if Teacher.query.filter_by(email=email).first():
             return jsonify({
                 'success': False,
@@ -247,7 +240,7 @@ def register_teacher():
         # تشفير كلمة المرور
         password_hash = generate_password_hash(password)
         
-        # إنشاء طلب التحقق (نستخدم نفس الجدول مع علامة مميزة)
+        # إنشاء طلب التحقق للمعلم
         verification = EmailVerification.create_verification(
             email=email,
             name=name,
@@ -255,14 +248,15 @@ def register_teacher():
             password_hash=password_hash,
             phone=phone,
             school=school,
-            grade='teacher'  # ✅ نستخدم حقل grade للتمييز
+            grade=None,  # المعلم لا يحتاج صف دراسي
+            account_type='teacher'  # ✅ تحديد نوع الحساب كمعلم
         )
         
         # إرسال رمز التحقق بالإيميل
         success, message = email_service.send_verification_code(
             to_email=email,
             code=verification.code,
-            student_name=name  # نستخدم نفس القالب
+            student_name=name  # يمكن تغيير اسم البارامتر لاحقاً
         )
         
         if not success:
@@ -294,13 +288,13 @@ def register_teacher():
 # ==================== الخطوة 2: التحقق من الرمز ====================
 @registration_bp.route('/verify', methods=['POST'])
 def verify_code():
-    """التحقق من رمز الإيميل وإنشاء الحساب (طالب أو معلم)"""
+    """التحقق من رمز الإيميل وإنشاء الحساب"""
     try:
         data = request.get_json() or request.form
         
         email = data.get('email', '').strip().lower()
         code = data.get('code', '').strip()
-        account_type = data.get('account_type', 'student')  # ✅ جديد
+        account_type = data.get('account_type', 'student')  # ✅ استقبال نوع الحساب
         
         if not email or not code:
             return jsonify({
@@ -329,15 +323,15 @@ def verify_code():
                 'error': message
             }), 400
         
+        # جلب نوع الحساب من طلب التحقق
+        actual_account_type = getattr(verification, 'account_type', 'student') or 'student'
+        
         # جلب إعدادات التسجيل
         settings = RegistrationSettings.get_settings()
         
-        # ✅ التحقق من نوع الحساب
-        is_teacher = verification.grade == 'teacher' or account_type == 'teacher'
-        
-        if is_teacher:
-            # ==================== إنشاء حساب معلم ====================
-            # التحقق مرة أخرى من عدم تكرار البيانات
+        # ✅ إنشاء الحساب حسب النوع
+        if actual_account_type == 'teacher':
+            # التحقق من عدم تكرار البيانات للمعلمين
             if Teacher.query.filter_by(username=verification.username).first():
                 return jsonify({
                     'success': False,
@@ -358,13 +352,16 @@ def verify_code():
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
-                is_active=settings.teacher_auto_activate  # التفعيل حسب الإعدادات
+                is_active=settings.auto_activate
             )
             
             db.session.add(teacher)
             db.session.commit()
             
-            # إنشاء JWT Token
+            # تحديث آخر تسجيل دخول
+            teacher.update_last_login()
+            
+            # إنشاء JWT Token للمعلم
             token = create_teacher_token(
                 teacher_id=teacher.id,
                 username=teacher.username
@@ -376,11 +373,11 @@ def verify_code():
                 'token': token,
                 'teacher': teacher.to_dict(),
                 'account_type': 'teacher',
-                'auto_login': settings.teacher_auto_activate
+                'auto_login': settings.auto_activate
             })
+        
         else:
-            # ==================== إنشاء حساب طالب ====================
-            # التحقق مرة أخرى من عدم تكرار البيانات
+            # التحقق من عدم تكرار البيانات للطلاب
             if Student.query.filter_by(username=verification.username).first():
                 return jsonify({
                     'success': False,
@@ -411,7 +408,7 @@ def verify_code():
             # تحديث آخر تسجيل دخول
             student.update_last_login()
             
-            # إنشاء JWT Token
+            # إنشاء JWT Token للطالب
             token = create_student_token(
                 student_id=student.id,
                 username=student.username
@@ -538,18 +535,11 @@ def update_admin_settings():
         data = request.get_json() or request.form
         
         settings = RegistrationSettings.update_settings(
-            # إعدادات الطلاب
             is_open=data.get('is_registration_open'),
             message=data.get('closed_message'),
             require_phone=data.get('require_phone'),
             require_school=data.get('require_school'),
             auto_activate=data.get('auto_activate'),
-            # ✅ جديد: إعدادات المعلمين
-            is_teacher_open=data.get('is_teacher_registration_open'),
-            teacher_message=data.get('teacher_closed_message'),
-            teacher_require_phone=data.get('teacher_require_phone'),
-            teacher_require_school=data.get('teacher_require_school'),
-            teacher_auto_activate=data.get('teacher_auto_activate'),
             admin_id=current_user.id
         )
         
@@ -572,39 +562,20 @@ def update_admin_settings():
 def toggle_registration():
     """تبديل حالة التسجيل (فتح/إغلاق)"""
     try:
-        data = request.get_json() or request.form
-        account_type = data.get('type', 'student')  # ✅ جديد: نوع الحساب
-        
         settings = RegistrationSettings.get_settings()
+        new_status = not settings.is_registration_open
         
-        if account_type == 'teacher':
-            # تبديل تسجيل المعلمين
-            new_status = not settings.is_teacher_registration_open
-            RegistrationSettings.update_settings(
-                is_teacher_open=new_status,
-                admin_id=current_user.id
-            )
-            status_text = 'مفتوح' if new_status else 'مغلق'
-            return jsonify({
-                'success': True,
-                'message': f'تسجيل المعلمين الآن {status_text}',
-                'is_open': new_status,
-                'type': 'teacher'
-            })
-        else:
-            # تبديل تسجيل الطلاب
-            new_status = not settings.is_registration_open
-            RegistrationSettings.update_settings(
-                is_open=new_status,
-                admin_id=current_user.id
-            )
-            status_text = 'مفتوح' if new_status else 'مغلق'
-            return jsonify({
-                'success': True,
-                'message': f'تسجيل الطلاب الآن {status_text}',
-                'is_open': new_status,
-                'type': 'student'
-            })
+        RegistrationSettings.update_settings(
+            is_open=new_status,
+            admin_id=current_user.id
+        )
+        
+        status_text = 'مفتوح' if new_status else 'مغلق'
+        return jsonify({
+            'success': True,
+            'message': f'التسجيل الآن {status_text}',
+            'is_open': new_status
+        })
         
     except Exception as e:
         return jsonify({

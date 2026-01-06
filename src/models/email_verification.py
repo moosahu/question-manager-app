@@ -24,7 +24,7 @@ class EmailVerification(db.Model):
     school = db.Column(db.String(100), nullable=True)
     grade = db.Column(db.String(50), nullable=True)
     
-    # ✅ جديد: نوع الحساب (student أو teacher)
+    # ✅ نوع الحساب (student أو teacher)
     account_type = db.Column(db.String(20), default='student')
     
     # حالة التحقق
@@ -110,7 +110,7 @@ class EmailVerification(db.Model):
             'email': self.email,
             'name': self.name,
             'username': self.username,
-            'account_type': self.account_type,  # ✅ إضافة نوع الحساب
+            'account_type': self.account_type,
             'is_verified': self.is_verified,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -123,20 +123,23 @@ class RegistrationSettings(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     
-    # تفعيل/إيقاف التسجيل
+    # ==================== إعدادات تسجيل الطلاب ====================
     is_registration_open = db.Column(db.Boolean, default=True)
-    
-    # رسالة للطلاب عند إيقاف التسجيل
     closed_message = db.Column(db.String(500), default='التسجيل مغلق حالياً، تواصل مع الإدارة')
+    require_phone = db.Column(db.Boolean, default=False)
+    require_school = db.Column(db.Boolean, default=False)
+    auto_activate = db.Column(db.Boolean, default=True)
     
-    # إعدادات إضافية
-    require_phone = db.Column(db.Boolean, default=False)  # رقم الجوال مطلوب؟
-    require_school = db.Column(db.Boolean, default=False)  # المدرسة مطلوبة؟
-    auto_activate = db.Column(db.Boolean, default=True)  # تفعيل تلقائي بعد التحقق؟
+    # ==================== ✅ جديد: إعدادات تسجيل المعلمين ====================
+    is_teacher_registration_open = db.Column(db.Boolean, default=False)
+    teacher_closed_message = db.Column(db.String(500), default='تسجيل المعلمين مغلق حالياً، تواصل مع الإدارة')
+    teacher_require_phone = db.Column(db.Boolean, default=True)
+    teacher_require_school = db.Column(db.Boolean, default=True)
+    teacher_auto_activate = db.Column(db.Boolean, default=False)
     
     # التواريخ
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    updated_by = db.Column(db.Integer, nullable=True)  # ID الأدمن
+    updated_by = db.Column(db.Integer, nullable=True)
 
     @staticmethod
     def get_settings():
@@ -151,10 +154,15 @@ class RegistrationSettings(db.Model):
 
     @staticmethod
     def update_settings(is_open=None, message=None, require_phone=None, 
-                       require_school=None, auto_activate=None, admin_id=None):
+                       require_school=None, auto_activate=None, admin_id=None,
+                       # ✅ جديد: معاملات المعلمين
+                       is_teacher_open=None, teacher_message=None,
+                       teacher_require_phone=None, teacher_require_school=None,
+                       teacher_auto_activate=None):
         """تحديث إعدادات التسجيل"""
         settings = RegistrationSettings.get_settings()
         
+        # إعدادات الطلاب
         if is_open is not None:
             settings.is_registration_open = is_open
         if message is not None:
@@ -165,6 +173,19 @@ class RegistrationSettings(db.Model):
             settings.require_school = require_school
         if auto_activate is not None:
             settings.auto_activate = auto_activate
+        
+        # ✅ إعدادات المعلمين
+        if is_teacher_open is not None:
+            settings.is_teacher_registration_open = is_teacher_open
+        if teacher_message is not None:
+            settings.teacher_closed_message = teacher_message
+        if teacher_require_phone is not None:
+            settings.teacher_require_phone = teacher_require_phone
+        if teacher_require_school is not None:
+            settings.teacher_require_school = teacher_require_school
+        if teacher_auto_activate is not None:
+            settings.teacher_auto_activate = teacher_auto_activate
+            
         if admin_id is not None:
             settings.updated_by = admin_id
         
@@ -174,10 +195,18 @@ class RegistrationSettings(db.Model):
     def to_dict(self):
         """تحويل لـ dictionary"""
         return {
+            # إعدادات الطلاب
             'is_registration_open': self.is_registration_open,
             'closed_message': self.closed_message,
             'require_phone': self.require_phone,
             'require_school': self.require_school,
             'auto_activate': self.auto_activate,
+            # ✅ إعدادات المعلمين
+            'is_teacher_registration_open': self.is_teacher_registration_open,
+            'teacher_closed_message': self.teacher_closed_message,
+            'teacher_require_phone': self.teacher_require_phone,
+            'teacher_require_school': self.teacher_require_school,
+            'teacher_auto_activate': self.teacher_auto_activate,
+            # عام
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

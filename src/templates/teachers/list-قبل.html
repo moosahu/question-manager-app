@@ -291,61 +291,6 @@
         color: #95a5a6;
     }
     
-    /* ==================== ✅ جديد: زر التسجيل ==================== */
-    .btn-registration {
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.3s;
-    }
-    
-    .btn-registration.open {
-        background: linear-gradient(135deg, #2ecc71, #27ae60);
-        color: white;
-    }
-    
-    .btn-registration.closed {
-        background: linear-gradient(135deg, #e74c3c, #c0392b);
-        color: white;
-    }
-    
-    .btn-registration:hover {
-        opacity: 0.9;
-        transform: translateY(-2px);
-    }
-    
-    .registration-status {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        background: white;
-        padding: 1rem 1.25rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    
-    .registration-status .status-text {
-        flex: 1;
-    }
-    
-    .registration-status .status-text h4 {
-        margin: 0;
-        font-size: 1rem;
-        color: #2c3e50;
-    }
-    
-    .registration-status .status-text p {
-        margin: 0.25rem 0 0;
-        font-size: 0.85rem;
-        color: #7f8c8d;
-    }
-    
     @media (max-width: 768px) {
         .table-container {
             margin: 0 -1rem;
@@ -359,11 +304,6 @@
         .search-box input {
             width: 100%;
         }
-        
-        .registration-status {
-            flex-direction: column;
-            text-align: center;
-        }
     }
 </style>
 {% endblock %}
@@ -374,35 +314,6 @@
     <div class="teachers-header">
         <h1><i class="fas fa-chalkboard-teacher"></i> إدارة المعلمين</h1>
         <p>إضافة وتعديل وإدارة حسابات المعلمين</p>
-    </div>
-    
-    <!-- ✅ جديد: حالة التسجيل الذاتي للمعلمين -->
-    <div class="registration-status">
-        <div class="status-text">
-            <h4>
-                <i class="fas fa-user-plus"></i>
-                التسجيل الذاتي للمعلمين
-            </h4>
-            <p>
-                {% if is_teacher_registration_open %}
-                    <span style="color: #27ae60;"><i class="fas fa-check-circle"></i> مفتوح - يمكن للمعلمين إنشاء حسابات من التطبيق</span>
-                {% else %}
-                    <span style="color: #e74c3c;"><i class="fas fa-times-circle"></i> مغلق - المعلمين يُضافون من هنا فقط</span>
-                {% endif %}
-            </p>
-        </div>
-        <form action="{{ url_for('teachers.toggle_registration') }}" method="POST" style="display: inline;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% if is_teacher_registration_open %}
-                <button type="submit" class="btn-registration closed" onclick="return confirm('هل تريد إغلاق التسجيل الذاتي للمعلمين؟')">
-                    <i class="fas fa-lock"></i> إغلاق التسجيل
-                </button>
-            {% else %}
-                <button type="submit" class="btn-registration open" onclick="return confirm('هل تريد فتح التسجيل الذاتي للمعلمين؟')">
-                    <i class="fas fa-lock-open"></i> فتح التسجيل
-                </button>
-            {% endif %}
-        </form>
     </div>
     
     <!-- الإحصائيات -->
