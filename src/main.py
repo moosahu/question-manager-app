@@ -170,7 +170,7 @@ except ImportError:
 
 # Import blueprints AFTER defining db and login_manager مع معالجة أخطاء محسنة
 try:
-    
+    from src.routes.auth import auth_bp
     from src.routes.user import user_bp
     from src.routes.question import question_bp
     from src.routes.curriculum import curriculum_bp
@@ -485,9 +485,6 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)  # url_prefix="/api/v1" معرَّف في Blueprint نفسه
- 
-
-
     
     # تسجيل students blueprint
     if students_available:
