@@ -446,8 +446,19 @@ def api_verify_student_session():
                 'error_code': 'STUDENT_NOT_FOUND'
             }), 404
         
-        # التحقق من الجهاز
-        if student.device_id and student.device_id != device_id:
+        # ✅ التحقق من الجهاز
+        # إذا لم يكن هناك device_id مسجل = تم إلغاء الربط من الأدمن
+        if not student.device_id:
+            print(f"⚠️ الجلسة غير صالحة - تم إلغاء ربط الجهاز من الأدمن")
+            return jsonify({
+                'success': True,
+                'valid': False,
+                'error': 'تم إلغاء ربط جهازك. يرجى تسجيل الدخول مرة أخرى',
+                'error_code': 'DEVICE_UNLINKED'
+            })
+        
+        # إذا كان الجهاز مختلف عن المسجل
+        if student.device_id != device_id:
             print(f"⚠️ الجلسة غير صالحة - جهاز مختلف")
             return jsonify({
                 'success': True,
