@@ -160,12 +160,19 @@
     }
     
     /* ==================== الجدول ==================== */
-    .teachers-table {
+    .table-container {
         width: 100%;
+        overflow-x: auto;
         background: white;
         border-radius: 10px;
-        overflow: hidden;
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .teachers-table {
+        width: 100%;
+        min-width: 900px;
+        background: white;
+        border-collapse: collapse;
     }
     
     .teachers-table thead {
@@ -285,9 +292,9 @@
     }
     
     @media (max-width: 768px) {
-        .teachers-table {
-            display: block;
-            overflow-x: auto;
+        .table-container {
+            margin: 0 -1rem;
+            border-radius: 0;
         }
         
         .search-box {
@@ -340,6 +347,7 @@
     
     <!-- جدول المعلمين -->
     {% if teachers %}
+    <div class="table-container">
     <table class="teachers-table">
         <thead>
             <tr>
@@ -416,6 +424,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <div class="empty-state">
         <i class="fas fa-chalkboard-teacher"></i>
