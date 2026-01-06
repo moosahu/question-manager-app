@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة المعلمين{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==================== متغيرات متوافقة مع الموقع ==================== */
+    .teachers-page {
+        --primary: #9b59b6;
+        --secondary: #2ecc71;
+        --accent: #3498db;
+        --dark: #2c3e50;
+        --danger: #e74c3c;
+        --warning: #f39c12;
+        --light-bg: #f8f9fa;
+    }
+    
+    /* ==================== الهيدر ==================== */
+    .teachers-header {
+        background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .teachers-header h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.6rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .teachers-header h1 i {
+        color: #f1c40f;
+    }
+    
+    .teachers-header p {
+        margin: 0;
+        opacity: 0.8;
+        font-size: 0.95rem;
+    }
+    
+    /* ==================== كاردات الإحصائيات ==================== */
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-right: 4px solid;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card.total { 
+        border-color: #9b59b6;
+    }
+    .stat-card.total h3 { color: #9b59b6; }
+    
+    .stat-card.active { 
+        border-color: var(--secondary);
+    }
+    .stat-card.active h3 { color: var(--secondary); }
+    
+    .stat-card.inactive { 
+        border-color: var(--danger);
+    }
+    .stat-card.inactive h3 { color: var(--danger); }
+    
+    .stat-card h3 {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .stat-card p {
+        margin: 0.5rem 0 0;
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .stat-card p i {
+        margin-left: 0.3rem;
+    }
+    
+    /* ==================== البحث والإضافة ==================== */
+    .search-box {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .search-box input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.75rem 1rem;
+        border: 2px solid #eee;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    
+    .search-box input:focus {
+        border-color: #9b59b6;
+        outline: none;
+    }
+    
+    .btn-primary {
+        padding: 0.75rem 1.5rem;
+        background: #9b59b6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary:hover {
+        background: #8e44ad;
+    }
+    
+    .btn-add {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-add:hover {
+        opacity: 0.9;
+    }
+    
+    /* ==================== الجدول ==================== */
+    .teachers-table {
+        width: 100%;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .teachers-table thead {
+        background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        color: white;
+    }
+    
+    .teachers-table th {
+        padding: 1rem;
+        text-align: right;
+        font-weight: 600;
+    }
+    
+    .teachers-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .teachers-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    
+    .status-badge.active {
+        background: rgba(46, 204, 113, 0.15);
+        color: #27ae60;
+    }
+    
+    .status-badge.inactive {
+        background: rgba(231, 76, 60, 0.15);
+        color: #c0392b;
+    }
+    
+    .last-login {
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        width: 35px;
+        height: 35px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+    
+    .btn-edit {
+        background: rgba(52, 152, 219, 0.15);
+        color: #3498db;
+    }
+    
+    .btn-edit:hover {
+        background: #3498db;
+        color: white;
+    }
+    
+    .btn-toggle {
+        background: rgba(243, 156, 18, 0.15);
+        color: #f39c12;
+    }
+    
+    .btn-toggle:hover {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .btn-delete {
+        background: rgba(231, 76, 60, 0.15);
+        color: #e74c3c;
+    }
+    
+    .btn-delete:hover {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    /* ==================== حالة فارغة ==================== */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #bdc3c7;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h3 {
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: #95a5a6;
+    }
+    
+    @media (max-width: 768px) {
+        .teachers-table {
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .search-box {
+            flex-direction: column;
+        }
+        
+        .search-box input {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 teachers-page">
+    <!-- الهيدر -->
+    <div class="teachers-header">
+        <h1><i class="fas fa-chalkboard-teacher"></i> إدارة المعلمين</h1>
+        <p>إضافة وتعديل وإدارة حسابات المعلمين</p>
+    </div>
+    
+    <!-- الإحصائيات -->
+    <div class="stats-cards">
+        <div class="stat-card total">
+            <h3>{{ total }}</h3>
+            <p><i class="fas fa-chalkboard-teacher"></i> إجمالي المعلمين</p>
+        </div>
+        <div class="stat-card active">
+            <h3>{{ active }}</h3>
+            <p><i class="fas fa-check-circle"></i> معلم مفعل</p>
+        </div>
+        <div class="stat-card inactive">
+            <h3>{{ inactive }}</h3>
+            <p><i class="fas fa-times-circle"></i> معلم معطل</p>
+        </div>
+    </div>
+    
+    <!-- البحث وزر الإضافة -->
+    <div class="search-box">
+        <form method="GET" style="flex: 1; display: flex; gap: 1rem;">
+            <input type="text" name="search" value="{{ search }}" placeholder="ابحث بالاسم أو اسم المستخدم أو الجوال...">
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-search"></i> بحث
+            </button>
+        </form>
+        <a href="{{ url_for('teachers.add_teacher') }}" class="btn-add">
+            <i class="fas fa-plus"></i> إضافة معلم
+        </a>
+    </div>
+    
+    <!-- جدول المعلمين -->
+    {% if teachers %}
+    <table class="teachers-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>اسم المستخدم</th>
+                <th>البريد</th>
+                <th>الجوال</th>
+                <th>المدرسة</th>
+                <th>الحالة</th>
+                <th>الجهاز</th>
+                <th>آخر دخول</th>
+                <th>الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for teacher in teachers %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ teacher.name }}</strong></td>
+                <td>{{ teacher.username }}</td>
+                <td>{{ teacher.email or '-' }}</td>
+                <td>{{ teacher.phone or '-' }}</td>
+                <td>{{ teacher.school or '-' }}</td>
+                <td>
+                    {% if teacher.is_active %}
+                        <span class="status-badge active">
+                            <i class="fas fa-check"></i> مفعل
+                        </span>
+                    {% else %}
+                        <span class="status-badge inactive">
+                            <i class="fas fa-times"></i> معطل
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if teacher.device_id %}
+                        <span class="status-badge active" title="{{ teacher.device_name or 'جهاز مسجل' }}" style="cursor: help;">
+                            <i class="fas fa-mobile-alt"></i> مسجل
+                        </span>
+                    {% else %}
+                        <span class="status-badge" style="background: #eee; color: #999;">
+                            <i class="fas fa-times"></i> -
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if teacher.last_login %}
+                        <span class="last-login">{{ teacher.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% else %}
+                        <span class="last-login">لم يسجل دخول</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions-cell">
+                        <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}" class="btn-action btn-edit" title="تعديل">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form action="{{ url_for('teachers.toggle_teacher', teacher_id=teacher.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-action btn-toggle" title="{% if teacher.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                <i class="fas fa-{% if teacher.is_active %}ban{% else %}check{% endif %}"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('teachers.delete_teacher', teacher_id=teacher.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('هل أنت متأكد من حذف هذا المعلم؟');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-action btn-delete" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-chalkboard-teacher"></i>
+        <h3>لا يوجد معلمين</h3>
+        <p>{% if search %}لا توجد نتائج للبحث "{{ search }}"{% else %}ابدأ بإضافة معلمين جدد{% endif %}</p>
+        <a href="{{ url_for('teachers.add_teacher') }}" class="btn-add" style="display: inline-flex; margin-top: 1rem;">
+            <i class="fas fa-plus"></i> إضافة معلم
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
