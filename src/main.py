@@ -486,8 +486,9 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)  # url_prefix="/api/v1" معرَّف في Blueprint نفسه
-    app.register_blueprint(teachers_bp, url_prefix="/teachers")
-    
+    app.register_blueprint(teachers_bp)
+
+
     
     # تسجيل students blueprint
     if students_available:
