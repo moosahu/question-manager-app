@@ -1430,8 +1430,11 @@ def api_get_results():
         # تحويل النتائج مع التأكد من وجود time_spent
         results_list = []
         for r in results:
-            # ✅ إرسال الوقت بصيغة UTC - التطبيق سيحول للتوقيت المحلي
-            created_time = r.created_at
+            # ✅ إرسال الوقت بصيغة UTC مع Z - التطبيق سيحول للتوقيت المحلي
+            created_time_str = None
+            if r.created_at:
+                # إضافة Z للإشارة أنه UTC
+                created_time_str = r.created_at.isoformat() + 'Z' if not r.created_at.isoformat().endswith('Z') else r.created_at.isoformat()
             
             result_dict = r.to_dict() if hasattr(r, 'to_dict') else {
                 'id': r.id,
@@ -1444,7 +1447,7 @@ def api_get_results():
                 'course_id': r.course_id,
                 'unit_id': r.unit_id,
                 'lesson_id': r.lesson_id,
-                'created_at': created_time.isoformat() if created_time else None,  # ✅ UTC format
+                'created_at': created_time_str,  # ✅ UTC format مع Z
             }
             # ✅ التأكد من وجود time_spent
             result_dict['time_spent'] = r.time_spent or 0
