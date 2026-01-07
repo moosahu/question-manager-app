@@ -2,7 +2,6 @@
 إدارة الطلاب - Routes
 يسمح للأدمن بإضافة وتعديل وحذف الطلاب
 ✅ محدث: إضافة منطق تسجيل الدخول من جهاز واحد
-✅ محدث: نظام توقيت ذكي يدعم جميع المناطق الزمنية
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
@@ -12,74 +11,8 @@ from functools import wraps
 from src.middleware.auth_middleware import create_student_token
 from datetime import datetime
 import secrets
-import pytz  # ✅ إضافة لنظام التوقيت الذكي
 
 students_bp = Blueprint('students', __name__, url_prefix='/students')
-
-# ==================== نظام التوقيت الذكي ====================
-# الحل الأمثل: حفظ بـ UTC في قاعدة البيانات، تحويل عند العرض
-
-def get_utc_time():
-    """
-    الحصول على الوقت الحالي بتوقيت UTC
-    يُستخدم للحفظ في قاعدة البيانات
-    """
-    return datetime.now(pytz.utc)
-
-def convert_utc_to_timezone(utc_dt, timezone_str='Asia/Riyadh'):
-    """
-    تحويل وقت UTC إلى أي منطقة زمنية
-    
-    Args:
-        utc_dt: التاريخ والوقت بتوقيت UTC
-        timezone_str: اسم المنطقة الزمنية (افتراضي: السعودية)
-    
-    Returns:
-        datetime object بالمنطقة الزمنية المحددة
-    
-    أمثلة:
-        'Asia/Riyadh' - السعودية (UTC+3)
-        'Asia/Dubai' - الإمارات (UTC+4)
-        'Africa/Cairo' - مصر (UTC+2)
-        'Europe/London' - بريطانيا (UTC+0)
-        'America/New_York' - نيويورك (UTC-5)
-    """
-    if utc_dt is None:
-        return None
-    
-    try:
-        # التأكد من أن الوقت بـ UTC
-        if utc_dt.tzinfo is None:
-            utc_dt = pytz.utc.localize(utc_dt)
-        
-        # تحويل للمنطقة الزمنية المطلوبة
-        target_tz = pytz.timezone(timezone_str)
-        return utc_dt.astimezone(target_tz)
-    except Exception as e:
-        print(f"⚠️ خطأ في تحويل التوقيت: {e}")
-        return utc_dt
-
-def get_user_timezone_from_request():
-    """
-    الحصول على المنطقة الزمنية من الـ request
-    يمكن إرسالها من التطبيق في الـ headers
-    """
-    # محاولة الحصول على timezone من الـ header
-    timezone = request.headers.get('X-Timezone', 'Asia/Riyadh')
-    
-    # التحقق من صحة الـ timezone
-    try:
-        pytz.timezone(timezone)
-        return timezone
-    except:
-        # إذا كان timezone غير صحيح، استخدم السعودية كافتراضي
-        return 'Asia/Riyadh'
-
-# ملاحظة هامة:
-# - جميع الأوقات تُحفظ في قاعدة البيانات بتوقيت UTC
-# - عند الإرسال للتطبيق، يتم التحويل حسب timezone المستخدم
-# - التطبيق يُرسل timezone في الـ header: X-Timezone
-# ==================== نهاية نظام التوقيت ====================
 
 
 def admin_required(f):
@@ -91,6 +24,15 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ==================== صفحة قائمة الطلاب ====================
+@students_bp.route('/')
+@login_required
+@admin_required
+def list_students():
+    """عرض قائمة الطلاب"""
+    # استيراد RegistrationSettings من email_verification
     from src.models.email_verification import RegistrationSettings
     
     search = request.args.get('search', '')
@@ -373,10 +315,10 @@ def api_student_login():
             # تحديث معلومات الجهاز
             student.device_id = device_id
             student.device_name = device_name or 'جهاز غير معروف'
-            student.last_device_login = get_utc_time()  # ✅ UTC للتوافق العالمي
+            student.last_device_login = datetime.utcnow()
         
         # تحديث آخر تسجيل دخول
-        student.last_login = get_utc_time()  # ✅ UTC للتوافق العالمي
+        student.last_login = datetime.utcnow()
         
         # إنشاء session token جديد
         session_token = secrets.token_hex(32)
@@ -484,10 +426,10 @@ def api_teacher_login():
             # تحديث معلومات الجهاز
             teacher.device_id = device_id
             teacher.device_name = device_name or 'جهاز غير معروف'
-            teacher.last_device_login = get_utc_time()  # ✅ UTC للتوافق العالمي
+            teacher.last_device_login = datetime.utcnow()
         
         # تحديث آخر تسجيل دخول
-        teacher.last_login = get_utc_time()  # ✅ UTC للتوافق العالمي
+        teacher.last_login = datetime.utcnow()
         
         # إنشاء session token جديد
         session_token = secrets.token_hex(32)
@@ -1428,14 +1370,8 @@ def api_get_results():
             .limit(limit).offset(offset).all()
         
         # تحويل النتائج مع التأكد من وجود time_spent
-        # ✅ الحصول على المنطقة الزمنية من الـ request
-        user_timezone = get_user_timezone_from_request()
-        
         results_list = []
         for r in results:
-            # ✅ تحويل التوقيت حسب منطقة المستخدم
-            created_time = convert_utc_to_timezone(r.created_at, user_timezone) if r.created_at else None
-            
             result_dict = r.to_dict() if hasattr(r, 'to_dict') else {
                 'id': r.id,
                 'quiz_type': r.quiz_type,
@@ -1447,7 +1383,7 @@ def api_get_results():
                 'course_id': r.course_id,
                 'unit_id': r.unit_id,
                 'lesson_id': r.lesson_id,
-                'created_at': created_time.isoformat() if created_time else None,  # ✅ محول للمنطقة الزمنية
+                'created_at': r.created_at.isoformat() if r.created_at else None,
             }
             # ✅ التأكد من وجود time_spent
             result_dict['time_spent'] = r.time_spent or 0
@@ -1565,7 +1501,6 @@ def api_save_result():
             wrong_answers=wrong_answers,
             score_percentage=data.get('score_percentage', 0.0),
             time_spent=data.get('time_spent', 0),  # ✅ الوقت المستغرق
-            created_at=get_utc_time()  # ✅ حفظ بـ UTC للتوافق العالمي
         )
         
         db.session.add(result)
@@ -1640,7 +1575,7 @@ def api_save_notifications_batch():
                     title=title,
                     message=message,
                     is_read=False,
-                    created_at=get_utc_time()  # ✅ UTC للتوافق العالمي
+                    created_at=datetime.now()
                 )
                 
                 db.session.add(notification)
@@ -1745,7 +1680,7 @@ def api_mark_all_notifications_read(student_id):
         updated_count = Notification.query.filter_by(
             student_id=student_id,
             is_read=False
-        ).update({'is_read': True, 'read_at': get_utc_time()  # ✅ UTC للتوافق العالمي})
+        ).update({'is_read': True, 'read_at': datetime.now()})
         
         db.session.commit()
         
