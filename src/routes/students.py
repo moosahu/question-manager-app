@@ -1345,10 +1345,12 @@ def api_mark_notification_read(notification_id):
 
 @students_bp.route('/api/results', methods=['GET'])
 def api_get_results():
-    """جلب نتائج الطالب"""
+    """جلب نتائج الطالب - محسّنة"""
     try:
         # جلب student_id من الـ query parameter
         student_id = request.args.get('student_id', type=int)
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
         
         if not student_id:
             return jsonify({
@@ -1362,13 +1364,35 @@ def api_get_results():
         except ImportError:
             from models.student_result import StudentResult
         
-        # جلب النتائج مرتبة بالأحدث
+        # جلب النتائج مرتبة بالأحدث مع pagination
         results = StudentResult.query.filter_by(student_id=student_id)\
-            .order_by(StudentResult.created_at.desc()).all()
+            .order_by(StudentResult.created_at.desc())\
+            .limit(limit).offset(offset).all()
+        
+        # تحويل النتائج مع التأكد من وجود time_spent
+        results_list = []
+        for r in results:
+            result_dict = r.to_dict() if hasattr(r, 'to_dict') else {
+                'id': r.id,
+                'quiz_type': r.quiz_type,
+                'quiz_name': r.quiz_name,
+                'total_questions': r.total_questions,
+                'correct_answers': r.correct_answers,
+                'wrong_answers': r.wrong_answers,
+                'score_percentage': round(r.score_percentage, 1) if r.score_percentage else 0,
+                'course_id': r.course_id,
+                'unit_id': r.unit_id,
+                'lesson_id': r.lesson_id,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+            }
+            # ✅ التأكد من وجود time_spent
+            result_dict['time_spent'] = r.time_spent or 0
+            results_list.append(result_dict)
         
         return jsonify({
             'success': True,
-            'results': [r.to_dict() for r in results]
+            'results': results_list,
+            'count': len(results_list)
         })
         
     except Exception as e:
@@ -1379,7 +1403,7 @@ def api_get_results():
 
 @students_bp.route('/api/results/stats', methods=['GET'])
 def api_get_results_stats():
-    """جلب إحصائيات نتائج الطالب"""
+    """جلب إحصائيات نتائج الطالب - محسّنة"""
     try:
         student_id = request.args.get('student_id', type=int)
         
@@ -1396,24 +1420,17 @@ def api_get_results_stats():
         
         from sqlalchemy import func
         
-        # إجمالي الاختبارات
-        total_quizzes = StudentResult.query.filter_by(student_id=student_id).count()
-        
-        # متوسط النسبة
-        avg_score = db.session.query(func.avg(StudentResult.score_percentage))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # إجمالي الأسئلة المحلولة
-        total_questions = db.session.query(func.sum(StudentResult.total_questions))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # إجمالي الإجابات الصحيحة
-        total_correct = db.session.query(func.sum(StudentResult.correct_answers))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
-        
-        # أفضل نتيجة
-        best_score = db.session.query(func.max(StudentResult.score_percentage))\
-            .filter(StudentResult.student_id == student_id).scalar() or 0
+        # ✅ إحصائيات شاملة في استعلام واحد
+        stats = db.session.query(
+            func.count(StudentResult.id).label('total_quizzes'),
+            func.coalesce(func.avg(StudentResult.score_percentage), 0).label('avg_score'),
+            func.coalesce(func.max(StudentResult.score_percentage), 0).label('best_score'),
+            func.coalesce(func.min(StudentResult.score_percentage), 0).label('worst_score'),
+            func.coalesce(func.sum(StudentResult.total_questions), 0).label('total_questions'),
+            func.coalesce(func.sum(StudentResult.correct_answers), 0).label('correct_answers'),
+            func.coalesce(func.sum(StudentResult.wrong_answers), 0).label('wrong_answers'),
+            func.coalesce(func.sum(StudentResult.time_spent), 0).label('total_time'),
+        ).filter(StudentResult.student_id == student_id).first()
         
         # آخر 7 نتائج للرسم البياني
         recent_results = StudentResult.query.filter_by(student_id=student_id)\
@@ -1421,17 +1438,20 @@ def api_get_results_stats():
         
         chart_data = [{
             'date': r.created_at.strftime('%m/%d') if r.created_at else '',
-            'score': r.score_percentage
+            'score': round(r.score_percentage, 0) if r.score_percentage else 0
         } for r in reversed(recent_results)]
         
         return jsonify({
             'success': True,
             'stats': {
-                'total_quizzes': total_quizzes,
-                'avg_score': round(avg_score, 1),
-                'total_questions': total_questions,
-                'total_correct': total_correct,
-                'best_score': round(best_score, 1),
+                'total_quizzes': stats.total_quizzes or 0,
+                'avg_score': round(float(stats.avg_score or 0), 1),
+                'best_score': round(float(stats.best_score or 0), 1),
+                'worst_score': round(float(stats.worst_score or 0), 1),
+                'total_questions': stats.total_questions or 0,
+                'correct_answers': stats.correct_answers or 0,
+                'wrong_answers': stats.wrong_answers or 0,
+                'total_time': stats.total_time or 0,
                 'chart_data': chart_data
             }
         })
@@ -1444,9 +1464,12 @@ def api_get_results_stats():
 
 @students_bp.route('/api/results', methods=['POST'])
 def api_save_result():
-    """حفظ نتيجة اختبار الطالب"""
+    """حفظ نتيجة اختبار الطالب - محسّنة"""
     try:
         data = request.get_json() or request.form
+        
+        print(f"\n📊 ========== Save Student Result ==========")
+        print(f"Data received: {data}")
         
         student_id = data.get('student_id')
         if not student_id:
@@ -1460,6 +1483,11 @@ def api_save_result():
         except ImportError:
             from models.student_result import StudentResult
         
+        # ✅ حساب الإجابات الخاطئة تلقائياً إذا لم تُرسل
+        total_questions = data.get('total_questions', 0)
+        correct_answers = data.get('correct_answers', 0)
+        wrong_answers = data.get('wrong_answers', total_questions - correct_answers)
+        
         # إنشاء سجل جديد
         result = StudentResult(
             student_id=student_id,
@@ -1468,15 +1496,21 @@ def api_save_result():
             unit_id=data.get('unit_id'),
             lesson_id=data.get('lesson_id'),
             quiz_name=data.get('quiz_name', 'اختبار'),
-            total_questions=data.get('total_questions', 0),
-            correct_answers=data.get('correct_answers', 0),
-            wrong_answers=data.get('wrong_answers', 0),
+            total_questions=total_questions,
+            correct_answers=correct_answers,
+            wrong_answers=wrong_answers,
             score_percentage=data.get('score_percentage', 0.0),
-            time_spent=data.get('time_spent'),
+            time_spent=data.get('time_spent', 0),  # ✅ الوقت المستغرق
         )
         
         db.session.add(result)
         db.session.commit()
+        
+        print(f"✅ تم حفظ نتيجة الطالب {student_id}")
+        print(f"   الاختبار: {result.quiz_name}")
+        print(f"   النتيجة: {result.score_percentage}%")
+        print(f"   الوقت: {result.time_spent} ثانية")
+        print(f"========== End Save Result ==========\n")
         
         return jsonify({
             'success': True,
@@ -1486,6 +1520,7 @@ def api_save_result():
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ خطأ في حفظ النتيجة: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
