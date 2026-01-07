@@ -1428,13 +1428,10 @@ def api_get_results():
             .limit(limit).offset(offset).all()
         
         # تحويل النتائج مع التأكد من وجود time_spent
-        # ✅ الحصول على المنطقة الزمنية من الـ request
-        user_timezone = get_user_timezone_from_request()
-        
         results_list = []
         for r in results:
-            # ✅ تحويل التوقيت حسب منطقة المستخدم
-            created_time = convert_utc_to_timezone(r.created_at, user_timezone) if r.created_at else None
+            # ✅ إرسال الوقت بصيغة UTC - التطبيق سيحول للتوقيت المحلي
+            created_time = r.created_at
             
             result_dict = r.to_dict() if hasattr(r, 'to_dict') else {
                 'id': r.id,
@@ -1447,7 +1444,7 @@ def api_get_results():
                 'course_id': r.course_id,
                 'unit_id': r.unit_id,
                 'lesson_id': r.lesson_id,
-                'created_at': created_time.isoformat() if created_time else None,  # ✅ محول للمنطقة الزمنية
+                'created_at': created_time.isoformat() if created_time else None,  # ✅ UTC format
             }
             # ✅ التأكد من وجود time_spent
             result_dict['time_spent'] = r.time_spent or 0
