@@ -1745,7 +1745,7 @@ def api_mark_all_notifications_read(student_id):
         updated_count = Notification.query.filter_by(
             student_id=student_id,
             is_read=False
-        ).update({'is_read': True, 'read_at': get_utc_time()  # ✅ UTC للتوافق العالمي})
+        ).update({'is_read': True, 'read_at': get_utc_time()})  # ✅ UTC للتوافق العالمي
         
         db.session.commit()
         
