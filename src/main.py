@@ -127,10 +127,27 @@ except ImportError:
 try:
     from src.routes.reports import reports_bp
     reports_available = True
-    print("✅ Reports blueprint imported successfully")
+    print("✅ Reports blueprint imported successfully from src.routes")
 except ImportError:
-    reports_available = False
-    print("⚠️ Reports blueprint not available")
+    try:
+        from routes.reports import reports_bp
+        reports_available = True
+        print("✅ Reports blueprint imported successfully from routes")
+    except ImportError:
+        try:
+            import sys
+            import os
+            # إضافة مسار routes للـ path
+            routes_path = os.path.join(os.path.dirname(__file__), 'routes')
+            if os.path.exists(routes_path) and routes_path not in sys.path:
+                sys.path.insert(0, routes_path)
+            from reports import reports_bp
+            reports_available = True
+            print("✅ Reports blueprint imported successfully (direct import)")
+        except ImportError as e:
+            reports_available = False
+            print(f"⚠️ Reports blueprint not available: {e}")
+
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
