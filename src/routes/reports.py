@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 import pytz
 import io
 
-reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+reports_bp = Blueprint('reports', __name__)
 
 
 # ==================== نظام التوقيت (مطابق لـ students.py) ====================
