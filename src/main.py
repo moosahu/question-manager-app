@@ -124,29 +124,56 @@ except ImportError:
     print("⚠️ Admin Profile blueprint not available")
 
 # ✅ استيراد reports blueprint لنظام التقارير الشامل
+reports_available = False
 try:
     from src.routes.reports import reports_bp
     reports_available = True
     print("✅ Reports blueprint imported successfully from src.routes")
-except ImportError:
+except ImportError as e1:
+    print(f"⚠️ Import attempt 1 failed: {e1}")
     try:
         from routes.reports import reports_bp
         reports_available = True
         print("✅ Reports blueprint imported successfully from routes")
-    except ImportError:
+    except ImportError as e2:
+        print(f"⚠️ Import attempt 2 failed: {e2}")
         try:
             import sys
             import os
-            # إضافة مسار routes للـ path
-            routes_path = os.path.join(os.path.dirname(__file__), 'routes')
-            if os.path.exists(routes_path) and routes_path not in sys.path:
-                sys.path.insert(0, routes_path)
-            from reports import reports_bp
-            reports_available = True
-            print("✅ Reports blueprint imported successfully (direct import)")
-        except ImportError as e:
+            # إضافة مسار routes للـ path - جرّب المسار الحالي أولاً
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            routes_path = os.path.join(current_dir, 'routes')
+            
+            print(f"🔍 Looking for routes at: {routes_path}")
+            
+            if os.path.exists(routes_path):
+                print(f"✅ Found routes directory")
+                if routes_path not in sys.path:
+                    sys.path.insert(0, routes_path)
+                    print(f"✅ Added {routes_path} to sys.path")
+                
+                from reports import reports_bp
+                reports_available = True
+                print("✅ Reports blueprint imported successfully (direct import)")
+            else:
+                print(f"❌ Routes directory not found at {routes_path}")
+                # جرّب مسار بديل
+                parent_routes = os.path.join(os.path.dirname(current_dir), 'routes')
+                if os.path.exists(parent_routes):
+                    print(f"✅ Found routes at parent: {parent_routes}")
+                    sys.path.insert(0, parent_routes)
+                    from reports import reports_bp
+                    reports_available = True
+                    print("✅ Reports blueprint imported successfully (parent path)")
+                else:
+                    raise ImportError("Could not find routes directory")
+                    
+        except Exception as e3:
             reports_available = False
-            print(f"⚠️ Reports blueprint not available: {e}")
+            print(f"⚠️ Reports blueprint not available: {e3}")
+            import traceback
+            traceback.print_exc()
+
 
 
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
