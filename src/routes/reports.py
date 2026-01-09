@@ -70,7 +70,13 @@ def admin_required(f):
 
 
 # ==================== 1. تقرير الطلاب الشامل (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/students-performance', methods=['GET'])
+@login_required
+@admin_required
 def api_students_performance_report():
     """
     API: تقرير شامل عن أداء جميع الطلاب
@@ -202,7 +208,11 @@ def api_students_performance_report():
 
 
 # ==================== 2. تقرير الطلاب المتميزين (API) ====================
+@login_required
+@admin_required
 @reports_bp.route('/api/top-performers', methods=['GET'])
+@login_required
+@admin_required
 def api_top_performers():
     """API: تقرير الطلاب المتميزين"""
     try:
@@ -254,6 +264,10 @@ def api_top_performers():
 
 
 # ==================== 3. تقرير الطلاب المحتاجين للمساعدة (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/need-help', methods=['GET'])
 def api_students_need_help():
     """API: تقرير الطلاب المحتاجين للمساعدة"""
@@ -357,6 +371,10 @@ def api_students_need_help():
 
 
 # ==================== 4. تقرير المناهج (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/courses-analysis', methods=['GET'])
 def api_courses_analysis():
     """API: تحليل أداء المناهج"""
@@ -426,6 +444,10 @@ def api_courses_analysis():
 
 
 # ==================== 5. تقرير النشاط (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/activity', methods=['GET'])
 def api_activity_report():
     """API: تقرير النشاط اليومي/الأسبوعي/الشهري"""
@@ -498,6 +520,10 @@ def api_activity_report():
 
 
 # ==================== 6. تفاصيل طالب واحد (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/student/<int:student_id>', methods=['GET'])
 def api_student_detail(student_id):
     """API: تقرير تفصيلي عن طالب واحد"""
@@ -626,6 +652,10 @@ def api_student_detail(student_id):
 
 
 # ==================== 7. تصدير Excel (API) ====================
+@login_required
+@admin_required
+@login_required
+@admin_required
 @reports_bp.route('/api/export-excel', methods=['POST'])
 def api_export_excel():
     """API: تصدير التقرير كملف Excel"""
