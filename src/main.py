@@ -123,6 +123,15 @@ except ImportError:
     admin_profile_available = False
     print("⚠️ Admin Profile blueprint not available")
 
+# ✅ استيراد reports blueprint لنظام التقارير الشامل
+try:
+    from src.routes.reports import reports_bp
+    reports_available = True
+    print("✅ Reports blueprint imported successfully")
+except ImportError:
+    reports_available = False
+    print("⚠️ Reports blueprint not available")
+
 # استيراد نظام جدولة النسخ الاحتياطي المحسن مع معالجة أخطاء
 try:
     # استيراد مباشر من src/backup_scheduler_fixed
@@ -523,6 +532,20 @@ def create_app():
         app.register_blueprint(admin_profile_bp)
         print("✅ Admin Profile blueprint registered successfully")
         print("🔐 Admin profile endpoint available at: /api/admin/profile")
+    
+    # ✅ تسجيل reports blueprint لنظام التقارير الشامل
+    if reports_available:
+        csrf.exempt(reports_bp)  # إعفاء من CSRF لأن APIs محمية بـ login
+        app.register_blueprint(reports_bp)  # يسجل البلوبرينت بـ url_prefix='/reports'
+        print("✅ Reports blueprint registered successfully")
+        print("📊 Reports endpoints available at:")
+        print("   - /reports/api/students-performance")
+        print("   - /reports/api/top-performers")
+        print("   - /reports/api/need-help")
+        print("   - /reports/api/courses-analysis")
+        print("   - /reports/api/activity")
+        print("   - /reports/api/student/<id>")
+        print("   - /reports/api/export-excel")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:

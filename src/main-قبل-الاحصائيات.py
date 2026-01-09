@@ -87,6 +87,15 @@ except ImportError:
     students_available = False
     print("⚠️ Students blueprint not available")
 
+# ✅ استيراد teachers blueprint لإدارة المعلمين
+try:
+    from src.routes.teachers import teachers_bp
+    teachers_available = True
+    print("✅ Teachers blueprint imported successfully")
+except ImportError:
+    teachers_available = False
+    print("⚠️ Teachers blueprint not available")
+
 # استيراد registration blueprint للتسجيل الذاتي
 try:
     from src.routes.registration import registration_bp
@@ -492,6 +501,13 @@ def create_app():
         app.register_blueprint(students_bp)  # يسجل البلوبرينت بـ url_prefix='/students'
         print("✅ Students blueprint registered successfully")
         print(f"✅ Students routes available at: /students/api/login") 
+    
+    # ✅ تسجيل teachers blueprint لإدارة المعلمين
+    if teachers_available:
+        csrf.exempt(teachers_bp)
+        app.register_blueprint(teachers_bp)  # يسجل البلوبرينت بـ url_prefix='/teachers'
+        print("✅ Teachers blueprint registered successfully")
+    
     # تسجيل registration blueprint للتسجيل الذاتي
     if registration_available:
         app.register_blueprint(registration_bp)
@@ -2603,11 +2619,12 @@ def api_send_notification():
                 # حفظ الإشعار في قاعدة البيانات
                 notification = Notification(
                     title=notification_title,
-                    body=notification_body,
-                    recipient_type='student',
-                    recipient_id=student.id,
-                    sent_by=current_user.id,
-                    status='sent'
+                    message=notification_body,
+                    type='info',
+                    student_id=student.id,
+                    user_id=current_user.id,
+                    is_read=False,
+                    created_at = datetime.utcnow()
                 )
                 db.session.add(notification)
                 
