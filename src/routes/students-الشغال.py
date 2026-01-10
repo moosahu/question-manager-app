@@ -91,6 +91,13 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+# ==================== عرض قائمة الطلاب ====================
+@students_bp.route('/', methods=['GET'])
+@login_required
+@admin_required
+def list_students():
+    """عرض قائمة الطلاب"""
     from src.models.email_verification import RegistrationSettings
     
     search = request.args.get('search', '')
@@ -108,13 +115,13 @@ def admin_required(f):
     # جلب إعدادات التسجيل الذاتي
     registration_settings = RegistrationSettings.get_settings()
     
-    return render_template('students/list.html', 
-                         students=students,
-                         search=search,
-                         total=total,
-                         active=active,
-                         inactive=inactive,
-                         registration_settings=registration_settings)
+    return render_template('students/list.html',
+                          students=students,
+                          search=search,
+                          total=total,
+                          active=active,
+                          inactive=inactive,
+                          registration_settings=registration_settings)
 
 
 # ==================== إضافة طالب جديد ====================
@@ -1528,51 +1535,31 @@ def api_get_results_stats():
 
 @students_bp.route('/api/results', methods=['POST'])
 def api_save_result():
-    """حفظ نتيجة اختبار الطالب - محسّنة ومطوّرة"""
+    """حفظ نتيجة اختبار الطالب - محسّنة"""
     try:
         data = request.get_json() or request.form
-
-        print(f"\n💾 ========== Save Student Result ==========")
-        print(f"📊 البيانات المستلمة:")
-        print(f"   - student_id: {data.get('student_id')}")
-        print(f"   - quiz_type: {data.get('quiz_type')}")
-        print(f"   - quiz_name: {data.get('quiz_name')}")
-        print(f"   - total_questions: {data.get('total_questions')}")
-        print(f"   - correct_answers: {data.get('correct_answers')}")
-        print(f"   - score_percentage: {data.get('score_percentage')}")
-        print(f"   - time_spent: {data.get('time_spent')}")
-
+        
+        print(f"\n📊 ========== Save Student Result ==========")
+        print(f"Data received: {data}")
+        
         student_id = data.get('student_id')
-
         if not student_id:
-            print(f"❌ خطأ: student_id مفقود")
             return jsonify({
                 'success': False,
                 'error': 'student_id مطلوب'
             }), 400
-
-        # ✅ التحقق من وجود الطالب
-        student = Student.query.get(student_id)
-        if not student:
-            print(f"❌ خطأ: الطالب {student_id} غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الطالب غير موجود'
-            }), 404
-
-        print(f"✅ الطالب موجود: {student.name} ({student.username})")
-
+        
         try:
             from src.models.student_result import StudentResult
         except ImportError:
             from models.student_result import StudentResult
-
-        # ✅ حساب الإجابات الخاطئة تلقائياً
+        
+        # ✅ حساب الإجابات الخاطئة تلقائياً إذا لم تُرسل
         total_questions = data.get('total_questions', 0)
         correct_answers = data.get('correct_answers', 0)
         wrong_answers = data.get('wrong_answers', total_questions - correct_answers)
-
-        # إنشاء سجل النتيجة
+        
+        # إنشاء سجل جديد
         result = StudentResult(
             student_id=student_id,
             quiz_type=data.get('quiz_type', 'lesson'),
@@ -1584,27 +1571,25 @@ def api_save_result():
             correct_answers=correct_answers,
             wrong_answers=wrong_answers,
             score_percentage=data.get('score_percentage', 0.0),
-            time_spent=data.get('time_spent', 0),  # ✅ الوقت المستغرق بالثواني
+            time_spent=data.get('time_spent', 0),  # ✅ الوقت المستغرق
             created_at=get_utc_time()  # ✅ حفظ بـ UTC للتوافق العالمي
         )
-
+        
         db.session.add(result)
         db.session.commit()
-
-        print(f"✅ تم حفظ النتيجة بنجاح!")
-        print(f"   - معرف النتيجة: {result.id}")
-        print(f"   - اسم الاختبار: {result.quiz_name}")
-        print(f"   - النتيجة: {result.score_percentage:.1f}%")
-        print(f"   - الإجابات الصحيحة: {result.correct_answers}/{result.total_questions}")
-        print(f"   - الوقت المستغرق: {result.time_spent} ثانية")
+        
+        print(f"✅ تم حفظ نتيجة الطالب {student_id}")
+        print(f"   الاختبار: {result.quiz_name}")
+        print(f"   النتيجة: {result.score_percentage}%")
+        print(f"   الوقت: {result.time_spent} ثانية")
         print(f"========== End Save Result ==========\n")
-
+        
         return jsonify({
             'success': True,
             'message': 'تم حفظ النتيجة بنجاح',
             'result_id': result.id
-        }), 200
-
+        })
+        
     except Exception as e:
         db.session.rollback()
         print(f"❌ خطأ في حفظ النتيجة: {str(e)}")
@@ -1613,6 +1598,8 @@ def api_save_result():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+# ==================== API لحفظ الإشعارات من Firebase ====================
 
 @students_bp.route('/api/notifications/batch-save', methods=['POST'])
 def api_save_notifications_batch():
