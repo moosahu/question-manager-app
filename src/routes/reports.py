@@ -14,7 +14,7 @@ from src.extensions import db
 from src.models.student import Student
 from src.models.result import Result
 from src.models.quiz import Quiz
-from src.models.course import Course
+from src.models.curriculum import Course
 from datetime import datetime, timedelta
 import pytz
 import io
