@@ -2435,336 +2435,334 @@ def create_app():
             </script>
             """
 
-
-    # ===== Routes والوظائف الإضافية =====
-    # ملاحظة: تم نقل هذه الـ routes إلى داخل create_app لحل مشكلة Application Context
-    # ===== إضافة route للإعدادات إذا لم يكن موجوداً =====
-    try:
-        @app.route('/settings')
-        @login_required
-        def settings_page():
-            """صفحة الإعدادات مع دعم Google Drive Integration"""
-            return render_template('settings.html')
-        print("✅ Settings route registered successfully")
-    except Exception as e:
-        print(f"⚠️ Settings route may already exist: {e}")
-
-    print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
-
-    # ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
-    @app.route("/api/backup/status")
-    @login_required
-    def alias_backup_status():
-        """Alias route للتوافق مع الـ frontend القديم"""
-        try:
-            # استدعاء الدالة الصحيحة من backup_apis_enhanced
-            from src.backup_apis_enhanced import get_backup_status
-            return get_backup_status()
-        except Exception as e:
-            logger.error(f"Error in alias backup status: {e}")
-            return jsonify({
-                'success': False,
-                'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
-                'error_type': 'alias_route_error'
-            }), 500
-
-    # ===== API إحصائيات النسخ الاحتياطية الشاملة =====
-
-    @app.route('/api/v1/backup/stats', methods=['GET'])
-    @login_required
-    def get_backup_stats():
-        """الحصول على إحصائيات النسخ الاحتياطية الشاملة"""
-        try:
-            user_id = current_user.id
-            stats = {
-                'total_backups': 0,
-                'total_size': 0,
-                'last_backup_time': None,
-                'google_drive_connected': False,
-                'google_drive_backups': 0,
-                'local_backups': 0
-            }
-
-            # إحصائيات Google Drive
-            try:
-                if google_drive_model_available:
-                    from src.models.google_drive import GoogleDriveToken
-                    user_token = GoogleDriveToken.get_user_token(user_id)
-                    if user_token and user_token.is_active:
-                        stats['google_drive_connected'] = True
-                        stats['google_drive_backups'] = user_token.backup_count or 0
-                        stats['total_backups'] += stats['google_drive_backups']
-            except Exception as e:
-                print(f"خطأ في جلب إحصائيات Google Drive: {e}")
-
-            # إحصائيات النسخ المحلية (يمكن إضافتها لاحقاً)
-            # stats['local_backups'] = get_local_backups_count(user_id)
-            # stats['total_backups'] += stats['local_backups']
-
-            # إحصائيات إضافية من backup_settings
-            try:
-                if backup_settings_model_available:
-                    from src.models.backup_settings import BackupSettings
-                    user_settings = BackupSettings.get_user_settings(user_id)
-                    if user_settings:
-                        # يمكن إضافة المزيد من الإحصائيات هنا
-                        pass
-            except Exception as e:
-                print(f"خطأ في جلب إعدادات النسخ: {e}")
-
-            return jsonify({
-                'success': True,
-                'stats': stats
-            })
-
-        except Exception as e:
-            print(f"خطأ في جلب إحصائيات النسخ: {e}")
-            return jsonify({
-                'success': False,
-                'error': 'فشل في جلب إحصائيات النسخ الاحتياطية',
-                'message': str(e)
-            }), 500
-
-
-        # ===== API للاختبار بدون تسجيل دخول =====
-
-        @app.route('/api/v1/backup/test-immediate', methods=['POST'])
-        def test_immediate_backup():
-            """تشغيل نسخ احتياطي فوري للاختبار (بدون تسجيل دخول)"""
-            try:
-                # محاكاة نجاح العملية للاختبار
-                import time
-                time.sleep(1)  # محاكاة وقت المعالجة
-
-                return jsonify({
-                    'success': True,
-                    'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح (اختبار)',
-                    'test_mode': True,
-                    'timestamp': datetime.utcnow().isoformat()
-                })
-
-            except Exception as e:
-                logger.error(f"خطأ في API النسخ الفوري للاختبار: {e}")
-                return jsonify({
-                    'success': False,
-                    'error': f'خطأ في تشغيل النسخ الاحتياطي الفوري: {str(e)}',
-                    'test_mode': True
-                }), 500
-
-        @app.route('/api/v1/backup/test-status', methods=['GET'])
-        def get_test_backup_status():
-            """الحصول على حالة النسخ الاحتياطي للاختبار (بدون تسجيل دخول)"""
-            try:
-                status = {
-                    'success': True,
-                    'status': {
-                        'settings': {
-                            'auto_backup_enabled': True,
-                            'backup_frequency': 'daily',
-                            'backup_destination': 'google_drive',
-                            'max_backups': 5,
-                            'last_backup_time': datetime.utcnow().isoformat(),
-                            'updated_at': datetime.utcnow().isoformat()
-                        },
-                        'google_drive': {
-                            'connected': True,
-                            'last_backup': datetime.utcnow().isoformat(),
-                            'backup_count': 3,
-                            'storage_used': '150 MB'
-                        },
-                        'scheduler': {
-                            'user_scheduled': True,
-                            'next_backup': (datetime.utcnow()).isoformat(),
-                            'status': 'active'
-                        }
-                    },
-                    'test_mode': True
-                }
-
-                return jsonify(status)
-
-            except Exception as e:
-                logger.error(f"خطأ في API حالة النسخ للاختبار: {e}")
-                return jsonify({
-                    'success': False,
-                    'error': f'خطأ في جلب حالة النسخ الاحتياطي: {str(e)}',
-                    'test_mode': True
-                }), 500
-
-        @app.route('/api/v1/google-drive/test-connection-status', methods=['GET'])
-        def get_test_google_drive_status():
-            """الحصول على حالة اتصال Google Drive للاختبار (بدون تسجيل دخول)"""
-            try:
-                status = {
-                    'success': True,
-                    'status': {
-                        'connected': True,
-                        'last_backup': datetime.utcnow().isoformat(),
-                        'backup_count': 3,
-                        'storage_used': '150 MB',
-                        'account_email': 'test@example.com'
-                    },
-                    'test_mode': True
-                }
-
-                return jsonify(status)
-
-            except Exception as e:
-                logger.error(f"خطأ في API حالة Google Drive للاختبار: {e}")
-                return jsonify({
-                    'success': False,
-                    'error': f'خطأ في جلب حالة Google Drive: {str(e)}',
-                    'test_mode': True
-                }), 500
-
-    # ==================== إرسال الإشعارات ====================
-    @app.route('/api/admin/send-notification', methods=['POST'])
-    @login_required
-    def api_send_notification():
-        """إرسال إشعار للطلاب"""
-        try:
-            # التحقق من أن المستخدم أدمن
-            if not current_user.is_admin:
-                return jsonify({
-                    'success': False,
-                    'error': 'ليس لديك صلاحية إرسال الإشعارات'
-                }), 403
-
-            data = request.get_json() or request.form
-
-            # جلب البيانات المطلوبة
-            notification_title = data.get('title', '').strip()
-            notification_body = data.get('body', '').strip()
-            recipient_type = data.get('recipient_type', 'all')  # all, student_id, level
-            recipient_id = data.get('recipient_id')  # للطالب المحدد
-            level = data.get('level')  # للمستوى المحدد
-
-            print(f"\n🔍 ========== Send Notification Request ==========")
-            print(f"Title: {notification_title}")
-            print(f"Body: {notification_body}")
-            print(f"Recipient Type: {recipient_type}")
-            print(f"Recipient ID: {recipient_id}")
-            print(f"Level: {level}")
-
-            # التحقق من البيانات المطلوبة
-            if not notification_title or not notification_body:
-                return jsonify({
-                    'success': False,
-                    'error': 'العنوان والنص مطلوبان'
-                }), 400
-
-            # استيراد نموذج Student
-            from src.models.student import Student
-
-            # جلب الطلاب المستهدفين
-            target_students = []
-
-            if recipient_type == 'all':
-                # إرسال للجميع
-                target_students = Student.query.filter_by(is_active=True).all()
-                print(f"🔍 إرسال للجميع: {len(target_students)} طالب")
-
-            elif recipient_type == 'student_id':
-                # إرسال لطالب محدد
-                if not recipient_id:
-                    return jsonify({
-                        'success': False,
-                        'error': 'معرف الطالب مطلوب'
-                    }), 400
-                student = Student.query.get(recipient_id)
-                if student:
-                    target_students = [student]
-                    print(f"🔍 إرسال لطالب محدد: {student.username}")
-                else:
-                    return jsonify({
-                        'success': False,
-                        'error': 'الطالب غير موجود'
-                    }), 404
-
-            elif recipient_type == 'level':
-                # إرسال لمستوى دراسي محدد
-                if not level:
-                    return jsonify({
-                        'success': False,
-                        'error': 'المستوى الدراسي مطلوب'
-                    }), 400
-                target_students = Student.query.filter_by(grade=level, is_active=True).all()
-                print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
-
-            # إرسال الإشعارات
-            sent_count = 0
-            failed_count = 0
-
-            for student in target_students:
-                if not student.fcm_token:
-                    print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
-                    failed_count += 1
-                    continue
-
-                try:
-                    # استيراد Firebase Admin SDK
-                    import firebase_admin
-                    from firebase_admin import messaging
-
-                    # إنشاء الرسالة
-                    message = messaging.Message(
-                        notification=messaging.Notification(
-                            title=notification_title,
-                            body=notification_body,
-                        ),
-                        token=student.fcm_token,
-                    )
-
-                    # إرسال الرسالة
-                    response = messaging.send(message)
-                    print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
-                    sent_count += 1
-
-                    # حفظ الإشعار في قاعدة البيانات
-                    notification = Notification(
-                        title=notification_title,
-                        message=notification_body,
-                        type='info',
-                        student_id=student.id,
-                        user_id=current_user.id,
-                        is_read=False,
-                        created_at = datetime.utcnow()
-                    )
-                    db.session.add(notification)
-
-                except Exception as e:
-                    print(f"❌ خطأ في إرسال الإشعار للطالب {student.username}: {str(e)}")
-                    failed_count += 1
-
-            # حفظ التغييرات
-            db.session.commit()
-
-            print(f"✅ تم إرسال {sent_count} إشعار بنجاح")
-            print(f"❌ فشل إرسال {failed_count} إشعار")
-            print(f"========== End Send Notification Request ==========\n")
-
-            return jsonify({
-                'success': True,
-                'message': f'تم إرسال {sent_count} إشعار بنجاح',
-                'sent_count': sent_count,
-                'failed_count': failed_count,
-                'total': len(target_students)
-            })
-
-        except Exception as e:
-            print(f"❌ خطأ في إرسال الإشعارات: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({
-                'success': False,
-                'error': f'خطأ في إرسال الإشعارات: {str(e)}'
-            }), 500
-
     return app
 
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
 
+
 # إنشاء متغير app لـ gunicorn
 app = create_app()
+
+# ===== إضافة route للإعدادات إذا لم يكن موجوداً =====
+try:
+    @app.route('/settings')
+    @login_required
+    def settings_page():
+        """صفحة الإعدادات مع دعم Google Drive Integration"""
+        return render_template('settings.html')
+    print("✅ Settings route registered successfully")
+except Exception as e:
+    print(f"⚠️ Settings route may already exist: {e}")
+
+print("🚀 Google Drive Integration with Redirect Flow initialized successfully")
+
+# ✅ Alias إضافي لتسهيل الوصول من السكربت القديم
+@app.route("/api/backup/status")
+@login_required
+def alias_backup_status():
+    """Alias route للتوافق مع الـ frontend القديم"""
+    try:
+        # استدعاء الدالة الصحيحة من backup_apis_enhanced
+        from src.backup_apis_enhanced import get_backup_status
+        return get_backup_status()
+    except Exception as e:
+        logger.error(f"Error in alias backup status: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'خطأ في الحصول على حالة النسخ الاحتياطي',
+            'error_type': 'alias_route_error'
+        }), 500
+
+# ===== API إحصائيات النسخ الاحتياطية الشاملة =====
+
+@app.route('/api/v1/backup/stats', methods=['GET'])
+@login_required
+def get_backup_stats():
+    """الحصول على إحصائيات النسخ الاحتياطية الشاملة"""
+    try:
+        user_id = current_user.id
+        stats = {
+            'total_backups': 0,
+            'total_size': 0,
+            'last_backup_time': None,
+            'google_drive_connected': False,
+            'google_drive_backups': 0,
+            'local_backups': 0
+        }
+        
+        # إحصائيات Google Drive
+        try:
+            if google_drive_model_available:
+                from src.models.google_drive import GoogleDriveToken
+                user_token = GoogleDriveToken.get_user_token(user_id)
+                if user_token and user_token.is_active:
+                    stats['google_drive_connected'] = True
+                    stats['google_drive_backups'] = user_token.backup_count or 0
+                    stats['total_backups'] += stats['google_drive_backups']
+        except Exception as e:
+            print(f"خطأ في جلب إحصائيات Google Drive: {e}")
+        
+        # إحصائيات النسخ المحلية (يمكن إضافتها لاحقاً)
+        # stats['local_backups'] = get_local_backups_count(user_id)
+        # stats['total_backups'] += stats['local_backups']
+        
+        # إحصائيات إضافية من backup_settings
+        try:
+            if backup_settings_model_available:
+                from src.models.backup_settings import BackupSettings
+                user_settings = BackupSettings.get_user_settings(user_id)
+                if user_settings:
+                    # يمكن إضافة المزيد من الإحصائيات هنا
+                    pass
+        except Exception as e:
+            print(f"خطأ في جلب إعدادات النسخ: {e}")
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        print(f"خطأ في جلب إحصائيات النسخ: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'فشل في جلب إحصائيات النسخ الاحتياطية',
+            'message': str(e)
+        }), 500
+
+
+    # ===== API للاختبار بدون تسجيل دخول =====
+    
+    @app.route('/api/v1/backup/test-immediate', methods=['POST'])
+    def test_immediate_backup():
+        """تشغيل نسخ احتياطي فوري للاختبار (بدون تسجيل دخول)"""
+        try:
+            # محاكاة نجاح العملية للاختبار
+            import time
+            time.sleep(1)  # محاكاة وقت المعالجة
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تشغيل النسخ الاحتياطي الفوري بنجاح (اختبار)',
+                'test_mode': True,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+                
+        except Exception as e:
+            logger.error(f"خطأ في API النسخ الفوري للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في تشغيل النسخ الاحتياطي الفوري: {str(e)}',
+                'test_mode': True
+            }), 500
+
+    @app.route('/api/v1/backup/test-status', methods=['GET'])
+    def get_test_backup_status():
+        """الحصول على حالة النسخ الاحتياطي للاختبار (بدون تسجيل دخول)"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'settings': {
+                        'auto_backup_enabled': True,
+                        'backup_frequency': 'daily',
+                        'backup_destination': 'google_drive',
+                        'max_backups': 5,
+                        'last_backup_time': datetime.utcnow().isoformat(),
+                        'updated_at': datetime.utcnow().isoformat()
+                    },
+                    'google_drive': {
+                        'connected': True,
+                        'last_backup': datetime.utcnow().isoformat(),
+                        'backup_count': 3,
+                        'storage_used': '150 MB'
+                    },
+                    'scheduler': {
+                        'user_scheduled': True,
+                        'next_backup': (datetime.utcnow()).isoformat(),
+                        'status': 'active'
+                    }
+                },
+                'test_mode': True
+            }
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة النسخ للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب حالة النسخ الاحتياطي: {str(e)}',
+                'test_mode': True
+            }), 500
+
+    @app.route('/api/v1/google-drive/test-connection-status', methods=['GET'])
+    def get_test_google_drive_status():
+        """الحصول على حالة اتصال Google Drive للاختبار (بدون تسجيل دخول)"""
+        try:
+            status = {
+                'success': True,
+                'status': {
+                    'connected': True,
+                    'last_backup': datetime.utcnow().isoformat(),
+                    'backup_count': 3,
+                    'storage_used': '150 MB',
+                    'account_email': 'test@example.com'
+                },
+                'test_mode': True
+            }
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"خطأ في API حالة Google Drive للاختبار: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب حالة Google Drive: {str(e)}',
+                'test_mode': True
+            }), 500
+
+# ==================== إرسال الإشعارات ====================
+@app.route('/api/admin/send-notification', methods=['POST'])
+@login_required
+def api_send_notification():
+    """إرسال إشعار للطلاب"""
+    try:
+        # التحقق من أن المستخدم أدمن
+        if not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': 'ليس لديك صلاحية إرسال الإشعارات'
+            }), 403
+        
+        data = request.get_json() or request.form
+        
+        # جلب البيانات المطلوبة
+        notification_title = data.get('title', '').strip()
+        notification_body = data.get('body', '').strip()
+        recipient_type = data.get('recipient_type', 'all')  # all, student_id, level
+        recipient_id = data.get('recipient_id')  # للطالب المحدد
+        level = data.get('level')  # للمستوى المحدد
+        
+        print(f"\n🔍 ========== Send Notification Request ==========")
+        print(f"Title: {notification_title}")
+        print(f"Body: {notification_body}")
+        print(f"Recipient Type: {recipient_type}")
+        print(f"Recipient ID: {recipient_id}")
+        print(f"Level: {level}")
+        
+        # التحقق من البيانات المطلوبة
+        if not notification_title or not notification_body:
+            return jsonify({
+                'success': False,
+                'error': 'العنوان والنص مطلوبان'
+            }), 400
+        
+        # استيراد نموذج Student
+        from src.models.student import Student
+        
+        # جلب الطلاب المستهدفين
+        target_students = []
+        
+        if recipient_type == 'all':
+            # إرسال للجميع
+            target_students = Student.query.filter_by(is_active=True).all()
+            print(f"🔍 إرسال للجميع: {len(target_students)} طالب")
+            
+        elif recipient_type == 'student_id':
+            # إرسال لطالب محدد
+            if not recipient_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'معرف الطالب مطلوب'
+                }), 400
+            student = Student.query.get(recipient_id)
+            if student:
+                target_students = [student]
+                print(f"🔍 إرسال لطالب محدد: {student.username}")
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'الطالب غير موجود'
+                }), 404
+                
+        elif recipient_type == 'level':
+            # إرسال لمستوى دراسي محدد
+            if not level:
+                return jsonify({
+                    'success': False,
+                    'error': 'المستوى الدراسي مطلوب'
+                }), 400
+            target_students = Student.query.filter_by(grade=level, is_active=True).all()
+            print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
+        
+        # إرسال الإشعارات
+        sent_count = 0
+        failed_count = 0
+        
+        for student in target_students:
+            if not student.fcm_token:
+                print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
+                failed_count += 1
+                continue
+            
+            try:
+                # استيراد Firebase Admin SDK
+                import firebase_admin
+                from firebase_admin import messaging
+                
+                # إنشاء الرسالة
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=notification_title,
+                        body=notification_body,
+                    ),
+                    token=student.fcm_token,
+                )
+                
+                # إرسال الرسالة
+                response = messaging.send(message)
+                print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
+                sent_count += 1
+                
+                # حفظ الإشعار في قاعدة البيانات
+                notification = Notification(
+                    title=notification_title,
+                    message=notification_body,
+                    type='info',
+                    student_id=student.id,
+                    user_id=current_user.id,
+                    is_read=False,
+                    created_at = datetime.utcnow()
+                )
+                db.session.add(notification)
+                
+            except Exception as e:
+                print(f"❌ خطأ في إرسال الإشعار للطالب {student.username}: {str(e)}")
+                failed_count += 1
+        
+        # حفظ التغييرات
+        db.session.commit()
+        
+        print(f"✅ تم إرسال {sent_count} إشعار بنجاح")
+        print(f"❌ فشل إرسال {failed_count} إشعار")
+        print(f"========== End Send Notification Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم إرسال {sent_count} إشعار بنجاح',
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'total': len(target_students)
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في إرسال الإشعارات: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في إرسال الإشعارات: {str(e)}'
+        }), 500
