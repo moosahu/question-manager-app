@@ -276,7 +276,12 @@ def api_students_need_help():
             if not results:
                 # طالب بدون اختبارات منذ التسجيل
                 if student.created_at:
-                    days_since_registration = (current_time_utc - student.created_at).days
+                    # التأكد من توافق timezone
+            if student.created_at.tzinfo is None:
+                created_at_utc = pytz.utc.localize(student.created_at)
+            else:
+                created_at_utc = student.created_at
+            days_since_registration = (current_time_utc - created_at_utc).days
                     if days_since_registration > 7:
                         need_help.append({
                             'student_id': student.id,
@@ -295,7 +300,10 @@ def api_students_need_help():
             avg_score = sum(r.score_percentage for r in results) / len(results)
             last_activity_utc = results[0].created_at
             last_activity_local = convert_utc_to_timezone(last_activity_utc, user_timezone)
-            days_since_activity = (current_time_utc - last_activity_utc).days
+            # التأكد من توافق timezone
+        if last_activity_utc.tzinfo is None:
+            last_activity_utc = pytz.utc.localize(last_activity_utc)
+        days_since_activity = (current_time_utc - last_activity_utc).days
             
             issue = None
             severity = 'low'
@@ -807,14 +815,19 @@ def get_activity_status(last_activity_utc):
     """تحديد حالة النشاط"""
     if not last_activity_utc:
         return 'غير نشط'
-    
-    # إذا كان last_activity_utc بدون timezone، أضف UTC timezone
-    if last_activity_utc.tzinfo is None:
-        last_activity_utc = pytz.utc.localize(last_activity_utc)
-    
+
     current_time_utc = get_utc_time()
+
+    # التأكد من أن كلا التاريخين إما aware أو naive
+    if last_activity_utc.tzinfo is None and current_time_utc.tzinfo is not None:
+        # last_activity_utc naive و current_time_utc aware
+        last_activity_utc = pytz.utc.localize(last_activity_utc)
+    elif last_activity_utc.tzinfo is not None and current_time_utc.tzinfo is None:
+        # last_activity_utc aware و current_time_utc naive
+        current_time_utc = pytz.utc.localize(current_time_utc)
+
     days_since = (current_time_utc - last_activity_utc).days
-    
+
     if days_since <= 1:
         return 'نشط جداً'
     elif days_since <= 7:
@@ -823,7 +836,6 @@ def get_activity_status(last_activity_utc):
         return 'خامل'
     else:
         return 'غير نشط'
-
 
 def get_performance_level(avg_score):
     """تحديد مستوى الأداء"""
