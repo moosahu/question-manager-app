@@ -123,15 +123,6 @@ except ImportError:
     admin_profile_available = False
     print("⚠️ Admin Profile blueprint not available")
 
-# ✅ استيراد Admin AI Blueprint لنظام الذكاء الاصطناعي
-admin_ai_available = False
-try:
-    from src.routes.admin_ai import admin_ai_bp
-    admin_ai_available = True
-    print("✅ Admin AI blueprint imported successfully")
-except ImportError as e:
-    print(f"⚠️ Admin AI blueprint not available: {e}")
-
 # ✅ استيراد reports blueprint لنظام التقارير الشامل
 reports_available = False
 try:
@@ -465,10 +456,6 @@ def create_app():
     if password_reset_available:
         csrf.exempt(password_reset_bp)
     
-    # ✅ إعفاء Admin AI من CSRF للتطبيق
-    if admin_ai_available:
-        csrf.exempt(admin_ai_bp)
-    
     login_manager.login_view = "auth.login" # Set the login view
 
     # ===== إضافة CORS Middleware =====
@@ -519,19 +506,6 @@ def create_app():
         except Exception as e:
             print(f"Error during database initialization or admin creation: {e}")
             db.session.rollback()
-
-    # ✅ تفعيل APScheduler لنظام الذكاء الاصطناعي
-    if not app.config.get('TESTING'):
-        try:
-            from src.tasks import init_scheduler
-            ai_scheduler = init_scheduler(app)
-            app.ai_scheduler = ai_scheduler
-            print("✅ AI APScheduler activated successfully")
-            print("🤖 Automatic student analysis enabled")
-        except ImportError:
-            print("⚠️ APScheduler not available - install with: pip install APScheduler")
-        except Exception as e:
-            print(f"❌ Error initializing AI APScheduler: {e}")
 
     # تهيئة جدولة النسخ الاحتياطي المحسنة
     if backup_scheduler_available:
@@ -616,24 +590,6 @@ def create_app():
         print("   - /reports/api/activity")
         print("   - /reports/api/student/<id>")
         print("   - /reports/api/export-excel")
-    
-    # ✅ تسجيل Admin AI Blueprint لنظام الذكاء الاصطناعي
-    if admin_ai_available:
-        csrf.exempt(admin_ai_bp)
-        app.register_blueprint(admin_ai_bp)
-        print("✅ Admin AI blueprint registered successfully")
-        print("🤖 AI Co-Admin System activated!")
-        print("📊 AI endpoints available at:")
-        print("   - /api/admin/ai/dashboard/stats")
-        print("   - /api/admin/ai/analyze/student/<id>")
-        print("   - /api/admin/ai/analyze/all")
-        print("   - /api/admin/ai/dashboard/students-need-attention")
-        print("   - /api/admin/ai/notification/send")
-        print("   - /api/admin/ai/chat")
-        print("   - /api/admin/ai/settings")
-        print("   - /api/admin/ai/logs")
-        print("   - /api/admin/ai/report/daily")
-        print("   - /api/admin/ai/status")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
