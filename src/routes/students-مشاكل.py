@@ -91,13 +91,6 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
-
-# ==================== عرض قائمة الطلاب ====================
-@students_bp.route('/', methods=['GET'])
-@login_required
-@admin_required
-def list_students():
-    """عرض قائمة الطلاب"""
     from src.models.email_verification import RegistrationSettings
     
     search = request.args.get('search', '')
@@ -115,13 +108,13 @@ def list_students():
     # جلب إعدادات التسجيل الذاتي
     registration_settings = RegistrationSettings.get_settings()
     
-    return render_template('students/list.html',
-                          students=students,
-                          search=search,
-                          total=total,
-                          active=active,
-                          inactive=inactive,
-                          registration_settings=registration_settings)
+    return render_template('students/list.html', 
+                         students=students,
+                         search=search,
+                         total=total,
+                         active=active,
+                         inactive=inactive,
+                         registration_settings=registration_settings)
 
 
 # ==================== إضافة طالب جديد ====================
