@@ -27,6 +27,7 @@ class StudentResult(db.Model):
     course_id = db.Column(db.Integer, nullable=True)
     unit_id = db.Column(db.Integer, nullable=True)
     lesson_id = db.Column(db.Integer, nullable=True)
+    quiz_id = db.Column(db.Integer, nullable=True)
     
     # اسم الاختبار (للعرض)
     quiz_name = db.Column(db.String(200), nullable=False)
