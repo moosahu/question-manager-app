@@ -6,10 +6,10 @@
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from extensions import db
-from models.student import Student
+from src.extensions import db
+from src.models.student import Student
 from functools import wraps
-from middleware.auth_middleware import create_student_token
+from src.middleware.auth_middleware import create_student_token
 from datetime import datetime
 import secrets
 import pytz  # ✅ إضافة لنظام التوقيت الذكي
