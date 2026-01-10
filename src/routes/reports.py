@@ -808,6 +808,10 @@ def get_activity_status(last_activity_utc):
     if not last_activity_utc:
         return 'غير نشط'
     
+    # إذا كان last_activity_utc بدون timezone، أضف UTC timezone
+    if last_activity_utc.tzinfo is None:
+        last_activity_utc = pytz.utc.localize(last_activity_utc)
+    
     current_time_utc = get_utc_time()
     days_since = (current_time_utc - last_activity_utc).days
     
