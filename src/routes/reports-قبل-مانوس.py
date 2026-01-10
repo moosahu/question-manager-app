@@ -10,11 +10,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from functools import wraps
-from src.extensions import db
-from src.models.student import Student
-from src.models.result import Result
-from src.models.quiz import Quiz
-from src.models.course import Course
+from extensions import db
+from models.student import Student
+from models.result import Result
+from models.quiz import Quiz
+from models.course import Course
 from datetime import datetime, timedelta
 import pytz
 import io
