@@ -862,9 +862,9 @@ def analyze_topics(student_id):
     # تجميع النتائج حسب المنهج
     course_scores = {}
     for result in results:
-        quiz = Quiz.query.get(result.quiz_id)
-        if quiz and quiz.course_id:
-            course = Course.query.get(quiz.course_id)
+        # استخدام course_id مباشرة من result بدلاً من quiz
+        if result.course_id:
+            course = Course.query.get(result.course_id)
             if course:
                 if course.name not in course_scores:
                     course_scores[course.name] = []
