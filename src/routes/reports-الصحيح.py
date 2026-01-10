@@ -809,6 +809,11 @@ def get_activity_status(last_activity_utc):
         return 'غير نشط'
     
     current_time_utc = get_utc_time()
+    
+    # تأكد أن التواريخ timezone-aware
+    if last_activity_utc.tzinfo is None:
+        last_activity_utc = pytz.utc.localize(last_activity_utc)
+    
     days_since = (current_time_utc - last_activity_utc).days
     
     if days_since <= 1:
@@ -857,9 +862,9 @@ def analyze_topics(student_id):
     # تجميع النتائج حسب المنهج
     course_scores = {}
     for result in results:
-        quiz = Quiz.query.get(result.quiz_id)
-        if quiz and quiz.course_id:
-            course = Course.query.get(quiz.course_id)
+        # استخدام course_id مباشرة من result بدلاً من quiz
+        if result.course_id:
+            course = Course.query.get(result.course_id)
             if course:
                 if course.name not in course_scores:
                     course_scores[course.name] = []
