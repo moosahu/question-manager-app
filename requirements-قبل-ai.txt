@@ -1,7 +1,7 @@
-# متطلبات نظام الذكاء الاصطناعي - Chem Tahsili
-# Requirements Updated for AI System
+# متطلبات نظام النسخ الاحتياطي التلقائي لـ Google Drive
+# إصدارات مرنة للتوافق الأمثل
 
-# Flask Core
+# Flask Core - إصدارات مرنة
 Flask>=3.0.0
 Flask-Login>=0.6.0
 Flask-SQLAlchemy>=3.1.0
@@ -20,20 +20,14 @@ psycopg2-binary>=2.9.0
 # Environment & Configuration
 python-dotenv>=1.0.0
 
-# Google APIs
+# Google APIs - مرونة في الإصدارات
 google-auth>=2.25.0
 google-auth-oauthlib>=1.1.0
 google-api-python-client>=2.100.0
 google-auth-httplib2>=0.2.0
 googleapis-common-protos>=1.60.0
 
-# ✅ جديد: Google Gemini AI
-google-generativeai>=0.3.0
-
-# ⚠️ اختياري: OpenAI (إذا أردت استخدامه بدلاً من Gemini)
-# openai>=1.0.0
-
-# Scheduling (موجود بالفعل)
+# Scheduling
 APScheduler>=3.10.0
 
 # HTTP & Requests
@@ -67,15 +61,12 @@ jsonschema>=4.20.0
 # Server
 gunicorn>=21.0.0
 
-# Cloud Services
+# Cloud Services (optional)
 cloudinary>=1.40.0
 
-# Firebase for Push Notifications (موجود بالفعل)
+# Firebase for Push Notifications
 firebase-admin>=6.4.0
 
 # Development Tools
 setuptools>=65.0.0
 wheel>=0.40.0
-
-# ✅ جديد: مكتبات إضافية للـ AI
-tenacity>=8.2.0  # لإعادة المحاولة عند فشل API calls
