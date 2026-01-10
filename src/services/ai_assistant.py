@@ -8,6 +8,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
+from flask import current_app
 
 try:
     import google.generativeai as genai
@@ -24,31 +25,59 @@ class AIAssistant:
     """مساعد AI الذكي - يحلل أداء الطلاب ويقدم توصيات"""
     
     def __init__(self):
-        """تهيئة مساعد AI"""
-        self.api_key = os.getenv('GOOGLE_AI_API_KEY')
-        self.model_name = AISetting.get_setting('ai_model', 'gemini-1.5-flash')
-        self.provider = AISetting.get_setting('ai_provider', 'gemini')
-        
-        if self.provider == 'gemini' and GEMINI_AVAILABLE and self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.model_name)
-            self.is_configured = True
-        else:
-            self.model = None
-            self.is_configured = False
-            print("⚠️ AI غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
+        """
+        تهيئة أولية فارغة لتجنب خطأ Application Context.
+        لا تقم باستدعاء قاعدة البيانات هنا نهائياً.
+        """
+        self.model = None
+        self.is_configured = False
+        self.api_key = None
+        self.model_name = 'gemini-1.5-flash' # قيمة افتراضية
+        self.provider = 'gemini'
+
+    def _ensure_configured(self):
+        """
+        دالة مساعدة لتهيئة الإعدادات عند الحاجة فقط
+        (Lazy Loading)
+        """
+        # إذا تم التهيئة سابقاً، لا تعيد الكرة
+        if self.is_configured and self.model:
+            return True
+
+        try:
+            # محاولة جلب المفتاح من كونفيج التطبيق أو متغيرات البيئة
+            self.api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
+            
+            # جلب الإعدادات من قاعدة البيانات (الآن آمن لأننا داخل Context)
+            try:
+                # نضع هذا داخل try/except لأنه يتصل بقاعدة البيانات
+                self.model_name = AISetting.get_setting('ai_model', 'gemini-1.5-flash')
+                self.provider = AISetting.get_setting('ai_provider', 'gemini')
+            except Exception as db_e:
+                print(f"⚠️ تعذر جلب إعدادات AI من قاعدة البيانات، استخدام الافتراضي: {db_e}")
+                self.model_name = 'gemini-1.5-flash'
+                self.provider = 'gemini'
+
+            if self.provider == 'gemini' and GEMINI_AVAILABLE and self.api_key:
+                genai.configure(api_key=self.api_key)
+                self.model = genai.GenerativeModel(self.model_name)
+                self.is_configured = True
+                return True
+            else:
+                print("⚠️ AI غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
+                return False
+        except Exception as e:
+            print(f"❌ خطأ في تهيئة AI: {e}")
+            return False
     
     def analyze_student(self, student_id: int, analysis_type: str = 'on_demand') -> Optional[Dict]:
-        """
-        تحليل شامل لأداء طالب
+        """تحليل شامل لأداء طالب"""
         
-        Args:
-            student_id: رقم الطالب
-            analysis_type: نوع التحليل (daily, weekly, on_demand, alert)
-        
-        Returns:
-            نتيجة التحليل أو None إذا فشل
-        """
+        # ✅ الخطوة الأهم: استدعاء التهيئة هنا بدلاً من __init__
+        if not self._ensure_configured():
+             print(f"⚠️ لا يمكن تحليل الطالب {student_id}: AI غير مهيأ")
+             return None
+
         start_time = datetime.utcnow()
         
         try:
@@ -56,26 +85,31 @@ class AIAssistant:
             student_data = self._gather_student_data(student_id)
             
             if not student_data:
-                AILog.log_operation(
-                    'analyze_student',
-                    description=f'لا توجد بيانات للطالب {student_id}',
-                    student_id=student_id,
-                    success=False,
-                    error_message='No data found'
-                )
+                # محاولة تسجيل الخطأ (قد تفشل إذا لم يكن هناك context، لذا نحميها)
+                try:
+                    AILog.log_operation(
+                        'analyze_student',
+                        description=f'لا توجد بيانات للطالب {student_id}',
+                        student_id=student_id,
+                        success=False,
+                        error_message='No data found'
+                    )
+                except: pass
                 return None
             
             # 2. تحليل البيانات بواسطة AI
             ai_response = self._call_ai_for_analysis(student_data)
             
             if not ai_response:
-                AILog.log_operation(
-                    'analyze_student',
-                    description=f'فشل تحليل AI للطالب {student_id}',
-                    student_id=student_id,
-                    success=False,
-                    error_message='AI analysis failed'
-                )
+                try:
+                    AILog.log_operation(
+                        'analyze_student',
+                        description=f'فشل تحليل AI للطالب {student_id}',
+                        student_id=student_id,
+                        success=False,
+                        error_message='AI analysis failed'
+                    )
+                except: pass
                 return None
             
             # 3. معالجة النتيجة
@@ -106,19 +140,22 @@ class AIAssistant:
             
         except Exception as e:
             duration = (datetime.utcnow() - start_time).total_seconds()
-            AILog.log_operation(
-                'analyze_student',
-                description=f'خطأ في تحليل الطالب {student_id}',
-                student_id=student_id,
-                success=False,
-                error_message=str(e),
-                duration_seconds=duration
-            )
+            try:
+                AILog.log_operation(
+                    'analyze_student',
+                    description=f'خطأ في تحليل الطالب {student_id}',
+                    student_id=student_id,
+                    success=False,
+                    error_message=str(e),
+                    duration_seconds=duration
+                )
+            except: pass
             print(f"❌ خطأ في analyze_student: {e}")
             return None
     
     def _gather_student_data(self, student_id: int) -> Optional[Dict]:
         """جمع جميع بيانات الطالب من قاعدة البيانات"""
+        # ✅ استيراد النماذج داخل الدالة لتجنب Circular Import
         from src.models.student import Student
         from src.models.student_result import StudentResult
         
@@ -133,7 +170,6 @@ class AIAssistant:
                 .order_by(StudentResult.created_at.desc()).all()
             
             if not results:
-                # طالب جديد بدون نتائج
                 return {
                     'student_id': student_id,
                     'student_name': student.name,
@@ -151,7 +187,7 @@ class AIAssistant:
             last_quiz_date = results[0].created_at if results else None
             days_since_last_quiz = (datetime.utcnow() - last_quiz_date).days if last_quiz_date else 999
             
-            # حساب الاتجاه (آخر 5 اختبارات مقابل قبلها)
+            # حساب الاتجاه
             recent_results = results[:5]
             older_results = results[5:10] if len(results) > 5 else []
             
@@ -177,7 +213,7 @@ class AIAssistant:
                         'date': r.created_at.isoformat(),
                         'quiz_type': r.quiz_type,
                         'time_spent': r.time_spent
-                    } for r in results[:10]  # آخر 10 اختبارات
+                    } for r in results[:10]
                 ],
                 'is_new_student': False
             }
@@ -189,65 +225,50 @@ class AIAssistant:
     def _call_ai_for_analysis(self, student_data: Dict) -> Optional[str]:
         """استدعاء AI لتحليل البيانات"""
         
-        if not self.is_configured:
-            print("⚠️ AI غير مفعّل")
+        # التأكد من التهيئة
+        if not self._ensure_configured():
             return None
         
-        # إنشاء Prompt
         prompt = self._create_analysis_prompt(student_data)
         
         try:
-            # استدعاء Gemini
             response = self.model.generate_content(prompt)
             return response.text
-            
         except Exception as e:
             print(f"❌ خطأ في استدعاء AI: {e}")
             return None
     
     def _create_analysis_prompt(self, data: Dict) -> str:
         """إنشاء prompt لـ AI"""
-        
         if data.get('is_new_student'):
             return f"""
 أنت مساعد تعليمي ذكي لمنصة كيم تحصيلي (كيمياء).
-
 الطالب: {data['student_name']} (الصف {data['grade']})
-الحالة: طالب جديد، لم يجري أي اختبارات بعد
-
-المطلوب:
-1. رسالة ترحيب ودافعة
-2. نصائح للبدء
-3. توصيات عامة
-
-الرد بالعربية فقط، بشكل مختصر ومحفز.
+الحالة: طالب جديد.
+المطلوب: رسالة ترحيب، نصائح للبدء، وتوصيات عامة.
+الرد بالعربية فقط، مختصر ومحفز.
 """
-        
         return f"""
 أنت مساعد تعليمي ذكي لمنصة كيم تحصيلي (كيمياء).
+الطالب: {data['student_name']}
+الصف: {data['grade']}
+الاختبارات: {data['total_quizzes']}
+المعدل: {data['average_score']}%
+المعدل الأخير: {data['recent_average']}%
+الاتجاه: {data['trend_percentage']:+.1f}%
+آخر نشاط: منذ {data['days_since_last_quiz']} يوم
 
-بيانات الطالب:
-- الاسم: {data['student_name']}
-- الصف: {data['grade']}
-- عدد الاختبارات: {data['total_quizzes']}
-- المعدل العام: {data['average_score']}%
-- المعدل الأخير: {data['recent_average']}%
-- الاتجاه: {data['trend_percentage']:+.1f}%
-- آخر اختبار: منذ {data['days_since_last_quiz']} يوم
-
-حلل هذه البيانات وقدم:
-1. تقييم الأداء (ممتاز/جيد/يحتاج تحسين/حرج)
-2. نقاط القوة (إن وجدت)
-3. المشاكل المكتشفة (إن وجدت)
-4. توصيات عملية محددة
+المطلوب:
+1. تقييم الأداء
+2. نقاط القوة
+3. المشاكل
+4. توصيات عملية
 5. رسالة تحفيزية
-
-الرد بالعربية فقط، بشكل مختصر ومهني.
+الرد بالعربية، مختصر ومهني.
 """
     
     def _process_ai_response(self, ai_text: str, student_data: Dict) -> Dict:
-        """معالجة رد AI واستخراج المعلومات"""
-        
+        """معالجة رد AI"""
         return {
             'total_quizzes': student_data.get('total_quizzes', 0),
             'average_score': student_data.get('average_score', 0),
@@ -265,58 +286,43 @@ class AIAssistant:
     def _extract_trend(self, data: Dict) -> str:
         """استخراج اتجاه الأداء"""
         trend_pct = data.get('trend_percentage', 0)
-        
-        if trend_pct > 10:
-            return 'improving'
-        elif trend_pct < -10:
-            return 'declining'
-        elif abs(trend_pct) <= 10:
-            return 'stable'
-        else:
-            return 'unknown'
+        if trend_pct > 10: return 'improving'
+        elif trend_pct < -10: return 'declining'
+        elif abs(trend_pct) <= 10: return 'stable'
+        return 'unknown'
     
     def _calculate_status(self, student_data: Dict, analysis: Dict) -> Dict:
         """حساب التصنيف ومستوى الخطورة"""
-        
         avg_score = student_data.get('average_score', 0)
         days_inactive = student_data.get('days_since_last_quiz', 0)
         trend = analysis.get('performance_trend', 'unknown')
         total_quizzes = student_data.get('total_quizzes', 0)
         
-        # الإعدادات
-        inactive_threshold = AISetting.get_setting('inactive_days_threshold', 7)
-        critical_inactive = AISetting.get_setting('critical_inactive_days', 14)
+        # استخدام try-except هنا أيضاً للسلامة
+        try:
+            inactive_threshold = AISetting.get_setting('inactive_days_threshold', 7)
+            critical_inactive = AISetting.get_setting('critical_inactive_days', 14)
+        except:
+            inactive_threshold = 7
+            critical_inactive = 14
         
         issues = []
         strengths = []
         
-        # تحديد المشاكل
         if days_inactive >= critical_inactive:
             issues.append(f'غير نشط منذ {days_inactive} يوم')
         elif days_inactive >= inactive_threshold:
             issues.append(f'نشاط منخفض ({days_inactive} يوم)')
         
-        if trend == 'declining':
-            issues.append('انخفاض في الأداء')
+        if trend == 'declining': issues.append('انخفاض في الأداء')
+        if avg_score < 50: issues.append('معدل منخفض جداً')
+        elif avg_score < 70: issues.append('معدل أقل من المطلوب')
         
-        if avg_score < 50:
-            issues.append('معدل منخفض جداً')
-        elif avg_score < 70:
-            issues.append('معدل أقل من المطلوب')
+        if avg_score >= 85: strengths.append('أداء ممتاز')
+        elif avg_score >= 75: strengths.append('أداء جيد')
+        if trend == 'improving': strengths.append('تحسن مستمر')
+        if days_inactive <= 1: strengths.append('نشط ومواظب')
         
-        # تحديد نقاط القوة
-        if avg_score >= 85:
-            strengths.append('أداء ممتاز')
-        elif avg_score >= 75:
-            strengths.append('أداء جيد')
-        
-        if trend == 'improving':
-            strengths.append('تحسن مستمر')
-        
-        if days_inactive <= 1:
-            strengths.append('نشط ومواظب')
-        
-        # التصنيف النهائي
         if days_inactive >= critical_inactive or (avg_score < 50 and total_quizzes >= 3):
             status = 'critical'
             severity = 'red'
@@ -343,37 +349,22 @@ class AIAssistant:
         }
     
     def chat_with_ai(self, message: str, context: Optional[Dict] = None) -> str:
-        """
-        محادثة حرة مع AI (للأدمن)
-        
-        Args:
-            message: رسالة الأدمن
-            context: سياق إضافي (مثل معلومات طالب)
-        
-        Returns:
-            رد AI
-        """
-        if not self.is_configured:
-            return "⚠️ AI غير مفعّل حالياً"
+        """محادثة حرة مع AI (للأدمن)"""
+        if not self._ensure_configured():
+            return "⚠️ AI غير مفعّل حالياً - يرجى التحقق من مفتاح API"
         
         try:
             prompt = f"""
 أنت مساعد إداري لمنصة كيم تحصيلي التعليمية.
-
 {f"السياق: {json.dumps(context, ensure_ascii=False)}" if context else ""}
-
 السؤال: {message}
-
-الرد بالعربية، بشكل مختصر ومهني.
+الرد بالعربية، مختصر ومهني.
 """
-            
             response = self.model.generate_content(prompt)
             return response.text
-            
         except Exception as e:
             print(f"❌ خطأ في chat_with_ai: {e}")
             return f"حدث خطأ: {str(e)}"
 
-
-# إنشاء instance واحد يستخدم في كل التطبيق
+# إنشاء instance واحد
 ai_assistant = AIAssistant()
