@@ -4,7 +4,7 @@
 from datetime import datetime
 
 try:
-    from extensions import db
+    from src.extensions import db
 except ImportError:
     try:
         from extensions import db

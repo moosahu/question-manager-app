@@ -1,14 +1,14 @@
 # src/models/curriculum.py
 
 try:
-    from extensions import db
+    from src.extensions import db
 except ImportError:
     # Fallback for direct execution or different structure
     # Ensure this import points to your actual db instance
     # Maybe from .user import db or from ..extensions import db
     # Adjust the import based on your project structure
     # Assuming db is accessible via src.extensions
-    from extensions import db 
+    from src.extensions import db 
 
 class Course(db.Model):
     __tablename__ = 'course' # Explicit table name is good practice
