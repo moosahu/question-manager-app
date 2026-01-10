@@ -1,10 +1,11 @@
-# ==================== Backend - Flask Reports Routes (Integrated Version) ====================
+# ==================== Backend - Flask Reports Routes (Updated for StudentResult) ====================
 # routes/reports.py
 """
-نظام التقارير المتكامل - يستفيد من البنية الموجودة
+نظام التقارير المتكامل - محدث لاستخدام StudentResult
 ✅ متوافق مع students.py
 ✅ يستخدم نظام التوقيت الذكي
 ✅ APIs للتطبيق وصفحات للويب
+✅ متوافق مع StudentResult model
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
@@ -12,8 +13,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from src.extensions import db
 from src.models.student import Student
-from src.models.result import Result
-from src.models.quiz import Quiz
+from src.models.student_result import StudentResult  # ✅ تم التحديث
 from src.models.curriculum import Course
 from datetime import datetime, timedelta
 import pytz
@@ -87,8 +87,8 @@ def api_students_performance_report():
         report = []
         
         for student in students:
-            # جلب نتائج الطالب
-            results = Result.query.filter_by(student_id=student.id).order_by(Result.created_at.desc()).all()
+            # ✅ جلب نتائج الطالب من StudentResult
+            results = StudentResult.query.filter_by(student_id=student.id).order_by(StudentResult.created_at.desc()).all()
             
             if not results:
                 # طالب بدون اختبارات
@@ -136,8 +136,8 @@ def api_students_performance_report():
             # تحديد مستوى الأداء
             performance_level = get_performance_level(avg_score)
             
-            # تحليل نقاط القوة والضعف
-            strengths, weaknesses = analyze_topics(student.id)
+            # ✅ تحليل نقاط القوة والضعف (محدث)
+            strengths, weaknesses = analyze_topics_from_student_results(student.id)
             
             # تحويل تاريخ التسجيل
             created_at_local = convert_utc_to_timezone(student.created_at, user_timezone) if student.created_at else None
@@ -213,47 +213,50 @@ def api_top_performers():
         limit = request.args.get('limit', 10, type=int)
         user_timezone = get_user_timezone_from_request()
         
-        students = Student.query.filter_by(is_active=True).all()
-        students_with_avg = []
+        # جلب جميع الطلاب مع نتائجهم
+        students = Student.query.all()
+        students_with_scores = []
         
         for student in students:
-            results = Result.query.filter_by(student_id=student.id).all()
+            # ✅ استخدام StudentResult
+            results = StudentResult.query.filter_by(student_id=student.id).all()
+            
             if results:
                 avg_score = sum(r.score_percentage for r in results) / len(results)
-                students_with_avg.append({
-                    'student': student,
-                    'avg_score': avg_score,
-                    'total_quizzes': len(results),
-                    'last_activity': max(r.created_at for r in results)
+                total_quizzes = len(results)
+                last_activity = convert_utc_to_timezone(results[0].created_at, user_timezone) if results else None
+                
+                students_with_scores.append({
+                    'student_id': student.id,
+                    'student_name': student.name,
+                    'email': student.email or '',
+                    'avg_score': round(avg_score, 2),
+                    'total_quizzes': total_quizzes,
+                    'best_score': round(max(r.score_percentage for r in results), 2),
+                    'last_activity': last_activity.isoformat() if last_activity else None,
+                    'performance_level': get_performance_level(avg_score),
                 })
         
         # ترتيب حسب المعدل
-        top_students = sorted(students_with_avg, key=lambda x: x['avg_score'], reverse=True)[:limit]
+        students_with_scores.sort(key=lambda x: x['avg_score'], reverse=True)
+        top_performers = students_with_scores[:limit]
         
-        result = []
-        for idx, item in enumerate(top_students, 1):
-            student = item['student']
-            last_activity_local = convert_utc_to_timezone(item['last_activity'], user_timezone)
-            
-            result.append({
-                'rank': idx,
-                'student_id': student.id,
-                'student_name': student.name,
-                'email': student.email or '',
-                'avg_score': round(item['avg_score'], 2),
-                'total_quizzes': item['total_quizzes'],
-                'badge': get_badge(idx),
-                'last_activity': last_activity_local.isoformat() if last_activity_local else None,
-            })
+        # إضافة الترتيب والشارات
+        for idx, student in enumerate(top_performers, 1):
+            student['rank'] = idx
+            student['badge'] = get_badge(idx)
         
         return jsonify({
             'success': True,
-            'top_performers': result,
-            'total': len(result)
+            'top_performers': top_performers,
+            'total_count': len(students_with_scores),
+            'timezone': user_timezone,
         })
         
     except Exception as e:
         print(f'❌ Error in top performers: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -271,12 +274,17 @@ def api_students_need_help():
         current_time_utc = get_utc_time()
         
         for student in students:
-            results = Result.query.filter_by(student_id=student.id).order_by(Result.created_at.desc()).all()
+            # ✅ استخدام StudentResult
+            results = StudentResult.query.filter_by(student_id=student.id).order_by(StudentResult.created_at.desc()).all()
             
             if not results:
                 # طالب بدون اختبارات منذ التسجيل
                 if student.created_at:
-                    days_since_registration = (current_time_utc - student.created_at).days
+                    student_created = student.created_at
+                    if student_created.tzinfo is None:
+                        student_created = pytz.utc.localize(student_created)
+                    
+                    days_since_registration = (current_time_utc - student_created).days
                     if days_since_registration > 7:
                         need_help.append({
                             'student_id': student.id,
@@ -295,6 +303,11 @@ def api_students_need_help():
             avg_score = sum(r.score_percentage for r in results) / len(results)
             last_activity_utc = results[0].created_at
             last_activity_local = convert_utc_to_timezone(last_activity_utc, user_timezone)
+            
+            # التأكد من timezone
+            if last_activity_utc.tzinfo is None:
+                last_activity_utc = pytz.utc.localize(last_activity_utc)
+            
             days_since_activity = (current_time_utc - last_activity_utc).days
             
             issue = None
@@ -367,28 +380,24 @@ def api_students_need_help():
 @login_required
 @admin_required
 def api_courses_analysis():
-    """API: تحليل أداء المناهج"""
+    """
+    ✅ API: تحليل أداء المناهج (محدث للعمل مع StudentResult)
+    ملاحظة: هذا الـ route يعتمد على course_id في StudentResult
+    """
     try:
         courses = Course.query.all()
         analysis = []
         
         for course in courses:
-            quizzes = Quiz.query.filter_by(course_id=course.id).all()
+            # ✅ جلب النتائج مباشرة من StudentResult حسب course_id
+            course_results = StudentResult.query.filter_by(course_id=course.id).all()
             
-            if not quizzes:
+            if not course_results:
                 continue
             
-            all_results = []
-            for quiz in quizzes:
-                results = Result.query.filter_by(quiz_id=quiz.id).all()
-                all_results.extend(results)
-            
-            if not all_results:
-                continue
-            
-            avg_score = sum(r.score_percentage for r in all_results) / len(all_results)
-            total_attempts = len(all_results)
-            unique_students = len(set(r.student_id for r in all_results))
+            avg_score = sum(r.score_percentage for r in course_results) / len(course_results)
+            total_attempts = len(course_results)
+            unique_students = len(set(r.student_id for r in course_results))
             
             # تحديد مستوى الصعوبة
             if avg_score >= 80:
@@ -401,10 +410,13 @@ def api_courses_analysis():
                 difficulty = 'صعب'
                 difficulty_color = 'red'
             
+            # حساب عدد الاختبارات الفريدة (بناءً على quiz_name)
+            unique_quizzes = len(set(r.quiz_name for r in course_results if r.quiz_name))
+            
             analysis.append({
                 'course_id': course.id,
                 'course_name': course.name,
-                'total_quizzes': len(quizzes),
+                'total_quizzes': unique_quizzes,
                 'total_attempts': total_attempts,
                 'unique_students': unique_students,
                 'avg_score': round(avg_score, 2),
@@ -430,6 +442,8 @@ def api_courses_analysis():
         
     except Exception as e:
         print(f'❌ Error in courses analysis: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -452,7 +466,8 @@ def api_activity_report():
         else:  # month
             start_date_utc = current_time_utc - timedelta(days=30)
         
-        results = Result.query.filter(Result.created_at >= start_date_utc).all()
+        # ✅ استخدام StudentResult
+        results = StudentResult.query.filter(StudentResult.created_at >= start_date_utc).all()
         
         # تجميع البيانات حسب التاريخ (بالتوقيت المحلي للمستخدم)
         daily_stats = {}
@@ -504,15 +519,20 @@ def api_activity_report():
         
     except Exception as e:
         print(f'❌ Error in activity report: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ==================== 6. تفاصيل طالب واحد (API) ====================
+# ==================== 6. تقرير تفصيلي لطالب واحد - النسخة المبسطة (API) ====================
 @reports_bp.route('/api/student/<int:student_id>', methods=['GET'])
 @login_required
 @admin_required
 def api_student_report(student_id):
-    """API: تقرير تفصيلي عن طالب واحد"""
+    """
+    API: تقرير تفصيلي عن طالب واحد (النسخة المبسطة)
+    ملاحظة: هناك أيضاً /api/student/<int:student_id>/detail للنسخة الكاملة
+    """
     try:
         user_timezone = get_user_timezone_from_request()
         
@@ -520,7 +540,8 @@ def api_student_report(student_id):
         if not student:
             return jsonify({'success': False, 'error': 'Student not found'}), 404
         
-        results = Result.query.filter_by(student_id=student_id).order_by(Result.created_at.desc()).all()
+        # ✅ استخدام StudentResult
+        results = StudentResult.query.filter_by(student_id=student_id).order_by(StudentResult.created_at.desc()).all()
         
         # تحويل تاريخ التسجيل
         created_at_local = convert_utc_to_timezone(student.created_at, user_timezone) if student.created_at else None
@@ -554,18 +575,17 @@ def api_student_report(student_id):
         # تحليل الأداء عبر الوقت (آخر 20 اختبار)
         performance_timeline = []
         for result in reversed(results[-20:]):
-            quiz = Quiz.query.get(result.quiz_id)
             result_time_local = convert_utc_to_timezone(result.created_at, user_timezone)
             
             performance_timeline.append({
                 'date': result_time_local.isoformat() if result_time_local else None,
-                'quiz_name': quiz.name if quiz else 'Unknown',
+                'quiz_name': result.quiz_name or 'اختبار غير معروف',  # ✅
                 'score': round(result.score_percentage, 2),
                 'time_spent': result.time_spent or 0,
             })
         
         # تحليل نقاط القوة والضعف
-        strengths, weaknesses = analyze_topics(student_id)
+        strengths, weaknesses = analyze_topics_from_student_results(student_id)
         
         # حساب الاتجاه
         improvement_trend = calculate_improvement_trend(results)
@@ -582,15 +602,160 @@ def api_student_report(student_id):
             'weak': sum(1 for s in scores if s < 60),
         }
         
-        # آخر 10 نتائج
+        # ✅ آخر 10 نتائج
         recent_results = []
         for r in results[:10]:
-            quiz = Quiz.query.get(r.quiz_id)
             result_time_local = convert_utc_to_timezone(r.created_at, user_timezone)
             
             recent_results.append({
-                'quiz_id': r.quiz_id,
-                'quiz_name': quiz.name if quiz else 'Unknown',
+                'quiz_id': r.quiz_id or r.id,
+                'quiz_name': r.quiz_name or 'اختبار غير معروف',  # ✅
+                'score': round(r.score_percentage, 2),
+                'correct_answers': r.correct_answers,
+                'total_questions': r.total_questions,
+                'time_spent': r.time_spent or 0,
+                'date': result_time_local.isoformat() if result_time_local else None,
+            })
+        
+        return jsonify({
+            'success': True,
+            'student': {
+                'id': student.id,
+                'name': student.name,
+                'email': student.email or '',
+                'phone': student.phone or '',
+                'school': student.school or '',
+                'grade': student.grade or '',
+                'created_at': created_at_local.isoformat() if created_at_local else None,
+                'is_active': student.is_active,
+            },
+            'stats': {
+                'total_quizzes': len(results),
+                'avg_score': round(avg_score, 2),
+                'best_score': round(max(scores), 2),
+                'worst_score': round(min(scores), 2),
+                'total_time_spent': total_time,
+                'avg_time_per_quiz': round(total_time / len(results), 1),
+                'last_activity': last_activity_local.isoformat() if last_activity_local else None,
+                'improvement_trend': round(improvement_trend, 2),
+                'performance_level': get_performance_level(avg_score),
+                'active_status': get_activity_status(results[0].created_at),
+            },
+            'performance_timeline': performance_timeline,
+            'score_distribution': score_distribution,
+            'strengths': strengths,
+            'weaknesses': weaknesses,
+            'recent_results': recent_results,
+            'timezone': user_timezone,
+        })
+        
+    except Exception as e:
+        print(f'❌ Error in student report: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== 7. تقرير تفصيلي لطالب واحد - النسخة الكاملة (API) ====================
+@reports_bp.route('/api/student/<int:student_id>/detail', methods=['GET'])
+@login_required
+@admin_required
+def api_student_detail(student_id):
+    """
+    API: تقرير تفصيلي عن طالب محدد
+    يستخدم من التطبيق (Flutter)
+    """
+    try:
+        user_timezone = get_user_timezone_from_request()
+        
+        # جلب الطالب
+        student = Student.query.get_or_404(student_id)
+        
+        # ✅ جلب نتائج الطالب من StudentResult
+        results = StudentResult.query.filter_by(student_id=student.id).order_by(StudentResult.created_at.desc()).all()
+        
+        if not results:
+            return jsonify({
+                'success': True,
+                'student': {
+                    'id': student.id,
+                    'name': student.name,
+                    'email': student.email or '',
+                    'phone': student.phone or '',
+                    'school': student.school or '',
+                    'grade': student.grade or '',
+                    'created_at': convert_utc_to_timezone(student.created_at, user_timezone).isoformat() if student.created_at else None,
+                    'is_active': student.is_active,
+                },
+                'stats': {
+                    'total_quizzes': 0,
+                    'avg_score': 0,
+                    'best_score': 0,
+                    'worst_score': 0,
+                    'total_time_spent': 0,
+                    'avg_time_per_quiz': 0,
+                    'last_activity': None,
+                    'improvement_trend': 0,
+                    'performance_level': 'لا توجد بيانات',
+                    'active_status': 'غير نشط',
+                },
+                'performance_timeline': [],
+                'score_distribution': {
+                    'excellent': 0,
+                    'very_good': 0,
+                    'good': 0,
+                    'acceptable': 0,
+                    'weak': 0,
+                },
+                'strengths': [],
+                'weaknesses': [],
+                'recent_results': [],
+                'timezone': user_timezone,
+            })
+        
+        # حساب الإحصائيات
+        scores = [r.score_percentage for r in results]
+        avg_score = sum(scores) / len(scores)
+        total_time = sum(r.time_spent or 0 for r in results)
+        
+        # تحويل التواريخ
+        created_at_local = convert_utc_to_timezone(student.created_at, user_timezone) if student.created_at else None
+        last_activity_local = convert_utc_to_timezone(results[0].created_at, user_timezone) if results else None
+        
+        # حساب اتجاه التحسن
+        improvement_trend = calculate_improvement_trend(results)
+        
+        # ✅ تحليل نقاط القوة والضعف (محدث)
+        strengths, weaknesses = analyze_topics_from_student_results(student.id)
+        
+        # خط الأداء الزمني (آخر 20 نتيجة)
+        performance_timeline = []
+        for idx, r in enumerate(reversed(results[-20:])):
+            result_time = convert_utc_to_timezone(r.created_at, user_timezone)
+            performance_timeline.append({
+                'index': idx + 1,
+                'score': round(r.score_percentage, 2),
+                'quiz_name': r.quiz_name,
+                'date': result_time.isoformat() if result_time else None,
+            })
+        
+        # توزيع الدرجات
+        score_distribution = {
+            'excellent': sum(1 for s in scores if s >= 90),
+            'very_good': sum(1 for s in scores if 80 <= s < 90),
+            'good': sum(1 for s in scores if 70 <= s < 80),
+            'acceptable': sum(1 for s in scores if 60 <= s < 70),
+            'weak': sum(1 for s in scores if s < 60),
+        }
+        
+        # ✅ آخر 10 نتائج (محدث - استخدام quiz_name مباشرة)
+        recent_results = []
+        for r in results[:10]:
+            result_time_local = convert_utc_to_timezone(r.created_at, user_timezone)
+            
+            recent_results.append({
+                'quiz_id': r.quiz_id or r.id,  # استخدام quiz_id إن وجد، أو id النتيجة
+                'quiz_name': r.quiz_name or 'اختبار غير معروف',  # ✅ استخدام quiz_name مباشرة
                 'score': round(r.score_percentage, 2),
                 'correct_answers': r.correct_answers,
                 'total_questions': r.total_questions,
@@ -637,50 +802,69 @@ def api_student_report(student_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ==================== 7. تصدير Excel (API) ====================
+# ==================== 8. صفحة التقارير الرئيسية (Web) ====================
+@reports_bp.route('/')
+@login_required
+@admin_required
+def index():
+    """صفحة التقارير الرئيسية"""
+    return render_template('admin/reports.html')
+
+
+# ==================== 9. صفحة تفاصيل طالب (Web) ====================
+@reports_bp.route('/student/<int:student_id>')
+@login_required
+@admin_required
+def student_detail_page(student_id):
+    """صفحة تفاصيل طالب"""
+    student = Student.query.get_or_404(student_id)
+    return render_template('admin/student_detail.html', student=student)
+
+
+# ==================== 10. صفحة الطلاب المتميزين (Web) ====================
+@reports_bp.route('/top-performers')
+@login_required
+@admin_required
+def top_performers_page():
+    """صفحة الطلاب المتميزين"""
+    return render_template('admin/top_performers.html')
+
+
+# ==================== 11. تصدير Excel (API) ====================
 @reports_bp.route('/api/export-excel', methods=['POST'])
 @login_required
 @admin_required
 def api_export_excel():
-    """API: تصدير التقرير كملف Excel"""
+    """تصدير تقرير الطلاب إلى Excel"""
     try:
         from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
         
-        data = request.get_json() or {}
-        students = data.get('students', [])
+        data = request.json.get('data', [])
         
-        if not students:
-            return jsonify({'success': False, 'error': 'No data to export'}), 400
+        if not data:
+            return jsonify({'success': False, 'error': 'لا توجد بيانات للتصدير'}), 400
         
-        # إنشاء Workbook
+        # إنشاء ملف Excel
         wb = Workbook()
         ws = wb.active
-        ws.title = "تقرير الطلاب"
+        ws.title = 'تقرير الطلاب'
         
-        # تعريف الأنماط
-        header_font = Font(bold=True, size=12, color="FFFFFF")
-        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        # تنسيق العناوين
+        header_font = Font(bold=True, size=12, color='FFFFFF')
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
         header_alignment = Alignment(horizontal='center', vertical='center')
         
-        cell_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        # الحدود
+        border_side = Side(style='thin', color='000000')
+        border = Border(left=border_side, right=border_side, top=border_side, bottom=border_side)
         
-        # تعريف الأعمدة
-        headers = [
-            'م', 'اسم الطالب', 'البريد الإلكتروني', 'الجوال',
-            'عدد الاختبارات', 'المعدل العام', 'أفضل نتيجة', 'أسوأ نتيجة',
-            'إجمالي الوقت', 'متوسط الوقت/اختبار', 'آخر نشاط',
-            'حالة النشاط', 'مستوى الأداء', 'اتجاه التحسن'
-        ]
+        # العناوين
+        headers = ['#', 'الاسم', 'البريد الإلكتروني', 'الهاتف', 'عدد الاختبارات', 
+                   'المعدل العام', 'أفضل درجة', 'أقل درجة', 'الوقت الكلي', 
+                   'متوسط الوقت', 'آخر نشاط', 'حالة النشاط', 'مستوى الأداء', 'اتجاه التحسن']
         
-        # كتابة الهيدر
         for col, header in enumerate(headers, 1):
             cell = ws.cell(1, col, header)
             cell.font = header_font
@@ -688,10 +872,12 @@ def api_export_excel():
             cell.alignment = header_alignment
             cell.border = border
         
-        # كتابة البيانات
-        for row_idx, student in enumerate(students, 2):
-            ws.cell(row_idx, 1, row_idx - 1).alignment = cell_alignment
-            ws.cell(row_idx, 1).border = border
+        # البيانات
+        cell_alignment = Alignment(horizontal='center', vertical='center')
+        
+        for row_idx, student in enumerate(data, 2):
+            ws.cell(row_idx, 1, row_idx - 1).border = border
+            ws.cell(row_idx, 1).alignment = cell_alignment
             
             ws.cell(row_idx, 2, student.get('student_name', '')).border = border
             ws.cell(row_idx, 2).alignment = Alignment(horizontal='right', vertical='center')
@@ -855,30 +1041,45 @@ def get_badge(rank):
     return badges.get(rank, f'⭐ المركز {rank}')
 
 
-def analyze_topics(student_id):
-    """تحليل نقاط القوة والضعف حسب المواضيع"""
-    results = Result.query.filter_by(student_id=student_id).all()
+def analyze_topics_from_student_results(student_id):
+    """
+    ✅ تحليل نقاط القوة والضعف حسب المواضيع من StudentResult
+    """
+    results = StudentResult.query.filter_by(student_id=student_id).all()
     
     if not results:
         return [], []
     
-    # تجميع النتائج حسب المنهج
+    # تجميع النتائج حسب نوع الاختبار
     course_scores = {}
+    
     for result in results:
-        quiz = Quiz.query.get(result.quiz_id)
-        if quiz and quiz.course_id:
-            course = Course.query.get(quiz.course_id)
-            if course:
-                if course.name not in course_scores:
-                    course_scores[course.name] = []
-                course_scores[course.name].append(result.score_percentage)
+        # استخدام course_id إذا كان موجوداً، وإلا استخدام quiz_type أو quiz_name
+        topic_key = None
+        
+        if result.course_id:
+            # إذا كان course_id موجود، نجلب اسم المنهج
+            course = Course.query.get(result.course_id)
+            topic_key = course.name if course else f"منهج {result.course_id}"
+        elif result.quiz_type == 'course':
+            topic_key = result.quiz_name or 'منهج غير محدد'
+        elif result.quiz_type == 'unit':
+            topic_key = result.quiz_name or 'وحدة غير محددة'
+        elif result.quiz_type == 'lesson':
+            topic_key = result.quiz_name or 'درس غير محدد'
+        else:
+            topic_key = result.quiz_name or 'اختبار غير محدد'
+        
+        if topic_key not in course_scores:
+            course_scores[topic_key] = []
+        course_scores[topic_key].append(result.score_percentage)
     
     # حساب المتوسطات
     course_averages = []
-    for course_name, scores in course_scores.items():
+    for topic_name, scores in course_scores.items():
         avg = sum(scores) / len(scores)
         course_averages.append({
-            'course': course_name,
+            'course': topic_name,
             'avg_score': round(avg, 2),
             'total_attempts': len(scores)
         })

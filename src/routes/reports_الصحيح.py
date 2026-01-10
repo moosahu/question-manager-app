@@ -807,15 +807,19 @@ def get_activity_status(last_activity_utc):
     """تحديد حالة النشاط"""
     if not last_activity_utc:
         return 'غير نشط'
-    
+
     current_time_utc = get_utc_time()
-    
-    # تأكد أن التواريخ timezone-aware
-    if last_activity_utc.tzinfo is None:
+
+    # التأكد من أن كلا التاريخين إما aware أو naive
+    if last_activity_utc.tzinfo is None and current_time_utc.tzinfo is not None:
+        # last_activity_utc naive و current_time_utc aware
         last_activity_utc = pytz.utc.localize(last_activity_utc)
-    
+    elif last_activity_utc.tzinfo is not None and current_time_utc.tzinfo is None:
+        # last_activity_utc aware و current_time_utc naive
+        current_time_utc = pytz.utc.localize(current_time_utc)
+
     days_since = (current_time_utc - last_activity_utc).days
-    
+
     if days_since <= 1:
         return 'نشط جداً'
     elif days_since <= 7:
@@ -824,7 +828,6 @@ def get_activity_status(last_activity_utc):
         return 'خامل'
     else:
         return 'غير نشط'
-
 
 def get_performance_level(avg_score):
     """تحديد مستوى الأداء"""
@@ -862,9 +865,9 @@ def analyze_topics(student_id):
     # تجميع النتائج حسب المنهج
     course_scores = {}
     for result in results:
-        # استخدام course_id مباشرة من result بدلاً من quiz
-        if result.course_id:
-            course = Course.query.get(result.course_id)
+        quiz = Quiz.query.get(result.quiz_id)
+        if quiz and quiz.course_id:
+            course = Course.query.get(quiz.course_id)
             if course:
                 if course.name not in course_scores:
                     course_scores[course.name] = []
