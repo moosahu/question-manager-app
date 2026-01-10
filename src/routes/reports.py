@@ -276,12 +276,7 @@ def api_students_need_help():
             if not results:
                 # طالب بدون اختبارات منذ التسجيل
                 if student.created_at:
-                    # التأكد من توافق timezone
-            if student.created_at.tzinfo is None:
-                created_at_utc = pytz.utc.localize(student.created_at)
-            else:
-                created_at_utc = student.created_at
-            days_since_registration = (current_time_utc - created_at_utc).days
+                    days_since_registration = (current_time_utc - student.created_at).days
                     if days_since_registration > 7:
                         need_help.append({
                             'student_id': student.id,
@@ -300,10 +295,7 @@ def api_students_need_help():
             avg_score = sum(r.score_percentage for r in results) / len(results)
             last_activity_utc = results[0].created_at
             last_activity_local = convert_utc_to_timezone(last_activity_utc, user_timezone)
-            # التأكد من توافق timezone
-        if last_activity_utc.tzinfo is None:
-            last_activity_utc = pytz.utc.localize(last_activity_utc)
-        days_since_activity = (current_time_utc - last_activity_utc).days
+            days_since_activity = (current_time_utc - last_activity_utc).days
             
             issue = None
             severity = 'low'
