@@ -91,15 +91,6 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
-
-
-# ==================== عرض قائمة الطلاب (الصفحة الرئيسية) ====================
-@students_bp.route('/', methods=['GET'])
-@students_bp.route('', methods=['GET'])
-@login_required
-@admin_required
-def list_students():
-    """عرض قائمة جميع الطلاب مع إمكانية البحث"""
     from src.models.email_verification import RegistrationSettings
     
     search = request.args.get('search', '')
