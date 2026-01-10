@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required, login_user
 from flask_wtf.csrf import CSRFProtect
 from src.extensions import db
-# from src.models.notification import Notification  # ✅ تم نقله داخل الدوال
+# from src.models.notification import Notification  # ✅ نُقل داخل الدوال
 from datetime import datetime
 import uuid
 
