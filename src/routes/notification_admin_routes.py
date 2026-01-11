@@ -8,8 +8,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, B
 from flask_login import login_required, current_user
 
 # ✅ استخدم نفس نموذج Notification الذي يستخدمه نظام AI
-from src.models.notification import Notification
-from src.models.student_notification import StudentNotification
+from src.models.notification import Notification, StudentNotification
 
 from extensions import db
 from datetime import datetime
@@ -168,35 +167,30 @@ def send_notification():
         failed_count = 0
         failed_tokens = []
 
-        # ✅ إنشاء الإشعار الرئيسي باستخدام الدالة الصحيحة
-        notification = Notification.create_notification(
+        # إنشاء الإشعار الرئيسي (مرتبط بالأدمن)
+        notification = Notification(
             title=title,
             body=body,
-            notification_type='admin_message',
-            created_by_admin=True,
-            admin_id=current_user.id,
-            data={
-                'recipient_type': recipient_type,
-                'recipient_id': recipient_id,
-                'level': level
-            }
+            user_id=current_user.id,
+            recipient_type=recipient_type,
+            recipient_id=recipient_id,
+            level=level,
+            created_at=datetime.utcnow()
         )
+        db.session.add(notification)
+        db.session.flush()  # للحصول على ID
 
-        print(f"✅ تم إنشاء الإشعار الرئيسي #{notification.id}")
-
-        # ✅ إضافة الإشعار لكل طالب في StudentNotification
         for student in students:
             try:
-                # إنشاء StudentNotification مباشرة (بدون commit فوري)
-                student_notif = StudentNotification(
+                # إضافة الإشعار للطالب في StudentNotification
+                student_notification = StudentNotification(
                     notification_id=notification.id,
                     student_id=student.id,
                     is_read=False,
                     created_at=datetime.utcnow()
                 )
-                db.session.add(student_notif)
+                db.session.add(student_notification)
                 sent_count += 1
-                print(f"  ✓ أضيف إشعار للطالب: {student.username}")
 
                 # إرسال Push Notification عبر FCM (إذا كان مفعل)
                 if not getattr(student, 'fcm_token', None):
@@ -303,10 +297,60 @@ def send_notification():
 
 # ==================== جلب الإشعارات الخاصة بالطالب ====================
 
+@api_bp.route('/students/api/notifications/<int:student_id>', methods=['GET'])
+def get_student_notifications(student_id):
+    """جلب الإشعارات الخاصة بطالب معين (من StudentNotification + Notification)"""
 
-# ==================== جلب الإشعارات ====================
-# ✅ هذا الـ endpoint موجود في students.py - لا داعي لتكراره
-# استخدم: /students/api/notifications/<student_id> من students.py
+    try:
+        from models.student_model import Student
+
+        # التحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({
+                'success': False,
+                'message': 'الطالب غير موجود',
+                'notifications': []
+            }), 404
+
+        print(f"\n🔍 ========== Get Notifications Request ==========")
+        print(f"user_id: {student_id}")
+
+        # جلب الإشعارات
+        student_notifications = StudentNotification.query.filter_by(
+            student_id=student_id
+        ).join(Notification).order_by(
+            Notification.created_at.desc()
+        ).limit(100).all()
+
+        notifications = []
+        for sn in student_notifications:
+            notifications.append({
+                'id': sn.notification.id,
+                'title': sn.notification.title,
+                'body': sn.notification.body,
+                'created_at': sn.notification.created_at.isoformat() if sn.notification.created_at else None,
+                'is_read': sn.is_read,
+                'read_at': sn.read_at.isoformat() if sn.read_at else None
+            })
+
+        print(f'✅ تم جلب {len(notifications)} إشعار للطالب {student_id}')
+        print("========== End Get Notifications Request ==========\n")
+
+        return jsonify({
+            'success': True,
+            'notifications': notifications
+        }), 200
+
+    except Exception as e:
+        print(f'❌ خطأ في جلب الإشعارات: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'خطأ في الخادم: {str(e)}',
+            'notifications': []
+        }), 500
 
 # ==================== تحديد الإشعار كمقروء ====================
 
