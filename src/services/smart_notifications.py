@@ -100,7 +100,7 @@ class SmartNotificationService:
             student = Student.query.get(analysis.student_id)
             if student and student.fcm_token:
                 fcm_success = self.fcm_service.send_fcm_notification(
-                    token=student.fcm_token,
+                    fcm_token=student.fcm_token,
                     title=title,
                     body=body,
                     data={
