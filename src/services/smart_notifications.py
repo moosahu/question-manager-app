@@ -354,6 +354,7 @@ class SmartNotificationService:
                         created_at=datetime.utcnow()
                     )
                     db.session.add(student_notif)
+                db.session.commit()
             except Exception as e:
                 print(f"❌ خطأ في إنشاء StudentNotifications: {e}")
                 db.session.rollback()
