@@ -100,7 +100,7 @@ class SmartNotificationService:
             student = Student.query.get(analysis.student_id)
             if student and student.fcm_token:
                 fcm_success = self.fcm_service.send_fcm_notification(
-                    token=student.fcm_token,
+                    fcm_token=student.fcm_token,
                     title=title,
                     body=body,
                     data={
@@ -326,18 +326,7 @@ class SmartNotificationService:
             )
             
             # ربطه بالطلاب
-            try:
-                for student_id in student_ids:
-                    student_notif = StudentNotification(
-                        notification_id=notification.id,
-                        student_id=student_id,
-                        is_read=False,
-                        created_at=datetime.utcnow()
-                    )
-                    db.session.add(student_notif)
-            except Exception as e:
-                print(f"❌ خطأ في إنشاء StudentNotifications: {e}")
-                db.session.rollback()
+            StudentNotification.create_for_students(notification.id, student_ids)
             
             # إرسال عبر FCM
             students = Student.query.filter(Student.id.in_(student_ids)).all()
