@@ -168,7 +168,7 @@ def send_notification():
         failed_count = 0
         failed_tokens = []
 
-        # ✅ إنشاء الإشعار باستخدام الدالة الصحيحة
+        # ✅ إنشاء الإشعار الرئيسي باستخدام الدالة الصحيحة
         notification = Notification.create_notification(
             title=title,
             body=body,
@@ -182,21 +182,21 @@ def send_notification():
             }
         )
 
-        # ✅ إضافة الإشعار لكل طالب باستخدام الدالة الصحيحة
+        print(f"✅ تم إنشاء الإشعار الرئيسي #{notification.id}")
+
+        # ✅ إضافة الإشعار لكل طالب في StudentNotification
         for student in students:
             try:
-                # استخدام الدالة الجاهزة من StudentNotification
-                studentnotif = StudentNotification.create_for_student(
-                    notification.id,
-                    student.id
+                # إنشاء StudentNotification مباشرة (بدون commit فوري)
+                student_notif = StudentNotification(
+                    notification_id=notification.id,
+                    student_id=student.id,
+                    is_read=False,
+                    created_at=datetime.utcnow()
                 )
-
-                if not studentnotif:
-                    print(f"❌ فشل إنشاء StudentNotification للطالب: {student.username}")
-                    failed_count += 1
-                    continue
-
+                db.session.add(student_notif)
                 sent_count += 1
+                print(f"  ✓ أضيف إشعار للطالب: {student.username}")
 
                 # إرسال Push Notification عبر FCM (إذا كان مفعل)
                 if not getattr(student, 'fcm_token', None):
@@ -304,8 +304,9 @@ def send_notification():
 # ==================== جلب الإشعارات الخاصة بالطالب ====================
 
 
-# ==================== جلب الإشعارات (تم نقله إلى students.py) ====================
-# هذا الـ endpoint موجود في students.py - لا حاجة لتكراره هنا
+# ==================== جلب الإشعارات ====================
+# ✅ هذا الـ endpoint موجود في students.py - لا داعي لتكراره
+# استخدم: /students/api/notifications/<student_id> من students.py
 
 # ==================== تحديد الإشعار كمقروء ====================
 
