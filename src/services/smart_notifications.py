@@ -114,11 +114,12 @@ class SmartNotificationService:
             student = Student.query.get(analysis.student_id)
             if student and student.fcm_token:
                 print(f"   📤 إرسال FCM للطالب (token موجود)...")
+                # ✅ التوقيع الصحيح: fcm_token, title, body, data
                 fcm_success = self.fcm_service.send_fcm_notification(
-                    token=student.fcm_token,
-                    title=title,
-                    body=body,
-                    data={
+                    student.fcm_token,
+                    title,
+                    body,
+                    {
                         'type': 'ai_alert',
                         'notification_id': str(notification.id),
                         'severity': analysis.severity_level
@@ -363,18 +364,17 @@ class SmartNotificationService:
 
             fcm_results = {'success': 0, 'failed': 0}
             if tokens:
-                # إرسال جماعي
-                success = self.fcm_service.send_multicast_notification(
-                    tokens=tokens,
-                    title=title,
-                    body=body,
-                    data={'notification_id': str(notification.id)}
+                # إرسال جماعي - التوقيع الصحيح: tokens, title, body, data
+                result = self.fcm_service.send_multicast_notification(
+                    tokens,
+                    title,
+                    body,
+                    {'notification_id': str(notification.id)}
                 )
 
-                if success:
-                    fcm_results['success'] = len(tokens)
-                else:
-                    fcm_results['failed'] = len(tokens)
+                if result:
+                    fcm_results['success'] = result.get('success_count', 0)
+                    fcm_results['failed'] = result.get('failure_count', 0)
 
             AILog.log_operation(
                 'bulk_notification_sent',
