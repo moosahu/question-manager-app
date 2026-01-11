@@ -61,7 +61,33 @@ def index():
                 user_id = current_user.id if current_user.is_authenticated else None
                 
                 if user_id:
-                    notifications = Notification.get_user_notifications(user_id, limit=50)
+                    # استخدام StudentNotification للحصول على إشعارات الطالب (يمنع المكررات)
+                student_notifications = []
+                try:
+                    # استيراد StudentNotification
+                    from src.models.notification import StudentNotification
+                    student_notifications = StudentNotification.get_student_notifications(
+                        user_id, 
+                        unread_only=False, 
+                        limit=50
+                    )
+                    # تحويل StudentNotification objects إلى Notification objects
+                    notifications = [sn.notification for sn in student_notifications if sn.notification]
+                    # إزالة المكررات (للأمان)
+                    seen = set()
+                    unique_notifications = []
+                    for notif in notifications:
+                        if notif.id not in seen:
+                            seen.add(notif.id)
+                            unique_notifications.append(notif)
+                    notifications = unique_notifications
+                except Exception as e:
+                    current_app.logger.error(f"Error loading StudentNotifications: {e}")
+                    # fallback: استخدام Notification.get_recent_notifications
+                    try:
+                        notifications = Notification.get_recent_notifications(student_id=user_id, limit=50)
+                    except:
+                        notifications = []
                     unread_count = Notification.get_unread_count(user_id)
                 else:
                     # إذا لم يكن هناك مستخدم، نحصل على الإشعارات العامة
