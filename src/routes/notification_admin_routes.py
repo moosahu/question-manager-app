@@ -8,7 +8,8 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, B
 from flask_login import login_required, current_user
 
 # ✅ استخدم نفس نموذج Notification الذي يستخدمه نظام AI
-from src.models.notification import Notification, StudentNotification
+from src.models.notification import Notification
+from src.models.student_notification import StudentNotification
 
 from extensions import db
 from datetime import datetime
@@ -251,9 +252,11 @@ def send_notification():
                 print(f'❌ خطأ في معالجة الطالب {student.username}: {e}')
                 failed_count += 1
 
-        # تحديث عداد الإرسال في الإشعار
-        notification.sent_count = sent_count
-        notification.success_count = success_count
+        # تحديث عداد الإرسال في الإشعار (حفظ في data)
+        if notification.data is None:
+            notification.data = {}
+        notification.data['sent_count'] = sent_count
+        notification.data['success_count'] = success_count
         db.session.commit()
 
         # حذف FCM tokens غير صالحة
