@@ -1329,9 +1329,9 @@ def api_get_notifications(user_id):
                 'type': n[3],
                 'student_id': n[4],
                 'is_read': n[5],
-                'created_at': convert_utc_to_timezone(n[6], get_user_timezone_from_request()).isoformat() if n[6] else None,
-                'timestamp': convert_utc_to_timezone(n[6], get_user_timezone_from_request()).isoformat() if n[6] else None,
-                'read_at': convert_utc_to_timezone(n[7], get_user_timezone_from_request()).isoformat() if n[7] else None
+                'created_at': n[6].isoformat() if n[6] else None,
+                'timestamp': n[6].isoformat() if n[6] else None,
+                'read_at': n[7].isoformat() if n[7] else None
             })
         
         print(f"✅ تم جلب {len(result)} إشعار")
