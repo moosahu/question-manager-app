@@ -684,7 +684,7 @@ def create_app():
         except ImportError:
             print("Warning: No app context available for notifications init")
 
-    # ✅ استيراد وتسجيل Notification Admin API Blueprint
+    # ✅ تسجيل Notification Admin API Blueprint
     try:
         from src.routes.notification_admin_routes import api_bp as notification_api_bp
         app.register_blueprint(notification_api_bp)
@@ -693,7 +693,7 @@ def create_app():
         try:
             from routes.notification_admin_routes import api_bp as notification_api_bp
             app.register_blueprint(notification_api_bp)
-            print("✅ Notification Admin API blueprint registered successfully (fallback)")
+            print("✅ Notification Admin API blueprint registered (fallback)")
         except ImportError:
             print("⚠️ Warning: notification_admin_routes not available")
 
@@ -2644,4 +2644,5 @@ def get_backup_stats():
             }), 500
 
 # ==================== إرسال الإشعارات ====================
-        }), 500
+
+
