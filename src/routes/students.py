@@ -1390,6 +1390,29 @@ def api_save_notification():
                 'error': 'الطالب غير موجود'
             }), 404
 
+
+        # تحقق من وجود إشعار مماثل في آخر دقيقتين (لتجنب التكرار)
+        existing_check = db.session.execute(
+            db.text("""
+                SELECT id FROM notifications 
+                WHERE student_id = :student_id 
+                AND title = :title 
+                AND message = :message
+                AND created_at > NOW() - INTERVAL '2 minutes'
+                LIMIT 1
+            """),
+            {'student_id': student_id, 'title': title, 'message': message}
+        ).fetchone()
+
+        if existing_check:
+            print(f"⚠️  الإشعار موجود مسبقاً - ID: {existing_check[0]}")
+            return jsonify({
+                'success': True,
+                'message': 'الإشعار موجود مسبقاً',
+                'notification_id': existing_check[0],
+                'duplicate': True
+            }), 200
+
         # إنشاء الإشعار
         notification = Notification(
             student_id=student_id,
