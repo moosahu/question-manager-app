@@ -51,7 +51,7 @@ class AIAssistant:
             # جلب الإعدادات من قاعدة البيانات (الآن آمن لأننا داخل Context)
             try:
                 # نضع هذا داخل try/except لأنه يتصل بقاعدة البيانات
-                self.model_name = AISetting.get_setting('ai_model', 'gemini-2.0-flash-exp')
+                self.model_name = 'gemini-2.0-flash-exp'
                 self.provider = AISetting.get_setting('ai_provider', 'gemini')
             except Exception as db_e:
                 print(f"⚠️ تعذر جلب إعدادات AI من قاعدة البيانات، استخدام الافتراضي: {db_e}")
