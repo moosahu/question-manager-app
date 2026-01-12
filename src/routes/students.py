@@ -1308,6 +1308,23 @@ def api_get_notifications(user_id):
         # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
         notifications = db.session.execute(
             db.text("""
+                -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
+                SELECT 
+                    n.id,
+                    n.title,
+                    n.message,
+                    n.type,
+                    n.student_id,
+                    n.is_read,
+                    n.created_at,
+                    n.read_at
+                FROM notifications n
+                WHERE n.student_id = :student_id
+                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+
+                UNION ALL
+
+                -- إشعارات جديدة (مرتبطة عبر student_notifications)
                 SELECT 
                     n.id,
                     n.title,
@@ -1321,7 +1338,8 @@ def api_get_notifications(user_id):
                 JOIN notifications n ON n.id = sn.notification_id
                 WHERE sn.student_id = :student_id
                   AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
-                ORDER BY sn.created_at DESC
+
+                ORDER BY created_at DESC
                 LIMIT 100
             """),
             {'student_id': user_id}
