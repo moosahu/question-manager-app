@@ -1299,32 +1299,35 @@ def api_save_fcm_token():
 
 @students_bp.route('/api/notifications/<int:user_id>', methods=['GET'])
 def api_get_notifications(user_id):
-    """جلب إشعارات المستخدم"""
+    """جلب إشعارات المستخدم - محدثة لدعم إشعارات الذكاء الاصطناعي"""
     try:
         print(f"\n🔍 ========== Get Notifications Request ==========")
         print(f"user_id: {user_id}")
         
-        # جلب الإشعارات من جدول notifications
+        # ✅ تحديث: إزالة الفلترة حسب النوع لعرض جميع الإشعارات
+        # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
         notifications = db.session.execute(
             db.text("""
                 SELECT id, title, message, type, student_id, is_read, created_at, read_at
                 FROM notifications
-                WHERE student_id = :student_id AND type NOT IN (
-                    'admin_activity', 'security_alert', 'error', 'warning', 'failed_login', 'system_error'
-                )
+                WHERE student_id = :student_id 
+                AND type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
                 ORDER BY created_at DESC
-                LIMIT 50
+                LIMIT 100
             """),
             {'student_id': user_id}
         ).fetchall()
         
         result = []
         for n in notifications:
+            # ✅ طباعة للتتبع
+            print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
+            
             result.append({
                 'id': n[0],
                 'title': n[1],
                 'message': n[2],
-                'body': n[2],
+                'body': n[2],  # ✅ إضافة body للتوافق
                 'notification_type': n[3],
                 'type': n[3],
                 'student_id': n[4],
@@ -1339,7 +1342,8 @@ def api_get_notifications(user_id):
         
         return jsonify({
             'success': True,
-            'notifications': result
+            'notifications': result,
+            'total': len(result)
         }), 200
         
     except Exception as e:
