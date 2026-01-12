@@ -1308,13 +1308,21 @@ def api_get_notifications(user_id):
         # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
         notifications = db.session.execute(
             db.text("""
-                SELECT id, title, message, type, student_id, is_read, created_at, read_at
-                FROM notifications
-                WHERE student_id = :student_id AND type NOT IN (
-                    'admin_activity', 'security_alert', 'error', 'warning', 'failed_login', 'system_error'
-                )
-                ORDER BY created_at DESC
-                LIMIT 50
+                SELECT 
+                    n.id,
+                    n.title,
+                    n.message,
+                    n.type,
+                    sn.student_id,
+                    sn.is_read,
+                    n.created_at,
+                    sn.read_at
+                FROM student_notifications sn
+                JOIN notifications n ON n.id = sn.notification_id
+                WHERE sn.student_id = :student_id
+                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                ORDER BY sn.created_at DESC
+                LIMIT 100
             """),
             {'student_id': user_id}
         ).fetchall()
@@ -1322,7 +1330,7 @@ def api_get_notifications(user_id):
         result = []
         for n in notifications:
             # ✅ طباعة للتتبع
-            #print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
+            #                print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
             
             result.append({
                 'id': n[0],
