@@ -1741,6 +1741,30 @@ def api_save_result():
         print(f"   - النتيجة: {result.score_percentage:.1f}%")
         print(f"   - الإجابات الصحيحة: {result.correct_answers}/{result.total_questions}")
         print(f"   - الوقت المستغرق: {result.time_spent} ثانية")
+        
+        # 🎯 تشغيل نظام Gamification
+        try:
+            print(f"🎯 تشغيل Gamification Hook للطالب {student_id}")
+            result.trigger_gamification_hook()
+            print(f"✅ تم تشغيل Gamification Hook بنجاح")
+        except AttributeError:
+            # إذا الدالة غير موجودة في Model، استخدم الطريقة المباشرة
+            try:
+                from src.hooks.quiz_completion_hook import on_quiz_completed
+                print(f"🎯 تشغيل Gamification Hook (مباشر) للطالب {student_id}")
+                on_quiz_completed(student_id, result)
+                print(f"✅ تم تشغيل Gamification Hook بنجاح")
+            except ImportError as e:
+                print(f"⚠️ Gamification Hook غير متاح: {e}")
+            except Exception as e:
+                print(f"❌ خطأ في Gamification Hook: {e}")
+                import traceback
+                traceback.print_exc()
+        except Exception as e:
+            print(f"❌ خطأ في Gamification Hook: {e}")
+            import traceback
+            traceback.print_exc()
+        
         print(f"========== End Save Result ==========\n")
 
         return jsonify({

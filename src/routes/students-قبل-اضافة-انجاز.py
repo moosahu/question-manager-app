@@ -91,6 +91,15 @@ def admin_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ==================== عرض قائمة الطلاب (الصفحة الرئيسية) ====================
+@students_bp.route('/', methods=['GET'])
+@students_bp.route('', methods=['GET'])
+@login_required
+@admin_required
+def list_students():
+    """عرض قائمة جميع الطلاب مع إمكانية البحث"""
     from src.models.email_verification import RegistrationSettings
     
     search = request.args.get('search', '')
@@ -1290,39 +1299,69 @@ def api_save_fcm_token():
 
 @students_bp.route('/api/notifications/<int:user_id>', methods=['GET'])
 def api_get_notifications(user_id):
-    """جلب إشعارات المستخدم"""
+    """جلب إشعارات المستخدم - محدثة لدعم إشعارات الذكاء الاصطناعي"""
     try:
         print(f"\n🔍 ========== Get Notifications Request ==========")
         print(f"user_id: {user_id}")
         
-        # جلب الإشعارات من جدول notifications
+        # ✅ تحديث: إزالة الفلترة حسب النوع لعرض جميع الإشعارات
+        # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
         notifications = db.session.execute(
             db.text("""
-                SELECT id, title, message, type, student_id, is_read, created_at, read_at
-                FROM notifications
-                WHERE student_id = :student_id AND type NOT IN (
-                    'admin_activity', 'security_alert', 'error', 'warning', 'failed_login', 'system_error'
-                )
+                -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
+                SELECT 
+                    n.id,
+                    n.title,
+                    n.message,
+                    n.type,
+                    n.student_id,
+                    n.is_read,
+                    n.created_at,
+                    n.read_at
+                FROM notifications n
+                WHERE n.student_id = :student_id
+                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+
+                UNION ALL
+
+                -- إشعارات جديدة (مرتبطة عبر student_notifications)
+                SELECT 
+                    n.id,
+                    n.title,
+                    n.message,
+                    n.type,
+                    sn.student_id,
+                    sn.is_read,
+                    n.created_at,
+                    sn.read_at
+                FROM student_notifications sn
+                JOIN notifications n ON n.id = sn.notification_id
+                WHERE sn.student_id = :student_id
+                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+
                 ORDER BY created_at DESC
-                LIMIT 50
+                LIMIT 100
             """),
             {'student_id': user_id}
         ).fetchall()
         
         result = []
         for n in notifications:
+            # ✅ طباعة للتتبع
+            #                print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
+            
             result.append({
                 'id': n[0],
                 'title': n[1],
                 'message': n[2],
-                'body': n[2],
+                'body': n[2],  # ✅ إضافة body للتوافق
                 'notification_type': n[3],
                 'type': n[3],
                 'student_id': n[4],
                 'is_read': n[5],
-                'created_at': n[6].isoformat() if n[6] else None,
-                'timestamp': n[6].isoformat() if n[6] else None,
-                'read_at': n[7].isoformat() if n[7] else None
+                'created_at': convert_utc_to_timezone(n[6], get_user_timezone_from_request()).isoformat() if n[6] else None,
+                'timestamp': convert_utc_to_timezone(n[6], get_user_timezone_from_request()).isoformat() if n[6] else None,
+                'read_at': convert_utc_to_timezone(n[7], get_user_timezone_from_request()).isoformat() if n[7] else None
             })
         
         print(f"✅ تم جلب {len(result)} إشعار")
@@ -1344,6 +1383,98 @@ def api_get_notifications(user_id):
         }), 500
 
 
+
+# حفظ الإشعار عندما يفتحه الطالب في التطبيق
+@students_bp.route('/api/notifications/save', methods=['POST'])
+def api_save_notification():
+    """حفظ إشعار جديد في قاعدة البيانات"""
+    try:
+        from src.models.notification import Notification
+
+        data = request.get_json() or request.form
+
+        student_id = data.get('student_id')
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip() or data.get('body', '').strip()
+        notification_type = data.get('type', 'info')
+
+        print(f"\n🔍 ========== Save Single Notification ==========")
+        print(f"student_id: {student_id}")
+        print(f"title: {title}")
+        print(f"message: {message}")
+        print(f"type: {notification_type}")
+
+        if not student_id or not title or not message:
+            print("❌ بيانات ناقصة")
+            return jsonify({
+                'success': False,
+                'error': 'البيانات المطلوبة: student_id, title, message'
+            }), 400
+
+        # تحقق من وجود الطالب
+        student = Student.query.get(student_id)
+        if not student:
+            print(f"❌ الطالب {student_id} غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الطالب غير موجود'
+            }), 404
+
+
+        # تحقق من وجود إشعار مماثل في آخر دقيقتين (لتجنب التكرار)
+        existing_check = db.session.execute(
+            db.text("""
+                SELECT id FROM notifications 
+                WHERE student_id = :student_id 
+                AND title = :title 
+                AND message = :message
+                AND created_at > NOW() - INTERVAL '2 minutes'
+                LIMIT 1
+            """),
+            {'student_id': student_id, 'title': title, 'message': message}
+        ).fetchone()
+
+        if existing_check:
+            print(f"⚠️  الإشعار موجود مسبقاً - ID: {existing_check[0]}")
+            return jsonify({
+                'success': True,
+                'message': 'الإشعار موجود مسبقاً',
+                'notification_id': existing_check[0],
+                'duplicate': True
+            }), 200
+
+        # إنشاء الإشعار
+        notification = Notification(
+            student_id=student_id,
+            title=title,
+            message=message,
+            type=notification_type,
+            is_read=False,
+            created_at=get_utc_time()
+        )
+
+        db.session.add(notification)
+        db.session.commit()
+
+        print(f"✅ تم حفظ الإشعار بنجاح - ID: {notification.id}")
+        print("========== End Save Single Notification ==========\n")
+
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ الإشعار بنجاح',
+            'notification_id': notification.id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ الإشعار: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @students_bp.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
 def api_mark_notification_read(notification_id):
     """تحديث حالة الإشعار إلى مقروء"""
@@ -1362,16 +1493,29 @@ def api_mark_notification_read(notification_id):
                 'error': 'معرف المستخدم مطلوب'
             }), 400
         
-        # تحديث حالة الإشعار
+        # تحديث حالة الإشعار للطالب في student_notifications
         result = db.session.execute(
             db.text("""
-                UPDATE notifications
+                UPDATE student_notifications
                 SET is_read = TRUE, read_at = NOW()
-                WHERE id = :notification_id AND student_id = :student_id
+                WHERE notification_id = :notification_id
+                  AND student_id = :student_id
             """),
             {'notification_id': notification_id, 'student_id': user_id}
         )
         db.session.commit()
+
+        # (اختياري) تحديث حالة الإشعار العامة في جدول notifications
+        if result.rowcount > 0:
+            db.session.execute(
+                db.text("""
+                    UPDATE notifications
+                    SET is_read = TRUE, read_at = NOW()
+                    WHERE id = :notification_id
+                """),
+                {'notification_id': notification_id}
+            )
+            db.session.commit()
         
         if result.rowcount == 0:
             print(f"❌ الإشعار غير موجود")
@@ -1839,4 +1983,51 @@ def api_delete_notification(notification_id):
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+# ===============================================
+# ✅ جديد: API Endpoint لجلب قائمة الطلاب للبحث
+# ===============================================
+
+@students_bp.route('/api/list', methods=['GET'])
+@login_required
+@admin_required
+def api_get_students_list():
+    """
+    جلب قائمة الطلاب للأدمن (للبحث عند إرسال الإشعارات)
+    يرجع: id, name, username, grade فقط
+    """
+    try:
+        print(f"\n🔍 ========== Get Students List Request ==========")
+        
+        # جلب الطلاب النشطين فقط
+        students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+        
+        # تحويل لـ dictionary مبسط
+        students_list = [{
+            'id': student.id,
+            'name': student.name,
+            'username': student.username,
+            'grade': student.grade,
+            'school': student.school
+        } for student in students]
+        
+        print(f'✅ تم جلب {len(students_list)} طالب')
+        print(f"========== End Get Students List Request ==========\n")
+        
+        return jsonify({
+            'success': True,
+            'students': students_list,
+            'total': len(students_list)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب قائمة الطلاب: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'students': []
         }), 500
