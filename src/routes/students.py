@@ -1322,7 +1322,7 @@ def api_get_notifications(user_id):
         result = []
         for n in notifications:
             # ✅ طباعة للتتبع
-            print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
+            #print(f"   📩 ID:{n[0]} | Type:{n[3]} | Title:{n[1][:30]}")
             
             result.append({
                 'id': n[0],
