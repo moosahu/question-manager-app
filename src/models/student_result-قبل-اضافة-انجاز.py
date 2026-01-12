@@ -63,24 +63,3 @@ class StudentResult(db.Model):
             'time_spent': self.time_spent,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
-    
-    def trigger_gamification_hook(self):
-        """
-        🎯 تشغيل نظام Gamification بعد حفظ النتيجة
-        
-        يتم استدعاء هذه الدالة تلقائياً بعد commit النتيجة
-        لمنح النقاط والتحقق من الإنجازات والتحديات
-        """
-        try:
-            from src.hooks.quiz_completion_hook import on_quiz_completed
-            
-            print(f"🎯 تشغيل Gamification Hook للطالب {self.student_id}")
-            on_quiz_completed(self.student_id, self)
-            print(f"✅ تم تشغيل Gamification Hook بنجاح")
-            
-        except ImportError as e:
-            print(f"⚠️ Gamification Hook غير متاح: {e}")
-        except Exception as e:
-            print(f"❌ خطأ في Gamification Hook: {e}")
-            import traceback
-            traceback.print_exc()
