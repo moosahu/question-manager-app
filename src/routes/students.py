@@ -1310,10 +1310,11 @@ def api_get_notifications(user_id):
             db.text("""
                 SELECT id, title, message, type, student_id, is_read, created_at, read_at
                 FROM notifications
-                WHERE student_id = :student_id 
-                AND type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                WHERE student_id = :student_id AND type NOT IN (
+                    'admin_activity', 'security_alert', 'error', 'warning', 'failed_login', 'system_error'
+                )
                 ORDER BY created_at DESC
-                LIMIT 100
+                LIMIT 50
             """),
             {'student_id': user_id}
         ).fetchall()
