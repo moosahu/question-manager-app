@@ -635,6 +635,25 @@ def create_app():
         print("   - /api/admin/ai/report/daily")
         print("   - /api/admin/ai/status")
     
+    # ✅ تسجيل Gamification Blueprint لنظام النقاط والإنجازات
+    try:
+        from src.routes.gamification_routes import gamification_bp
+        csrf.exempt(gamification_bp)
+        app.register_blueprint(gamification_bp)
+        print("✅ Gamification blueprint registered successfully")
+        print("🎮 Gamification System activated!")
+        print("🏆 Gamification endpoints available at:")
+        print("   - /api/gamification/points/<id>")
+        print("   - /api/gamification/leaderboard")
+        print("   - /api/gamification/achievements/<id>")
+        print("   - /api/gamification/challenge/today")
+        print("   - /api/gamification/challenge/progress/<id>")
+        print("   - /api/gamification/stats/<id>")
+    except ImportError as e:
+        print(f"⚠️ Gamification blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Error registering Gamification blueprint: {e}")
+    
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
         try:

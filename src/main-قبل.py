@@ -2667,6 +2667,7 @@ def api_send_notification():
         
         # استيراد نموذج Student
         from src.models.student import Student
+        from src.models.notification import Notification
         
         # جلب الطلاب المستهدفين
         target_students = []

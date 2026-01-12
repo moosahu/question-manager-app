@@ -288,31 +288,11 @@ def init_scheduler(app):
         replace_existing=True
     )
 
-    # ✅ المهمة 3: تحدي اليوم (8 صباحاً)
-    scheduler.add_job(
-        func=run_daily_challenge_notification,
-        trigger=CronTrigger(hour=8, minute=0),
-        id='daily_challenge',
-        name='تحدي اليوم',
-        replace_existing=True
-    )
-
-    # ✅ المهمة 4: تذكير بالتحدي (8 مساءً)
-    scheduler.add_job(
-        func=run_challenge_reminder,
-        trigger=CronTrigger(hour=20, minute=0),
-        id='challenge_reminder',
-        name='تذكير بالتحدي',
-        replace_existing=True
-    )
-
     # بدء الـ Scheduler
     scheduler.start()
     print("✅ تم تفعيل APScheduler")
     print(f"   - التحليل التلقائي: كل {analysis_interval} ساعات")
     print(f"   - التقرير اليومي: الساعة {daily_report_time}")
-    print(f"   - تحدي اليوم: الساعة 8:00 صباحاً")
-    print(f"   - تذكير التحدي: الساعة 20:00 مساءً")
 
     return scheduler
 
@@ -361,93 +341,3 @@ def run_daily_report():
         except Exception as e:
             print(f"❌ خطأ في run_daily_report: {e}")
             return None
-
-
-# ============================================
-# Gamification Tasks
-# ============================================
-
-def run_daily_challenge_notification():
-    """إرسال تحدي اليوم لجميع الطلاب النشطين"""
-    from src import create_app
-    from src.services.gamification_service import gamification_service
-    
-    app = create_app()
-    with app.app_context():
-        try:
-            print("\n" + "="*50)
-            print(f"⚡ إرسال تحدي اليوم - {datetime.utcnow()}")
-            print("="*50)
-            
-            # توليد تحدي اليوم
-            challenge = gamification_service.generate_daily_challenge()
-            
-            if not challenge:
-                print("❌ فشل توليد التحدي")
-                return
-            
-            print(f"✅ التحدي: {challenge.title}")
-            
-            # الحصول على جميع الطلاب النشطين
-            students = Student.query.filter_by(is_active=True).all()
-            
-            challenge_dict = {
-                'id': challenge.id,
-                'title': challenge.title,
-                'description': challenge.description,
-                'icon': challenge.icon,
-                'points': challenge.points
-            }
-            
-            # إرسال للجميع
-            sent_count = 0
-            for student in students:
-                if student.fcm_token:
-                    success = smart_notifications.send_challenge_notification(
-                        student.id, challenge_dict
-                    )
-                    if success:
-                        sent_count += 1
-            
-            print(f"✅ تم الإرسال لـ {sent_count} من {len(students)} طالب")
-            print("="*50 + "\n")
-            
-        except Exception as e:
-            print(f"❌ خطأ في run_daily_challenge_notification: {e}")
-            import traceback
-            traceback.print_exc()
-
-
-def run_challenge_reminder():
-    """تذكير بتحدي اليوم (مساءً)"""
-    from src import create_app
-    from src.services.gamification_service import gamification_service
-    
-    app = create_app()
-    with app.app_context():
-        try:
-            print("\n" + "="*50)
-            print(f"⏰ تذكير بتحدي اليوم - {datetime.utcnow()}")
-            print("="*50)
-            
-            # الطلاب النشطين
-            students = Student.query.filter_by(is_active=True).all()
-            
-            reminded_count = 0
-            for student in students:
-                # التحقق من حالة التحدي
-                progress = gamification_service.get_student_challenge_progress(student.id)
-                
-                # إرسال تذكير فقط لمن لم يكمل
-                if not progress.get('completed') and not progress.get('no_challenge'):
-                    success = smart_notifications.send_challenge_reminder(student.id)
-                    if success:
-                        reminded_count += 1
-            
-            print(f"✅ تم التذكير لـ {reminded_count} طالب")
-            print("="*50 + "\n")
-            
-        except Exception as e:
-            print(f"❌ خطأ في run_challenge_reminder: {e}")
-            import traceback
-            traceback.print_exc()
