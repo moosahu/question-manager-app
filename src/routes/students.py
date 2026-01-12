@@ -1344,7 +1344,6 @@ def api_get_notifications(user_id):
         return jsonify({
             'success': True,
             'notifications': result,
-            'total': len(result)
         }), 200
         
     except Exception as e:
