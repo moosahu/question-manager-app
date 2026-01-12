@@ -1493,16 +1493,29 @@ def api_mark_notification_read(notification_id):
                 'error': 'معرف المستخدم مطلوب'
             }), 400
         
-        # تحديث حالة الإشعار
+        # تحديث حالة الإشعار للطالب في student_notifications
         result = db.session.execute(
             db.text("""
-                UPDATE notifications
+                UPDATE student_notifications
                 SET is_read = TRUE, read_at = NOW()
-                WHERE id = :notification_id AND student_id = :student_id
+                WHERE notification_id = :notification_id
+                  AND student_id = :student_id
             """),
             {'notification_id': notification_id, 'student_id': user_id}
         )
         db.session.commit()
+
+        # (اختياري) تحديث حالة الإشعار العامة في جدول notifications
+        if result.rowcount > 0:
+            db.session.execute(
+                db.text("""
+                    UPDATE notifications
+                    SET is_read = TRUE, read_at = NOW()
+                    WHERE id = :notification_id
+                """),
+                {'notification_id': notification_id}
+            )
+            db.session.commit()
         
         if result.rowcount == 0:
             print(f"❌ الإشعار غير موجود")
