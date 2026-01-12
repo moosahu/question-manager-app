@@ -81,18 +81,33 @@ class SmartNotificationService:
             print(f"   📝 توليد محتوى الرسالة...")
             title, body = self._generate_message_content(analysis)
             print(f"   ✅ العنوان: {title}")
+            print(f"   📏 طول الرسالة: {len(body)} حرف")
 
-            # إنشاء الإشعار
+            # ✅ تقصير الرسالة إذا كانت طويلة جداً (FCM limit)
+            fcm_body = body
+            full_body = body
+            
+            # FCM لديه حد 4000 حرف للـ notification body
+            # لكن للأمان نستخدم 3000 حرف
+            MAX_FCM_LENGTH = 3000
+            
+            if len(body) > MAX_FCM_LENGTH:
+                print(f"   ⚠️ الرسالة طويلة ({len(body)} حرف) - سيتم اختصارها لـ FCM")
+                fcm_body = body[:MAX_FCM_LENGTH] + "\n\n... [المزيد في التطبيق]"
+                print(f"   ✅ الرسالة المختصرة: {len(fcm_body)} حرف")
+
+            # إنشاء الإشعار (نحفظ النص الكامل في قاعدة البيانات)
             print(f"   💾 إنشاء Notification في قاعدة البيانات...")
             notification = Notification.create_notification(
                 title=title,
-                body=body,
+                body=full_body,  # ✅ النص الكامل في قاعدة البيانات
                 notification_type='ai_alert',
                 created_by_ai=True,
                 ai_analysis_id=analysis.id,
                 data={
                     'severity': analysis.severity_level,
-                    'student_status': analysis.student_status
+                    'student_status': analysis.student_status,
+                    'full_message': full_body,  # ✅ نحفظ النص الكامل في data أيضاً
                 }
             )
             print(f"   ✅ تم إنشاء Notification #{notification.id}")
@@ -110,19 +125,23 @@ class SmartNotificationService:
 
             print(f"   ✅ تم إنشاء StudentNotification #{student_notif.id}")
 
-            # إرسال عبر FCM
+            # إرسال عبر FCM (نستخدم النص المختصر)
             student = Student.query.get(analysis.student_id)
             if student and student.fcm_token:
                 print(f"   📤 إرسال FCM للطالب (token موجود)...")
-                # ✅ التوقيع الصحيح: fcm_token, title, body, data
+                
+                # ✅ نرسل النص المختصر في notification body
+                # والنص الكامل في data
                 fcm_success = self.fcm_service.send_fcm_notification(
                     student.fcm_token,
                     title,
-                    body,
+                    fcm_body,  # ✅ النص المختصر لـ FCM
                     {
                         'type': 'ai_alert',
                         'notification_id': str(notification.id),
-                        'severity': analysis.severity_level
+                        'severity': analysis.severity_level,
+                        'full_message': full_body,  # ✅ النص الكامل في data
+                        'has_more': 'true' if len(body) > MAX_FCM_LENGTH else 'false'
                     }
                 )
                 print(f"   FCM Result: {fcm_success}")
@@ -138,7 +157,7 @@ class SmartNotificationService:
                 action_type='smart_message',
                 action_description=f'رسالة ذكية: {analysis.student_status}',
                 message_title=title,
-                message_body=body,
+                message_body=full_body,  # ✅ النص الكامل
                 message_sent=True,
                 message_sent_at=datetime.utcnow(),
                 success=True
@@ -156,7 +175,11 @@ class SmartNotificationService:
                 description=f'تم إرسال رسالة ذكية للطالب {analysis.student_id}',
                 student_id=analysis.student_id,
                 success=True,
-                data={'notification_id': notification.id}
+                data={
+                    'notification_id': notification.id,
+                    'message_length': len(full_body),
+                    'fcm_length': len(fcm_body)
+                }
             )
 
             return True
@@ -313,11 +336,7 @@ class SmartNotificationService:
 
         # إضافة توصيات AI إذا وجدت
         if analysis.ai_recommendations:
-            # استخراج أول 200 حرف من التوصيات
-            recommendations = analysis.ai_recommendations[:200]
-            if len(analysis.ai_recommendations) > 200:
-                recommendations += "..."
-            body += f"\n\n💡 نصيحة: {recommendations}"
+            body += f"\n\n💡 نصيحة:\n{analysis.ai_recommendations}"
 
         return title, body.strip()
 
@@ -359,18 +378,29 @@ class SmartNotificationService:
                 print(f"❌ خطأ في إنشاء StudentNotifications: {e}")
                 db.session.rollback()
 
+            # ✅ تقصير الرسالة للـ FCM إذا كانت طويلة
+            fcm_body = body
+            MAX_FCM_LENGTH = 3000
+            
+            if len(body) > MAX_FCM_LENGTH:
+                fcm_body = body[:MAX_FCM_LENGTH] + "\n\n... [المزيد في التطبيق]"
+
             # إرسال عبر FCM
             students = Student.query.filter(Student.id.in_(student_ids)).all()
             tokens = [s.fcm_token for s in students if s.fcm_token]
 
             fcm_results = {'success': 0, 'failed': 0}
             if tokens:
-                # إرسال جماعي - التوقيع الصحيح: tokens, title, body, data
+                # إرسال جماعي
                 result = self.fcm_service.send_multicast_notification(
                     tokens,
                     title,
-                    body,
-                    {'notification_id': str(notification.id)}
+                    fcm_body,  # ✅ النص المختصر
+                    {
+                        'notification_id': str(notification.id),
+                        'full_message': body,  # ✅ النص الكامل في data
+                        'has_more': 'true' if len(body) > MAX_FCM_LENGTH else 'false'
+                    }
                 )
 
                 if result:
@@ -384,7 +414,9 @@ class SmartNotificationService:
                 data={
                     'notification_id': notification.id,
                     'student_count': len(student_ids),
-                    'fcm_results': fcm_results
+                    'fcm_results': fcm_results,
+                    'message_length': len(body),
+                    'fcm_length': len(fcm_body)
                 }
             )
 

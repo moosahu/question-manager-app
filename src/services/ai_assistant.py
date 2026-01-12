@@ -253,37 +253,64 @@ class AIAssistant:
 - ابدأ مباشرة بالمحتوى
 - الرد بالعربية فقط، مختصر ومحفز
 """
+        
+        # تحليل المواضيع
+        weak_topics = self.analyze_weak_topics(data['student_id'])
+        
+        # تنسيق المواضيع الضعيفة
+        weak_topics_text = ""
+        if weak_topics:
+            weak_topics_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% ({t['attempts']} محاولة)"
+                for t in weak_topics[:3]  # أضعف 3 مواضيع
+            ])
+        
+        # تنسيق المواضيع القوية
+        strong_topics_text = ""
+        if len(weak_topics) > 3:
+            strong_topics_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in reversed(weak_topics[-3:])  # أقوى 3 مواضيع
+            ])
+        
         return f"""
 أنت مساعد تعليمي ذكي لمنصة كيم تحصيلي (كيمياء).
+
 الطالب: {data['student_name']}
 الصف: {data['grade']}
-الاختبارات: {data['total_quizzes']}
-المعدل: {data['average_score']}%
-المعدل الأخير: {data['recent_average']}%
-الاتجاه: {data['trend_percentage']:+.1f}%
-آخر نشاط: منذ {data['days_since_last_quiz']} يوم
+الإحصائيات العامة:
+- الاختبارات: {data['total_quizzes']}
+- المعدل: {data['average_score']}%
+- المعدل الأخير: {data['recent_average']}%
+- الاتجاه: {data['trend_percentage']:+.1f}%
+- آخر نشاط: منذ {data['days_since_last_quiz']} يوم
 
-المطلوب: اكتب تقريراً بهذا التنسيق بالضبط:
+المواضيع الأضعف:
+{weak_topics_text if weak_topics_text else "لا توجد بيانات كافية"}
+
+المواضيع الأقوى:
+{strong_topics_text if strong_topics_text else "لا توجد بيانات كافية"}
+
+المطلوب: اكتب تحليلاً مخصصاً بهذا التنسيق:
 
 1. تقييم الأداء:
-[تقييم الأداء هنا]
+[ركز على المواضيع الضعيفة بالاسم والنسبة]
 
 2. نقاط القوة:
-[نقاط القوة هنا]
+[اذكر المواضيع القوية بالاسم]
 
-3. المشاكل:
-[المشاكل هنا]
+3. خطة عمل:
+[توصيات محددة للمواضيع الضعيفة - اذكر عدد الاختبارات المطلوبة]
 
-4. توصيات عملية:
-[التوصيات هنا]
-
-5. رسالة تحفيزية:
-[الرسالة هنا]
+4. رسالة تحفيزية:
+[رسالة شخصية قصيرة ومحفزة]
 
 تعليمات مهمة:
 - لا تكتب "أهلاً بك" أو "مرحباً" أو أي ترحيب
 - ابدأ مباشرة بـ "1. تقييم الأداء:"
 - ضع سطر جديد بعد كل عنوان رئيسي
+- اذكر المواضيع بالاسم الكامل
+- كن محدداً في الأرقام
 - استخدم نقاط (•) للقوائم الفرعية
 - الرد بالعربية، مختصر ومهني
 """
@@ -368,6 +395,44 @@ class AIAssistant:
             'issues_detected': issues,
             'strengths': strengths
         }
+    
+    def analyze_weak_topics(self, student_id: int) -> List[Dict]:
+        """تحليل المواضيع التي يضعف فيها الطالب"""
+        from src.models.student_result import StudentResult
+        
+        try:
+            # جلب النتائج
+            results = StudentResult.query.filter_by(student_id=student_id).all()
+            
+            if not results:
+                return []
+            
+            # تجميع حسب المواضيع
+            topics = {}
+            for r in results:
+                topic = r.quiz_name
+                if topic not in topics:
+                    topics[topic] = []
+                topics[topic].append(r.score_percentage)
+            
+            # حساب المتوسط لكل موضوع
+            analyzed_topics = []
+            for topic, scores in topics.items():
+                avg = sum(scores) / len(scores)
+                analyzed_topics.append({
+                    'topic': topic,
+                    'average': round(avg, 1),
+                    'attempts': len(scores),
+                    'last_score': scores[0] if scores else 0,
+                    'trend': 'improving' if len(scores) >= 2 and scores[0] > scores[-1] else 'declining'
+                })
+            
+            # ترتيب من الأضعف للأقوى
+            return sorted(analyzed_topics, key=lambda x: x['average'])
+        
+        except Exception as e:
+            print(f"❌ خطأ في analyze_weak_topics: {e}")
+            return []
     
     def chat_with_ai(self, message: str, context: Optional[Dict] = None) -> str:
         """محادثة حرة مع AI (للأدمن)"""

@@ -7,12 +7,80 @@
 
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
+import random
 
 from src.models.notification import Notification, StudentNotification
 from src.models.ai_analysis import AIAnalysis, AIAction, AILog, AISetting
 from src.models.student import Student
 from src.services.notification_service import NotificationService
 from src.extensions import db
+
+
+# ============================================
+# قوالب الرسائل المتنوعة
+# ============================================
+
+MESSAGE_TEMPLATES = {
+    'morning': {
+        'orange': [
+            "☀️ صباح الخير {name}! وقت مثالي لاختبار سريع",
+            "🌅 يوم جديد، فرصة جديدة للتفوق يا {name}!",
+            "☕ قهوتك الصباحية + اختبار = بداية رائعة",
+        ],
+        'red': [
+            "⚠️ صباح الخير {name}، نحتاج انتباهك اليوم",
+            "🚨 {name}، لنبدأ اليوم بقوة! وقت العودة",
+        ]
+    },
+    'afternoon': {
+        'orange': [
+            "⏰ استراحة الغداء = وقت مراجعة!",
+            "🌤️ وقت الظهيرة، {name}! 5 دقائق لاختبار واحد",
+        ],
+        'red': [
+            "⏰ {name}، ما زلنا ننتظرك!",
+            "🔔 تذكير: لم نرك اليوم يا {name}",
+        ]
+    },
+    'evening': {
+        'orange': [
+            "🌙 ختام يومك باختبار يا {name}؟",
+            "⭐ مسائك تفوق! حان وقت المراجعة",
+            "🌆 {name}، ختام يومك الدراسي؟",
+        ],
+        'red': [
+            "🌙 {name}، آخر فرصة اليوم!",
+            "⏰ قبل نهاية اليوم، {name}! حل اختبار واحد",
+        ]
+    },
+    'weekend': {
+        'orange': [
+            "🎉 نهاية أسبوع رائعة يا {name}!",
+            "☀️ عطلة نهاية الأسبوع = وقت للمراجعة",
+        ],
+        'red': [
+            "📅 نهاية الأسبوع، {name}! وقت التعويض",
+        ]
+    }
+}
+
+
+def get_time_of_day():
+    """تحديد وقت اليوم"""
+    hour = datetime.now().hour
+    if 6 <= hour < 12:
+        return 'morning'
+    elif 12 <= hour < 17:
+        return 'afternoon'
+    elif 17 <= hour < 22:
+        return 'evening'
+    else:
+        return 'night'
+
+
+def is_weekend():
+    """هل اليوم عطلة؟"""
+    return datetime.now().weekday() >= 5  # السبت والأحد
 
 
 class SmartNotificationService:
@@ -305,10 +373,32 @@ class SmartNotificationService:
         status = analysis.student_status
         student = Student.query.get(analysis.student_id)
         student_name = student.name if student else 'الطالب'
+        
+        # تحديد الوقت
+        time_of_day = get_time_of_day()
+        is_weekend_day = is_weekend()
+        
+        # اختيار القالب المناسب
+        if is_weekend_day and severity in ['orange', 'red']:
+            templates = MESSAGE_TEMPLATES.get('weekend', {}).get(severity, [])
+        else:
+            templates = MESSAGE_TEMPLATES.get(time_of_day, {}).get(severity, [])
+        
+        # اختيار رسالة عشوائية
+        if templates:
+            title_template = random.choice(templates)
+            title = title_template.format(name=student_name)
+        else:
+            # fallback للرسائل القديمة
+            if severity == 'red':
+                title = f"⚠️ {student_name}، نحتاج انتباهك!"
+            elif severity == 'orange':
+                title = f"📉 {student_name}، دعنا نعود للمسار الصحيح"
+            else:
+                title = f"👍 {student_name}، أداء رائع!"
 
         # اختيار الرسالة المناسبة
         if severity == 'red':
-            title = f"⚠️ {student_name}، نحتاج انتباهك!"
             body = f"""
 لاحظنا أنك لم تحل اختبارات منذ {analysis.days_since_last_quiz} يوم.
 نحن هنا لمساعدتك! 💪
@@ -316,19 +406,16 @@ class SmartNotificationService:
 """
         elif severity == 'orange':
             if analysis.performance_trend == 'declining':
-                title = f"📉 {student_name}، دعنا نعود للمسار الصحيح"
                 body = f"""
 لاحظنا انخفاض في معدلك مؤخراً.
 لا تقلق! راجع الدروس الأخيرة وحاول مرة أخرى. أنت قادر! 💪
 """
             else:
-                title = f"💡 {student_name}، وقت الممارسة!"
                 body = f"""
 لم نرك منذ {analysis.days_since_last_quiz} يوم.
 حل اختبار سريع اليوم لتحافظ على تقدمك! 🚀
 """
         else:  # yellow or green
-            title = f"👍 {student_name}، أداء رائع!"
             body = f"""
 معدلك الحالي: {analysis.average_score}%
 استمر في المذاكرة المنتظمة! 🌟
@@ -336,7 +423,29 @@ class SmartNotificationService:
 
         # إضافة توصيات AI إذا وجدت
         if analysis.ai_recommendations:
-            body += f"\n\n💡 نصيحة:\n{analysis.ai_recommendations}"
+            # تنظيف التوصيات من أي ترحيبات أو مقدمات زائدة
+            recommendations = analysis.ai_recommendations.strip()
+            
+            # إزالة عبارات الترحيب الشائعة
+            greetings_to_remove = [
+                f"أهلاً بك يا {student_name}،",
+                f"أهلاً بك يا {student_name}",
+                f"مرحباً {student_name}،",
+                f"مرحباً {student_name}",
+                "أهلاً بك،",
+                "أهلاً بك",
+                "مرحباً،",
+                "مرحباً",
+            ]
+            
+            for greeting in greetings_to_remove:
+                if recommendations.startswith(greeting):
+                    recommendations = recommendations[len(greeting):].strip()
+                    break
+            
+            # إضافة التوصيات المنظفة
+            if recommendations:
+                body += f"\n\n💡 نصيحة:\n{recommendations}"
 
         return title, body.strip()
 
@@ -439,6 +548,266 @@ class SmartNotificationService:
                 'error': str(e),
                 'students_count': 0
             }
+    
+    # ============================================
+    # Gamification Notifications
+    # ============================================
+    
+    def send_achievement_notification(self, student_id: int, achievement: Dict) -> bool:
+        """إرسال إشعار بإنجاز جديد"""
+        try:
+            from src.services.gamification_service import gamification_service
+            
+            student = Student.query.get(student_id)
+            if not student:
+                return False
+            
+            points_data = gamification_service.get_student_points(student_id)
+            
+            title = f"🎉 إنجاز جديد!"
+            body = f"""
+{achievement['icon']} {achievement['title']}
+{achievement['description']}
+
+المكافأة: ⭐ +{achievement['points']} نقطة
+
+💰 إجمالي نقاطك: {points_data['total_points']}
+"""
+            
+            # إنشاء الإشعار
+            notification = Notification.create_notification(
+                title=title,
+                body=body,
+                notification_type='achievement',
+                created_by_ai=True,
+                data={
+                    'type': 'achievement',
+                    'achievement_type': achievement['achievement_type'],
+                    'points': achievement['points']
+                }
+            )
+            
+            # ربطه بالطالب
+            student_notif = StudentNotification.create_for_student(
+                notification.id,
+                student_id
+            )
+            
+            # إرسال عبر FCM
+            if student.fcm_token:
+                self.fcm_service.send_fcm_notification(
+                    student.fcm_token,
+                    title,
+                    body,
+                    {
+                        'type': 'achievement',
+                        'notification_id': str(notification.id),
+                        'achievement_type': achievement['achievement_type']
+                    }
+                )
+                student_notif.mark_fcm_sent(True)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ خطأ في send_achievement_notification: {e}")
+            return False
+    
+    def send_challenge_notification(self, student_id: int, challenge: Dict) -> bool:
+        """إرسال إشعار بتحدي اليوم"""
+        try:
+            student = Student.query.get(student_id)
+            if not student:
+                return False
+            
+            title = f"⚡ تحدي اليوم!"
+            body = f"""
+{challenge['icon']} {challenge['title']}
+{challenge['description']}
+
+المكافأة: ⭐ +{challenge['points']} نقطة
+
+⏰ لديك 24 ساعة لإكماله!
+"""
+            
+            # إنشاء الإشعار
+            notification = Notification.create_notification(
+                title=title,
+                body=body,
+                notification_type='challenge',
+                created_by_ai=True,
+                data={
+                    'type': 'challenge',
+                    'challenge_id': challenge['id'],
+                    'points': challenge['points']
+                }
+            )
+            
+            # ربطه بالطالب
+            student_notif = StudentNotification.create_for_student(
+                notification.id,
+                student_id
+            )
+            
+            # إرسال عبر FCM
+            if student.fcm_token:
+                self.fcm_service.send_fcm_notification(
+                    student.fcm_token,
+                    title,
+                    body,
+                    {
+                        'type': 'challenge',
+                        'notification_id': str(notification.id),
+                        'challenge_id': str(challenge['id'])
+                    }
+                )
+                student_notif.mark_fcm_sent(True)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ خطأ في send_challenge_notification: {e}")
+            return False
+    
+    def send_challenge_completion_notification(self, student_id: int, 
+                                               completion_data: Dict) -> bool:
+        """إرسال إشعار بإكمال تحدي"""
+        try:
+            from src.services.gamification_service import gamification_service
+            
+            student = Student.query.get(student_id)
+            if not student:
+                return False
+            
+            points_data = gamification_service.get_student_points(student_id)
+            
+            title = f"🎉 أكملت تحدي اليوم!"
+            body = f"""
+✅ {completion_data['title']}
+{completion_data['description']}
+
+حصلت على:
+⭐ +{completion_data['points_awarded']} نقطة
+
+💰 إجمالي نقاطك: {points_data['total_points']}
+🏆 ترتيبك: #{points_data['rank']}
+"""
+            
+            # إنشاء الإشعار
+            notification = Notification.create_notification(
+                title=title,
+                body=body,
+                notification_type='challenge_complete',
+                created_by_ai=True,
+                data={
+                    'type': 'challenge_complete',
+                    'points': completion_data['points_awarded']
+                }
+            )
+            
+            # ربطه بالطالب
+            student_notif = StudentNotification.create_for_student(
+                notification.id,
+                student_id
+            )
+            
+            # إرسال عبر FCM
+            if student.fcm_token:
+                self.fcm_service.send_fcm_notification(
+                    student.fcm_token,
+                    title,
+                    body,
+                    {
+                        'type': 'challenge_complete',
+                        'notification_id': str(notification.id)
+                    }
+                )
+                student_notif.mark_fcm_sent(True)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ خطأ في send_challenge_completion_notification: {e}")
+            return False
+    
+    def send_challenge_reminder(self, student_id: int) -> bool:
+        """تذكير بتحدي اليوم"""
+        try:
+            from src.services.gamification_service import gamification_service
+            
+            student = Student.query.get(student_id)
+            if not student:
+                return False
+            
+            # الحصول على تقدم التحدي
+            progress = gamification_service.get_student_challenge_progress(student_id)
+            
+            if progress.get('completed'):
+                return False  # تم الإكمال
+            
+            if progress.get('no_challenge'):
+                return False  # لا يوجد تحدي
+            
+            challenge = progress['challenge']
+            current_progress = progress.get('progress', 0)
+            target = progress.get('target', 0)
+            
+            title = f"⏰ تذكير: تحدي اليوم!"
+            
+            if target > 0:
+                body = f"""
+{challenge['icon']} {challenge['title']}
+تقدمك: {current_progress} من {target}
+
+باقي القليل! 💪
+المكافأة: ⭐ {challenge['points']} نقطة
+
+⏰ باقي حتى نهاية اليوم
+"""
+            else:
+                body = f"""
+{challenge['icon']} {challenge['title']}
+{challenge['description']}
+
+لم تبدأ بعد! 
+المكافأة: ⭐ {challenge['points']} نقطة
+
+⏰ باقي حتى نهاية اليوم
+"""
+            
+            # إنشاء الإشعار
+            notification = Notification.create_notification(
+                title=title,
+                body=body,
+                notification_type='challenge_reminder',
+                created_by_ai=True,
+                data={'type': 'challenge_reminder'}
+            )
+            
+            # ربطه بالطالب
+            student_notif = StudentNotification.create_for_student(
+                notification.id,
+                student_id
+            )
+            
+            # إرسال عبر FCM
+            if student.fcm_token:
+                self.fcm_service.send_fcm_notification(
+                    student.fcm_token,
+                    title,
+                    body,
+                    {
+                        'type': 'challenge_reminder',
+                        'notification_id': str(notification.id)
+                    }
+                )
+                student_notif.mark_fcm_sent(True)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ خطأ في send_challenge_reminder: {e}")
+            return False
 
 
 # إنشاء instance واحد
