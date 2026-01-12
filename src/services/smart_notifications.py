@@ -336,7 +336,7 @@ class SmartNotificationService:
 
         # إضافة توصيات AI إذا وجدت
         if analysis.ai_recommendations:
-            body += f"\n\n💡 نصيحة من مؤهل الموسى:\n{analysis.ai_recommendations}"
+            body += f"\n\n💡 نصيحة:\n{analysis.ai_recommendations}"
 
         return title, body.strip()
 
