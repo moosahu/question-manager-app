@@ -2652,7 +2652,7 @@ def get_backup_stats():
 @app.route('/api/admin/send-notification', methods=['POST'])
 @login_required
 def api_send_notification():
-    """إرسال إشعار للطلاب"""
+    """إرسال إشعار للطلاب - نسخة محسّنة (إشعار واحد مشترك)"""
     try:
         # التحقق من أن المستخدم أدمن
         if not current_user.is_admin:
@@ -2684,9 +2684,9 @@ def api_send_notification():
                 'error': 'العنوان والنص مطلوبان'
             }), 400
         
-        # استيراد نموذج Student
+        # استيراد النماذج المطلوبة
         from src.models.student import Student
-        from src.models.notification import Notification
+        from src.models.notification import Notification, StudentNotification
         
         # جلب الطلاب المستهدفين
         target_students = []
@@ -2723,52 +2723,84 @@ def api_send_notification():
             target_students = Student.query.filter_by(grade=level, is_active=True).all()
             print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
         
-        # إرسال الإشعارات
+        if not target_students:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم العثور على مستلمين'
+            }), 400
+        
+        # ✅ إنشاء إشعار واحد مشترك (بدون student_id)
+        notification = Notification(
+            title=notification_title,
+            message=notification_body,
+            type='info',
+            student_id=None,  # ← إشعار مشترك للجميع
+            user_id=current_user.id,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notification)
+        db.session.flush()  # للحصول على notification.id
+        
+        print(f"✅ تم إنشاء الإشعار المشترك: ID={notification.id}")
+        
+        # إرسال الإشعارات عبر FCM وإنشاء StudentNotification لكل طالب
         sent_count = 0
         failed_count = 0
         
         for student in target_students:
-            if not student.fcm_token:
-                print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
-                failed_count += 1
-                continue
-            
             try:
-                # استيراد Firebase Admin SDK
-                import firebase_admin
-                from firebase_admin import messaging
-                
-                # إنشاء الرسالة
-                message = messaging.Message(
-                    notification=messaging.Notification(
-                        title=notification_title,
-                        body=notification_body,
-                    ),
-                    token=student.fcm_token,
-                )
-                
-                # إرسال الرسالة
-                response = messaging.send(message)
-                print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
-                sent_count += 1
-                
-                # حفظ الإشعار في قاعدة البيانات
-                notification = Notification(
-                    title=notification_title,
-                    message=notification_body,
-                    type='info',
+                # ✅ إنشاء StudentNotification لربط الإشعار بالطالب
+                student_notification = StudentNotification(
+                    notification_id=notification.id,
                     student_id=student.id,
-                    user_id=current_user.id,
                     is_read=False,
-                    created_at = datetime.utcnow()
+                    created_at=datetime.utcnow()
                 )
-                db.session.add(notification)
+                db.session.add(student_notification)
+                
+                # إرسال عبر FCM إذا كان لدى الطالب token
+                if student.fcm_token:
+                    # استيراد Firebase Admin SDK
+                    import firebase_admin
+                    from firebase_admin import messaging
+                    
+                    # إنشاء الرسالة
+                    message = messaging.Message(
+                        notification=messaging.Notification(
+                            title=notification_title,
+                            body=notification_body,
+                        ),
+                        token=student.fcm_token,
+                        android=messaging.AndroidConfig(
+                            priority='high',
+                            notification=messaging.AndroidNotification(
+                                click_action='FLUTTER_NOTIFICATION_CLICK',
+                                channel_id='high_importance_channel',
+                            ),
+                        ),
+                        data={
+                            'notification_id': str(notification.id),
+                            'title': notification_title,
+                            'body': notification_body,
+                            'type': 'info',
+                            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+                        }
+                    )
+                    
+                    # إرسال الرسالة
+                    response = messaging.send(message)
+                    print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
+                    sent_count += 1
+                else:
+                    print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
+                    failed_count += 1
                 
             except Exception as e:
                 print(f"❌ خطأ في إرسال الإشعار للطالب {student.username}: {str(e)}")
                 failed_count += 1
         
-        # حفظ التغييرات
+        # حفظ جميع التغييرات
         db.session.commit()
         
         print(f"✅ تم إرسال {sent_count} إشعار بنجاح")
@@ -2784,6 +2816,7 @@ def api_send_notification():
         })
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ خطأ في إرسال الإشعارات: {str(e)}")
         import traceback
         traceback.print_exc()
