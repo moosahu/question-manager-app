@@ -752,17 +752,6 @@ class SmartNotificationService:
             traceback.print_exc()
             db.session.rollback()
             return False
-                        'type': 'challenge_complete',
-                        'notification_id': str(notification.id)
-                    }
-                )
-                student_notif.mark_fcm_sent(True)
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ خطأ في send_challenge_completion_notification: {e}")
-            return False
     
     def send_challenge_reminder(self, student_id: int) -> bool:
         """تذكير بتحدي اليوم"""
