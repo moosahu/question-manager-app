@@ -862,7 +862,7 @@ function loadAllNotificationStats() {
 }
 
 // عرض تفاصيل قراءة إشعار معين
-function viewReadStats(notificationId) {
+window.viewReadStats = function(notificationId) {
     console.log(`🔍 عرض تفاصيل الإشعار ${notificationId}`);
     
     // فتح Modal
@@ -893,7 +893,7 @@ function viewReadStats(notificationId) {
 }
 
 // عرض البيانات في Modal
-function displayReadStats(data) {
+window.displayReadStats = function(data) {
     const { notification, stats, read_students, unread_students } = data;
     
     const html = `
@@ -1008,7 +1008,7 @@ function displayReadStats(data) {
 }
 
 // عرض رسالة خطأ
-function showError(message) {
+window.showError = function(message) {
     document.getElementById('readStatsContent').innerHTML = `
         <div class="alert alert-danger" style="background: rgba(231, 76, 60, 0.2); border: 1px solid rgba(231, 76, 60, 0.4); color: #ecf0f1;">
             <i class="fas fa-exclamation-triangle"></i>
