@@ -32,11 +32,11 @@ class NotificationSystem:
             
             # محاولة استيراد نموذج الإشعارات
             try:
-                from src.models.notification import Notification, StudentNotification
+                from src.models.notification import Notification
                 from src.extensions import db
             except ImportError:
                 try:
-                    from models.notification import Notification, StudentNotification
+                    from models.notification import Notification
                     from extensions import db
                 except ImportError:
                     # إذا لم يتم العثور على النموذج، نسجل فقط
@@ -60,18 +60,6 @@ class NotificationSystem:
             )
             
             db.session.add(notification)
-            db.session.flush()  # ✅ للحصول على notification.id
-            
-            # ✅ إنشاء StudentNotification (مطلوب للقراءة)
-            if student_id is not None:
-                student_notification = StudentNotification(
-                    notification_id=notification.id,
-                    student_id=student_id,
-                    is_read=False,
-                    created_at=datetime.utcnow()
-                )
-                db.session.add(student_notification)
-            
             db.session.commit()
             
             current_app.logger.info(f"Notification created: {title}")
@@ -84,10 +72,6 @@ class NotificationSystem:
                 if has_app_context():
                     current_app.logger.error(f"Error creating notification: {e}")
                     current_app.logger.error(traceback.format_exc())
-                    try:
-                        db.session.rollback()
-                    except:
-                        pass
                 else:
                     print(f"Error creating notification (no app context): {e}")
             except:
