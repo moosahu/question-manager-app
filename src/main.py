@@ -817,7 +817,7 @@ def create_app():
     @app.route("/notifications")
     @login_required
     def view_notifications():
-        from src.models.notification import Notification
+        from src.models.notification import Notification, StudentNotification
         """عرض صفحة الإشعارات المُرسلة للطلاب"""
         try:
             # التحقق من صلاحيات الأدمن
@@ -825,12 +825,14 @@ def create_app():
                 flash('ليس لديك صلاحية الوصول', 'error')
                 return redirect(url_for('dashboard'))
             
-            # جلب الإشعارات المُرسلة من Admin أو التي لها student_id
-            notifications = Notification.query.filter(
-                (Notification.created_by_admin == True) | 
-                (Notification.student_id != None)
-            ).order_by(Notification.created_at.desc()).limit(100).all()
+            # جلب جميع الإشعارات التي لها student_notifications (أي المُرسلة للطلاب)
+            # باستخدام join للتأكد من وجود ارتباط في student_notifications
+            notifications = db.session.query(Notification).join(
+                StudentNotification,
+                Notification.id == StudentNotification.notification_id
+            ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
             
+            # حساب عدد غير المقروءة (من منظور الإشعارات نفسها)
             unread_count = sum(1 for n in notifications if not n.is_read)
             
             return render_template("notifications.html", 
