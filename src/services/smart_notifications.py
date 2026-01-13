@@ -565,33 +565,40 @@ class SmartNotificationService:
             points_data = gamification_service.get_student_points(student_id)
             
             title = f"🎉 إنجاز جديد!"
-            body = f"""
-{achievement['icon']} {achievement['title']}
+            body = f"""{achievement['icon']} {achievement['title']}
 {achievement['description']}
-
 المكافأة: ⭐ +{achievement['points']} نقطة
-
-💰 إجمالي نقاطك: {points_data['total_points']}
-"""
+💰 إجمالي نقاطك: {points_data['total_points']}"""
             
-            # إنشاء الإشعار
-            notification = Notification.create_notification(
+            # ✅ إنشاء الإشعار مع student_id
+            notification = Notification(
                 title=title,
                 body=body,
+                message=body,
                 notification_type='achievement',
+                type='achievement',
+                student_id=student_id,  # ✅ إضافة student_id
                 created_by_ai=True,
                 data={
                     'type': 'achievement',
                     'achievement_type': achievement['achievement_type'],
                     'points': achievement['points']
-                }
+                },
+                created_at=datetime.utcnow()
             )
+            db.session.add(notification)
+            db.session.flush()  # ✅ للحصول على notification.id
             
-            # ربطه بالطالب
-            student_notif = StudentNotification.create_for_student(
-                notification.id,
-                student_id
+            # ✅ ربطه بالطالب في student_notifications
+            student_notif = StudentNotification(
+                notification_id=notification.id,
+                student_id=student_id,
+                is_read=False,
+                fcm_sent=False,
+                created_at=datetime.utcnow()
             )
+            db.session.add(student_notif)
+            db.session.commit()
             
             # إرسال عبر FCM
             if student.fcm_token:
@@ -605,12 +612,17 @@ class SmartNotificationService:
                         'achievement_type': achievement['achievement_type']
                     }
                 )
-                student_notif.mark_fcm_sent(True)
+                # تحديث حالة الإرسال
+                student_notif.fcm_sent = True
+                db.session.commit()
             
             return True
             
         except Exception as e:
             print(f"❌ خطأ في send_achievement_notification: {e}")
+            import traceback
+            traceback.print_exc()
+            db.session.rollback()
             return False
     
     def send_challenge_notification(self, student_id: int, challenge: Dict) -> bool:
@@ -682,34 +694,41 @@ class SmartNotificationService:
             points_data = gamification_service.get_student_points(student_id)
             
             title = f"🎉 أكملت تحدي اليوم!"
-            body = f"""
-✅ {completion_data['title']}
+            body = f"""✅ {completion_data['title']}
 {completion_data['description']}
-
 حصلت على:
 ⭐ +{completion_data['points_awarded']} نقطة
-
 💰 إجمالي نقاطك: {points_data['total_points']}
-🏆 ترتيبك: #{points_data['rank']}
-"""
+🏆 ترتيبك: #{points_data['rank']}"""
             
-            # إنشاء الإشعار
-            notification = Notification.create_notification(
+            # ✅ إنشاء الإشعار مع student_id
+            notification = Notification(
                 title=title,
                 body=body,
+                message=body,
                 notification_type='challenge_complete',
+                type='challenge_complete',
+                student_id=student_id,  # ✅ إضافة student_id
                 created_by_ai=True,
                 data={
                     'type': 'challenge_complete',
                     'points': completion_data['points_awarded']
-                }
+                },
+                created_at=datetime.utcnow()
             )
+            db.session.add(notification)
+            db.session.flush()
             
-            # ربطه بالطالب
-            student_notif = StudentNotification.create_for_student(
-                notification.id,
-                student_id
+            # ✅ ربطه بالطالب في student_notifications
+            student_notif = StudentNotification(
+                notification_id=notification.id,
+                student_id=student_id,
+                is_read=False,
+                fcm_sent=False,
+                created_at=datetime.utcnow()
             )
+            db.session.add(student_notif)
+            db.session.commit()
             
             # إرسال عبر FCM
             if student.fcm_token:
@@ -718,6 +737,21 @@ class SmartNotificationService:
                     title,
                     body,
                     {
+                        'type': 'challenge_complete',
+                        'notification_id': str(notification.id)
+                    }
+                )
+                student_notif.fcm_sent = True
+                db.session.commit()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ خطأ في send_challenge_completion_notification: {e}")
+            import traceback
+            traceback.print_exc()
+            db.session.rollback()
+            return False
                         'type': 'challenge_complete',
                         'notification_id': str(notification.id)
                     }
