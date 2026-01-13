@@ -616,3 +616,75 @@ window.showError = function(message) {
 {% endblock %}
 
 
+<script>
+// تحميل الإشعارات من الصفحة
+function loadNotificationsFromPage() {
+    const notificationItems = document.querySelectorAll('.notification-item');
+    console.log('📋 تم العثور على ' + notificationItems.length + ' إشعار');
+}
+
+// تصفية الإشعارات
+function filterNotifications() {
+    const statusFilter = document.getElementById('filter-status').value;
+    const notificationItems = document.querySelectorAll('.notification-item');
+    
+    notificationItems.forEach(item => {
+        const isRead = item.dataset.read === 'true';
+        let shouldShow = true;
+        
+        if (statusFilter === 'read' && !isRead) shouldShow = false;
+        if (statusFilter === 'unread' && isRead) shouldShow = false;
+        
+        item.style.display = shouldShow ? 'block' : 'none';
+    });
+}
+
+// تحميل إحصائيات القراءة
+function loadAllNotificationStats() {
+    console.log('🔄 بدء تحميل إحصائيات القراءة...');
+    
+    document.querySelectorAll('.notification-stats').forEach(badge => {
+        const notificationId = badge.dataset.notificationId;
+        
+        fetch('/api/admin/notification/' + notificationId + '/read-stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const stats = data.stats;
+                    const percentage = Math.round(stats.read_percentage);
+                    
+                    badge.innerHTML = '<i class="fas fa-eye"></i> ' + 
+                        stats.read_count + '/' + stats.total_students + 
+                        ' (' + percentage + '%)';
+                    
+                    badge.classList.remove('badge-info', 'badge-success', 'badge-warning', 'badge-danger');
+                    if (percentage >= 80) {
+                        badge.classList.add('badge-success');
+                    } else if (percentage >= 50) {
+                        badge.classList.add('badge-info');
+                    } else if (percentage >= 20) {
+                        badge.classList.add('badge-warning');
+                    } else {
+                        badge.classList.add('badge-danger');
+                    }
+                    
+                    console.log('✅ تم تحميل إحصائيات الإشعار ' + notificationId);
+                } else {
+                    badge.innerHTML = '<i class="fas fa-info-circle"></i> لا توجد بيانات';
+                    badge.classList.add('badge-secondary');
+                }
+            })
+            .catch(error => {
+                console.error('❌ خطأ في تحميل إحصائيات الإشعار ' + notificationId + ':', error);
+                badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> خطأ';
+                badge.classList.add('badge-danger');
+            });
+    });
+}
+
+// تحميل عند بداية الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotificationsFromPage();
+    loadAllNotificationStats();
+});
+</script>
