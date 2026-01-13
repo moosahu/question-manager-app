@@ -2729,28 +2729,53 @@ def api_send_notification():
                 'error': 'لم يتم العثور على مستلمين'
             }), 400
         
-        # ✅ إنشاء إشعار واحد مشترك (بدون student_id)
-        notification = Notification(
-            title=notification_title,
-            message=notification_body,
-            type='info',
-            student_id=None,  # ← إشعار مشترك للجميع
-            user_id=current_user.id,
-            is_read=False,
-            created_at=datetime.utcnow()
-        )
-        db.session.add(notification)
-        db.session.flush()  # للحصول على notification.id
+        # ✅ تحديد نوع الإشعار حسب عدد المستلمين
+        is_single_recipient = len(target_students) == 1
         
-        print(f"✅ تم إنشاء الإشعار المشترك: ID={notification.id}")
-        
-        # إرسال الإشعارات عبر FCM وإنشاء StudentNotification لكل طالب
-        sent_count = 0
-        failed_count = 0
-        
-        for student in target_students:
-            try:
-                # ✅ إنشاء StudentNotification لربط الإشعار بالطالب
+        if is_single_recipient:
+            # إرسال لطالب واحد محدد
+            single_student = target_students[0]
+            notification = Notification(
+                title=notification_title,
+                message=notification_body,
+                type='info',
+                student_id=single_student.id,  # ← طالب محدد
+                user_id=current_user.id,
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(notification)
+            db.session.flush()
+            
+            print(f"✅ تم إنشاء إشعار فردي للطالب {single_student.username}: ID={notification.id}")
+            
+            # إنشاء StudentNotification
+            student_notification = StudentNotification(
+                notification_id=notification.id,
+                student_id=single_student.id,
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(student_notification)
+            
+        else:
+            # إرسال جماعي (أكثر من طالب) - إشعار واحد مشترك
+            notification = Notification(
+                title=notification_title,
+                message=notification_body,
+                type='info',
+                student_id=None,  # ← إشعار مشترك للجميع
+                user_id=current_user.id,
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(notification)
+            db.session.flush()
+            
+            print(f"✅ تم إنشاء الإشعار المشترك: ID={notification.id}")
+            
+            # إنشاء StudentNotification لكل طالب
+            for student in target_students:
                 student_notification = StudentNotification(
                     notification_id=notification.id,
                     student_id=student.id,
@@ -2758,7 +2783,13 @@ def api_send_notification():
                     created_at=datetime.utcnow()
                 )
                 db.session.add(student_notification)
-                
+        
+        # إرسال الإشعارات عبر FCM
+        sent_count = 0
+        failed_count = 0
+        
+        for student in target_students:
+            try:
                 # إرسال عبر FCM إذا كان لدى الطالب token
                 if student.fcm_token:
                     # استيراد Firebase Admin SDK
