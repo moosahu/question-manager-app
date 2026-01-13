@@ -1306,40 +1306,44 @@ def api_get_notifications(user_id):
         
         # ✅ تحديث: إزالة الفلترة حسب النوع لعرض جميع الإشعارات
         # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
+        # ✅ استخدام DISTINCT لإزالة التكرار
         notifications = db.session.execute(
             db.text("""
-                -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
-                SELECT 
-                    n.id,
-                    n.title,
-                    n.message,
-                    n.type,
-                    n.student_id,
-                    n.is_read,
-                    n.created_at,
-                    n.read_at
-                FROM notifications n
-                WHERE n.student_id = :student_id
-                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                WITH all_notifications AS (
+                    -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
+                    SELECT 
+                        n.id,
+                        n.title,
+                        n.message,
+                        n.type,
+                        n.student_id,
+                        n.is_read,
+                        n.created_at,
+                        n.read_at
+                    FROM notifications n
+                    WHERE n.student_id = :student_id
+                      AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
 
-                UNION ALL
+                    UNION
 
-                -- إشعارات جديدة (مرتبطة عبر student_notifications)
-                SELECT 
-                    n.id,
-                    n.title,
-                    n.message,
-                    n.type,
-                    sn.student_id,
-                    sn.is_read,
-                    n.created_at,
-                    sn.read_at
-                FROM student_notifications sn
-                JOIN notifications n ON n.id = sn.notification_id
-                WHERE sn.student_id = :student_id
-                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
-
-                ORDER BY created_at DESC
+                    -- إشعارات جديدة (مرتبطة عبر student_notifications)
+                    SELECT 
+                        n.id,
+                        n.title,
+                        n.message,
+                        n.type,
+                        sn.student_id,
+                        sn.is_read,
+                        n.created_at,
+                        sn.read_at
+                    FROM student_notifications sn
+                    JOIN notifications n ON n.id = sn.notification_id
+                    WHERE sn.student_id = :student_id
+                      AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                )
+                SELECT DISTINCT ON (id) *
+                FROM all_notifications
+                ORDER BY id DESC, created_at DESC
                 LIMIT 100
             """),
             {'student_id': user_id}
