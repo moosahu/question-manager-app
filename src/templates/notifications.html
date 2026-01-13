@@ -4,6 +4,102 @@
 
 {% block body_class %}notifications-page{% endblock %}
 
+{% block extra_js %}
+<script>
+// ✅ تعريف الدوال في البداية لضمان توفرها
+window.viewReadStats = function(notificationId) {
+    console.log(`🔍 عرض تفاصيل الإشعار ${notificationId}`);
+    
+    // فتح Modal
+    $('#readStatsModal').modal('show');
+    
+    // إظهار Loader
+    document.getElementById('readStatsContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+            <p class="mt-3">جاري التحميل...</p>
+        </div>
+    `;
+    
+    // جلب البيانات
+    fetch('/api/admin/notification/' + notificationId + '/read-stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.displayReadStats(data);
+            } else {
+                window.showError(data.error || 'حدث خطأ في تحميل البيانات');
+            }
+        })
+        .catch(error => {
+            console.error('❌ خطأ:', error);
+            window.showError('حدث خطأ في الاتصال بالخادم');
+        });
+};
+
+window.displayReadStats = function(data) {
+    const notification = data.notification;
+    const stats = data.stats;
+    const read_students = data.read_students;
+    const unread_students = data.unread_students;
+    
+    let readStudentsList = '';
+    if (read_students && read_students.length > 0) {
+        readStudentsList = read_students.map(s => 
+            '<li style="padding: 8px; border-bottom: 1px solid rgba(52, 152, 219, 0.2);">' +
+            '<i class="fas fa-user text-success"></i> ' + s.name + 
+            ' <span style="color: #95a5a6; font-size: 0.85rem;">(' + s.username + ')</span>' +
+            '</li>'
+        ).join('');
+    } else {
+        readStudentsList = '<li style="color: #95a5a6; padding: 16px; text-align: center;">لا يوجد طلاب قرأوا هذا الإشعار بعد</li>';
+    }
+    
+    let unreadStudentsList = '';
+    if (unread_students && unread_students.length > 0) {
+        unreadStudentsList = unread_students.map(s =>
+            '<li style="padding: 8px; border-bottom: 1px solid rgba(231, 76, 60, 0.2);">' +
+            '<i class="fas fa-user text-danger"></i> ' + s.name +
+            ' <span style="color: #95a5a6; font-size: 0.85rem;">(' + s.username + ')</span>' +
+            '</li>'
+        ).join('');
+    } else {
+        unreadStudentsList = '<li style="color: #95a5a6; padding: 16px; text-align: center;">جميع الطلاب قرأوا الإشعار</li>';
+    }
+    
+    const html = '<div class="notification-details">' +
+        '<div class="alert" style="background: rgba(52, 152, 219, 0.2); border: 1px solid rgba(52, 152, 219, 0.4); color: #ecf0f1;">' +
+        '<h6 class="mb-0"><strong>العنوان:</strong> ' + notification.title + '</h6>' +
+        '</div>' +
+        '<div class="stats-summary row text-center mb-4">' +
+        '<div class="col-md-4"><div class="stat-box" style="background: rgba(52, 73, 94, 0.5); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 10px; padding: 20px;">' +
+        '<div class="stat-number text-primary" style="font-size: 2.5rem; font-weight: bold;">' + stats.total_students + '</div>' +
+        '<div class="stat-label" style="color: #bdc3c7;">إجمالي المستلمين</div></div></div>' +
+        '<div class="col-md-4"><div class="stat-box" style="background: rgba(46, 204, 113, 0.2); border: 1px solid rgba(46, 204, 113, 0.4); border-radius: 10px; padding: 20px;">' +
+        '<div class="stat-number text-success" style="font-size: 2.5rem; font-weight: bold;">' + stats.read_count + '</div>' +
+        '<div class="stat-label" style="color: #bdc3c7;">قرأوا الإشعار</div></div></div>' +
+        '<div class="col-md-4"><div class="stat-box" style="background: rgba(231, 76, 60, 0.2); border: 1px solid rgba(231, 76, 60, 0.4); border-radius: 10px; padding: 20px;">' +
+        '<div class="stat-number text-danger" style="font-size: 2.5rem; font-weight: bold;">' + stats.unread_count + '</div>' +
+        '<div class="stat-label" style="color: #bdc3c7;">لم يقرأوا بعد</div></div></div></div>' +
+        '<div class="row"><div class="col-md-6"><div class="students-list" style="background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 20px;">' +
+        '<h6 class="text-success mb-3"><i class="fas fa-check-circle"></i> الطلاب الذين قرأوا الإشعار</h6>' +
+        '<ul class="list-unstyled" style="max-height: 300px; overflow-y: auto;">' + readStudentsList + '</ul></div></div>' +
+        '<div class="col-md-6"><div class="students-list" style="background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 10px; padding: 20px; margin-bottom: 20px;">' +
+        '<h6 class="text-danger mb-3"><i class="fas fa-times-circle"></i> الطلاب الذين لم يقرأوا الإشعار</h6>' +
+        '<ul class="list-unstyled" style="max-height: 300px; overflow-y: auto;">' + unreadStudentsList + '</ul></div></div></div></div>';
+    
+    document.getElementById('readStatsContent').innerHTML = html;
+};
+
+window.showError = function(message) {
+    document.getElementById('readStatsContent').innerHTML = 
+        '<div class="alert alert-danger" style="text-align: center;">' +
+        '<i class="fas fa-exclamation-triangle"></i> ' + message +
+        '</div>';
+};
+</script>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     /* تحسينات بصرية للإشعارات - متناسقة مع ألوان الهيدر الداكنة */
@@ -862,153 +958,6 @@ function loadAllNotificationStats() {
 }
 
 // عرض تفاصيل قراءة إشعار معين
-window.viewReadStats = function(notificationId) {
-    console.log(`🔍 عرض تفاصيل الإشعار ${notificationId}`);
-    
-    // فتح Modal
-    $('#readStatsModal').modal('show');
-    
-    // إظهار Loader
-    document.getElementById('readStatsContent').innerHTML = `
-        <div class="text-center">
-            <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
-            <p class="mt-3">جاري التحميل...</p>
-        </div>
-    `;
-    
-    // جلب البيانات
-    fetch(`/api/admin/notification/${notificationId}/read-stats`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayReadStats(data);
-            } else {
-                showError(data.error || 'حدث خطأ في تحميل البيانات');
-            }
-        })
-        .catch(error => {
-            console.error('❌ خطأ:', error);
-            showError('حدث خطأ في الاتصال بالخادم');
-        });
-}
-
-// عرض البيانات في Modal
-window.displayReadStats = function(data) {
-    const { notification, stats, read_students, unread_students } = data;
-    
-    const html = `
-        <div class="notification-details">
-            <div class="alert" style="background: rgba(52, 152, 219, 0.2); border: 1px solid rgba(52, 152, 219, 0.4); color: #ecf0f1;">
-                <h6 class="mb-0"><strong>العنوان:</strong> ${notification.title}</h6>
-            </div>
-            
-            <!-- الإحصائيات -->
-            <div class="stats-summary row text-center mb-4">
-                <div class="col-md-4">
-                    <div class="stat-box" style="background: rgba(52, 73, 94, 0.5); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 10px; padding: 20px;">
-                        <div class="stat-number text-primary" style="font-size: 2.5rem; font-weight: bold;">
-                            ${stats.total_students}
-                        </div>
-                        <div class="stat-label" style="color: #bdc3c7;">إجمالي المستلمين</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-box" style="background: rgba(46, 204, 113, 0.2); border: 1px solid rgba(46, 204, 113, 0.4); border-radius: 10px; padding: 20px;">
-                        <div class="stat-number text-success" style="font-size: 2.5rem; font-weight: bold;">
-                            ${stats.read_count}
-                        </div>
-                        <div class="stat-label" style="color: #bdc3c7;">
-                            قرأوا الإشعار
-                            <span class="badge badge-success ml-2">${Math.round(stats.read_percentage)}%</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-box" style="background: rgba(243, 156, 18, 0.2); border: 1px solid rgba(243, 156, 18, 0.4); border-radius: 10px; padding: 20px;">
-                        <div class="stat-number text-warning" style="font-size: 2.5rem; font-weight: bold;">
-                            ${stats.unread_count}
-                        </div>
-                        <div class="stat-label" style="color: #bdc3c7;">لم يقرأوا بعد</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div class="mb-4">
-                <div class="progress" style="height: 30px; background: rgba(52, 73, 94, 0.5); border-radius: 15px;">
-                    <div class="progress-bar bg-success" 
-                         role="progressbar" 
-                         style="width: ${stats.read_percentage}%; font-weight: bold;"
-                         aria-valuenow="${stats.read_percentage}" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        ${Math.round(stats.read_percentage)}% قرأوا
-                    </div>
-                </div>
-            </div>
-            
-            <hr style="border-color: rgba(52, 152, 219, 0.3);">
-            
-            <!-- قوائم الطلاب -->
-            <div class="row">
-                <!-- الطلاب الذين قرأوا -->
-                <div class="col-md-6">
-                    <h6 class="text-success mb-3">
-                        <i class="fas fa-check-circle"></i> 
-                        قرأوا الإشعار (${stats.read_count})
-                    </h6>
-                    ${read_students.length > 0 ? `
-                        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
-                            ${read_students.map(student => `
-                                <div class="list-group-item" style="background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.3); margin-bottom: 5px; border-radius: 5px;">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong style="color: #ecf0f1;">${student.name}</strong>
-                                            <small class="text-muted d-block">${student.username}</small>
-                                        </div>
-                                        <small style="color: #95a5a6;">
-                                            <i class="fas fa-clock"></i>
-                                            ${new Date(student.read_at).toLocaleString('ar-SA', {
-                                                year: 'numeric',
-                                                month: '2-digit',
-                                                day: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </small>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p style="color: #95a5a6;">لا يوجد طلاب قرأوا الإشعار بعد</p>'}
-                </div>
-                
-                <!-- الطلاب الذين لم يقرأوا -->
-                <div class="col-md-6">
-                    <h6 class="text-warning mb-3">
-                        <i class="fas fa-hourglass-half"></i> 
-                        لم يقرأوا بعد (${stats.unread_count})
-                    </h6>
-                    ${unread_students.length > 0 ? `
-                        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
-                            ${unread_students.map(student => `
-                                <div class="list-group-item" style="background: rgba(243, 156, 18, 0.1); border: 1px solid rgba(243, 156, 18, 0.3); margin-bottom: 5px; border-radius: 5px;">
-                                    <strong style="color: #ecf0f1;">${student.name}</strong>
-                                    <small class="text-muted d-block">${student.username}</small>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p style="color: #95a5a6;">جميع الطلاب قرأوا الإشعار! 🎉</p>'}
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('readStatsContent').innerHTML = html;
-}
-
-// عرض رسالة خطأ
-window.showError = function(message) {
     document.getElementById('readStatsContent').innerHTML = `
         <div class="alert alert-danger" style="background: rgba(231, 76, 60, 0.2); border: 1px solid rgba(231, 76, 60, 0.4); color: #ecf0f1;">
             <i class="fas fa-exclamation-triangle"></i>
