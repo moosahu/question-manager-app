@@ -1865,30 +1865,27 @@ def api_save_notifications_batch():
         }), 500
 
 
+from src.models.notification import StudentNotification
+
 @students_bp.route('/api/notifications/unread-count/<int:student_id>', methods=['GET'])
 def api_get_unread_notifications_count(student_id):
     """جلب عدد الإشعارات غير المقروءة"""
     try:
-        from src.models.notification import StudentNotification
-
-        print(f"\n🔍 ========== Get Unread Count Request ==========")
+        print("\n🔍 ========== Get Unread Count Request ==========")
         print(f"student_id: {student_id}")
 
-        # التحقق من وجود الطالب
         student = Student.query.get(student_id)
         if not student:
-            print(f"❌ الطالب غير موجود")
+            print("❌ الطالب غير موجود")
             return jsonify({
                 'success': False,
                 'error': 'الطالب غير موجود',
                 'unread_count': 0
             }), 404
 
-        # جلب عدد الإشعارات غير المقروءة من student_notifications
         unread_count = StudentNotification.get_unread_count(student_id)
-
         print(f"✅ عدد الإشعارات غير المقروءة: {unread_count}")
-        print(f"========== End Get Unread Count Request ==========\n")
+        print("========== End Get Unread Count Request ==========\n")
 
         return jsonify({
             'success': True,
@@ -1907,39 +1904,31 @@ def api_get_unread_notifications_count(student_id):
 
 
 
+
+from src.models.notification import StudentNotification
+
 @students_bp.route('/api/notifications/mark-all-read/<int:student_id>', methods=['POST'])
 def api_mark_all_notifications_read(student_id):
     """تحديث جميع إشعارات الطالب كمقروءة"""
     try:
-        from src.models.notification import StudentNotification
-
-        data = request.get_json() or request.form
-
-        print(f"\n🔍 ========== Mark All Notifications Read Request ==========")
+        print("\n🔍 ========== Mark All Notifications Read Request ==========")
         print(f"student_id: {student_id}")
 
-        # التحقق من وجود الطالب
         student = Student.query.get(student_id)
         if not student:
-            print(f"❌ الطالب غير موجود")
+            print("❌ الطالب غير موجود")
             return jsonify({
                 'success': False,
                 'error': 'الطالب غير موجود'
             }), 404
 
-        # عدد الإشعارات غير المقروءة قبل التحديث (اختياري)
-        updated_count = StudentNotification.get_unread_count(student_id)
-
-        # تحديث جميع إشعارات الطالب كمقروءة في student_notifications
         StudentNotification.mark_all_as_read(student_id)
-
-        print(f"✅ تم تحديث {updated_count} إشعار كمقروء")
-        print(f"========== End Mark All Notifications Read Request ==========\n")
+        print("✅ تم تحديث جميع إشعارات الطالب كمقروءة")
+        print("========== End Mark All Notifications Read Request ==========\n")
 
         return jsonify({
             'success': True,
-            'message': f'تم تحديث {updated_count} إشعار',
-            'updated_count': updated_count
+            'message': 'تم تحديث جميع الإشعارات'
         }), 200
 
     except Exception as e:
@@ -1951,6 +1940,7 @@ def api_mark_all_notifications_read(student_id):
             'success': False,
             'error': str(e)
         }), 500
+
 
 
 
