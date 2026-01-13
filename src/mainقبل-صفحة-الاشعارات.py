@@ -2920,7 +2920,7 @@ def api_notification_read_stats(notification_id):
             'notification': {
                 'id': notification.id,
                 'title': notification.title,
-                'body': notification.body or notification.message,
+                'body': notification.content,
                 'created_at': notification.created_at.isoformat() if notification.created_at else None,
             },
             'stats': {
