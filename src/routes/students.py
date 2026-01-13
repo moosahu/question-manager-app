@@ -1421,25 +1421,51 @@ def api_save_notification():
             }), 404
 
 
-        # تحقق من وجود إشعار مماثل في آخر دقيقتين (لتجنب التكرار)
+        # تحقق من وجود إشعار مماثل (في كلا الجدولين)
         existing_check = db.session.execute(
             db.text("""
+                -- التحقق في جدول notifications
                 SELECT id FROM notifications 
-                WHERE student_id = :student_id 
-                AND title = :title 
+                WHERE title = :title 
                 AND message = :message
-                AND created_at > NOW() - INTERVAL '2 minutes'
+                AND created_at > NOW() - INTERVAL '5 minutes'
                 LIMIT 1
             """),
-            {'student_id': student_id, 'title': title, 'message': message}
+            {'title': title, 'message': message}
         ).fetchone()
 
         if existing_check:
-            print(f"⚠️  الإشعار موجود مسبقاً - ID: {existing_check[0]}")
+            notification_id = existing_check[0]
+            print(f"⚠️  الإشعار موجود مسبقاً - ID: {notification_id}")
+            
+            # التحقق من وجود الربط في student_notifications
+            link_check = db.session.execute(
+                db.text("""
+                    SELECT id FROM student_notifications
+                    WHERE notification_id = :notif_id
+                    AND student_id = :student_id
+                    LIMIT 1
+                """),
+                {'notif_id': notification_id, 'student_id': student_id}
+            ).fetchone()
+            
+            if not link_check:
+                # الإشعار موجود لكن غير مربوط بهذا الطالب - ربطه
+                from src.models.notification import StudentNotification
+                student_notif = StudentNotification(
+                    notification_id=notification_id,
+                    student_id=student_id,
+                    is_read=False,
+                    created_at=get_utc_time()
+                )
+                db.session.add(student_notif)
+                db.session.commit()
+                print(f"✅ تم ربط الإشعار {notification_id} بالطالب {student_id}")
+            
             return jsonify({
                 'success': True,
                 'message': 'الإشعار موجود مسبقاً',
-                'notification_id': existing_check[0],
+                'notification_id': notification_id,
                 'duplicate': True
             }), 200
 
@@ -1477,11 +1503,7 @@ def api_save_notification():
 
 @students_bp.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
 def api_mark_notification_read(notification_id):
-    """
-    ✅ إصلاح: تحديث حالة الإشعار إلى مقروء للطالب فقط
-    - يُحدّث student_notifications.is_read فقط
-    - لا يُحدّث notifications.is_read (لأنه مشترك بين جميع الطلاب)
-    """
+    """تحديث حالة الإشعار إلى مقروء"""
     try:
         data = request.get_json() or request.form
         user_id = data.get('user_id') or data.get('student_id')
@@ -1497,54 +1519,38 @@ def api_mark_notification_read(notification_id):
                 'error': 'معرف المستخدم مطلوب'
             }), 400
         
-        # ✅ تحديث حالة الإشعار للطالب في student_notifications فقط
+        # تحديث حالة الإشعار للطالب في student_notifications
         result = db.session.execute(
             db.text("""
                 UPDATE student_notifications
                 SET is_read = TRUE, read_at = NOW()
                 WHERE notification_id = :notification_id
                   AND student_id = :student_id
-                  AND is_read = FALSE
             """),
             {'notification_id': notification_id, 'student_id': user_id}
         )
         db.session.commit()
 
-        # ⚠️ تم إزالة: تحديث notifications.is_read
-        # السبب: هذا الحقل مشترك بين جميع الطلاب ويسبب مشاكل
-        # - عندما طالب يقرأ الإشعار، يصبح "مقروء" لجميع الطلاب
-        # - عندما طالب آخر يفتحه، يرجع "غير مقروء"
-        # الحل: استخدام student_notifications.is_read لتتبع قراءة كل طالب بشكل مستقل
+        # (اختياري) تحديث حالة الإشعار العامة في جدول notifications
+        if result.rowcount > 0:
+            db.session.execute(
+                db.text("""
+                    UPDATE notifications
+                    SET is_read = TRUE, read_at = NOW()
+                    WHERE id = :notification_id
+                """),
+                {'notification_id': notification_id}
+            )
+            db.session.commit()
         
         if result.rowcount == 0:
-            # ربما الإشعار مقروء مسبقاً أو غير موجود
-            print(f"⚠️ لم يتم تحديث أي صف (ربما مقروء مسبقاً)")
-            
-            # تحقق من وجود الإشعار
-            check = db.session.execute(
-                db.text("""
-                    SELECT is_read FROM student_notifications
-                    WHERE notification_id = :notification_id
-                      AND student_id = :student_id
-                """),
-                {'notification_id': notification_id, 'student_id': user_id}
-            ).fetchone()
-            
-            if not check:
-                print(f"❌ الإشعار غير موجود")
-                return jsonify({
-                    'success': False,
-                    'error': 'الإشعار غير موجود'
-                }), 404
-            else:
-                print(f"✅ الإشعار مقروء مسبقاً")
-                return jsonify({
-                    'success': True,
-                    'message': 'الإشعار مقروء مسبقاً',
-                    'already_read': True
-                }), 200
+            print(f"❌ الإشعار غير موجود")
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار غير موجود'
+            }), 404
         
-        print(f"✅ تم تحديث حالة الإشعار إلى مقروء للطالب {user_id}")
+        print(f"✅ تم تحديث حالة الإشعار إلى مقروء")
         print(f"========== End Mark Notification Read Request ==========\n")
         
         return jsonify({

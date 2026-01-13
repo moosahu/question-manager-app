@@ -2749,8 +2749,14 @@ def api_send_notification():
             
             print(f"✅ تم إنشاء إشعار فردي للطالب {single_student.username}: ID={notification.id}")
             
-            # ✅ لا داعي لإنشاء StudentNotification للإشعار الفردي
-            # لأن الإشعار نفسه مرتبط بالطالب عبر student_id
+            # ✅ إنشاء StudentNotification (مطلوب لعمل القراءة)
+            student_notification = StudentNotification(
+                notification_id=notification.id,
+                student_id=single_student.id,
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(student_notification)
             
         else:
             # إرسال جماعي (أكثر من طالب) - إشعار واحد مشترك
