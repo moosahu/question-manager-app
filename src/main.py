@@ -818,9 +818,19 @@ def create_app():
     @login_required
     def view_notifications():
         from src.models.notification import Notification
-        """عرض صفحة الإشعارات المحسنة"""
+        """عرض صفحة الإشعارات المُرسلة للطلاب"""
         try:
-            notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+            # التحقق من صلاحيات الأدمن
+            if not current_user.is_admin:
+                flash('ليس لديك صلاحية الوصول', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # جلب الإشعارات المُرسلة من Admin أو التي لها student_id
+            notifications = Notification.query.filter(
+                (Notification.created_by_admin == True) | 
+                (Notification.student_id != None)
+            ).order_by(Notification.created_at.desc()).limit(100).all()
+            
             unread_count = sum(1 for n in notifications if not n.is_read)
             
             return render_template("notifications.html", 
@@ -828,6 +838,8 @@ def create_app():
                                  unread_count=unread_count)
         except Exception as e:
             print(f"Error loading notifications page: {e}")
+            import traceback
+            traceback.print_exc()
             flash('حدث خطأ في تحميل صفحة الإشعارات', 'error')
             return redirect(url_for('dashboard'))
     
