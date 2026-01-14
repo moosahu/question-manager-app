@@ -695,25 +695,29 @@ if (typeof window.viewReadStats === 'undefined') {
                                         <i class="fas fa-clock"></i>
                                         <span>{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
                                     </div>
-                                    <!-- ✅ إضافة عرض سريع لإحصائيات القراءة -->
+                                    <!-- ✅ إضافة عرض سريع لإحصائيات القراءة (فقط للإشعارات التي لها طلاب) -->
+                                    {% if notification.notification_type == 'broadcast' or notification.student_id %}
                                     <span class="badge badge-info notification-stats" 
                                           data-notification-id="{{ notification.id }}"
                                           title="إحصائيات القراءة"
                                           style="cursor: help; margin-left: 10px;">
                                         <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
                                     </span>
+                                    {% endif %}
                                     <div class="notification-actions">
                                         <label style="display: flex; align-items: center; gap: 5px; color: #ecf0f1;">
                                             <input type="checkbox" name="notif_ids" value="{{ notification.id }}" class="form-check-input">
                                             تحديد
                                         </label>
-                                        <!-- ✅ زر عرض تفاصيل القراءة -->
+                                        <!-- ✅ زر عرض تفاصيل القراءة (فقط للإشعارات التي لها طلاب) -->
+                                        {% if notification.notification_type == 'broadcast' or notification.student_id %}
                                         <button type="button" 
                                                 class="btn btn-info btn-sm" 
                                                 onclick="viewReadStats({{ notification.id }})"
                                                 title="عرض من قرأ هذا الإشعار">
                                             <i class="fas fa-chart-bar"></i> عرض التفاصيل
                                         </button>
+                                        {% endif %}
                                         {% if not notification.is_read %}
                                             <button type="button" class="btn btn-primary btn-sm" onclick="markAsRead({{ notification.id }})">
                                                 <i class="fas fa-check"></i> تحديد كمقروء
