@@ -10,11 +10,31 @@
 window.viewReadStats = function(notificationId) {
     console.log(`🔍 عرض تفاصيل الإشعار ${notificationId}`);
     
+    // التحقق من وجود Modal والعنصر
+    const modal = document.getElementById('readStatsModal');
+    const contentDiv = document.getElementById('readStatsContent');
+    
+    if (!modal) {
+        console.error('❌ Modal غير موجود في الصفحة');
+        alert('حدث خطأ: Modal غير موجود');
+        return;
+    }
+    
+    if (!contentDiv) {
+        console.error('❌ readStatsContent غير موجود في الصفحة');
+        alert('حدث خطأ: عنصر العرض غير موجود');
+        return;
+    }
+    
     // فتح Modal
-    $('#readStatsModal').modal('show');
+    if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+        jQuery('#readStatsModal').modal('show');
+    } else {
+        modal.style.display = 'block';
+    }
     
     // إظهار Loader
-    document.getElementById('readStatsContent').innerHTML = `
+    contentDiv.innerHTML = `
         <div class="text-center">
             <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
             <p class="mt-3">جاري التحميل...</p>
@@ -88,14 +108,24 @@ window.displayReadStats = function(data) {
         '<h6 class="text-danger mb-3"><i class="fas fa-times-circle"></i> الطلاب الذين لم يقرأوا الإشعار</h6>' +
         '<ul class="list-unstyled" style="max-height: 300px; overflow-y: auto;">' + unreadStudentsList + '</ul></div></div></div></div>';
     
-    document.getElementById('readStatsContent').innerHTML = html;
+    const contentDiv = document.getElementById('readStatsContent');
+    if (contentDiv) {
+        contentDiv.innerHTML = html;
+    } else {
+        console.error('❌ readStatsContent غير موجود');
+    }
 };
 
 window.showError = function(message) {
-    document.getElementById('readStatsContent').innerHTML = 
-        '<div class="alert alert-danger" style="text-align: center;">' +
-        '<i class="fas fa-exclamation-triangle"></i> ' + message +
-        '</div>';
+    const contentDiv = document.getElementById('readStatsContent');
+    if (contentDiv) {
+        contentDiv.innerHTML = 
+            '<div class="alert alert-danger" style="text-align: center;">' +
+            '<i class="fas fa-exclamation-triangle"></i> ' + message +
+            '</div>';
+    } else {
+        console.error('❌ readStatsContent غير موجود');
+    }
 };
 </script>
 {% endblock %}
@@ -496,8 +526,14 @@ window.showError = function(message) {
 if (typeof window.viewReadStats === 'undefined') {
     window.viewReadStats = function(notificationId) {
         console.log('🔍 عرض تفاصيل الإشعار ' + notificationId);
-        $('#readStatsModal').modal('show');
-        document.getElementById('readStatsContent').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-3x text-primary"></i><p class="mt-3">جاري التحميل...</p></div>';
+        const modal = document.getElementById('readStatsModal');
+        const contentDiv = document.getElementById('readStatsContent');
+        if (!modal || !contentDiv) {
+            console.error('❌ Modal أو contentDiv غير موجود');
+            return;
+        }
+        jQuery('#readStatsModal').modal('show');
+        contentDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-3x text-primary"></i><p class="mt-3">جاري التحميل...</p></div>';
         fetch('/api/admin/notification/' + notificationId + '/read-stats')
             .then(response => response.json())
             .then(data => {
@@ -538,11 +574,21 @@ if (typeof window.viewReadStats === 'undefined') {
             '<div class="col-md-6"><div style="background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:10px;padding:20px;"><h6 class="text-danger mb-3"><i class="fas fa-times-circle"></i> الطلاب الذين لم يقرأوا</h6><ul class="list-unstyled" style="max-height:300px;overflow-y:auto;">' + unreadList + '</ul></div></div>' +
             '</div>';
         
-        document.getElementById('readStatsContent').innerHTML = html;
+        var contentDiv = document.getElementById('readStatsContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = html;
+        } else {
+            console.error('❌ readStatsContent غير موجود');
+        }
     };
     
     window.showError = function(message) {
-        document.getElementById('readStatsContent').innerHTML = '<div class="alert alert-danger" style="text-align:center;"><i class="fas fa-exclamation-triangle"></i> ' + message + '</div>';
+        var contentDiv = document.getElementById('readStatsContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = '<div class="alert alert-danger" style="text-align:center;"><i class="fas fa-exclamation-triangle"></i> ' + message + '</div>';
+        } else {
+            console.error('❌ readStatsContent غير موجود');
+        }
     };
 }
 </script>
