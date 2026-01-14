@@ -818,6 +818,7 @@ def create_app():
     @login_required
     def view_notifications():
         from src.models.notification import Notification, StudentNotification
+        from src.models.student import Student
         """عرض صفحة الإشعارات - للأدمن والطلاب"""
         try:
             if current_user.is_admin:
@@ -830,14 +831,23 @@ def create_app():
                 
             else:
                 # ✅ للطالب: جلب الإشعارات المُرسلة له عبر StudentNotification
-                notifications = db.session.query(Notification).join(
-                    StudentNotification,
-                    Notification.id == StudentNotification.notification_id
-                ).filter(
-                    StudentNotification.student_id == current_user.id
-                ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+                # أولاً: نحصل على student_id من جدول students
+                student = Student.query.filter_by(user_id=current_user.id).first()
                 
-                unread_count = sum(1 for n in notifications if not n.is_read)
+                if student:
+                    # جلب الإشعارات من StudentNotification
+                    student_notifications = StudentNotification.query.filter_by(
+                        student_id=student.id
+                    ).order_by(StudentNotification.created_at.desc()).limit(100).all()
+                    
+                    # استخراج الإشعارات من StudentNotification
+                    notifications = [sn.notification for sn in student_notifications if sn.notification]
+                    
+                    # حساب غير المقروءة من StudentNotification
+                    unread_count = sum(1 for sn in student_notifications if not sn.is_read)
+                else:
+                    notifications = []
+                    unread_count = 0
             
             return render_template("notifications.html", 
                                  notifications=notifications, 
