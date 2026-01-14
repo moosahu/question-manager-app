@@ -818,36 +818,22 @@ def create_app():
     @login_required
     def view_notifications():
         from src.models.notification import Notification, StudentNotification
-        from src.models.student import Student
-        """عرض صفحة الإشعارات - للأدمن والطلاب"""
+        """عرض صفحة الإشعارات المُرسلة للطلاب"""
         try:
-            if current_user.is_admin:
-                # ✅ للأدمن: جلب جميع الإشعارات الخاصة به (تسجيل دخول/خروج + إشعارات إدارية)
-                notifications = Notification.query.filter(
-                    Notification.user_id == current_user.id
-                ).order_by(Notification.created_at.desc()).all()
-                
-                unread_count = sum(1 for n in notifications if not n.is_read)
-                
-            else:
-                # ✅ للطالب: جلب الإشعارات المُرسلة له عبر StudentNotification
-                # أولاً: نحصل على student_id من جدول students
-                student = Student.query.filter_by(user_id=current_user.id).first()
-                
-                if student:
-                    # جلب الإشعارات من StudentNotification
-                    student_notifications = StudentNotification.query.filter_by(
-                        student_id=student.id
-                    ).order_by(StudentNotification.created_at.desc()).limit(100).all()
-                    
-                    # استخراج الإشعارات من StudentNotification
-                    notifications = [sn.notification for sn in student_notifications if sn.notification]
-                    
-                    # حساب غير المقروءة من StudentNotification
-                    unread_count = sum(1 for sn in student_notifications if not sn.is_read)
-                else:
-                    notifications = []
-                    unread_count = 0
+            # التحقق من صلاحيات الأدمن
+            if not current_user.is_admin:
+                flash('ليس لديك صلاحية الوصول', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # جلب جميع الإشعارات التي لها student_notifications (أي المُرسلة للطلاب)
+            # باستخدام join للتأكد من وجود ارتباط في student_notifications
+            notifications = db.session.query(Notification).join(
+                StudentNotification,
+                Notification.id == StudentNotification.notification_id
+            ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+            
+            # حساب عدد غير المقروءة (من منظور الإشعارات نفسها)
+            unread_count = sum(1 for n in notifications if not n.is_read)
             
             return render_template("notifications.html", 
                                  notifications=notifications, 
@@ -2770,7 +2756,9 @@ def api_send_notification():
                 student_id=single_student.id,  # ← طالب محدد
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                created_by_admin=True if current_user.is_admin else False,
+                notification_type='broadcast'
             )
             db.session.add(notification)
             db.session.flush()
@@ -2795,7 +2783,9 @@ def api_send_notification():
                 student_id=None,  # ← إشعار مشترك للجميع
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                created_by_admin=True if current_user.is_admin else False,
+                notification_type='broadcast'
             )
             db.session.add(notification)
             db.session.flush()
