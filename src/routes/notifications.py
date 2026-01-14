@@ -64,32 +64,14 @@ def index():
                 if user_id:
                     # ✅ التحقق من نوع المستخدم (أدمن أم طالب)
                     if current_user.is_admin:
-                        # ✅ للأدمن: عرض جميع الإشعارات (بما فيها إشعارات الأدمن الشخصية)
+                        # ✅ للأدمن: عرض جميع الإشعارات الخاصة به
                         try:
-                            # جلب الإشعارات الإدارية الخاصة بالأدمن
-                            admin_notifications = Notification.query.filter(
-                                (Notification.user_id == user_id) | 
-                                (Notification.created_by_admin == True)
-                            ).order_by(Notification.created_at.desc()).limit(50).all()
+                            # جلب جميع إشعارات الأدمن بدون فلترة معقدة
+                            notifications = Notification.query.filter(
+                                Notification.user_id == user_id
+                            ).order_by(Notification.created_at.desc()).all()
                             
-                            # جلب الإشعارات العامة للطلاب أيضاً (لإشعارات البث)
-                            broadcast_notifications = Notification.query.filter(
-                                Notification.notification_type == 'broadcast'
-                            ).order_by(Notification.created_at.desc()).limit(50).all()
-                            
-                            # دمج الإشعارات وإزالة المكررات
-                            all_notifications = admin_notifications + broadcast_notifications
-                            seen = set()
-                            notifications = []
-                            for notif in all_notifications:
-                                if notif.id not in seen:
-                                    seen.add(notif.id)
-                                    notifications.append(notif)
-                            
-                            # ترتيب حسب التاريخ
-                            notifications.sort(key=lambda x: x.created_at if x.created_at else datetime.min, reverse=True)
-                            
-                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن")
+                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن (user_id={user_id})")
                             
                         except Exception as e:
                             current_app.logger.error(f"❌ خطأ في تحميل إشعارات الأدمن: {e}")
