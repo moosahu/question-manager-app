@@ -64,13 +64,27 @@ def index():
                 if user_id:
                     # ✅ التحقق من نوع المستخدم (أدمن أم طالب)
                     if current_user.is_admin:
-                        # ✅ للأدمن: عرض جميع إشعاراته الشخصية فقط
+                        # ✅ للأدمن: عرض إشعاراته الشخصية + الإشعارات المرسلة للطلاب
                         try:
-                            notifications = Notification.query.filter(
-                                Notification.user_id == user_id
+                            # 1. إشعارات الأدمن الشخصية (تسجيل دخول/خروج)
+                            admin_personal_notifications = Notification.query.filter(
+                                Notification.user_id == user_id,
+                                Notification.student_id == None  # إشعارات شخصية فقط
                             ).order_by(Notification.created_at.desc()).all()
                             
-                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن")
+                            # 2. إشعارات مرسلة للطلاب (broadcast أو موجهة)
+                            student_notifications = Notification.query.filter(
+                                Notification.user_id == user_id,
+                                Notification.student_id != None  # إشعارات الطلاب
+                            ).order_by(Notification.created_at.desc()).all()
+                            
+                            # 3. دمج الإشعارات
+                            notifications = admin_personal_notifications + student_notifications
+                            
+                            # 4. ترتيب حسب التاريخ
+                            notifications.sort(key=lambda x: x.created_at if x.created_at else datetime.min, reverse=True)
+                            
+                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن ({len(admin_personal_notifications)} شخصية + {len(student_notifications)} للطلاب)")
                             
                         except Exception as e:
                             current_app.logger.error(f"❌ خطأ في تحميل إشعارات الأدمن: {e}")
