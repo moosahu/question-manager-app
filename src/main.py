@@ -818,21 +818,35 @@ def create_app():
     @login_required
     def view_notifications():
         from src.models.notification import Notification, StudentNotification
-        """عرض صفحة الإشعارات - للأدمن: يعرض إشعاراته الشخصية + المرسلة للطلاب"""
+        from src.models.student import Student
+        """عرض صفحة الإشعارات - للأدمن والطلاب"""
         try:
-            # التحقق من صلاحيات الأدمن
-            if not current_user.is_admin:
-                flash('ليس لديك صلاحية الوصول', 'error')
-                return redirect(url_for('dashboard'))
-            
-            # ✅ للأدمن: جلب جميع إشعاراته (الشخصية + المرسلة للطلاب)
-            # جميع الإشعارات التي أنشأها الأدمن (user_id = الأدمن)
-            notifications = Notification.query.filter(
-                Notification.user_id == current_user.id
-            ).order_by(Notification.created_at.desc()).all()
-            
-            # حساب عدد غير المقروءة
-            unread_count = sum(1 for n in notifications if not n.is_read)
+            if current_user.is_admin:
+                # ✅ للأدمن: جلب جميع إشعاراته (الشخصية + المرسلة للطلاب)
+                notifications = Notification.query.filter(
+                    Notification.user_id == current_user.id
+                ).order_by(Notification.created_at.desc()).all()
+                
+                unread_count = sum(1 for n in notifications if not n.is_read)
+                
+            else:
+                # ✅ للطالب: جلب الإشعارات المرسلة له من StudentNotification
+                # الحصول على student_id من جدول students
+                student = Student.query.filter_by(user_id=current_user.id).first()
+                
+                if student:
+                    # جلب الإشعارات من StudentNotification
+                    notifications = db.session.query(Notification).join(
+                        StudentNotification,
+                        Notification.id == StudentNotification.notification_id
+                    ).filter(
+                        StudentNotification.student_id == student.id
+                    ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+                    
+                    unread_count = sum(1 for n in notifications if not n.is_read)
+                else:
+                    notifications = []
+                    unread_count = 0
             
             return render_template("notifications.html", 
                                  notifications=notifications, 
