@@ -64,16 +64,17 @@ def index():
                 if user_id:
                     # ✅ التحقق من نوع المستخدم (أدمن أم طالب)
                     if current_user.is_admin:
-                        # ✅ للأدمن: جلب جميع إشعاراته (الشخصية + المرسلة للطلاب)
+                        # ✅ للأدمن: عرض جميع الإشعارات الخاصة به
                         try:
+                            # جلب جميع إشعارات الأدمن بدون فلترة معقدة
                             notifications = Notification.query.filter(
                                 Notification.user_id == user_id
                             ).order_by(Notification.created_at.desc()).all()
                             
-                            current_app.logger.info(f"✅ Admin notifications loaded: {len(notifications)}")
+                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن (user_id={user_id})")
                             
                         except Exception as e:
-                            current_app.logger.error(f"❌ Error loading admin notifications: {e}")
+                            current_app.logger.error(f"❌ خطأ في تحميل إشعارات الأدمن: {e}")
                             current_app.logger.error(traceback.format_exc())
                             notifications = []
                     else:
