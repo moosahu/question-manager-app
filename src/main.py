@@ -818,21 +818,19 @@ def create_app():
     @login_required
     def view_notifications():
         from src.models.notification import Notification, StudentNotification
-        """عرض صفحة الإشعارات المُرسلة للطلاب"""
+        """عرض صفحة الإشعارات - للأدمن تعرض جميع إشعاراته"""
         try:
             # التحقق من صلاحيات الأدمن
             if not current_user.is_admin:
                 flash('ليس لديك صلاحية الوصول', 'error')
                 return redirect(url_for('dashboard'))
             
-            # جلب جميع الإشعارات التي لها student_notifications (أي المُرسلة للطلاب)
-            # باستخدام join للتأكد من وجود ارتباط في student_notifications
-            notifications = db.session.query(Notification).join(
-                StudentNotification,
-                Notification.id == StudentNotification.notification_id
-            ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+            # ✅ للأدمن: جلب جميع الإشعارات الخاصة به (تسجيل دخول/خروج + إشعارات الطلاب)
+            notifications = Notification.query.filter(
+                Notification.user_id == current_user.id
+            ).order_by(Notification.created_at.desc()).all()
             
-            # حساب عدد غير المقروءة (من منظور الإشعارات نفسها)
+            # حساب عدد غير المقروءة
             unread_count = sum(1 for n in notifications if not n.is_read)
             
             return render_template("notifications.html", 
@@ -2756,9 +2754,7 @@ def api_send_notification():
                 student_id=single_student.id,  # ← طالب محدد
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow(),
-                created_by_admin=True if current_user.is_admin else False,
-                notification_type='broadcast'
+                created_at=datetime.utcnow()
             )
             db.session.add(notification)
             db.session.flush()
@@ -2783,9 +2779,7 @@ def api_send_notification():
                 student_id=None,  # ← إشعار مشترك للجميع
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow(),
-                created_by_admin=True if current_user.is_admin else False,
-                notification_type='broadcast'
+                created_at=datetime.utcnow()
             )
             db.session.add(notification)
             db.session.flush()
