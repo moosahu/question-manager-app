@@ -1,6 +1,7 @@
 """
 مسارات الإشعارات المحسنة مع وظائف القراءة والحذف
 إصلاح شامل لجميع مشاكل الأزرار والمسارات
+✅ تحديث: عرض إشعارات الأدمن في صفحة الإشعارات
 """
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
@@ -61,33 +62,77 @@ def index():
                 user_id = current_user.id if current_user.is_authenticated else None
                 
                 if user_id:
-                    # استخدام StudentNotification للحصول على إشعارات الطالب (يمنع المكررات)
-                    try:
-                        from src.models.notification import StudentNotification
-                        student_notifications = StudentNotification.get_student_notifications(
-                            user_id, 
-                            unread_only=False, 
-                            limit=50
-                        )
-                        # تحويل StudentNotification objects إلى Notification objects
-                        notifications = [sn.notification for sn in student_notifications if sn.notification]
-
-                        # إزالة المكررات (للأمان)
-                        seen = set()
-                        unique_notifications = []
-                        for notif in notifications:
-                            if notif.id not in seen:
-                                seen.add(notif.id)
-                                unique_notifications.append(notif)
-                        notifications = unique_notifications
-                    except Exception as e:
-                        current_app.logger.error(f"Error loading StudentNotifications: {e}")
-                        # fallback: استخدام get_recent_notifications
+                    # ✅ التحقق من نوع المستخدم (أدمن أم طالب)
+                    if current_user.is_admin:
+                        # ✅ للأدمن: عرض جميع الإشعارات (بما فيها إشعارات الأدمن الشخصية)
                         try:
-                            notifications = Notification.get_recent_notifications(student_id=user_id, limit=50)
-                        except:
+                            # جلب الإشعارات الإدارية الخاصة بالأدمن
+                            admin_notifications = Notification.query.filter(
+                                (Notification.user_id == user_id) | 
+                                (Notification.created_by_admin == True)
+                            ).order_by(Notification.created_at.desc()).limit(50).all()
+                            
+                            # جلب الإشعارات العامة للطلاب أيضاً (لإشعارات البث)
+                            broadcast_notifications = Notification.query.filter(
+                                Notification.notification_type == 'broadcast'
+                            ).order_by(Notification.created_at.desc()).limit(50).all()
+                            
+                            # دمج الإشعارات وإزالة المكررات
+                            all_notifications = admin_notifications + broadcast_notifications
+                            seen = set()
                             notifications = []
-                    unread_count = Notification.get_unread_count(user_id)
+                            for notif in all_notifications:
+                                if notif.id not in seen:
+                                    seen.add(notif.id)
+                                    notifications.append(notif)
+                            
+                            # ترتيب حسب التاريخ
+                            notifications.sort(key=lambda x: x.created_at if x.created_at else datetime.min, reverse=True)
+                            
+                            current_app.logger.info(f"✅ تم تحميل {len(notifications)} إشعار للأدمن")
+                            
+                        except Exception as e:
+                            current_app.logger.error(f"❌ خطأ في تحميل إشعارات الأدمن: {e}")
+                            current_app.logger.error(traceback.format_exc())
+                            notifications = []
+                    else:
+                        # للطالب: جلب الإشعارات المرتبطة بالطالب فقط
+                        try:
+                            from src.models.notification import StudentNotification
+                            student_notifications = StudentNotification.get_student_notifications(
+                                user_id, 
+                                unread_only=False, 
+                                limit=50
+                            )
+                            # تحويل StudentNotification objects إلى Notification objects
+                            notifications = [sn.notification for sn in student_notifications if sn.notification]
+
+                            # إزالة المكررات (للأمان)
+                            seen = set()
+                            unique_notifications = []
+                            for notif in notifications:
+                                if notif.id not in seen:
+                                    seen.add(notif.id)
+                                    unique_notifications.append(notif)
+                            notifications = unique_notifications
+                        except Exception as e:
+                            current_app.logger.error(f"Error loading StudentNotifications: {e}")
+                            # fallback: استخدام get_recent_notifications
+                            try:
+                                notifications = Notification.get_recent_notifications(student_id=user_id, limit=50)
+                            except:
+                                notifications = []
+                    
+                    # حساب عدد الإشعارات غير المقروءة
+                    if current_user.is_admin:
+                        # للأدمن: حساب الإشعارات الإدارية غير المقروءة
+                        unread_count = Notification.query.filter(
+                            (Notification.user_id == user_id) & 
+                            (Notification.is_read == False)
+                        ).count()
+                    else:
+                        # للطالب
+                        unread_count = Notification.get_unread_count(user_id)
                 else:
                     # إذا لم يكن هناك مستخدم، نحصل على الإشعارات العامة
                     notifications = Notification.get_all_notifications(limit=50)
@@ -201,58 +246,82 @@ def api_notifications():
                 user_id = current_user.id if current_user.is_authenticated else None
                 
                 if user_id:
-                    if filter_type == 'unread':
-                        notifications = Notification.get_user_notifications(user_id, limit=per_page, unread_only=True)
-                    elif filter_type == 'read':
-                        all_notifications = Notification.get_user_notifications(user_id, limit=100)
-                        notifications = [n for n in all_notifications if n.is_read][:per_page]
+                    # ✅ للأدمن: جلب الإشعارات الإدارية
+                    if current_user.is_admin:
+                        query = Notification.query.filter(
+                            (Notification.user_id == user_id) | 
+                            (Notification.created_by_admin == True)
+                        )
+                        
+                        if filter_type == 'unread':
+                            query = query.filter(Notification.is_read == False)
+                        elif filter_type == 'read':
+                            query = query.filter(Notification.is_read == True)
+                        
+                        notifications = query.order_by(Notification.created_at.desc()).limit(per_page).all()
+                        total = query.count()
+                        unread_count = Notification.query.filter(
+                            (Notification.user_id == user_id) & 
+                            (Notification.is_read == False)
+                        ).count()
                     else:
-                        notifications = Notification.get_user_notifications(user_id, limit=per_page)
-                    
-                    unread_count = Notification.get_unread_count(user_id)
+                        # للطالب
+                        if filter_type == 'unread':
+                            notifications = Notification.get_user_notifications(user_id, limit=per_page, unread_only=True)
+                        elif filter_type == 'read':
+                            notifications = Notification.get_user_notifications(user_id, limit=per_page, read_only=True)
+                        else:
+                            notifications = Notification.get_user_notifications(user_id, limit=per_page)
+                        
+                        total = len(notifications)
+                        unread_count = Notification.get_unread_count(user_id)
                 else:
-                    notifications = Notification.get_all_notifications(limit=per_page, filter_type=filter_type)
-                    unread_count = Notification.get_unread_count()
+                    notifications = Notification.get_all_notifications(limit=per_page)
+                    total = len(notifications)
+                    unread_count = 0
                 
-                total = len(notifications)
-                notifications_data = [n.to_dict() for n in notifications]
+                notifications_data = []
+                for notif in notifications:
+                    notifications_data.append({
+                        'id': notif.id,
+                        'title': notif.title if hasattr(notif, 'title') else '',
+                        'message': notif.message if hasattr(notif, 'message') else notif.content if hasattr(notif, 'content') else '',
+                        'content': notif.content if hasattr(notif, 'content') else notif.message if hasattr(notif, 'message') else '',
+                        'is_read': notif.is_read if hasattr(notif, 'is_read') else False,
+                        'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(notif, 'created_at') and notif.created_at else '',
+                        'read_at': notif.read_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(notif, 'read_at') and notif.read_at else None,
+                        'type': notif.type if hasattr(notif, 'type') else 'info'
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'notifications': notifications_data,
+                    'total': total,
+                    'page': page,
+                    'per_page': per_page,
+                    'unread_count': unread_count,
+                    'message': 'تم تحميل الإشعارات بنجاح'
+                })
                 
             except Exception as e:
-                current_app.logger.error(f"Database error in API: {e}")
-                # استخدام البيانات التجريبية في حالة الخطأ
-                sample_notifications = create_sample_notifications()
-                
-                if filter_type == 'unread':
-                    notifications_data = [n for n in sample_notifications if not n['is_read']]
-                elif filter_type == 'read':
-                    notifications_data = [n for n in sample_notifications if n['is_read']]
-                else:
-                    notifications_data = sample_notifications
-                
-                total = len(notifications_data)
-                unread_count = len([n for n in sample_notifications if not n['is_read']])
+                current_app.logger.error(f"Database error loading notifications: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': 'خطأ في قاعدة البيانات',
+                    'message': 'حدث خطأ في تحميل الإشعارات',
+                    'notifications': [],
+                    'total': 0,
+                    'unread_count': 0
+                }), 500
         else:
-            # استخدام البيانات التجريبية
-            sample_notifications = create_sample_notifications()
-            
-            if filter_type == 'unread':
-                notifications_data = [n for n in sample_notifications if not n['is_read']]
-            elif filter_type == 'read':
-                notifications_data = [n for n in sample_notifications if n['is_read']]
-            else:
-                notifications_data = sample_notifications
-            
-            total = len(notifications_data)
-            unread_count = len([n for n in sample_notifications if not n['is_read']])
-        
-        return jsonify({
-            'notifications': notifications_data,
-            'total': total,
-            'unread_count': unread_count,
-            'page': page,
-            'per_page': per_page,
-            'total_pages': max(1, (total + per_page - 1) // per_page)
-        })
+            return jsonify({
+                'success': False,
+                'error': 'نظام الإشعارات غير متاح حالياً',
+                'message': 'يرجى المحاولة لاحقاً',
+                'notifications': [],
+                'total': 0,
+                'unread_count': 0
+            }), 503
     
     except Exception as e:
         try:
@@ -260,12 +329,19 @@ def api_notifications():
             current_app.logger.error(f"Error in api_notifications: {e}")
         except:
             print(f"Error in api_notifications: {e}")
-        return jsonify({'error': 'حدث خطأ في تحميل الإشعارات'}), 500
+        return jsonify({
+            'success': False,
+            'error': 'خطأ في النظام',
+            'message': 'حدث خطأ غير متوقع',
+            'notifications': [],
+            'total': 0,
+            'unread_count': 0
+        }), 500
 
 @notifications_bp.route('/api/mark-read/<int:notification_id>', methods=['POST'])
 @login_required
-def mark_read(notification_id):
-    """تحديد إشعار كمقروء مع معالجة أخطاء قاعدة البيانات"""
+def mark_as_read(notification_id):
+    """تحديد إشعار كمقروء"""
     try:
         from flask import current_app
         
@@ -278,27 +354,48 @@ def mark_read(notification_id):
         
         try:
             from src.models.notification import Notification
-            notification = Notification.query.get(notification_id)
             
-            if not notification:
-                return jsonify({
-                    'success': False,
-                    'error': 'الإشعار غير موجود',
-                    'message': 'لم يتم العثور على الإشعار المطلوب'
-                }), 404
+            user_id = current_user.id if current_user.is_authenticated else None
             
-            if notification.mark_as_read():
-                return jsonify({
-                    'success': True,
-                    'message': 'تم تحديد الإشعار كمقروء بنجاح',
-                    'notification_id': notification_id
-                })
+            if user_id:
+                # ✅ للأدمن: تحديث الإشعار مباشرة
+                if current_user.is_admin:
+                    notification = Notification.query.get(notification_id)
+                    if notification:
+                        notification.is_read = True
+                        notification.read_at = datetime.now()
+                        db.session.commit()
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': 'تم تحديد الإشعار كمقروء بنجاح'
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'الإشعار غير موجود'
+                        }), 404
+                else:
+                    # للطالب: استخدام الدالة الموجودة
+                    result = Notification.mark_as_read(notification_id, user_id)
+                    
+                    if result:
+                        return jsonify({
+                            'success': True,
+                            'message': 'تم تحديد الإشعار كمقروء بنجاح'
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'فشل في تحديث الإشعار',
+                            'message': 'حدث خطأ أثناء تحديث الإشعار'
+                        }), 500
             else:
                 return jsonify({
                     'success': False,
-                    'error': 'فشل في تحديث الإشعار',
-                    'message': 'حدث خطأ أثناء تحديث حالة الإشعار'
-                }), 500
+                    'error': 'المستخدم غير مصرح له',
+                    'message': 'يرجى تسجيل الدخول أولاً'
+                }), 401
                 
         except Exception as e:
             current_app.logger.error(f"Database error marking as read: {e}")
@@ -311,19 +408,19 @@ def mark_read(notification_id):
     except Exception as e:
         try:
             from flask import current_app
-            current_app.logger.error(f"Error marking notification as read: {e}")
+            current_app.logger.error(f"Error marking as read: {e}")
         except:
-            print(f"Error marking notification as read: {e}")
+            print(f"Error marking as read: {e}")
         return jsonify({
             'success': False,
             'error': 'خطأ في النظام',
             'message': 'حدث خطأ غير متوقع'
         }), 500
 
-@notifications_bp.route('/api/delete/<int:notification_id>', methods=['POST'])
+@notifications_bp.route('/api/delete/<int:notification_id>', methods=['DELETE', 'POST'])
 @login_required
 def delete_notification(notification_id):
-    """حذف إشعار واحد"""
+    """حذف إشعار"""
     try:
         from flask import current_app
         
@@ -336,27 +433,43 @@ def delete_notification(notification_id):
         
         try:
             from src.models.notification import Notification
-            notification = Notification.query.get(notification_id)
+            from src.extensions import db
             
-            if not notification:
-                return jsonify({
-                    'success': False,
-                    'error': 'الإشعار غير موجود',
-                    'message': 'لم يتم العثور على الإشعار المطلوب'
-                }), 404
+            user_id = current_user.id if current_user.is_authenticated else None
             
-            if notification.delete():
-                return jsonify({
-                    'success': True,
-                    'message': 'تم حذف الإشعار بنجاح',
-                    'notification_id': notification_id
-                })
+            if user_id:
+                notification = Notification.query.get(notification_id)
+                
+                if notification:
+                    # ✅ للأدمن: يمكنه حذف أي إشعار
+                    if current_user.is_admin or notification.user_id == user_id:
+                        if notification.delete():
+                            return jsonify({
+                                'success': True,
+                                'message': 'تم حذف الإشعار بنجاح'
+                            })
+                        else:
+                            return jsonify({
+                                'success': False,
+                                'error': 'فشل في حذف الإشعار',
+                                'message': 'حدث خطأ أثناء حذف الإشعار'
+                            }), 500
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'ليس لديك صلاحية حذف هذا الإشعار'
+                        }), 403
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'الإشعار غير موجود'
+                    }), 404
             else:
                 return jsonify({
                     'success': False,
-                    'error': 'فشل في حذف الإشعار',
-                    'message': 'حدث خطأ أثناء حذف الإشعار'
-                }), 500
+                    'error': 'المستخدم غير مصرح له',
+                    'message': 'يرجى تسجيل الدخول أولاً'
+                }), 401
                 
         except Exception as e:
             current_app.logger.error(f"Database error deleting notification: {e}")
@@ -380,7 +493,7 @@ def delete_notification(notification_id):
 
 @notifications_bp.route('/api/mark-all-read', methods=['POST'])
 @login_required
-def mark_all_read():
+def mark_all_as_read():
     """تحديد جميع الإشعارات كمقروءة"""
     try:
         from flask import current_app
@@ -394,22 +507,39 @@ def mark_all_read():
         
         try:
             from src.models.notification import Notification
+            from src.extensions import db
             
             user_id = current_user.id if current_user.is_authenticated else None
-            count = Notification.mark_all_as_read(user_id)
             
-            if count is not False:
+            # ✅ للأدمن: تحديث جميع إشعاراته
+            if current_user.is_admin:
+                count = Notification.query.filter(
+                    (Notification.user_id == user_id) & 
+                    (Notification.is_read == False)
+                ).update({'is_read': True, 'read_at': datetime.now()})
+                db.session.commit()
+                
                 return jsonify({
                     'success': True,
                     'message': f'تم تحديد {count} إشعار كمقروء بنجاح',
                     'count': count
                 })
             else:
-                return jsonify({
-                    'success': False,
-                    'error': 'فشل في تحديث الإشعارات',
-                    'message': 'حدث خطأ أثناء تحديث الإشعارات'
-                }), 500
+                # للطالب
+                count = Notification.mark_all_as_read(user_id)
+                
+                if count is not False:
+                    return jsonify({
+                        'success': True,
+                        'message': f'تم تحديد {count} إشعار كمقروء بنجاح',
+                        'count': count
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'فشل في تحديث الإشعارات',
+                        'message': 'حدث خطأ أثناء تحديث الإشعارات'
+                    }), 500
                 
         except Exception as e:
             current_app.logger.error(f"Database error marking all as read: {e}")
@@ -461,8 +591,10 @@ def delete_multiple():
             deleted_count = 0
             for notification_id in notification_ids:
                 notification = Notification.query.get(notification_id)
-                if notification and notification.delete():
-                    deleted_count += 1
+                # ✅ للأدمن: يمكنه حذف أي إشعار
+                if notification and (current_user.is_admin or notification.user_id == current_user.id):
+                    if notification.delete():
+                        deleted_count += 1
             
             return jsonify({
                 'success': True,

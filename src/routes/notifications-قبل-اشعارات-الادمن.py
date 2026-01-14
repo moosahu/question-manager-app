@@ -61,7 +61,32 @@ def index():
                 user_id = current_user.id if current_user.is_authenticated else None
                 
                 if user_id:
-                    notifications = Notification.get_user_notifications(user_id, limit=50)
+                    # استخدام StudentNotification للحصول على إشعارات الطالب (يمنع المكررات)
+                    try:
+                        from src.models.notification import StudentNotification
+                        student_notifications = StudentNotification.get_student_notifications(
+                            user_id, 
+                            unread_only=False, 
+                            limit=50
+                        )
+                        # تحويل StudentNotification objects إلى Notification objects
+                        notifications = [sn.notification for sn in student_notifications if sn.notification]
+
+                        # إزالة المكررات (للأمان)
+                        seen = set()
+                        unique_notifications = []
+                        for notif in notifications:
+                            if notif.id not in seen:
+                                seen.add(notif.id)
+                                unique_notifications.append(notif)
+                        notifications = unique_notifications
+                    except Exception as e:
+                        current_app.logger.error(f"Error loading StudentNotifications: {e}")
+                        # fallback: استخدام get_recent_notifications
+                        try:
+                            notifications = Notification.get_recent_notifications(student_id=user_id, limit=50)
+                        except:
+                            notifications = []
                     unread_count = Notification.get_unread_count(user_id)
                 else:
                     # إذا لم يكن هناك مستخدم، نحصل على الإشعارات العامة
@@ -472,3 +497,105 @@ try:
 except Exception as e:
     print(f"Error during notifications blueprint initialization: {e}")
 
+
+# ==================== عرض تفاصيل الإشعار وإحصائيات القراءة (في notifications blueprint) ====================
+@notifications_bp.route('/api/admin/notification/<int:notification_id>/read-stats', methods=['GET'])
+@login_required
+def get_notification_read_stats(notification_id):
+    """
+    جلب تفاصيل الإشعار وإحصائيات القراءة
+    يعرض الطلاب الذين قرأوا والذين لم يقرأوا الإشعار
+    """
+    try:
+        from flask import current_app
+        
+        if not notifications_model_available:
+            return jsonify({
+                'success': False,
+                'error': 'نظام الإشعارات غير متاح حالياً'
+            }), 503
+        
+        try:
+            from src.models.notification import Notification, StudentNotification
+            from src.models.student import Student
+            
+            # جلب الإشعار
+            notification = Notification.query.get(notification_id)
+            if not notification:
+                return jsonify({
+                    'success': False,
+                    'error': 'الإشعار غير موجود'
+                }), 404
+            
+            # جلب جميع الطلاب النشطين
+            all_students = Student.query.filter_by(is_active=True).all()
+            
+            # جلب الطلاب الذين قرأوا الإشعار
+            read_students = []
+            unread_students = []
+            
+            for student in all_students:
+                # البحث عن StudentNotification
+                student_notif = StudentNotification.query.filter_by(
+                    student_id=student.id,
+                    notification_id=notification_id
+                ).first()
+                
+                if student_notif and student_notif.is_read:
+                    read_students.append({
+                        'id': student.id,
+                        'name': student.name,
+                        'username': student.username,
+                        'read_at': student_notif.read_at.isoformat() if student_notif.read_at else None
+                    })
+                else:
+                    unread_students.append({
+                        'id': student.id,
+                        'name': student.name,
+                        'username': student.username
+                    })
+            
+            # حساب الإحصائيات
+            total_students = len(all_students)
+            read_count = len(read_students)
+            unread_count = len(unread_students)
+            
+            current_app.logger.info(f"Loaded read stats for notification {notification_id}: {read_count} read, {unread_count} unread")
+            
+            return jsonify({
+                'success': True,
+                'notification': {
+                    'id': notification.id,
+                    'title': notification.title,
+                    'message': notification.message or notification.content,
+                    'created_at': notification.created_at.isoformat() if notification.created_at else None
+                },
+                'stats': {
+                    'total_students': total_students,
+                    'read_count': read_count,
+                    'unread_count': unread_count,
+                    'read_percentage': round((read_count / total_students * 100) if total_students > 0 else 0, 2)
+                },
+                'read_students': read_students,
+                'unread_students': unread_students
+            }), 200
+            
+        except Exception as e:
+            current_app.logger.error(f"Database error loading read stats: {e}")
+            current_app.logger.error(traceback.format_exc())
+            return jsonify({
+                'success': False,
+                'error': f'خطأ في جلب البيانات: {str(e)}'
+            }), 500
+    
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.error(f"Error in get_notification_read_stats: {e}")
+        except:
+            print(f"Error in get_notification_read_stats: {e}")
+        
+        return jsonify({
+            'success': False,
+            'error': 'حدث خطأ في النظام'
+        }), 500
