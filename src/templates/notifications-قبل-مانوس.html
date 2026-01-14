@@ -743,32 +743,3 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAllNotificationStats();
 });
 </script>
-
-<!-- Modal لعرض تفاصيل الإشعار وإحصائيات القراءة -->
-<div class="modal fade" id="readStatsModal" tabindex="-1" role="dialog" aria-labelledby="readStatsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content" style="background: rgba(44, 62, 80, 0.95); border: 1px solid rgba(52, 152, 219, 0.3); border-radius: 15px;">
-            <div class="modal-header" style="border-bottom: 1px solid rgba(52, 152, 219, 0.2);">
-                <h5 class="modal-title" id="readStatsModalLabel" style="color: #ecf0f1;">تفاصيل الإشعار وإحصائيات القراءة</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #ecf0f1;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" style="color: #ecf0f1;">
-                <div id="readStatsContent">
-                    <div class="text-center">
-                        <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
-                        <p class="mt-3">جاري التحميل...</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid rgba(52, 152, 219, 0.2);">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" style="background: rgba(52, 73, 94, 0.8); border: 1px solid rgba(52, 152, 219, 0.3); color: #ecf0f1;">
-                    إغلاق
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-</html>
