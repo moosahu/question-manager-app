@@ -379,7 +379,7 @@ def get_settings():
         result = {}
         for setting in settings:
             result[setting.setting_key] = {
-                'value': setting.get_value(),
+                'value': setting.get_typed_value(),
                 'type': setting.setting_type,
                 'description': setting.description
             }
@@ -436,7 +436,7 @@ def update_setting(setting_key):
             'message': 'تم التحديث بنجاح',
             'data': {
                 'key': setting.setting_key,
-                'value': setting.get_value()
+                'value': setting.get_typed_value()
             }
         })
         

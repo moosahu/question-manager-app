@@ -247,21 +247,6 @@ class AILog(db.Model):
     def __repr__(self):
         return f'<AILog {self.id}: {self.operation_type}>'
     
-    def to_dict(self):
-        """تحويل إلى dictionary"""
-        return {
-            'id': self.id,
-            'operation_type': self.operation_type,
-            'student_id': self.student_id,
-            'description': self.description,
-            'success': self.success,
-            'error_message': self.error_message,
-            'data': self.data,
-            'duration_ms': int(self.duration_seconds * 1000) if self.duration_seconds else None,
-            'duration_seconds': self.duration_seconds,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-        }
-    
     @staticmethod
     def log_operation(operation_type, description=None, student_id=None, 
                      success=True, error_message=None, data=None, duration_seconds=None):
