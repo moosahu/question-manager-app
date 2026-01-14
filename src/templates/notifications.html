@@ -127,6 +127,23 @@ window.showError = function(message) {
         console.error('❌ readStatsContent غير موجود');
     }
 };
+
+window.closeReadStatsModal = function() {
+    const modal = document.getElementById('readStatsModal');
+    if (modal) {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+            jQuery('#readStatsModal').modal('hide');
+        } else {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            document.body.style.overflow = 'auto';
+        }
+    }
+};
 </script>
 {% endblock %}
 
@@ -590,6 +607,23 @@ if (typeof window.viewReadStats === 'undefined') {
             console.error('❌ readStatsContent غير موجود');
         }
     };
+    
+    window.closeReadStatsModal = function() {
+        var modal = document.getElementById('readStatsModal');
+        if (modal) {
+            if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+                jQuery('#readStatsModal').modal('hide');
+            } else {
+                modal.style.display = 'none';
+                modal.classList.remove('show');
+                var backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                document.body.style.overflow = 'auto';
+            }
+        }
+    };
 }
 </script>
 <div class="notifications-container">
@@ -733,7 +767,7 @@ if (typeof window.viewReadStats === 'undefined') {
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid rgba(52, 152, 219, 0.2);">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" style="background: rgba(52, 73, 94, 0.8); border: 1px solid rgba(52, 152, 219, 0.3); color: #ecf0f1;">
+                    <button type="button" class="btn btn-secondary" onclick="closeReadStatsModal()" style="background: rgba(52, 73, 94, 0.8); border: 1px solid rgba(52, 152, 219, 0.3); color: #ecf0f1;">
                         إغلاق
                     </button>
                 </div>
