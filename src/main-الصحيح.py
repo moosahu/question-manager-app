@@ -2756,9 +2756,7 @@ def api_send_notification():
                 student_id=single_student.id,  # ← طالب محدد
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow(),
-                created_by_admin=True if current_user.is_admin else False,
-                notification_type='broadcast'
+                created_at=datetime.utcnow()
             )
             db.session.add(notification)
             db.session.flush()
@@ -2783,9 +2781,7 @@ def api_send_notification():
                 student_id=None,  # ← إشعار مشترك للجميع
                 user_id=current_user.id,
                 is_read=False,
-                created_at=datetime.utcnow(),
-                created_by_admin=True if current_user.is_admin else False,
-                notification_type='broadcast'
+                created_at=datetime.utcnow()
             )
             db.session.add(notification)
             db.session.flush()
