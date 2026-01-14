@@ -814,14 +814,36 @@ def create_app():
         return render_template("500.html"), 500 # Or a simple string
 
     # مسارات الإشعارات المحسنة
-    # ملاحظة: تم تعطيل هذا route لأن notifications_bp (Blueprint) يتعامل مع /notifications
-    # انظر السطر 696 حيث تم تسجيل notifications_bp
-    # @app.route("/notifications")
-    # @login_required
-    # def view_notifications():
-    #     ...
-    
-    # تم نقل جميع وظائف الإشعارات إلى src/routes/notifications.py (Blueprint)
+    @app.route("/notifications")
+    @login_required
+    def view_notifications():
+        from src.models.notification import Notification, StudentNotification
+        """عرض صفحة الإشعارات المُرسلة للطلاب"""
+        try:
+            # التحقق من صلاحيات الأدمن
+            if not current_user.is_admin:
+                flash('ليس لديك صلاحية الوصول', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # جلب جميع الإشعارات التي لها student_notifications (أي المُرسلة للطلاب)
+            # باستخدام join للتأكد من وجود ارتباط في student_notifications
+            notifications = db.session.query(Notification).join(
+                StudentNotification,
+                Notification.id == StudentNotification.notification_id
+            ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+            
+            # حساب عدد غير المقروءة (من منظور الإشعارات نفسها)
+            unread_count = sum(1 for n in notifications if not n.is_read)
+            
+            return render_template("notifications.html", 
+                                 notifications=notifications, 
+                                 unread_count=unread_count)
+        except Exception as e:
+            print(f"Error loading notifications page: {e}")
+            import traceback
+            traceback.print_exc()
+            flash('حدث خطأ في تحميل صفحة الإشعارات', 'error')
+            return redirect(url_for('dashboard'))
     
     @app.route("/notifications/action", methods=["POST"])
     @login_required
