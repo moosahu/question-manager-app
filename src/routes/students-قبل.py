@@ -1306,40 +1306,44 @@ def api_get_notifications(user_id):
         
         # ✅ تحديث: إزالة الفلترة حسب النوع لعرض جميع الإشعارات
         # أو يمكنك تحديد الأنواع المستبعدة بشكل دقيق
+        # ✅ استخدام DISTINCT لإزالة التكرار
         notifications = db.session.execute(
             db.text("""
-                -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
-                SELECT 
-                    n.id,
-                    n.title,
-                    n.message,
-                    n.type,
-                    n.student_id,
-                    n.is_read,
-                    n.created_at,
-                    n.read_at
-                FROM notifications n
-                WHERE n.student_id = :student_id
-                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                WITH all_notifications AS (
+                    -- إشعارات قديمة (مرتبطة مباشرة بالطالب)
+                    SELECT 
+                        n.id,
+                        n.title,
+                        n.message,
+                        n.type,
+                        n.student_id,
+                        n.is_read,
+                        n.created_at,
+                        n.read_at
+                    FROM notifications n
+                    WHERE n.student_id = :student_id
+                      AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
 
-                UNION ALL
+                    UNION
 
-                -- إشعارات جديدة (مرتبطة عبر student_notifications)
-                SELECT 
-                    n.id,
-                    n.title,
-                    n.message,
-                    n.type,
-                    sn.student_id,
-                    sn.is_read,
-                    n.created_at,
-                    sn.read_at
-                FROM student_notifications sn
-                JOIN notifications n ON n.id = sn.notification_id
-                WHERE sn.student_id = :student_id
-                  AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
-
-                ORDER BY created_at DESC
+                    -- إشعارات جديدة (مرتبطة عبر student_notifications)
+                    SELECT 
+                        n.id,
+                        n.title,
+                        n.message,
+                        n.type,
+                        sn.student_id,
+                        sn.is_read,
+                        n.created_at,
+                        sn.read_at
+                    FROM student_notifications sn
+                    JOIN notifications n ON n.id = sn.notification_id
+                    WHERE sn.student_id = :student_id
+                      AND n.type NOT IN ('admin_activity', 'security_alert', 'system_error', 'failed_login')
+                )
+                SELECT DISTINCT ON (id) *
+                FROM all_notifications
+                ORDER BY id DESC, created_at DESC
                 LIMIT 100
             """),
             {'student_id': user_id}
@@ -1421,25 +1425,51 @@ def api_save_notification():
             }), 404
 
 
-        # تحقق من وجود إشعار مماثل في آخر دقيقتين (لتجنب التكرار)
+        # تحقق من وجود إشعار مماثل (في كلا الجدولين)
         existing_check = db.session.execute(
             db.text("""
+                -- التحقق في جدول notifications
                 SELECT id FROM notifications 
-                WHERE student_id = :student_id 
-                AND title = :title 
+                WHERE title = :title 
                 AND message = :message
-                AND created_at > NOW() - INTERVAL '2 minutes'
+                AND created_at > NOW() - INTERVAL '5 minutes'
                 LIMIT 1
             """),
-            {'student_id': student_id, 'title': title, 'message': message}
+            {'title': title, 'message': message}
         ).fetchone()
 
         if existing_check:
-            print(f"⚠️  الإشعار موجود مسبقاً - ID: {existing_check[0]}")
+            notification_id = existing_check[0]
+            print(f"⚠️  الإشعار موجود مسبقاً - ID: {notification_id}")
+            
+            # التحقق من وجود الربط في student_notifications
+            link_check = db.session.execute(
+                db.text("""
+                    SELECT id FROM student_notifications
+                    WHERE notification_id = :notif_id
+                    AND student_id = :student_id
+                    LIMIT 1
+                """),
+                {'notif_id': notification_id, 'student_id': student_id}
+            ).fetchone()
+            
+            if not link_check:
+                # الإشعار موجود لكن غير مربوط بهذا الطالب - ربطه
+                from src.models.notification import StudentNotification
+                student_notif = StudentNotification(
+                    notification_id=notification_id,
+                    student_id=student_id,
+                    is_read=False,
+                    created_at=get_utc_time()
+                )
+                db.session.add(student_notif)
+                db.session.commit()
+                print(f"✅ تم ربط الإشعار {notification_id} بالطالب {student_id}")
+            
             return jsonify({
                 'success': True,
                 'message': 'الإشعار موجود مسبقاً',
-                'notification_id': existing_check[0],
+                'notification_id': notification_id,
                 'duplicate': True
             }), 200
 
@@ -1744,22 +1774,12 @@ def api_save_result():
         
         # 🎯 تشغيل نظام Gamification
         try:
+            from src.hooks.quiz_completion_hook import on_quiz_completed
             print(f"🎯 تشغيل Gamification Hook للطالب {student_id}")
-            result.trigger_gamification_hook()
+            on_quiz_completed(student_id, result)
             print(f"✅ تم تشغيل Gamification Hook بنجاح")
-        except AttributeError:
-            # إذا الدالة غير موجودة في Model، استخدم الطريقة المباشرة
-            try:
-                from src.hooks.quiz_completion_hook import on_quiz_completed
-                print(f"🎯 تشغيل Gamification Hook (مباشر) للطالب {student_id}")
-                on_quiz_completed(student_id, result)
-                print(f"✅ تم تشغيل Gamification Hook بنجاح")
-            except ImportError as e:
-                print(f"⚠️ Gamification Hook غير متاح: {e}")
-            except Exception as e:
-                print(f"❌ خطأ في Gamification Hook: {e}")
-                import traceback
-                traceback.print_exc()
+        except ImportError as e:
+            print(f"⚠️ Gamification Hook غير متاح: {e}")
         except Exception as e:
             print(f"❌ خطأ في Gamification Hook: {e}")
             import traceback
@@ -2041,4 +2061,86 @@ def api_get_students_list():
             'success': False,
             'error': str(e),
             'students': []
+        }), 500
+
+
+# ==================== عرض تفاصيل الإشعار وإحصائيات القراءة ====================
+@students_bp.route('/api/admin/notification/<int:notification_id>/read-stats', methods=['GET'])
+@login_required
+@admin_required
+def get_notification_read_stats(notification_id):
+    """
+    جلب تفاصيل الإشعار وإحصائيات القراءة
+    يعرض الطلاب الذين قرأوا والذين لم يقرأوا الإشعار
+    """
+    try:
+        from src.models.notification import Notification, StudentNotification
+        
+        # جلب الإشعار
+        notification = Notification.query.get(notification_id)
+        if not notification:
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار غير موجود'
+            }), 404
+        
+        # جلب جميع الطلاب النشطين
+        all_students = Student.query.filter_by(is_active=True).all()
+        
+        # جلب الطلاب الذين قرأوا الإشعار
+        read_students = []
+        unread_students = []
+        
+        for student in all_students:
+            # البحث عن StudentNotification
+            student_notif = StudentNotification.query.filter_by(
+                student_id=student.id,
+                notification_id=notification_id
+            ).first()
+            
+            if student_notif and student_notif.is_read:
+                read_students.append({
+                    'id': student.id,
+                    'name': student.name,
+                    'username': student.username,
+                    'read_at': student_notif.read_at.isoformat() if student_notif.read_at else None
+                })
+            else:
+                unread_students.append({
+                    'id': student.id,
+                    'name': student.name,
+                    'username': student.username
+                })
+        
+        # حساب الإحصائيات
+        total_students = len(all_students)
+        read_count = len(read_students)
+        unread_count = len(unread_students)
+        
+        return jsonify({
+            'success': True,
+            'notification': {
+                'id': notification.id,
+                'title': notification.title,
+                'message': notification.message or notification.content,
+                'created_at': notification.created_at.isoformat() if notification.created_at else None
+            },
+            'stats': {
+                'total_students': total_students,
+                'read_count': read_count,
+                'unread_count': unread_count,
+                'read_percentage': round((read_count / total_students * 100) if total_students > 0 else 0, 2)
+            },
+            'read_students': read_students,
+            'unread_students': unread_students
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب إحصائيات الإشعار: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'خطأ في جلب البيانات: {str(e)}'
         }), 500

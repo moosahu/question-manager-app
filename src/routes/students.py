@@ -322,11 +322,13 @@ def api_student_login():
         password = data.get('password', '')
         device_id = data.get('device_id', '')  # ✅ جديد: معرف الجهاز
         device_name = data.get('device_name', '')  # ✅ جديد: اسم الجهاز
+        force_login = data.get('force_login', False)  # ✅ جديد: تسجيل دخول قسري
         
         print(f"\n🔐 ========== Student Login Request ==========")
         print(f"Username: {username}")
         print(f"Device ID: {device_id}")
         print(f"Device Name: {device_name}")
+        print(f"Force Login: {force_login}")
         
         if not username or not password:
             return jsonify({
@@ -367,17 +369,24 @@ def api_student_login():
         if device_id:
             # إذا كان الطالب مسجل من جهاز آخر
             if student.device_id and student.device_id != device_id:
-                print(f"⚠️ الطالب {username} مسجل من جهاز آخر")
-                print(f"   الجهاز المسجل: {student.device_id} ({student.device_name})")
-                print(f"   الجهاز الحالي: {device_id} ({device_name})")
-                
-                return jsonify({
-                    'success': False,
-                    'error': 'حسابك مسجل على جهاز آخر. قم بتسجيل الخروج من الجهاز الآخر أولاً أو تواصل مع الإدارة',
-                    'error_code': 'DEVICE_CONFLICT',
-                    'registered_device': student.device_name or 'جهاز غير معروف',
-                    'last_login': student.last_device_login.isoformat() if student.last_device_login else None
-                }), 403
+                # ✅ إذا لم يكن تسجيل دخول قسري، نرجع خطأ
+                if not force_login:
+                    print(f"⚠️ الطالب {username} مسجل من جهاز آخر")
+                    print(f"   الجهاز المسجل: {student.device_id} ({student.device_name})")
+                    print(f"   الجهاز الحالي: {device_id} ({device_name})")
+                    
+                    return jsonify({
+                        'success': False,
+                        'error': 'حسابك مسجل على جهاز آخر. قم بتسجيل الخروج من الجهاز الآخر أولاً أو تواصل مع الإدارة',
+                        'error_code': 'DEVICE_CONFLICT',
+                        'registered_device': student.device_name or 'جهاز غير معروف',
+                        'last_login': student.last_device_login.isoformat() if student.last_device_login else None
+                    }), 403
+                else:
+                    # ✅ تسجيل دخول قسري - إلغاء الجهاز القديم
+                    print(f"🔄 تسجيل دخول قسري للطالب {username}")
+                    print(f"   إلغاء الجهاز القديم: {student.device_id} ({student.device_name})")
+                    print(f"   تسجيل الجهاز الجديد: {device_id} ({device_name})")
             
             # تحديث معلومات الجهاز
             student.device_id = device_id
@@ -433,11 +442,13 @@ def api_teacher_login():
         password = data.get('password', '')
         device_id = data.get('device_id', '')
         device_name = data.get('device_name', '')
+        force_login = data.get('force_login', False)  # ✅ جديد: تسجيل دخول قسري
         
         print(f"\n🔐 ========== Teacher Login Request ==========")
         print(f"Username: {username}")
         print(f"Device ID: {device_id}")
         print(f"Device Name: {device_name}")
+        print(f"Force Login: {force_login}")
         
         if not username or not password:
             return jsonify({
@@ -478,17 +489,24 @@ def api_teacher_login():
         if device_id:
             # إذا كان المعلم مسجل من جهاز آخر
             if teacher.device_id and teacher.device_id != device_id:
-                print(f"⚠️ المعلم {username} مسجل من جهاز آخر")
-                print(f"   الجهاز المسجل: {teacher.device_id} ({teacher.device_name})")
-                print(f"   الجهاز الحالي: {device_id} ({device_name})")
-                
-                return jsonify({
-                    'success': False,
-                    'error': 'حسابك مسجل على جهاز آخر. قم بتسجيل الخروج من الجهاز الآخر أولاً أو تواصل مع الإدارة',
-                    'error_code': 'DEVICE_CONFLICT',
-                    'registered_device': teacher.device_name or 'جهاز غير معروف',
-                    'last_login': teacher.last_device_login.isoformat() if teacher.last_device_login else None
-                }), 403
+                # ✅ إذا لم يكن تسجيل دخول قسري، نرجع خطأ
+                if not force_login:
+                    print(f"⚠️ المعلم {username} مسجل من جهاز آخر")
+                    print(f"   الجهاز المسجل: {teacher.device_id} ({teacher.device_name})")
+                    print(f"   الجهاز الحالي: {device_id} ({device_name})")
+                    
+                    return jsonify({
+                        'success': False,
+                        'error': 'حسابك مسجل على جهاز آخر. قم بتسجيل الخروج من الجهاز الآخر أولاً أو تواصل مع الإدارة',
+                        'error_code': 'DEVICE_CONFLICT',
+                        'registered_device': teacher.device_name or 'جهاز غير معروف',
+                        'last_login': teacher.last_device_login.isoformat() if teacher.last_device_login else None
+                    }), 403
+                else:
+                    # ✅ تسجيل دخول قسري - إلغاء الجهاز القديم
+                    print(f"🔄 تسجيل دخول قسري للمعلم {username}")
+                    print(f"   إلغاء الجهاز القديم: {teacher.device_id} ({teacher.device_name})")
+                    print(f"   تسجيل الجهاز الجديد: {device_id} ({device_name})")
             
             # تحديث معلومات الجهاز
             teacher.device_id = device_id
