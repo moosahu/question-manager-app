@@ -529,9 +529,12 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
         
         # ===== التحقق من كل إنجاز محتمل =====
         for ach_data in potential_achievements:
-            # البحث عن الإنجاز في قاعدة البيانات
-            achievement = Achievement.query.filter_by(
-                achievement_type=ach_data['type']
+            # البحث عن الإنجاز في قاعدة البيانات بالـ code (الأولوية) أو achievement_type
+            achievement = Achievement.query.filter(
+                db.or_(
+                    Achievement.code == ach_data['type'],
+                    Achievement.achievement_type == ach_data['type']
+                )
             ).first()
             
             # إذا لم يكن موجوداً في القاعدة، سيتم إنشاؤه في save_achievements
@@ -754,9 +757,12 @@ def save_achievements(student_id: int, achievements: list):
         )
         
         for ach_data in achievements:
-            # البحث عن الإنجاز
-            achievement = Achievement.query.filter_by(
-                achievement_type=ach_data['type']
+            # البحث عن الإنجاز بالـ code (الأولوية) أو achievement_type
+            achievement = Achievement.query.filter(
+                db.or_(
+                    Achievement.code == ach_data['type'],
+                    Achievement.achievement_type == ach_data['type']
+                )
             ).first()
             
             if not achievement:
