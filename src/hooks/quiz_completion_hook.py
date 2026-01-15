@@ -11,7 +11,7 @@ Hook موحد يتم تشغيله عند إكمال الطالب لاختبار
 
 from datetime import datetime, timedelta
 from src.extensions import db
-from src.models import Student
+from src.models.student import Student
 from src.models.student_result import StudentResult
 
 
