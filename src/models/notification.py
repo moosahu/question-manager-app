@@ -1,24 +1,27 @@
 # src/models/notification.py
 """
-Notification Model - إصلاح عاجل
-✅ تم إصلاح مشكلة relationship
+Notification Model - الإصدار النهائي المتوافق 100%
+✅ بدون content
+✅ بدون relationships
+✅ بدون updated_at (إذا لم يكن موجود)
 """
 
 from datetime import datetime
 from src.extensions import db
 
+
 class Notification(db.Model):
-    """نموذج الإشعارات"""
+    """نموذج الإشعارات - متوافق مع قاعدة البيانات الحالية"""
     __tablename__ = 'notifications'
     
     # ===== الحقول الأساسية =====
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    message = db.Column(db.Text)
-    content = db.Column(db.Text)  # alias
+    message = db.Column(db.Text, nullable=True)
+    body = db.Column(db.Text, nullable=True)
     
     # ===== معلومات المستخدم =====
-    user_id = db.Column(db.Integer, nullable=True)  # بدون ForeignKey مؤقتاً
+    user_id = db.Column(db.Integer, nullable=True)
     student_id = db.Column(db.Integer, nullable=True)
     
     # ===== نوع الإشعار =====
@@ -29,36 +32,45 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False, nullable=False)
     read_at = db.Column(db.DateTime, nullable=True)
     
-    # ===== حقول إضافية موجودة =====
+    # ===== حقول إضافية =====
     session_id = db.Column(db.String(255), nullable=True)
     icon = db.Column(db.String(50), default='bell', nullable=True)
     last_viewed_at = db.Column(db.DateTime, nullable=True)
-    view_count = db.Column(db.Integer, default=0)
-    body = db.Column(db.Text, nullable=True)
+    view_count = db.Column(db.Integer, default=0, nullable=True)
     data = db.Column(db.JSON, nullable=True)
     
     # ===== حقول الأدمن =====
-    created_by_admin = db.Column(db.Boolean, default=False)
+    created_by_admin = db.Column(db.Boolean, default=False, nullable=True)
     admin_id = db.Column(db.Integer, nullable=True)
     
     # ===== حقول AI =====
     ai_analysis_id = db.Column(db.Integer, nullable=True)
-    created_by_ai = db.Column(db.Boolean, default=False)
+    created_by_ai = db.Column(db.Boolean, default=False, nullable=True)
     
-    # ===== 🆕 حقول النظام التلقائي =====
+    # ===== 🆕 حقول النظام التلقائي (الجديدة) =====
     is_automatic = db.Column(db.Boolean, default=False, nullable=False)
     status = db.Column(db.String(20), default='pending', nullable=False)
     sent_at = db.Column(db.DateTime, nullable=True)
     
     # ===== التواريخ =====
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # ===== بدون relationships لتجنب الأخطاء =====
-    # تم إزالة relationships مؤقتاً حتى نصلح المشكلة
+    # updated_at - فقط إذا كان موجود في قاعدة بياناتك
+    # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
     
     def __repr__(self):
         return f'<Notification {self.id}: {self.title}>'
+    
+    # ===== Property للحصول على المحتوى =====
+    
+    @property
+    def content(self):
+        """Property لقراءة المحتوى من message أو body"""
+        return self.message or self.body
+    
+    @content.setter
+    def content(self, value):
+        """Property لتعيين المحتوى إلى message"""
+        self.message = value
     
     # ===== Methods للقراءة =====
     
@@ -71,6 +83,7 @@ class Notification(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error marking notification as read: {e}")
             return False
     
     def mark_as_unread(self):
@@ -82,6 +95,7 @@ class Notification(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error marking notification as unread: {e}")
             return False
     
     # ===== 🆕 Methods للنظام التلقائي =====
@@ -95,6 +109,7 @@ class Notification(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error marking notification as sent: {e}")
             return False
     
     def mark_as_failed(self):
@@ -102,9 +117,10 @@ class Notification(db.Model):
         try:
             self.status = 'failed'
             db.session.commit()
-            return False
+            return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error marking notification as failed: {e}")
             return False
     
     # ===== Methods للحذف =====
@@ -117,6 +133,7 @@ class Notification(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error deleting notification: {e}")
             return False
     
     # ===== Methods للتحويل =====
@@ -126,8 +143,9 @@ class Notification(db.Model):
         return {
             'id': self.id,
             'title': self.title,
-            'message': self.message or self.content or self.body,
-            'content': self.content or self.message or self.body,
+            'message': self.message,
+            'content': self.content,  # Property
+            'body': self.body,
             'type': self.type,
             'notification_type': self.notification_type,
             'user_id': self.user_id,
@@ -138,9 +156,9 @@ class Notification(db.Model):
             'status': self.status,
             'sent_at': self.sent_at.isoformat() if self.sent_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'icon': self.icon,
             'view_count': self.view_count,
+            'data': self.data,
         }
     
     # ===== Static Methods =====
@@ -153,7 +171,7 @@ class Notification(db.Model):
                 Notification.created_at.desc()
             ).limit(limit).all()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error fetching notifications: {e}")
             return []
     
     @staticmethod
@@ -173,7 +191,7 @@ class Notification(db.Model):
             ).limit(limit).all()
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error fetching recent notifications: {e}")
             return []
     
     @staticmethod
@@ -190,19 +208,24 @@ class Notification(db.Model):
             
             return query.count()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error counting unread notifications: {e}")
             return 0
     
     # ===== 🆕 Static Methods للنظام التلقائي =====
     
     @staticmethod
     def get_automatic_messages(period=None, limit=100):
-        """جلب الرسائل التلقائية"""
+        """جلب الرسائل التلقائية
+        
+        Args:
+            period: 'today', 'week', 'month', أو None للكل
+            limit: عدد الرسائل
+        """
         try:
             query = Notification.query.filter_by(is_automatic=True)
             
             if period == 'today':
-                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(Notification.sent_at >= today_start)
             elif period == 'week':
                 from datetime import timedelta
@@ -218,17 +241,24 @@ class Notification(db.Model):
             ).limit(limit).all()
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error fetching automatic messages: {e}")
             return []
     
     @staticmethod
     def get_messaging_stats(period=None):
-        """إحصائيات الإرسال"""
+        """إحصائيات الإرسال
+        
+        Args:
+            period: 'today', 'week', 'month', أو None للكل
+            
+        Returns:
+            dict: {total_sent, delivered, failed, pending}
+        """
         try:
             query = Notification.query
             
             if period == 'today':
-                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
                 query = query.filter(Notification.sent_at >= today_start)
             elif period == 'week':
                 from datetime import timedelta
@@ -252,7 +282,7 @@ class Notification(db.Model):
             }
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error getting messaging stats: {e}")
             return {
                 'total_sent': 0,
                 'delivered': 0,
@@ -261,7 +291,7 @@ class Notification(db.Model):
             }
 
 
-# ===== StudentNotification Model (اختياري) =====
+# ===== StudentNotification Model =====
 
 class StudentNotification(db.Model):
     """جدول الربط بين الطلاب والإشعارات"""
@@ -286,6 +316,7 @@ class StudentNotification(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Error marking student notification as read: {e}")
             return False
     
     @staticmethod
@@ -302,5 +333,5 @@ class StudentNotification(db.Model):
             ).limit(limit).all()
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error fetching student notifications: {e}")
             return []
