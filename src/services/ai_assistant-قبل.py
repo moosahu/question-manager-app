@@ -253,37 +253,97 @@ class AIAssistant:
 - ابدأ مباشرة بالمحتوى
 - الرد بالعربية فقط، مختصر ومحفز
 """
+        
+        # تحليل المواضيع
+        weak_topics = self.analyze_weak_topics(data['student_id'])
+        
+        # تصنيف المواضيع حسب الأداء
+        actually_weak = []     # < 60%
+        needs_work = []        # 60-79%
+        good_topics = []       # 80-89%
+        excellent_topics = []  # >= 90%
+        
+        for topic in weak_topics:
+            avg = topic['average']
+            if avg < 60:
+                actually_weak.append(topic)
+            elif avg < 80:
+                needs_work.append(topic)
+            elif avg < 90:
+                good_topics.append(topic)
+            else:
+                excellent_topics.append(topic)
+        
+        # تنسيق المواضيع حسب التصنيف
+        weak_text = ""
+        if actually_weak:
+            weak_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (يحتاج تحسين)"
+                for t in actually_weak[:3]
+            ])
+        
+        improvement_text = ""
+        if needs_work:
+            improvement_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (جيد، يمكن تحسينه)"
+                for t in needs_work[:3]
+            ])
+        
+        strong_text = ""
+        if excellent_topics:
+            strong_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in excellent_topics[:3]
+            ])
+        elif good_topics:
+            strong_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in good_topics[:3]
+            ])
+        
         return f"""
 أنت مساعد تعليمي ذكي لمنصة كيم تحصيلي (كيمياء).
+
 الطالب: {data['student_name']}
 الصف: {data['grade']}
-الاختبارات: {data['total_quizzes']}
-المعدل: {data['average_score']}%
-المعدل الأخير: {data['recent_average']}%
-الاتجاه: {data['trend_percentage']:+.1f}%
-آخر نشاط: منذ {data['days_since_last_quiz']} يوم
+الإحصائيات العامة:
+- الاختبارات: {data['total_quizzes']}
+- المعدل: {data['average_score']}%
+- المعدل الأخير: {data['recent_average']}%
+- الاتجاه: {data['trend_percentage']:+.1f}%
+- آخر نشاط: منذ {data['days_since_last_quiz']} يوم
 
-المطلوب: اكتب تقريراً بهذا التنسيق بالضبط:
+المواضيع التي تحتاج تحسين (< 60%):
+{weak_text if weak_text else "لا يوجد"}
+
+المواضيع الجيدة (60-79%):
+{improvement_text if improvement_text else "لا يوجد"}
+
+المواضيع الممتازة (80%+):
+{strong_text if strong_text else "لا توجد بيانات كافية"}
+
+المطلوب: اكتب تحليلاً مخصصاً بهذا التنسيق:
 
 1. تقييم الأداء:
-[تقييم الأداء هنا]
+[فقط المواضيع < 60% (إن وجدت). إذا لم توجد، اكتب "أداؤك جيد في معظم المواضيع!"]
 
 2. نقاط القوة:
-[نقاط القوة هنا]
+[فقط المواضيع >= 80%]
 
-3. المشاكل:
-[المشاكل هنا]
+3. خطة عمل:
+[توصيات محددة للمواضيع < 60% فقط. اذكر عدد الاختبارات المطلوبة]
 
-4. توصيات عملية:
-[التوصيات هنا]
-
-5. رسالة تحفيزية:
-[الرسالة هنا]
+4. رسالة تحفيزية:
+[رسالة شخصية قصيرة ومحفزة]
 
 تعليمات مهمة:
 - لا تكتب "أهلاً بك" أو "مرحباً" أو أي ترحيب
 - ابدأ مباشرة بـ "1. تقييم الأداء:"
+- لا تذكر المواضيع الممتازة (>= 80%) في قسم "تقييم الأداء"
+- ضع المواضيع الممتازة فقط في قسم "نقاط القوة"
 - ضع سطر جديد بعد كل عنوان رئيسي
+- اذكر المواضيع بالاسم الكامل
+- كن محدداً في الأرقام
 - استخدم نقاط (•) للقوائم الفرعية
 - الرد بالعربية، مختصر ومهني
 """
@@ -344,22 +404,34 @@ class AIAssistant:
         if trend == 'improving': strengths.append('تحسن مستمر')
         if days_inactive <= 1: strengths.append('نشط ومواظب')
         
-        if days_inactive >= critical_inactive or (avg_score < 50 and total_quizzes >= 3):
+        # ==================== ✅ تعديل التصنيفات والإرسال ====================
+        if days_inactive >= critical_inactive or (avg_score < 40 and total_quizzes >= 3):
+            # 🔴 حرج: إرسال للطالب + تنبيه للأدمن
             status = 'critical'
             severity = 'red'
-            suggested_action = 'admin_alert'
-        elif days_inactive >= inactive_threshold or avg_score < 70 or trend == 'declining':
+            suggested_action = 'send_message_and_alert'  # ✅ جديد: إرسال للاثنين
+        elif days_inactive >= inactive_threshold or avg_score < 60 or (trend == 'declining' and avg_score < 75):
+            # 🟠 يحتاج انتباه: إرسال للطالب فقط
+            # ملاحظة: declining فقط إذا المعدل أقل من 75% (لتجنب تصنيف الممتازين كـ needs_attention)
             status = 'needs_attention'
             severity = 'orange'
             suggested_action = 'send_message'
-        elif avg_score >= 75:
-            status = 'good'
+        elif avg_score >= 80:
+            # 🟢 ممتاز: إرسال رسالة تهنئة
+            status = 'excellent'
             severity = 'green'
-            suggested_action = 'no_action'
-        else:
-            status = 'needs_attention'
+            suggested_action = 'send_message'  # ✅ تعديل: كان no_action
+        elif avg_score >= 60:
+            # 🟡 جيد: إرسال رسالة تشجيع
+            status = 'good'
             severity = 'yellow'
+            suggested_action = 'send_message'  # ✅ تعديل: الآن يرسل
+        else:
+            # 🟠 يحتاج انتباه (احتياطي)
+            status = 'needs_attention'
+            severity = 'orange'
             suggested_action = 'send_message'
+        # ==================== ✅ نهاية التعديل ====================
         
         return {
             'student_status': status,
@@ -368,6 +440,44 @@ class AIAssistant:
             'issues_detected': issues,
             'strengths': strengths
         }
+    
+    def analyze_weak_topics(self, student_id: int) -> List[Dict]:
+        """تحليل المواضيع التي يضعف فيها الطالب"""
+        from src.models.student_result import StudentResult
+        
+        try:
+            # جلب النتائج
+            results = StudentResult.query.filter_by(student_id=student_id).all()
+            
+            if not results:
+                return []
+            
+            # تجميع حسب المواضيع
+            topics = {}
+            for r in results:
+                topic = r.quiz_name
+                if topic not in topics:
+                    topics[topic] = []
+                topics[topic].append(r.score_percentage)
+            
+            # حساب المتوسط لكل موضوع
+            analyzed_topics = []
+            for topic, scores in topics.items():
+                avg = sum(scores) / len(scores)
+                analyzed_topics.append({
+                    'topic': topic,
+                    'average': round(avg, 1),
+                    'attempts': len(scores),
+                    'last_score': scores[0] if scores else 0,
+                    'trend': 'improving' if len(scores) >= 2 and scores[0] > scores[-1] else 'declining'
+                })
+            
+            # ترتيب من الأضعف للأقوى
+            return sorted(analyzed_topics, key=lambda x: x['average'])
+        
+        except Exception as e:
+            print(f"❌ خطأ في analyze_weak_topics: {e}")
+            return []
     
     def chat_with_ai(self, message: str, context: Optional[Dict] = None) -> str:
         """محادثة حرة مع AI (للأدمن)"""

@@ -17,10 +17,106 @@ from src.extensions import db
 
 
 # ============================================
-# قوالب الرسائل المتنوعة
+# قوالب الرسائل المتنوعة (محسّنة!)
 # ============================================
 
 MESSAGE_TEMPLATES = {
+    # للطلاب الممتازين (green)
+    'excellent': {
+        'morning': [
+            "🎉 ماشاء الله {name}! نجم الصباح!",
+            "⭐ صباح التميز يا {name}! أداء رائع!",
+            "🌟 صباح الخير للطالب المتفوق {name}!",
+        ],
+        'afternoon': [
+            "💎 {name}! أداؤك يلمع اليوم!",
+            "🏆 ممتاز يا {name}! استمر في القمة!",
+            "✨ {name}، أنت نجم المنصة!",
+        ],
+        'evening': [
+            "🌟 مساء التميز {name}! أداء أسطوري اليوم!",
+            "⭐ {name}، يوم ممتاز! حافظ على التألق!",
+            "💫 ختام رائع ليومك يا {name}!",
+        ],
+        'weekend': [
+            "🎊 نهاية أسبوع مميزة للطالب الممتاز {name}!",
+            "🏅 {name}، أسبوع من التميز! أنت قدوة!",
+        ]
+    },
+    
+    # للطلاب الجيدين (yellow)
+    'good': {
+        'morning': [
+            "💪 صباح الخير {name}! يلا نكمل التقدم!",
+            "🚀 صباح جميل للطالب المجتهد {name}!",
+            "☀️ يوم جديد، فرصة جديدة للتفوق!",
+        ],
+        'afternoon': [
+            "📈 {name}! أداؤك يتحسن! استمر!",
+            "💪 {name}، على الطريق الصح! واصل!",
+            "🎯 {name}، تقدم ملحوظ! يلا نكمل!",
+        ],
+        'evening': [
+            "🌙 مساء الخير {name}! يوم جيد، لنختمه بقوة!",
+            "⭐ {name}، تحسن واضح اليوم! ممتاز!",
+            "💫 {name}، أداء جيد! غداً أفضل!",
+        ],
+        'weekend': [
+            "☀️ نهاية أسبوع رائعة {name}! استمر في التقدم!",
+            "🎉 {name}، أسبوع جيد! الأفضل قادم!",
+        ]
+    },
+    
+    # للطلاب الذين يحتاجون انتباه (orange)
+    'needs_attention': {
+        'morning': [
+            "☀️ صباح الخير {name}! دعنا نبدأ بقوة اليوم!",
+            "🌅 يوم جديد، فرصة للتحسن يا {name}!",
+            "☕ صباح الخير {name}! وقت مثالي للمراجعة",
+        ],
+        'afternoon': [
+            "⏰ {name}! 5 دقائق اليوم أفضل من لا شيء!",
+            "🌤️ وقت الظهيرة، {name}! اختبار واحد فقط",
+            "📚 {name}، استراحة + مراجعة = تقدم!",
+        ],
+        'evening': [
+            "🌙 {name}، ختام يومك باختبار؟",
+            "⭐ {name}، 5 دقائق قبل النوم = فرق كبير!",
+            "🌆 {name}، لا تنسَ مراجعتك اليومية!",
+        ],
+        'weekend': [
+            "🎉 نهاية أسبوع رائعة {name}! وقت للتعويض!",
+            "☀️ عطلة = فرصة للمراجعة يا {name}!",
+        ]
+    },
+    
+    # للطلاب في حالة حرجة (red)
+    'critical': {
+        'morning': [
+            "⚠️ صباح الخير {name}، نفتقدك! عودتك مهمة!",
+            "🚨 {name}، صباح الخير! نحن هنا لمساعدتك",
+            "💚 {name}، بداية جديدة اليوم! نحن معك",
+        ],
+        'afternoon': [
+            "⏰ {name}، ما زلنا ننتظرك! لا تستسلم",
+            "🔔 {name}، نفتقد نشاطك! عودة بسيطة",
+            "💪 {name}، خطوة واحدة اليوم = تقدم!",
+        ],
+        'evening': [
+            "🌙 {name}، آخر فرصة اليوم! اختبار واحد فقط",
+            "⏰ {name}، قبل نهاية اليوم! نحن هنا لك",
+            "💚 {name}، لم يفت الأوان أبداً!",
+        ],
+        'weekend': [
+            "📅 {name}، نهاية الأسبوع = بداية جديدة!",
+            "💚 {name}، وقت العودة! نحن هنا لمساعدتك",
+        ]
+    }
+}
+
+
+# قوالب الرسائل القديمة (للتوافق)
+OLD_MESSAGE_TEMPLATES = {
     'morning': {
         'orange': [
             "☀️ صباح الخير {name}! وقت مثالي لاختبار سريع",
@@ -398,47 +494,70 @@ class SmartNotificationService:
         time_of_day = get_time_of_day()
         is_weekend_day = is_weekend()
         
-        # اختيار القالب المناسب
-        if is_weekend_day and severity in ['orange', 'red']:
-            templates = MESSAGE_TEMPLATES.get('weekend', {}).get(severity, [])
+        # ✅ استخدام القوالب الجديدة حسب حالة الطالب
+        if is_weekend_day:
+            templates = MESSAGE_TEMPLATES.get(status, {}).get('weekend', [])
         else:
-            templates = MESSAGE_TEMPLATES.get(time_of_day, {}).get(severity, [])
+            templates = MESSAGE_TEMPLATES.get(status, {}).get(time_of_day, [])
         
         # اختيار رسالة عشوائية
         if templates:
             title_template = random.choice(templates)
             title = title_template.format(name=student_name)
         else:
-            # fallback للرسائل القديمة
-            if severity == 'red':
-                title = f"⚠️ {student_name}، نحتاج انتباهك!"
-            elif severity == 'orange':
+            # fallback حسب الحالة
+            if status == 'excellent':
+                title = f"🎉 ممتاز يا {student_name}! أداء رائع!"
+            elif status == 'good':
+                title = f"💪 {student_name}، تقدم ملحوظ! استمر!"
+            elif status == 'needs_attention':
                 title = f"📉 {student_name}، دعنا نعود للمسار الصحيح"
-            else:
-                title = f"👍 {student_name}، أداء رائع!"
+            else:  # critical
+                title = f"⚠️ {student_name}، نحتاج انتباهك!"
 
-        # اختيار الرسالة المناسبة
-        if severity == 'red':
+        # ✅ محتوى الرسالة حسب الحالة
+        if status == 'excellent':
+            # للطلاب الممتازين - رسالة تهنئة
             body = f"""
-لاحظنا أنك لم تحل اختبارات منذ {analysis.days_since_last_quiz} يوم.
-نحن هنا لمساعدتك! 💪
-ابدأ بحل اختبار قصير اليوم.
+معدلك: {analysis.average_score}% 🏆
+
+أداء استثنائي! أنت في القمة!
+استمر في هذا التميز... نحن فخورون بك! 🌟
 """
-        elif severity == 'orange':
+        
+        elif status == 'good':
+            # للطلاب الجيدين - رسالة تشجيع
+            body = f"""
+معدلك: {analysis.average_score}% 📈
+
+أداء جيد! أنت على الطريق الصحيح.
+خطوة بسيطة تفصلك عن الامتياز! 💪
+"""
+        
+        elif status == 'needs_attention':
+            # للطلاب الذين يحتاجون انتباه
             if analysis.performance_trend == 'declining':
                 body = f"""
-لاحظنا انخفاض في معدلك مؤخراً.
-لا تقلق! راجع الدروس الأخيرة وحاول مرة أخرى. أنت قادر! 💪
+معدلك: {analysis.average_score}%
+
+لاحظنا انخفاض بسيط مؤخراً.
+لا تقلق! مراجعة سريعة وراح ترجع للمسار. 💪
 """
             else:
                 body = f"""
 لم نرك منذ {analysis.days_since_last_quiz} يوم.
-حل اختبار سريع اليوم لتحافظ على تقدمك! 🚀
+
+وحشنا نشاطك! اختبار واحد اليوم = تقدم كبير! 🚀
 """
-        else:  # yellow or green
+        
+        else:  # critical
+            # للطلاب في حالة حرجة - رسالة داعمة
             body = f"""
-معدلك الحالي: {analysis.average_score}%
-استمر في المذاكرة المنتظمة! 🌟
+لاحظنا غيابك منذ {analysis.days_since_last_quiz} يوم.
+
+نحن هنا لمساعدتك! 💚
+ابدأ بخطوة بسيطة: اختبار واحد اليوم.
+لا تستسلم... كل طالب متميز بدأ من هنا!
 """
 
         # إضافة توصيات AI إذا وجدت
