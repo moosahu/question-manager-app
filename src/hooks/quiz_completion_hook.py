@@ -420,7 +420,7 @@ def send_notification(student, quiz_result, points_earned,
         
         body = "\n".join(body_parts)
         
-        # إنشاء الإشعار
+        # إنشاء الإشعار في جدول notifications
         notification = Notification(
             student_id=student.id,
             title=title,
@@ -432,6 +432,24 @@ def send_notification(student, quiz_result, points_earned,
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
+        db.session.flush()  # للحصول على notification.id
+        
+        # ✅ إضافة السجل في student_notifications
+        try:
+            db.session.execute(
+                db.text("""
+                    INSERT INTO student_notifications 
+                    (student_id, notification_id, is_read, created_at)
+                    VALUES (:student_id, :notification_id, FALSE, NOW())
+                """),
+                {
+                    'student_id': student.id,
+                    'notification_id': notification.id
+                }
+            )
+        except Exception as e:
+            print(f"      ⚠️ فشل إضافة في student_notifications: {e}")
+        
         db.session.commit()
         
         print(f"      ✅ تم إنشاء إشعار: {title}")
