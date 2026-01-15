@@ -1211,45 +1211,35 @@ def get_messaging_stats():
 def get_automation_status():
     """
     الحصول على حالة النظام التلقائي
+    يقرأ الإعدادات من ai_settings (نفس Flutter)
     
     GET /api/admin/ai/automation/status
     """
     try:
-        # 🔥 قراءة مباشرة من DB - بدون أي cache!
         from sqlalchemy import text
         
+        # 🔥 قراءة مباشرة من DB - الإعدادات الأصلية
         result = db.session.execute(text("""
-            SELECT setting_value 
+            SELECT setting_key, setting_value 
             FROM ai_settings 
-            WHERE setting_key = 'automation_enabled'
-            LIMIT 1
-        """)).fetchone()
+            WHERE setting_key IN (
+                'enable_auto_messages',
+                'analysis_interval_hours',
+                'automation_start_hour',
+                'automation_end_hour'
+            )
+        """)).fetchall()
         
-        if result and result[0]:
-            automation_enabled_str = result[0]
-            print(f"🔥 قرأنا automation_enabled من DB: {automation_enabled_str}")
-        else:
-            # Fallback إلى enable_auto_messages
-            result2 = db.session.execute(text("""
-                SELECT setting_value 
-                FROM ai_settings 
-                WHERE setting_key = 'enable_auto_messages'
-                LIMIT 1
-            """)).fetchone()
-            
-            if result2 and result2[0]:
-                automation_enabled_str = result2[0]
-                print(f"🔥 Fallback: enable_auto_messages = {automation_enabled_str}")
-            else:
-                automation_enabled_str = 'false'
-                print("❌ لم نجد أي إعداد - استخدمنا false")
+        settings = {row[0]: row[1] for row in result}
         
-        automation_enabled = automation_enabled_str == 'true'
+        # قراءة الإعدادات
+        automation_enabled = settings.get('enable_auto_messages', 'false') == 'true'
+        interval_hours = int(settings.get('analysis_interval_hours', 24))
+        start_hour = int(settings.get('automation_start_hour', 8))
+        end_hour = int(settings.get('automation_end_hour', 22))
+        
+        print(f"🔥 قرأنا enable_auto_messages من DB: {settings.get('enable_auto_messages')}")
         print(f"✅ النتيجة النهائية: automation_enabled = {automation_enabled}")
-        
-        automation_interval = int(AISetting.get_setting('automation_interval', 60))
-        automation_start_hour = int(AISetting.get_setting('automation_start_hour', 8))
-        automation_end_hour = int(AISetting.get_setting('automation_end_hour', 22))
         
         # جلب آخر تشغيل
         last_run_log = AILog.query.filter(
@@ -1272,7 +1262,7 @@ def get_automation_status():
         # حساب التشغيل القادم
         next_run = None
         if automation_enabled and last_run_log:
-            next_run_time = last_run_log.created_at + timedelta(minutes=automation_interval)
+            next_run_time = last_run_log.created_at + timedelta(hours=interval_hours)
             next_run = next_run_time.isoformat()
         
         # إحصائيات 24 ساعة الماضية
@@ -1301,11 +1291,11 @@ def get_automation_status():
             'success': True,
             'data': {
                 'automation_enabled': automation_enabled,
-                'is_running': False,  # يمكن إضافة منطق للتحقق من التشغيل الفعلي
+                'is_running': False,
                 'schedule': {
-                    'interval_minutes': automation_interval,
-                    'start_hour': automation_start_hour,
-                    'end_hour': automation_end_hour,
+                    'interval_minutes': interval_hours * 60,  # تحويل لدقائق للعرض
+                    'start_hour': start_hour,
+                    'end_hour': end_hour,
                 },
                 'last_run': last_run,
                 'next_run': next_run,
@@ -1314,6 +1304,50 @@ def get_automation_status():
         })
         
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@admin_ai_bp.route('/automation/toggle', methods=['PUT'])
+@admin_required
+def toggle_automation():
+    """
+    تشغيل/إيقاف الرسائل التلقائية
+    يحدّث enable_auto_messages في ai_settings (نفس Flutter)
+    
+    PUT /api/admin/ai/automation/toggle
+    Body: {"enabled": true/false}
+    """
+    try:
+        data = request.get_json() or {}
+        enabled = data.get('enabled', False)
+        
+        # تحديث enable_auto_messages في DB
+        from sqlalchemy import text
+        db.session.execute(text("""
+            INSERT INTO ai_settings (setting_key, setting_value, setting_type, description)
+            VALUES ('enable_auto_messages', :value, 'boolean', 'تفعيل الرسائل التلقائية')
+            ON CONFLICT (setting_key)
+            DO UPDATE SET 
+                setting_value = :value,
+                updated_at = CURRENT_TIMESTAMP
+        """), {'value': 'true' if enabled else 'false'})
+        
+        db.session.commit()
+        
+        print(f"{'🟢' if enabled else '🔴'} تم {'تشغيل' if enabled else 'إيقاف'} الرسائل التلقائية")
+        
+        return jsonify({
+            'success': True,
+            'automation_enabled': enabled,
+            'message': f"تم {'تشغيل' if enabled else 'إيقاف'} الرسائل التلقائية بنجاح"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في toggle_automation: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
