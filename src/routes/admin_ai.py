@@ -1464,3 +1464,44 @@ def test_automation():
             'success': False,
             'error': f'خطأ في اختبار النظام: {str(e)}'
         }), 500
+
+
+@admin_ai_bp.route('/settings/automation_enabled', methods=['PUT'])
+@admin_required
+def update_automation_enabled():
+    """
+    تفعيل/تعطيل النظام التلقائي
+    
+    PUT /api/admin/ai/settings/automation_enabled
+    Body: {"value": true/false}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        value = data.get('value', True)
+        
+        print(f"🔧 Updating automation_enabled to: {value}")
+        
+        # حفظ في كلا الحقلين لضمان التوافق
+        AISetting.set_setting('enable_auto_messages', 'true' if value else 'false')
+        AISetting.set_setting('automation_enabled', 'true' if value else 'false')
+        
+        print(f"✅ Settings updated successfully")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم تحديث الإعداد بنجاح',
+            'data': {
+                'automation_enabled': value
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error updating automation_enabled: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
