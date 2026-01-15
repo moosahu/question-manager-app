@@ -108,7 +108,7 @@ def get_student_gamification_data(student_id: int) -> Dict:
                 
                 if student_challenge:
                     progress = student_challenge.progress
-                    completed = student_challenge.is_completed  # ✅ إصلاح: استخدام is_completed
+                    completed = student_challenge.completed
                 
                 challenges_list.append({
                     'id': challenge.id,
