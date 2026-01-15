@@ -1342,6 +1342,8 @@ def test_automation():
                 return jsonify({
                     'success': True,
                     'message': 'تم إرسال الرسالة التجريبية بنجاح',
+                    'analysis_performed': True,  # ✅ لـ Flutter
+                    'message_sent': True,         # ✅ لـ Flutter
                     'data': {
                         'notification_id': test_notification.id,
                         'title': test_notification.title,
