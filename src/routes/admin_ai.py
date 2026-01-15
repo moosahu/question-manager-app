@@ -1287,11 +1287,15 @@ def get_automation_status():
             'total_messages': total_messages,
         }
         
+        # ✅ حساب is_running بناءً على الوقت الحالي وساعات العمل
+        current_hour = datetime.now().hour
+        is_running = automation_enabled and (start_hour <= current_hour < end_hour)
+        
         return jsonify({
             'success': True,
             'data': {
                 'automation_enabled': automation_enabled,
-                'is_running': False,
+                'is_running': is_running,  # ✅ محسوب ديناميكياً
                 'schedule': {
                     'interval_minutes': interval_hours * 60,  # تحويل لدقائق للعرض
                     'start_hour': start_hour,
