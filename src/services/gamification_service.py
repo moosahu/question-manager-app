@@ -1,535 +1,441 @@
 # src/services/gamification_service.py
 """
-خدمة التحفيز (Gamification)
-تدير النقاط والإنجازات والتحديات
+خدمات نظام التحفيز (Gamification Service)
+محدّث: يناير 2026
 """
-
-from datetime import datetime, timedelta, date
+from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional
-import random
+from sqlalchemy import desc, and_, or_
 
+from src.extensions import db
 from src.models.gamification import (
-    StudentPoints, PointTransaction, Achievement, 
-    StudentAchievement, DailyChallenge, ChallengeCompletion
+    Achievement,
+    StudentAchievement,
+    Challenge,
+    StudentChallenge,
+    StudentPoints,
+    PointTransaction
 )
 from src.models.student import Student
 from src.models.student_result import StudentResult
-from src.extensions import db
 
 
 class GamificationService:
-    """خدمة التحفيز"""
-    
-    def __init__(self):
-        """تهيئة الخدمة"""
-        pass
-    
-    # ============================================
-    # نظام النقاط
-    # ============================================
-    
-    def award_points_for_quiz(self, student_id: int, quiz_result: StudentResult) -> Dict:
-        """منح نقاط للطالب بعد حل اختبار"""
-        try:
-            points_data = StudentPoints.get_or_create(student_id)
-            
-            # حساب النقاط بناءً على الدرجة
-            base_points = 10  # نقاط أساسية
-            
-            score = quiz_result.score_percentage
-            if score >= 90:
-                bonus = 10  # ممتاز
-            elif score >= 80:
-                bonus = 7   # جيد جداً
-            elif score >= 70:
-                bonus = 5   # جيد
-            elif score >= 60:
-                bonus = 3   # مقبول
-            else:
-                bonus = 0   # ضعيف
-            
-            total_points = base_points + bonus
-            
-            # إضافة النقاط
-            transaction = points_data.add_points(
-                amount=total_points,
-                reason=f"إكمال اختبار: {quiz_result.quiz_name} ({score}%)",
-                reference_type='quiz',
-                reference_id=quiz_result.id
-            )
-            
-            # التحقق من الإنجازات
-            achievements_unlocked = self._check_achievements_after_quiz(
-                student_id, quiz_result
-            )
-            
-            return {
-                'success': True,
-                'points_awarded': total_points,
-                'total_points': points_data.total_points,
-                'achievements_unlocked': achievements_unlocked
-            }
-            
-        except Exception as e:
-            print(f"❌ خطأ في award_points_for_quiz: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
+    """خدمة نظام التحفيز"""
+
+    # ==================== Points Management ====================
+
     def get_student_points(self, student_id: int) -> Dict:
         """الحصول على نقاط الطالب"""
-        points_data = StudentPoints.get_or_create(student_id)
+        points = StudentPoints.get_or_create(student_id)
+        
+        # حساب الترتيب
+        rank = self._calculate_rank(student_id)
+        
+        # حساب النقاط للمستوى التالي
+        next_level = points.level + 1
+        current_threshold = self._get_level_threshold(points.level)
+        next_threshold = self._get_level_threshold(next_level)
+        points_to_next = next_threshold - points.total_points if next_level <= 5 else 0
         
         return {
-            'total_points': points_data.total_points,
-            'lifetime_points': points_data.lifetime_points,
-            'rank': self._get_student_rank(student_id)
+            'student_id': student_id,
+            'total_points': points.total_points,
+            'lifetime_points': points.lifetime_points,
+            'level': points.level,
+            'rank': rank,
+            'current_streak': points.current_streak,
+            'longest_streak': points.longest_streak,
+            'points_to_next_level': max(0, points_to_next),
+            'next_level_threshold': next_threshold if next_level <= 5 else None
         }
-    
-    def get_points_leaderboard(self, limit: int = 10) -> List[Dict]:
+
+    def add_points(
+        self,
+        student_id: int,
+        amount: int,
+        reason: str = None,
+        reference_type: str = None,
+        reference_id: int = None
+    ) -> Dict:
+        """إضافة نقاط للطالب"""
+        points = StudentPoints.get_or_create(student_id)
+        old_level = points.level
+        
+        # إضافة النقاط
+        points.add_points(amount, reason, reference_type, reference_id)
+        
+        new_level = points.level
+        leveled_up = new_level > old_level
+        
+        return {
+            'success': True,
+            'new_total': points.total_points,
+            'amount_added': amount,
+            'leveled_up': leveled_up,
+            'old_level': old_level,
+            'new_level': new_level
+        }
+
+    def get_points_leaderboard(self, limit: int = 10, offset: int = 0) -> List[Dict]:
         """لوحة المتصدرين"""
         top_students = StudentPoints.query.order_by(
-            StudentPoints.total_points.desc()
-        ).limit(limit).all()
+            desc(StudentPoints.total_points)
+        ).limit(limit).offset(offset).all()
         
         leaderboard = []
-        for idx, sp in enumerate(top_students, 1):
-            student = Student.query.get(sp.student_id)
+        for idx, points in enumerate(top_students, start=offset + 1):
+            student = Student.query.get(points.student_id)
             if student:
                 leaderboard.append({
                     'rank': idx,
-                    'student_id': student.id,
-                    'student_name': student.name,
-                    'points': sp.total_points,
-                    'grade': student.grade
+                    'student_id': points.student_id,
+                    'name': student.name,
+                    'username': student.username,
+                    'total_points': points.total_points,
+                    'level': points.level,
+                    'current_streak': points.current_streak
                 })
         
         return leaderboard
-    
-    def _get_student_rank(self, student_id: int) -> int:
-        """ترتيب الطالب"""
-        student_points = StudentPoints.get_or_create(student_id)
+
+    def _get_level_threshold(self, level: int) -> int:
+        """الحد الأدنى من النقاط للمستوى"""
+        thresholds = {
+            1: 0,
+            2: 100,
+            3: 250,
+            4: 500,
+            5: 1000
+        }
+        return thresholds.get(level, 1000)
+
+    def _calculate_rank(self, student_id: int) -> int:
+        """حساب ترتيب الطالب"""
+        student_points = StudentPoints.query.filter_by(student_id=student_id).first()
+        if not student_points:
+            return 0
         
         rank = StudentPoints.query.filter(
             StudentPoints.total_points > student_points.total_points
         ).count() + 1
         
         return rank
-    
-    # ============================================
-    # نظام الإنجازات
-    # ============================================
-    
-    def _check_achievements_after_quiz(self, student_id: int, 
-                                      quiz_result: StudentResult) -> List[Dict]:
-        """التحقق من الإنجازات بعد حل اختبار"""
-        unlocked = []
-        
-        # 1. إنجاز "أول اختبار"
-        quiz_count = StudentResult.query.filter_by(student_id=student_id).count()
-        if quiz_count == 1:
-            ach = self._unlock_achievement(student_id, 'first_quiz')
-            if ach:
-                unlocked.append(ach)
-        
-        # 2. إنجاز "100%"
-        if quiz_result.score_percentage == 100:
-            ach = self._unlock_achievement(student_id, 'perfect_score')
-            if ach:
-                unlocked.append(ach)
-        
-        # 3. إنجاز "5 اختبارات في يوم"
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
-        today_quizzes = StudentResult.query.filter(
-            StudentResult.student_id == student_id,
-            StudentResult.created_at >= today_start
-        ).count()
-        
-        if today_quizzes >= 5:
-            ach = self._unlock_achievement(student_id, 'solve_5_day')
-            if ach:
-                unlocked.append(ach)
-        
-        # 4. إنجاز "سلسلة متصلة"
-        streak = self._calculate_streak(student_id)
-        if streak >= 7:
-            ach = self._unlock_achievement(student_id, 'streak_7')
-            if ach:
-                unlocked.append(ach)
-        elif streak >= 3:
-            ach = self._unlock_achievement(student_id, 'streak_3')
-            if ach:
-                unlocked.append(ach)
-        
-        # 5. إنجاز "تحسن 20%"
-        improvement = self._calculate_improvement(student_id)
-        if improvement >= 20:
-            ach = self._unlock_achievement(student_id, 'improvement_20')
-            if ach:
-                unlocked.append(ach)
-        
-        return unlocked
-    
-    def _unlock_achievement(self, student_id: int, achievement_type: str) -> Optional[Dict]:
-        """فتح إنجاز"""
-        try:
-            student_ach = StudentAchievement.unlock(student_id, achievement_type)
-            
-            if student_ach:
-                achievement = student_ach.achievement
-                return {
-                    'achievement_type': achievement.achievement_type,
-                    'title': achievement.title,
-                    'description': achievement.description,
-                    'icon': achievement.icon,
-                    'points': achievement.points
-                }
-            
-            return None
-            
-        except Exception as e:
-            print(f"❌ خطأ في _unlock_achievement: {e}")
-            return None
-    
+
+    # ==================== Achievements Management ====================
+
     def get_student_achievements(self, student_id: int) -> Dict:
         """الحصول على إنجازات الطالب"""
-        # الإنجازات المفتوحة
-        unlocked = StudentAchievement.query.filter_by(student_id=student_id).all()
-        unlocked_types = [sa.achievement.achievement_type for sa in unlocked]
-        
-        unlocked_list = [{
-            'achievement_type': sa.achievement.achievement_type,
-            'title': sa.achievement.title,
-            'description': sa.achievement.description,
-            'icon': sa.achievement.icon,
-            'points': sa.achievement.points,
-            'unlocked_at': sa.unlocked_at.isoformat()
-        } for sa in unlocked]
-        
-        # الإنجازات المغلقة
+        # كل الإنجازات المتاحة
         all_achievements = Achievement.query.filter_by(is_active=True).all()
-        locked_list = [{
-            'achievement_type': ach.achievement_type,
-            'title': ach.title,
-            'description': ach.description,
-            'icon': ach.icon,
-            'points': ach.points,
-            'locked': True
-        } for ach in all_achievements if ach.achievement_type not in unlocked_types]
+        
+        # الإنجازات المفتوحة
+        unlocked = StudentAchievement.query.filter_by(
+            student_id=student_id,
+            is_unlocked=True
+        ).all()
+        
+        unlocked_dict = {sa.achievement_id: sa for sa in unlocked}
+        
+        achievements_list = []
+        for ach in all_achievements:
+            student_ach = unlocked_dict.get(ach.id)
+            achievements_list.append({
+                'achievement': ach.to_dict(),
+                'is_unlocked': student_ach is not None,
+                'unlocked_at': student_ach.unlocked_at.isoformat() if student_ach else None,
+                'progress': student_ach.progress if student_ach else 0
+            })
         
         return {
-            'unlocked': unlocked_list,
-            'locked': locked_list,
-            'total_unlocked': len(unlocked_list),
-            'total_achievements': len(all_achievements)
+            'achievements': achievements_list,
+            'total_achievements': len(all_achievements),
+            'total_unlocked': len(unlocked),
+            'completion_rate': round((len(unlocked) / len(all_achievements) * 100) if all_achievements else 0, 1)
         }
-    
-    def _calculate_streak(self, student_id: int) -> int:
-        """حساب السلسلة المتصلة (كم يوم متتالي)"""
-        try:
-            # جلب تواريخ الاختبارات
-            results = StudentResult.query.filter_by(student_id=student_id)\
-                .order_by(StudentResult.created_at.desc()).all()
-            
-            if not results:
-                return 0
-            
-            # جمع الأيام الفريدة
-            dates = set()
-            for r in results:
-                dates.add(r.created_at.date())
-            
-            dates = sorted(dates, reverse=True)
-            
-            # حساب السلسلة
-            streak = 0
-            expected_date = datetime.utcnow().date()
-            
-            for d in dates:
-                if d == expected_date:
-                    streak += 1
-                    expected_date -= timedelta(days=1)
-                elif d < expected_date:
-                    break
-            
-            return streak
-            
-        except Exception as e:
-            print(f"❌ خطأ في _calculate_streak: {e}")
-            return 0
-    
-    def _calculate_improvement(self, student_id: int) -> float:
-        """حساب نسبة التحسن"""
-        try:
-            results = StudentResult.query.filter_by(student_id=student_id)\
-                .order_by(StudentResult.created_at.desc()).limit(10).all()
-            
-            if len(results) < 5:
-                return 0
-            
-            recent_avg = sum(r.score_percentage for r in results[:5]) / 5
-            older_avg = sum(r.score_percentage for r in results[5:]) / len(results[5:])
-            
-            if older_avg == 0:
-                return 0
-            
-            improvement = ((recent_avg - older_avg) / older_avg) * 100
-            return improvement
-            
-        except Exception as e:
-            print(f"❌ خطأ في _calculate_improvement: {e}")
-            return 0
-    
-    # ============================================
-    # نظام التحديات اليومية
-    # ============================================
-    
-    def generate_daily_challenge(self, challenge_date: date = None) -> Optional[DailyChallenge]:
-        """توليد تحدي يومي"""
-        if challenge_date is None:
-            challenge_date = datetime.utcnow().date()
+
+    def unlock_achievement(self, student_id: int, achievement_code: str) -> Optional[Dict]:
+        """فتح إنجاز للطالب"""
+        student_ach = StudentAchievement.unlock(student_id, achievement_code)
         
-        # التحقق من وجود تحدي لهذا اليوم
-        existing = DailyChallenge.query.filter_by(date=challenge_date).first()
-        if existing:
-            return existing
-        
-        # قائمة التحديات المتاحة
-        challenges = [
-            {
-                'type': 'solve_5',
-                'title': '🎯 خمسة في الشبكة',
-                'description': 'حل 5 اختبارات اليوم',
-                'icon': '🎯',
-                'points': 25,
-                'conditions': {'quiz_count': 5}
-            },
-            {
-                'type': 'improve_score',
-                'title': '📈 حسّن نفسك',
-                'description': 'احصل على درجة أعلى من آخر اختبار',
-                'icon': '📈',
-                'points': 20,
-                'conditions': {'improve': True}
-            },
-            {
-                'type': 'perfect_quiz',
-                'title': '💯 الدقة',
-                'description': 'أجب على جميع أسئلة اختبار صحيحة',
-                'icon': '💯',
-                'points': 30,
-                'conditions': {'perfect_score': True}
-            },
-            {
-                'type': 'speed_quiz',
-                'title': '⚡ السرعة',
-                'description': 'أنهِ اختبار في أقل من 5 دقائق',
-                'icon': '⚡',
-                'points': 15,
-                'conditions': {'time_limit': 300}
-            },
-            {
-                'type': 'diverse',
-                'title': '🎓 المتنوع',
-                'description': 'حل اختبار من 3 مواضيع مختلفة',
-                'icon': '🎓',
-                'points': 20,
-                'conditions': {'different_topics': 3}
-            },
-        ]
-        
-        # اختيار تحدي عشوائي
-        challenge_data = random.choice(challenges)
-        
-        challenge = DailyChallenge(
-            date=challenge_date,
-            challenge_type=challenge_data['type'],
-            title=challenge_data['title'],
-            description=challenge_data['description'],
-            icon=challenge_data['icon'],
-            points=challenge_data['points'],
-            conditions=challenge_data['conditions']
-        )
-        
-        db.session.add(challenge)
-        db.session.commit()
-        
-        return challenge
-    
-    def get_today_challenge(self) -> Optional[Dict]:
-        """الحصول على تحدي اليوم"""
-        today = datetime.utcnow().date()
-        challenge = DailyChallenge.query.filter_by(date=today).first()
-        
-        if not challenge:
-            challenge = self.generate_daily_challenge(today)
-        
-        if challenge:
+        if student_ach:
+            # إضافة نقاط الإنجاز
+            achievement = student_ach.achievement
+            if achievement.points > 0:
+                self.add_points(
+                    student_id,
+                    achievement.points,
+                    f"إنجاز: {achievement.title}",
+                    'achievement',
+                    achievement.id
+                )
+            
             return {
-                'id': challenge.id,
-                'title': challenge.title,
-                'description': challenge.description,
-                'icon': challenge.icon,
-                'points': challenge.points,
-                'conditions': challenge.conditions
+                'success': True,
+                'achievement': achievement.to_dict(),
+                'points_earned': achievement.points
             }
         
         return None
-    
-    def check_challenge_completion(self, student_id: int, 
-                                   quiz_result: StudentResult) -> Optional[Dict]:
-        """التحقق من إكمال تحدي اليوم"""
-        try:
-            today = datetime.utcnow().date()
-            challenge = DailyChallenge.query.filter_by(date=today).first()
-            
-            if not challenge:
-                return None
-            
-            # التحقق من عدم إكماله مسبقاً
-            existing = ChallengeCompletion.query.filter_by(
-                student_id=student_id,
-                challenge_id=challenge.id
-            ).first()
-            
-            if existing:
-                return None
-            
-            # التحقق من الشروط
-            completed = False
-            
-            if challenge.challenge_type == 'solve_5':
-                # عد اختبارات اليوم
-                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
-                count = StudentResult.query.filter(
-                    StudentResult.student_id == student_id,
-                    StudentResult.created_at >= today_start
-                ).count()
-                completed = count >= 5
-            
-            elif challenge.challenge_type == 'perfect_quiz':
-                completed = quiz_result.score_percentage == 100
-            
-            elif challenge.challenge_type == 'speed_quiz':
-                completed = quiz_result.time_spent <= 300
-            
-            elif challenge.challenge_type == 'improve_score':
-                # مقارنة مع آخر اختبار
-                previous = StudentResult.query.filter(
-                    StudentResult.student_id == student_id,
-                    StudentResult.id < quiz_result.id
-                ).order_by(StudentResult.created_at.desc()).first()
-                
-                if previous:
-                    completed = quiz_result.score_percentage > previous.score_percentage
-            
-            elif challenge.challenge_type == 'diverse':
-                # عد المواضيع المختلفة
-                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
-                results = StudentResult.query.filter(
-                    StudentResult.student_id == student_id,
-                    StudentResult.created_at >= today_start
-                ).all()
-                
-                topics = set(r.quiz_name for r in results)
-                completed = len(topics) >= 3
-            
-            if completed:
-                # تسجيل الإكمال
-                completion = ChallengeCompletion(
-                    student_id=student_id,
-                    challenge_id=challenge.id
-                )
-                db.session.add(completion)
-                
-                # منح النقاط
-                points_data = StudentPoints.get_or_create(student_id)
-                points_data.add_points(
-                    amount=challenge.points,
-                    reason=f"إكمال تحدي: {challenge.title}",
-                    reference_type='challenge',
-                    reference_id=challenge.id
-                )
-                
-                db.session.commit()
-                
-                return {
-                    'challenge_completed': True,
-                    'title': challenge.title,
-                    'description': challenge.description,
-                    'icon': challenge.icon,
-                    'points_awarded': challenge.points
-                }
-            
-            return None
-            
-        except Exception as e:
-            print(f"❌ خطأ في check_challenge_completion: {e}")
-            db.session.rollback()
-            return None
-    
-    def get_student_challenge_progress(self, student_id: int) -> Dict:
-        """تقدم الطالب في تحدي اليوم"""
-        today = datetime.utcnow().date()
-        challenge = DailyChallenge.query.filter_by(date=today).first()
+
+    def check_and_unlock_achievements(self, student_id: int) -> List[Dict]:
+        """فحص وفتح الإنجازات المؤهل لها الطالب"""
+        unlocked = []
         
-        if not challenge:
-            return {'no_challenge': True}
+        # حساب الإحصائيات
+        stats = self._calculate_student_stats(student_id)
         
-        # التحقق من الإكمال
-        completed = ChallengeCompletion.query.filter_by(
-            student_id=student_id,
-            challenge_id=challenge.id
-        ).first()
+        # فحص كل إنجاز
+        all_achievements = Achievement.query.filter_by(is_active=True).all()
+        for ach in all_achievements:
+            if self._check_achievement_condition(ach, stats):
+                result = self.unlock_achievement(student_id, ach.code)
+                if result:
+                    unlocked.append(result)
         
-        if completed:
-            return {
-                'completed': True,
-                'challenge': {
-                    'title': challenge.title,
-                    'description': challenge.description,
-                    'icon': challenge.icon,
-                    'points': challenge.points
-                },
-                'completed_at': completed.completed_at.isoformat()
-            }
+        return unlocked
+
+    def _calculate_student_stats(self, student_id: int) -> Dict:
+        """حساب إحصائيات الطالب للإنجازات"""
+        # النقاط
+        points = StudentPoints.query.filter_by(student_id=student_id).first()
         
-        # حساب التقدم
-        progress = 0
-        target = 0
+        # عدد الاختبارات
+        total_quizzes = StudentResult.query.filter_by(student_id=student_id).count()
         
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
-        
-        if challenge.challenge_type == 'solve_5':
-            count = StudentResult.query.filter(
-                StudentResult.student_id == student_id,
-                StudentResult.created_at >= today_start
-            ).count()
-            progress = count
-            target = 5
-        
-        elif challenge.challenge_type == 'diverse':
-            results = StudentResult.query.filter(
-                StudentResult.student_id == student_id,
-                StudentResult.created_at >= today_start
-            ).all()
-            topics = set(r.quiz_name for r in results)
-            progress = len(topics)
-            target = 3
+        # الدرجات الكاملة
+        perfect_scores = StudentResult.query.filter_by(
+            student_id=student_id
+        ).filter(
+            StudentResult.score == 100
+        ).count()
         
         return {
-            'completed': False,
-            'challenge': {
-                'title': challenge.title,
-                'description': challenge.description,
-                'icon': challenge.icon,
-                'points': challenge.points
-            },
-            'progress': progress,
-            'target': target
+            'total_quizzes': total_quizzes,
+            'perfect_scores': perfect_scores,
+            'total_points': points.total_points if points else 0,
+            'current_streak': points.current_streak if points else 0,
+            'level': points.level if points else 1
+        }
+
+    def _check_achievement_condition(self, achievement: Achievement, stats: Dict) -> bool:
+        """التحقق من شرط الإنجاز"""
+        conditions = achievement.conditions or {}
+        condition_type = conditions.get('type')
+        
+        if condition_type == 'quiz_count':
+            return stats['total_quizzes'] >= conditions.get('value', 0)
+        elif condition_type == 'perfect_score':
+            return stats['perfect_scores'] >= conditions.get('count', 0)
+        elif condition_type == 'points':
+            return stats['total_points'] >= conditions.get('value', 0)
+        elif condition_type == 'streak_days':
+            return stats['current_streak'] >= conditions.get('days', 0)
+        elif condition_type == 'level':
+            return stats['level'] >= conditions.get('level', 0)
+        
+        return False
+
+    # ==================== Challenges Management ====================
+
+    def get_active_challenges(
+        self,
+        challenge_type: str = None,
+        student_id: int = None
+    ) -> List[Dict]:
+        """الحصول على التحديات النشطة"""
+        today = date.today()
+        
+        query = Challenge.query.filter(
+            Challenge.is_active == True,
+            or_(
+                Challenge.start_date == None,
+                Challenge.start_date <= today
+            ),
+            or_(
+                Challenge.end_date == None,
+                Challenge.end_date >= today
+            )
+        )
+        
+        if challenge_type:
+            query = query.filter(Challenge.challenge_type == challenge_type)
+        
+        challenges = query.all()
+        
+        result = []
+        for challenge in challenges:
+            challenge_dict = challenge.to_dict()
+            
+            # إذا طُلب معلومات طالب معين
+            if student_id:
+                progress = StudentChallenge.query.filter_by(
+                    student_id=student_id,
+                    challenge_id=challenge.id
+                ).first()
+                
+                if progress:
+                    challenge_dict['progress'] = progress.progress
+                    challenge_dict['is_completed'] = progress.is_completed
+                    challenge_dict['percentage'] = progress.get_percentage()
+                else:
+                    challenge_dict['progress'] = 0
+                    challenge_dict['is_completed'] = False
+                    challenge_dict['percentage'] = 0
+            
+            result.append(challenge_dict)
+        
+        return result
+
+    def get_today_challenge(self) -> Optional[Dict]:
+        """الحصول على تحدي اليوم"""
+        challenges = self.get_active_challenges(challenge_type='daily')
+        return challenges[0] if challenges else None
+
+    def get_student_challenge_progress(
+        self,
+        student_id: int,
+        challenge_id: int = None
+    ) -> Dict:
+        """الحصول على تقدم الطالب في التحديات"""
+        if challenge_id:
+            # تحدي محدد
+            progress = StudentChallenge.query.filter_by(
+                student_id=student_id,
+                challenge_id=challenge_id
+            ).first()
+            
+            if progress:
+                return progress.to_dict()
+            else:
+                challenge = Challenge.query.get(challenge_id)
+                if challenge:
+                    return {
+                        'challenge': challenge.to_dict(),
+                        'progress': 0,
+                        'target': challenge.target_value,
+                        'percentage': 0,
+                        'is_completed': False
+                    }
+        else:
+            # كل التحديات
+            progresses = StudentChallenge.query.filter_by(
+                student_id=student_id
+            ).all()
+            
+            return {
+                'challenges': [p.to_dict() for p in progresses],
+                'total': len(progresses),
+                'completed': sum(1 for p in progresses if p.is_completed)
+            }
+        
+        return {}
+
+    def update_challenge_progress(
+        self,
+        student_id: int,
+        challenge_id: int,
+        increment: int = 1
+    ) -> Dict:
+        """تحديث تقدم الطالب في التحدي"""
+        progress = StudentChallenge.get_or_create(student_id, challenge_id)
+        
+        if not progress:
+            return {'success': False, 'error': 'التحدي غير موجود'}
+        
+        if progress.is_completed:
+            return {
+                'success': False,
+                'message': 'التحدي مكتمل بالفعل',
+                'progress': progress.to_dict()
+            }
+        
+        just_completed = progress.update_progress(increment)
+        
+        # إذا تم الإكمال الآن، أضف النقاط
+        if just_completed:
+            challenge = progress.challenge
+            self.add_points(
+                student_id,
+                challenge.points,
+                f"تحدي: {challenge.title}",
+                'challenge',
+                challenge.id
+            )
+        
+        return {
+            'success': True,
+            'just_completed': just_completed,
+            'progress': progress.to_dict(),
+            'points_earned': progress.challenge.points if just_completed else 0
+        }
+
+    def auto_update_challenges(self, student_id: int, action_type: str, value: int = 1):
+        """تحديث تلقائي للتحديات بناءً على نشاط الطالب"""
+        active_challenges = self.get_active_challenges(student_id=student_id)
+        
+        updated = []
+        for challenge in active_challenges:
+            # التحقق من نوع التحدي
+            if challenge['target_type'] == action_type:
+                result = self.update_challenge_progress(
+                    student_id,
+                    challenge['id'],
+                    value
+                )
+                if result.get('success'):
+                    updated.append(result)
+        
+        return updated
+
+    # ==================== Streak Management ====================
+
+    def update_streak(self, student_id: int) -> Dict:
+        """تحديث سلسلة الطالب"""
+        points = StudentPoints.get_or_create(student_id)
+        old_streak = points.current_streak
+        
+        points.update_streak()
+        db.session.commit()
+        
+        return {
+            'current_streak': points.current_streak,
+            'longest_streak': points.longest_streak,
+            'streak_increased': points.current_streak > old_streak
+        }
+
+    def _calculate_streak(self, student_id: int) -> int:
+        """حساب السلسلة الحالية"""
+        points = StudentPoints.query.filter_by(student_id=student_id).first()
+        return points.current_streak if points else 0
+
+    # ==================== Statistics ====================
+
+    def get_system_stats(self) -> Dict:
+        """إحصائيات النظام الكاملة"""
+        total_points_distributed = db.session.query(
+            db.func.sum(StudentPoints.lifetime_points)
+        ).scalar() or 0
+        
+        total_achievements_unlocked = StudentAchievement.query.filter_by(
+            is_unlocked=True
+        ).count()
+        
+        total_challenges_completed = StudentChallenge.query.filter_by(
+            is_completed=True
+        ).count()
+        
+        active_students = StudentPoints.query.filter(
+            StudentPoints.total_points > 0
+        ).count()
+        
+        return {
+            'total_points_distributed': total_points_distributed,
+            'total_achievements_unlocked': total_achievements_unlocked,
+            'total_challenges_completed': total_challenges_completed,
+            'active_students': active_students
         }
 
 
-# إنشاء instance واحد
+# ==================== Singleton Instance ====================
 gamification_service = GamificationService()
