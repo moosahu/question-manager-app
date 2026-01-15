@@ -117,8 +117,28 @@ class SmartNotificationService:
                 return self._send_smart_message(analysis)
 
             elif action_type == 'admin_alert' and admin_alerts_enabled:
-                # تنبيه للأدمن
+                # تنبيه للأدمن فقط
                 return self._send_admin_alert(analysis)
+
+            # ==================== ✅ جديد: إرسال للطالب + الأدمن ====================
+            elif action_type == 'send_message_and_alert':
+                # 🔴 حالة حرجة: إرسال للاثنين
+                message_sent = False
+                alert_sent = False
+                
+                # 1. إرسال رسالة عاجلة للطالب
+                if auto_messages_enabled:
+                    print(f"   📤 إرسال رسالة عاجلة للطالب {analysis.student_id}")
+                    message_sent = self._send_smart_message(analysis)
+                
+                # 2. إرسال تنبيه للأدمن
+                if admin_alerts_enabled:
+                    print(f"   🚨 إرسال تنبيه للأدمن عن الطالب {analysis.student_id}")
+                    alert_sent = self._send_admin_alert(analysis)
+                
+                # نجح إذا نجح أحدهما على الأقل
+                return message_sent or alert_sent
+            # ==================== ✅ نهاية التعديل ====================
 
             return False
 

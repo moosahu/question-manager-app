@@ -371,22 +371,33 @@ class AIAssistant:
         if trend == 'improving': strengths.append('تحسن مستمر')
         if days_inactive <= 1: strengths.append('نشط ومواظب')
         
-        if days_inactive >= critical_inactive or (avg_score < 50 and total_quizzes >= 3):
+        # ==================== ✅ تعديل التصنيفات والإرسال ====================
+        if days_inactive >= critical_inactive or (avg_score < 40 and total_quizzes >= 3):
+            # 🔴 حرج: إرسال للطالب + تنبيه للأدمن
             status = 'critical'
             severity = 'red'
-            suggested_action = 'admin_alert'
-        elif days_inactive >= inactive_threshold or avg_score < 70 or trend == 'declining':
+            suggested_action = 'send_message_and_alert'  # ✅ جديد: إرسال للاثنين
+        elif days_inactive >= inactive_threshold or avg_score < 60 or trend == 'declining':
+            # 🟠 يحتاج انتباه: إرسال للطالب فقط
             status = 'needs_attention'
             severity = 'orange'
             suggested_action = 'send_message'
-        elif avg_score >= 75:
-            status = 'good'
+        elif avg_score >= 80:
+            # 🟢 ممتاز: إرسال رسالة تهنئة
+            status = 'excellent'
             severity = 'green'
-            suggested_action = 'no_action'
-        else:
-            status = 'needs_attention'
+            suggested_action = 'send_message'  # ✅ تعديل: كان no_action
+        elif avg_score >= 60:
+            # 🟡 جيد: إرسال رسالة تشجيع
+            status = 'good'
             severity = 'yellow'
+            suggested_action = 'send_message'  # ✅ تعديل: الآن يرسل
+        else:
+            # 🟠 يحتاج انتباه (احتياطي)
+            status = 'needs_attention'
+            severity = 'orange'
             suggested_action = 'send_message'
+        # ==================== ✅ نهاية التعديل ====================
         
         return {
             'student_status': status,
