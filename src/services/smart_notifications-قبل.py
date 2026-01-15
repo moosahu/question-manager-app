@@ -294,7 +294,7 @@ class SmartNotificationService:
 
             # إنشاء الإشعار (نحفظ النص الكامل في قاعدة البيانات)
             print(f"   💾 إنشاء Notification في قاعدة البيانات...")
-            notification = Notification(
+            notification = Notification.create_notification(
                 title=title,
                 body=full_body,  # ✅ النص الكامل في قاعدة البيانات
                 notification_type='ai_alert',
@@ -304,11 +304,8 @@ class SmartNotificationService:
                     'severity': analysis.severity_level,
                     'student_status': analysis.student_status,
                     'full_message': full_body,  # ✅ نحفظ النص الكامل في data أيضاً
-                },
-                created_at=datetime.utcnow()
+                }
             )
-            db.session.add(notification)
-            db.session.flush()  # للحصول على ID
             print(f"   ✅ تم إنشاء Notification #{notification.id}")
 
             # ربطه بالطالب
@@ -416,7 +413,7 @@ class SmartNotificationService:
 يحتاج تدخل فوري!
 """.strip()
 
-            notification = Notification(
+            notification = Notification.create_notification(
                 title=title,
                 body=body,
                 notification_type='admin_alert',
@@ -426,11 +423,8 @@ class SmartNotificationService:
                     'severity': 'critical',
                     'student_id': analysis.student_id,
                     'student_name': student.name
-                },
-                created_at=datetime.utcnow()
+                }
             )
-            db.session.add(notification)
-            db.session.flush()  # للحصول على ID
 
             # TODO: إرسال للأدمن عبر FCM أو Email
             # يمكن إضافة منطق إرسال للأدمن هنا
@@ -647,15 +641,12 @@ class SmartNotificationService:
         """
         try:
             # إنشاء إشعار واحد
-            notification = Notification(
+            notification = Notification.create_notification(
                 title=title,
                 body=body,
                 notification_type=notification_type,
-                created_by_admin=True,
-                created_at=datetime.utcnow()
+                created_by_admin=True
             )
-            db.session.add(notification)
-            db.session.flush()  # للحصول على ID
 
             # ربطه بالطلاب
             try:
@@ -828,7 +819,7 @@ class SmartNotificationService:
 """
             
             # إنشاء الإشعار
-            notification = Notification(
+            notification = Notification.create_notification(
                 title=title,
                 body=body,
                 notification_type='challenge',
@@ -837,11 +828,8 @@ class SmartNotificationService:
                     'type': 'challenge',
                     'challenge_id': challenge['id'],
                     'points': challenge['points']
-                },
-                created_at=datetime.utcnow()
+                }
             )
-            db.session.add(notification)
-            db.session.flush()  # للحصول على ID
             
             # ربطه بالطالب
             student_notif = StudentNotification.create_for_student(
@@ -987,16 +975,13 @@ class SmartNotificationService:
 """
             
             # إنشاء الإشعار
-            notification = Notification(
+            notification = Notification.create_notification(
                 title=title,
                 body=body,
                 notification_type='challenge_reminder',
                 created_by_ai=True,
-                data={'type': 'challenge_reminder'},
-                created_at=datetime.utcnow()
+                data={'type': 'challenge_reminder'}
             )
-            db.session.add(notification)
-            db.session.flush()  # للحصول على ID
             
             # ربطه بالطالب
             student_notif = StudentNotification.create_for_student(
