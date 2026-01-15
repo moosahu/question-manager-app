@@ -536,7 +536,7 @@ def get_settings():
 @admin_required
 def update_setting(setting_key):
     """
-    تحديث إعداد مع Validation
+    تحديث أو إنشاء إعداد مع Validation
     """
     try:
         data = request.get_json()
@@ -559,19 +559,28 @@ def update_setting(setting_key):
         setting = AISetting.query.filter_by(setting_key=setting_key).first()
         
         if not setting:
-            return jsonify({
-                'success': False,
-                'error': 'الإعداد غير موجود'
-            }), 404
+            # ✅ إنشاء إعداد جديد إذا لم يكن موجوداً
+            setting_type = 'int' if isinstance(value, int) else 'string' if isinstance(value, str) else 'boolean'
+            
+            setting = AISetting(
+                setting_key=setting_key,
+                setting_value=str(value),
+                setting_type=setting_type,
+                description=f'إعداد {setting_key}'
+            )
+            db.session.add(setting)
+            message = 'تم إنشاء الإعداد بنجاح'
+        else:
+            # تحديث القيمة الموجودة
+            setting.setting_value = str(value)
+            setting.updated_at = datetime.utcnow()
+            message = 'تم التحديث بنجاح'
         
-        # تحديث القيمة
-        setting.setting_value = str(value)
-        setting.updated_at = datetime.utcnow()
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'تم التحديث بنجاح',
+            'message': message,
             'data': {
                 'key': setting.setting_key,
                 'value': setting.get_value()

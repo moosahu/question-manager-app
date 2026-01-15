@@ -296,6 +296,7 @@ class SmartNotificationService:
             print(f"   💾 إنشاء Notification في قاعدة البيانات...")
             notification = Notification(
                 title=title,
+                message=full_body,  # ✅ إضافة message (مطلوب في DB)
                 body=full_body,  # ✅ النص الكامل في قاعدة البيانات
                 notification_type='ai_alert',
                 created_by_ai=True,
@@ -418,6 +419,7 @@ class SmartNotificationService:
 
             notification = Notification(
                 title=title,
+                message=body,  # ✅ إضافة message
                 body=body,
                 notification_type='admin_alert',
                 created_by_ai=True,
@@ -649,6 +651,7 @@ class SmartNotificationService:
             # إنشاء إشعار واحد
             notification = Notification(
                 title=title,
+                message=body,  # ✅ إضافة message
                 body=body,
                 notification_type=notification_type,
                 created_by_admin=True,
@@ -830,6 +833,7 @@ class SmartNotificationService:
             # إنشاء الإشعار
             notification = Notification(
                 title=title,
+                message=body,  # ✅ إضافة message
                 body=body,
                 notification_type='challenge',
                 created_by_ai=True,
@@ -989,6 +993,7 @@ class SmartNotificationService:
             # إنشاء الإشعار
             notification = Notification(
                 title=title,
+                message=body,  # ✅ إضافة message
                 body=body,
                 notification_type='challenge_reminder',
                 created_by_ai=True,
