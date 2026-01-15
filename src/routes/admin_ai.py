@@ -1306,7 +1306,8 @@ def test_automation():
         
         print("🧪 Testing automation system...")
         
-        data = request.get_json() or {}
+        # استخدم silent=True لتجنب exception إذا لم يكن هناك JSON
+        data = request.get_json(silent=True) or {}
         simple_test = data.get('simple', True)  # Default to simple test
         
         # ===== Simple Test: إنشاء رسالة تجريبية مباشرة =====
