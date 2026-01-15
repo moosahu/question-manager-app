@@ -690,7 +690,7 @@ def send_notification(
 ):
     """إرسال إشعار واحد شامل"""
     try:
-        from src.services.notification_service import NotificationService
+        from src.models.notification import Notification
         
         # بناء العنوان
         score = quiz_result.score_percentage
@@ -714,13 +714,10 @@ def send_notification(
         
         # النقاط
         if student_points:
-            body_parts.append(f"\n💎 +{points_earned} نقطة • الإجمالي: {student_points['new_points']}")
-            
-            # المستوى
-            if student_points['new_level'] > student_points['old_level']:
-                body_parts.append(f"⭐ ترقية! المستوى {student_points['new_level']} 🎊")
-            else:
-                body_parts.append(f"⭐ المستوى {student_points['new_level']}")
+            body_parts.append(f"\n💎 +{points_earned} نقطة • إجمالي: {student_points['new_points']} نقطة")
+            body_parts.append(f"⭐ المستوى: {student_points['new_level']}")
+        else:
+            body_parts.append(f"\n💎 +{points_earned} نقطة")
         
         # السلسلة
         if streak > 0:
@@ -728,43 +725,72 @@ def send_notification(
         
         # الإنجازات (أول 2 فقط)
         if achievements:
-            body_parts.append(f"\n🏆 إنجازات جديدة:")
+            body_parts.append("")
+            body_parts.append("🏆 إنجازات جديدة:")
             for ach in achievements[:2]:
                 body_parts.append(f"✨ {ach['title']}!")
         
-        # التحديات (أول 2 فقط)
+        # التحديات
         if challenges:
-            body_parts.append(f"\n🎯 تحديات مكتملة:")
-            for ch in challenges[:2]:
-                body_parts.append(f"✅ {ch['title']}")
+            body_parts.append("")
+            for ch in challenges:
+                body_parts.append(f"🎯 أكملت: {ch['title']}!")
         
-        # تشجيع
-        if score >= 90:
-            body_parts.append(f"\nاستمر على هذا الأداء الرائع! 🌟")
-        else:
-            body_parts.append(f"\nواصل التقدم، أنت في الطريق الصحيح! 💪")
+        # رسالة تحفيزية
+        if score >= 80:
+            body_parts.append("")
+            body_parts.append("استمر على هذا الأداء الرائع! 🌟")
+        elif score >= 60:
+            body_parts.append("")
+            body_parts.append("جيد! حاول تحسين النتيجة المرة القادمة! 💪")
         
-        body = "".join(body_parts)
+        body = "\n".join(body_parts)
         
-        # إرسال الإشعار
-        notification_service = NotificationService()
-        success = notification_service.send_fcm_notification(
+        # إنشاء الإشعار في جدول notifications
+        notification = Notification(
             student_id=student.id,
             title=title,
             body=body,
-            data={
-                'type': 'quiz_result',
-                'score': str(score),
-                'points_earned': str(points_earned),
-                'new_achievements': str(len(achievements)),
-                'completed_challenges': str(len(challenges))
-            }
+            message=body,
+            notification_type='quiz_completed',
+            type='success' if score >= 80 else 'info',
+            is_read=False,
+            created_at=datetime.utcnow()
         )
+        db.session.add(notification)
+        db.session.flush()  # للحصول على notification.id
         
-        if success:
-            print("   ✅ تم إرسال الإشعار بنجاح")
-        else:
-            print("   ⚠️ فشل إرسال FCM (قد يكون الـ token غير صالح)")
+        # ✅ إضافة السجل في student_notifications
+        try:
+            db.session.execute(
+                db.text("""
+                    INSERT INTO student_notifications 
+                    (student_id, notification_id, is_read, created_at)
+                    VALUES (:student_id, :notification_id, FALSE, NOW())
+                """),
+                {
+                    'student_id': student.id,
+                    'notification_id': notification.id
+                }
+            )
+        except Exception as e:
+            print(f"      ⚠️ فشل إضافة في student_notifications: {e}")
+        
+        db.session.commit()
+        
+        print(f"      ✅ تم إنشاء إشعار: {title}")
+        
+        # محاولة إرسال FCM
+        try:
+            from src.services.notification_service import send_fcm_notification
+            
+            if hasattr(student, 'fcm_token') and student.fcm_token:
+                send_fcm_notification(student.fcm_token, title, body)
+                print(f"      ✅ تم إرسال FCM")
+        except Exception as e:
+            print(f"      ⚠️ فشل إرسال FCM: {e}")
         
     except Exception as e:
-        print(f"   ⚠️ خطأ في send_notification: {e}")
+        print(f"      ❌ خطأ في إرسال الإشعار: {e}")
+        import traceback
+        traceback.print_exc()
