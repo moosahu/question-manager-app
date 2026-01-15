@@ -8,6 +8,8 @@ Hook موحد يتم تشغيله عند إكمال الطالب لاختبار
 3. إرسال إشعار ذكي واحد (بدون تكرار)
 
 محدّث: يناير 2026 - دعم كامل لنظام التحديات الجديد
+✅ تم إصلاح: استخدام >= بدلاً من == في check_achievements
+✅ تم إضافة: التحقق من قاعدة البيانات لتجنب تكرار الإنجازات
 """
 
 from datetime import datetime, timedelta, date
@@ -61,7 +63,7 @@ def on_quiz_completed(student_id: int, quiz_result: StudentResult):
         
         # 5. التحقق من الإنجازات
         print("   4️⃣ التحقق من الإنجازات...")
-        achievements = check_achievements(student_id, quiz_result, student_points)
+        achievements = check_achievements(student_id, quiz_result, student_points, streak)
         
         if achievements:
             print(f"   🏆 فتح {len(achievements)} إنجاز جديد:")
@@ -290,11 +292,27 @@ def calculate_streak(student_id: int) -> int:
         return 0
 
 
-def check_achievements(student_id: int, quiz_result: StudentResult, student_points: dict) -> list:
-    """التحقق من الإنجازات المكتملة"""
+def check_achievements(student_id: int, quiz_result: StudentResult, student_points: dict, streak: int = 0) -> list:
+    """
+    التحقق من الإنجازات المكتملة
+    
+    ✅ محدّث: يستخدم >= بدلاً من ==
+    ✅ محدّث: يتحقق من قاعدة البيانات لتجنب التكرار
+    
+    Args:
+        student_id: معرف الطالب
+        quiz_result: نتيجة الاختبار
+        student_points: معلومات النقاط والمستوى
+        streak: عدد أيام السلسلة
+    
+    Returns:
+        list: قائمة الإنجازات الجديدة فقط
+    """
     achievements = []
     
     try:
+        from src.models.gamification import Achievement, StudentAchievement
+        
         # عدد الاختبارات الكلي
         total_quizzes = StudentResult.query.filter_by(student_id=student_id).count()
         
@@ -305,9 +323,12 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
             StudentResult.score_percentage == 100
         ).count()
         
-        # إنجاز أول اختبار
-        if total_quizzes == 1:
-            achievements.append({
+        # قائمة الإنجازات المحتملة مع شروطها
+        potential_achievements = []
+        
+        # ===== إنجازات الاختبارات =====
+        if total_quizzes >= 1:
+            potential_achievements.append({
                 'type': 'first_quiz',
                 'title': '🎯 البداية',
                 'description': 'أكمل أول اختبار',
@@ -315,9 +336,8 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 10
             })
         
-        # إنجاز 10 اختبارات
-        if total_quizzes == 10:
-            achievements.append({
+        if total_quizzes >= 10:
+            potential_achievements.append({
                 'type': 'quiz_10',
                 'title': '📚 المثابر',
                 'description': 'أكمل 10 اختبارات',
@@ -325,9 +345,8 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 50
             })
         
-        # إنجاز 50 اختبار
-        if total_quizzes == 50:
-            achievements.append({
+        if total_quizzes >= 50:
+            potential_achievements.append({
                 'type': 'quiz_50',
                 'title': '🏅 الخبير',
                 'description': 'أكمل 50 اختبار',
@@ -335,9 +354,8 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 200
             })
         
-        # إنجاز 100 اختبار
-        if total_quizzes == 100:
-            achievements.append({
+        if total_quizzes >= 100:
+            potential_achievements.append({
                 'type': 'quiz_100',
                 'title': '👑 الأسطورة',
                 'description': 'أكمل 100 اختبار',
@@ -345,9 +363,9 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 500
             })
         
-        # إنجاز أول درجة كاملة
-        if perfect_scores == 1:
-            achievements.append({
+        # ===== إنجازات الدرجات الكاملة =====
+        if perfect_scores >= 1:
+            potential_achievements.append({
                 'type': 'perfect_first',
                 'title': '⭐ الكمال',
                 'description': 'احصل على أول درجة كاملة',
@@ -355,9 +373,8 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 20
             })
         
-        # إنجاز 5 درجات كاملة
-        if perfect_scores == 5:
-            achievements.append({
+        if perfect_scores >= 5:
+            potential_achievements.append({
                 'type': 'perfect_5',
                 'title': '🌟 الكمال المتكرر',
                 'description': 'احصل على 5 درجات كاملة',
@@ -365,9 +382,8 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 100
             })
         
-        # إنجاز 10 درجات كاملة
-        if perfect_scores == 10:
-            achievements.append({
+        if perfect_scores >= 10:
+            potential_achievements.append({
                 'type': 'perfect_10',
                 'title': '✨ سيد الكمال',
                 'description': 'احصل على 10 درجات كاملة',
@@ -375,48 +391,168 @@ def check_achievements(student_id: int, quiz_result: StudentResult, student_poin
                 'points': 250
             })
         
-        # إنجازات المستويات
+        # ===== إنجازات النقاط =====
         if student_points:
-            new_level = student_points['new_level']
-            old_level = student_points['old_level']
+            total_points = student_points['new_points']
             
-            # فقط عند الترقية
-            if new_level > old_level:
-                if new_level == 2:
-                    achievements.append({
-                        'type': 'level_2',
-                        'title': '🌱 متعلم',
-                        'description': 'وصلت للمستوى 2',
-                        'icon': '🌱',
-                        'points': 20
-                    })
-                elif new_level == 3:
-                    achievements.append({
-                        'type': 'level_3',
-                        'title': '🌿 متقدم',
-                        'description': 'وصلت للمستوى 3',
-                        'icon': '🌿',
-                        'points': 50
-                    })
-                elif new_level == 4:
-                    achievements.append({
-                        'type': 'level_4',
-                        'title': '🏆 محترف',
-                        'description': 'وصلت للمستوى 4',
-                        'icon': '🏆',
-                        'points': 100
-                    })
-                elif new_level == 5:
-                    achievements.append({
-                        'type': 'level_5',
-                        'title': '👑 خبير',
-                        'description': 'وصلت للمستوى 5',
-                        'icon': '👑',
-                        'points': 200
-                    })
+            if total_points >= 100:
+                potential_achievements.append({
+                    'type': 'points_100',
+                    'title': '💰 جامع النقاط',
+                    'description': 'اجمع 100 نقطة',
+                    'icon': '💰',
+                    'points': 10
+                })
+            
+            if total_points >= 500:
+                potential_achievements.append({
+                    'type': 'points_500',
+                    'title': '💎 الثري',
+                    'description': 'اجمع 500 نقطة',
+                    'icon': '💎',
+                    'points': 50
+                })
+            
+            if total_points >= 1000:
+                potential_achievements.append({
+                    'type': 'points_1000',
+                    'title': '👑 الملك',
+                    'description': 'اجمع 1000 نقطة',
+                    'icon': '👑',
+                    'points': 100
+                })
+        
+        # ===== إنجازات السلسلة =====
+        if streak >= 3:
+            potential_achievements.append({
+                'type': 'streak_3',
+                'title': '🔥 الملتزم',
+                'description': '3 أيام متتالية',
+                'icon': '🔥',
+                'points': 30
+            })
+        
+        if streak >= 7:
+            potential_achievements.append({
+                'type': 'streak_7',
+                'title': '⚡ المستمر',
+                'description': '7 أيام متتالية',
+                'icon': '⚡',
+                'points': 100
+            })
+        
+        if streak >= 30:
+            potential_achievements.append({
+                'type': 'streak_30',
+                'title': '💪 المثابر',
+                'description': '30 يوم متتالي',
+                'icon': '💪',
+                'points': 500
+            })
+        
+        if streak >= 90:
+            potential_achievements.append({
+                'type': 'streak_90',
+                'title': '🏆 الأسطوري',
+                'description': '90 يوم متتالي',
+                'icon': '🏆',
+                'points': 2000
+            })
+        
+        # ===== إنجازات المستويات (عند الترقية فقط) =====
+        if student_points and student_points['new_level'] > student_points['old_level']:
+            new_level = student_points['new_level']
+            
+            if new_level == 2:
+                potential_achievements.append({
+                    'type': 'level_2',
+                    'title': '🌱 مبتدئ',
+                    'description': 'وصلت للمستوى 2',
+                    'icon': '🌱',
+                    'points': 25
+                })
+            elif new_level == 3:
+                potential_achievements.append({
+                    'type': 'level_3',
+                    'title': '🌿 متقدم',
+                    'description': 'وصلت للمستوى 3',
+                    'icon': '🌿',
+                    'points': 50
+                })
+            elif new_level == 4:
+                potential_achievements.append({
+                    'type': 'level_4',
+                    'title': '🏆 محترف',
+                    'description': 'وصلت للمستوى 4',
+                    'icon': '🏆',
+                    'points': 100
+                })
+            elif new_level == 5:
+                potential_achievements.append({
+                    'type': 'level_5',
+                    'title': '🌳 خبير',
+                    'description': 'وصلت للمستوى 5',
+                    'icon': '🌳',
+                    'points': 100
+                })
+        
+        # ===== إنجازات خاصة =====
+        # الطائر المبكر (أول اختبار قبل 8 صباحاً)
+        if quiz_result.created_at.hour < 8:
+            potential_achievements.append({
+                'type': 'early_bird',
+                'title': '🌅 الطائر المبكر',
+                'description': 'أكمل اختبار قبل 8 صباحاً',
+                'icon': '🌅',
+                'points': 50
+            })
+        
+        # البومة الليلية (اختبار بعد 10 مساءً)
+        if quiz_result.created_at.hour >= 22:
+            potential_achievements.append({
+                'type': 'night_owl',
+                'title': '🦉 البومة الليلية',
+                'description': 'أكمل اختبار بعد 10 مساءً',
+                'icon': '🦉',
+                'points': 50
+            })
+        
+        # سريع البرق (اختبار كامل في أقل من دقيقة)
+        if quiz_result.time_spent and quiz_result.time_spent < 60 and quiz_result.score_percentage >= 90:
+            potential_achievements.append({
+                'type': 'speed_master',
+                'title': '⚡ سريع البرق',
+                'description': 'أكمل اختبار في أقل من دقيقة',
+                'icon': '⚡',
+                'points': 100
+            })
+        
+        # ===== التحقق من كل إنجاز محتمل =====
+        for ach_data in potential_achievements:
+            # البحث عن الإنجاز في قاعدة البيانات
+            achievement = Achievement.query.filter_by(
+                achievement_type=ach_data['type']
+            ).first()
+            
+            # إذا لم يكن موجوداً في القاعدة، سيتم إنشاؤه في save_achievements
+            # لكن نتحقق إذا الطالب حصل عليه من قبل
+            if achievement:
+                # التحقق من عدم التكرار
+                existing = StudentAchievement.query.filter_by(
+                    student_id=student_id,
+                    achievement_id=achievement.id
+                ).first()
+                
+                if existing:
+                    continue  # تخطي - الطالب حصل على هذا الإنجاز من قبل
+            
+            # إضافة الإنجاز الجديد
+            achievements.append(ach_data)
         
     except Exception as e:
         print(f"      ⚠️ خطأ في check_achievements: {e}")
+        import traceback
+        traceback.print_exc()
     
     return achievements
 
