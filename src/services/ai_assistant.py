@@ -377,8 +377,9 @@ class AIAssistant:
             status = 'critical'
             severity = 'red'
             suggested_action = 'send_message_and_alert'  # ✅ جديد: إرسال للاثنين
-        elif days_inactive >= inactive_threshold or avg_score < 60 or trend == 'declining':
+        elif days_inactive >= inactive_threshold or avg_score < 60 or (trend == 'declining' and avg_score < 75):
             # 🟠 يحتاج انتباه: إرسال للطالب فقط
+            # ملاحظة: declining فقط إذا المعدل أقل من 75% (لتجنب تصنيف الممتازين كـ needs_attention)
             status = 'needs_attention'
             severity = 'orange'
             suggested_action = 'send_message'
