@@ -1294,25 +1294,70 @@ def get_automation_status():
 @admin_required
 def test_automation():
     """
-    اختبار النظام التلقائي (محاكاة)
+    اختبار النظام التلقائي - إرسال رسالة تجريبية
     
     POST /api/admin/ai/automation/test
-    Body: {"student_id": 123} (optional)
+    Body: {"simple": true} for simple test (default)
+          {"simple": false, "student_id": 123} for complex test
     """
     try:
+        from src.models.notification import Notification
+        from flask import session
+        
+        print("🧪 Testing automation system...")
+        
         data = request.get_json() or {}
+        simple_test = data.get('simple', True)  # Default to simple test
+        
+        # ===== Simple Test: إنشاء رسالة تجريبية مباشرة =====
+        if simple_test:
+            try:
+                # إنشاء notification تجريبي
+                test_notification = Notification(
+                    title="اختبار النظام التلقائي",
+                    message="هذه رسالة تجريبية من النظام التلقائي. تم الإرسال بنجاح! 🎉",
+                    type="success",
+                    icon="check-circle",
+                    user_id=session.get('user_id'),
+                    is_automatic=True,
+                    status='delivered',
+                    sent_at=datetime.utcnow(),
+                    created_at=datetime.utcnow()
+                )
+                
+                db.session.add(test_notification)
+                db.session.commit()
+                
+                print(f"✅ Test notification created: ID={test_notification.id}")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'تم إرسال الرسالة التجريبية بنجاح',
+                    'data': {
+                        'notification_id': test_notification.id,
+                        'title': test_notification.title,
+                        'message': test_notification.message,
+                        'sent_at': test_notification.sent_at.isoformat() if test_notification.sent_at else None,
+                        'test_type': 'simple'
+                    }
+                }), 200
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Error in simple test: {e}")
+                import traceback
+                traceback.print_exc()
+                
+                return jsonify({
+                    'success': False,
+                    'error': f'فشل إنشاء الرسالة التجريبية: {str(e)}'
+                }), 500
+        
+        # ===== Complex Test: اختبار كامل مع تحليل AI =====
         test_student_id = data.get('student_id')
         
         # جلب الإعدادات
         automation_enabled = AISetting.get_setting('automation_enabled', 'false') == 'true'
-        
-        if not automation_enabled:
-            return jsonify({
-                'success': False,
-                'message': 'النظام التلقائي معطّل',
-                'analysis_performed': False,
-                'message_sent': False,
-            })
         
         analysis_performed = False
         message_sent = False
@@ -1345,7 +1390,7 @@ def test_automation():
                         details['would_send_message'] = True
                         details['severity'] = latest_analysis.severity_level
                         details['message_type'] = 'warning' if latest_analysis.severity_level == 'orange' else 'critical'
-                        message_sent = True  # في الوضع الحقيقي
+                        message_sent = True
                     else:
                         details['would_send_message'] = False
                         details['reason'] = 'الطالب لا يحتاج رسالة'
@@ -1363,7 +1408,8 @@ def test_automation():
                         )
                         if result:
                             analyzed_count += 1
-                    except:
+                    except Exception as e:
+                        print(f"Error analyzing student {student.id}: {e}")
                         pass
                 
                 analysis_performed = analyzed_count > 0
@@ -1375,19 +1421,29 @@ def test_automation():
                 'message': 'تم الاختبار بنجاح',
                 'analysis_performed': analysis_performed,
                 'message_sent': message_sent,
+                'automation_enabled': automation_enabled,
                 'details': details,
+                'test_type': 'complex'
             })
             
         except Exception as e:
+            print(f"❌ Error in complex test: {e}")
+            import traceback
+            traceback.print_exc()
+            
             return jsonify({
                 'success': False,
                 'message': f'فشل الاختبار: {str(e)}',
                 'analysis_performed': analysis_performed,
                 'message_sent': message_sent,
-            })
+            }), 500
         
     except Exception as e:
+        print(f"❌ Error in test_automation: {e}")
+        import traceback
+        traceback.print_exc()
+        
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'خطأ في اختبار النظام: {str(e)}'
         }), 500
