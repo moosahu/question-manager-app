@@ -1,316 +1,342 @@
 # src/models/notification.py
-
 """
-نموذج الإشعارات - محدّث ليدعم AI والنظام القديم
+Notification Model - محدث بدعم النظام التلقائي ومراقبة الرسائل
+✅ إضافة حقول: is_automatic, status, sent_at
 """
 
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSONB
-
-try:
-    from src.extensions import db
-except ImportError:
-    try:
-        from extensions import db
-    except ImportError:
-        from flask_sqlalchemy import SQLAlchemy
-        db = SQLAlchemy()
-
+from src.extensions import db
 
 class Notification(db.Model):
-    """نموذج الإشعارات العامة - محدّث"""
-
+    """نموذج الإشعارات"""
     __tablename__ = 'notifications'
-
+    
+    # ===== الحقول الأساسية =====
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-
-    # دعم الأعمدة القديمة والجديدة
-    message = db.Column(db.Text, nullable=True)  # للتوافق مع الكود القديم
-    body = db.Column(db.Text, nullable=True)     # العمود الجديد
-
-    # النوع
-    type = db.Column(db.String(50), default='info')               # للتوافق القديم
-    notification_type = db.Column(db.String(50), default='info')  # الجديد
-
-    # المستخدمين (القديم)
-    student_id = db.Column(db.Integer, nullable=True)
-    user_id = db.Column(db.Integer, nullable=True)
-
-    # دعم AI (جديد)
-    created_by_admin = db.Column(db.Boolean, default=False)
-    admin_id = db.Column(db.Integer, nullable=True)
-
-    created_by_ai = db.Column(db.Boolean, default=False)
-    ai_analysis_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ai_analysis.id'),
-        nullable=True
+    message = db.Column(db.Text)
+    content = db.Column(db.Text)  # alias لـ message
+    
+    # ===== معلومات المستخدم =====
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True)
+    
+    # ===== نوع الإشعار =====
+    type = db.Column(
+        db.String(50), 
+        default='info',  # info, success, warning, error, admin_alert
+        nullable=False
     )
-
-    # بيانات إضافية
-    data = db.Column(JSONB, default={})
-
-    # حالة القراءة (القديم - للتوافق)
-    is_read = db.Column(db.Boolean, default=False)
+    
+    # ===== حالة القراءة =====
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
     read_at = db.Column(db.DateTime, nullable=True)
-
-    # التواريخ
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # العلاقات
-    student_notifications = db.relationship(
-        'StudentNotification',
-        backref='notification',
-        cascade='all, delete-orphan',
-        lazy='dynamic'
+    
+    # ===== 🆕 حقول جديدة للنظام التلقائي =====
+    
+    # هل الرسالة من النظام التلقائي؟
+    is_automatic = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # حالة الإرسال (pending, delivered, failed)
+    status = db.Column(
+        db.String(20), 
+        default='pending',
+        nullable=False
     )
-
+    
+    # تاريخ الإرسال الفعلي
+    sent_at = db.Column(db.DateTime, nullable=True)
+    
+    # ===== التواريخ =====
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # ===== العلاقات =====
+    user = db.relationship('User', backref='notifications', foreign_keys=[user_id])
+    student = db.relationship('Student', backref='student_notifications', foreign_keys=[student_id])
+    
+    # علاقة many-to-many مع الطلاب
+    student_notifications = db.relationship(
+        'StudentNotification', 
+        backref='notification', 
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    
     def __repr__(self):
-        return f"<Notification id={self.id} title={self.title!r}>"
-
-    @property
-    def content(self):
-        """الحصول على المحتوى - يدعم القديم والجديد"""
-        return self.body or self.message or ''
-
-    @content.setter
-    def content(self, value):
-        """تعيين المحتوى - يحدث القديم والجديد"""
-        self.body = value
-        self.message = value
-
+        return f'<Notification {self.id}: {self.title}>'
+    
+    # ===== Methods للقراءة =====
+    
+    def mark_as_read(self):
+        """تحديد الإشعار كمقروء"""
+        try:
+            self.is_read = True
+            self.read_at = datetime.utcnow()
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error marking notification as read: {e}")
+            return False
+    
+    def mark_as_unread(self):
+        """تحديد الإشعار كغير مقروء"""
+        try:
+            self.is_read = False
+            self.read_at = None
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            return False
+    
+    # ===== 🆕 Methods للنظام التلقائي =====
+    
+    def mark_as_sent(self):
+        """تحديد الرسالة كمُرسلة"""
+        try:
+            self.status = 'delivered'
+            self.sent_at = datetime.utcnow()
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error marking notification as sent: {e}")
+            return False
+    
+    def mark_as_failed(self):
+        """تحديد الرسالة كفاشلة"""
+        try:
+            self.status = 'failed'
+            db.session.commit()
+            return False
+        except Exception as e:
+            db.session.rollback()
+            return False
+    
+    # ===== Methods للحذف =====
+    
+    def delete(self):
+        """حذف الإشعار"""
+        try:
+            db.session.delete(self)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting notification: {e}")
+            return False
+    
+    # ===== Methods للتحويل =====
+    
     def to_dict(self):
-        """تحويل إلى dictionary"""
+        """تحويل الإشعار إلى قاموس"""
         return {
             'id': self.id,
             'title': self.title,
-            'body': self.content,
-            'message': self.content,  # للتوافق
-            'notification_type': self.notification_type or self.type,
-            'type': self.type,  # للتوافق
-            'created_by_admin': self.created_by_admin,
-            'created_by_ai': self.created_by_ai,
+            'message': self.message or self.content,
+            'content': self.content or self.message,
+            'type': self.type,
+            'user_id': self.user_id,
+            'student_id': self.student_id,
             'is_read': self.is_read,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
             'read_at': self.read_at.isoformat() if self.read_at else None,
-            'data': self.data or {},
+            # 🆕 حقول جديدة
+            'is_automatic': self.is_automatic,
+            'status': self.status,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            # التواريخ
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-
-    def mark_as_read(self):
-        """تعليم الإشعار كمقروء - للتوافق مع الكود القديم"""
-        if not self.is_read:
-            self.is_read = True
-            self.read_at = datetime.utcnow()
-            db.session.commit()
-
+    
+    # ===== Static Methods =====
+    
     @staticmethod
-    def create_notification(
-        title,
-        body,
-        notification_type='info',
-        created_by_admin=False,
-        created_by_ai=False,
-        data=None,
-        admin_id=None,
-        ai_analysis_id=None,
-    ):
-        """إنشاء إشعار جديد"""
-        notification = Notification(
-            title=title,
-            body=body,
-            message=body,  # للتوافق
-            notification_type=notification_type,
-            type=notification_type,  # للتوافق
-            created_by_admin=created_by_admin,
-            created_by_ai=created_by_ai,
-            data=data or {},
-            admin_id=admin_id,
-            ai_analysis_id=ai_analysis_id,
-        )
-        db.session.add(notification)
-        db.session.commit()
-        return notification
-
+    def get_all_notifications(limit=50):
+        """جلب جميع الإشعارات"""
+        try:
+            return Notification.query.order_by(
+                Notification.created_at.desc()
+            ).limit(limit).all()
+        except Exception as e:
+            print(f"Error getting all notifications: {e}")
+            return []
+    
     @staticmethod
-    def get_unread_count(user_id=None, student_id=None):
-        """الحصول على عدد الإشعارات غير المقروءة - للتوافق"""
-        query = Notification.query.filter_by(is_read=False)
-        if user_id:
-            query = query.filter_by(user_id=user_id)
-        if student_id:
-            query = query.filter_by(student_id=student_id)
-        return query.count()
-
+    def get_recent_notifications(student_id=None, limit=50):
+        """جلب الإشعارات الحديثة"""
+        try:
+            query = Notification.query
+            
+            if student_id:
+                query = query.filter(
+                    (Notification.student_id == student_id) | 
+                    (Notification.student_id == None)
+                )
+            
+            return query.order_by(
+                Notification.created_at.desc()
+            ).limit(limit).all()
+            
+        except Exception as e:
+            print(f"Error getting recent notifications: {e}")
+            return []
+    
     @staticmethod
-    def get_recent_notifications(user_id=None, student_id=None, limit=10):
-        """الحصول على الإشعارات الحديثة - للتوافق"""
-        query = Notification.query.order_by(Notification.created_at.desc())
-        if user_id:
-            query = query.filter_by(user_id=user_id)
-        if student_id:
-            query = query.filter_by(student_id=student_id)
-        return query.limit(limit).all()
-
+    def get_unread_count(user_id=None):
+        """حساب عدد الإشعارات غير المقروءة"""
+        try:
+            query = Notification.query.filter_by(is_read=False)
+            
+            if user_id:
+                query = query.filter(
+                    (Notification.user_id == user_id) | 
+                    (Notification.user_id == None)
+                )
+            
+            return query.count()
+        except Exception as e:
+            print(f"Error counting unread notifications: {e}")
+            return 0
+    
+    # ===== 🆕 Static Methods للنظام التلقائي =====
+    
     @staticmethod
-    def mark_all_as_read(user_id=None, student_id=None):
-        """تحديد جميع الإشعارات كمقروءة - للتوافق"""
-        query = Notification.query.filter_by(is_read=False)
-        if user_id:
-            query = query.filter_by(user_id=user_id)
-        if student_id:
-            query = query.filter_by(student_id=student_id)
+    def get_automatic_messages(period=None, limit=100):
+        """
+        جلب الرسائل التلقائية
+        
+        Args:
+            period: 'today', 'week', 'month', None (all)
+            limit: عدد النتائج
+        """
+        try:
+            query = Notification.query.filter_by(is_automatic=True)
+            
+            # تصفية حسب الفترة
+            if period == 'today':
+                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+                query = query.filter(Notification.sent_at >= today_start)
+            elif period == 'week':
+                from datetime import timedelta
+                week_start = datetime.utcnow() - timedelta(days=7)
+                query = query.filter(Notification.sent_at >= week_start)
+            elif period == 'month':
+                from datetime import timedelta
+                month_start = datetime.utcnow() - timedelta(days=30)
+                query = query.filter(Notification.sent_at >= month_start)
+            
+            return query.order_by(
+                Notification.sent_at.desc()
+            ).limit(limit).all()
+            
+        except Exception as e:
+            print(f"Error getting automatic messages: {e}")
+            return []
+    
+    @staticmethod
+    def get_messaging_stats(period=None):
+        """
+        إحصائيات الإرسال
+        
+        Returns:
+            dict: {total_sent, delivered, failed, pending}
+        """
+        try:
+            query = Notification.query
+            
+            # تصفية حسب الفترة
+            if period == 'today':
+                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+                query = query.filter(Notification.sent_at >= today_start)
+            elif period == 'week':
+                from datetime import timedelta
+                week_start = datetime.utcnow() - timedelta(days=7)
+                query = query.filter(Notification.sent_at >= week_start)
+            elif period == 'month':
+                from datetime import timedelta
+                month_start = datetime.utcnow() - timedelta(days=30)
+                query = query.filter(Notification.sent_at >= month_start)
+            
+            total_sent = query.count()
+            delivered = query.filter_by(status='delivered').count()
+            failed = query.filter_by(status='failed').count()
+            pending = query.filter_by(status='pending').count()
+            
+            return {
+                'total_sent': total_sent,
+                'delivered': delivered,
+                'failed': failed,
+                'pending': pending
+            }
+            
+        except Exception as e:
+            print(f"Error getting messaging stats: {e}")
+            return {
+                'total_sent': 0,
+                'delivered': 0,
+                'failed': 0,
+                'pending': 0
+            }
 
-        notifications = query.all()
-        for notification in notifications:
-            notification.is_read = True
-            notification.read_at = datetime.utcnow()
-        db.session.commit()
-        return len(notifications)
 
+# ===== StudentNotification Model =====
 
 class StudentNotification(db.Model):
-    """نموذج ربط الإشعارات بالطلاب - جديد"""
-
+    """
+    جدول الربط بين الطلاب والإشعارات (Many-to-Many)
+    يسمح بإرسال إشعار واحد لعدة طلاب
+    """
     __tablename__ = 'student_notifications'
-
+    
     id = db.Column(db.Integer, primary_key=True)
-    notification_id = db.Column(
-        db.Integer,
-        db.ForeignKey('notifications.id'),
-        nullable=False,
-    )
-    student_id = db.Column(
-        db.Integer,
-        db.ForeignKey('students.id'),
-        nullable=False,
-    )
-
-    # حالة القراءة
-    is_read = db.Column(db.Boolean, default=False)
-    read_at = db.Column(db.DateTime, nullable=True)
-
-    # حالة الإرسال عبر FCM
-    fcm_sent = db.Column(db.Boolean, default=False)
-    fcm_sent_at = db.Column(db.DateTime, nullable=True)
-    fcm_success = db.Column(db.Boolean, nullable=True)
-
-    # التواريخ
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    
     # العلاقات
-    student = db.relationship(
-        'Student',
-        backref=db.backref('notifications', lazy='dynamic'),
-    )
-
-    # القيود
-    __table_args__ = (
-        db.UniqueConstraint(
-            'notification_id',
-            'student_id',
-            name='unique_notification_student',
-        ),
-    )
-
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    notification_id = db.Column(db.Integer, db.ForeignKey('notifications.id'), nullable=False)
+    
+    # حالة القراءة لكل طالب
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
+    
+    # التواريخ
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # العلاقات
+    student = db.relationship('Student', backref='notifications_link')
+    
     def __repr__(self):
-        return f"<StudentNotification id={self.id} notif={self.notification_id} student={self.student_id}>"
-
+        return f'<StudentNotification student_id={self.student_id} notification_id={self.notification_id}>'
+    
     def mark_as_read(self):
-        """تعليم الإشعار كمقروء"""
-        if not self.is_read:
+        """تحديد الإشعار كمقروء لهذا الطالب"""
+        try:
             self.is_read = True
             self.read_at = datetime.utcnow()
             db.session.commit()
-
-    def mark_fcm_sent(self, success=True):
-        """تعليم الإشعار كمرسل عبر FCM"""
-        self.fcm_sent = True
-        self.fcm_sent_at = datetime.utcnow()
-        self.fcm_success = success
-        db.session.commit()
-
-    def to_dict(self):
-        """تحويل إلى dictionary"""
-        return {
-            'id': self.id,
-            'notification_id': self.notification_id,
-            'student_id': self.student_id,
-            'title': self.notification.title if self.notification else None,
-            'body': self.notification.content if self.notification else None,
-            'notification_type': (
-                self.notification.notification_type
-                if self.notification else None
-            ),
-            'data': self.notification.data if self.notification else {},
-            'is_read': self.is_read,
-            'read_at': self.read_at.isoformat() if self.read_at else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-        }
-
-    @staticmethod
-    def create_for_student(notification_id, student_id):
-        """إنشاء ربط إشعار بطالب مع منع التكرار لنفس الإشعار"""
-        try:
-            # لو فيه نفس الإشعار لنفس الطالب لا نكرره
-            existing = StudentNotification.query.filter_by(
-                notification_id=notification_id,
-                student_id=student_id,
-            ).first()
-            if existing:
-                return existing
-
-            student_notif = StudentNotification(
-                notification_id=notification_id,
-                student_id=student_id,
-            )
-            db.session.add(student_notif)
-            db.session.commit()
-            return student_notif
+            return True
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطأ في إنشاء StudentNotification: {e}")
-            return None
-
-    @staticmethod
-    def create_for_students(notification_id, student_ids):
-        """إنشاء ربط إشعار لعدة طلاب"""
-        created = []
-        for student_id in student_ids:
-            sn = StudentNotification.create_for_student(
-                notification_id,
-                student_id,
-            )
-            if sn:
-                created.append(sn)
-        return created
-
+            return False
+    
     @staticmethod
     def get_student_notifications(student_id, unread_only=False, limit=50):
-        """جلب إشعارات طالب"""
-        query = StudentNotification.query.filter_by(student_id=student_id)
-        if unread_only:
-            query = query.filter_by(is_read=False)
-        return query.order_by(
-            StudentNotification.created_at.desc()
-        ).limit(limit).all()
-
-    @staticmethod
-    def get_unread_count(student_id):
-        """عدد الإشعارات غير المقروءة لطالب"""
-        return StudentNotification.query.filter_by(
-            student_id=student_id,
-            is_read=False,
-        ).count()
-
-    @staticmethod
-    def mark_all_as_read(student_id):
-        """تعليم جميع إشعارات الطالب كمقروءة"""
-        StudentNotification.query.filter_by(
-            student_id=student_id,
-            is_read=False,
-        ).update({
-            'is_read': True,
-            'read_at': datetime.utcnow(),
-        })
-        db.session.commit()
+        """جلب إشعارات طالب معين"""
+        try:
+            query = StudentNotification.query.filter_by(student_id=student_id)
+            
+            if unread_only:
+                query = query.filter_by(is_read=False)
+            
+            # الترتيب حسب تاريخ الإنشاء
+            query = query.join(Notification).order_by(
+                Notification.created_at.desc()
+            )
+            
+            return query.limit(limit).all()
+            
+        except Exception as e:
+            print(f"Error getting student notifications: {e}")
+            return []
