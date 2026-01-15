@@ -762,6 +762,7 @@ def save_achievements(student_id: int, achievements: list):
             if not achievement:
                 # إنشاء الإنجاز
                 achievement = Achievement(
+                    code=ach_data['type'],  # ✅ إضافة حقل code
                     achievement_type=ach_data['type'],
                     title=ach_data['title'],
                     description=ach_data['description'],
