@@ -133,21 +133,22 @@ def update_student_points(student_id: int, points_earned: int, quiz_result: Stud
             student_points = StudentPoints(
                 student_id=student_id,
                 total_points=0,
-                lifetime_points=0
+                lifetime_points=0,
+                level=1
             )
             db.session.add(student_points)
             db.session.flush()
         
         # حفظ القيم القديمة
         old_points = student_points.total_points
-        old_level = calculate_level(old_points)
+        old_level = student_points.level
         
         # تحديث النقاط
         student_points.total_points += points_earned
         student_points.lifetime_points += points_earned
         
-        # حساب المستوى الجديد (بدون حفظه في القاعدة)
-        new_level = calculate_level(student_points.total_points)
+        # تحديث المستوى
+        student_points.level = calculate_level(student_points.total_points)
         
         # حفظ transaction
         transaction = PointTransaction(
@@ -165,7 +166,7 @@ def update_student_points(student_id: int, points_earned: int, quiz_result: Stud
             'old_points': old_points,
             'new_points': student_points.total_points,
             'old_level': old_level,
-            'new_level': new_level
+            'new_level': student_points.level
         }
         
     except Exception as e:
@@ -367,6 +368,26 @@ def send_notification(student, quiz_result, points_earned,
     إرسال إشعار واحد شامل
     """
     try:
+        # محاولة استخدام smart_notifications (AI)
+        try:
+            from src.services.smart_notifications import smart_notifications
+            
+            smart_notifications.send_quiz_completion_notification(
+                student_id=student.id,
+                quiz_result=quiz_result,
+                points_earned=points_earned,
+                student_points=student_points,
+                streak=streak,
+                achievements=achievements,
+                challenges=challenges
+            )
+            print(f"      ✅ تم إرسال إشعار ذكي (AI)")
+            return
+            
+        except (ImportError, AttributeError) as e:
+            print(f"      ⚠️ smart_notifications غير متاح: {e}")
+        
+        # البديل: إشعار عادي
         from src.models.notification import Notification
         
         # عنوان الإشعار
