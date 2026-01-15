@@ -257,20 +257,48 @@ class AIAssistant:
         # تحليل المواضيع
         weak_topics = self.analyze_weak_topics(data['student_id'])
         
-        # تنسيق المواضيع الضعيفة
-        weak_topics_text = ""
-        if weak_topics:
-            weak_topics_text = "\n".join([
-                f"- {t['topic']}: {t['average']}% ({t['attempts']} محاولة)"
-                for t in weak_topics[:3]  # أضعف 3 مواضيع
+        # تصنيف المواضيع حسب الأداء
+        actually_weak = []     # < 60%
+        needs_work = []        # 60-79%
+        good_topics = []       # 80-89%
+        excellent_topics = []  # >= 90%
+        
+        for topic in weak_topics:
+            avg = topic['average']
+            if avg < 60:
+                actually_weak.append(topic)
+            elif avg < 80:
+                needs_work.append(topic)
+            elif avg < 90:
+                good_topics.append(topic)
+            else:
+                excellent_topics.append(topic)
+        
+        # تنسيق المواضيع حسب التصنيف
+        weak_text = ""
+        if actually_weak:
+            weak_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (يحتاج تحسين)"
+                for t in actually_weak[:3]
             ])
         
-        # تنسيق المواضيع القوية
-        strong_topics_text = ""
-        if len(weak_topics) > 3:
-            strong_topics_text = "\n".join([
+        improvement_text = ""
+        if needs_work:
+            improvement_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (جيد، يمكن تحسينه)"
+                for t in needs_work[:3]
+            ])
+        
+        strong_text = ""
+        if excellent_topics:
+            strong_text = "\n".join([
                 f"- {t['topic']}: {t['average']}%"
-                for t in reversed(weak_topics[-3:])  # أقوى 3 مواضيع
+                for t in excellent_topics[:3]
+            ])
+        elif good_topics:
+            strong_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in good_topics[:3]
             ])
         
         return f"""
@@ -285,22 +313,25 @@ class AIAssistant:
 - الاتجاه: {data['trend_percentage']:+.1f}%
 - آخر نشاط: منذ {data['days_since_last_quiz']} يوم
 
-المواضيع الأضعف:
-{weak_topics_text if weak_topics_text else "لا توجد بيانات كافية"}
+المواضيع التي تحتاج تحسين (< 60%):
+{weak_text if weak_text else "لا يوجد"}
 
-المواضيع الأقوى:
-{strong_topics_text if strong_topics_text else "لا توجد بيانات كافية"}
+المواضيع الجيدة (60-79%):
+{improvement_text if improvement_text else "لا يوجد"}
+
+المواضيع الممتازة (80%+):
+{strong_text if strong_text else "لا توجد بيانات كافية"}
 
 المطلوب: اكتب تحليلاً مخصصاً بهذا التنسيق:
 
 1. تقييم الأداء:
-[ركز على المواضيع الضعيفة بالاسم والنسبة]
+[فقط المواضيع < 60% (إن وجدت). إذا لم توجد، اكتب "أداؤك جيد في معظم المواضيع!"]
 
 2. نقاط القوة:
-[اذكر المواضيع القوية بالاسم]
+[فقط المواضيع >= 80%]
 
 3. خطة عمل:
-[توصيات محددة للمواضيع الضعيفة - اذكر عدد الاختبارات المطلوبة]
+[توصيات محددة للمواضيع < 60% فقط. اذكر عدد الاختبارات المطلوبة]
 
 4. رسالة تحفيزية:
 [رسالة شخصية قصيرة ومحفزة]
@@ -308,6 +339,8 @@ class AIAssistant:
 تعليمات مهمة:
 - لا تكتب "أهلاً بك" أو "مرحباً" أو أي ترحيب
 - ابدأ مباشرة بـ "1. تقييم الأداء:"
+- لا تذكر المواضيع الممتازة (>= 80%) في قسم "تقييم الأداء"
+- ضع المواضيع الممتازة فقط في قسم "نقاط القوة"
 - ضع سطر جديد بعد كل عنوان رئيسي
 - اذكر المواضيع بالاسم الكامل
 - كن محدداً في الأرقام
