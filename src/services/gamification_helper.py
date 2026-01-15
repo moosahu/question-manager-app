@@ -78,6 +78,7 @@ def get_student_gamification_data(student_id: int) -> Dict:
                 })
         except Exception as e:
             print(f"⚠️ لا يمكن جلب الإنجازات: {e}")
+            db.session.rollback()  # ✅ إضافة rollback
         
         # 5. التحديات النشطة (مع معالجة الأخطاء)
         challenges_list = []
@@ -121,6 +122,7 @@ def get_student_gamification_data(student_id: int) -> Dict:
                 })
         except Exception as e:
             print(f"⚠️ لا يمكن جلب التحديات: {e}")
+            db.session.rollback()  # ✅ إضافة rollback
         
         # 6. النقاط المطلوبة للمستوى التالي
         next_level = level + 1
@@ -145,6 +147,12 @@ def get_student_gamification_data(student_id: int) -> Dict:
         print(f"❌ خطأ في get_student_gamification_data: {e}")
         import traceback
         traceback.print_exc()
+        
+        # تنظيف الـ session
+        try:
+            db.session.rollback()
+        except:
+            pass
         
         # إرجاع بيانات افتراضية (آمنة)
         return {
