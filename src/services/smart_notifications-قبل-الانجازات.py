@@ -15,18 +15,6 @@ from src.models.student import Student
 from src.services.notification_service import NotificationService
 from src.extensions import db
 
-# ✅ دعم Gamification
-try:
-    from src.services.gamification_helper import (
-        get_student_gamification_data,
-        format_gamification_section,
-        get_compact_gamification_text
-    )
-    GAMIFICATION_AVAILABLE = True
-except ImportError:
-    print("⚠️ Gamification helper غير متوفر - سيتم تجاهل معلومات اللعب")
-    GAMIFICATION_AVAILABLE = False
-
 
 # ============================================
 # قوالب الرسائل المتنوعة (محسّنة!)
@@ -502,14 +490,6 @@ class SmartNotificationService:
         student = Student.query.get(analysis.student_id)
         student_name = student.name if student else 'الطالب'
         
-        # ✅ جلب بيانات Gamification
-        gamification_data = None
-        if GAMIFICATION_AVAILABLE:
-            try:
-                gamification_data = get_student_gamification_data(analysis.student_id)
-            except Exception as e:
-                print(f"⚠️ فشل جلب Gamification: {e}")
-        
         # تحديد الوقت
         time_of_day = get_time_of_day()
         is_weekend_day = is_weekend()
@@ -535,35 +515,24 @@ class SmartNotificationService:
             else:  # critical
                 title = f"⚠️ {student_name}، نحتاج انتباهك!"
 
-        # ✅ محتوى الرسالة حسب الحالة مع Gamification
+        # ✅ محتوى الرسالة حسب الحالة
         if status == 'excellent':
             # للطلاب الممتازين - رسالة تهنئة
-            body_parts = [f"معدلك: {analysis.average_score}% 🏆"]
-            
-            # إضافة معلومات gamification مختصرة
-            if gamification_data:
-                compact_text = get_compact_gamification_text(gamification_data)
-                if compact_text:
-                    body_parts.append(compact_text)
-            
-            body_parts.append("\nأداء استثنائي! أنت في القمة!")
-            body_parts.append("استمر في هذا التميز... نحن فخورون بك! 🌟")
-            
-            body = "\n".join(body_parts)
+            body = f"""
+معدلك: {analysis.average_score}% 🏆
+
+أداء استثنائي! أنت في القمة!
+استمر في هذا التميز... نحن فخورون بك! 🌟
+"""
         
         elif status == 'good':
             # للطلاب الجيدين - رسالة تشجيع
-            body_parts = [f"معدلك: {analysis.average_score}% 📈"]
-            
-            if gamification_data:
-                compact_text = get_compact_gamification_text(gamification_data)
-                if compact_text:
-                    body_parts.append(compact_text)
-            
-            body_parts.append("\nأداء جيد! أنت على الطريق الصحيح.")
-            body_parts.append("خطوة بسيطة تفصلك عن الامتياز! 💪")
-            
-            body = "\n".join(body_parts)
+            body = f"""
+معدلك: {analysis.average_score}% 📈
+
+أداء جيد! أنت على الطريق الصحيح.
+خطوة بسيطة تفصلك عن الامتياز! 💪
+"""
         
         elif status == 'needs_attention':
             # للطلاب الذين يحتاجون انتباه
@@ -590,12 +559,6 @@ class SmartNotificationService:
 ابدأ بخطوة بسيطة: اختبار واحد اليوم.
 لا تستسلم... كل طالب متميز بدأ من هنا!
 """
-
-        # ✅ إضافة قسم Gamification الكامل للممتازين والجيدين
-        if gamification_data and status in ['excellent', 'good']:
-            gamification_section = format_gamification_section(gamification_data)
-            if gamification_section:
-                body += f"\n\n{gamification_section}"
 
         # إضافة توصيات AI إذا وجدت
         if analysis.ai_recommendations:
