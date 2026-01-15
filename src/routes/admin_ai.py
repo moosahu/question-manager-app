@@ -1215,8 +1215,14 @@ def get_automation_status():
     GET /api/admin/ai/automation/status
     """
     try:
-        # جلب الإعدادات
-        automation_enabled = AISetting.get_setting('automation_enabled', 'false') == 'true'
+        # جلب الإعدادات مع fallback
+        # جرب قراءة automation_enabled، إذا لم يوجد استخدم enable_auto_messages
+        automation_enabled_str = AISetting.get_setting('automation_enabled', None)
+        if automation_enabled_str is None:
+            # Fallback إلى enable_auto_messages (موجود في production)
+            automation_enabled_str = AISetting.get_setting('enable_auto_messages', 'false')
+        automation_enabled = automation_enabled_str == 'true'
+        
         automation_interval = int(AISetting.get_setting('automation_interval', 60))
         automation_start_hour = int(AISetting.get_setting('automation_start_hour', 8))
         automation_end_hour = int(AISetting.get_setting('automation_end_hour', 22))
