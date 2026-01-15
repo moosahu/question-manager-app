@@ -25,12 +25,9 @@ def get_student_gamification_data(student_id: int) -> Dict:
         }
     """
     try:
-        # استيراد النماذج
+        # استيراد النماذج الأساسية
         from src.models.student import Student
-        from src.models.gamification import (
-            StudentPoints, Achievement, StudentAchievement,
-            Challenge, StudentChallenge
-        )
+        from src.models.gamification import StudentPoints
         
         # 1. النقاط والمستوى
         student_points = StudentPoints.query.filter_by(student_id=student_id).first()
@@ -39,8 +36,7 @@ def get_student_gamification_data(student_id: int) -> Dict:
             # إنشاء سجل نقاط إذا لم يكن موجود
             student_points = StudentPoints(
                 student_id=student_id,
-                total_points=0,
-                level=1
+                total_points=0
             )
             db.session.add(student_points)
             db.session.commit()
@@ -50,79 +46,92 @@ def get_student_gamification_data(student_id: int) -> Dict:
             StudentPoints.total_points > student_points.total_points
         ).count() + 1
         
-        total_students = db.session.query(Student).filter_by(role='student').count()
+        total_students = db.session.query(Student).count()
         
-        # 3. الإنجازات الحديثة (آخر 7 أيام)
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        recent_achievements = db.session.query(
-            Achievement, StudentAchievement.unlocked_at
-        ).join(
-            StudentAchievement
-        ).filter(
-            StudentAchievement.student_id == student_id,
-            StudentAchievement.unlocked_at >= week_ago
-        ).order_by(
-            StudentAchievement.unlocked_at.desc()
-        ).limit(3).all()
+        # 3. حساب المستوى من النقاط
+        level = calculate_level_from_points(student_points.total_points)
         
+        # 4. الإنجازات الحديثة (مع معالجة الأخطاء)
         achievements_list = []
-        for achievement, unlocked_at in recent_achievements:
-            achievements_list.append({
-                'title': achievement.title,
-                'description': achievement.description,
-                'points': achievement.points,
-                'icon': achievement.icon,
-                'unlocked_at': unlocked_at.isoformat()
-            })
+        try:
+            from src.models.gamification import Achievement, StudentAchievement
+            
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            recent_achievements = db.session.query(
+                Achievement, StudentAchievement.unlocked_at
+            ).join(
+                StudentAchievement
+            ).filter(
+                StudentAchievement.student_id == student_id,
+                StudentAchievement.unlocked_at >= week_ago
+            ).order_by(
+                StudentAchievement.unlocked_at.desc()
+            ).limit(3).all()
+            
+            for achievement, unlocked_at in recent_achievements:
+                achievements_list.append({
+                    'title': achievement.title,
+                    'description': achievement.description,
+                    'points': achievement.points,
+                    'icon': achievement.icon,
+                    'unlocked_at': unlocked_at.isoformat()
+                })
+        except Exception as e:
+            print(f"⚠️ لا يمكن جلب الإنجازات: {e}")
         
-        # 4. التحديات النشطة
-        today = datetime.utcnow().date()
-        active_challenges = db.session.query(
-            Challenge, StudentChallenge
-        ).outerjoin(
-            StudentChallenge,
-            db.and_(
-                StudentChallenge.challenge_id == Challenge.id,
-                StudentChallenge.student_id == student_id
-            )
-        ).filter(
-            Challenge.is_active == True,
-            db.or_(
-                Challenge.end_date == None,
-                Challenge.end_date >= today
-            )
-        ).all()
-        
+        # 5. التحديات النشطة (مع معالجة الأخطاء)
         challenges_list = []
-        for challenge, student_challenge in active_challenges:
-            progress = 0
-            completed = False
+        try:
+            from src.models.gamification import Challenge, StudentChallenge
             
-            if student_challenge:
-                progress = student_challenge.progress
-                completed = student_challenge.completed
+            today = datetime.utcnow().date()
+            active_challenges = db.session.query(
+                Challenge, StudentChallenge
+            ).outerjoin(
+                StudentChallenge,
+                db.and_(
+                    StudentChallenge.challenge_id == Challenge.id,
+                    StudentChallenge.student_id == student_id
+                )
+            ).filter(
+                Challenge.is_active == True,
+                db.or_(
+                    Challenge.end_date == None,
+                    Challenge.end_date >= today
+                )
+            ).all()
             
-            challenges_list.append({
-                'id': challenge.id,
-                'title': challenge.title,
-                'description': challenge.description,
-                'target': challenge.target_value,
-                'progress': progress,
-                'completed': completed,
-                'points': challenge.points,
-                'type': challenge.challenge_type
-            })
+            for challenge, student_challenge in active_challenges:
+                progress = 0
+                completed = False
+                
+                if student_challenge:
+                    progress = student_challenge.progress
+                    completed = student_challenge.completed
+                
+                challenges_list.append({
+                    'id': challenge.id,
+                    'title': challenge.title,
+                    'description': challenge.description,
+                    'target': challenge.target_value,
+                    'progress': progress,
+                    'completed': completed,
+                    'points': challenge.points,
+                    'type': challenge.challenge_type
+                })
+        except Exception as e:
+            print(f"⚠️ لا يمكن جلب التحديات: {e}")
         
-        # 5. النقاط المطلوبة للمستوى التالي
-        next_level = student_points.level + 1
+        # 6. النقاط المطلوبة للمستوى التالي
+        next_level = level + 1
         next_level_points = calculate_level_threshold(next_level)
         
-        # 6. سلسلة الأيام المتتالية
+        # 7. سلسلة الأيام المتتالية
         streak_days = calculate_streak(student_id)
         
         return {
             'points': student_points.total_points,
-            'level': student_points.level,
+            'level': level,
             'rank': rank,
             'total_students': total_students,
             'recent_achievements': achievements_list,
@@ -134,7 +143,10 @@ def get_student_gamification_data(student_id: int) -> Dict:
         
     except Exception as e:
         print(f"❌ خطأ في get_student_gamification_data: {e}")
-        # إرجاع بيانات افتراضية
+        import traceback
+        traceback.print_exc()
+        
+        # إرجاع بيانات افتراضية (آمنة)
         return {
             'points': 0,
             'level': 1,
@@ -148,14 +160,39 @@ def get_student_gamification_data(student_id: int) -> Dict:
         }
 
 
+def calculate_level_from_points(total_points: int) -> int:
+    """حساب المستوى من النقاط"""
+    if total_points >= 1000:
+        return 5
+    elif total_points >= 500:
+        return 4
+    elif total_points >= 250:
+        return 3
+    elif total_points >= 100:
+        return 2
+    else:
+        return 1
+
+
 def calculate_level_threshold(level: int) -> int:
     """
     حساب النقاط المطلوبة للوصول لمستوى معين
     
-    المعادلة: level * 500 (مثال بسيط)
-    يمكن تعديلها حسب الرغبة
+    المستويات:
+    - المستوى 1: 0-99 نقطة
+    - المستوى 2: 100-249 نقطة  
+    - المستوى 3: 250-499 نقطة
+    - المستوى 4: 500-999 نقطة
+    - المستوى 5: 1000+ نقطة
     """
-    return level * 500
+    thresholds = {
+        1: 0,      # البداية
+        2: 100,    # للوصول للمستوى 2
+        3: 250,    # للوصول للمستوى 3
+        4: 500,    # للوصول للمستوى 4
+        5: 1000    # للوصول للمستوى 5
+    }
+    return thresholds.get(level, 1000)
 
 
 def calculate_streak(student_id: int) -> int:
@@ -212,10 +249,9 @@ def format_gamification_section(data: Dict) -> str:
     """
     sections = []
     
-    # 1. الإحصائيات الأساسية
-    if data['points'] > 0 or data['level'] > 1:
-        rank_text = f"#{data['rank']}" if data['rank'] > 0 else "جديد"
-        sections.append(f"""📊 إحصائياتك:
+    # 1. الإحصائيات الأساسية (تُعرض دائماً)
+    rank_text = f"#{data['rank']}" if data['rank'] > 0 else "جديد"
+    sections.append(f"""📊 إحصائياتك:
 • النقاط: {data['points']:,} 💎
 • المستوى: {data['level']} ⭐
 • الترتيب: {rank_text} من {data['total_students']}""")
@@ -239,8 +275,8 @@ def format_gamification_section(data: Dict) -> str:
 [{progress_bar}] {challenge['progress']}/{challenge['target']}
 الجائزة: +{challenge['points']} نقطة! 💰""")
     
-    # 4. التقدم للمستوى التالي
-    if data['points_to_next_level'] > 0 and data['points_to_next_level'] <= 1000:
+    # 4. التقدم للمستوى التالي (تُعرض إذا لم يصل للمستوى 5)
+    if data['level'] < 5 and data['points_to_next_level'] > 0:
         progress = int((data['points'] / data['next_level_points']) * 15)
         progress_bar = "█" * progress + "░" * (15 - progress)
         percentage = int((data['points'] / data['next_level_points']) * 100)
@@ -248,6 +284,9 @@ def format_gamification_section(data: Dict) -> str:
         sections.append(f"""💪 قريب من المستوى التالي:
 [{progress_bar}] {percentage}%
 باقي: {data['points_to_next_level']:,} نقطة!""")
+    elif data['level'] >= 5:
+        sections.append(f"""🏆 وصلت للمستوى الأقصى!
+أنت من النخبة! 👑""")
     
     # 5. سلسلة الأيام
     if data['streak_days'] >= 3:
