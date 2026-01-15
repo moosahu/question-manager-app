@@ -1215,13 +1215,37 @@ def get_automation_status():
     GET /api/admin/ai/automation/status
     """
     try:
-        # جلب الإعدادات مع fallback
-        # جرب قراءة automation_enabled، إذا لم يوجد استخدم enable_auto_messages
-        automation_enabled_str = AISetting.get_setting('automation_enabled', None)
-        if automation_enabled_str is None:
-            # Fallback إلى enable_auto_messages (موجود في production)
-            automation_enabled_str = AISetting.get_setting('enable_auto_messages', 'false')
+        # 🔥 قراءة مباشرة من DB - بدون أي cache!
+        from sqlalchemy import text
+        
+        result = db.session.execute(text("""
+            SELECT setting_value 
+            FROM ai_settings 
+            WHERE setting_key = 'automation_enabled'
+            LIMIT 1
+        """)).fetchone()
+        
+        if result and result[0]:
+            automation_enabled_str = result[0]
+            print(f"🔥 قرأنا automation_enabled من DB: {automation_enabled_str}")
+        else:
+            # Fallback إلى enable_auto_messages
+            result2 = db.session.execute(text("""
+                SELECT setting_value 
+                FROM ai_settings 
+                WHERE setting_key = 'enable_auto_messages'
+                LIMIT 1
+            """)).fetchone()
+            
+            if result2 and result2[0]:
+                automation_enabled_str = result2[0]
+                print(f"🔥 Fallback: enable_auto_messages = {automation_enabled_str}")
+            else:
+                automation_enabled_str = 'false'
+                print("❌ لم نجد أي إعداد - استخدمنا false")
+        
         automation_enabled = automation_enabled_str == 'true'
+        print(f"✅ النتيجة النهائية: automation_enabled = {automation_enabled}")
         
         automation_interval = int(AISetting.get_setting('automation_interval', 60))
         automation_start_hour = int(AISetting.get_setting('automation_start_hour', 8))
@@ -1464,44 +1488,3 @@ def test_automation():
             'success': False,
             'error': f'خطأ في اختبار النظام: {str(e)}'
         }), 500
-
-
-@admin_ai_bp.route('/settings/automation_enabled', methods=['PUT'])
-@admin_required
-def update_automation_enabled():
-    """
-    تفعيل/تعطيل النظام التلقائي
-    
-    PUT /api/admin/ai/settings/automation_enabled
-    Body: {"value": true/false}
-    """
-    try:
-        data = request.get_json(silent=True) or {}
-        value = data.get('value', True)
-        
-        print(f"🔧 Updating automation_enabled to: {value}")
-        
-        # حفظ في كلا الحقلين لضمان التوافق
-        AISetting.set_setting('enable_auto_messages', 'true' if value else 'false')
-        AISetting.set_setting('automation_enabled', 'true' if value else 'false')
-        
-        print(f"✅ Settings updated successfully")
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم تحديث الإعداد بنجاح',
-            'data': {
-                'automation_enabled': value
-            }
-        }), 200
-        
-    except Exception as e:
-        print(f"❌ Error updating automation_enabled: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
