@@ -1774,12 +1774,22 @@ def api_save_result():
         
         # 🎯 تشغيل نظام Gamification
         try:
-            from src.hooks.quiz_completion_hook import on_quiz_completed
             print(f"🎯 تشغيل Gamification Hook للطالب {student_id}")
-            on_quiz_completed(student_id, result)
+            result.trigger_gamification_hook()
             print(f"✅ تم تشغيل Gamification Hook بنجاح")
-        except ImportError as e:
-            print(f"⚠️ Gamification Hook غير متاح: {e}")
+        except AttributeError:
+            # إذا الدالة غير موجودة في Model، استخدم الطريقة المباشرة
+            try:
+                from src.hooks.quiz_completion_hook import on_quiz_completed
+                print(f"🎯 تشغيل Gamification Hook (مباشر) للطالب {student_id}")
+                on_quiz_completed(student_id, result)
+                print(f"✅ تم تشغيل Gamification Hook بنجاح")
+            except ImportError as e:
+                print(f"⚠️ Gamification Hook غير متاح: {e}")
+            except Exception as e:
+                print(f"❌ خطأ في Gamification Hook: {e}")
+                import traceback
+                traceback.print_exc()
         except Exception as e:
             print(f"❌ خطأ في Gamification Hook: {e}")
             import traceback

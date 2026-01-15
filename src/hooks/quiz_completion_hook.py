@@ -3,10 +3,9 @@
 Hook موحد يتم تشغيله عند إكمال الطالب لاختبار
 
 يتولى:
-1. تحديث النقاط والمستوى في students table (مباشرة)
-2. زامن مع student_points (للتوافق الخلفي)
-3. التحقق من الإنجازات والتحديات
-4. إرسال إشعار ذكي واحد (بدون تكرار)
+1. تحديث النقاط في student_points table
+2. التحقق من الإنجازات والتحديات
+3. إرسال إشعار ذكي واحد (بدون تكرار)
 """
 
 from datetime import datetime, timedelta
@@ -39,45 +38,31 @@ def on_quiz_completed(student_id: int, quiz_result: StudentResult):
         # 2. حساب النقاط
         print("   1️⃣ حساب النقاط...")
         points_earned = calculate_points(quiz_result)
-        
         print(f"   💰 النقاط المكتسبة: {points_earned}")
         
-        # 3. تحديث students table مباشرة
-        print("   2️⃣ تحديث جدول students...")
-        old_points = student.total_points or 0
-        old_level = student.level or 1
+        # 3. تحديث student_points
+        print("   2️⃣ تحديث student_points...")
+        student_points = update_student_points(student_id, points_earned, quiz_result)
         
-        student.total_points = old_points + points_earned
-        student.level = calculate_level(student.total_points)
+        if student_points:
+            print(f"   📊 النقاط: {student_points['old_points']} → {student_points['new_points']}")
+            print(f"   ⭐ المستوى: {student_points['old_level']} → {student_points['new_level']}")
         
-        # تحديث السلسلة
-        update_streak(student)
+        # 4. حساب السلسلة
+        print("   3️⃣ حساب السلسلة...")
+        streak = calculate_streak(student_id)
+        print(f"   🔥 السلسلة: {streak} يوم")
         
-        # تحديث آخر نشاط
-        student.last_activity = datetime.utcnow()
-        
-        print(f"   📊 النقاط: {old_points} → {student.total_points}")
-        print(f"   ⭐ المستوى: {old_level} → {student.level}")
-        print(f"   🔥 السلسلة: {student.current_streak} يوم")
-        
-        # 4. زامن مع student_points (للتوافق الخلفي)
-        print("   3️⃣ زامن مع student_points...")
-        sync_with_student_points(student_id, points_earned, quiz_result)
-        
-        # 5. حفظ التغييرات
-        db.session.commit()
-        print(f"   ✅ تم حفظ التغييرات")
-        
-        # 6. التحقق من الإنجازات
+        # 5. التحقق من الإنجازات
         print("   4️⃣ التحقق من الإنجازات...")
-        achievements = check_achievements(student, quiz_result)
+        achievements = check_achievements(student_id, quiz_result, student_points)
         
         if achievements:
             print(f"   🏆 فتح {len(achievements)} إنجاز جديد:")
             for ach in achievements:
                 print(f"      - {ach['title']} (+{ach['points']} نقطة)")
         
-        # 7. التحقق من التحديات
+        # 6. التحقق من التحديات
         print("   5️⃣ التحقق من التحديات...")
         challenges = check_challenges(student_id, quiz_result)
         
@@ -86,13 +71,14 @@ def on_quiz_completed(student_id: int, quiz_result: StudentResult):
             for ch in challenges:
                 print(f"      - {ch['title']} (+{ch['points']} نقطة)")
         
-        # 8. إرسال إشعار ذكي واحد فقط
+        # 7. إرسال إشعار ذكي واحد فقط
         print("   6️⃣ إرسال الإشعار...")
-        send_smart_notification(
+        send_notification(
             student=student,
             quiz_result=quiz_result,
             points_earned=points_earned,
-            level_up=(student.level > old_level),
+            student_points=student_points,
+            streak=streak,
             achievements=achievements,
             challenges=challenges
         )
@@ -123,11 +109,70 @@ def calculate_points(quiz_result: StudentResult) -> int:
     elif score >= 80:
         bonus_points += 3
     
-    # بونص للسرعة
+    # بونص للسرعة (أقل من دقيقة)
     if quiz_result.time_spent and quiz_result.time_spent < 60:
         bonus_points += 2
     
     return base_points + bonus_points
+
+
+def update_student_points(student_id: int, points_earned: int, quiz_result: StudentResult) -> dict:
+    """
+    تحديث النقاط في student_points table
+    
+    Returns:
+        dict: {old_points, new_points, old_level, new_level}
+    """
+    try:
+        from src.models.gamification import StudentPoints, PointTransaction
+        
+        # جلب أو إنشاء سجل النقاط
+        student_points = StudentPoints.query.filter_by(student_id=student_id).first()
+        
+        if not student_points:
+            student_points = StudentPoints(
+                student_id=student_id,
+                total_points=0,
+                lifetime_points=0,
+                level=1
+            )
+            db.session.add(student_points)
+            db.session.flush()
+        
+        # حفظ القيم القديمة
+        old_points = student_points.total_points
+        old_level = student_points.level
+        
+        # تحديث النقاط
+        student_points.total_points += points_earned
+        student_points.lifetime_points += points_earned
+        
+        # تحديث المستوى
+        student_points.level = calculate_level(student_points.total_points)
+        
+        # حفظ transaction
+        transaction = PointTransaction(
+            student_id=student_id,
+            amount=points_earned,
+            reason=f"إكمال اختبار: {quiz_result.quiz_name}",
+            reference_type='quiz',
+            reference_id=quiz_result.id
+        )
+        db.session.add(transaction)
+        
+        db.session.commit()
+        
+        return {
+            'old_points': old_points,
+            'new_points': student_points.total_points,
+            'old_level': old_level,
+            'new_level': student_points.level
+        }
+        
+    except Exception as e:
+        print(f"      ⚠️ خطأ في update_student_points: {e}")
+        db.session.rollback()
+        return None
 
 
 def calculate_level(total_points: int) -> int:
@@ -144,72 +189,45 @@ def calculate_level(total_points: int) -> int:
         return 1
 
 
-def update_streak(student: Student):
-    """تحديث سلسلة الأيام المتتالية"""
-    today = datetime.utcnow().date()
-    
-    if student.last_activity:
-        last_day = student.last_activity.date()
-        days_diff = (today - last_day).days
-        
-        if days_diff == 0:
-            # نفس اليوم
-            pass
-        elif days_diff == 1:
-            # أمس - زود السلسلة
-            student.current_streak = (student.current_streak or 0) + 1
-            student.longest_streak = max(
-                student.longest_streak or 0,
-                student.current_streak
-            )
-        else:
-            # انقطعت
-            student.current_streak = 1
-    else:
-        # أول نشاط
-        student.current_streak = 1
-        student.longest_streak = 1
-
-
-def sync_with_student_points(student_id: int, points_earned: int, quiz_result: StudentResult):
-    """
-    زامن النقاط مع جدول student_points (للتوافق الخلفي)
-    """
+def calculate_streak(student_id: int) -> int:
+    """حساب عدد الأيام المتتالية"""
     try:
-        from src.models.gamification import StudentPoints
+        # جلب تواريخ الاختبارات (مجموعة بحسب اليوم)
+        results = db.session.query(
+            db.func.date(StudentResult.created_at).label('date')
+        ).filter(
+            StudentResult.student_id == student_id
+        ).group_by(
+            db.func.date(StudentResult.created_at)
+        ).order_by(
+            db.func.date(StudentResult.created_at).desc()
+        ).all()
         
-        # جلب أو إنشاء سجل
-        student_points = StudentPoints.query.filter_by(student_id=student_id).first()
+        if not results:
+            return 0
         
-        if not student_points:
-            student_points = StudentPoints(
-                student_id=student_id,
-                total_points=points_earned,
-                lifetime_points=points_earned
-            )
-            db.session.add(student_points)
-        else:
-            student_points.total_points += points_earned
-            student_points.lifetime_points += points_earned
+        # حساب السلسلة المتتالية
+        streak = 0
+        current_date = datetime.utcnow().date()
         
-        # حفظ في point_transactions
-        from src.models.gamification import PointTransaction
-        transaction = PointTransaction(
-            student_id=student_id,
-            amount=points_earned,
-            reason=f"إكمال اختبار: {quiz_result.quiz_name}",
-            reference_type='quiz',
-            reference_id=quiz_result.id
-        )
-        db.session.add(transaction)
+        for result in results:
+            result_date = result.date
+            
+            # التحقق من التتالي
+            if result_date == current_date or result_date == current_date - timedelta(days=1):
+                streak += 1
+                current_date = result_date - timedelta(days=1)
+            else:
+                break
         
-        print(f"      ✅ تم الزامن مع student_points")
+        return streak
         
     except Exception as e:
-        print(f"      ⚠️ فشل الزامن مع student_points: {e}")
+        print(f"      ⚠️ خطأ في calculate_streak: {e}")
+        return 0
 
 
-def check_achievements(student: Student, quiz_result: StudentResult) -> list:
+def check_achievements(student_id: int, quiz_result: StudentResult, student_points: dict) -> list:
     """
     التحقق من الإنجازات المفتوحة
     
@@ -231,7 +249,7 @@ def check_achievements(student: Student, quiz_result: StudentResult) -> list:
         
         # إنجاز 10 اختبارات
         total_quizzes = StudentResult.query.filter_by(
-            student_id=student.id
+            student_id=student_id
         ).count()
         
         if total_quizzes == 10:
@@ -244,7 +262,8 @@ def check_achievements(student: Student, quiz_result: StudentResult) -> list:
             })
         
         # إنجاز سلسلة 7 أيام
-        if student.current_streak == 7:
+        streak = calculate_streak(student_id)
+        if streak == 7:
             achievements.append({
                 'type': 'streak_7',
                 'title': 'أسبوع متواصل',
@@ -253,9 +272,9 @@ def check_achievements(student: Student, quiz_result: StudentResult) -> list:
                 'icon': '🔥'
             })
         
-        # حفظ الإنجازات في القاعدة (لو موجود نظام achievements)
+        # حفظ الإنجازات
         if achievements:
-            save_achievements(student.id, achievements)
+            save_achievements(student_id, achievements)
         
     except Exception as e:
         print(f"      ⚠️ خطأ في check_achievements: {e}")
@@ -264,12 +283,7 @@ def check_achievements(student: Student, quiz_result: StudentResult) -> list:
 
 
 def check_challenges(student_id: int, quiz_result: StudentResult) -> list:
-    """
-    التحقق من التحديات المكتملة
-    
-    Returns:
-        قائمة بالتحديات المكتملة
-    """
+    """التحقق من التحديات المكتملة"""
     challenges = []
     
     try:
@@ -298,7 +312,9 @@ def check_challenges(student_id: int, quiz_result: StudentResult) -> list:
 def save_achievements(student_id: int, achievements: list):
     """حفظ الإنجازات في القاعدة"""
     try:
-        from src.models.gamification import StudentAchievement, Achievement
+        from src.models.gamification import (
+            StudentAchievement, Achievement, StudentPoints
+        )
         
         for ach_data in achievements:
             # البحث عن الإنجاز
@@ -307,7 +323,7 @@ def save_achievements(student_id: int, achievements: list):
             ).first()
             
             if not achievement:
-                # إنشاء الإنجاز إذا لم يكن موجوداً
+                # إنشاء الإنجاز
                 achievement = Achievement(
                     achievement_type=ach_data['type'],
                     title=ach_data['title'],
@@ -318,7 +334,7 @@ def save_achievements(student_id: int, achievements: list):
                 db.session.add(achievement)
                 db.session.flush()
             
-            # التحقق من عدم تكرار الإنجاز
+            # التحقق من عدم التكرار
             existing = StudentAchievement.query.filter_by(
                 student_id=student_id,
                 achievement_id=achievement.id
@@ -333,77 +349,95 @@ def save_achievements(student_id: int, achievements: list):
                 db.session.add(student_achievement)
                 
                 # إضافة النقاط
-                student = Student.query.get(student_id)
-                if student:
-                    student.total_points = (student.total_points or 0) + ach_data['points']
+                student_points = StudentPoints.query.filter_by(
+                    student_id=student_id
+                ).first()
+                if student_points:
+                    student_points.total_points += ach_data['points']
         
         db.session.commit()
         
     except Exception as e:
         print(f"      ⚠️ خطأ في save_achievements: {e}")
+        db.session.rollback()
 
 
-def send_smart_notification(student, quiz_result, points_earned, 
-                            level_up, achievements, challenges):
+def send_notification(student, quiz_result, points_earned, 
+                     student_points, streak, achievements, challenges):
     """
-    إرسال إشعار ذكي واحد يجمع كل المعلومات
+    إرسال إشعار واحد شامل
     """
     try:
         # محاولة استخدام smart_notifications (AI)
         try:
             from src.services.smart_notifications import smart_notifications
             
-            # إرسال إشعار ذكي بتحليل AI
             smart_notifications.send_quiz_completion_notification(
                 student_id=student.id,
                 quiz_result=quiz_result,
                 points_earned=points_earned,
-                level_up=level_up,
+                student_points=student_points,
+                streak=streak,
                 achievements=achievements,
                 challenges=challenges
             )
             print(f"      ✅ تم إرسال إشعار ذكي (AI)")
             return
             
-        except ImportError:
-            print(f"      ⚠️ smart_notifications غير متاح، استخدام الإشعار العادي")
+        except (ImportError, AttributeError) as e:
+            print(f"      ⚠️ smart_notifications غير متاح: {e}")
         
         # البديل: إشعار عادي
         from src.models.notification import Notification
         
         # عنوان الإشعار
-        if quiz_result.score_percentage == 100:
+        score = quiz_result.score_percentage
+        if score == 100:
             title = "🎉 ماشاء الله! درجة كاملة!"
-        elif quiz_result.score_percentage >= 80:
-            title = "💪 أحسنت! أداء ممتاز!"
+        elif score >= 90:
+            title = "⭐ ممتاز! أداء رائع!"
+        elif score >= 80:
+            title = "💪 أحسنت! أداء جيد جداً!"
         else:
             title = "👍 جيد! استمر!"
         
         # محتوى الإشعار
         body_parts = [
-            f"حليت \"{quiz_result.quiz_name}\" بنسبة {quiz_result.score_percentage:.0f}%!",
-            "",
-            f"💎 +{points_earned} نقطة • إجمالي: {student.total_points} نقطة",
-            f"⭐ المستوى: {student.level} • 🔥 السلسلة: {student.current_streak} يوم"
+            f"حليت \"{quiz_result.quiz_name}\" بنسبة {score:.0f}%!",
+            ""
         ]
         
-        # إضافة الإنجازات
+        # معلومات النقاط
+        if student_points:
+            body_parts.append(f"💎 +{points_earned} نقطة • إجمالي: {student_points['new_points']} نقطة")
+            body_parts.append(f"⭐ المستوى: {student_points['new_level']}")
+        else:
+            body_parts.append(f"💎 +{points_earned} نقطة")
+        
+        # السلسلة
+        if streak > 0:
+            body_parts.append(f"🔥 السلسلة: {streak} يوم")
+        
+        # الإنجازات
         if achievements:
             body_parts.append("")
             body_parts.append("🏆 إنجازات جديدة:")
-            for ach in achievements[:2]:  # أول 2 فقط
+            for ach in achievements[:2]:
                 body_parts.append(f"✨ {ach['title']}!")
         
-        # إضافة التحديات
+        # التحديات
         if challenges:
             body_parts.append("")
             for ch in challenges:
                 body_parts.append(f"🎯 أكملت: {ch['title']}!")
         
-        # إضافة رسالة تحفيزية
-        if quiz_result.score_percentage >= 80:
+        # رسالة تحفيزية
+        if score >= 80:
             body_parts.append("")
             body_parts.append("استمر على هذا الأداء الرائع! 🌟")
+        elif score >= 60:
+            body_parts.append("")
+            body_parts.append("جيد! حاول تحسين النتيجة المرة القادمة! 💪")
         
         body = "\n".join(body_parts)
         
@@ -414,20 +448,20 @@ def send_smart_notification(student, quiz_result, points_earned,
             body=body,
             message=body,
             notification_type='quiz_completed',
-            type='success' if quiz_result.score_percentage >= 80 else 'info',
+            type='success' if score >= 80 else 'info',
             is_read=False,
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
         db.session.commit()
         
-        print(f"      ✅ تم إنشاء إشعار عادي: {title}")
+        print(f"      ✅ تم إنشاء إشعار: {title}")
         
         # محاولة إرسال FCM
         try:
             from src.services.notification_service import send_fcm_notification
             
-            if student.fcm_token:
+            if hasattr(student, 'fcm_token') and student.fcm_token:
                 send_fcm_notification(student.fcm_token, title, body)
                 print(f"      ✅ تم إرسال FCM")
         except Exception as e:
