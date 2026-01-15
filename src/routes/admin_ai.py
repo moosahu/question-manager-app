@@ -1313,13 +1313,21 @@ def test_automation():
         # ===== Simple Test: إنشاء رسالة تجريبية مباشرة =====
         if simple_test:
             try:
+                # الحصول على user_id من session (مطلوب لـ constraint)
+                current_user_id = session.get('user_id')
+                
+                # إذا لم يكن موجود، استخدم 1 كـ default (admin)
+                if not current_user_id:
+                    current_user_id = 1
+                    print("⚠️ Warning: No user_id in session, using default (1)")
+                
                 # إنشاء notification تجريبي
                 test_notification = Notification(
                     title="اختبار النظام التلقائي",
                     message="هذه رسالة تجريبية من النظام التلقائي. تم الإرسال بنجاح! 🎉",
                     type="success",
                     icon="check-circle",
-                    user_id=session.get('user_id'),
+                    user_id=current_user_id,  # ✅ إضافة user_id لتلبية constraint
                     is_automatic=True,
                     status='delivered',
                     sent_at=datetime.utcnow(),
