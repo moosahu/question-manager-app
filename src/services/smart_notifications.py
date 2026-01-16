@@ -318,7 +318,6 @@ class SmartNotificationService:
                 notification_id=notification.id,
                 student_id=analysis.student_id,
                 is_read=False,
-                fcm_sent=False,
                 created_at=datetime.utcnow()
             )
             db.session.add(student_notif)
@@ -784,7 +783,7 @@ class SmartNotificationService:
                 notification_id=notification.id,
                 student_id=student_id,
                 is_read=False,
-                fcm_sent=False,
+                
                 created_at=datetime.utcnow()
             )
             db.session.add(student_notif)
@@ -854,7 +853,7 @@ class SmartNotificationService:
                 notification_id=notification.id,
                 student_id=student_id,
                 is_read=False,
-                fcm_sent=False,
+                
                 created_at=datetime.utcnow()
             )
             db.session.add(student_notif)
@@ -924,7 +923,7 @@ class SmartNotificationService:
                 notification_id=notification.id,
                 student_id=student_id,
                 is_read=False,
-                fcm_sent=False,
+                
                 created_at=datetime.utcnow()
             )
             db.session.add(student_notif)
@@ -1016,7 +1015,7 @@ class SmartNotificationService:
                 notification_id=notification.id,
                 student_id=student_id,
                 is_read=False,
-                fcm_sent=False,
+                
                 created_at=datetime.utcnow()
             )
             db.session.add(student_notif)
