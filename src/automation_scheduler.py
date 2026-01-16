@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Scheduler عام
 automation_scheduler = None
 
+# App reference للـ jobs (مهم!)
+_flask_app = None
+
 
 def is_within_working_hours(start_hour, end_hour):
     """تحقق: هل الوقت الحالي ضمن ساعات العمل؟"""
@@ -28,8 +31,14 @@ def send_automatic_messages_job():
     الوظيفة الأساسية: إرسال الرسائل التلقائية الذكية
     يقرأ الإعدادات من ai_settings (نفس الإعدادات في Flutter)
     """
+    global _flask_app
+    
+    if _flask_app is None:
+        logger.error("❌ Flask app not initialized!")
+        return
+    
     try:
-        with current_app.app_context():
+        with _flask_app.app_context():
             # 1. قراءة الإعدادات من DB (نفس أسماء Flutter)
             result = db.session.execute(text("""
                 SELECT setting_key, setting_value 
@@ -122,11 +131,14 @@ def send_automatic_messages_job():
 
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
-    global automation_scheduler
+    global automation_scheduler, _flask_app
     
     if automation_scheduler is not None:
         logger.warning("⚠️ Scheduler يعمل بالفعل!")
         return
+    
+    # حفظ reference للـ app (مهم جداً!)
+    _flask_app = app
     
     try:
         with app.app_context():
@@ -171,6 +183,8 @@ def stop_automation_scheduler():
         automation_scheduler.shutdown()
         automation_scheduler = None
         logger.info("⏹️ تم إيقاف جدولة الرسائل التلقائية")
+    
+    # ملاحظة: نحتفظ بـ _flask_app للـ restart
 
 
 def restart_automation_scheduler(app):

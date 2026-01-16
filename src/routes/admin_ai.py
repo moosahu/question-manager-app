@@ -1535,3 +1535,39 @@ def test_automation():
             'success': False,
             'error': f'خطأ في اختبار النظام: {str(e)}'
         }), 500
+
+
+@admin_ai_bp.route('/automation/reschedule', methods=['POST'])
+@admin_required
+def reschedule_automation():
+    """
+    إعادة جدولة النظام التلقائي بالإعدادات الجديدة
+    يُستدعى تلقائياً عند تغيير analysis_interval_hours من Flutter
+    
+    POST /api/admin/ai/automation/reschedule
+    """
+    try:
+        from src.automation_scheduler import restart_automation_scheduler
+        from flask import current_app
+        
+        print("🔄 طلب إعادة جدولة النظام التلقائي...")
+        
+        # إعادة تشغيل الـ Scheduler بالإعدادات الجديدة
+        restart_automation_scheduler(current_app._get_current_object())
+        
+        print("✅ تم إعادة جدولة النظام التلقائي بنجاح")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم إعادة جدولة النظام التلقائي بنجاح'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في إعادة الجدولة: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'فشل في إعادة الجدولة: {str(e)}'
+        }), 500
