@@ -314,14 +314,15 @@ class SmartNotificationService:
 
             # ربطه بالطالب
             print(f"   🔗 إنشاء StudentNotification...")
-            student_notif = StudentNotification.create_for_student(
-                notification.id,
-                analysis.student_id
+            student_notif = StudentNotification(
+                notification_id=notification.id,
+                student_id=analysis.student_id,
+                is_read=False,
+                fcm_sent=False,
+                created_at=datetime.utcnow()
             )
-
-            if not student_notif:
-                print(f"   ❌ فشل إنشاء StudentNotification")
-                return False
+            db.session.add(student_notif)
+            db.session.flush()  # للحصول على ID
 
             print(f"   ✅ تم إنشاء StudentNotification #{student_notif.id}")
 
@@ -345,7 +346,8 @@ class SmartNotificationService:
                     }
                 )
                 print(f"   FCM Result: {fcm_success}")
-                student_notif.mark_fcm_sent(fcm_success)
+                student_notif.fcm_sent = (fcm_success == True)
+                db.session.commit()
             else:
                 print(f"   ⚠️ لا يوجد FCM token للطالب")
 
@@ -848,10 +850,15 @@ class SmartNotificationService:
             db.session.flush()  # للحصول على ID
             
             # ربطه بالطالب
-            student_notif = StudentNotification.create_for_student(
-                notification.id,
-                student_id
+            student_notif = StudentNotification(
+                notification_id=notification.id,
+                student_id=student_id,
+                is_read=False,
+                fcm_sent=False,
+                created_at=datetime.utcnow()
             )
+            db.session.add(student_notif)
+            db.session.flush()  # للحصول على ID
             
             # إرسال عبر FCM
             if student.fcm_token:
@@ -865,7 +872,8 @@ class SmartNotificationService:
                         'challenge_id': str(challenge['id'])
                     }
                 )
-                student_notif.mark_fcm_sent(True)
+                student_notif.fcm_sent = True
+                db.session.commit()
             
             return True
             
@@ -1004,10 +1012,15 @@ class SmartNotificationService:
             db.session.flush()  # للحصول على ID
             
             # ربطه بالطالب
-            student_notif = StudentNotification.create_for_student(
-                notification.id,
-                student_id
+            student_notif = StudentNotification(
+                notification_id=notification.id,
+                student_id=student_id,
+                is_read=False,
+                fcm_sent=False,
+                created_at=datetime.utcnow()
             )
+            db.session.add(student_notif)
+            db.session.flush()  # للحصول على ID
             
             # إرسال عبر FCM
             if student.fcm_token:
@@ -1020,7 +1033,8 @@ class SmartNotificationService:
                         'notification_id': str(notification.id)
                     }
                 )
-                student_notif.mark_fcm_sent(True)
+                student_notif.fcm_sent = True
+                db.session.commit()
             
             return True
             
