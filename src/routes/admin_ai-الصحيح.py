@@ -366,39 +366,6 @@ def get_dashboard_stats():
         
         needs_attention = [a for a in analyses if a.severity_level in ['orange', 'red']]
         
-        # ✅ إضافة إحصائيات آخر 24 ساعة من AILog
-        cutoff_date = datetime.utcnow() - timedelta(hours=24)
-        
-        # عدد الرسائل المرسلة (آخر 24 ساعة)
-        recent_messages = AIAction.query.filter(
-            AIAction.created_at >= cutoff_date,
-            AIAction.action_type == 'smart_message'
-        ).count()
-        
-        # عدد التحليلات (آخر 24 ساعة)
-        recent_analyses = AIAnalysis.query.filter(
-            AIAnalysis.created_at >= cutoff_date
-        ).count()
-        
-        # عدد عمليات الإرسال التلقائي (آخر 24 ساعة)
-        automation_runs = AILog.query.filter(
-            AILog.created_at >= cutoff_date,
-            AILog.operation_type == 'automation_send_messages'
-        ).count()
-        
-        # آخر تشغيل تلقائي
-        last_automation = AILog.query.filter(
-            AILog.operation_type == 'automation_send_messages'
-        ).order_by(AILog.created_at.desc()).first()
-        
-        last_run_info = None
-        if last_automation:
-            last_run_info = {
-                'timestamp': last_automation.created_at.isoformat(),
-                'success': last_automation.success,
-                'data': last_automation.data
-            }
-        
         return jsonify({
             'success': True,
             'data': {
@@ -407,14 +374,7 @@ def get_dashboard_stats():
                 'severity_distribution': severity_counts,
                 'needs_attention': len(needs_attention),
                 'critical': severity_counts['red'],
-                'last_update': datetime.utcnow().isoformat(),
-                # ✅ إحصائيات جديدة
-                'last_24_hours': {
-                    'messages_sent': recent_messages,
-                    'analyses_performed': recent_analyses,
-                    'automation_runs': automation_runs,
-                    'last_automation_run': last_run_info
-                }
+                'last_update': datetime.utcnow().isoformat()
             }
         })
         
@@ -1574,4 +1534,40 @@ def test_automation():
         return jsonify({
             'success': False,
             'error': f'خطأ في اختبار النظام: {str(e)}'
+        }), 500
+
+
+@admin_ai_bp.route('/automation/reschedule', methods=['POST'])
+@admin_required
+def reschedule_automation():
+    """
+    إعادة جدولة النظام التلقائي بالإعدادات الجديدة
+    يُستدعى تلقائياً عند تغيير analysis_interval_hours من Flutter
+    
+    POST /api/admin/ai/automation/reschedule
+    """
+    try:
+        from src.automation_scheduler import restart_automation_scheduler
+        from flask import current_app
+        
+        print("🔄 طلب إعادة جدولة النظام التلقائي...")
+        
+        # إعادة تشغيل الـ Scheduler بالإعدادات الجديدة
+        restart_automation_scheduler(current_app._get_current_object())
+        
+        print("✅ تم إعادة جدولة النظام التلقائي بنجاح")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم إعادة جدولة النظام التلقائي بنجاح'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في إعادة الجدولة: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': f'فشل في إعادة الجدولة: {str(e)}'
         }), 500
