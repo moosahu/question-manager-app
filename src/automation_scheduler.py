@@ -46,7 +46,8 @@ def send_automatic_messages_job():
                 WHERE setting_key IN (
                     'enable_auto_messages',
                     'automation_start_hour',
-                    'automation_end_hour'
+                    'automation_end_hour',
+                    'perform_fresh_analysis'
                 )
             """)).fetchall()
             
@@ -69,7 +70,12 @@ def send_automatic_messages_job():
             # 4. إرسال الرسائل الذكية!
             logger.info("📨 بدء إرسال الرسائل التلقائية الذكية...")
             
+            # 4.1 قراءة إعداد التحليل
+            perform_fresh_analysis = settings.get('perform_fresh_analysis', 'true') == 'true'
+            logger.info(f"🔬 وضع التحليل: {'تحليل جديد' if perform_fresh_analysis else 'استخدام التحليل الأخير'}")
+            
             from src.services.smart_notifications import smart_notifications
+            from src.services.ai_assistant import ai_assistant
             from src.models.student import Student
             from src.models.ai_analysis import AIAnalysis
             
@@ -77,25 +83,50 @@ def send_automatic_messages_job():
             students = Student.query.filter_by(is_active=True).all()
             logger.info(f"📊 عدد الطلاب النشطين: {len(students)}")
             
+            analyzed_count = 0
             sent_count = 0
             skipped_count = 0
             errors = 0
             
             for student in students:
                 try:
-                    # جلب آخر تحليل للطالب
-                    latest_analysis = AIAnalysis.query.filter_by(
-                        student_id=student.id
-                    ).order_by(
-                        AIAnalysis.created_at.desc()
-                    ).first()
+                    # الخطوة 1: الحصول على التحليل
+                    if perform_fresh_analysis:
+                        # 🔬 تحليل جديد للطالب (أدق)
+                        logger.info(f"🔬 تحليل جديد للطالب {student.id} ({student.name})...")
+                        
+                        analysis_result = ai_assistant.analyze_student(
+                            student_id=student.id,
+                            analysis_type='automated'
+                        )
+                        
+                        if not analysis_result:
+                            logger.warning(f"⚠️ فشل تحليل الطالب {student.id}")
+                            skipped_count += 1
+                            continue
+                        
+                        analyzed_count += 1
+                        
+                        # جلب التحليل الجديد من Database
+                        latest_analysis = AIAnalysis.query.filter_by(
+                            student_id=student.id
+                        ).order_by(
+                            AIAnalysis.created_at.desc()
+                        ).first()
+                    else:
+                        # 📚 استخدام آخر تحليل موجود (أسرع)
+                        latest_analysis = AIAnalysis.query.filter_by(
+                            student_id=student.id
+                        ).order_by(
+                            AIAnalysis.created_at.desc()
+                        ).first()
                     
                     if not latest_analysis:
-                        # لا يوجد تحليل، تخطي
+                        logger.warning(f"⚠️ لا يوجد تحليل للطالب {student.id}")
                         skipped_count += 1
                         continue
                     
-                    # ✅ تحديد إذا كان الطالب يحتاج رسالة (باستخدام الـ attributes الصحيحة)
+                    # ✅ تحديد إذا كان الطالب يحتاج رسالة (باستخدام التحليل الجديد)
                     needs_message = (
                         # فحص مستوى الخطورة (orange أو red)
                         latest_analysis.severity_level in ['orange', 'red'] or
@@ -108,6 +139,7 @@ def send_automatic_messages_job():
                     if needs_message:
                         # إرسال رسالة ذكية
                         try:
+                            logger.info(f"📤 إرسال رسالة للطالب {student.id} ({latest_analysis.severity_level})...")
                             success = smart_notifications._send_smart_message(latest_analysis)
                             
                             if success:
@@ -121,17 +153,43 @@ def send_automatic_messages_job():
                             errors += 1
                     else:
                         skipped_count += 1
-                        logger.debug(f"⏭️ تخطي الطالب {student.id} - {latest_analysis.severity_level}")
+                        logger.debug(f"⏭️ تخطي الطالب {student.id} - {latest_analysis.severity_level} (لا يحتاج رسالة)")
                     
                 except Exception as e:
                     logger.error(f"❌ خطأ في معالجة الطالب {student.id}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     errors += 1
                     continue
             
-            logger.info(f"""✅ اكتمل الإرسال التلقائي:
+            log_msg = f"""✅ اكتمل الإرسال التلقائي:
+            • حُلّل: {analyzed_count} طالب (جديد)""" if perform_fresh_analysis else """✅ اكتمل الإرسال التلقائي:
+            • استخدم التحليل السابق"""
+            
+            logger.info(log_msg + f"""
             • أُرسل: {sent_count} رسالة
             • تُخطي: {skipped_count} طالب
             • أخطاء: {errors}""")
+            
+            # ✅ تسجيل العملية في AILog (مهم للإحصائيات!)
+            try:
+                from src.models.ai_analysis import AILog
+                AILog.log_operation(
+                    operation_type='automation_send_messages',
+                    description=f'إرسال تلقائي: {sent_count} رسالة، {analyzed_count if perform_fresh_analysis else 0} تحليل، {errors} أخطاء',
+                    success=(errors == 0),
+                    data={
+                        'sent_count': sent_count,
+                        'analyzed_count': analyzed_count if perform_fresh_analysis else 0,
+                        'skipped_count': skipped_count,
+                        'errors': errors,
+                        'total_students': len(students),
+                        'fresh_analysis': perform_fresh_analysis
+                    }
+                )
+                logger.info("📊 تم تسجيل العملية في AILog")
+            except Exception as log_error:
+                logger.error(f"⚠️ فشل تسجيل AILog: {log_error}")
             
     except Exception as e:
         logger.error(f"❌ خطأ في إرسال الرسائل التلقائية: {e}")
