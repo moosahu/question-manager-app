@@ -8,7 +8,8 @@ def create_app():
     app.register_blueprint(admin_ai_bp, url_prefix='/api/admin/ai')
     
     # ... other blueprints ...
-# ============================================
+    
+    # ============================================
     # بدء جدولة الرسائل التلقائية
     # ============================================
     print("🔥 DEBUG: بدء تهيئة automation_scheduler...")
