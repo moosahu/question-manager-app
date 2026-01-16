@@ -2482,9 +2482,13 @@ def create_app():
         from src.automation_scheduler import start_automation_scheduler
         print("✅ DEBUG: تم استيراد start_automation_scheduler")
         
-        @app.before_first_request
-        def initialize_automation():
-            print("🔥 DEBUG: تشغيل initialize_automation...")
+        # تشغيل في thread منفصل مع تأخير بسيط (مثل backup scheduler)
+        import threading
+        import time
+        
+        def start_automation_delayed():
+            """بدء تشغيل جدولة الرسائل التلقائية بعد تأخير قصير لضمان تهيئة التطبيق"""
+            time.sleep(2)  # انتظار لضمان تهيئة التطبيق
             try:
                 start_automation_scheduler(app)
                 print("✅ DEBUG: تم تشغيل start_automation_scheduler")
@@ -2494,6 +2498,12 @@ def create_app():
                 app.logger.error(f"❌ فشل تهيئة النظام التلقائي: {e}")
                 import traceback
                 traceback.print_exc()
+        
+        # تشغيل الجدولة في thread منفصل
+        automation_thread = threading.Thread(target=start_automation_delayed, daemon=True)
+        automation_thread.start()
+        print("✅ DEBUG: تم بدء thread جدولة الرسائل التلقائية")
+            
     except ImportError as e:
         print(f"❌ DEBUG: فشل استيراد automation_scheduler: {e}")
         app.logger.error(f"❌ فشل استيراد automation_scheduler: {e}")
