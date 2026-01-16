@@ -7,7 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 from flask import current_app
-from src import db
+from src.extensions import db
 from sqlalchemy import text
 import logging
 
