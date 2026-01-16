@@ -95,23 +95,33 @@ def send_automatic_messages_job():
                         skipped_count += 1
                         continue
                     
-                    # تحديد إذا كان الطالب يحتاج رسالة
+                    # ✅ تحديد إذا كان الطالب يحتاج رسالة (باستخدام الـ attributes الصحيحة)
                     needs_message = (
-                        latest_analysis.status_category in ['orange', 'red'] or
-                        latest_analysis.suggested_action in ['send_message', 'send_message_and_alert']
+                        # فحص مستوى الخطورة (orange أو red)
+                        latest_analysis.severity_level in ['orange', 'red'] or
+                        # أو حالة الطالب (needs_attention أو critical)
+                        latest_analysis.student_status in ['needs_attention', 'critical'] or
+                        # أو الإجراء المقترح هو إرسال رسالة
+                        latest_analysis.suggested_action == 'send_message'
                     )
                     
                     if needs_message:
                         # إرسال رسالة ذكية
-                        success = smart_notifications._send_smart_message(latest_analysis)
-                        
-                        if success:
-                            sent_count += 1
-                            logger.info(f"✅ أُرسلت رسالة للطالب {student.id} ({student.name})")
-                        else:
+                        try:
+                            success = smart_notifications._send_smart_message(latest_analysis)
+                            
+                            if success:
+                                sent_count += 1
+                                logger.info(f"✅ أُرسلت رسالة للطالب {student.id} ({student.name}) - {latest_analysis.severity_level}")
+                            else:
+                                logger.warning(f"⚠️ فشل إرسال رسالة للطالب {student.id}")
+                                errors += 1
+                        except Exception as send_error:
+                            logger.error(f"❌ خطأ في إرسال رسالة للطالب {student.id}: {send_error}")
                             errors += 1
                     else:
                         skipped_count += 1
+                        logger.debug(f"⏭️ تخطي الطالب {student.id} - {latest_analysis.severity_level}")
                     
                 except Exception as e:
                     logger.error(f"❌ خطأ في معالجة الطالب {student.id}: {e}")
