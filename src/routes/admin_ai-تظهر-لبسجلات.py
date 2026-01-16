@@ -1292,21 +1292,20 @@ def get_automation_status():
         
         # جلب آخر تشغيل
         last_run_log = AILog.query.filter(
-            AILog.operation_type == 'automation_send_messages'  # ✅ تصحيح!
+            AILog.operation_type == 'automated_analysis'
         ).order_by(
             AILog.created_at.desc()
         ).first()
         
         last_run = None
         if last_run_log:
-            # ✅ قراءة من data بدلاً من metadata
-            log_data = last_run_log.data if last_run_log.data else {}
+            metadata = json.loads(last_run_log.metadata) if last_run_log.metadata else {}
             last_run = {
                 'timestamp': last_run_log.created_at.isoformat(),
                 'success': last_run_log.success,
-                'analyzed': log_data.get('analyzed_count', 0),  # ✅ تصحيح الـ key
-                'messages_sent': log_data.get('sent_count', 0),  # ✅ تصحيح الـ key
-                'errors': log_data.get('errors', 0),
+                'analyzed': metadata.get('analyzed', 0),
+                'messages_sent': metadata.get('messages_sent', 0),
+                'errors': metadata.get('errors', 0),
             }
         
         # حساب التشغيل القادم
@@ -1318,18 +1317,17 @@ def get_automation_status():
         # إحصائيات 24 ساعة الماضية
         yesterday = datetime.utcnow() - timedelta(hours=24)
         stats_logs = AILog.query.filter(
-            AILog.operation_type == 'automation_send_messages',  # ✅ تصحيح!
+            AILog.operation_type == 'automated_analysis',
             AILog.created_at >= yesterday
         ).all()
         
         total_analyzed = 0
         total_messages = 0
         for log in stats_logs:
-            if log.data:
-                # ✅ قراءة من data مباشرة (JSONB)
-                log_data = log.data
-                total_analyzed += log_data.get('analyzed_count', 0)  # ✅ تصحيح الـ key
-                total_messages += log_data.get('sent_count', 0)  # ✅ تصحيح الـ key
+            if log.metadata:
+                metadata = json.loads(log.metadata) if isinstance(log.metadata, str) else log.metadata
+                total_analyzed += metadata.get('analyzed', 0)
+                total_messages += metadata.get('messages_sent', 0)
         
         statistics = {
             'total_runs': len(stats_logs),
