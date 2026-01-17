@@ -2476,42 +2476,11 @@ def create_app():
 
     # ============================================
     # بدء جدولة الرسائل التلقائية
+    # ملاحظة: في production، يتم بدء الـ Scheduler عبر gunicorn hooks
+    # هذا الكود للـ development mode فقط
     # ============================================
-    print("🔥 DEBUG: بدء تهيئة automation_scheduler...")
-    try:
-        from src.automation_scheduler import start_automation_scheduler
-        print("✅ DEBUG: تم استيراد start_automation_scheduler")
-        
-        # تشغيل في thread منفصل مع تأخير بسيط (مثل backup scheduler)
-        import threading
-        import time
-        
-        def start_automation_delayed():
-            """بدء تشغيل جدولة الرسائل التلقائية بعد تأخير قصير لضمان تهيئة التطبيق"""
-            time.sleep(0.5)  # تقليل التأخير لـ 0.5 ثانية فقط
-            try:
-                start_automation_scheduler(app)
-                print("✅ DEBUG: تم تشغيل start_automation_scheduler")
-                app.logger.info("✅ تم تهيئة النظام التلقائي بنجاح")
-            except Exception as e:
-                print(f"❌ DEBUG: خطأ في start_automation_scheduler: {e}")
-                app.logger.error(f"❌ فشل تهيئة النظام التلقائي: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        # تشغيل الجدولة في thread منفصل
-        automation_thread = threading.Thread(target=start_automation_delayed, daemon=True)
-        automation_thread.start()
-        print("✅ DEBUG: تم بدء thread جدولة الرسائل التلقائية")
-            
-    except ImportError as e:
-        print(f"❌ DEBUG: فشل استيراد automation_scheduler: {e}")
-        app.logger.error(f"❌ فشل استيراد automation_scheduler: {e}")
-        import traceback
-        traceback.print_exc()
+    print("🔥 DEBUG: تهيئة automation_scheduler (development mode)")
     
-    print("🔥 DEBUG: انتهى قسم automation_scheduler")
-
     return app
 
 if __name__ == "__main__":
