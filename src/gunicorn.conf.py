@@ -2,18 +2,20 @@
 # ✅ تكوين gunicorn لبدء Scheduler في كل worker
 
 import multiprocessing
+import os
 
 # Worker settings
 workers = 2  # عدد الـ workers
 worker_class = 'sync'
 worker_connections = 1000
-timeout = 120
+timeout = 300  # زيادة timeout
 keepalive = 5
 
 # Logging
 accesslog = '-'
 errorlog = '-'
 loglevel = 'info'
+capture_output = True
 
 # Server mechanics
 daemon = False
@@ -36,15 +38,13 @@ def post_worker_init(worker):
     
     try:
         from src.automation_scheduler import start_automation_scheduler
-        from flask import current_app
         
         # الحصول على app instance
         app = worker.app.callable
         
         # بدء الـ Scheduler
-        with app.app_context():
-            start_automation_scheduler(app)
-            worker.log.info(f"✅ Worker {worker.pid}: Automation scheduler started successfully")
+        start_automation_scheduler(app)
+        worker.log.info(f"✅ Worker {worker.pid}: Automation scheduler started successfully")
     
     except Exception as e:
         worker.log.error(f"❌ Worker {worker.pid}: Failed to start automation scheduler: {e}")
