@@ -260,3 +260,66 @@ def restart_automation_scheduler(app):
     logger.info("🔄 إعادة تشغيل Scheduler...")
     stop_automation_scheduler()
     start_automation_scheduler(app)
+
+
+def reschedule_automation():
+    """
+    إعادة جدولة الـ Scheduler عند تغيير الإعدادات
+    يُستدعى من admin_ai.py عند تحديث:
+    - analysis_interval_hours
+    - automation_start_hour
+    - automation_end_hour
+    """
+    global automation_scheduler, _flask_app
+    
+    if automation_scheduler is None:
+        logger.warning("⚠️ Scheduler غير مفعّل، لا يمكن إعادة الجدولة")
+        return False
+    
+    if _flask_app is None:
+        logger.error("❌ Flask app not initialized!")
+        return False
+    
+    try:
+        logger.info("🔄 بدء إعادة جدولة الـ Scheduler...")
+        
+        with _flask_app.app_context():
+            # قراءة الإعدادات الجديدة من Database
+            result = db.session.execute(text("""
+                SELECT setting_value 
+                FROM ai_settings 
+                WHERE setting_key = 'analysis_interval_hours'
+            """)).fetchone()
+            
+            interval_hours = int(result[0]) if result else 24
+            interval_minutes = interval_hours * 60
+            
+            logger.info(f"📊 الإعدادات الجديدة:")
+            logger.info(f"   • فترة التحليل: {interval_hours} ساعة ({interval_minutes} دقيقة)")
+        
+        # حذف Job القديم
+        try:
+            automation_scheduler.remove_job('automation_messages')
+            logger.info("✅ تم حذف Job القديم")
+        except Exception as e:
+            logger.warning(f"⚠️ Job غير موجود (عادي): {e}")
+        
+        # إضافة Job جديد بالإعدادات المحدثة
+        automation_scheduler.add_job(
+            func=send_automatic_messages_job,
+            trigger=IntervalTrigger(minutes=interval_minutes),
+            id='automation_messages',
+            name='إرسال الرسائل التلقائية الذكية',
+            replace_existing=True
+        )
+        
+        logger.info(f"✅ تم إعادة جدولة Scheduler بنجاح!")
+        logger.info(f"   • التشغيل التالي: بعد {interval_hours} ساعة")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ خطأ في إعادة الجدولة: {e}")
+        import traceback
+        traceback.print_exc()
+        return False

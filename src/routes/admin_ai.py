@@ -618,6 +618,16 @@ def update_setting(setting_key):
         
         db.session.commit()
         
+        # ✅ إعادة جدولة Scheduler إذا تغيرت الإعدادات المهمة
+        if setting_key in ['analysis_interval_hours', 'automation_start_hour', 'automation_end_hour']:
+            try:
+                from src.automation_scheduler import reschedule_automation
+                reschedule_automation()
+                print(f"🔄 تم إعادة جدولة Scheduler بعد تغيير {setting_key}")
+            except Exception as scheduler_error:
+                print(f"⚠️ خطأ في إعادة الجدولة: {scheduler_error}")
+                # نكمل حتى لو فشلت إعادة الجدولة - الإعدادات محفوظة
+        
         return jsonify({
             'success': True,
             'message': message,
@@ -1311,8 +1321,24 @@ def get_automation_status():
         
         # حساب التشغيل القادم
         next_run = None
-        if automation_enabled and last_run_log:
-            next_run_time = last_run_log.created_at + timedelta(hours=interval_hours)
+        if automation_enabled:
+            # ✅ نحسب من الآن، مش من آخر تشغيل!
+            now = datetime.utcnow()
+            
+            if last_run_log:
+                # إذا في تشغيل سابق، نشوف متى التشغيل القادم
+                next_run_time = last_run_log.created_at + timedelta(hours=interval_hours)
+                
+                # إذا التشغيل القادم في الماضي، نحسب من الآن
+                if next_run_time < now:
+                    # نحسب كم تأخرنا
+                    missed_intervals = (now - next_run_time).total_seconds() / (interval_hours * 3600)
+                    # نضيف الـ intervals اللي فاتت
+                    next_run_time = next_run_time + timedelta(hours=interval_hours * (int(missed_intervals) + 1))
+            else:
+                # أول مرة، نشغل بعد interval واحد من الآن
+                next_run_time = now + timedelta(hours=interval_hours)
+            
             next_run = next_run_time.isoformat()
         
         # إحصائيات 24 ساعة الماضية
