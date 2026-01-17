@@ -2488,7 +2488,7 @@ def create_app():
         
         def start_automation_delayed():
             """بدء تشغيل جدولة الرسائل التلقائية بعد تأخير قصير لضمان تهيئة التطبيق"""
-            time.sleep(2)  # انتظار لضمان تهيئة التطبيق
+            time.sleep(0.5)  # تقليل التأخير لـ 0.5 ثانية فقط
             try:
                 start_automation_scheduler(app)
                 print("✅ DEBUG: تم تشغيل start_automation_scheduler")
