@@ -394,7 +394,7 @@
 
         .question-column {
             border-left: 2px solid #000;
-            padding: 8px 4px;
+            padding: 8px 10px; /* زيادة المسافة الجانبية */
             display: flex;
             flex-direction: column;
         }
@@ -422,21 +422,21 @@
         .questions-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0 6px;
+            gap: 0 15px; /* زيادة الفجوة بين الأعمدة */
         }
         
         /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
         .questions-grid > div:first-child {
             border-left: 1px solid #ddd;
-            padding-left: 3px;
+            padding-left: 8px;
         }
         
         .questions-grid > div:last-child {
             border-right: 1px solid #ddd;
-            padding-right: 3px;
+            padding-right: 8px;
         }
         
-        /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
+        /* === تعديل خاص لقسم المزاوجة === */
         .questions-grid.matching-grid {
             grid-template-columns: 1fr; /* عمود واحد فقط للمزاوجة */
         }
@@ -452,15 +452,16 @@
         .question-row {
             display: flex;
             align-items: center;
+            justify-content: center;
             padding: 2px 0;
+            gap: 5px;
         }
 
         .question-num {
-            width: 35px;
+            width: 22px;
             font-weight: bold;
             font-size: 12px;
-            text-align: right;
-            padding-left: 5px;
+            text-align: center;
         }
 
         .answer-bubbles {
@@ -487,55 +488,53 @@
         /* تنسيق الحروف فوق الأعمدة - مرة واحدة فقط */
         .column-headers {
             margin-bottom: 8px;
-            padding-right: 35px; /* محاذاة مع رقم السؤال */
             padding-bottom: 5px;
             border-bottom: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 27px; /* لتعويض عرض رقم السؤال */
         }
 
-        /* إلغاء padding للمزاوجة */
+        /* تعديل خاص للمزاوجة */
         .matching-grid .column-headers {
-            padding-right: 35px;
+            margin-right: 27px;
         }
 
         .bubbles-labels-ar {
             display: flex;
-            gap: 7px;
+            gap: 4px; /* نفس gap الدوائر */
             font-size: 11px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 3px;
-            letter-spacing: 0;
+            margin-bottom: 2px;
         }
 
         .bubbles-labels-ar span {
             width: 16px; /* نفس عرض الدائرة */
             text-align: center;
             display: inline-block;
-            letter-spacing: 0;
         }
 
         .bubbles-labels-en {
             display: flex;
-            gap: 7px;
+            gap: 4px; /* نفس gap الدوائر */
             font-size: 10px;
             font-weight: bold;
             color: #666;
-            margin-top: 0;
             margin-bottom: 2px;
-            letter-spacing: 0;
         }
 
         .bubbles-labels-en span {
             width: 16px; /* نفس عرض الدائرة */
             text-align: center;
             display: inline-block;
-            letter-spacing: 0;
         }
 
         /* صف الدوائر فقط بدون حروف */
         .bubbles-row-only {
             display: flex;
-            gap: 7px;
+            gap: 4px; /* نفس gap الحروف */
         }
 
         /* دوائر المزاوجة - أصغر عشان تتسع 10 */
@@ -546,12 +545,6 @@
             border-radius: 50%;
             display: inline-block;
             background: white;
-            position: relative;
-        }
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            background: white; /* خلفية بيضاء نظيفة */
         }
 
         .matching-bubble.filled {
@@ -561,43 +554,38 @@
         /* تنسيق الحروف للمزاوجة - مرة واحدة فقط */
         .matching-labels-ar {
             display: flex;
-            gap: 5px;
+            gap: 4px; /* نفس gap الدوائر */
             font-size: 10px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 1px;
-            letter-spacing: 0;
+            margin-bottom: 2px;
         }
 
         .matching-labels-ar span {
             width: 13px; /* نفس عرض دائرة المزاوجة */
             text-align: center;
             display: inline-block;
-            letter-spacing: 0;
         }
 
         .matching-labels-en {
             display: flex;
-            gap: 5px;
+            gap: 4px; /* نفس gap الدوائر */
             font-size: 9px;
             font-weight: bold;
             color: #666;
-            margin-top: 0;
             margin-bottom: 2px;
-            letter-spacing: 0;
         }
 
         .matching-labels-en span {
             width: 13px; /* نفس عرض دائرة المزاوجة */
             text-align: center;
             display: inline-block;
-            letter-spacing: 0;
         }
 
         /* صف الدوائر فقط للمزاوجة */
         .matching-row-only {
             display: flex;
-            gap: 5px;
+            gap: 4px; /* نفس gap الحروف */
         }
 
         /* مفتاح الإجابة */
