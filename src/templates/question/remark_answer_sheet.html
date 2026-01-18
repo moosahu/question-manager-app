@@ -387,8 +387,8 @@
         .questions-section {
             grid-column: 1 / -1;
             display: grid;
-            /* تقسيم الأعمدة: تصغير الاختيار وصح/خطأ أكثر، توسيع المزاوجة */
-            grid-template-columns: 0.85fr 0.85fr 0.6fr 1.7fr;
+            /* تقسيم الأعمدة: توسيع الكل ما عدا المزاوجة */
+            grid-template-columns: 0.95fr 0.95fr 0.7fr 1.4fr;
             border-top: 2px solid #000;
         }
 
@@ -452,8 +452,7 @@
         .question-row {
             display: flex;
             align-items: center;
-            padding: 3px 0;
-            /* تم إزالة border-bottom لتنظيف المظهر */
+            padding: 2px 0;
         }
 
         .question-num {
@@ -487,9 +486,9 @@
         /* تنسيق الحروف فوق الأعمدة - مرة واحدة فقط */
         .column-headers {
             text-align: center;
-            margin-bottom: 12px; /* زيادة المسافة من 5px إلى 12px */
-            padding-bottom: 8px; /* زيادة المسافة من 5px إلى 8px */
-            border-bottom: 2px solid #333; /* خط فاصل أوضح */
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #333;
         }
 
         .bubbles-labels-ar {
@@ -558,7 +557,7 @@
             font-size: 10px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
             justify-content: center;
         }
 
@@ -575,6 +574,7 @@
             font-weight: bold;
             color: #666;
             margin-top: 0;
+            margin-bottom: 2px;
             justify-content: center;
         }
 
