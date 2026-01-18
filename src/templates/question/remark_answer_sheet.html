@@ -364,19 +364,17 @@
 
         .model-bubbles {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
         .model-bubble {
-            width: 28px;
-            height: 28px;
+            width: 18px;
+            height: 18px;
             border: 2px solid #000;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
+            display: inline-block;
             background: white;
         }
 
@@ -396,7 +394,7 @@
 
         .question-column {
             border-left: 2px solid #000;
-            padding: 4px;
+            padding: 8px 15px;
             display: flex;
             flex-direction: column;
         }
@@ -424,18 +422,18 @@
         .questions-grid {
             display: grid;
             grid-template-columns: 1fr 1fr; /* عمودين للأقسام العادية */
-            gap: 0 15px; /* زيادة المسافة بين الأعمدة */
+            gap: 0 25px; /* زيادة المسافة بين الأعمدة من 15 إلى 25 */
         }
         
         /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
         .questions-grid > div:first-child {
             border-left: 2px solid #ddd; /* خط على اليمين للعمود الأول */
-            padding-left: 5px;
+            padding-left: 10px;
         }
         
         .questions-grid > div:last-child {
             border-right: 2px solid #ddd; /* خط على اليسار للعمود الثاني */
-            padding-right: 5px;
+            padding-right: 10px;
         }
         
         /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
@@ -489,9 +487,9 @@
         /* تنسيق الحروف فوق الأعمدة - مرة واحدة فقط */
         .column-headers {
             text-align: center;
-            margin-bottom: 5px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 12px; /* زيادة المسافة من 5px إلى 12px */
+            padding-bottom: 8px; /* زيادة المسافة من 5px إلى 8px */
+            border-bottom: 2px solid #333; /* خط فاصل أوضح */
         }
 
         .bubbles-labels-ar {
@@ -500,8 +498,14 @@
             font-size: 11px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 2px;
+            margin-bottom: 3px; /* زيادة من 2px إلى 3px */
             justify-content: center;
+        }
+
+        .bubbles-labels-ar span {
+            width: 16px;
+            text-align: center;
+            display: inline-block;
         }
 
         .bubbles-labels-en {
@@ -510,8 +514,14 @@
             font-size: 10px;
             font-weight: bold;
             color: #666;
-            margin-top: 2px;
+            margin-top: 0; /* إزالة المسافة العلوية */
             justify-content: center;
+        }
+
+        .bubbles-labels-en span {
+            width: 16px;
+            text-align: center;
+            display: inline-block;
         }
 
         /* صف الدوائر فقط بدون حروف */
@@ -521,10 +531,10 @@
             justify-content: center;
         }
 
-        /* دوائر أصغر قليلاً للمزاوجة لتتسع الـ 10 خيارات */
+        /* دوائر المزاوجة */
         .matching-bubble {
-            width: 13px;
-            height: 13px;
+            width: 15px;
+            height: 15px;
             border: 2px solid #000;
             border-radius: 50%;
             display: inline-block;
@@ -544,28 +554,40 @@
         /* تنسيق الحروف للمزاوجة - مرة واحدة فقط */
         .matching-labels-ar {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             font-size: 10px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 1px;
+            margin-bottom: 3px;
             justify-content: center;
+        }
+
+        .matching-labels-ar span {
+            width: 15px;
+            text-align: center;
+            display: inline-block;
         }
 
         .matching-labels-en {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             font-size: 9px;
             font-weight: bold;
             color: #666;
-            margin-top: 1px;
+            margin-top: 0;
             justify-content: center;
+        }
+
+        .matching-labels-en span {
+            width: 15px;
+            text-align: center;
+            display: inline-block;
         }
 
         /* صف الدوائر فقط للمزاوجة */
         .matching-row-only {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             justify-content: center;
         }
 
@@ -726,35 +748,22 @@
         </div>
 
         <div class="model-section">
-            <span style="font-weight: bold; font-size: 14px;">نموذج الاختبار:</span>
+            <span style="font-weight: bold; font-size: 14px; margin-left: 10px;">نموذج الاختبار:</span>
             <div class="model-bubbles">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">أ</span>
-                                    <span class="model-bubble {% if model_letter == 'أ' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">A</span>
-                                </div>
+                <!-- الحروف العربية فوق -->
+                <div class="bubbles-labels-ar" style="margin-bottom: 3px;">
+                    <span>أ</span><span>ب</span><span>ج</span><span>د</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">ب</span>
-                                    <span class="model-bubble {% if model_letter == 'ب' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">B</span>
-                                </div>
+                <!-- الحروف الإنجليزية وسط -->
+                <div class="bubbles-labels-en" style="margin-bottom: 3px;">
+                    <span>A</span><span>B</span><span>C</span><span>D</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">ج</span>
-                                    <span class="model-bubble {% if model_letter == 'ج' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">C</span>
-                                </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">د</span>
-                                    <span class="model-bubble {% if model_letter == 'د' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">D</span>
-                                </div>
+                <!-- الدوائر تحت -->
+                <div class="bubbles-row-only">
+                    <span class="model-bubble {% if model_letter == 'أ' %}selected{% endif %}"></span>
+                    <span class="model-bubble {% if model_letter == 'ب' %}selected{% endif %}"></span>
+                    <span class="model-bubble {% if model_letter == 'ج' %}selected{% endif %}"></span>
+                    <span class="model-bubble {% if model_letter == 'د' %}selected{% endif %}"></span>
                 </div>
             </div>
         </div>
