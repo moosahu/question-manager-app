@@ -456,10 +456,11 @@
         }
 
         .question-num {
-            width: 22px;
+            width: 30px;
             font-weight: bold;
             font-size: 12px;
-            text-align: center;
+            text-align: right;
+            padding-left: 5px;
         }
 
         .answer-bubbles {
@@ -498,11 +499,12 @@
             font-weight: bold;
             color: #000;
             margin-bottom: 3px;
-            justify-content: center;
+            justify-content: flex-start;
+            padding-right: 30px; /* مسافة لرقم السؤال */
         }
 
         .bubbles-labels-ar span {
-            width: 20px; /* نفس عرض الدائرة الفعلي (16px + 4px border) */
+            width: 20px;
             text-align: center;
             display: inline-block;
         }
@@ -515,11 +517,12 @@
             color: #666;
             margin-top: 0;
             margin-bottom: 2px;
-            justify-content: center;
+            justify-content: flex-start;
+            padding-right: 30px; /* مسافة لرقم السؤال */
         }
 
         .bubbles-labels-en span {
-            width: 20px; /* نفس عرض الدائرة الفعلي */
+            width: 20px;
             text-align: center;
             display: inline-block;
         }
@@ -528,7 +531,7 @@
         .bubbles-row-only {
             display: flex;
             gap: 10px;
-            justify-content: center;
+            justify-content: flex-start;
         }
 
         /* دوائر المزاوجة */
@@ -559,11 +562,12 @@
             font-weight: bold;
             color: #000;
             margin-bottom: 1px;
-            justify-content: center;
+            justify-content: flex-start;
+            padding-right: 30px; /* مسافة لرقم السؤال */
         }
 
         .matching-labels-ar span {
-            width: 19px; /* عرض الدائرة الفعلي (15px + 4px border) */
+            width: 19px;
             text-align: center;
             display: inline-block;
         }
@@ -576,11 +580,12 @@
             color: #666;
             margin-top: 0;
             margin-bottom: 2px;
-            justify-content: center;
+            justify-content: flex-start;
+            padding-right: 30px; /* مسافة لرقم السؤال */
         }
 
         .matching-labels-en span {
-            width: 19px; /* نفس عرض الدائرة الفعلي */
+            width: 19px;
             text-align: center;
             display: inline-block;
         }
@@ -589,7 +594,7 @@
         .matching-row-only {
             display: flex;
             gap: 8px;
-            justify-content: center;
+            justify-content: flex-start;
         }
 
         /* مفتاح الإجابة */
