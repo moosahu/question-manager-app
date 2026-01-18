@@ -424,7 +424,7 @@
         .questions-grid {
             display: grid;
             grid-template-columns: 1fr 1fr; /* عمودين للأقسام العادية */
-            gap: 0 15px; /* زيادة المسافة بين الأعمدة */
+            gap: 0 10px;
         }
         
         /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
@@ -473,62 +473,31 @@
         }
 
         .answer-bubble {
-            width: 16px;
-            height: 16px;
+            width: 22px; /* تكبير الدوائر */
+            height: 22px;
             border: 2px solid #000;
             border-radius: 50%;
-            display: inline-block;
-            background: white;
-            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            background: white; /* خلفية بيضاء نظيفة */
         }
 
         .answer-bubble.filled {
             background: #000;
+            color: #fff;
         }
 
-        /* تنسيق الحروف فوق وتحت الدوائر - كلها في صف */
-        .answer-bubbles {
-            display: flex;
-            gap: 5px;
-            flex: 1;
-            justify-content: center;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .bubbles-labels-ar {
-            display: flex;
-            gap: 12px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 2px;
-        }
-
-        .bubbles-row {
-            display: flex;
-            gap: 12px;
-        }
-
-        .bubbles-labels-en {
-            display: flex;
-            gap: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            color: #666;
-            margin-top: 2px;
-        }
-
-        /* دوائر أصغر قليلاً للمزاوجة لتتسع الـ 10 خيارات */
+        /* دوائر أصغر قليلاً للمزاوجة لتتسع الـ 6 خيارات */
         .matching-bubble {
-            width: 13px;
-            height: 13px;
+            width: 20px;
+            height: 20px;
             border: 2px solid #000;
             border-radius: 50%;
-            display: inline-block;
-            background: white;
-            position: relative;
-        }
+            display: flex;
+            align-items: center;
             justify-content: center;
             font-size: 10px;
             font-weight: bold;
@@ -537,30 +506,7 @@
 
         .matching-bubble.filled {
             background: #000;
-        }
-
-        /* تنسيق الحروف للمزاوجة - كلها في صف */
-        .matching-labels-ar {
-            display: flex;
-            gap: 6px;
-            font-size: 10px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 1px;
-        }
-
-        .matching-row {
-            display: flex;
-            gap: 6px;
-        }
-
-        .matching-labels-en {
-            display: flex;
-            gap: 6px;
-            font-size: 9px;
-            font-weight: bold;
-            color: #666;
-            margin-top: 1px;
+            color: #fff;
         }
 
         /* مفتاح الإجابة */
@@ -723,32 +669,16 @@
             <span style="font-weight: bold; font-size: 14px;">نموذج الاختبار:</span>
             <div class="model-bubbles">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">أ</span>
-                                    <span class="model-bubble {% if model_letter == 'أ' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">A</span>
-                                </div>
+                    <span class="model-bubble {% if model_letter == 'أ' %}selected{% endif %}">أ</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">ب</span>
-                                    <span class="model-bubble {% if model_letter == 'ب' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">B</span>
-                                </div>
+                    <span class="model-bubble {% if model_letter == 'ب' %}selected{% endif %}">ب</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">ج</span>
-                                    <span class="model-bubble {% if model_letter == 'ج' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">C</span>
-                                </div>
+                    <span class="model-bubble {% if model_letter == 'ج' %}selected{% endif %}">ج</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <div class="bubble-wrapper">
-                                    <span class="bubble-label-ar">د</span>
-                                    <span class="model-bubble {% if model_letter == 'د' %}selected{% endif %}"></span>
-                                    <span class="bubble-label-en">D</span>
-                                </div>
+                    <span class="model-bubble {% if model_letter == 'د' %}selected{% endif %}">د</span>
                 </div>
             </div>
         </div>
@@ -765,18 +695,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <div class="bubbles-labels-ar">
-                                <span>أ</span><span>ب</span><span>ج</span><span>د</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>A</span><span>B</span><span>C</span><span>D</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -788,18 +710,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <div class="bubbles-labels-ar">
-                                <span>أ</span><span>ب</span><span>ج</span><span>د</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>A</span><span>B</span><span>C</span><span>D</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -817,18 +731,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <div class="bubbles-labels-ar">
-                                <span>أ</span><span>ب</span><span>ج</span><span>د</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>A</span><span>B</span><span>C</span><span>D</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -840,18 +746,10 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles">
-                            <div class="bubbles-labels-ar">
-                                <span>أ</span><span>ب</span><span>ج</span><span>د</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>A</span><span>B</span><span>C</span><span>D</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="answer-bubble {% if correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="answer-bubble {% if correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="answer-bubble {% if correct == 'د' %}filled{% endif %}">د</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -869,16 +767,8 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles" style="gap: 15px;">
-                            <div class="bubbles-labels-ar">
-                                <span>ص</span><span>خ</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>T</span><span>F</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}">ص</span>
+                            <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}">خ</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -890,16 +780,8 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles" style="gap: 15px;">
-                            <div class="bubbles-labels-ar">
-                                <span>ص</span><span>خ</span>
-                            </div>
-                            <div class="bubbles-labels-en">
-                                <span>T</span><span>F</span>
-                            </div>
-                            <div class="bubbles-row">
-                                <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}"></span>
-                                <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}">ص</span>
+                            <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}">خ</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -917,24 +799,12 @@
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="answer-bubbles" style="gap: 4px;">
-                            <div class="matching-labels-ar">
-                                <span>أ</span><span>ب</span><span>ج</span><span>د</span><span>هـ</span><span>و</span><span>ز</span><span>ح</span><span>ط</span><span>ي</span>
-                            </div>
-                            <div class="matching-labels-en">
-                                <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
-                            </div>
-                            <div class="matching-row">
-                                <span class="matching-bubble {% if correct == 'أ' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ب' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ج' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'د' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'هـ' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'و' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ز' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ح' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ط' %}filled{% endif %}"></span>
-                                <span class="matching-bubble {% if correct == 'ي' %}filled{% endif %}"></span>
-                            </div>
+                            <span class="matching-bubble {% if correct == 'أ' %}filled{% endif %}">أ</span>
+                            <span class="matching-bubble {% if correct == 'ب' %}filled{% endif %}">ب</span>
+                            <span class="matching-bubble {% if correct == 'ج' %}filled{% endif %}">ج</span>
+                            <span class="matching-bubble {% if correct == 'د' %}filled{% endif %}">د</span>
+                            <span class="matching-bubble {% if correct == 'هـ' %}filled{% endif %}">هـ</span>
+                            <span class="matching-bubble {% if correct == 'و' %}filled{% endif %}">و</span>
                         </div>
                     </div>
                     {% endfor %}
