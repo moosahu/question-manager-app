@@ -438,28 +438,20 @@
         
         /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
         .questions-grid.matching-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* عمود واحد فقط للمزاوجة */
         }
         
-        /* إلغاء الخطوط و padding للمزاوجة */
+        /* إلغاء الخطوط للمزاوجة لأنها عمود واحد */
         .questions-grid.matching-grid > div {
             border-left: none !important;
             border-right: none !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
         }
-        
-        .questions-grid.matching-grid .column-headers {
-            padding-right: 30px !important;
-        }
-        
-        .questions-grid.matching-grid .matching-row-only {
-            padding-right: 30px !important;
-        }
 
         .question-row {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             padding: 2px 0;
         }
 
@@ -468,8 +460,7 @@
             font-weight: bold;
             font-size: 12px;
             text-align: right;
-            flex-shrink: 0;
-            padding-top: 15px; /* محاذاة مع الدوائر */
+            padding-left: 5px;
         }
 
         .answer-bubbles {
@@ -496,9 +487,14 @@
         /* تنسيق الحروف فوق الأعمدة - مرة واحدة فقط */
         .column-headers {
             margin-bottom: 8px;
+            margin-right: 30px; /* نفس عرض question-num */
             padding-bottom: 5px;
-            padding-right: 30px; /* مسافة الرقم */
             border-bottom: 2px solid #333;
+        }
+
+        /* إلغاء margin للمزاوجة */
+        .matching-grid .column-headers {
+            margin-right: 0;
         }
 
         .bubbles-labels-ar {
@@ -536,7 +532,6 @@
         .bubbles-row-only {
             display: flex;
             gap: 7px;
-            padding-right: 30px; /* مسافة الرقم */
         }
 
         /* دوائر المزاوجة - أصغر عشان تتسع 10 */
