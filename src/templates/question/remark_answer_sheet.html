@@ -387,14 +387,14 @@
         .questions-section {
             grid-column: 1 / -1;
             display: grid;
-            /* تقسيم الأعمدة: تصغير الاختيار وصح/خطأ، توسيع المزاوجة */
-            grid-template-columns: 0.9fr 0.9fr 0.7fr 1.5fr;
+            /* تقسيم الأعمدة: تصغير الاختيار وصح/خطأ أكثر، توسيع المزاوجة */
+            grid-template-columns: 0.85fr 0.85fr 0.6fr 1.7fr;
             border-top: 2px solid #000;
         }
 
         .question-column {
             border-left: 2px solid #000;
-            padding: 8px 15px;
+            padding: 8px 8px;
             display: flex;
             flex-direction: column;
         }
@@ -422,18 +422,18 @@
         .questions-grid {
             display: grid;
             grid-template-columns: 1fr 1fr; /* عمودين للأقسام العادية */
-            gap: 0 25px; /* زيادة المسافة بين الأعمدة من 15 إلى 25 */
+            gap: 0 15px; /* تقليل من 25px إلى 15px */
         }
         
         /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
         .questions-grid > div:first-child {
             border-left: 2px solid #ddd; /* خط على اليمين للعمود الأول */
-            padding-left: 10px;
+            padding-left: 5px;
         }
         
         .questions-grid > div:last-child {
             border-right: 2px solid #ddd; /* خط على اليسار للعمود الثاني */
-            padding-right: 10px;
+            padding-right: 5px;
         }
         
         /* === تعديل خاص لقسم المزاوجة (المشكلة الثانية) === */
@@ -494,7 +494,7 @@
 
         .bubbles-labels-ar {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             font-size: 11px;
             font-weight: bold;
             color: #000;
@@ -510,7 +510,7 @@
 
         .bubbles-labels-en {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             font-size: 10px;
             font-weight: bold;
             color: #666;
@@ -527,7 +527,7 @@
         /* صف الدوائر فقط بدون حروف */
         .bubbles-row-only {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             justify-content: center;
         }
 
