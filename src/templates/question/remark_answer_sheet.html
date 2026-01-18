@@ -425,6 +425,11 @@
             gap: 0 6px;
         }
         
+        /* margin لكل عمود داخلي لمحاذاة رقم السؤال */
+        .questions-grid > div {
+            margin-left: 30px;
+        }
+        
         /* إضافة خط فاصل عمودي بين الأعمدة الداخلية */
         .questions-grid > div:first-child {
             border-left: 1px solid #ddd;
@@ -447,6 +452,7 @@
             border-right: none !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
+            margin-left: 30px; /* نفس margin باقي الأعمدة */
         }
 
         .question-row {
@@ -491,11 +497,6 @@
             border-bottom: 2px solid #333;
         }
 
-        /* إلغاء margin للمزاوجة */
-        .matching-grid .column-headers {
-            margin-right: 0;
-        }
-
         .bubbles-labels-ar {
             display: flex;
             gap: 7px;
@@ -503,7 +504,6 @@
             font-weight: bold;
             color: #000;
             margin-bottom: 3px;
-            margin-right: 30px; /* المسافة هنا */
         }
 
         .bubbles-labels-ar span {
@@ -520,7 +520,6 @@
             color: #666;
             margin-top: 0;
             margin-bottom: 2px;
-            margin-right: 30px; /* المسافة هنا */
         }
 
         .bubbles-labels-en span {
@@ -533,7 +532,6 @@
         .bubbles-row-only {
             display: flex;
             gap: 7px;
-            margin-right: 30px; /* المسافة هنا */
         }
 
         /* دوائر المزاوجة - أصغر عشان تتسع 10 */
