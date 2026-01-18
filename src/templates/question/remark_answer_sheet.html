@@ -452,15 +452,15 @@
         .question-row {
             display: flex;
             align-items: center;
+            justify-content: center;
             padding: 2px 0;
         }
 
         .question-num {
-            width: 35px;
+            width: 25px;
             font-weight: bold;
             font-size: 12px;
-            text-align: right;
-            padding-left: 5px;
+            text-align: center;
         }
 
         .answer-bubbles {
@@ -487,14 +487,17 @@
         /* تنسيق الحروف فوق الأعمدة - مرة واحدة فقط */
         .column-headers {
             margin-bottom: 8px;
-            padding-right: 35px; /* محاذاة مع رقم السؤال */
             padding-bottom: 5px;
             border-bottom: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* إلغاء padding للمزاوجة */
         .matching-grid .column-headers {
             padding-right: 35px;
+            align-items: flex-start;
         }
 
         .bubbles-labels-ar {
