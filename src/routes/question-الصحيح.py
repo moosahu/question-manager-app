@@ -182,39 +182,6 @@ def allowed_import_file(filename):
     return ("." in filename and
             filename.rsplit(".", 1)[1].lower() in ALLOWED_IMPORT_EXTENSIONS)
 
-
-# === دالة تنسيق النص للطباعة (تحويل الأسطر الجديدة ومنع كسر المعادلات) ===
-def format_text_for_print(text):
-    """
-    تنسيق النص للطباعة:
-    1. تحويل السطور الجديدة (\n) إلى <br>
-    2. كل سطر يكون في span مع white-space: nowrap لمنع الكسر
-    
-    هذا يضمن:
-    - المعادلات الكيميائية لا تتكسر في منتصفها
-    - كل سطر يظهر كما أدخله المعلم
-    """
-    if not text:
-        return ''
-    
-    # تقسيم النص على السطور الجديدة
-    lines = text.split('\n')
-    
-    # إذا كان سطر واحد فقط، نعيده مع nowrap
-    if len(lines) == 1:
-        return f'<span class="line-block">{text}</span>'
-    
-    # تنسيق كل سطر في span منفصل
-    formatted_lines = []
-    for line in lines:
-        line = line.strip()
-        if line:  # تجاهل الأسطر الفارغة
-            formatted_lines.append(f'<span class="line-block">{line}</span>')
-    
-    # دمج الأسطر مع <br>
-    return '<br>'.join(formatted_lines)
-
-
 # --- save_upload function (Modified for Cloudinary) --- #
 def save_upload(file, subfolder="questions"):
     current_app.logger.debug(f"Entering save_upload for Cloudinary, subfolder: {subfolder}")
@@ -1794,16 +1761,16 @@ def download_exam_word():
                 'error': 'لم يتم العثور على الأسئلة المحددة'
             }), 404
         
-        # تنسيق الأسئلة مع تنسيق النص للطباعة
+        # تنسيق الأسئلة
         formatted_questions = []
         for question in questions:
             formatted_q = {
                 'question_id': question.question_id,
-                'question_text': format_text_for_print(question.question_text),
+                'question_text': question.question_text,
                 'options': [
                     {
                         'option_id': opt.option_id,
-                        'option_text': format_text_for_print(opt.option_text),
+                        'option_text': opt.option_text,
                         'is_correct': opt.is_correct
                     }
                     for opt in sorted(question.options, key=lambda o: o.option_id)
@@ -1982,20 +1949,12 @@ def export_exam_pdf():
         if not questions:
             return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
         
-        # تحويل الأسئلة مع تنسيق النص للطباعة
+        # تحويل الأسئلة
         questions_data = []
         for q in questions:
-            q_dict = {
-                'id': q.question_id, 
-                'question_text': format_text_for_print(q.question_text), 
-                'points': 1, 
-                'options': []
-            }
+            q_dict = {'id': q.question_id, 'question_text': q.question_text, 'points': 1, 'options': []}
             for opt in q.options:
-                q_dict['options'].append({
-                    'option_text': format_text_for_print(opt.option_text), 
-                    'is_correct': opt.is_correct
-                })
+                q_dict['options'].append({'option_text': opt.option_text, 'is_correct': opt.is_correct})
             questions_data.append(q_dict)
         
         # جلب الإعدادات من قاعدة البيانات
@@ -2065,21 +2024,11 @@ def preview_exam_paper():
         
         questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
         
-        # تحويل الأسئلة مع تنسيق النص للطباعة
         questions_data = []
         for q in questions:
-            q_dict = {
-                'id': q.question_id, 
-                'question_text': format_text_for_print(q.question_text), 
-                'points': 1, 
-                'options': []
-            }
+            q_dict = {'id': q.question_id, 'question_text': q.question_text, 'points': 1, 'options': []}
             for opt in q.options:
-                q_dict['options'].append({
-                    'option_text': format_text_for_print(opt.option_text), 
-                    'is_correct': opt.is_correct, 
-                    'option_id': opt.option_id
-                })
+                q_dict['options'].append({'option_text': opt.option_text, 'is_correct': opt.is_correct, 'option_id': opt.option_id})
             q_dict['correct_option_id'] = next((o.option_id for o in q.options if o.is_correct), None)
             questions_data.append(q_dict)
 
@@ -2226,19 +2175,19 @@ def generate_multi_models():
         
         current_app.logger.info(f"Found {len(questions)} questions in database")
         
-        # تحويل الأسئلة لقاموس مع تنسيق النص للطباعة
+        # تحويل الأسئلة لقاموس
         questions_data = []
         for q in questions:
             q_dict = {
                 'question_id': q.question_id,
-                'question_text': format_text_for_print(q.question_text or ''),
+                'question_text': q.question_text or '',
                 'image_url': getattr(q, 'image_url', None) or '',
                 'options': []
             }
             for opt in q.options:
                 q_dict['options'].append({
                     'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
+                    'option_text': getattr(opt, 'option_text', '') or '',
                     'image_url': getattr(opt, 'image_url', None) or '',
                     'is_correct': getattr(opt, 'is_correct', False)
                 })
@@ -2443,19 +2392,18 @@ def preview_multi_models():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
         
         # تحويل الأسئلة لقاموس (كما في كودك الأصلي)
-        # مع تنسيق النص للطباعة (تحويل \n إلى <br> ومنع كسر الأسطر)
         questions_data = []
         for q in questions:
             q_dict = {
                 'question_id': q.question_id,
-                'question_text': format_text_for_print(getattr(q, 'question_text', '') or ''),
+                'question_text': getattr(q, 'question_text', '') or '',
                 'image_url': getattr(q, 'image_url', None) or '',
                 'options': []
             }
             for opt in q.options:
                 q_dict['options'].append({
                     'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
+                    'option_text': getattr(opt, 'option_text', '') or '',
                     'image_url': getattr(opt, 'image_url', None) or '',
                     'is_correct': getattr(opt, 'is_correct', False)
                 })
@@ -2585,12 +2533,6 @@ def preview_multi_models():
     z-index: 9999;
 }
 .print-btn:hover { background: #45a049; }
-
-/* === تنسيق الأسطر لمنع كسر المعادلات الكيميائية === */
-.line-block {
-    display: inline-block;
-    white-space: nowrap;
-}
 </style>
 </head>
 <body>
@@ -2892,19 +2834,19 @@ def print_remark_sheets_multi_models():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
         
-        # تحويل الأسئلة لقاموس مع تنسيق النص للطباعة
+        # تحويل الأسئلة لقاموس
         questions_data = []
         for q in questions:
             q_dict = {
                 'question_id': q.question_id,
-                'question_text': format_text_for_print(getattr(q, 'question_text', '') or ''),
+                'question_text': getattr(q, 'question_text', '') or '',
                 'image_url': getattr(q, 'image_url', None) or '',
                 'options': []
             }
             for opt in q.options:
                 q_dict['options'].append({
                     'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
+                    'option_text': getattr(opt, 'option_text', '') or '',
                     'image_url': getattr(opt, 'image_url', None) or '',
                     'is_correct': getattr(opt, 'is_correct', False)
                 })
@@ -3115,19 +3057,19 @@ def generate_all_models_answer_keys():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
         
-        # تحويل الأسئلة لقاموس مع تنسيق النص للطباعة
+        # تحويل الأسئلة لقاموس
         questions_data = []
         for q in questions:
             q_dict = {
                 'question_id': q.question_id,
-                'question_text': format_text_for_print(getattr(q, 'question_text', '') or ''),
+                'question_text': getattr(q, 'question_text', '') or '',
                 'image_url': getattr(q, 'image_url', None) or '',
                 'options': []
             }
             for opt in q.options:
                 q_dict['options'].append({
                     'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
+                    'option_text': getattr(opt, 'option_text', '') or '',
                     'image_url': getattr(opt, 'image_url', None) or '',
                     'is_correct': getattr(opt, 'is_correct', False)
                 })
