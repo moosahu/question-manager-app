@@ -282,34 +282,41 @@
         }
 
         /* =============================================
-           منع كسر المعادلات الكيميائية والنصوص المهمة
+           تنسيق المعادلات الكيميائية - منع الكسر الجزئي
            =============================================
         */
         
-        /* كل سطر يبقى على سطر واحد بدون كسر */
-        .q-text br + span,
-        .q-text span {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        
-        /* للمعادلات الكيميائية - منع الكسر */
-        .chemical-equation,
+        /* السماح بالكسر بين الأسطر لكن ليس داخل السطر الواحد */
         .line-block {
-            display: inline-block;
+            display: inline;
+            word-break: keep-all;
+            /* لا نستخدم nowrap لأنه يسبب خروج النص */
+        }
+        
+        /* عند 3 أعمدة - تصغير الخط للمعادلات الطويلة */
+        {% if col_count == 3 %}
+        .question-box {
+            font-size: {{ (font_size|default(14, true)|int) - 1 }}px;
+        }
+        
+        .q-text {
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            hyphens: none;
+        }
+        {% endif %}
+        
+        /* عند عمودين */
+        {% if col_count == 2 %}
+        .line-block {
             white-space: nowrap;
         }
+        {% endif %}
         
-        /* عند 3 أعمدة - تصغير الخط قليلاً للمعادلات الطويلة */
-        {% if col_count == 3 %}
-        .q-text {
-            font-size: {{ (font_size|default(14, true)|int) - 1 }}px;
-            word-break: keep-all;
-            overflow-wrap: normal;
-        }
-        
-        .q-text span {
-            font-size: inherit;
+        /* عند عمود واحد - المعادلات لا تتكسر أبداً */
+        {% if col_count == 1 %}
+        .line-block {
+            white-space: nowrap;
         }
         {% endif %}
 
@@ -402,20 +409,18 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            white-space: nowrap;
         }
         
-        /* منع كسر نص الخيارات */
-        .option-content span {
-            display: inline-block;
-            white-space: nowrap;
+        /* منع كسر المعادلات داخل الخيارات */
+        .option-content .line-block {
+            word-break: keep-all;
         }
         
-        /* عند 3 أعمدة - السماح بالكسر للخيارات الطويلة جداً */
+        /* عند 3 أعمدة */
         {% if col_count == 3 %}
         .option-content {
-            white-space: normal;
             word-break: keep-all;
+            overflow-wrap: break-word;
         }
         {% endif %}
 

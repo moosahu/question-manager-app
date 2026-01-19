@@ -190,12 +190,10 @@ def format_text_for_print(text):
     """
     تنسيق النص للطباعة:
     1. تحويل السطور الجديدة (\n) إلى <br>
-    2. كل سطر يكون في <span> لمنع الكسر في منتصف المعادلات
-    3. استخدام Markup لمنع escape في القالب
+    2. كل سطر يكون في <span class="line-block"> لمنع الكسر الجزئي
     
-    هذا يضمن:
-    - المعادلات الكيميائية لا تتكسر في منتصفها
-    - كل سطر يظهر كما أدخله المعلم
+    ملاحظة: line-block يستخدم word-break: keep-all بدلاً من white-space: nowrap
+    لمنع خروج النص من حدود العمود
     """
     if not text:
         return ''
@@ -206,16 +204,17 @@ def format_text_for_print(text):
     # ثانياً: تقسيم النص على السطور
     lines = safe_text.split('\n')
     
-    # ثالثاً: إذا سطر واحد فقط، نعيده في span
-    if len(lines) == 1:
-        return Markup(f'<span class="line-block">{safe_text}</span>')
-    
-    # رابعاً: كل سطر في span منفصل مع <br> بينهم
+    # ثالثاً: معالجة الأسطر
     formatted_lines = []
     for line in lines:
         line = line.strip()
-        if line:  # تجاهل الأسطر الفارغة
+        if line:
+            # كل سطر في span منفصل
             formatted_lines.append(f'<span class="line-block">{line}</span>')
+    
+    # إذا لا يوجد أسطر، نرجع النص الأصلي
+    if not formatted_lines:
+        return Markup(f'<span class="line-block">{safe_text}</span>')
     
     # دمج الأسطر مع <br>
     return Markup('<br>'.join(formatted_lines))
