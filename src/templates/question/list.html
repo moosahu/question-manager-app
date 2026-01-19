@@ -206,9 +206,9 @@
                                                 <span class="badge bg-warning text-dark ms-1">ممنوع</span>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td dir="auto">
                                             {% if question.question_text %}
-                                                {{ (question.question_text | truncate(100)) }}
+                                                {{ (question.question_text | replace('\n', ' ↵ ') | truncate(100)) }}
                                             {% elif question.image_url %}
                                                 <span class="text-muted"><i class="fas fa-image"></i> سؤال بصورة فقط</span>
                                             {% else %}
@@ -295,7 +295,7 @@
                                             <div class="enhanced-text">
                                                 <div class="question-text-container">
                                                     {% if question.question_text %}
-                                                        <p class="question-text">{{ question.question_text }}</p>
+                                                        <p class="question-text" dir="auto">{{ question.question_text|replace('\n', '<br>')|safe }}</p>
                                                     {% endif %}
                                                     
                                                     {% if question.image_url %}
@@ -316,10 +316,10 @@
 <div class="option-item {% if option.is_correct %}correct-option{% endif %}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #dee2e6; border-radius: 5px; {% if option.is_correct %}background-color: #d4edda; border-color: #c3e6cb;{% else %}background-color: white;{% endif %} transition: all 0.2s;">
     {% set is_img_link = option.option_text and option.option_text.startswith('http') and (option.option_text.endswith('.jpg') or option.option_text.endswith('.png') or option.option_text.endswith('.jpeg')) %}
     <span class="option-number" style="font-weight: bold; margin-left: 8px;">{{ loop.index }}.</span>
-    <span class="option-text" style="{% if option.is_correct %}color: #155724; font-weight: 500;{% else %}color: #333;{% endif %}">
+    <span class="option-text" dir="auto" style="{% if option.is_correct %}color: #155724; font-weight: 500;{% else %}color: #333;{% endif %}">
         {% if option.is_correct %}<i class="fas fa-check text-success"></i> {% endif %}
         {% if not is_img_link %}
-            {{ option.option_text }}
+            {{ option.option_text|replace('\n', '<br>')|safe }}
         {% endif %}
     </span>
     {% if option.image_url %}
@@ -393,7 +393,7 @@
                                                     <!-- نص السؤال كاملاً -->
                                                     <div class="preview-section">
                                                         <h6 class="preview-section-title">نص السؤال:</h6>
-                                                        <div class="question-text-full">
+                                                        <div class="question-text-full" dir="auto">
                                                             
 {% if question.question_text and question.question_text.startswith('http') %}
     {% if question.question_text.endswith('.jpg') or question.question_text.endswith('.png') or question.question_text.endswith('.jpeg') %}
@@ -402,7 +402,7 @@
         <a href="{{ question.question_text }}" target="_blank">{{ question.question_text }}</a>
     {% endif %}
 {% elif question.question_text %}
-    {{ question.question_text }}
+    {{ question.question_text|replace('\n', '<br>')|safe }}
 {% elif question.image_url %}
     <img src="{{ question.image_url }}" alt="صورة السؤال" class="img-fluid question-preview-image">
 {% else %}
@@ -433,7 +433,7 @@
                                                                 </span>
                                                                 {% endif %}
                                                                 <span class="option-letter">{{ loop.index }}.</span>
-                                                                <span class="option-text">
+                                                                <span class="option-text" dir="auto">
 {% if option.option_text and option.option_text.startswith('http') %}
     {% if option.option_text.endswith('.jpg') or option.option_text.endswith('.png') or option.option_text.endswith('.jpeg') %}
         <img src="{{ option.option_text }}" alt="صورة الخيار" class="img-thumbnail" style="max-width: 100px;">
@@ -441,7 +441,7 @@
         <a href="{{ option.option_text }}" target="_blank">{{ option.option_text }}</a>
     {% endif %}
 {% else %}
-    {{ option.option_text }}
+    {{ option.option_text|replace('\n', '<br>')|safe }}
 {% endif %}
 </span>
                                                             </div>
