@@ -1,0 +1,82 @@
+/* ===== إصلاح اتجاه النص للمعادلات الكيميائية ===== */
+
+/*
+ * المشكلة: المعادلات الكيميائية تظهر مقلوبة بسبب خلط RTL و LTR
+ * الحل: إضافة unicode-bidi و direction للنصوص التي تحتوي على معادلات
+ */
+
+/* تطبيق اتجاه مختلط للنصوص التي تحتوي على أحرف لاتينية وأرقام */
+.question-text,
+.option-text,
+.q-text,
+.enhanced-text p,
+.question-text-container p,
+.question-text-full {
+    unicode-bidi: plaintext;
+    /* plaintext يسمح للمتصفح بتحديد الاتجاه تلقائياً لكل جزء من النص */
+}
+
+/* بديل: استخدام isolate للعزل */
+.question-text,
+.option-text {
+    unicode-bidi: isolate;
+    direction: rtl;
+}
+
+/* للمعادلات الكيميائية والرموز - فرض اتجاه LTR */
+.chemical-formula,
+.equation,
+.ltr-text {
+    unicode-bidi: embed;
+    direction: ltr;
+    display: inline-block;
+}
+
+/* تنسيق خاص للنصوص متعددة الأسطر */
+.question-text,
+.enhanced-text p {
+    white-space: pre-wrap; /* الحفاظ على الأسطر الجديدة */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ===== تنسيقات إضافية للبطاقات ===== */
+
+/* السماح للنص بالتكسر بشكل صحيح */
+.question-text-container {
+    overflow: hidden;
+    word-break: normal;
+}
+
+/* تنسيق الخيارات */
+.option-item .option-text {
+    unicode-bidi: isolate;
+    text-align: right;
+}
+
+/* ===== إصلاح المعادلات في الطباعة ===== */
+
+/* للطباعة - نفس المبدأ */
+@media print {
+    .q-text,
+    .option-content {
+        unicode-bidi: plaintext;
+    }
+}
+
+/* ===== تحسين عرض الأسطر المتعددة ===== */
+
+/* عند وجود <br> في النص */
+.question-text br,
+.enhanced-text p br {
+    content: "";
+    display: block;
+    margin-bottom: 0.5em;
+}
+
+/* تنسيق كل سطر */
+.line-block {
+    display: block;
+    unicode-bidi: isolate;
+    margin-bottom: 0.25em;
+}
