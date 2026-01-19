@@ -184,28 +184,41 @@ def allowed_import_file(filename):
 
 
 # === دالة تنسيق النص للطباعة (تحويل الأسطر الجديدة ومنع كسر المعادلات) ===
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 def format_text_for_print(text):
     """
     تنسيق النص للطباعة:
-    - تحويل السطور الجديدة (\n) إلى <br>
-    - استخدام Markup لمنع escape في القالب
+    1. تحويل السطور الجديدة (\n) إلى <br>
+    2. كل سطر يكون في <span> لمنع الكسر في منتصف المعادلات
+    3. استخدام Markup لمنع escape في القالب
     
-    هذا يضمن أن كل سطر يظهر كما أدخله المعلم
+    هذا يضمن:
+    - المعادلات الكيميائية لا تتكسر في منتصفها
+    - كل سطر يظهر كما أدخله المعلم
     """
     if not text:
         return ''
     
     # أولاً: escape أي HTML موجود في النص الأصلي (للأمان)
-    from markupsafe import escape
     safe_text = str(escape(text))
     
-    # ثانياً: تحويل السطور الجديدة إلى <br>
-    formatted = safe_text.replace('\n', '<br>')
+    # ثانياً: تقسيم النص على السطور
+    lines = safe_text.split('\n')
     
-    # ثالثاً: إرجاع كـ Markup لمنع escape مرة أخرى في القالب
-    return Markup(formatted)
+    # ثالثاً: إذا سطر واحد فقط، نعيده في span
+    if len(lines) == 1:
+        return Markup(f'<span class="line-block">{safe_text}</span>')
+    
+    # رابعاً: كل سطر في span منفصل مع <br> بينهم
+    formatted_lines = []
+    for line in lines:
+        line = line.strip()
+        if line:  # تجاهل الأسطر الفارغة
+            formatted_lines.append(f'<span class="line-block">{line}</span>')
+    
+    # دمج الأسطر مع <br>
+    return Markup('<br>'.join(formatted_lines))
 
 
 # --- save_upload function (Modified for Cloudinary) --- #

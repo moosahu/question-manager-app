@@ -282,38 +282,6 @@
         }
 
         /* =============================================
-           منع كسر المعادلات الكيميائية والنصوص المهمة
-           =============================================
-        */
-        
-        /* كل سطر يبقى على سطر واحد بدون كسر */
-        .q-text br + span,
-        .q-text span {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        
-        /* للمعادلات الكيميائية - منع الكسر */
-        .chemical-equation,
-        .line-block {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        
-        /* عند 3 أعمدة - تصغير الخط قليلاً للمعادلات الطويلة */
-        {% if col_count == 3 %}
-        .q-text {
-            font-size: {{ (font_size|default(14, true)|int) - 1 }}px;
-            word-break: keep-all;
-            overflow-wrap: normal;
-        }
-        
-        .q-text span {
-            font-size: inherit;
-        }
-        {% endif %}
-
-        /* =============================================
            تنسيق الصور (تحت السؤال مباشرة ومزاحة لليمين) 
            =============================================
         */
@@ -402,22 +370,7 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            white-space: nowrap;
         }
-        
-        /* منع كسر نص الخيارات */
-        .option-content span {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        
-        /* عند 3 أعمدة - السماح بالكسر للخيارات الطويلة جداً */
-        {% if col_count == 3 %}
-        .option-content {
-            white-space: normal;
-            word-break: keep-all;
-        }
-        {% endif %}
 
         .options-grid {
             display: grid;
