@@ -278,47 +278,21 @@
         
         .q-text { 
             font-weight: bold; 
-            line-height: 1.5; 
+            line-height: 1.5;
+            /* السماح بالكسر العادي */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         /* =============================================
-           تنسيق المعادلات الكيميائية - منع الكسر الجزئي
+           تنسيق المعادلات الكيميائية
            =============================================
         */
         
-        /* السماح بالكسر بين الأسطر لكن ليس داخل السطر الواحد */
+        /* line-block: للأسطر التي يجب أن تبقى معاً */
         .line-block {
             display: inline;
-            word-break: keep-all;
-            /* لا نستخدم nowrap لأنه يسبب خروج النص */
         }
-        
-        /* عند 3 أعمدة - تصغير الخط للمعادلات الطويلة */
-        {% if col_count == 3 %}
-        .question-box {
-            font-size: {{ (font_size|default(14, true)|int) - 1 }}px;
-        }
-        
-        .q-text {
-            word-break: keep-all;
-            overflow-wrap: break-word;
-            hyphens: none;
-        }
-        {% endif %}
-        
-        /* عند عمودين */
-        {% if col_count == 2 %}
-        .line-block {
-            white-space: nowrap;
-        }
-        {% endif %}
-        
-        /* عند عمود واحد - المعادلات لا تتكسر أبداً */
-        {% if col_count == 1 %}
-        .line-block {
-            white-space: nowrap;
-        }
-        {% endif %}
 
         /* =============================================
            تنسيق الصور (تحت السؤال مباشرة ومزاحة لليمين) 
@@ -410,19 +384,6 @@
             align-items: center;
             gap: 5px;
         }
-        
-        /* منع كسر المعادلات داخل الخيارات */
-        .option-content .line-block {
-            word-break: keep-all;
-        }
-        
-        /* عند 3 أعمدة */
-        {% if col_count == 3 %}
-        .option-content {
-            word-break: keep-all;
-            overflow-wrap: break-word;
-        }
-        {% endif %}
 
         .options-grid {
             display: grid;

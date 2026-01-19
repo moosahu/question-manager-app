@@ -183,17 +183,16 @@ def allowed_import_file(filename):
             filename.rsplit(".", 1)[1].lower() in ALLOWED_IMPORT_EXTENSIONS)
 
 
-# === دالة تنسيق النص للطباعة (تحويل الأسطر الجديدة ومنع كسر المعادلات) ===
+# === دالة تنسيق النص للطباعة (تحويل الأسطر الجديدة) ===
 from markupsafe import Markup, escape
 
 def format_text_for_print(text):
     """
     تنسيق النص للطباعة:
-    1. تحويل السطور الجديدة (\n) إلى <br>
-    2. كل سطر يكون في <span class="line-block"> لمنع الكسر الجزئي
+    - تحويل السطور الجديدة (\n) إلى <br>
+    - هذا يضمن أن كل سطر يظهر كما أدخله المعلم
     
-    ملاحظة: line-block يستخدم word-break: keep-all بدلاً من white-space: nowrap
-    لمنع خروج النص من حدود العمود
+    ملاحظة: لا نستخدم white-space: nowrap لأنه يسبب خروج النص من العمود
     """
     if not text:
         return ''
@@ -201,23 +200,11 @@ def format_text_for_print(text):
     # أولاً: escape أي HTML موجود في النص الأصلي (للأمان)
     safe_text = str(escape(text))
     
-    # ثانياً: تقسيم النص على السطور
-    lines = safe_text.split('\n')
+    # ثانياً: تحويل السطور الجديدة إلى <br>
+    formatted = safe_text.replace('\n', '<br>')
     
-    # ثالثاً: معالجة الأسطر
-    formatted_lines = []
-    for line in lines:
-        line = line.strip()
-        if line:
-            # كل سطر في span منفصل
-            formatted_lines.append(f'<span class="line-block">{line}</span>')
-    
-    # إذا لا يوجد أسطر، نرجع النص الأصلي
-    if not formatted_lines:
-        return Markup(f'<span class="line-block">{safe_text}</span>')
-    
-    # دمج الأسطر مع <br>
-    return Markup('<br>'.join(formatted_lines))
+    # إرجاع كـ Markup لمنع escape مرة أخرى في القالب
+    return Markup(formatted)
 
 
 # --- save_upload function (Modified for Cloudinary) --- #
