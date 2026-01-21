@@ -3158,8 +3158,18 @@ def generate_all_models_answer_keys():
                 'subject': getattr(header_settings_record, 'subject', ''),
                 'time': getattr(header_settings_record, 'time', ''),
                 'grade': getattr(header_settings_record, 'grade', ''),
-                'total_score': getattr(header_settings_record, 'total_score', 30)
+                'total_score': getattr(header_settings_record, 'total_score', 30),
+                'logo_base64': ''
             }
+        
+        # تحويل الشعار لـ Base64
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_settings['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"Could not load logo: {e}")
         
         # توليد مفاتيح الإجابة لكل نموذج
         all_keys_html = ""
