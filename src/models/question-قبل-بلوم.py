@@ -28,16 +28,6 @@ class Question(db.Model):
     
     # حقل منع السؤال من الظهور في المنهج/الوحدة/الدرس
     is_blocked = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    
-    # ==================== الحقول الجديدة ====================
-    # مستوى الصعوبة: easy (سهل), medium (متوسط), hard (صعب)
-    difficulty = db.Column(db.String(20), default='medium', nullable=False, index=True)
-    
-    # مستوى بلوم (أهداف التعلم):
-    # remember (تذكر), understand (فهم), apply (تطبيق), 
-    # analyze (تحليل), evaluate (تقويم), create (إبداع)
-    bloom_level = db.Column(db.String(30), default='remember', nullable=False, index=True)
-    # =========================================================
 
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
 
