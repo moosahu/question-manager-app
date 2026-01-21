@@ -1202,6 +1202,15 @@ async function generateMultipleModels() {
     const imageSize = getImageSize();
     const layoutSettings = getLayoutSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswersEl = document.getElementById('includeAnswers');
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    
+    const includeAnswers = includeAnswersEl ? includeAnswersEl.checked : false;
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    
     showLoading(true);
     
     try {
@@ -1214,9 +1223,9 @@ async function generateMultipleModels() {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 models: selectedModels,
-                include_answers: document.getElementById('includeAnswers').checked,
-                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-                include_barcode: document.getElementById('includeBarcode').checked,
+                include_answers: includeAnswers,
+                include_answer_sheet: includeAnswerSheet,
+                include_barcode: includeBarcode,
                 // التعديل: إجبار الخلط لضمان اختلاف حرف الإجابة الصحيحة بين النماذج
                 shuffle_options: true,
                 // 🔧 إضافة: إرسال إعدادات التنسيق
@@ -1272,6 +1281,15 @@ async function previewMultipleModels() {
     const imageSize = getImageSize();
     const layoutSettings = getLayoutSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswersEl = document.getElementById('includeAnswers');
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    
+    const includeAnswers = includeAnswersEl ? includeAnswersEl.checked : false;
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    
     showLoading(true);
     
     try {
@@ -1284,9 +1302,9 @@ async function previewMultipleModels() {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 models: selectedModels,
-                include_answers: document.getElementById('includeAnswers').checked,
-                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-                include_barcode: document.getElementById('includeBarcode').checked,
+                include_answers: includeAnswers,
+                include_answer_sheet: includeAnswerSheet,
+                include_barcode: includeBarcode,
                 // التعديل هنا: إرسال true دائماً لكسر تشابه الإجابات بين النماذج
                 shuffle_options: true,
                 // 🔧 إضافة: إرسال إعدادات التنسيق
@@ -1323,22 +1341,54 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
-    document.getElementById('courseSelect').addEventListener('change', handleCourseChange);
-    document.getElementById('unitSelect').addEventListener('change', handleUnitChange);
-    document.getElementById('lessonSelect').addEventListener('change', handleLessonChange);
-    document.getElementById('generateRandomBtn').addEventListener('click', generateRandomExam);
-    document.getElementById('clearAllBtn').addEventListener('click', clearAllSelections);
-    document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => exportExam(false));
-    document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
-    document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
-    document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
-    document.getElementById('generateMultiModelsBtn').addEventListener('click', generateMultipleModels);
-    document.getElementById('previewMultiModelsBtn').addEventListener('click', previewMultipleModels);
+    // ربط أحداث القوائم المنسدلة
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    if (courseSelect) courseSelect.addEventListener('change', handleCourseChange);
+    if (unitSelect) unitSelect.addEventListener('change', handleUnitChange);
+    if (lessonSelect) lessonSelect.addEventListener('change', handleLessonChange);
+    
+    // أزرار التوليد
+    const generateRandomBtn = document.getElementById('generateRandomBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    
+    if (generateRandomBtn) generateRandomBtn.addEventListener('click', generateRandomExam);
+    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllSelections);
+    
+    // أزرار التصدير PDF
+    const exportWithoutAnswersBtn = document.getElementById('exportWithoutAnswersBtn');
+    const exportWithAnswersBtn = document.getElementById('exportWithAnswersBtn');
+    
+    if (exportWithoutAnswersBtn) exportWithoutAnswersBtn.addEventListener('click', () => exportExam(false));
+    if (exportWithAnswersBtn) exportWithAnswersBtn.addEventListener('click', () => exportExam(true));
+    
+    // أزرار Word
+    const downloadWordWithoutAnswersBtn = document.getElementById('downloadWordWithoutAnswersBtn');
+    const downloadWordWithAnswersBtn = document.getElementById('downloadWordWithAnswersBtn');
+    
+    if (downloadWordWithoutAnswersBtn) downloadWordWithoutAnswersBtn.addEventListener('click', () => downloadWord(false));
+    if (downloadWordWithAnswersBtn) downloadWordWithAnswersBtn.addEventListener('click', () => downloadWord(true));
+    
+    // أزرار النماذج المتعددة
+    const generateMultiModelsBtn = document.getElementById('generateMultiModelsBtn');
+    const previewMultiModelsBtn = document.getElementById('previewMultiModelsBtn');
+    
+    if (generateMultiModelsBtn) generateMultiModelsBtn.addEventListener('click', generateMultipleModels);
+    if (previewMultiModelsBtn) previewMultiModelsBtn.addEventListener('click', previewMultipleModels);
     
     // تحديث معاينة الباركود
-    document.getElementById('includeBarcode').addEventListener('change', function() {
-        document.getElementById('barcodePreview').style.opacity = this.checked ? '1' : '0.5';
-    });
+    const includeBarcode = document.getElementById('includeBarcode');
+    const barcodePreview = document.getElementById('barcodePreview');
+    
+    if (includeBarcode && barcodePreview) {
+        includeBarcode.addEventListener('change', function() {
+            barcodePreview.style.opacity = this.checked ? '1' : '0.5';
+        });
+    }
+    
+    console.log('Event listeners setup completed');
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
@@ -2002,65 +2052,196 @@ function updateQuestionsList() {
         return;
     }
 
-    const html = `
-        <div class="questions-container">
-            <div class="questions-column" id="column-left"></div>
-            <div class="questions-column" id="column-right"></div>
+    // ألوان مميزة للوحدات
+    const unitColors = [
+        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb' },  // أزرق
+        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9' },  // أخضر
+        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2' },  // برتقالي
+        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7' },  // بنفسجي
+        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2' },  // أحمر
+        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2' },  // سماوي
+        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9' },  // وردي
+        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8' },  // أخضر فاتح
+        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9' },  // بنفسجي غامق
+        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3' },  // أصفر
+    ];
+
+    // تجميع الأسئلة حسب الوحدة
+    const questionsByUnit = {};
+    allQuestions.forEach(question => {
+        const unitName = question.unit || 'وحدة غير محددة';
+        if (!questionsByUnit[unitName]) {
+            questionsByUnit[unitName] = [];
+        }
+        questionsByUnit[unitName].push(question);
+    });
+
+    // إنشاء HTML للوحدات
+    let html = '<div class="units-container">';
+    
+    Object.keys(questionsByUnit).forEach((unitName, unitIndex) => {
+        const color = unitColors[unitIndex % unitColors.length];
+        const questions = questionsByUnit[unitName];
+        const unitId = `unit-${unitIndex}`;
+        
+        html += `
+            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-folder-open"></i>
+                        <span style="font-weight: bold; font-size: 1rem;">${unitName}</span>
+                        <span style="background: rgba(255,255,255,0.3); padding: 2px 10px; border-radius: 15px; font-size: 0.85rem;">${questions.length} سؤال</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">
+                            <i class="fas fa-check-double"></i> تحديد الكل
+                        </button>
+                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s;"></i>
+                    </div>
+                </div>
+                <div class="unit-content" id="${unitId}" style="padding: 15px; display: block;">
+                    <div class="unit-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;">
+        `;
+        
+        questions.forEach((question, qIndex) => {
+            const isSelected = selectedQuestionIds.has(question.question_id);
+            html += `
+                <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
+                     style="background: white; border: 1px solid ${color.light}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `border-color: ${color.border}; box-shadow: 0 0 0 2px ${color.light};` : ''}">
+                    <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
+                        <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
+                               ${isSelected ? 'checked' : ''} 
+                               data-unit="${unitName}"
+                               style="margin-top: 3px; accent-color: ${color.border};" />
+                        <div style="flex: 1;">
+                            <div class="question-text" style="font-size: 0.9rem; line-height: 1.5; margin-bottom: 5px;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
+                            <div class="question-meta" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span style="background: ${color.light}; color: ${color.header}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">
+                                    <i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}
+                                </span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    // إضافة شريط الإحصائيات السريعة
+    const totalUnits = Object.keys(questionsByUnit).length;
+    html = `
+        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;">${allQuestions.length}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">إجمالي الأسئلة</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;">${totalUnits}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">الوحدات</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">المحددة</div>
+            </div>
+            <div>
+                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;">
+                    <i class="fas fa-check-double"></i> تحديد الكل
+                </button>
+                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-times"></i> إلغاء الكل
+                </button>
+            </div>
         </div>
-    `;
+    ` + html;
     
     container.innerHTML = html;
     
-    const leftColumn = document.getElementById('column-left');
-    const rightColumn = document.getElementById('column-right');
-    
-    allQuestions.forEach((question, index) => {
-        const column = index % 2 === 0 ? leftColumn : rightColumn;
-        const questionEl = createQuestionElement(question);
-        column.appendChild(questionEl);
+    // إضافة event listeners للـ checkboxes
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const qId = parseInt(e.target.value);
+            const questionDiv = document.getElementById(`question-${qId}`);
+            
+            if (e.target.checked) {
+                selectedQuestionIds.add(qId);
+                if (questionDiv) questionDiv.classList.add('selected');
+            } else {
+                selectedQuestionIds.delete(qId);
+                if (questionDiv) questionDiv.classList.remove('selected');
+            }
+            updateStats();
+            updateSelectedCountDisplay();
+        });
     });
 }
 
-function createQuestionElement(question) {
-    const div = document.createElement('div');
-    div.className = 'question-item';
-    div.id = `question-${question.question_id}`;
+// دالة طي/فتح الوحدة
+function toggleUnitSection(unitId) {
+    const content = document.getElementById(unitId);
+    const toggle = document.getElementById(`toggle-${unitId}`);
     
-    const isSelected = selectedQuestionIds.has(question.question_id);
-    if (isSelected) {
-        div.classList.add('selected');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.display = 'none';
+        toggle.style.transform = 'rotate(-90deg)';
     }
-    
-    const optionsText = question.options.map((opt, i) => `${String.fromCharCode(97 + i)}) ${opt.option_text}`).join(' | ');
-    
-    div.innerHTML = `
-        <label style="display: flex; align-items: flex-start; cursor: pointer;">
-            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
-                   ${isSelected ? 'checked' : ''} style="margin-top: 3px; margin-left: 10px;" />
-            <div style="flex: 1;">
-                <div class="question-text">${question.question_text}</div>
-                <div class="question-meta">
-                    <span class="meta-badge"><i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}</span>
-                    <span class="meta-badge"><i class="fas fa-layer-group"></i> ${question.unit || 'وحدة غير محددة'}</span>
-                </div>
-            </div>
-        </label>
-    `;
-    
-    const checkbox = div.querySelector('.question-checkbox');
-    checkbox.addEventListener('change', (e) => {
-        const qId = parseInt(e.target.value);
-        if (e.target.checked) {
+}
+
+// دالة تحديد كل أسئلة وحدة معينة
+function selectAllInUnit(unitName) {
+    document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"]`).forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            const qId = parseInt(checkbox.value);
             selectedQuestionIds.add(qId);
-            div.classList.add('selected');
-        } else {
-            selectedQuestionIds.delete(qId);
-            div.classList.remove('selected');
+            const questionDiv = document.getElementById(`question-${qId}`);
+            if (questionDiv) questionDiv.classList.add('selected');
         }
-        updateStats();
     });
-    
-    return div;
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة تحديد كل الأسئلة
+function selectAllQuestions() {
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+        selectedQuestionIds.add(parseInt(checkbox.value));
+        const questionDiv = document.getElementById(`question-${checkbox.value}`);
+        if (questionDiv) questionDiv.classList.add('selected');
+    });
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة إلغاء تحديد كل الأسئلة
+function deselectAllQuestions() {
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+        const questionDiv = document.getElementById(`question-${checkbox.value}`);
+        if (questionDiv) questionDiv.classList.remove('selected');
+    });
+    selectedQuestionIds.clear();
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// تحديث عداد المحددة في الشريط العلوي
+function updateSelectedCountDisplay() {
+    const display = document.getElementById('selectedCountDisplay');
+    if (display) {
+        display.textContent = selectedQuestionIds.size;
+    }
 }
 
 async function generateRandomExam() {
@@ -2188,6 +2369,15 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على إعدادات الكليشة
     const headerFormatSettings = getHeaderSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    const shuffleOptionsEl = document.getElementById('shuffleOptions');
+    
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    const shuffleOptions = shuffleOptionsEl ? shuffleOptionsEl.checked : true;
+    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -2206,9 +2396,9 @@ function generatePrintableDocument(questions, includeAnswers) {
             question_ids: Array.from(selectedQuestionIds),
             models: modelsToSend, 
             include_answers: includeAnswers,
-            include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-            include_barcode: document.getElementById('includeBarcode').checked,
-            shuffle_options: document.getElementById('shuffleOptions').checked,
+            include_answer_sheet: includeAnswerSheet,
+            include_barcode: includeBarcode,
+            shuffle_options: shuffleOptions,
             font_size: fontSize,
             image_size: imageSize,
             columns: layoutSettings.columns,
