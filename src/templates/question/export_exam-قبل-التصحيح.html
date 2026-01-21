@@ -717,8 +717,6 @@
                             <option value="منتصف">منتصف</option>
                             <option value="الفترة الأولى">الفترة الأولى</option>
                             <option value="الفترة الثانية">الفترة الثانية</option>
-                            <option value="الدور الثاني">الدور الثاني</option>
-                            <option value="التعثر">التعثر</option>
                             <option value="تشخيصي">تشخيصي</option>
                             <option value="قصير">قصير</option>
                         </select>
@@ -1303,8 +1301,7 @@ async function previewStudentListMultiModels() {
                 students: students,
                 models: selectedModels,
                 question_ids: Array.from(selectedQuestionIds),
-                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
-                total_score: headerSettings.total_score
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true
             })
         });
         
@@ -1405,8 +1402,7 @@ async function printBlankRemarkSheets() {
             body: JSON.stringify({
                 models: selectedModels,
                 count_per_model: count,
-                question_ids: Array.from(selectedQuestionIds),
-                total_score: headerSettings.total_score
+                question_ids: Array.from(selectedQuestionIds)
             })
         });
         
@@ -1673,8 +1669,7 @@ async function confirmAndPrint() {
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({
-                students: currentStudents,
-                total_score: headerSettings.total_score
+                students: currentStudents
             })
         });
         
