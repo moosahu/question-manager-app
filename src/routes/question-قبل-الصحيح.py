@@ -2707,7 +2707,6 @@ def print_remark_sheets():
             'school_name': settings.school_name if settings else '',
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
-            'total_score': settings.total_score if settings else 30,
             'logo_base64': ''
         }
 
@@ -2912,7 +2911,6 @@ def print_remark_sheets_multi_models():
             'school_name': settings.school_name if settings else '',
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
-            'total_score': settings.total_score if settings else 30,
             'logo_base64': ''
         }
 
@@ -3044,7 +3042,6 @@ def print_blank_remark_sheets():
             'school_name': settings.school_name if settings else '',
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
-            'total_score': settings.total_score if settings else 30,
             'logo_base64': ''
         }
 
