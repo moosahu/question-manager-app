@@ -526,6 +526,127 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ==================== نظام الأقسام القابلة للطي ==================== */
+        .collapsible-section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 2px solid #e0e0e0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .collapsible-section.section-primary {
+            border-color: #667eea;
+        }
+
+        .collapsible-section.section-success {
+            border-color: #28a745;
+        }
+
+        .collapsible-section.section-purple {
+            border-color: #9c27b0;
+        }
+
+        .collapsible-section.section-warning {
+            border-color: #ff9800;
+        }
+
+        .collapsible-section.section-info {
+            border-color: #17a2b8;
+        }
+
+        .collapsible-section.section-danger {
+            border-color: #dc3545;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .section-header:hover {
+            filter: brightness(0.95);
+        }
+
+        .section-primary .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .section-success .section-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .section-purple .section-header {
+            background: linear-gradient(135deg, #9c27b0 0%, #e91e63 100%);
+            color: white;
+        }
+
+        .section-warning .section-header {
+            background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
+            color: white;
+        }
+
+        .section-info .section-header {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            color: white;
+        }
+
+        .section-danger .section-header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .section-title i {
+            font-size: 1.1rem;
+        }
+
+        .section-toggle {
+            transition: transform 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .collapsible-section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            padding: 15px;
+            background: #fafafa;
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.3s ease;
+        }
+
+        .collapsible-section.collapsed .section-content {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .section-badge {
+            background: rgba(255,255,255,0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            margin-right: 5px;
+        }
     </style>
 {% endblock %}
 
@@ -546,186 +667,154 @@
     <div class="export-content">
         <!-- الشريط الجانبي -->
         <div class="export-sidebar">
-            <h2><i class="fas fa-cogs"></i> الخيارات</h2>
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-cogs"></i> لوحة التحكم</h2>
 
-            <div class="form-group">
-                <label for="courseSelect">المنهج <span style="color: red;">*</span></label>
-                <select id="courseSelect" required>
-                    <option value="">-- اختر المنهج --</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="unitSelect">الوحدة (اختياري)</label>
-                <select id="unitSelect">
-                    <option value="">-- جميع الوحدات --</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="lessonSelect">الدرس (اختياري)</label>
-                <select id="lessonSelect">
-                    <option value="">-- جميع الدروس --</option>
-                </select>
-            </div>
-
-            <div class="stats-box">
-                <h3><i class="fas fa-chart-bar"></i> الإحصائيات</h3>
-                <div class="stats-item">
-                    <span>إجمالي الأسئلة:</span>
-                    <strong id="totalQuestionsCount">0</strong>
+            <!-- ==================== القسم 1: اختيار المنهج ==================== -->
+            <div class="collapsible-section section-primary">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-book"></i>
+                        اختيار المنهج والأسئلة
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
                 </div>
-                <div class="stats-item">
-                    <span>الأسئلة المختارة:</span>
-                    <strong id="selectedQuestionsCount">0</strong>
-                </div>
-            </div>
-
-            <!-- قسم النماذج المتعددة -->
-            <div class="models-section">
-                <h4><i class="fas fa-copy"></i> توليد نماذج متعددة</h4>
-                <div class="models-grid">
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelA" value="أ" checked>
-                        <span class="model-letter">أ</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelB" value="ب">
-                        <span class="model-letter">ب</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelC" value="ج">
-                        <span class="model-letter">ج</span>
-                    </label>
-                    <label class="model-checkbox">
-                        <input type="checkbox" id="modelD" value="د">
-                        <span class="model-letter">د</span>
-                    </label>
-                </div>
-                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
-                    <i class="fas fa-info-circle"></i> كل نموذج سيكون بترتيب مختلف للأسئلة والخيارات
-                </p>
-            </div>
-
-            <!-- قسم الباركود -->
-            <div class="barcode-section">
-                <h4><i class="fas fa-qrcode"></i> إضافة باركود QR</h4>
-                <div class="checkbox-item">
-                    <input type="checkbox" id="includeBarcode" checked>
-                    <label for="includeBarcode">إضافة باركود لكل نموذج</label>
-                </div>
-                <div class="barcode-preview" id="barcodePreview">
-                    <div class="barcode-preview-icon">
-                        <i class="fas fa-qrcode" style="font-size: 24px; color: #667eea;"></i>
+                <div class="section-content">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="courseSelect">المنهج <span style="color: red;">*</span></label>
+                        <select id="courseSelect" required>
+                            <option value="">-- اختر المنهج --</option>
+                        </select>
                     </div>
-                    <div class="barcode-preview-text">
-                        سيظهر في زاوية الورقة ويحتوي على:<br>
-                        المادة، النموذج، التاريخ، عدد الأسئلة
-                    </div>
-                </div>
-            </div>
 
-            <!-- ==================== قسم تنسيقات الكليشة ==================== -->
-            <div class="header-format-section" style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #7b1fa2; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-file-alt"></i> تنسيقات الكليشة</h4>
-                
-                <!-- 1. حجم الكليشة -->
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">حجم الكليشة:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="header-size-btn" data-size="small" onclick="setHeaderSize('small')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">صغير</button>
-                        <button type="button" class="header-size-btn active" data-size="medium" onclick="setHeaderSize('medium')" style="flex: 1; padding: 8px; background: #9c27b0; color: white; border: 2px solid #9c27b0; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">متوسط</button>
-                        <button type="button" class="header-size-btn" data-size="large" onclick="setHeaderSize('large')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">كبير</button>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="unitSelect">الوحدة (اختياري)</label>
+                        <select id="unitSelect">
+                            <option value="">-- جميع الوحدات --</option>
+                        </select>
                     </div>
-                </div>
 
-                <!-- 2. الشعار -->
-                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-image"></i> الشعار:</label>
-                    <div class="checkbox-item" style="margin-bottom: 10px;">
-                        <input type="checkbox" id="showLogo" checked>
-                        <label for="showLogo">إظهار الشعار</label>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="lessonSelect">الدرس (اختياري)</label>
+                        <select id="lessonSelect">
+                            <option value="">-- جميع الدروس --</option>
+                        </select>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="logo-size-btn" data-size="small" onclick="setLogoSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
-                        <button type="button" class="logo-size-btn active" data-size="medium" onclick="setLogoSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
-                        <button type="button" class="logo-size-btn" data-size="large" onclick="setLogoSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
-                    </div>
-                </div>
 
-                <!-- 3. حجم الباركود -->
-                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-qrcode"></i> حجم الباركود:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="qr-size-btn" data-size="small" onclick="setQRSize('small')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
-                        <button type="button" class="qr-size-btn active" data-size="medium" onclick="setQRSize('medium')" style="flex: 1; padding: 6px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
-                        <button type="button" class="qr-size-btn" data-size="large" onclick="setQRSize('large')" style="flex: 1; padding: 6px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
-                    </div>
-                </div>
-
-                <!-- 4. جدول الدرجات -->
-                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-table"></i> جدول الدرجات:</label>
-                    <div class="checkbox-item" style="margin-bottom: 10px;">
-                        <input type="checkbox" id="showGradesTable" checked>
-                        <label for="showGradesTable">إظهار جدول الدرجات</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="showExtraGradeField">
-                        <label for="showExtraGradeField">إضافة خانة درجة الرصد</label>
-                    </div>
-                </div>
-
-                <!-- 5. معلومات الطالب -->
-                <div style="margin-bottom: 15px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-user-graduate"></i> معلومات الطالب:</label>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="showStudentName" checked>
-                            <label for="showStudentName">الاسم</label>
+                    <div class="stats-box" style="margin-top: 15px;">
+                        <div class="stats-item">
+                            <span>إجمالي الأسئلة:</span>
+                            <strong id="totalQuestionsCount">0</strong>
                         </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="showStudentClass" checked>
-                            <label for="showStudentClass">الشعبة</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="showStudentSeatNo" checked>
-                            <label for="showStudentSeatNo">رقم الجلوس</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="showStudentSignature">
-                            <label for="showStudentSignature">التوقيع</label>
+                        <div class="stats-item">
+                            <span>الأسئلة المختارة:</span>
+                            <strong id="selectedQuestionsCount">0</strong>
                         </div>
                     </div>
-                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px;">طول خط الاسم:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="name-line-btn" data-length="short" onclick="setNameLineLength('short')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">قصير</button>
-                        <button type="button" class="name-line-btn active" data-length="medium" onclick="setNameLineLength('medium')" style="flex: 1; padding: 5px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">متوسط</button>
-                        <button type="button" class="name-line-btn" data-length="long" onclick="setNameLineLength('long')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">طويل</button>
+                </div>
+            </div>
+
+            <!-- ==================== القسم 2: خيارات التوليد ==================== -->
+            <div class="collapsible-section section-success">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-random"></i>
+                        خيارات التوليد والنماذج
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
+                    <!-- النماذج المتعددة -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-layer-group"></i> النماذج المطلوبة:
+                        </label>
+                        <div class="models-grid">
+                            <label class="model-checkbox">
+                                <input type="checkbox" id="modelA" value="أ" checked>
+                                <span class="model-letter">أ</span>
+                            </label>
+                            <label class="model-checkbox">
+                                <input type="checkbox" id="modelB" value="ب">
+                                <span class="model-letter">ب</span>
+                            </label>
+                            <label class="model-checkbox">
+                                <input type="checkbox" id="modelC" value="ج">
+                                <span class="model-letter">ج</span>
+                            </label>
+                            <label class="model-checkbox">
+                                <input type="checkbox" id="modelD" value="د">
+                                <span class="model-letter">د</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- خيارات الخلط -->
+                    <div style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border-radius: 5px;">
+                        <div class="checkbox-item" style="margin-bottom: 8px;">
+                            <input type="checkbox" id="shuffleQuestions" checked />
+                            <label for="shuffleQuestions">خلط ترتيب الأسئلة</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="shuffleOptions" checked />
+                            <label for="shuffleOptions">خلط ترتيب الخيارات</label>
+                        </div>
+                    </div>
+
+                    <!-- عدد الأسئلة -->
+                    <div style="margin-bottom: 15px;">
+                        <label for="questionCount" style="font-size: 0.85rem; color: #666;">عدد الأسئلة (للتوليد العشوائي):</label>
+                        <input type="number" id="questionCount" min="1" max="100" value="10" style="width: 100%; padding: 8px; margin-top: 5px;" />
+                    </div>
+
+                    <!-- أزرار التوليد -->
+                    <div class="btn-group" style="margin-bottom: 10px;">
+                        <button class="btn btn-primary" id="generateRandomBtn" style="flex: 1;">
+                            <i class="fas fa-random"></i> توليد عشوائي
+                        </button>
+                        <button class="btn btn-secondary" id="clearAllBtn" style="flex: 1;">
+                            <i class="fas fa-times"></i> مسح الكل
+                        </button>
+                    </div>
+
+                    <!-- الباركود -->
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 5px; margin-top: 10px;">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="includeBarcode" checked>
+                            <label for="includeBarcode"><i class="fas fa-qrcode"></i> إضافة باركود QR</label>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 6. نوع الاختبار والفصل والعام -->
-                <div style="margin-bottom: 10px; padding: 10px; background: #fafafa; border-radius: 5px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i> عنوان الاختبار (تحت الشعار):</label>
-                    
+            <!-- ==================== القسم 3: إعدادات الكليشة ==================== -->
+            <div class="collapsible-section section-purple collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-file-alt"></i>
+                        إعدادات الكليشة والعنوان
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
                     <!-- نوع الاختبار -->
-                    <div style="margin-bottom: 8px;">
-                        <label style="font-size: 0.75rem; color: #888;">نوع الاختبار:</label>
-                        <select id="examType" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; color: #666;">نوع الاختبار:</label>
+                        <select id="examType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
                             <option value="نهاية">نهاية</option>
                             <option value="منتصف">منتصف</option>
                             <option value="الفترة الأولى">الفترة الأولى</option>
                             <option value="الفترة الثانية">الفترة الثانية</option>
+                            <option value="الدور الثاني">الدور الثاني</option>
+                            <option value="التعثر">التعثر</option>
                             <option value="تشخيصي">تشخيصي</option>
                             <option value="قصير">قصير</option>
                         </select>
                     </div>
                     
                     <!-- الفصل الدراسي -->
-                    <div style="margin-bottom: 8px;">
-                        <label style="font-size: 0.75rem; color: #888;">الفصل الدراسي:</label>
-                        <select id="semesterSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; color: #666;">الفصل الدراسي:</label>
+                        <select id="semesterSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
                             <option value="الأول">الأول</option>
                             <option value="الثاني">الثاني</option>
                             <option value="الثالث">الثالث</option>
@@ -733,238 +822,259 @@
                     </div>
                     
                     <!-- العام الدراسي -->
-                    <div style="margin-bottom: 8px;">
-                        <label style="font-size: 0.75rem; color: #888;">العام الدراسي:</label>
-                        <input type="text" id="academicYear" value="1447هـ" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem; text-align: center;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; color: #666;">العام الدراسي:</label>
+                        <input type="text" id="academicYear" value="1447هـ" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px; text-align: center;">
                     </div>
-                    
-                    <!-- معاينة العنوان -->
-                    <div style="background: #e8f5e9; padding: 8px; border-radius: 4px; text-align: center; font-size: 0.8rem; color: #2e7d32; margin-top: 8px;">
-                        <i class="fas fa-eye"></i> المعاينة:<br>
-                        <strong id="examTitlePreview">اختبار نهاية الفصل الدراسي الأول لعام 1447هـ</strong>
-                    </div>
-                </div>
-            </div>
 
-            <!-- قسم حجم الخط -->
-            <div class="font-size-section" style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #2e7d32; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-text-height"></i> حجم خط الأسئلة</h4>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button type="button" class="btn btn-sm" onclick="changeFontSize(-1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <div style="flex: 1; text-align: center;">
-                        <input type="range" id="fontSizeSlider" min="10" max="20" value="14" 
-                               style="width: 100%; cursor: pointer;"
-                               oninput="updateFontSizeDisplay(this.value)">
-                        <div style="margin-top: 8px;">
-                            <span style="font-size: 0.85rem; color: #666;">حجم الخط: </span>
-                            <strong id="fontSizeValue" style="font-size: 1.1rem; color: #2e7d32;">14px</strong>
+                    <!-- حجم الكليشة -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; color: #666;">حجم الكليشة:</label>
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <button type="button" class="header-size-btn" data-size="small" onclick="setHeaderSize('small')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">صغير</button>
+                            <button type="button" class="header-size-btn active" data-size="medium" onclick="setHeaderSize('medium')" style="flex: 1; padding: 8px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer;">متوسط</button>
+                            <button type="button" class="header-size-btn" data-size="large" onclick="setHeaderSize('large')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">كبير</button>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm" onclick="changeFontSize(1)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 12px;">
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(12)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">صغير (12)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(14)" style="padding: 5px 12px; background: #4caf50; color: white; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">متوسط (14)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(16)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">كبير (16)</button>
-                    <button type="button" class="btn btn-sm" onclick="setFontSize(18)" style="padding: 5px 12px; background: #fff; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">أكبر (18)</button>
-                </div>
-            </div>
 
-            <!-- قسم حجم الصور -->
-            <div class="image-size-section" style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #1565c0; margin: 0 0 12px 0; font-size: 0.95rem;"><i class="fas fa-image"></i> حجم الصور</h4>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button type="button" class="btn btn-sm" onclick="changeImageSize(-10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <div style="flex: 1; text-align: center;">
-                        <input type="range" id="imageSizeSlider" min="60" max="180" value="100" 
-                               style="width: 100%; cursor: pointer;"
-                               oninput="updateImageSizeDisplay(this.value)">
-                        <div style="margin-top: 8px;">
-                            <span style="font-size: 0.85rem; color: #666;">حجم الصور: </span>
-                            <strong id="imageSizeValue" style="font-size: 1.1rem; color: #1565c0;">100%</strong>
+                    <!-- الشعار -->
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                        <div class="checkbox-item" style="margin-bottom: 8px;">
+                            <input type="checkbox" id="showLogo" checked>
+                            <label for="showLogo"><i class="fas fa-image"></i> إظهار الشعار</label>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button type="button" class="logo-size-btn" data-size="small" onclick="setLogoSize('small')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير</button>
+                            <button type="button" class="logo-size-btn active" data-size="medium" onclick="setLogoSize('medium')" style="flex: 1; padding: 5px; background: #9c27b0; color: white; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط</button>
+                            <button type="button" class="logo-size-btn" data-size="large" onclick="setLogoSize('large')" style="flex: 1; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير</button>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm" onclick="changeImageSize(10)" style="padding: 8px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-plus"></i>
+
+                    <!-- جدول الدرجات -->
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 5px; margin-bottom: 12px;">
+                        <div class="checkbox-item" style="margin-bottom: 8px;">
+                            <input type="checkbox" id="showGradesTable" checked>
+                            <label for="showGradesTable"><i class="fas fa-table"></i> إظهار جدول الدرجات</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showExtraGradeField">
+                            <label for="showExtraGradeField">إضافة خانة درجة الرصد</label>
+                        </div>
+                    </div>
+
+                    <!-- معلومات الطالب -->
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;"><i class="fas fa-user-graduate"></i> معلومات الطالب:</label>
+                        <div class="checkbox-item" style="margin-bottom: 5px;">
+                            <input type="checkbox" id="showStudentName" checked>
+                            <label for="showStudentName">الاسم</label>
+                        </div>
+                        <div class="checkbox-item" style="margin-bottom: 5px;">
+                            <input type="checkbox" id="showStudentClass" checked>
+                            <label for="showStudentClass">الصف/الشعبة</label>
+                        </div>
+                        <div class="checkbox-item" style="margin-bottom: 5px;">
+                            <input type="checkbox" id="showStudentSeatNo">
+                            <label for="showStudentSeatNo">رقم الجلوس</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="showStudentSignature">
+                            <label for="showStudentSignature">التوقيع</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== القسم 4: إعدادات التنسيق ==================== -->
+            <div class="collapsible-section section-warning collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-sliders-h"></i>
+                        إعدادات التنسيق المتقدمة
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
+                    <!-- حجم الخط -->
+                    <div style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #2e7d32; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-text-height"></i> حجم خط الأسئلة:
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" onclick="changeFontSize(-1)" style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"><i class="fas fa-minus"></i></button>
+                            <input type="range" id="fontSizeSlider" min="10" max="20" value="14" style="flex: 1;" oninput="updateFontSizeDisplay(this.value)">
+                            <button type="button" onclick="changeFontSize(1)" style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div style="text-align: center; margin-top: 5px;">
+                            <strong id="fontSizeValue" style="color: #2e7d32;">14px</strong>
+                        </div>
+                        <div style="display: flex; gap: 5px; margin-top: 8px;">
+                            <button type="button" onclick="setFontSize(12)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #4caf50; border-radius: 3px; cursor: pointer; background: #fff;">12</button>
+                            <button type="button" onclick="setFontSize(14)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #4caf50; border-radius: 3px; cursor: pointer; background: #4caf50; color: white;">14</button>
+                            <button type="button" onclick="setFontSize(16)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #4caf50; border-radius: 3px; cursor: pointer; background: #fff;">16</button>
+                            <button type="button" onclick="setFontSize(18)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #4caf50; border-radius: 3px; cursor: pointer; background: #fff;">18</button>
+                        </div>
+                    </div>
+
+                    <!-- حجم الصور -->
+                    <div style="margin-bottom: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #1565c0; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-image"></i> حجم الصور:
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" onclick="changeImageSize(-10)" style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"><i class="fas fa-minus"></i></button>
+                            <input type="range" id="imageSizeSlider" min="60" max="180" value="100" style="flex: 1;" oninput="updateImageSizeDisplay(this.value)">
+                            <button type="button" onclick="changeImageSize(10)" style="padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div style="text-align: center; margin-top: 5px;">
+                            <strong id="imageSizeValue" style="color: #1565c0;">100%</strong>
+                        </div>
+                        <div style="display: flex; gap: 5px; margin-top: 8px;">
+                            <button type="button" onclick="setImageSize(70)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #2196f3; border-radius: 3px; cursor: pointer; background: #fff;">70%</button>
+                            <button type="button" onclick="setImageSize(100)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #2196f3; border-radius: 3px; cursor: pointer; background: #2196f3; color: white;">100%</button>
+                            <button type="button" onclick="setImageSize(130)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #2196f3; border-radius: 3px; cursor: pointer; background: #fff;">130%</button>
+                            <button type="button" onclick="setImageSize(150)" style="flex: 1; padding: 4px; font-size: 0.7rem; border: 1px solid #2196f3; border-radius: 3px; cursor: pointer; background: #fff;">150%</button>
+                        </div>
+                    </div>
+
+                    <!-- عدد الأعمدة -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">عدد الأعمدة:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="column-btn" data-columns="1" onclick="setColumns(1)" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-align-justify"></i> واحد
+                            </button>
+                            <button type="button" class="column-btn active" data-columns="2" onclick="setColumns(2)" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 1px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-columns"></i> اثنين
+                            </button>
+                            <button type="button" class="column-btn" data-columns="3" onclick="setColumns(3)" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-th"></i> ثلاثة
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- المسافة بين الأسئلة -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">المسافة بين الأسئلة:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="spacing-btn" data-spacing="compact" onclick="setSpacing('compact')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">ضيقة</button>
+                            <button type="button" class="spacing-btn active" data-spacing="normal" onclick="setSpacing('normal')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 1px solid #ff9800; border-radius: 5px; cursor: pointer;">متوسطة</button>
+                            <button type="button" class="spacing-btn" data-spacing="wide" onclick="setSpacing('wide')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">واسعة</button>
+                        </div>
+                    </div>
+
+                    <!-- تنسيق الخيارات -->
+                    <div>
+                        <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">تنسيق الخيارات:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="options-layout-btn active" data-layout="vertical" onclick="setOptionsLayout('vertical')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 1px solid #ff9800; border-radius: 5px; cursor: pointer;">عمودي</button>
+                            <button type="button" class="options-layout-btn" data-layout="horizontal" onclick="setOptionsLayout('horizontal')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">أفقي</button>
+                            <button type="button" class="options-layout-btn" data-layout="grid" onclick="setOptionsLayout('grid')" style="flex: 1; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">شبكة</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== القسم 5: التصدير والطباعة ==================== -->
+            <div class="collapsible-section section-info">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-file-export"></i>
+                        التصدير والطباعة
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
+                    <!-- أزرار PDF -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 0.85rem; color: #666; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-file-pdf" style="color: #dc3545;"></i> تصدير PDF:
+                        </label>
+                        <button class="btn btn-purple" id="generateMultiModelsBtn" style="width: 100%; margin-bottom: 8px;">
+                            <i class="fas fa-layer-group"></i> توليد النماذج المتعددة (PDF)
+                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-success" id="exportWithoutAnswersBtn" style="flex: 1;">
+                                <i class="fas fa-download"></i> بدون إجابات
+                            </button>
+                            <button class="btn btn-warning" id="exportWithAnswersBtn" style="flex: 1;">
+                                <i class="fas fa-download"></i> مع الإجابات
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- أزرار Word -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 0.85rem; color: #666; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-file-word" style="color: #2196f3;"></i> تصدير Word:
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-info" id="downloadWordWithoutAnswersBtn" style="flex: 1;">
+                                <i class="fas fa-file-word"></i> بدون إجابات
+                            </button>
+                            <button class="btn btn-info" id="downloadWordWithAnswersBtn" style="flex: 1;">
+                                <i class="fas fa-file-word"></i> مع الإجابات
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- زر المعاينة -->
+                    <button class="btn btn-primary" id="previewMultiModelsBtn" style="width: 100%; background: #17a2b8; border-color: #17a2b8;">
+                        <i class="fas fa-print"></i> معاينة وطباعة النماذج (أفضل جودة)
                     </button>
                 </div>
-                <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-sm" onclick="setImageSize(70)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">صغير (70%)</button>
-                    <button type="button" class="btn btn-sm" onclick="setImageSize(100)" style="padding: 5px 10px; background: #2196f3; color: white; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">متوسط (100%)</button>
-                    <button type="button" class="btn btn-sm" onclick="setImageSize(130)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">كبير (130%)</button>
-                    <button type="button" class="btn btn-sm" onclick="setImageSize(150)" style="padding: 5px 10px; background: #fff; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">أكبر (150%)</button>
-                </div>
-                <p style="font-size: 0.75rem; color: #666; margin-top: 10px; text-align: center;">
-                    <i class="fas fa-info-circle"></i> يؤثر على صور الأسئلة والخيارات
-                </p>
             </div>
 
-            <!-- قسم خيارات التنسيق المتقدمة -->
-            <div class="layout-section" style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #e65100; margin: 0 0 15px 0; font-size: 0.95rem;"><i class="fas fa-columns"></i> خيارات التنسيق</h4>
-                
-                <!-- عدد الأعمدة -->
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">عدد الأعمدة:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="column-btn" data-columns="1" onclick="setColumns(1)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-align-justify"></i><br>عمود واحد
-                        </button>
-                        <button type="button" class="column-btn active" data-columns="2" onclick="setColumns(2)" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-columns"></i><br>عمودين
-                        </button>
-                        <button type="button" class="column-btn" data-columns="3" onclick="setColumns(3)" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-th"></i><br>ثلاثة
+            <!-- ==================== القسم 6: نماذج Remark ==================== -->
+            <div class="collapsible-section section-danger collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-user-graduate"></i>
+                        نماذج إجابة Remark
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
+                    <!-- نماذج فارغة -->
+                    <div style="margin-bottom: 15px; padding: 12px; background: #fff3e0; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #e65100; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-file-alt"></i> 1. نماذج فارغة:
+                        </label>
+                        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.8rem; color: #666;">العدد لكل نموذج:</span>
+                            <input type="number" id="blankSheetsCount" value="10" min="1" max="100" style="width: 70px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <button class="btn" onclick="printBlankRemarkSheets()" style="width: 100%; background: #ff9800; color: white;">
+                            <i class="fas fa-print"></i> طباعة نماذج فارغة
                         </button>
                     </div>
-                </div>
-                
-                <!-- المسافة بين الأسئلة -->
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">المسافة بين الأسئلة:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="spacing-btn" data-spacing="compact" onclick="setSpacing('compact')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            ضيقة
-                        </button>
-                        <button type="button" class="spacing-btn active" data-spacing="normal" onclick="setSpacing('normal')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            متوسطة
-                        </button>
-                        <button type="button" class="spacing-btn" data-spacing="wide" onclick="setSpacing('wide')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            واسعة
+
+                    <!-- نماذج بأسماء الطلاب -->
+                    <div style="margin-bottom: 15px; padding: 12px; background: #e8f5e9; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #2e7d32; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-users"></i> 2. بأسماء الطلاب:
+                        </label>
+                        <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%; margin-bottom: 8px;">
+                        <button class="btn btn-success" onclick="previewStudentList()" style="width: 100%;">
+                            <i class="fas fa-print"></i> طباعة مع أسماء الطلاب
                         </button>
                     </div>
-                </div>
-                
-                <!-- تنسيق الخيارات -->
-                <div>
-                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 8px;">تنسيق الخيارات النصية:</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="options-layout-btn active" data-layout="vertical" onclick="setOptionsLayout('vertical')" style="flex: 1; padding: 8px; background: #ff9800; color: white; border: 2px solid #ff9800; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-list"></i><br>تحت بعض
+
+                    <!-- مفاتيح الإجابة -->
+                    <div style="padding: 12px; background: #fce4ec; border-radius: 5px;">
+                        <label style="font-size: 0.85rem; color: #c2185b; font-weight: 600; display: block; margin-bottom: 8px;">
+                            <i class="fas fa-key"></i> 3. مفاتيح الإجابة:
+                        </label>
+                        <button class="btn" onclick="generateOMRAnswerKey()" style="width: 100%; background: #c41e3a; color: white; margin-bottom: 8px;">
+                            <i class="fas fa-key"></i> مفتاح نموذج واحد
                         </button>
-                        <button type="button" class="options-layout-btn" data-layout="grid" onclick="setOptionsLayout('grid')" style="flex: 1; padding: 8px; background: #fff; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">
-                            <i class="fas fa-th-large"></i><br>شبكي 2×2
+                        <button class="btn" onclick="generateAllModelsAnswerKeys()" style="width: 100%; background: #9c27b0; color: white;">
+                            <i class="fas fa-layer-group"></i> مفاتيح كل النماذج
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>خيارات الاستخراج</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="includeAnswers" />
-                        <label for="includeAnswers">تضمين مفتاح الإجابات</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="includeAnswerSheet" />
-                        <label for="includeAnswerSheet">إضافة بطاقة تصحيح للمعلم</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="shuffleOptions" checked />
-                        <label for="shuffleOptions">خلط ترتيب الخيارات</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="questionCount">عدد الأسئلة (للتوليد العشوائي)</label>
-                <input type="number" id="questionCount" min="1" max="100" value="10" />
-            </div>
-
-            <div class="btn-group">
-                <button class="btn btn-primary" id="generateRandomBtn">
-                    <i class="fas fa-random"></i> توليد عشوائي
-                </button>
-                <button class="btn btn-secondary" id="clearAllBtn">
-                    <i class="fas fa-times"></i> مسح الكل
-                </button>
-            </div>
-
-            <div class="btn-group btn-group-full" style="margin-top: 15px;">
-                <button class="btn btn-purple" id="generateMultiModelsBtn">
-                    <i class="fas fa-layer-group"></i> توليد النماذج المتعددة (PDF)
-                </button>
-            </div>
-            
-            <div class="btn-group btn-group-full" style="margin-top: 10px;">
-                <button class="btn btn-primary" id="previewMultiModelsBtn" style="background: #17a2b8;">
-                    <i class="fas fa-print"></i> معاينة وطباعة النماذج (أفضل جودة)
-                </button>
-            </div>
-
-            <div style="background: #f0fff4; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-bottom: 20px; margin-top: 15px;">
-                <h4 style="color: #22543d; margin-top: 0;"><i class="fas fa-user-graduate"></i> نماذج إجابة Remark</h4>
-                
-                <!-- خيار 1: نماذج فارغة للنماذج المتعددة -->
-                <div style="margin-bottom: 15px;">
-                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
-                        <i class="fas fa-layer-group"></i> 1. نماذج فارغة (للنماذج المتعددة)
-                    </p>
-                    <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 5px;">عدد النماذج لكل نوع:</label>
-                    <input type="number" id="blankSheetsCount" value="10" min="1" max="100" style="width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;">
-                    <button class="btn btn-info" onclick="printBlankRemarkSheets()" style="margin-top:8px; background: #17a2b8; width: 100%;">
-                       <i class="fas fa-file-alt"></i> طباعة نماذج فارغة للنماذج المختارة
-                    </button>
-                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
-                        سيتم طباعة نماذج فارغة لكل نموذج محدد (أ، ب، ج، د) للتوزيع اليدوي
-                    </p>
-                </div>
-                
-                <!-- خيار 2: نماذج بأسماء الطلاب -->
-                <div style="border-top: 1px dashed #28a745; padding-top: 12px;">
-                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
-                        <i class="fas fa-users"></i> 2. نماذج بأسماء الطلاب
-                    </p>
-                    <input type="file" id="studentListFile" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
-                    <button class="btn btn-success" onclick="previewStudentList()" style="margin-top:10px; width: 100%;">
-                       <i class="fas fa-print"></i> طباعة مع أسماء الطلاب (نموذج واحد)
-                    </button>
-                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
-                        للنموذج الواحد فقط - يتطلب ملف Excel بأسماء الطلاب
-                    </p>
-                </div>
-                
-                <!-- زر مفتاح الإجابة OMR -->
-                <div style="border-top: 1px dashed #28a745; margin-top: 12px; padding-top: 12px;">
-                    <p style="font-size: 0.85rem; color: #22543d; font-weight: bold; margin-bottom: 8px;">
-                        <i class="fas fa-key"></i> 3. مفاتيح الإجابة
-                    </p>
-                    <button class="btn" onclick="generateOMRAnswerKey()" style="width: 100%; background: #c41e3a; color: white; font-weight: bold;">
-                       <i class="fas fa-key"></i> استخراج مفتاح إجابة OMR (نموذج واحد)
-                    </button>
-                    <button class="btn" onclick="generateAllModelsAnswerKeys()" style="width: 100%; background: #9c27b0; color: white; font-weight: bold; margin-top: 8px;">
-                       <i class="fas fa-layer-group"></i> استخراج مفاتيح إجابة لكل النماذج
-                    </button>
-                    <p style="font-size: 0.7rem; color: #666; margin-top: 5px; text-align: center;">
-                        يستخرج الإجابات الصحيحة ويظللها في بطاقات OMR
-                    </p>
-                </div>
-            </div>
-
-            <div class="btn-group">
-                <button class="btn btn-success" id="exportWithoutAnswersBtn">
-                    <i class="fas fa-download"></i> بدون إجابات
-                </button>
-                <button class="btn btn-warning" id="exportWithAnswersBtn">
-                    <i class="fas fa-download"></i> مع الإجابات
-                </button>
-            </div>
-
-            <div class="btn-group">
-                <button class="btn btn-info" id="downloadWordWithoutAnswersBtn">
-                    <i class="fas fa-file-word"></i> Word بدون إجابات
-                </button>
-                <button class="btn btn-info" id="downloadWordWithAnswersBtn">
-                    <i class="fas fa-file-word"></i> Word مع الإجابات
-                </button>
-            </div>
         </div>
 
         <!-- المحتوى الرئيسي -->
@@ -1012,6 +1122,12 @@
 </div>
 
 <script>
+// ==================== دالة الطي والفتح ====================
+function toggleSection(header) {
+    const section = header.closest('.collapsible-section');
+    section.classList.toggle('collapsed');
+}
+
 // تعريف المتغير كـ let ليقبل التحديث
 let headerSettings = {
     country: 'المملكة العربية السعودية',
@@ -1086,6 +1202,15 @@ async function generateMultipleModels() {
     const imageSize = getImageSize();
     const layoutSettings = getLayoutSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswersEl = document.getElementById('includeAnswers');
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    
+    const includeAnswers = includeAnswersEl ? includeAnswersEl.checked : false;
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    
     showLoading(true);
     
     try {
@@ -1098,9 +1223,9 @@ async function generateMultipleModels() {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 models: selectedModels,
-                include_answers: document.getElementById('includeAnswers').checked,
-                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-                include_barcode: document.getElementById('includeBarcode').checked,
+                include_answers: includeAnswers,
+                include_answer_sheet: includeAnswerSheet,
+                include_barcode: includeBarcode,
                 // التعديل: إجبار الخلط لضمان اختلاف حرف الإجابة الصحيحة بين النماذج
                 shuffle_options: true,
                 // 🔧 إضافة: إرسال إعدادات التنسيق
@@ -1156,6 +1281,15 @@ async function previewMultipleModels() {
     const imageSize = getImageSize();
     const layoutSettings = getLayoutSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswersEl = document.getElementById('includeAnswers');
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    
+    const includeAnswers = includeAnswersEl ? includeAnswersEl.checked : false;
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    
     showLoading(true);
     
     try {
@@ -1168,9 +1302,9 @@ async function previewMultipleModels() {
             body: JSON.stringify({
                 question_ids: Array.from(selectedQuestionIds),
                 models: selectedModels,
-                include_answers: document.getElementById('includeAnswers').checked,
-                include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-                include_barcode: document.getElementById('includeBarcode').checked,
+                include_answers: includeAnswers,
+                include_answer_sheet: includeAnswerSheet,
+                include_barcode: includeBarcode,
                 // التعديل هنا: إرسال true دائماً لكسر تشابه الإجابات بين النماذج
                 shuffle_options: true,
                 // 🔧 إضافة: إرسال إعدادات التنسيق
@@ -1207,22 +1341,54 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
-    document.getElementById('courseSelect').addEventListener('change', handleCourseChange);
-    document.getElementById('unitSelect').addEventListener('change', handleUnitChange);
-    document.getElementById('lessonSelect').addEventListener('change', handleLessonChange);
-    document.getElementById('generateRandomBtn').addEventListener('click', generateRandomExam);
-    document.getElementById('clearAllBtn').addEventListener('click', clearAllSelections);
-    document.getElementById('exportWithoutAnswersBtn').addEventListener('click', () => exportExam(false));
-    document.getElementById('exportWithAnswersBtn').addEventListener('click', () => exportExam(true));
-    document.getElementById('downloadWordWithoutAnswersBtn').addEventListener('click', () => downloadWord(false));
-    document.getElementById('downloadWordWithAnswersBtn').addEventListener('click', () => downloadWord(true));
-    document.getElementById('generateMultiModelsBtn').addEventListener('click', generateMultipleModels);
-    document.getElementById('previewMultiModelsBtn').addEventListener('click', previewMultipleModels);
+    // ربط أحداث القوائم المنسدلة
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    if (courseSelect) courseSelect.addEventListener('change', handleCourseChange);
+    if (unitSelect) unitSelect.addEventListener('change', handleUnitChange);
+    if (lessonSelect) lessonSelect.addEventListener('change', handleLessonChange);
+    
+    // أزرار التوليد
+    const generateRandomBtn = document.getElementById('generateRandomBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    
+    if (generateRandomBtn) generateRandomBtn.addEventListener('click', generateRandomExam);
+    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllSelections);
+    
+    // أزرار التصدير PDF
+    const exportWithoutAnswersBtn = document.getElementById('exportWithoutAnswersBtn');
+    const exportWithAnswersBtn = document.getElementById('exportWithAnswersBtn');
+    
+    if (exportWithoutAnswersBtn) exportWithoutAnswersBtn.addEventListener('click', () => exportExam(false));
+    if (exportWithAnswersBtn) exportWithAnswersBtn.addEventListener('click', () => exportExam(true));
+    
+    // أزرار Word
+    const downloadWordWithoutAnswersBtn = document.getElementById('downloadWordWithoutAnswersBtn');
+    const downloadWordWithAnswersBtn = document.getElementById('downloadWordWithAnswersBtn');
+    
+    if (downloadWordWithoutAnswersBtn) downloadWordWithoutAnswersBtn.addEventListener('click', () => downloadWord(false));
+    if (downloadWordWithAnswersBtn) downloadWordWithAnswersBtn.addEventListener('click', () => downloadWord(true));
+    
+    // أزرار النماذج المتعددة
+    const generateMultiModelsBtn = document.getElementById('generateMultiModelsBtn');
+    const previewMultiModelsBtn = document.getElementById('previewMultiModelsBtn');
+    
+    if (generateMultiModelsBtn) generateMultiModelsBtn.addEventListener('click', generateMultipleModels);
+    if (previewMultiModelsBtn) previewMultiModelsBtn.addEventListener('click', previewMultipleModels);
     
     // تحديث معاينة الباركود
-    document.getElementById('includeBarcode').addEventListener('change', function() {
-        document.getElementById('barcodePreview').style.opacity = this.checked ? '1' : '0.5';
-    });
+    const includeBarcode = document.getElementById('includeBarcode');
+    const barcodePreview = document.getElementById('barcodePreview');
+    
+    if (includeBarcode && barcodePreview) {
+        includeBarcode.addEventListener('change', function() {
+            barcodePreview.style.opacity = this.checked ? '1' : '0.5';
+        });
+    }
+    
+    console.log('Event listeners setup completed');
 }
 
 // الدالة الجديدة لمعاينة الأسماء قبل التوليد (تحل محل generateRemarkOMR)
@@ -1291,6 +1457,7 @@ async function previewStudentListMultiModels() {
         showSuccess(`تمت قراءة ${students.length} طالب/طالبة`);
         
         // ثانياً: توليد نماذج ريمارك للنماذج المتعددة
+        const headerFormatSettings = getHeaderSettings();
         const remarkResponse = await fetch('/questions/print-remark-sheets-multi-models', {
             method: 'POST',
             headers: {
@@ -1301,7 +1468,11 @@ async function previewStudentListMultiModels() {
                 students: students,
                 models: selectedModels,
                 question_ids: Array.from(selectedQuestionIds),
-                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true
+                shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         
@@ -1393,6 +1564,7 @@ async function printBlankRemarkSheets() {
     showLoading(true);
     
     try {
+        const headerFormatSettings = getHeaderSettings();
         const response = await fetch('/questions/print-blank-remark-sheets', {
             method: 'POST',
             headers: {
@@ -1402,7 +1574,11 @@ async function printBlankRemarkSheets() {
             body: JSON.stringify({
                 models: selectedModels,
                 count_per_model: count,
-                question_ids: Array.from(selectedQuestionIds)
+                question_ids: Array.from(selectedQuestionIds),
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         
@@ -1662,6 +1838,7 @@ async function confirmAndPrint() {
     showLoading(true);
     
     try {
+        const headerFormatSettings = getHeaderSettings();
         const response = await fetch('/questions/print-remark-sheets', {
             method: 'POST',
             headers: {
@@ -1669,7 +1846,11 @@ async function confirmAndPrint() {
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({
-                students: currentStudents
+                students: currentStudents,
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         
@@ -1871,65 +2052,196 @@ function updateQuestionsList() {
         return;
     }
 
-    const html = `
-        <div class="questions-container">
-            <div class="questions-column" id="column-left"></div>
-            <div class="questions-column" id="column-right"></div>
+    // ألوان مميزة للوحدات
+    const unitColors = [
+        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb' },  // أزرق
+        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9' },  // أخضر
+        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2' },  // برتقالي
+        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7' },  // بنفسجي
+        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2' },  // أحمر
+        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2' },  // سماوي
+        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9' },  // وردي
+        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8' },  // أخضر فاتح
+        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9' },  // بنفسجي غامق
+        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3' },  // أصفر
+    ];
+
+    // تجميع الأسئلة حسب الوحدة
+    const questionsByUnit = {};
+    allQuestions.forEach(question => {
+        const unitName = question.unit || 'وحدة غير محددة';
+        if (!questionsByUnit[unitName]) {
+            questionsByUnit[unitName] = [];
+        }
+        questionsByUnit[unitName].push(question);
+    });
+
+    // إنشاء HTML للوحدات
+    let html = '<div class="units-container">';
+    
+    Object.keys(questionsByUnit).forEach((unitName, unitIndex) => {
+        const color = unitColors[unitIndex % unitColors.length];
+        const questions = questionsByUnit[unitName];
+        const unitId = `unit-${unitIndex}`;
+        
+        html += `
+            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-folder-open"></i>
+                        <span style="font-weight: bold; font-size: 1rem;">${unitName}</span>
+                        <span style="background: rgba(255,255,255,0.3); padding: 2px 10px; border-radius: 15px; font-size: 0.85rem;">${questions.length} سؤال</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">
+                            <i class="fas fa-check-double"></i> تحديد الكل
+                        </button>
+                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s;"></i>
+                    </div>
+                </div>
+                <div class="unit-content" id="${unitId}" style="padding: 15px; display: block;">
+                    <div class="unit-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;">
+        `;
+        
+        questions.forEach((question, qIndex) => {
+            const isSelected = selectedQuestionIds.has(question.question_id);
+            html += `
+                <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
+                     style="background: white; border: 1px solid ${color.light}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `border-color: ${color.border}; box-shadow: 0 0 0 2px ${color.light};` : ''}">
+                    <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
+                        <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
+                               ${isSelected ? 'checked' : ''} 
+                               data-unit="${unitName}"
+                               style="margin-top: 3px; accent-color: ${color.border};" />
+                        <div style="flex: 1;">
+                            <div class="question-text" style="font-size: 0.9rem; line-height: 1.5; margin-bottom: 5px;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
+                            <div class="question-meta" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span style="background: ${color.light}; color: ${color.header}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">
+                                    <i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}
+                                </span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    // إضافة شريط الإحصائيات السريعة
+    const totalUnits = Object.keys(questionsByUnit).length;
+    html = `
+        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;">${allQuestions.length}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">إجمالي الأسئلة</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;">${totalUnits}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">الوحدات</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">المحددة</div>
+            </div>
+            <div>
+                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;">
+                    <i class="fas fa-check-double"></i> تحديد الكل
+                </button>
+                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-times"></i> إلغاء الكل
+                </button>
+            </div>
         </div>
-    `;
+    ` + html;
     
     container.innerHTML = html;
     
-    const leftColumn = document.getElementById('column-left');
-    const rightColumn = document.getElementById('column-right');
-    
-    allQuestions.forEach((question, index) => {
-        const column = index % 2 === 0 ? leftColumn : rightColumn;
-        const questionEl = createQuestionElement(question);
-        column.appendChild(questionEl);
+    // إضافة event listeners للـ checkboxes
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const qId = parseInt(e.target.value);
+            const questionDiv = document.getElementById(`question-${qId}`);
+            
+            if (e.target.checked) {
+                selectedQuestionIds.add(qId);
+                if (questionDiv) questionDiv.classList.add('selected');
+            } else {
+                selectedQuestionIds.delete(qId);
+                if (questionDiv) questionDiv.classList.remove('selected');
+            }
+            updateStats();
+            updateSelectedCountDisplay();
+        });
     });
 }
 
-function createQuestionElement(question) {
-    const div = document.createElement('div');
-    div.className = 'question-item';
-    div.id = `question-${question.question_id}`;
+// دالة طي/فتح الوحدة
+function toggleUnitSection(unitId) {
+    const content = document.getElementById(unitId);
+    const toggle = document.getElementById(`toggle-${unitId}`);
     
-    const isSelected = selectedQuestionIds.has(question.question_id);
-    if (isSelected) {
-        div.classList.add('selected');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.display = 'none';
+        toggle.style.transform = 'rotate(-90deg)';
     }
-    
-    const optionsText = question.options.map((opt, i) => `${String.fromCharCode(97 + i)}) ${opt.option_text}`).join(' | ');
-    
-    div.innerHTML = `
-        <label style="display: flex; align-items: flex-start; cursor: pointer;">
-            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
-                   ${isSelected ? 'checked' : ''} style="margin-top: 3px; margin-left: 10px;" />
-            <div style="flex: 1;">
-                <div class="question-text">${question.question_text}</div>
-                <div class="question-meta">
-                    <span class="meta-badge"><i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}</span>
-                    <span class="meta-badge"><i class="fas fa-layer-group"></i> ${question.unit || 'وحدة غير محددة'}</span>
-                </div>
-            </div>
-        </label>
-    `;
-    
-    const checkbox = div.querySelector('.question-checkbox');
-    checkbox.addEventListener('change', (e) => {
-        const qId = parseInt(e.target.value);
-        if (e.target.checked) {
+}
+
+// دالة تحديد كل أسئلة وحدة معينة
+function selectAllInUnit(unitName) {
+    document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"]`).forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            const qId = parseInt(checkbox.value);
             selectedQuestionIds.add(qId);
-            div.classList.add('selected');
-        } else {
-            selectedQuestionIds.delete(qId);
-            div.classList.remove('selected');
+            const questionDiv = document.getElementById(`question-${qId}`);
+            if (questionDiv) questionDiv.classList.add('selected');
         }
-        updateStats();
     });
-    
-    return div;
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة تحديد كل الأسئلة
+function selectAllQuestions() {
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+        selectedQuestionIds.add(parseInt(checkbox.value));
+        const questionDiv = document.getElementById(`question-${checkbox.value}`);
+        if (questionDiv) questionDiv.classList.add('selected');
+    });
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة إلغاء تحديد كل الأسئلة
+function deselectAllQuestions() {
+    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+        const questionDiv = document.getElementById(`question-${checkbox.value}`);
+        if (questionDiv) questionDiv.classList.remove('selected');
+    });
+    selectedQuestionIds.clear();
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// تحديث عداد المحددة في الشريط العلوي
+function updateSelectedCountDisplay() {
+    const display = document.getElementById('selectedCountDisplay');
+    if (display) {
+        display.textContent = selectedQuestionIds.size;
+    }
 }
 
 async function generateRandomExam() {
@@ -2057,6 +2369,15 @@ function generatePrintableDocument(questions, includeAnswers) {
     // الحصول على إعدادات الكليشة
     const headerFormatSettings = getHeaderSettings();
     
+    // الحصول على قيم الخيارات (مع قيم افتراضية إذا لم توجد العناصر)
+    const includeAnswerSheetEl = document.getElementById('includeAnswerSheet');
+    const includeBarcodeEl = document.getElementById('includeBarcode');
+    const shuffleOptionsEl = document.getElementById('shuffleOptions');
+    
+    const includeAnswerSheet = includeAnswerSheetEl ? includeAnswerSheetEl.checked : false;
+    const includeBarcode = includeBarcodeEl ? includeBarcodeEl.checked : true;
+    const shuffleOptions = shuffleOptionsEl ? shuffleOptionsEl.checked : true;
+    
     /* المنطق المطلوب: إذا لم يتم اختيار أي نموذج، نرسل مصفوفة تحتوي على نص فارغ 
        لكي تظهر الورقة كنموذج واحد "عام" بدون ذكر كلمة (نموذج أ)
     */
@@ -2075,9 +2396,9 @@ function generatePrintableDocument(questions, includeAnswers) {
             question_ids: Array.from(selectedQuestionIds),
             models: modelsToSend, 
             include_answers: includeAnswers,
-            include_answer_sheet: document.getElementById('includeAnswerSheet').checked,
-            include_barcode: document.getElementById('includeBarcode').checked,
-            shuffle_options: document.getElementById('shuffleOptions').checked,
+            include_answer_sheet: includeAnswerSheet,
+            include_barcode: includeBarcode,
+            shuffle_options: shuffleOptions,
             font_size: fontSize,
             image_size: imageSize,
             columns: layoutSettings.columns,

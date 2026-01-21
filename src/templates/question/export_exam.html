@@ -2054,80 +2054,131 @@ function updateQuestionsList() {
 
     // ألوان مميزة للوحدات
     const unitColors = [
-        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb' },  // أزرق
-        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9' },  // أخضر
-        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2' },  // برتقالي
-        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7' },  // بنفسجي
-        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2' },  // أحمر
-        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2' },  // سماوي
-        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9' },  // وردي
-        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8' },  // أخضر فاتح
-        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9' },  // بنفسجي غامق
-        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3' },  // أصفر
+        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb', lighter: '#e3f2fd' },  // أزرق
+        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9', lighter: '#e8f5e9' },  // أخضر
+        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2', lighter: '#fff3e0' },  // برتقالي
+        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7', lighter: '#f3e5f5' },  // بنفسجي
+        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2', lighter: '#ffebee' },  // أحمر
+        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2', lighter: '#e0f7fa' },  // سماوي
+        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9', lighter: '#fce4ec' },  // وردي
+        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8', lighter: '#f1f8e9' },  // أخضر فاتح
+        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9', lighter: '#ede7f6' },  // بنفسجي غامق
+        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3', lighter: '#fff8e1' },  // أصفر
     ];
 
-    // تجميع الأسئلة حسب الوحدة
-    const questionsByUnit = {};
+    // تجميع الأسئلة حسب الوحدة ثم الدرس
+    const questionsByUnitAndLesson = {};
+    let totalLessons = 0;
+    
     allQuestions.forEach(question => {
         const unitName = question.unit || 'وحدة غير محددة';
-        if (!questionsByUnit[unitName]) {
-            questionsByUnit[unitName] = [];
+        const lessonName = question.lesson || 'درس غير محدد';
+        
+        if (!questionsByUnitAndLesson[unitName]) {
+            questionsByUnitAndLesson[unitName] = {};
         }
-        questionsByUnit[unitName].push(question);
+        if (!questionsByUnitAndLesson[unitName][lessonName]) {
+            questionsByUnitAndLesson[unitName][lessonName] = [];
+            totalLessons++;
+        }
+        questionsByUnitAndLesson[unitName][lessonName].push(question);
     });
 
-    // إنشاء HTML للوحدات
+    // إنشاء HTML للوحدات والدروس
     let html = '<div class="units-container">';
     
-    Object.keys(questionsByUnit).forEach((unitName, unitIndex) => {
+    Object.keys(questionsByUnitAndLesson).forEach((unitName, unitIndex) => {
         const color = unitColors[unitIndex % unitColors.length];
-        const questions = questionsByUnit[unitName];
+        const lessons = questionsByUnitAndLesson[unitName];
+        const lessonNames = Object.keys(lessons);
         const unitId = `unit-${unitIndex}`;
         
+        // حساب إجمالي أسئلة الوحدة
+        const totalUnitQuestions = lessonNames.reduce((sum, lesson) => sum + lessons[lesson].length, 0);
+        
         html += `
-            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
-                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-folder-open"></i>
-                        <span style="font-weight: bold; font-size: 1rem;">${unitName}</span>
-                        <span style="background: rgba(255,255,255,0.3); padding: 2px 10px; border-radius: 15px; font-size: 0.85rem;">${questions.length} سؤال</span>
+            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-folder-open" style="font-size: 1.2rem;"></i>
+                        <span style="font-weight: bold; font-size: 1.1rem;">${unitName}</span>
+                        <span style="background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
+                            <i class="fas fa-book-open"></i> ${lessonNames.length} دروس
+                        </span>
+                        <span style="background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
+                            <i class="fas fa-question-circle"></i> ${totalUnitQuestions} سؤال
+                        </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">
-                            <i class="fas fa-check-double"></i> تحديد الكل
+                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                            <i class="fas fa-check-double"></i> تحديد الوحدة
                         </button>
-                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s;"></i>
+                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s; font-size: 1rem;"></i>
                     </div>
                 </div>
-                <div class="unit-content" id="${unitId}" style="padding: 15px; display: block;">
-                    <div class="unit-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;">
+                <div class="unit-content" id="${unitId}" style="padding: 0; display: block;">
         `;
         
-        questions.forEach((question, qIndex) => {
-            const isSelected = selectedQuestionIds.has(question.question_id);
+        // إضافة الدروس داخل الوحدة
+        lessonNames.forEach((lessonName, lessonIndex) => {
+            const questions = lessons[lessonName];
+            const lessonId = `lesson-${unitIndex}-${lessonIndex}`;
+            const isFirstLesson = lessonIndex === 0;
+            
+            // ألوان متدرجة للدروس (أفتح من لون الوحدة)
+            const lessonOpacity = 0.6 + (lessonIndex * 0.1);
+            
             html += `
-                <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
-                     style="background: white; border: 1px solid ${color.light}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `border-color: ${color.border}; box-shadow: 0 0 0 2px ${color.light};` : ''}">
-                    <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
-                        <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
-                               ${isSelected ? 'checked' : ''} 
-                               data-unit="${unitName}"
-                               style="margin-top: 3px; accent-color: ${color.border};" />
-                        <div style="flex: 1;">
-                            <div class="question-text" style="font-size: 0.9rem; line-height: 1.5; margin-bottom: 5px;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
-                            <div class="question-meta" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                <span style="background: ${color.light}; color: ${color.header}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">
-                                    <i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}
-                                </span>
-                            </div>
+                <div class="lesson-section" style="border-bottom: 1px solid ${color.light};">
+                    <div class="lesson-header" onclick="toggleLessonSection('${lessonId}')" style="background: ${color.lighter}; padding: 10px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" onmouseover="this.style.background='${color.light}'" onmouseout="this.style.background='${color.lighter}'">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: ${color.border}; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">${lessonIndex + 1}</span>
+                            <i class="fas fa-book" style="color: ${color.header};"></i>
+                            <span style="font-weight: 600; color: ${color.header}; font-size: 0.95rem;">${lessonName}</span>
+                            <span style="background: ${color.light}; color: ${color.header}; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                ${questions.length} سؤال
+                            </span>
                         </div>
-                    </label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button onclick="event.stopPropagation(); selectAllInLesson('${unitName}', '${lessonName}')" style="background: ${color.light}; border: 1px solid ${color.border}; color: ${color.header}; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; transition: all 0.2s;" onmouseover="this.style.background='${color.border}'; this.style.color='white'" onmouseout="this.style.background='${color.light}'; this.style.color='${color.header}'">
+                                <i class="fas fa-check"></i> تحديد
+                            </button>
+                            <i class="fas fa-chevron-down lesson-toggle" id="toggle-${lessonId}" style="transition: transform 0.3s; color: ${color.header}; font-size: 0.85rem; ${isFirstLesson ? '' : 'transform: rotate(-90deg);'}"></i>
+                        </div>
+                    </div>
+                    <div class="lesson-content" id="${lessonId}" style="padding: 12px 18px; background: white; display: ${isFirstLesson ? 'block' : 'none'};">
+                        <div class="lesson-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+            `;
+            
+            questions.forEach((question, qIndex) => {
+                const isSelected = selectedQuestionIds.has(question.question_id);
+                html += `
+                    <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
+                         style="background: ${isSelected ? color.lighter : '#fafafa'}; border: 2px solid ${isSelected ? color.border : '#eee'}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `box-shadow: 0 2px 8px ${color.light};` : ''}" 
+                         onmouseover="if(!this.classList.contains('selected')) this.style.borderColor='${color.light}'" 
+                         onmouseout="if(!this.classList.contains('selected')) this.style.borderColor='#eee'">
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
+                            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
+                                   ${isSelected ? 'checked' : ''} 
+                                   data-unit="${unitName}"
+                                   data-lesson="${lessonName}"
+                                   style="margin-top: 3px; accent-color: ${color.border}; width: 18px; height: 18px;" />
+                            <div style="flex: 1;">
+                                <div class="question-text" style="font-size: 0.88rem; line-height: 1.6; color: #333;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
+                    </div>
                 </div>
             `;
         });
         
         html += `
-                    </div>
                 </div>
             </div>
         `;
@@ -2136,26 +2187,30 @@ function updateQuestionsList() {
     html += '</div>';
     
     // إضافة شريط الإحصائيات السريعة
-    const totalUnits = Object.keys(questionsByUnit).length;
+    const totalUnits = Object.keys(questionsByUnitAndLesson).length;
     html = `
-        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">${allQuestions.length}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">إجمالي الأسئلة</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${allQuestions.length}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-question-circle"></i> إجمالي الأسئلة</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">${totalUnits}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">الوحدات</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${totalUnits}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-folder"></i> الوحدات</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">المحددة</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${totalLessons}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-book"></i> الدروس</div>
             </div>
-            <div>
-                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-check-square"></i> المحددة</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
                     <i class="fas fa-check-double"></i> تحديد الكل
                 </button>
-                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
                     <i class="fas fa-times"></i> إلغاء الكل
                 </button>
             </div>
@@ -2197,9 +2252,38 @@ function toggleUnitSection(unitId) {
     }
 }
 
+// دالة طي/فتح الدرس
+function toggleLessonSection(lessonId) {
+    const content = document.getElementById(lessonId);
+    const toggle = document.getElementById(`toggle-${lessonId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.display = 'none';
+        toggle.style.transform = 'rotate(-90deg)';
+    }
+}
+
 // دالة تحديد كل أسئلة وحدة معينة
 function selectAllInUnit(unitName) {
     document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"]`).forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            const qId = parseInt(checkbox.value);
+            selectedQuestionIds.add(qId);
+            const questionDiv = document.getElementById(`question-${qId}`);
+            if (questionDiv) questionDiv.classList.add('selected');
+        }
+    });
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة تحديد كل أسئلة درس معين
+function selectAllInLesson(unitName, lessonName) {
+    document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"][data-lesson="${lessonName}"]`).forEach(checkbox => {
         if (!checkbox.checked) {
             checkbox.checked = true;
             const qId = parseInt(checkbox.value);
