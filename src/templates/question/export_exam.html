@@ -1293,6 +1293,7 @@ async function previewStudentListMultiModels() {
         showSuccess(`تمت قراءة ${students.length} طالب/طالبة`);
         
         // ثانياً: توليد نماذج ريمارك للنماذج المتعددة
+        const headerFormatSettings = getHeaderSettings();
         const remarkResponse = await fetch('/questions/print-remark-sheets-multi-models', {
             method: 'POST',
             headers: {
@@ -1304,7 +1305,10 @@ async function previewStudentListMultiModels() {
                 models: selectedModels,
                 question_ids: Array.from(selectedQuestionIds),
                 shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
-                total_score: headerSettings.total_score
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         
@@ -1396,6 +1400,7 @@ async function printBlankRemarkSheets() {
     showLoading(true);
     
     try {
+        const headerFormatSettings = getHeaderSettings();
         const response = await fetch('/questions/print-blank-remark-sheets', {
             method: 'POST',
             headers: {
@@ -1406,7 +1411,10 @@ async function printBlankRemarkSheets() {
                 models: selectedModels,
                 count_per_model: count,
                 question_ids: Array.from(selectedQuestionIds),
-                total_score: headerSettings.total_score
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         
@@ -1666,6 +1674,7 @@ async function confirmAndPrint() {
     showLoading(true);
     
     try {
+        const headerFormatSettings = getHeaderSettings();
         const response = await fetch('/questions/print-remark-sheets', {
             method: 'POST',
             headers: {
@@ -1674,7 +1683,10 @@ async function confirmAndPrint() {
             },
             body: JSON.stringify({
                 students: currentStudents,
-                total_score: headerSettings.total_score
+                total_score: headerSettings.total_score,
+                exam_type: headerFormatSettings.exam_type,
+                semester: headerFormatSettings.semester,
+                academic_year: headerFormatSettings.academic_year
             })
         });
         

@@ -2696,6 +2696,9 @@ def print_remark_sheets():
     try:
         data = request.get_json()
         students_list = data.get('students', [])
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
         
         # جلب إعدادات الكليشة من قاعدة البيانات
         settings = ExamHeaderSettings.query.first()
@@ -2708,6 +2711,9 @@ def print_remark_sheets():
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
             'total_score': settings.total_score if settings else 30,
+            'exam_type': exam_type,
+            'semester': semester,
+            'academic_year': academic_year,
             'logo_base64': ''
         }
 
@@ -2872,6 +2878,9 @@ def print_remark_sheets_multi_models():
         models = data.get('models', ['أ'])  # النماذج المطلوبة
         question_ids = data.get('question_ids', [])
         shuffle_options = data.get('shuffle_options', True)
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
         
         if not students_list:
             return jsonify({'error': 'لم يتم تحديد قائمة الطلاب'}), 400
@@ -2913,6 +2922,9 @@ def print_remark_sheets_multi_models():
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
             'total_score': settings.total_score if settings else 30,
+            'exam_type': exam_type,
+            'semester': semester,
+            'academic_year': academic_year,
             'logo_base64': ''
         }
 
@@ -3027,6 +3039,9 @@ def print_blank_remark_sheets():
         models = data.get('models', ['أ'])
         count_per_model = data.get('count_per_model', 10)
         question_ids = data.get('question_ids', [])
+        exam_type = data.get('exam_type', 'نهاية')
+        semester = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
         
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
@@ -3045,6 +3060,9 @@ def print_blank_remark_sheets():
             'subject': settings.subject if settings else '',
             'grade': settings.grade if settings else '',
             'total_score': settings.total_score if settings else 30,
+            'exam_type': exam_type,
+            'semester': semester,
+            'academic_year': academic_year,
             'logo_base64': ''
         }
 
