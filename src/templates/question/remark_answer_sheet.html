@@ -665,25 +665,23 @@
     </div>
 
     <div class="top-left">
-        {% if is_answer_key %}
-        <div style="text-align: center; margin-bottom: 10px;">
-            <span class="answer-key-badge">🔑 مفتاح الإجابة - للمعلم فقط</span>
-        </div>
-        {% endif %}
-
         <div class="student-section">
             <div class="student-name-box">
-                <div class="student-name-label">اسم الطالب</div>
+                <div class="student-name-label">{% if is_answer_key %}مفتاح الإجابة{% else %}اسم الطالب{% endif %}</div>
                 <div class="student-name">{{ student.name|default('', true) }}</div>
             </div>
 
-            {% if student.barcode %}
             <div class="barcode-box">
                 <div class="barcode-container">
+                    {% if student.barcode %}
                     <img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">
+                    {% else %}
+                    <div style="width: 170px; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #4caf50;">
+                        {% if is_answer_key %}🔑 للمعلم فقط{% else %}---{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
 
             <div class="barcode-id-box">
                 <div class="status-options">
