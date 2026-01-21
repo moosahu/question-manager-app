@@ -2810,9 +2810,19 @@ def generate_omr_answer_key():
         
         # جلب إعدادات الكليشة
         header_settings_record = ExamHeaderSettings.query.first()
-        header_settings = {}
+        header_settings = {
+            'country': 'المملكة العربية السعودية',
+            'ministry': 'وزارة التعليم',
+            'education_department': '',
+            'school_name': '',
+            'subject': '',
+            'time': '',
+            'grade': '',
+            'total_score': 30,
+            'logo_base64': ''
+        }
         if header_settings_record:
-            header_settings = {
+            header_settings.update({
                 'country': getattr(header_settings_record, 'country', 'المملكة العربية السعودية'),
                 'ministry': getattr(header_settings_record, 'ministry', 'وزارة التعليم'),
                 'education_department': getattr(header_settings_record, 'education_department', ''),
@@ -2821,10 +2831,16 @@ def generate_omr_answer_key():
                 'time': getattr(header_settings_record, 'time', ''),
                 'grade': getattr(header_settings_record, 'grade', ''),
                 'total_score': getattr(header_settings_record, 'total_score', 30)
-            }
-            # محاولة جلب الشعار إذا كان موجوداً
-            if hasattr(header_settings_record, 'logo_base64'):
-                header_settings['logo_base64'] = header_settings_record.logo_base64
+            })
+        
+        # تحويل الشعار لـ Base64
+        try:
+            logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    header_settings['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        except Exception as e:
+            current_app.logger.warning(f"Could not load logo: {e}")
         
         # توليد HTML لمفتاح الإجابة
         answer_key_html = render_template(
@@ -3176,9 +3192,19 @@ def generate_all_models_answer_keys():
         
         # جلب إعدادات الكليشة
         header_settings_record = ExamHeaderSettings.query.first()
-        header_settings = {}
+        header_settings = {
+            'country': 'المملكة العربية السعودية',
+            'ministry': 'وزارة التعليم',
+            'education_department': '',
+            'school_name': '',
+            'subject': '',
+            'time': '',
+            'grade': '',
+            'total_score': 30,
+            'logo_base64': ''
+        }
         if header_settings_record:
-            header_settings = {
+            header_settings.update({
                 'country': getattr(header_settings_record, 'country', 'المملكة العربية السعودية'),
                 'ministry': getattr(header_settings_record, 'ministry', 'وزارة التعليم'),
                 'education_department': getattr(header_settings_record, 'education_department', ''),
@@ -3186,9 +3212,8 @@ def generate_all_models_answer_keys():
                 'subject': getattr(header_settings_record, 'subject', ''),
                 'time': getattr(header_settings_record, 'time', ''),
                 'grade': getattr(header_settings_record, 'grade', ''),
-                'total_score': getattr(header_settings_record, 'total_score', 30),
-                'logo_base64': ''
-            }
+                'total_score': getattr(header_settings_record, 'total_score', 30)
+            })
         
         # تحويل الشعار لـ Base64
         try:
