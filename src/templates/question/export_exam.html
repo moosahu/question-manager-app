@@ -947,6 +947,103 @@
             color: white;
             border-color: #667eea;
         }
+
+        /* ==================== أنماط فلاتر الصعوبة وبلوم ==================== */
+        .filter-label {
+            display: block;
+            padding: 6px 8px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            user-select: none;
+        }
+
+        /* فلاتر الصعوبة */
+        .filter-easy {
+            background: #f0fff4;
+            color: #276749;
+            border-color: #9ae6b4;
+        }
+
+        .filter-medium {
+            background: #fffff0;
+            color: #975a16;
+            border-color: #faf089;
+        }
+
+        .filter-hard {
+            background: #fff5f5;
+            color: #c53030;
+            border-color: #feb2b2;
+        }
+
+        /* عند إلغاء التحديد */
+        input[name="difficultyFilter"]:not(:checked) + .filter-easy,
+        input[name="difficultyFilter"]:not(:checked) + .filter-medium,
+        input[name="difficultyFilter"]:not(:checked) + .filter-hard {
+            background: #f5f5f5;
+            color: #999;
+            border-color: #ddd;
+            opacity: 0.6;
+        }
+
+        /* عند التحديد - تأثير مميز */
+        input[name="difficultyFilter"]:checked + .filter-easy {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border-color: #38a169;
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4);
+        }
+
+        input[name="difficultyFilter"]:checked + .filter-medium {
+            background: linear-gradient(135deg, #ecc94b, #d69e2e);
+            color: white;
+            border-color: #d69e2e;
+            box-shadow: 0 2px 8px rgba(236, 201, 75, 0.4);
+        }
+
+        input[name="difficultyFilter"]:checked + .filter-hard {
+            background: linear-gradient(135deg, #fc8181, #e53e3e);
+            color: white;
+            border-color: #e53e3e;
+            box-shadow: 0 2px 8px rgba(252, 129, 129, 0.4);
+        }
+
+        /* فلاتر بلوم */
+        .filter-bloom {
+            background: #f7fafc;
+            color: #4a5568;
+            border-color: #e2e8f0;
+            font-size: 0.7rem;
+            padding: 5px 6px;
+        }
+
+        input[name="bloomFilter"]:not(:checked) + .filter-bloom {
+            background: #f5f5f5;
+            color: #999;
+            border-color: #ddd;
+            opacity: 0.5;
+        }
+
+        input[name="bloomFilter"]:checked + .filter-bloom {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        }
+
+        .difficulty-filter-btn,
+        .bloom-filter-btn {
+            display: block;
+        }
+
+        .difficulty-filter-btn:hover .filter-label,
+        .bloom-filter-btn:hover .filter-label {
+            transform: translateY(-1px);
+        }
     </style>
 {% endblock %}
 
@@ -1100,6 +1197,112 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ==================== فلاتر الصعوبة ومستوى بلوم ==================== -->
+                    <div style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 8px; border: 1px solid #667eea30;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #5a67d8; display: block; margin-bottom: 12px;">
+                            <i class="fas fa-filter"></i> فلاتر متقدمة:
+                        </label>
+                        
+                        <!-- فلتر الصعوبة -->
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 6px;">
+                                <i class="fas fa-signal"></i> مستوى الصعوبة:
+                            </label>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="easy" checked style="display: none;">
+                                    <span class="filter-label filter-easy">🟢 سهل</span>
+                                </label>
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="medium" checked style="display: none;">
+                                    <span class="filter-label filter-medium">🟡 متوسط</span>
+                                </label>
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="hard" checked style="display: none;">
+                                    <span class="filter-label filter-hard">🔴 صعب</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- توزيع الصعوبة المخصص -->
+                        <div id="difficultyDistribution" style="display: none; margin-bottom: 12px; padding: 10px; background: white; border-radius: 6px;">
+                            <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 8px;">
+                                <input type="checkbox" id="useDifficultyRatio" style="margin-left: 5px;">
+                                توزيع نسبي للصعوبة:
+                            </label>
+                            <div style="display: flex; gap: 10px; align-items: center;" id="difficultyRatioInputs">
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #48bb78;">سهل %</label>
+                                    <input type="number" id="easyRatio" value="30" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #ecc94b;">متوسط %</label>
+                                    <input type="number" id="mediumRatio" value="50" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #fc8181;">صعب %</label>
+                                    <input type="number" id="hardRatio" value="20" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- فلتر مستوى بلوم -->
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 6px;">
+                                <i class="fas fa-brain"></i> مستويات بلوم:
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="remember" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">📚 تذكر</span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="understand" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">💡 فهم</span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="apply" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">⚙️ تطبيق</span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="analyze" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">🔍 تحليل</span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="evaluate" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">⚖️ تقويم</span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="create" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">🎨 إبداع</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- توزيع بلوم المخصص -->
+                        <div id="bloomDistribution" style="display: none; margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
+                            <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 8px;">
+                                <input type="checkbox" id="useBloomRatio" style="margin-left: 5px;">
+                                توزيع نسبي لمستويات بلوم:
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;" id="bloomRatioInputs">
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تذكر/فهم %</label>
+                                    <input type="number" id="rememberUnderstandRatio" value="40" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تطبيق %</label>
+                                    <input type="number" id="applyRatio" value="35" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تحليل+ %</label>
+                                    <input type="number" id="analyzeUpRatio" value="25" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- ============================================================== -->
 
                     <!-- أزرار التوليد -->
                     <div class="btn-group" style="margin-bottom: 10px; margin-top: 15px;">
@@ -1678,9 +1881,10 @@ function updateUnitDistributionList() {
     const container = document.getElementById('unitDistributionList');
     if (!container) return;
     
-    // تجميع الأسئلة حسب الوحدة
+    // تجميع الأسئلة حسب الوحدة (بعد تطبيق الفلاتر)
+    const filteredQuestions = getFilteredQuestions();
     const questionsByUnit = {};
-    allQuestions.forEach(q => {
+    filteredQuestions.forEach(q => {
         const unit = q.unit || 'وحدة غير محددة';
         if (!questionsByUnit[unit]) questionsByUnit[unit] = 0;
         questionsByUnit[unit]++;
@@ -1705,6 +1909,40 @@ function updateUnitDistributionList() {
     container.innerHTML = html || '<p style="color: #999; font-size: 0.8rem;">اختر منهج أولاً</p>';
 }
 
+// الحصول على الفلاتر المحددة
+function getSelectedFilters() {
+    // فلاتر الصعوبة
+    const difficultyFilters = [];
+    document.querySelectorAll('input[name="difficultyFilter"]:checked').forEach(cb => {
+        difficultyFilters.push(cb.value);
+    });
+    
+    // فلاتر بلوم
+    const bloomFilters = [];
+    document.querySelectorAll('input[name="bloomFilter"]:checked').forEach(cb => {
+        bloomFilters.push(cb.value);
+    });
+    
+    return { difficultyFilters, bloomFilters };
+}
+
+// فلترة الأسئلة حسب الفلاتر المحددة
+function getFilteredQuestions() {
+    const { difficultyFilters, bloomFilters } = getSelectedFilters();
+    
+    return allQuestions.filter(q => {
+        // فلتر الصعوبة (إذا لم يكن للسؤال صعوبة، نعتبره متوسط)
+        const qDifficulty = q.difficulty || 'medium';
+        const passedDifficulty = difficultyFilters.length === 0 || difficultyFilters.includes(qDifficulty);
+        
+        // فلتر بلوم (إذا لم يكن للسؤال مستوى، نعتبره تذكر)
+        const qBloom = q.bloom_level || 'remember';
+        const passedBloom = bloomFilters.length === 0 || bloomFilters.includes(qBloom);
+        
+        return passedDifficulty && passedBloom;
+    });
+}
+
 // إظهار/إخفاء التوزيع المخصص
 document.addEventListener('change', function(e) {
     if (e.target.name === 'randomMode') {
@@ -1716,6 +1954,20 @@ document.addEventListener('change', function(e) {
             distDiv.style.display = 'none';
         }
     }
+    
+    // إظهار/إخفاء توزيع الصعوبة
+    if (e.target.name === 'difficultyFilter' || e.target.id === 'useDifficultyRatio') {
+        const distDiv = document.getElementById('difficultyDistribution');
+        const anyDifficultySelected = document.querySelectorAll('input[name="difficultyFilter"]:checked').length > 0;
+        distDiv.style.display = anyDifficultySelected ? 'block' : 'none';
+    }
+    
+    // إظهار/إخفاء توزيع بلوم
+    if (e.target.name === 'bloomFilter' || e.target.id === 'useBloomRatio') {
+        const distDiv = document.getElementById('bloomDistribution');
+        const anyBloomSelected = document.querySelectorAll('input[name="bloomFilter"]:checked').length > 0;
+        distDiv.style.display = anyBloomSelected ? 'block' : 'none';
+    }
 });
 
 function smartRandomSelect() {
@@ -1725,21 +1977,39 @@ function smartRandomSelect() {
     // مسح التحديدات السابقة
     deselectAllQuestions();
     
+    // الحصول على الأسئلة المفلترة
+    const filteredQuestions = getFilteredQuestions();
+    
+    if (filteredQuestions.length === 0) {
+        showError('لا توجد أسئلة تطابق الفلاتر المحددة');
+        return;
+    }
+    
     let selectedIds = [];
     
-    switch(mode) {
-        case 'normal':
-            selectedIds = normalRandomSelect(totalCount);
-            break;
-        case 'balanced':
-            selectedIds = balancedRandomSelect(totalCount);
-            break;
-        case 'perLesson':
-            selectedIds = perLessonRandomSelect();
-            break;
-        case 'custom':
-            selectedIds = customRandomSelect();
-            break;
+    // التحقق من استخدام التوزيع النسبي للصعوبة
+    const useDifficultyRatio = document.getElementById('useDifficultyRatio')?.checked;
+    const useBloomRatio = document.getElementById('useBloomRatio')?.checked;
+    
+    if (useDifficultyRatio) {
+        selectedIds = difficultyBasedSelect(filteredQuestions, totalCount);
+    } else if (useBloomRatio) {
+        selectedIds = bloomBasedSelect(filteredQuestions, totalCount);
+    } else {
+        switch(mode) {
+            case 'normal':
+                selectedIds = normalRandomSelect(filteredQuestions, totalCount);
+                break;
+            case 'balanced':
+                selectedIds = balancedRandomSelect(filteredQuestions, totalCount);
+                break;
+            case 'perLesson':
+                selectedIds = perLessonRandomSelect(filteredQuestions);
+                break;
+            case 'custom':
+                selectedIds = customRandomSelect(filteredQuestions);
+                break;
+        }
     }
     
     // تحديد الأسئلة
@@ -1753,18 +2023,26 @@ function smartRandomSelect() {
     
     updateStats();
     updateSelectedCountDisplay();
-    showSuccess(`تم تحديد ${selectedIds.length} سؤال بنجاح`);
+    
+    // رسالة توضيحية
+    const { difficultyFilters, bloomFilters } = getSelectedFilters();
+    let message = `تم تحديد ${selectedIds.length} سؤال`;
+    if (difficultyFilters.length < 3) {
+        message += ` (صعوبة: ${difficultyFilters.join('، ')})`;
+    }
+    showSuccess(message);
 }
 
-function normalRandomSelect(count) {
-    const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+// التوليد العشوائي العادي
+function normalRandomSelect(questions, count) {
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(count, shuffled.length)).map(q => q.question_id);
 }
 
-function balancedRandomSelect(count) {
-    // تجميع حسب الوحدة
+// التوليد المتوازن على الوحدات
+function balancedRandomSelect(questions, count) {
     const byUnit = {};
-    allQuestions.forEach(q => {
+    questions.forEach(q => {
         const unit = q.unit || 'other';
         if (!byUnit[unit]) byUnit[unit] = [];
         byUnit[unit].push(q);
@@ -1784,10 +2062,10 @@ function balancedRandomSelect(count) {
     return selected;
 }
 
-function perLessonRandomSelect() {
-    // تجميع حسب الدرس
+// سؤال من كل درس
+function perLessonRandomSelect(questions) {
     const byLesson = {};
-    allQuestions.forEach(q => {
+    questions.forEach(q => {
         const lesson = q.lesson || 'other';
         if (!byLesson[lesson]) byLesson[lesson] = [];
         byLesson[lesson].push(q);
@@ -1802,7 +2080,8 @@ function perLessonRandomSelect() {
     return selected;
 }
 
-function customRandomSelect() {
+// توزيع مخصص
+function customRandomSelect(questions) {
     const inputs = document.querySelectorAll('.unit-count-input');
     let selected = [];
     
@@ -1810,10 +2089,78 @@ function customRandomSelect() {
         const unit = input.dataset.unit;
         const count = parseInt(input.value) || 0;
         
-        const unitQuestions = allQuestions.filter(q => (q.unit || 'وحدة غير محددة') === unit);
+        const unitQuestions = questions.filter(q => (q.unit || 'وحدة غير محددة') === unit);
         const shuffled = [...unitQuestions].sort(() => Math.random() - 0.5);
         selected = selected.concat(shuffled.slice(0, count).map(q => q.question_id));
     });
+    
+    return selected;
+}
+
+// التوليد حسب نسب الصعوبة
+function difficultyBasedSelect(questions, totalCount) {
+    const easyRatio = parseInt(document.getElementById('easyRatio')?.value) || 30;
+    const mediumRatio = parseInt(document.getElementById('mediumRatio')?.value) || 50;
+    const hardRatio = parseInt(document.getElementById('hardRatio')?.value) || 20;
+    
+    const total = easyRatio + mediumRatio + hardRatio;
+    const easyCount = Math.round((easyRatio / total) * totalCount);
+    const mediumCount = Math.round((mediumRatio / total) * totalCount);
+    const hardCount = totalCount - easyCount - mediumCount;
+    
+    const byDifficulty = {
+        easy: questions.filter(q => (q.difficulty || 'medium') === 'easy'),
+        medium: questions.filter(q => (q.difficulty || 'medium') === 'medium'),
+        hard: questions.filter(q => (q.difficulty || 'medium') === 'hard')
+    };
+    
+    let selected = [];
+    
+    // سهل
+    const easyShuffled = [...byDifficulty.easy].sort(() => Math.random() - 0.5);
+    selected = selected.concat(easyShuffled.slice(0, easyCount).map(q => q.question_id));
+    
+    // متوسط
+    const mediumShuffled = [...byDifficulty.medium].sort(() => Math.random() - 0.5);
+    selected = selected.concat(mediumShuffled.slice(0, mediumCount).map(q => q.question_id));
+    
+    // صعب
+    const hardShuffled = [...byDifficulty.hard].sort(() => Math.random() - 0.5);
+    selected = selected.concat(hardShuffled.slice(0, hardCount).map(q => q.question_id));
+    
+    return selected;
+}
+
+// التوليد حسب نسب بلوم
+function bloomBasedSelect(questions, totalCount) {
+    const rememberUnderstandRatio = parseInt(document.getElementById('rememberUnderstandRatio')?.value) || 40;
+    const applyRatio = parseInt(document.getElementById('applyRatio')?.value) || 35;
+    const analyzeUpRatio = parseInt(document.getElementById('analyzeUpRatio')?.value) || 25;
+    
+    const total = rememberUnderstandRatio + applyRatio + analyzeUpRatio;
+    const rememberUnderstandCount = Math.round((rememberUnderstandRatio / total) * totalCount);
+    const applyCount = Math.round((applyRatio / total) * totalCount);
+    const analyzeUpCount = totalCount - rememberUnderstandCount - applyCount;
+    
+    const byBloom = {
+        rememberUnderstand: questions.filter(q => ['remember', 'understand'].includes(q.bloom_level || 'remember')),
+        apply: questions.filter(q => (q.bloom_level || 'remember') === 'apply'),
+        analyzeUp: questions.filter(q => ['analyze', 'evaluate', 'create'].includes(q.bloom_level || 'remember'))
+    };
+    
+    let selected = [];
+    
+    // تذكر/فهم
+    const ruShuffled = [...byBloom.rememberUnderstand].sort(() => Math.random() - 0.5);
+    selected = selected.concat(ruShuffled.slice(0, rememberUnderstandCount).map(q => q.question_id));
+    
+    // تطبيق
+    const applyShuffled = [...byBloom.apply].sort(() => Math.random() - 0.5);
+    selected = selected.concat(applyShuffled.slice(0, applyCount).map(q => q.question_id));
+    
+    // تحليل فأعلى
+    const auShuffled = [...byBloom.analyzeUp].sort(() => Math.random() - 0.5);
+    selected = selected.concat(auShuffled.slice(0, analyzeUpCount).map(q => q.question_id));
     
     return selected;
 }
