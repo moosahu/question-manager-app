@@ -659,7 +659,7 @@ def get_unit_questions_direct(unit_id):
         if not show_all:
             query = query.filter(Course.show_in_bot == True)
         
-        questions = query.order_by(Lesson.order_num, Lesson.id, Question.question_id).all()
+        questions = query.order_by(Question.question_id).all()
         
         logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
@@ -700,7 +700,7 @@ def get_course_questions_direct(course_id):
         if not show_all:
             query = query.filter(Course.show_in_bot == True)
         
-        questions = query.order_by(Unit.order_num, Unit.id, Lesson.order_num, Lesson.id, Question.question_id).all()
+        questions = query.order_by(Question.question_id).all()
         
         logger.info(f"Found {len(questions)} questions for course_id: {course_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
@@ -738,7 +738,7 @@ def get_course_unit_questions(course_id, unit_id):
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .order_by(Lesson.order_num, Lesson.id, Question.question_id)
+            .order_by(Question.question_id)
             .all()
         )
         logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} in course_id: {course_id}")

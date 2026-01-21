@@ -207,6 +207,34 @@ def format_text_for_print(text):
     return Markup(formatted)
 
 
+def get_ordered_questions(question_ids):
+    """
+    جلب الأسئلة مرتبة حسب الوحدة ثم الدرس (باستخدام order_num)
+    """
+    if not question_ids:
+        return []
+    
+    try:
+        # جلب الأسئلة مرتبة حسب ترتيب الوحدة ثم الدرس
+        questions = Question.query.filter(
+            Question.question_id.in_(question_ids)
+        ).join(
+            Lesson, Question.lesson_id == Lesson.id
+        ).join(
+            Unit, Lesson.unit_id == Unit.id
+        ).order_by(
+            Unit.order_num,
+            Unit.id,
+            Lesson.order_num,
+            Lesson.id,
+            Question.question_id
+        ).all()
+        return questions
+    except Exception:
+        # في حالة فشل الترتيب، نرجع الأسئلة بدون ترتيب
+        return Question.query.filter(Question.question_id.in_(question_ids)).all()
+
+
 # --- save_upload function (Modified for Cloudinary) --- #
 def save_upload(file, subfolder="questions"):
     current_app.logger.debug(f"Entering save_upload for Cloudinary, subfolder: {subfolder}")
@@ -1969,7 +1997,7 @@ def export_exam_pdf():
         exam_title = data.get('exam_title', 'نموذج الاختبار')
         
         # جلب الأسئلة
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لا توجد أسئلة محددة'}), 400
@@ -2055,7 +2083,7 @@ def preview_exam_paper():
         
         # ... (باقي الكود كما هو تماماً) ...
         
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         # تحويل الأسئلة مع تنسيق النص للطباعة
         questions_data = []
@@ -2211,7 +2239,7 @@ def generate_multi_models():
         current_app.logger.info(f"Processing {len(question_ids)} questions for models: {models}")
         
         # جلب الأسئلة من قاعدة البيانات
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
@@ -2429,7 +2457,7 @@ def preview_multi_models():
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
         # جلب الأسئلة
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
@@ -2765,7 +2793,7 @@ def generate_omr_answer_key():
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
         # جلب الأسئلة مع الخيارات
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
@@ -2889,7 +2917,7 @@ def print_remark_sheets_multi_models():
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
         
         # جلب الأسئلة
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
@@ -3047,7 +3075,7 @@ def print_blank_remark_sheets():
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
         
         # جلب الأسئلة لمعرفة العدد
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         questions_count = len(questions)
         
         # جلب إعدادات الكليشة
@@ -3123,7 +3151,7 @@ def generate_all_models_answer_keys():
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
         # جلب الأسئلة
-        questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+        questions = get_ordered_questions(question_ids)
         
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
