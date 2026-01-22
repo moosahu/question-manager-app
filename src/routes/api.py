@@ -4497,6 +4497,14 @@ def classify_single_question(question_id):
             # تحديث السؤال
             question.difficulty = classification['difficulty']
             question.bloom_level = classification['bloom_level']
+            
+            # تحديث ai_classified باستخدام raw SQL
+            from sqlalchemy import text
+            db.session.execute(
+                text("UPDATE questions SET ai_classified = TRUE WHERE question_id = :qid"),
+                {"qid": question_id}
+            )
+            
             db.session.commit()
             
             return jsonify({
@@ -4607,6 +4615,13 @@ def update_question_classification(question_id):
                     'success': False,
                     'error': f"قيمة مستوى بلوم غير صحيحة. القيم المسموحة: {valid_blooms}"
                 }), 400
+        
+        # تحديث ai_classified باستخدام raw SQL (التعديل اليدوي يعتبر تصنيف)
+        from sqlalchemy import text
+        db.session.execute(
+            text("UPDATE questions SET ai_classified = TRUE WHERE question_id = :qid"),
+            {"qid": question_id}
+        )
         
         db.session.commit()
         
