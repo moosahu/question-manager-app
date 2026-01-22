@@ -351,19 +351,22 @@
     /* Questions Table */
     .table-container {
         overflow-x: auto;
+        width: 100%;
     }
 
     .questions-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 800px;
+        min-width: 1200px;
+        table-layout: fixed;
     }
 
     .questions-table th,
     .questions-table td {
-        padding: 12px 15px;
+        padding: 14px 12px;
         text-align: right;
         border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
     }
 
     .questions-table th {
@@ -375,32 +378,41 @@
         top: 0;
     }
 
+    /* تحديد عرض الأعمدة */
+    .questions-table th:nth-child(1),
+    .questions-table td:nth-child(1) { width: 60px; }  /* # */
+    
+    .questions-table th:nth-child(2),
+    .questions-table td:nth-child(2) { width: 45%; }   /* السؤال - أكبر عمود */
+    
+    .questions-table th:nth-child(3),
+    .questions-table td:nth-child(3) { width: 12%; }   /* الدرس */
+    
+    .questions-table th:nth-child(4),
+    .questions-table td:nth-child(4) { width: 80px; }  /* الصعوبة */
+    
+    .questions-table th:nth-child(5),
+    .questions-table td:nth-child(5) { width: 70px; }  /* بلوم */
+    
+    .questions-table th:nth-child(6),
+    .questions-table td:nth-child(6) { width: 50px; }  /* AI */
+    
+    .questions-table th:nth-child(7),
+    .questions-table td:nth-child(7) { width: 100px; } /* إجراءات */
+
     .questions-table tr:hover {
         background: #f7fafc;
     }
 
     .question-text {
-        min-width: 350px;
-        max-width: 500px;
         white-space: normal;
         line-height: 1.6;
+        word-break: break-word;
     }
 
     .question-text.image-only {
         color: #a0aec0;
         font-style: italic;
-    }
-
-    /* توسيع الجدول */
-    .questions-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 1000px;
-    }
-
-    .table-container {
-        overflow-x: auto;
-        width: 100%;
     }
 
     /* Badges */
