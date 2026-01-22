@@ -1,0 +1,1246 @@
+{% extends "base.html" %}
+
+{% block title %}تصنيف الأسئلة بالذكاء الاصطناعي{% endblock %}
+
+{% block head_extra %}
+<style>
+    :root {
+        --easy-color: #48bb78;
+        --medium-color: #ecc94b;
+        --hard-color: #fc8181;
+        --bloom-color: #667eea;
+    }
+
+    .classification-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* Header Section */
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 16px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+
+    .page-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 1.8rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+
+    .stat-card .stat-icon {
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .stat-card.easy { border-top: 4px solid var(--easy-color); }
+    .stat-card.medium { border-top: 4px solid var(--medium-color); }
+    .stat-card.hard { border-top: 4px solid var(--hard-color); }
+    .stat-card.total { border-top: 4px solid var(--bloom-color); }
+
+    /* Control Panel */
+    .control-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    .control-panel h3 {
+        margin: 0 0 20px 0;
+        color: #333;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .control-row {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .control-group {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .control-group label {
+        display: block;
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 6px;
+    }
+
+    .control-group input,
+    .control-group select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s;
+    }
+
+    .control-group input:focus,
+    .control-group select:focus {
+        outline: none;
+        border-color: var(--bloom-color);
+    }
+
+    .btn-classify {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        white-space: nowrap;
+    }
+
+    .btn-classify:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-classify:disabled {
+        background: #a0aec0;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-classify.running {
+        background: linear-gradient(135deg, #f6ad55, #ed8936);
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+
+    /* Progress Section */
+    .progress-section {
+        background: #f7fafc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        display: none;
+    }
+
+    .progress-section.active {
+        display: block;
+    }
+
+    .progress-bar-container {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 24px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 10px;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: #666;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .progress-log {
+        background: #1a202c;
+        color: #a0aec0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        direction: ltr;
+        text-align: left;
+    }
+
+    .progress-log .log-entry {
+        margin-bottom: 5px;
+        padding: 2px 0;
+    }
+
+    .progress-log .success { color: #48bb78; }
+    .progress-log .error { color: #fc8181; }
+    .progress-log .info { color: #63b3ed; }
+
+    /* Questions Section */
+    .questions-section {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .section-header h3 {
+        margin: 0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Filter Buttons */
+    .filter-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-label {
+        color: #666;
+        font-size: 0.9rem;
+        margin-left: 5px;
+    }
+
+    .filter-btn {
+        padding: 8px 16px;
+        border: 2px solid #e2e8f0;
+        background: white;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--bloom-color);
+    }
+
+    .filter-btn.active {
+        background: var(--bloom-color);
+        color: white;
+        border-color: var(--bloom-color);
+    }
+
+    .filter-btn.easy.active { background: var(--easy-color); border-color: var(--easy-color); }
+    .filter-btn.medium.active { background: var(--medium-color); border-color: var(--medium-color); color: #333; }
+    .filter-btn.hard.active { background: var(--hard-color); border-color: var(--hard-color); }
+
+    /* Questions Table */
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .questions-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+
+    .questions-table th,
+    .questions-table td {
+        padding: 12px 15px;
+        text-align: right;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .questions-table th {
+        background: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.85rem;
+        position: sticky;
+        top: 0;
+    }
+
+    .questions-table tr:hover {
+        background: #f7fafc;
+    }
+
+    .question-text {
+        max-width: 250px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .question-text.image-only {
+        color: #a0aec0;
+        font-style: italic;
+    }
+
+    /* Badges */
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-easy { background: #c6f6d5; color: #276749; }
+    .badge-medium { background: #fefcbf; color: #975a16; }
+    .badge-hard { background: #fed7d7; color: #c53030; }
+
+    .badge-remember { background: #e9d8fd; color: #553c9a; }
+    .badge-understand { background: #feebc8; color: #c05621; }
+    .badge-apply { background: #c6f6d5; color: #276749; }
+    .badge-analyze { background: #bee3f8; color: #2b6cb0; }
+    .badge-evaluate { background: #fed7e2; color: #97266d; }
+    .badge-create { background: #fefcbf; color: #975a16; }
+
+    /* Action Buttons */
+    .action-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+        margin: 2px;
+    }
+
+    .action-btn.edit {
+        background: #ebf8ff;
+        color: #2b6cb0;
+    }
+
+    .action-btn.edit:hover {
+        background: #bee3f8;
+    }
+
+    .action-btn.classify {
+        background: #faf5ff;
+        color: #6b46c1;
+    }
+
+    .action-btn.classify:hover {
+        background: #e9d8fd;
+    }
+
+    .action-btn.refresh {
+        background: #f0fff4;
+        color: #276749;
+    }
+
+    .action-btn.refresh:hover {
+        background: #c6f6d5;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .pagination button {
+        padding: 8px 14px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .pagination button:hover:not(:disabled) {
+        background: var(--bloom-color);
+        color: white;
+        border-color: var(--bloom-color);
+    }
+
+    .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination button.active {
+        background: var(--bloom-color);
+        color: white;
+        border-color: var(--bloom-color);
+    }
+
+    .pagination-info {
+        display: flex;
+        align-items: center;
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    /* Edit Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: #333;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #999;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .modal-close:hover {
+        color: #333;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group > label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #333;
+    }
+
+    .radio-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .radio-option {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    .radio-option input[type="radio"] {
+        display: none;
+    }
+
+    .radio-option label {
+        display: block;
+        padding: 12px 8px;
+        text-align: center;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .radio-option input:checked + label {
+        border-color: var(--bloom-color);
+        background: #f0f5ff;
+    }
+
+    .radio-option.easy input:checked + label {
+        border-color: var(--easy-color);
+        background: #f0fff4;
+        color: #276749;
+    }
+
+    .radio-option.medium input:checked + label {
+        border-color: var(--medium-color);
+        background: #fffff0;
+        color: #975a16;
+    }
+
+    .radio-option.hard input:checked + label {
+        border-color: var(--hard-color);
+        background: #fff5f5;
+        color: #c53030;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 25px;
+    }
+
+    .btn-save {
+        background: var(--bloom-color);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+        background: #5a67d8;
+    }
+
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #4a5568;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: #cbd5e0;
+    }
+
+    /* Toast */
+    .toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: #333;
+        color: white;
+        padding: 15px 30px;
+        border-radius: 10px;
+        z-index: 2000;
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
+
+    .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+
+    .toast.success { background: var(--easy-color); }
+    .toast.error { background: var(--hard-color); }
+
+    /* Loading Spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ffffff40;
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #a0aec0;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .control-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .btn-classify {
+            justify-content: center;
+        }
+
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="classification-container">
+    <!-- Header -->
+    <div class="page-header">
+        <h1><i class="fas fa-robot"></i> تصنيف الأسئلة بالذكاء الاصطناعي</h1>
+        <p>تصنيف تلقائي للأسئلة حسب مستوى الصعوبة ومستويات بلوم المعرفية باستخدام Gemini AI</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card total">
+            <div class="stat-icon">📊</div>
+            <div class="stat-value" id="totalQuestions">-</div>
+            <div class="stat-label">إجمالي الأسئلة</div>
+        </div>
+        <div class="stat-card easy">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-value" id="easyCount">-</div>
+            <div class="stat-label">سهل</div>
+        </div>
+        <div class="stat-card medium">
+            <div class="stat-icon">🟡</div>
+            <div class="stat-value" id="mediumCount">-</div>
+            <div class="stat-label">متوسط</div>
+        </div>
+        <div class="stat-card hard">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-value" id="hardCount">-</div>
+            <div class="stat-label">صعب</div>
+        </div>
+    </div>
+
+    <!-- Bloom Stats -->
+    <div class="stats-grid" id="bloomStatsGrid" style="margin-bottom: 25px;">
+        <div class="stat-card" style="border-top-color: #e9d8fd;">
+            <div class="stat-icon">📚</div>
+            <div class="stat-value" id="rememberCount">-</div>
+            <div class="stat-label">تذكر</div>
+        </div>
+        <div class="stat-card" style="border-top-color: #feebc8;">
+            <div class="stat-icon">💡</div>
+            <div class="stat-value" id="understandCount">-</div>
+            <div class="stat-label">فهم</div>
+        </div>
+        <div class="stat-card" style="border-top-color: #c6f6d5;">
+            <div class="stat-icon">⚙️</div>
+            <div class="stat-value" id="applyCount">-</div>
+            <div class="stat-label">تطبيق</div>
+        </div>
+        <div class="stat-card" style="border-top-color: #bee3f8;">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-value" id="analyzeCount">-</div>
+            <div class="stat-label">تحليل</div>
+        </div>
+        <div class="stat-card" style="border-top-color: #fed7e2;">
+            <div class="stat-icon">⚖️</div>
+            <div class="stat-value" id="evaluateCount">-</div>
+            <div class="stat-label">تقويم</div>
+        </div>
+        <div class="stat-card" style="border-top-color: #fefcbf;">
+            <div class="stat-icon">🎨</div>
+            <div class="stat-value" id="createCount">-</div>
+            <div class="stat-label">إبداع</div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3><i class="fas fa-magic"></i> التصنيف التلقائي</h3>
+        
+        <div class="control-row">
+            <div class="control-group">
+                <label>عدد الأسئلة في الدفعة</label>
+                <input type="number" id="batchSize" value="50" min="10" max="200">
+            </div>
+            <div class="control-group">
+                <label>التأخير بين الطلبات (ثانية)</label>
+                <input type="number" id="delaySeconds" value="0.5" min="0.1" max="5" step="0.1">
+            </div>
+            <button class="btn-classify" id="startClassifyBtn" onclick="startClassification()">
+                <i class="fas fa-play" id="btnIcon"></i>
+                <span id="btnText">بدء التصنيف</span>
+            </button>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+            </div>
+            <div class="progress-stats">
+                <span>✅ تم: <strong id="classifiedCount">0</strong></span>
+                <span>❌ فشل: <strong id="failedCount">0</strong></span>
+                <span>⏳ المتبقي: <strong id="remainingCount">0</strong></span>
+                <span>⏱️ الوقت: <strong id="elapsedTime">0:00</strong></span>
+            </div>
+            <div class="progress-log" id="progressLog"></div>
+        </div>
+    </div>
+
+    <!-- Questions Section -->
+    <div class="questions-section">
+        <div class="section-header">
+            <h3><i class="fas fa-list-alt"></i> استعراض الأسئلة والتصنيفات</h3>
+            <button class="action-btn refresh" onclick="loadQuestions()">
+                <i class="fas fa-sync-alt"></i> تحديث
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-row">
+            <span class="filter-label">الصعوبة:</span>
+            <button class="filter-btn active" onclick="setDifficultyFilter('')">الكل</button>
+            <button class="filter-btn easy" onclick="setDifficultyFilter('easy')">🟢 سهل</button>
+            <button class="filter-btn medium" onclick="setDifficultyFilter('medium')">🟡 متوسط</button>
+            <button class="filter-btn hard" onclick="setDifficultyFilter('hard')">🔴 صعب</button>
+        </div>
+
+        <div class="filter-row">
+            <span class="filter-label">بلوم:</span>
+            <button class="filter-btn active" onclick="setBloomFilter('')">الكل</button>
+            <button class="filter-btn" onclick="setBloomFilter('remember')">📚 تذكر</button>
+            <button class="filter-btn" onclick="setBloomFilter('understand')">💡 فهم</button>
+            <button class="filter-btn" onclick="setBloomFilter('apply')">⚙️ تطبيق</button>
+            <button class="filter-btn" onclick="setBloomFilter('analyze')">🔍 تحليل</button>
+            <button class="filter-btn" onclick="setBloomFilter('evaluate')">⚖️ تقويم</button>
+            <button class="filter-btn" onclick="setBloomFilter('create')">🎨 إبداع</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="questions-table" id="questionsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>السؤال</th>
+                        <th>الدرس</th>
+                        <th>الصعوبة</th>
+                        <th>بلوم</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="questionsBody">
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>جاري التحميل...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> تعديل التصنيف</h3>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <p id="modalQuestionText" style="background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem;"></p>
+            
+            <div class="form-group">
+                <label>مستوى الصعوبة:</label>
+                <div class="radio-group">
+                    <div class="radio-option easy">
+                        <input type="radio" name="modalDifficulty" id="diffEasy" value="easy">
+                        <label for="diffEasy">🟢 سهل</label>
+                    </div>
+                    <div class="radio-option medium">
+                        <input type="radio" name="modalDifficulty" id="diffMedium" value="medium">
+                        <label for="diffMedium">🟡 متوسط</label>
+                    </div>
+                    <div class="radio-option hard">
+                        <input type="radio" name="modalDifficulty" id="diffHard" value="hard">
+                        <label for="diffHard">🔴 صعب</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>مستوى بلوم:</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomRemember" value="remember">
+                        <label for="bloomRemember">📚 تذكر</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomUnderstand" value="understand">
+                        <label for="bloomUnderstand">💡 فهم</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomApply" value="apply">
+                        <label for="bloomApply">⚙️ تطبيق</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomAnalyze" value="analyze">
+                        <label for="bloomAnalyze">🔍 تحليل</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomEvaluate" value="evaluate">
+                        <label for="bloomEvaluate">⚖️ تقويم</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="modalBloom" id="bloomCreate" value="create">
+                        <label for="bloomCreate">🎨 إبداع</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeEditModal()">إلغاء</button>
+            <button class="btn-save" onclick="saveClassification()">
+                <i class="fas fa-save"></i> حفظ
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = '/api/v1';
+let currentPage = 1;
+let currentDifficultyFilter = '';
+let currentBloomFilter = '';
+let editingQuestionId = null;
+let isClassifying = false;
+let classificationTimer = null;
+let startTime = null;
+
+// ==================== تحميل الإحصائيات ====================
+async function loadStats() {
+    try {
+        const response = await fetch(`${API_BASE}/questions/classification-stats`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const stats = data.stats;
+            
+            // إجمالي
+            document.getElementById('totalQuestions').textContent = stats.total_questions || 0;
+            
+            // الصعوبة
+            const diff = stats.by_difficulty || {};
+            document.getElementById('easyCount').textContent = diff['easy'] || 0;
+            document.getElementById('mediumCount').textContent = diff['medium'] || 0;
+            document.getElementById('hardCount').textContent = diff['hard'] || 0;
+            
+            // بلوم
+            const bloom = stats.by_bloom_level || {};
+            document.getElementById('rememberCount').textContent = bloom['remember'] || 0;
+            document.getElementById('understandCount').textContent = bloom['understand'] || 0;
+            document.getElementById('applyCount').textContent = bloom['apply'] || 0;
+            document.getElementById('analyzeCount').textContent = bloom['analyze'] || 0;
+            document.getElementById('evaluateCount').textContent = bloom['evaluate'] || 0;
+            document.getElementById('createCount').textContent = bloom['create'] || 0;
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// ==================== تحميل الأسئلة ====================
+async function loadQuestions() {
+    const tbody = document.getElementById('questionsBody');
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></td></tr>`;
+    
+    try {
+        let url = `${API_BASE}/questions/browse-classifications?page=${currentPage}&per_page=20`;
+        if (currentDifficultyFilter) url += `&difficulty=${currentDifficultyFilter}`;
+        if (currentBloomFilter) url += `&bloom_level=${currentBloomFilter}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.success && data.questions.length > 0) {
+            tbody.innerHTML = data.questions.map((q, idx) => `
+                <tr>
+                    <td>${q.question_id}</td>
+                    <td class="question-text ${!q.question_text ? 'image-only' : ''}" title="${q.question_text || 'سؤال بالصورة'}">
+                        ${q.question_text || '📷 سؤال بالصورة'}
+                    </td>
+                    <td>${q.lesson || '-'}</td>
+                    <td><span class="badge badge-${q.difficulty}">${getDifficultyArabic(q.difficulty)}</span></td>
+                    <td><span class="badge badge-${q.bloom_level}">${getBloomArabic(q.bloom_level)}</span></td>
+                    <td>
+                        <button class="action-btn edit" onclick="openEditModal(${q.question_id}, '${q.question_text?.substring(0, 50) || 'سؤال بالصورة'}', '${q.difficulty}', '${q.bloom_level}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn classify" onclick="classifySingle(${q.question_id})">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            renderPagination(data.pagination);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد أسئلة</p></td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error loading questions:', error);
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>خطأ في التحميل</p></td></tr>`;
+    }
+}
+
+// ==================== التصنيف التلقائي ====================
+async function startClassification() {
+    if (isClassifying) {
+        showToast('التصنيف قيد التنفيذ...', 'error');
+        return;
+    }
+    
+    isClassifying = true;
+    const btn = document.getElementById('startClassifyBtn');
+    btn.classList.add('running');
+    btn.disabled = true;
+    document.getElementById('btnIcon').className = 'loading-spinner';
+    document.getElementById('btnText').textContent = 'جاري التصنيف...';
+    
+    const progressSection = document.getElementById('progressSection');
+    progressSection.classList.add('active');
+    
+    const batchSize = parseInt(document.getElementById('batchSize').value) || 50;
+    const delay = parseFloat(document.getElementById('delaySeconds').value) || 0.5;
+    
+    startTime = Date.now();
+    updateTimer();
+    
+    addLog('🚀 بدء التصنيف التلقائي...', 'info');
+    addLog(`📦 حجم الدفعة: ${batchSize} | ⏱️ التأخير: ${delay}s`, 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE}/questions/classify-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ batch_size: batchSize, delay: delay })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('classifiedCount').textContent = data.classified || 0;
+            document.getElementById('failedCount').textContent = data.failed || 0;
+            
+            const progress = data.total > 0 ? Math.round((data.classified / data.total) * 100) : 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').textContent = progress + '%';
+            
+            addLog(`✅ ${data.message}`, 'success');
+            
+            if (data.difficulty_counts) {
+                addLog(`📊 الصعوبة: سهل=${data.difficulty_counts.easy || 0}, متوسط=${data.difficulty_counts.medium || 0}, صعب=${data.difficulty_counts.hard || 0}`, 'info');
+            }
+            
+            showToast(data.message, 'success');
+            loadStats();
+            loadQuestions();
+        } else {
+            addLog(`❌ خطأ: ${data.error}`, 'error');
+            showToast(data.error || 'حدث خطأ', 'error');
+        }
+    } catch (error) {
+        addLog(`❌ خطأ في الاتصال: ${error.message}`, 'error');
+        showToast('خطأ في الاتصال بالخادم', 'error');
+    } finally {
+        isClassifying = false;
+        btn.classList.remove('running');
+        btn.disabled = false;
+        document.getElementById('btnIcon').className = 'fas fa-play';
+        document.getElementById('btnText').textContent = 'بدء التصنيف';
+        clearInterval(classificationTimer);
+    }
+}
+
+// ==================== تصنيف سؤال واحد ====================
+async function classifySingle(questionId) {
+    try {
+        showToast('جاري التصنيف...', 'info');
+        
+        const response = await fetch(`${API_BASE}/questions/${questionId}/classify`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('تم التصنيف بنجاح', 'success');
+            loadQuestions();
+            loadStats();
+        } else {
+            showToast(data.error || 'فشل التصنيف', 'error');
+        }
+    } catch (error) {
+        showToast('خطأ في الاتصال', 'error');
+    }
+}
+
+// ==================== تعديل التصنيف ====================
+function openEditModal(questionId, text, difficulty, bloom) {
+    editingQuestionId = questionId;
+    document.getElementById('modalQuestionText').textContent = text;
+    
+    // تحديد الصعوبة
+    document.querySelector(`input[name="modalDifficulty"][value="${difficulty}"]`).checked = true;
+    
+    // تحديد بلوم
+    document.querySelector(`input[name="modalBloom"][value="${bloom}"]`).checked = true;
+    
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    editingQuestionId = null;
+}
+
+async function saveClassification() {
+    if (!editingQuestionId) return;
+    
+    const difficulty = document.querySelector('input[name="modalDifficulty"]:checked')?.value;
+    const bloom = document.querySelector('input[name="modalBloom"]:checked')?.value;
+    
+    if (!difficulty || !bloom) {
+        showToast('يرجى اختيار الصعوبة ومستوى بلوم', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/questions/${editingQuestionId}/update-classification`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ difficulty, bloom_level: bloom })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('تم الحفظ بنجاح', 'success');
+            closeEditModal();
+            loadQuestions();
+            loadStats();
+        } else {
+            showToast(data.error || 'فشل الحفظ', 'error');
+        }
+    } catch (error) {
+        showToast('خطأ في الاتصال', 'error');
+    }
+}
+
+// ==================== الفلاتر ====================
+function setDifficultyFilter(value) {
+    currentDifficultyFilter = value;
+    currentPage = 1;
+    
+    // تحديث أزرار الفلتر
+    document.querySelectorAll('.filter-row:first-of-type .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    loadQuestions();
+}
+
+function setBloomFilter(value) {
+    currentBloomFilter = value;
+    currentPage = 1;
+    
+    // تحديث أزرار الفلتر
+    document.querySelectorAll('.filter-row:last-of-type .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    loadQuestions();
+}
+
+// ==================== الصفحات ====================
+function renderPagination(pagination) {
+    const container = document.getElementById('pagination');
+    if (!pagination || pagination.pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = `
+        <button onclick="goToPage(${pagination.page - 1})" ${!pagination.has_prev ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <span class="pagination-info">صفحة ${pagination.page} من ${pagination.pages}</span>
+        <button onclick="goToPage(${pagination.page + 1})" ${!pagination.has_next ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadQuestions();
+}
+
+// ==================== المساعدات ====================
+function getDifficultyArabic(diff) {
+    const map = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+    return map[diff] || diff;
+}
+
+function getBloomArabic(bloom) {
+    const map = {
+        remember: 'تذكر',
+        understand: 'فهم',
+        apply: 'تطبيق',
+        analyze: 'تحليل',
+        evaluate: 'تقويم',
+        create: 'إبداع'
+    };
+    return map[bloom] || bloom;
+}
+
+function addLog(message, type = 'info') {
+    const log = document.getElementById('progressLog');
+    const time = new Date().toLocaleTimeString('ar-EG');
+    log.innerHTML += `<div class="log-entry ${type}">[${time}] ${message}</div>`;
+    log.scrollTop = log.scrollHeight;
+}
+
+function updateTimer() {
+    classificationTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        document.getElementById('elapsedTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// ==================== التهيئة ====================
+document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadQuestions();
+});
+
+// إغلاق المودال عند النقر خارجه
+document.getElementById('editModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeEditModal();
+});
+</script>
+{% endblock %}

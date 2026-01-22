@@ -3321,18 +3321,4 @@ body {{
     except Exception as e:
         current_app.logger.exception(f"Error generating all models answer keys: {e}")
         return jsonify({'error': str(e)}), 500
-
-
-# =====================================================
-# ===== صفحة تصنيف الأسئلة بالذكاء الاصطناعي =====
-# =====================================================
-
-@question_bp.route('/classify')
-@login_required
-def classify_questions():
-    """
-    صفحة تصنيف الأسئلة بالذكاء الاصطناعي
-    تعرض إحصائيات التصنيف وتتيح التصنيف التلقائي والتعديل اليدوي
-    """
-    return render_template('classify_questions.html')
-
+    

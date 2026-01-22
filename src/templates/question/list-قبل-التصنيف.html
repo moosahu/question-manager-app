@@ -32,11 +32,6 @@
                     <div class="btn-toolbar">
                         <a href="{{ url_for('question.add_question') }}" class="btn btn-success">إضافة سؤال جديد</a>
                         
-                        <!-- زر التصنيف بالذكاء الاصطناعي -->
-                        <a href="{{ url_for('question.classify_questions') }}" class="btn btn-primary ms-2" style="background: linear-gradient(135deg, #667eea, #764ba2); border: none;">
-                            <i class="fas fa-robot"></i> تصنيف AI
-                        </a>
-                        
                         <!-- أزرار التحكم بالمنع -->
                         <button type="button" class="btn btn-warning ms-2" id="blockSelectedBtn" disabled>
                             <i class="fas fa-ban"></i> منع المحدد (0)
