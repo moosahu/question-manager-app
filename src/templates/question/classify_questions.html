@@ -380,15 +380,27 @@
     }
 
     .question-text {
-        max-width: 250px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        min-width: 350px;
+        max-width: 500px;
+        white-space: normal;
+        line-height: 1.6;
     }
 
     .question-text.image-only {
         color: #a0aec0;
         font-style: italic;
+    }
+
+    /* توسيع الجدول */
+    .questions-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1000px;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        width: 100%;
     }
 
     /* Badges */
