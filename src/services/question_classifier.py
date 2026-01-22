@@ -184,7 +184,7 @@ class QuestionClassifier:
     def classify_all_unclassified(self, batch_size: int = 20, delay: float = 8.0) -> Dict:
         """
         تصنيف الأسئلة غير المصنفة
-        ✅ محسّن: يستخدم ai_classified لتتبع التصنيف
+        ✅ محسّن: يستخدم raw SQL للتحقق من ai_classified
         """
         if not self._ensure_configured():
             return {'success': False, 'error': 'AI not configured'}
@@ -192,24 +192,31 @@ class QuestionClassifier:
         if Question is None:
             return {'success': False, 'error': 'Question model not available'}
         
-        self.min_delay = max(delay, 8.0)  # minimum 8 ثواني
+        self.min_delay = max(delay, 8.0)
         self.consecutive_errors = 0
         
         try:
-            # ✅ جلب الأسئلة التي لم يتم تصنيفها بعد
-            # نتحقق من عمود ai_classified إذا موجود، وإلا نستخدم difficulty=None
-            try:
-                questions = Question.query.filter(
-                    Question.ai_classified == False
-                ).limit(batch_size).all()
-            except:
-                # إذا العمود غير موجود، نستخدم الطريقة القديمة
-                questions = Question.query.filter(
-                    db.or_(
-                        Question.difficulty == None,
-                        Question.bloom_level == None
-                    )
-                ).limit(batch_size).all()
+            # ✅ استخدام raw SQL للتحقق من ai_classified
+            from sqlalchemy import text
+            
+            result = db.session.execute(
+                text("SELECT question_id FROM questions WHERE ai_classified = FALSE LIMIT :limit"),
+                {"limit": batch_size}
+            )
+            question_ids = [row[0] for row in result.fetchall()]
+            
+            if not question_ids:
+                logger.info("🎉 لا توجد أسئلة تحتاج تصنيف!")
+                return {
+                    'success': True,
+                    'message': '🎉 تم تصنيف جميع الأسئلة!',
+                    'classified': 0,
+                    'total': 0
+                }
+            
+            # جلب الأسئلة بناءً على IDs
+            questions = Question.query.filter(Question.question_id.in_(question_ids)).all()
+            logger.info(f"📋 وجدت {len(questions)} سؤال غير مصنف")
             
             if not questions:
                 return {
@@ -266,11 +273,15 @@ class QuestionClassifier:
                     question.difficulty = classification['difficulty']
                     question.bloom_level = classification['bloom_level']
                     
-                    # ✅ تعيين ai_classified = True إذا العمود موجود
+                    # ✅ تحديث ai_classified باستخدام raw SQL
                     try:
-                        question.ai_classified = True
-                    except:
-                        pass  # العمود غير موجود
+                        from sqlalchemy import text
+                        db.session.execute(
+                            text("UPDATE questions SET ai_classified = TRUE WHERE question_id = :qid"),
+                            {"qid": question.question_id}
+                        )
+                    except Exception as sql_err:
+                        logger.debug(f"تعذر تحديث ai_classified: {sql_err}")
                     
                     stats['classified'] += 1
                     stats['difficulty_counts'][classification['difficulty']] += 1
