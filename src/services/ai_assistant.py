@@ -25,37 +25,28 @@ class AIAssistant:
     """مساعد AI الذكي - يحلل أداء الطلاب ويقدم توصيات"""
     
     def __init__(self):
-        """
-        تهيئة أولية فارغة لتجنب خطأ Application Context.
-        لا تقم باستدعاء قاعدة البيانات هنا نهائياً.
-        """
+        """تهيئة أولية فارغة"""
         self.model = None
         self.is_configured = False
         self.api_key = None
-        self.model_name = 'gemini-1.5-flash'  # ✅ تغيير من gemini-2.0-flash-exp
+        # ✅ تغيير الموديل إلى gemini-2.0-flash (مستقر)
+        self.model_name = 'gemini-2.0-flash'
         self.provider = 'gemini'
 
     def _ensure_configured(self):
-        """
-        دالة مساعدة لتهيئة الإعدادات عند الحاجة فقط
-        (Lazy Loading)
-        """
-        # إذا تم التهيئة سابقاً، لا تعيد الكرة
+        """تهيئة Gemini عند الحاجة"""
         if self.is_configured and self.model:
             return True
 
         try:
-            # محاولة جلب المفتاح من كونفيج التطبيق أو متغيرات البيئة
             self.api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
             
-            # جلب الإعدادات من قاعدة البيانات (الآن آمن لأننا داخل Context)
             try:
-                # ✅ تغيير الموديل الافتراضي
-                self.model_name = 'gemini-1.5-flash'
+                self.model_name = 'gemini-2.0-flash'
                 self.provider = AISetting.get_setting('ai_provider', 'gemini')
             except Exception as db_e:
-                print(f"⚠️ تعذر جلب إعدادات AI من قاعدة البيانات، استخدام الافتراضي: {db_e}")
-                self.model_name = 'gemini-1.5-flash'
+                print(f"⚠️ استخدام الإعدادات الافتراضية: {db_e}")
+                self.model_name = 'gemini-2.0-flash'
                 self.provider = 'gemini'
 
             if self.provider == 'gemini' and GEMINI_AVAILABLE and self.api_key:
@@ -73,7 +64,6 @@ class AIAssistant:
     def analyze_student(self, student_id: int, analysis_type: str = 'on_demand') -> Optional[Dict]:
         """تحليل شامل لأداء طالب"""
         
-        # ✅ الخطوة الأهم: استدعاء التهيئة هنا بدلاً من __init__
         if not self._ensure_configured():
              print(f"⚠️ لا يمكن تحليل الطالب {student_id}: AI غير مهيأ")
              return None
@@ -81,11 +71,9 @@ class AIAssistant:
         start_time = datetime.utcnow()
         
         try:
-            # 1. جمع بيانات الطالب
             student_data = self._gather_student_data(student_id)
             
             if not student_data:
-                # محاولة تسجيل الخطأ (قد تفشل إذا لم يكن هناك context، لذا نحميها)
                 try:
                     AILog.log_operation(
                         'analyze_student',
@@ -97,7 +85,6 @@ class AIAssistant:
                 except: pass
                 return None
             
-            # 2. تحليل البيانات بواسطة AI
             ai_response = self._call_ai_for_analysis(student_data)
             
             if not ai_response:
@@ -112,20 +99,15 @@ class AIAssistant:
                 except: pass
                 return None
             
-            # 3. معالجة النتيجة
             analysis_result = self._process_ai_response(ai_response, student_data)
-            
-            # 4. حساب التصنيف والخطورة
             analysis_result.update(self._calculate_status(student_data, analysis_result))
             
-            # 5. حفظ التحليل في قاعدة البيانات
             analysis = AIAnalysis.create_analysis(
                 student_id=student_id,
                 analysis_type=analysis_type,
                 data=analysis_result
             )
             
-            # 6. تسجيل النجاح
             duration = (datetime.utcnow() - start_time).total_seconds()
             AILog.log_operation(
                 'analyze_student',
@@ -154,18 +136,15 @@ class AIAssistant:
             return None
     
     def _gather_student_data(self, student_id: int) -> Optional[Dict]:
-        """جمع جميع بيانات الطالب من قاعدة البيانات"""
-        # ✅ استيراد النماذج داخل الدالة لتجنب Circular Import
+        """جمع بيانات الطالب"""
         from src.models.student import Student
         from src.models.student_result import StudentResult
         
         try:
-            # جلب الطالب
             student = Student.query.get(student_id)
             if not student:
                 return None
             
-            # جلب النتائج
             results = StudentResult.query.filter_by(student_id=student_id)\
                 .order_by(StudentResult.created_at.desc()).all()
             
@@ -179,7 +158,6 @@ class AIAssistant:
                     'is_new_student': True
                 }
             
-            # تحليل النتائج
             total_quizzes = len(results)
             total_score = sum(r.score_percentage for r in results)
             average_score = total_score / total_quizzes if total_quizzes > 0 else 0
@@ -187,7 +165,6 @@ class AIAssistant:
             last_quiz_date = results[0].created_at if results else None
             days_since_last_quiz = (datetime.utcnow() - last_quiz_date).days if last_quiz_date else 999
             
-            # حساب الاتجاه
             recent_results = results[:5]
             older_results = results[5:10] if len(results) > 5 else []
             
@@ -196,7 +173,6 @@ class AIAssistant:
             
             trend_percentage = ((recent_avg - older_avg) / older_avg * 100) if older_avg > 0 else 0
             
-            # تجميع الأداء حسب المواضيع
             topics_performance = {}
             for r in results:
                 topic = r.quiz_name
@@ -204,12 +180,10 @@ class AIAssistant:
                     topics_performance[topic] = []
                 topics_performance[topic].append(r.score_percentage)
             
-            # حساب متوسط كل موضوع
             topic_averages = {}
             for topic, scores in topics_performance.items():
                 topic_averages[topic] = sum(scores) / len(scores)
             
-            # تصنيف المواضيع
             weak_topics = [t for t, avg in topic_averages.items() if avg < 60]
             improvement_topics = [t for t, avg in topic_averages.items() if 60 <= avg < 80]
             strong_topics = [t for t, avg in topic_averages.items() if avg >= 80]
@@ -237,7 +211,7 @@ class AIAssistant:
             return None
     
     def _call_ai_for_analysis(self, data: Dict) -> Optional[str]:
-        """استدعاء AI لتحليل البيانات"""
+        """استدعاء AI"""
         if not self.model:
             return None
         
@@ -251,7 +225,6 @@ class AIAssistant:
     
     def _build_analysis_prompt(self, data: Dict) -> str:
         """بناء prompt التحليل"""
-        # تجهيز المواضيع
         weak_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('weak_topics', [])])
         improvement_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('improvement_topics', [])])
         strong_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('strong_topics', [])])
@@ -278,43 +251,23 @@ class AIAssistant:
 المطلوب: اكتب رسالة محفزة مخصصة بهذا التنسيق:
 
 1. تقييم الأداء:
-[إذا المعدل >= 80%: ابدأ بتهنئة حماسية! استخدم كلمات مثل: "ماشاء الله"، "رائع"، "ممتاز"، "أسطوري"
- إذا المعدل 60-79%: شجع وبيّن التحسن
- إذا المعدل < 60%: كن داعماً وإيجابياً، "البداية دائماً صعبة"]
-
-المواضيع الضعيفة (< 60%):
-[فقط إذا وجدت. اذكرها بلطف كـ "فرصة للتحسن" أو "نقطة التركيز التالية"]
+[تقييم مختصر حسب المعدل]
 
 2. نقاط القوة:
-[اذكر المواضيع >= 80% بحماس! استخدم رموز: ✨ 🌟 💎
- كلمات مثل: "متقن"، "محترف"، "ممتاز"، "رائع"]
+[المواضيع الممتازة]
 
 3. خطة عمل:
-[خطة واضحة ومحددة:
- - اذكر عدد الاختبارات المطلوبة بالضبط
- - حدد المدة الزمنية (3 أيام، أسبوع، إلخ)
- - ضع هدف واضح (مثلاً: "الهدف: الوصول لـ 75%")
- - اجعلها قابلة للتحقيق!]
+[خطة واضحة ومحددة]
 
 4. رسالة تحفيزية:
-[رسالة شخصية قصيرة (2-3 جمل) مليئة بالطاقة والتشجيع!
- استخدم اسم الطالب
- كن صادقاً ومخلصاً
- اختم بكلمة محفزة مثل: "أنت قادر!"، "واصل!"، "استمر!"]
+[رسالة شخصية قصيرة]
 
-تعليمات مهمة جداً:
-- لا تكتب "أهلاً بك" أو "مرحباً" أو أي ترحيب
+تعليمات:
+- لا تكتب ترحيب
 - ابدأ مباشرة بـ "1. تقييم الأداء:"
-- لا تذكر المواضيع الممتازة (>= 80%) في قسم "تقييم الأداء" أو "المواضيع الضعيفة"
-- ضع المواضيع الممتازة فقط في قسم "نقاط القوة"
-- استخدم الرموز التعبيرية بحكمة (لا تكثر!)
-- كن طبيعياً وودوداً، كأنك معلم يهتم فعلاً بالطالب
-- أقصى طول: 500 حرف (مختصر ومفيد!)
-- ضع سطر جديد بعد كل عنوان رئيسي
-- اذكر المواضيع بالاسم الكامل
-- كن محدداً في الأرقام
-- استخدم نقاط (•) للقوائم الفرعية
-- الرد بالعربية، مختصر ومهني
+- استخدم الرموز بحكمة
+- أقصى طول: 500 حرف
+- الرد بالعربية
 """
     
     def _process_ai_response(self, ai_text: str, student_data: Dict) -> Dict:
@@ -342,13 +295,12 @@ class AIAssistant:
         return 'unknown'
     
     def _calculate_status(self, student_data: Dict, analysis: Dict) -> Dict:
-        """حساب التصنيف ومستوى الخطورة"""
+        """حساب التصنيف"""
         avg_score = student_data.get('average_score', 0)
         days_inactive = student_data.get('days_since_last_quiz', 0)
         trend = analysis.get('performance_trend', 'unknown')
         total_quizzes = student_data.get('total_quizzes', 0)
         
-        # استخدام try-except هنا أيضاً للسلامة
         try:
             inactive_threshold = AISetting.get_setting('inactive_days_threshold', 7)
             critical_inactive = AISetting.get_setting('critical_inactive_days', 14)
@@ -373,34 +325,26 @@ class AIAssistant:
         if trend == 'improving': strengths.append('تحسن مستمر')
         if days_inactive <= 1: strengths.append('نشط ومواظب')
         
-        # ==================== ✅ تعديل التصنيفات والإرسال ====================
         if days_inactive >= critical_inactive or (avg_score < 40 and total_quizzes >= 3):
-            # 🔴 حرج: إرسال للطالب + تنبيه للأدمن
             status = 'critical'
             severity = 'red'
-            suggested_action = 'send_message_and_alert'  # ✅ جديد: إرسال للاثنين
+            suggested_action = 'send_message_and_alert'
         elif days_inactive >= inactive_threshold or avg_score < 60 or (trend == 'declining' and avg_score < 75):
-            # 🟠 يحتاج انتباه: إرسال للطالب فقط
-            # ملاحظة: declining فقط إذا المعدل أقل من 75% (لتجنب تصنيف الممتازين كـ needs_attention)
             status = 'needs_attention'
             severity = 'orange'
             suggested_action = 'send_message'
         elif avg_score >= 80:
-            # 🟢 ممتاز: إرسال رسالة تهنئة
             status = 'excellent'
             severity = 'green'
-            suggested_action = 'send_message'  # ✅ تعديل: كان no_action
+            suggested_action = 'send_message'
         elif avg_score >= 60:
-            # 🟡 جيد: إرسال رسالة تشجيع
             status = 'good'
             severity = 'yellow'
-            suggested_action = 'send_message'  # ✅ تعديل: الآن يرسل
+            suggested_action = 'send_message'
         else:
-            # 🟠 يحتاج انتباه (احتياطي)
             status = 'needs_attention'
             severity = 'orange'
             suggested_action = 'send_message'
-        # ==================== ✅ نهاية التعديل ====================
         
         return {
             'student_status': status,
@@ -411,17 +355,15 @@ class AIAssistant:
         }
     
     def analyze_weak_topics(self, student_id: int) -> List[Dict]:
-        """تحليل المواضيع التي يضعف فيها الطالب"""
+        """تحليل المواضيع الضعيفة"""
         from src.models.student_result import StudentResult
         
         try:
-            # جلب النتائج
             results = StudentResult.query.filter_by(student_id=student_id).all()
             
             if not results:
                 return []
             
-            # تجميع حسب المواضيع
             topics = {}
             for r in results:
                 topic = r.quiz_name
@@ -429,7 +371,6 @@ class AIAssistant:
                     topics[topic] = []
                 topics[topic].append(r.score_percentage)
             
-            # حساب المتوسط لكل موضوع
             analyzed_topics = []
             for topic, scores in topics.items():
                 avg = sum(scores) / len(scores)
@@ -441,7 +382,6 @@ class AIAssistant:
                     'trend': 'improving' if len(scores) >= 2 and scores[0] > scores[-1] else 'declining'
                 })
             
-            # ترتيب من الأضعف للأقوى
             return sorted(analyzed_topics, key=lambda x: x['average'])
         
         except Exception as e:
@@ -449,9 +389,9 @@ class AIAssistant:
             return []
     
     def chat_with_ai(self, message: str, context: Optional[Dict] = None) -> str:
-        """محادثة حرة مع AI (للأدمن)"""
+        """محادثة مع AI"""
         if not self._ensure_configured():
-            return "⚠️ AI غير مفعّل حالياً - يرجى التحقق من مفتاح API"
+            return "⚠️ AI غير مفعّل - يرجى التحقق من مفتاح API"
         
         try:
             prompt = f"""
@@ -466,5 +406,5 @@ class AIAssistant:
             print(f"❌ خطأ في chat_with_ai: {e}")
             return f"حدث خطأ: {str(e)}"
 
-# إنشاء instance واحد
+
 ai_assistant = AIAssistant()

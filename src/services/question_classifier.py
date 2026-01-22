@@ -8,7 +8,6 @@ import json
 import time
 import re
 import logging
-from datetime import datetime
 from typing import Dict, List, Optional
 from flask import current_app
 
@@ -17,7 +16,6 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    print("⚠️ google-generativeai غير مثبت!")
 
 try:
     from src.extensions import db
@@ -41,9 +39,10 @@ class QuestionClassifier:
         self.model = None
         self.is_configured = False
         self.api_key = None
-        self.model_name = 'gemini-1.5-flash'  # ✅ موديل مستقر
+        # ✅ موديل مستقر - gemini-2.0-flash
+        self.model_name = 'gemini-2.0-flash'
         self.last_request_time = 0
-        self.min_delay = 4.0  # 4 ثواني (15 طلب/دقيقة)
+        self.min_delay = 7.0  # 7 ثواني (حوالي 8-9 طلبات/دقيقة)
     
     def _ensure_configured(self) -> bool:
         """تهيئة Gemini"""
@@ -95,12 +94,12 @@ class QuestionClassifier:
                 error_str = str(e)
                 
                 if '429' in error_str or 'quota' in error_str.lower():
-                    wait_time = 60
+                    wait_time = 65
                     match = re.search(r'seconds:\s*(\d+)', error_str)
                     if match:
                         wait_time = int(match.group(1)) + 5
                     
-                    logger.warning(f"⏳ Rate limit - انتظار {wait_time}s")
+                    logger.warning(f"⏳ Rate limit - انتظار {wait_time}s (محاولة {attempt+1})")
                     time.sleep(wait_time)
                     continue
                 
@@ -172,7 +171,7 @@ class QuestionClassifier:
         
         return result
     
-    def classify_all_unclassified(self, batch_size: int = 15, delay: float = 4.0) -> Dict:
+    def classify_all_unclassified(self, batch_size: int = 10, delay: float = 7.0) -> Dict:
         """تصنيف الأسئلة غير المصنفة"""
         if not self._ensure_configured():
             return {'success': False, 'error': 'AI not configured'}
@@ -180,7 +179,7 @@ class QuestionClassifier:
         if Question is None:
             return {'success': False, 'error': 'Question model not available'}
         
-        self.min_delay = max(delay, 4.0)
+        self.min_delay = max(delay, 6.0)
         
         try:
             questions = Question.query.filter(
@@ -199,7 +198,7 @@ class QuestionClassifier:
                 'bloom_counts': {}
             }
             
-            logger.info(f"🔄 بدء تصنيف {len(questions)} سؤال...")
+            logger.info(f"🔄 بدء تصنيف {len(questions)} سؤال (تأخير {self.min_delay}s)...")
             
             for i, question in enumerate(questions):
                 try:
