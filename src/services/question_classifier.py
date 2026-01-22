@@ -181,10 +181,10 @@ class QuestionClassifier:
         
         return result
     
-    def classify_all_unclassified(self, batch_size: int = 20, delay: float = 6.0) -> Dict:
+    def classify_all_unclassified(self, batch_size: int = 20, delay: float = 8.0) -> Dict:
         """
         تصنيف الأسئلة غير المصنفة
-        ✅ محسّن: يكمل حتى لو فشلت بعض الأسئلة
+        ✅ محسّن: يستخدم ai_classified لتتبع التصنيف
         """
         if not self._ensure_configured():
             return {'success': False, 'error': 'AI not configured'}
@@ -192,19 +192,24 @@ class QuestionClassifier:
         if Question is None:
             return {'success': False, 'error': 'Question model not available'}
         
-        self.min_delay = max(delay, 6.0)  # minimum 6 ثواني
+        self.min_delay = max(delay, 8.0)  # minimum 8 ثواني
         self.consecutive_errors = 0
         
         try:
-            # جلب الأسئلة غير المصنفة (التي لم تُصنف بعد)
-            questions = Question.query.filter(
-                db.or_(
-                    Question.difficulty == None,
-                    Question.difficulty == 'medium',
-                    Question.bloom_level == None,
-                    Question.bloom_level == 'remember'
-                )
-            ).limit(batch_size).all()
+            # ✅ جلب الأسئلة التي لم يتم تصنيفها بعد
+            # نتحقق من عمود ai_classified إذا موجود، وإلا نستخدم difficulty=None
+            try:
+                questions = Question.query.filter(
+                    Question.ai_classified == False
+                ).limit(batch_size).all()
+            except:
+                # إذا العمود غير موجود، نستخدم الطريقة القديمة
+                questions = Question.query.filter(
+                    db.or_(
+                        Question.difficulty == None,
+                        Question.bloom_level == None
+                    )
+                ).limit(batch_size).all()
             
             if not questions:
                 return {
@@ -260,6 +265,12 @@ class QuestionClassifier:
                     # نجاح - حفظ التصنيف
                     question.difficulty = classification['difficulty']
                     question.bloom_level = classification['bloom_level']
+                    
+                    # ✅ تعيين ai_classified = True إذا العمود موجود
+                    try:
+                        question.ai_classified = True
+                    except:
+                        pass  # العمود غير موجود
                     
                     stats['classified'] += 1
                     stats['difficulty_counts'][classification['difficulty']] += 1
