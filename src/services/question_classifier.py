@@ -98,15 +98,11 @@ class QuestionClassifier:
                 
                 # Rate limit (429) - انتظر ثم أعد المحاولة
                 if '429' in error_str or 'quota' in error_str.lower():
-                    wait_time = 65
-                    match = re.search(r'seconds:\s*(\d+)', error_str)
-                    if match:
-                        wait_time = int(match.group(1)) + 5
-                    
-                    logger.warning(f"⏳ Rate limit - انتظار {wait_time}s")
-                    time.sleep(wait_time)
-                    self.last_request_time = time.time()
-                    continue
+                    # بدل الانتظار الطويل، نرجع None ونكمل للسؤال التالي
+                    # أو نوقف الدفعة الحالية ونحفظ التقدم
+                    logger.warning(f"⏳ Rate limit - سيتم تخطي هذا السؤال")
+                    self.consecutive_errors += 1
+                    return None  # لا ننتظر، نرجع فوراً
                 
                 # أخطاء أخرى - سجل وارجع None
                 logger.error(f"❌ خطأ API: {error_str[:80]}")
