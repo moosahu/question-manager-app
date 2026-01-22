@@ -1255,27 +1255,27 @@
                             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="remember" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">📚 تذكر <small id="rememberCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">📚 تذكر</span>
                                 </label>
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="understand" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">💡 فهم <small id="understandCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">💡 فهم</span>
                                 </label>
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="apply" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">⚙️ تطبيق <small id="applyCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">⚙️ تطبيق</span>
                                 </label>
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="analyze" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">🔍 تحليل <small id="analyzeCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">🔍 تحليل</span>
                                 </label>
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="evaluate" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">⚖️ تقويم <small id="evaluateCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">⚖️ تقويم</span>
                                 </label>
                                 <label class="bloom-filter-btn">
                                     <input type="checkbox" name="bloomFilter" value="create" checked style="display: none;">
-                                    <span class="filter-label filter-bloom">🎨 إبداع <small id="createCount" style="opacity:0.7">(0)</small></span>
+                                    <span class="filter-label filter-bloom">🎨 إبداع</span>
                                 </label>
                             </div>
                         </div>
@@ -1290,17 +1290,14 @@
                                 <div style="text-align: center;">
                                     <label style="font-size: 0.65rem; color: #666;">تذكر/فهم %</label>
                                     <input type="number" id="rememberUnderstandRatio" value="40" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
-                                    <div id="ruAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
                                 </div>
                                 <div style="text-align: center;">
                                     <label style="font-size: 0.65rem; color: #666;">تطبيق %</label>
                                     <input type="number" id="applyRatio" value="35" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
-                                    <div id="applyAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
                                 </div>
                                 <div style="text-align: center;">
                                     <label style="font-size: 0.65rem; color: #666;">تحليل+ %</label>
                                     <input type="number" id="analyzeUpRatio" value="25" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
-                                    <div id="auAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
                                 </div>
                             </div>
                         </div>
@@ -2100,98 +2097,70 @@ function customRandomSelect(questions) {
     return selected;
 }
 
-// التوليد حسب نسب الصعوبة (مع تكملة من المستويات الأخرى)
+// التوليد حسب نسب الصعوبة
 function difficultyBasedSelect(questions, totalCount) {
     const easyRatio = parseInt(document.getElementById('easyRatio')?.value) || 30;
     const mediumRatio = parseInt(document.getElementById('mediumRatio')?.value) || 50;
     const hardRatio = parseInt(document.getElementById('hardRatio')?.value) || 20;
     
     const total = easyRatio + mediumRatio + hardRatio;
-    let easyCount = Math.round((easyRatio / total) * totalCount);
-    let mediumCount = Math.round((mediumRatio / total) * totalCount);
-    let hardCount = totalCount - easyCount - mediumCount;
+    const easyCount = Math.round((easyRatio / total) * totalCount);
+    const mediumCount = Math.round((mediumRatio / total) * totalCount);
+    const hardCount = totalCount - easyCount - mediumCount;
     
     const byDifficulty = {
-        easy: [...questions.filter(q => (q.difficulty || 'medium') === 'easy')].sort(() => Math.random() - 0.5),
-        medium: [...questions.filter(q => (q.difficulty || 'medium') === 'medium')].sort(() => Math.random() - 0.5),
-        hard: [...questions.filter(q => (q.difficulty || 'medium') === 'hard')].sort(() => Math.random() - 0.5)
+        easy: questions.filter(q => (q.difficulty || 'medium') === 'easy'),
+        medium: questions.filter(q => (q.difficulty || 'medium') === 'medium'),
+        hard: questions.filter(q => (q.difficulty || 'medium') === 'hard')
     };
     
     let selected = [];
-    let remaining = totalCount;
     
-    // المرحلة 1: أخذ الأسئلة المتاحة من كل مستوى
-    const easyAvailable = Math.min(easyCount, byDifficulty.easy.length);
-    const mediumAvailable = Math.min(mediumCount, byDifficulty.medium.length);
-    const hardAvailable = Math.min(hardCount, byDifficulty.hard.length);
+    // سهل
+    const easyShuffled = [...byDifficulty.easy].sort(() => Math.random() - 0.5);
+    selected = selected.concat(easyShuffled.slice(0, easyCount).map(q => q.question_id));
     
-    selected = selected.concat(byDifficulty.easy.slice(0, easyAvailable).map(q => q.question_id));
-    selected = selected.concat(byDifficulty.medium.slice(0, mediumAvailable).map(q => q.question_id));
-    selected = selected.concat(byDifficulty.hard.slice(0, hardAvailable).map(q => q.question_id));
+    // متوسط
+    const mediumShuffled = [...byDifficulty.medium].sort(() => Math.random() - 0.5);
+    selected = selected.concat(mediumShuffled.slice(0, mediumCount).map(q => q.question_id));
     
-    remaining = totalCount - selected.length;
-    
-    // المرحلة 2: إذا فيه نقص، نكمّل من المستويات الأخرى
-    if (remaining > 0) {
-        // الأسئلة المتبقية من كل مستوى
-        const easyRemaining = byDifficulty.easy.slice(easyAvailable);
-        const mediumRemaining = byDifficulty.medium.slice(mediumAvailable);
-        const hardRemaining = byDifficulty.hard.slice(hardAvailable);
-        
-        // نجمع كل الأسئلة المتبقية ونخلطها
-        const allRemaining = [...easyRemaining, ...mediumRemaining, ...hardRemaining]
-            .sort(() => Math.random() - 0.5);
-        
-        // نكمّل العدد المطلوب
-        const additionalQuestions = allRemaining.slice(0, remaining).map(q => q.question_id);
-        selected = selected.concat(additionalQuestions);
-    }
+    // صعب
+    const hardShuffled = [...byDifficulty.hard].sort(() => Math.random() - 0.5);
+    selected = selected.concat(hardShuffled.slice(0, hardCount).map(q => q.question_id));
     
     return selected;
 }
 
-// التوليد حسب نسب بلوم (مع تكملة من المستويات الأخرى)
+// التوليد حسب نسب بلوم
 function bloomBasedSelect(questions, totalCount) {
     const rememberUnderstandRatio = parseInt(document.getElementById('rememberUnderstandRatio')?.value) || 40;
     const applyRatio = parseInt(document.getElementById('applyRatio')?.value) || 35;
     const analyzeUpRatio = parseInt(document.getElementById('analyzeUpRatio')?.value) || 25;
     
     const total = rememberUnderstandRatio + applyRatio + analyzeUpRatio;
-    let rememberUnderstandCount = Math.round((rememberUnderstandRatio / total) * totalCount);
-    let applyCount = Math.round((applyRatio / total) * totalCount);
-    let analyzeUpCount = totalCount - rememberUnderstandCount - applyCount;
+    const rememberUnderstandCount = Math.round((rememberUnderstandRatio / total) * totalCount);
+    const applyCount = Math.round((applyRatio / total) * totalCount);
+    const analyzeUpCount = totalCount - rememberUnderstandCount - applyCount;
     
     const byBloom = {
-        rememberUnderstand: [...questions.filter(q => ['remember', 'understand'].includes(q.bloom_level || 'remember'))].sort(() => Math.random() - 0.5),
-        apply: [...questions.filter(q => (q.bloom_level || 'remember') === 'apply')].sort(() => Math.random() - 0.5),
-        analyzeUp: [...questions.filter(q => ['analyze', 'evaluate', 'create'].includes(q.bloom_level || 'remember'))].sort(() => Math.random() - 0.5)
+        rememberUnderstand: questions.filter(q => ['remember', 'understand'].includes(q.bloom_level || 'remember')),
+        apply: questions.filter(q => (q.bloom_level || 'remember') === 'apply'),
+        analyzeUp: questions.filter(q => ['analyze', 'evaluate', 'create'].includes(q.bloom_level || 'remember'))
     };
     
     let selected = [];
     
-    // المرحلة 1: أخذ الأسئلة المتاحة من كل مستوى
-    const ruAvailable = Math.min(rememberUnderstandCount, byBloom.rememberUnderstand.length);
-    const applyAvailable = Math.min(applyCount, byBloom.apply.length);
-    const auAvailable = Math.min(analyzeUpCount, byBloom.analyzeUp.length);
+    // تذكر/فهم
+    const ruShuffled = [...byBloom.rememberUnderstand].sort(() => Math.random() - 0.5);
+    selected = selected.concat(ruShuffled.slice(0, rememberUnderstandCount).map(q => q.question_id));
     
-    selected = selected.concat(byBloom.rememberUnderstand.slice(0, ruAvailable).map(q => q.question_id));
-    selected = selected.concat(byBloom.apply.slice(0, applyAvailable).map(q => q.question_id));
-    selected = selected.concat(byBloom.analyzeUp.slice(0, auAvailable).map(q => q.question_id));
+    // تطبيق
+    const applyShuffled = [...byBloom.apply].sort(() => Math.random() - 0.5);
+    selected = selected.concat(applyShuffled.slice(0, applyCount).map(q => q.question_id));
     
-    let remaining = totalCount - selected.length;
-    
-    // المرحلة 2: إذا فيه نقص، نكمّل من المستويات الأخرى
-    if (remaining > 0) {
-        const ruRemaining = byBloom.rememberUnderstand.slice(ruAvailable);
-        const applyRemaining = byBloom.apply.slice(applyAvailable);
-        const auRemaining = byBloom.analyzeUp.slice(auAvailable);
-        
-        const allRemaining = [...ruRemaining, ...applyRemaining, ...auRemaining]
-            .sort(() => Math.random() - 0.5);
-        
-        const additionalQuestions = allRemaining.slice(0, remaining).map(q => q.question_id);
-        selected = selected.concat(additionalQuestions);
-    }
+    // تحليل فأعلى
+    const auShuffled = [...byBloom.analyzeUp].sort(() => Math.random() - 0.5);
+    selected = selected.concat(auShuffled.slice(0, analyzeUpCount).map(q => q.question_id));
     
     return selected;
 }
@@ -3516,53 +3485,6 @@ function generatePrintableDocument(questions, includeAnswers) {
 function updateStats() {
     document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
     document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
-    
-    // تحديث أعداد مستويات الصعوبة
-    const easyQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'easy');
-    const mediumQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'medium');
-    const hardQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'hard');
-    
-    const easyEl = document.getElementById('easyAvailableCount');
-    const mediumEl = document.getElementById('mediumAvailableCount');
-    const hardEl = document.getElementById('hardAvailableCount');
-    
-    if (easyEl) easyEl.textContent = `متاح: ${easyQuestions.length}`;
-    if (mediumEl) mediumEl.textContent = `متاح: ${mediumQuestions.length}`;
-    if (hardEl) hardEl.textContent = `متاح: ${hardQuestions.length}`;
-    
-    // تحديث أعداد مستويات بلوم
-    const rememberQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'remember');
-    const understandQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'understand');
-    const applyQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'apply');
-    const analyzeQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'analyze');
-    const evaluateQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'evaluate');
-    const createQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'create');
-    
-    const rememberEl = document.getElementById('rememberCount');
-    const understandEl = document.getElementById('understandCount');
-    const applyCountEl = document.getElementById('applyCount');
-    const analyzeEl = document.getElementById('analyzeCount');
-    const evaluateEl = document.getElementById('evaluateCount');
-    const createEl = document.getElementById('createCount');
-    
-    if (rememberEl) rememberEl.textContent = `(${rememberQuestions.length})`;
-    if (understandEl) understandEl.textContent = `(${understandQuestions.length})`;
-    if (applyCountEl) applyCountEl.textContent = `(${applyQuestions.length})`;
-    if (analyzeEl) analyzeEl.textContent = `(${analyzeQuestions.length})`;
-    if (evaluateEl) evaluateEl.textContent = `(${evaluateQuestions.length})`;
-    if (createEl) createEl.textContent = `(${createQuestions.length})`;
-    
-    // تحديث أعداد توزيع بلوم النسبي
-    const ruCount = rememberQuestions.length + understandQuestions.length;
-    const auCount = analyzeQuestions.length + evaluateQuestions.length + createQuestions.length;
-    
-    const ruEl = document.getElementById('ruAvailableCount');
-    const applyAvailEl = document.getElementById('applyAvailableCount');
-    const auEl = document.getElementById('auAvailableCount');
-    
-    if (ruEl) ruEl.textContent = `متاح: ${ruCount}`;
-    if (applyAvailEl) applyAvailEl.textContent = `متاح: ${applyQuestions.length}`;
-    if (auEl) auEl.textContent = `متاح: ${auCount}`;
 }
 
 function showPreview(exam) {
