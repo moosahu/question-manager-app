@@ -52,7 +52,7 @@ class QuestionClassifier:
         self.model = None
         self.is_configured = False
         self.api_key = None
-        self.model_name = 'gemini-1.5-flash'
+        self.model_name = 'gemini-2.0-flash-exp'  # نفس الموديل المستخدم في ai_assistant
     
     def _ensure_configured(self) -> bool:
         """تهيئة Gemini عند الحاجة (Lazy Loading)"""
