@@ -84,6 +84,48 @@
     .stat-card.medium { border-top: 4px solid var(--medium-color); }
     .stat-card.hard { border-top: 4px solid var(--hard-color); }
     .stat-card.total { border-top: 4px solid var(--bloom-color); }
+    .stat-card.classified { border-top: 4px solid #48bb78; }
+    .stat-card.unclassified { border-top: 4px solid #fc8181; }
+
+    /* Filter Tabs */
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .filter-tab {
+        padding: 10px 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .filter-tab:hover {
+        border-color: var(--bloom-color);
+    }
+
+    .filter-tab.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-color: transparent;
+    }
+
+    .filter-tab .count {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        margin-right: 5px;
+    }
+
+    .filter-tab.active .count {
+        background: rgba(255,255,255,0.2);
+    }
 
     /* Control Panel */
     .control-panel {
@@ -684,6 +726,16 @@
 
     <!-- Stats Cards -->
     <div class="stats-grid" id="statsGrid">
+        <div class="stat-card classified" style="cursor: pointer;" onclick="setClassificationFilter(true)">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="classifiedTotal">-</div>
+            <div class="stat-label">مصنّفة بالذكاء</div>
+        </div>
+        <div class="stat-card unclassified" style="cursor: pointer;" onclick="setClassificationFilter(false)">
+            <div class="stat-icon">❌</div>
+            <div class="stat-value" id="unclassifiedTotal">-</div>
+            <div class="stat-label">غير مصنّفة</div>
+        </div>
         <div class="stat-card total">
             <div class="stat-icon">📊</div>
             <div class="stat-value" id="totalQuestions">-</div>
@@ -703,6 +755,22 @@
             <div class="stat-icon">🔴</div>
             <div class="stat-value" id="hardCount">-</div>
             <div class="stat-label">صعب</div>
+        </div>
+    </div>
+
+    <!-- Progress Bar للتصنيف الكلي -->
+    <div class="control-panel" style="margin-bottom: 25px; padding: 15px 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-weight: 600; color: #333;">📈 تقدم التصنيف الكلي</span>
+            <span id="progressPercent" style="font-weight: 700; color: var(--bloom-color);">0%</span>
+        </div>
+        <div class="progress-bar-container" style="height: 20px;">
+            <div class="progress-bar" id="totalProgressBar" style="width: 0%"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85rem; color: #666;">
+            <span>✅ مصنّفة: <strong id="progressClassified">0</strong></span>
+            <span>❌ متبقية: <strong id="progressRemaining">0</strong></span>
+            <span>🖼️ صور فقط: <strong id="imageOnlyCount">0</strong></span>
         </div>
     </div>
 
@@ -785,6 +853,13 @@
 
         <!-- Filters -->
         <div class="filter-row">
+            <span class="filter-label">حالة التصنيف:</span>
+            <button class="filter-btn active" id="filterAll" onclick="setClassificationFilter(null)">📋 الكل</button>
+            <button class="filter-btn" id="filterClassified" onclick="setClassificationFilter(true)" style="color: #48bb78;">✅ مصنّفة</button>
+            <button class="filter-btn" id="filterUnclassified" onclick="setClassificationFilter(false)" style="color: #fc8181;">❌ غير مصنّفة</button>
+        </div>
+
+        <div class="filter-row">
             <span class="filter-label">الصعوبة:</span>
             <button class="filter-btn active" onclick="setDifficultyFilter('')">الكل</button>
             <button class="filter-btn easy" onclick="setDifficultyFilter('easy')">🟢 سهل</button>
@@ -813,12 +888,13 @@
                         <th>الدرس</th>
                         <th>الصعوبة</th>
                         <th>بلوم</th>
+                        <th>AI</th>
                         <th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody id="questionsBody">
                     <tr>
-                        <td colspan="6" class="empty-state">
+                        <td colspan="7" class="empty-state">
                             <i class="fas fa-spinner fa-spin"></i>
                             <p>جاري التحميل...</p>
                         </td>
@@ -909,6 +985,7 @@ const API_BASE = '/api/v1';
 let currentPage = 1;
 let currentDifficultyFilter = '';
 let currentBloomFilter = '';
+let currentClassificationFilter = null; // null = الكل, true = مصنفة, false = غير مصنفة
 let editingQuestionId = null;
 let isClassifying = false;
 let classificationTimer = null;
@@ -944,17 +1021,63 @@ async function loadStats() {
     } catch (error) {
         console.error('Error loading stats:', error);
     }
+    
+    // تحميل ملخص التصنيف
+    loadClassificationSummary();
+}
+
+// ==================== تحميل ملخص التصنيف ====================
+async function loadClassificationSummary() {
+    try {
+        const response = await fetch(`${API_BASE}/questions/classification-summary`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const stats = data.stats;
+            
+            // الكروت الجديدة
+            document.getElementById('classifiedTotal').textContent = stats.classified || 0;
+            document.getElementById('unclassifiedTotal').textContent = stats.unclassified || 0;
+            
+            // شريط التقدم
+            const percent = stats.progress_percent || 0;
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('totalProgressBar').style.width = percent + '%';
+            document.getElementById('totalProgressBar').textContent = percent >= 10 ? percent + '%' : '';
+            
+            // الأرقام تحت شريط التقدم
+            document.getElementById('progressClassified').textContent = stats.classified || 0;
+            document.getElementById('progressRemaining').textContent = stats.unclassified || 0;
+            document.getElementById('imageOnlyCount').textContent = stats.image_only_unclassified || 0;
+        }
+    } catch (error) {
+        console.error('Error loading classification summary:', error);
+    }
+}
+
+// ==================== فلتر حالة التصنيف ====================
+function setClassificationFilter(isClassified) {
+    currentClassificationFilter = isClassified;
+    currentPage = 1;
+    
+    // تحديث الأزرار
+    document.getElementById('filterAll').classList.toggle('active', isClassified === null);
+    document.getElementById('filterClassified').classList.toggle('active', isClassified === true);
+    document.getElementById('filterUnclassified').classList.toggle('active', isClassified === false);
+    
+    loadQuestions();
 }
 
 // ==================== تحميل الأسئلة ====================
 async function loadQuestions() {
     const tbody = document.getElementById('questionsBody');
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></td></tr>`;
     
     try {
         let url = `${API_BASE}/questions/browse-classifications?page=${currentPage}&per_page=20`;
         if (currentDifficultyFilter) url += `&difficulty=${currentDifficultyFilter}`;
         if (currentBloomFilter) url += `&bloom_level=${currentBloomFilter}`;
+        if (currentClassificationFilter !== null) url += `&ai_classified=${currentClassificationFilter}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -969,8 +1092,9 @@ async function loadQuestions() {
                     <td>${q.lesson || '-'}</td>
                     <td><span class="badge badge-${q.difficulty}">${getDifficultyArabic(q.difficulty)}</span></td>
                     <td><span class="badge badge-${q.bloom_level}">${getBloomArabic(q.bloom_level)}</span></td>
+                    <td>${q.ai_classified ? '<span style="color: #48bb78;">✅</span>' : '<span style="color: #fc8181;">❌</span>'}</td>
                     <td>
-                        <button class="action-btn edit" onclick="openEditModal(${q.question_id}, '${q.question_text?.substring(0, 50) || 'سؤال بالصورة'}', '${q.difficulty}', '${q.bloom_level}')">
+                        <button class="action-btn edit" onclick="openEditModal(${q.question_id}, '${(q.question_text || '').substring(0, 50).replace(/'/g, "\\'")}', '${q.difficulty}', '${q.bloom_level}')">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="action-btn classify" onclick="classifySingle(${q.question_id})">
@@ -982,11 +1106,11 @@ async function loadQuestions() {
             
             renderPagination(data.pagination);
         } else {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد أسئلة</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-inbox"></i><p>لا توجد أسئلة</p></td></tr>`;
         }
     } catch (error) {
         console.error('Error loading questions:', error);
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>خطأ في التحميل</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>خطأ في التحميل</p></td></tr>`;
     }
 }
 

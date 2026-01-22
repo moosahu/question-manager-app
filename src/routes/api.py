@@ -4641,6 +4641,7 @@ def browse_questions_classifications():
         difficulty_filter = request.args.get('difficulty')
         bloom_filter = request.args.get('bloom_level')
         course_id = request.args.get('course_id', type=int)
+        ai_classified_filter = request.args.get('ai_classified')
         
         # بناء الاستعلام
         query = Question.query.options(
@@ -4659,6 +4660,14 @@ def browse_questions_classifications():
         # فلترة حسب المنهج
         if course_id:
             query = query.join(Question.lesson).join(Lesson.unit).filter(Unit.course_id == course_id)
+        
+        # فلترة حسب حالة التصنيف
+        if ai_classified_filter is not None:
+            from sqlalchemy import text
+            if ai_classified_filter.lower() == 'true':
+                query = query.filter(text("ai_classified = TRUE"))
+            elif ai_classified_filter.lower() == 'false':
+                query = query.filter(text("ai_classified = FALSE"))
         
         # ترتيب
         query = query.order_by(Question.question_id.desc())
@@ -4682,6 +4691,7 @@ def browse_questions_classifications():
                 'has_image': bool(q.image_url),
                 'difficulty': q.difficulty or 'medium',
                 'bloom_level': q.bloom_level or 'remember',
+                'ai_classified': getattr(q, 'ai_classified', False) if hasattr(q, 'ai_classified') else False,
                 'correct_answer': correct_option,
                 'lesson': q.lesson.name if q.lesson else None,
                 'unit': q.lesson.unit.name if q.lesson and q.lesson.unit else None,
@@ -4703,6 +4713,135 @@ def browse_questions_classifications():
         
     except Exception as e:
         logger.exception(f"Error browsing classifications: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/unclassified", methods=["GET"])
+@login_required
+def get_unclassified_questions():
+    """
+    جلب الأسئلة غير المصنفة
+    
+    GET /api/v1/questions/unclassified?page=1&per_page=20
+    """
+    try:
+        from sqlalchemy import text
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # جلب الأسئلة غير المصنفة
+        result = db.session.execute(
+            text("""
+                SELECT q.question_id, q.question_text, q.difficulty, q.bloom_level, 
+                       q.image_url, l.name as lesson_name
+                FROM questions q
+                LEFT JOIN lessons l ON q.lesson_id = l.id
+                WHERE q.ai_classified = FALSE
+                ORDER BY q.question_id
+                LIMIT :limit OFFSET :offset
+            """),
+            {"limit": per_page, "offset": (page - 1) * per_page}
+        )
+        
+        questions = []
+        for row in result.fetchall():
+            questions.append({
+                'question_id': row[0],
+                'question_text': row[1][:100] + '...' if row[1] and len(row[1]) > 100 else row[1],
+                'difficulty': row[2],
+                'bloom_level': row[3],
+                'has_image': bool(row[4]),
+                'lesson_name': row[5]
+            })
+        
+        # عدد الأسئلة غير المصنفة
+        count_result = db.session.execute(
+            text("SELECT COUNT(*) FROM questions WHERE ai_classified = FALSE")
+        )
+        total = count_result.scalar()
+        
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting unclassified questions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route("/questions/classification-summary", methods=["GET"])
+@login_required
+def get_classification_summary():
+    """
+    ملخص شامل لحالة التصنيف
+    
+    GET /api/v1/questions/classification-summary
+    """
+    try:
+        from sqlalchemy import text
+        
+        # إحصائيات عامة
+        stats = {}
+        
+        # عدد المصنفة وغير المصنفة
+        result = db.session.execute(text("""
+            SELECT 
+                SUM(CASE WHEN ai_classified = TRUE THEN 1 ELSE 0 END) as classified,
+                SUM(CASE WHEN ai_classified = FALSE THEN 1 ELSE 0 END) as unclassified,
+                COUNT(*) as total
+            FROM questions
+        """))
+        row = result.fetchone()
+        stats['classified'] = row[0] or 0
+        stats['unclassified'] = row[1] or 0
+        stats['total'] = row[2] or 0
+        stats['progress_percent'] = round((stats['classified'] / stats['total'] * 100), 1) if stats['total'] > 0 else 0
+        
+        # توزيع الصعوبة (للمصنفة فقط)
+        result = db.session.execute(text("""
+            SELECT difficulty, COUNT(*) as count
+            FROM questions
+            WHERE ai_classified = TRUE
+            GROUP BY difficulty
+        """))
+        stats['by_difficulty'] = {row[0]: row[1] for row in result.fetchall()}
+        
+        # توزيع بلوم (للمصنفة فقط)
+        result = db.session.execute(text("""
+            SELECT bloom_level, COUNT(*) as count
+            FROM questions
+            WHERE ai_classified = TRUE
+            GROUP BY bloom_level
+        """))
+        stats['by_bloom'] = {row[0]: row[1] for row in result.fetchall()}
+        
+        # الأسئلة بالصورة فقط (بدون نص)
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM questions
+            WHERE (question_text IS NULL OR question_text = '')
+              AND ai_classified = FALSE
+        """))
+        stats['image_only_unclassified'] = result.scalar() or 0
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting classification summary: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
