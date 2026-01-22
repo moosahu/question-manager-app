@@ -4443,10 +4443,10 @@ def classify_all_questions():
     
     try:
         data = request.get_json() or {}
-        batch_size = data.get('batch_size', 50)
-        delay = data.get('delay', 0.5)
+        batch_size = data.get('batch_size', 10)  # افتراضي 10 لتجنب timeout
+        delay = data.get('delay', 7.0)  # افتراضي 7 ثواني لتجنب rate limit
         
-        logger.info(f"🤖 بدء تصنيف الأسئلة - batch_size: {batch_size}")
+        logger.info(f"🤖 بدء تصنيف الأسئلة - batch_size: {batch_size}, delay: {delay}s")
         
         result = question_classifier.classify_all_unclassified(
             batch_size=batch_size,

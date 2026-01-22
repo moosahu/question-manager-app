@@ -196,7 +196,7 @@ class QuestionClassifier:
         if Question is None:
             return {'success': False, 'error': 'Question model not available'}
         
-        self.min_delay = max(delay, 5.0)
+        self.min_delay = max(delay, 6.0)  # minimum 6 ثواني
         self.consecutive_errors = 0
         
         try:
