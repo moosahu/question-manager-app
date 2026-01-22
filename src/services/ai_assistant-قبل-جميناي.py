@@ -32,7 +32,7 @@ class AIAssistant:
         self.model = None
         self.is_configured = False
         self.api_key = None
-        self.model_name = 'gemini-1.5-flash'  # ✅ تغيير من gemini-2.0-flash-exp
+        self.model_name = 'gemini-1.5-flash' # قيمة افتراضية
         self.provider = 'gemini'
 
     def _ensure_configured(self):
@@ -50,8 +50,8 @@ class AIAssistant:
             
             # جلب الإعدادات من قاعدة البيانات (الآن آمن لأننا داخل Context)
             try:
-                # ✅ تغيير الموديل الافتراضي
-                self.model_name = 'gemini-1.5-flash'
+                # نضع هذا داخل try/except لأنه يتصل بقاعدة البيانات
+                self.model_name = 'gemini-2.0-flash-exp'
                 self.provider = AISetting.get_setting('ai_provider', 'gemini')
             except Exception as db_e:
                 print(f"⚠️ تعذر جلب إعدادات AI من قاعدة البيانات، استخدام الافتراضي: {db_e}")
@@ -196,24 +196,6 @@ class AIAssistant:
             
             trend_percentage = ((recent_avg - older_avg) / older_avg * 100) if older_avg > 0 else 0
             
-            # تجميع الأداء حسب المواضيع
-            topics_performance = {}
-            for r in results:
-                topic = r.quiz_name
-                if topic not in topics_performance:
-                    topics_performance[topic] = []
-                topics_performance[topic].append(r.score_percentage)
-            
-            # حساب متوسط كل موضوع
-            topic_averages = {}
-            for topic, scores in topics_performance.items():
-                topic_averages[topic] = sum(scores) / len(scores)
-            
-            # تصنيف المواضيع
-            weak_topics = [t for t, avg in topic_averages.items() if avg < 60]
-            improvement_topics = [t for t, avg in topic_averages.items() if 60 <= avg < 80]
-            strong_topics = [t for t, avg in topic_averages.items() if avg >= 80]
-            
             return {
                 'student_id': student_id,
                 'student_name': student.name,
@@ -225,10 +207,14 @@ class AIAssistant:
                 'recent_average': round(recent_avg, 2),
                 'older_average': round(older_avg, 2),
                 'trend_percentage': round(trend_percentage, 2),
-                'topic_averages': topic_averages,
-                'weak_topics': weak_topics,
-                'improvement_topics': improvement_topics,
-                'strong_topics': strong_topics,
+                'results': [
+                    {
+                        'score': r.score_percentage,
+                        'date': r.created_at.isoformat(),
+                        'quiz_type': r.quiz_type,
+                        'time_spent': r.time_spent
+                    } for r in results[:10]
+                ],
                 'is_new_student': False
             }
             
@@ -236,30 +222,92 @@ class AIAssistant:
             print(f"❌ خطأ في _gather_student_data: {e}")
             return None
     
-    def _call_ai_for_analysis(self, data: Dict) -> Optional[str]:
+    def _call_ai_for_analysis(self, student_data: Dict) -> Optional[str]:
         """استدعاء AI لتحليل البيانات"""
-        if not self.model:
+        
+        # التأكد من التهيئة
+        if not self._ensure_configured():
             return None
         
+        prompt = self._create_analysis_prompt(student_data)
+        
         try:
-            prompt = self._build_analysis_prompt(data)
             response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
-            print(f"❌ خطأ في _call_ai_for_analysis: {e}")
+            print(f"❌ خطأ في استدعاء AI: {e}")
             return None
     
-    def _build_analysis_prompt(self, data: Dict) -> str:
-        """بناء prompt التحليل"""
-        # تجهيز المواضيع
-        weak_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('weak_topics', [])])
-        improvement_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('improvement_topics', [])])
-        strong_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('strong_topics', [])])
+    def _create_analysis_prompt(self, data: Dict) -> str:
+        """إنشاء prompt لـ AI"""
+        if data.get('is_new_student'):
+            return f"""
+أنت مساعد تعليمي ذكي لمنصة كيم تحصيلي (كيمياء).
+الطالب: {data['student_name']} (الصف {data['grade']})
+الحالة: طالب جديد.
+
+المطلوب: رسالة ترحيب، نصائح للبدء، وتوصيات عامة.
+
+تعليمات مهمة:
+- لا تكتب "أهلاً بك يا {data['student_name']}" أو أي ترحيب بالاسم
+- ابدأ مباشرة بالمحتوى
+- الرد بالعربية فقط، مختصر ومحفز
+"""
+        
+        # تحليل المواضيع
+        weak_topics = self.analyze_weak_topics(data['student_id'])
+        
+        # تصنيف المواضيع حسب الأداء
+        actually_weak = []     # < 60%
+        needs_work = []        # 60-79%
+        good_topics = []       # 80-89%
+        excellent_topics = []  # >= 90%
+        
+        for topic in weak_topics:
+            avg = topic['average']
+            if avg < 60:
+                actually_weak.append(topic)
+            elif avg < 80:
+                needs_work.append(topic)
+            elif avg < 90:
+                good_topics.append(topic)
+            else:
+                excellent_topics.append(topic)
+        
+        # تنسيق المواضيع حسب التصنيف
+        weak_text = ""
+        if actually_weak:
+            weak_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (يحتاج تحسين)"
+                for t in actually_weak[:3]
+            ])
+        
+        improvement_text = ""
+        if needs_work:
+            improvement_text = "\n".join([
+                f"- {t['topic']}: {t['average']}% (جيد، يمكن تحسينه)"
+                for t in needs_work[:3]
+            ])
+        
+        strong_text = ""
+        if excellent_topics:
+            strong_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in excellent_topics[:3]
+            ])
+        elif good_topics:
+            strong_text = "\n".join([
+                f"- {t['topic']}: {t['average']}%"
+                for t in good_topics[:3]
+            ])
         
         return f"""
-أنت مساعد تعليمي ذكي في منصة "كيم تحصيلي" لمادة الكيمياء.
+أنت معلم كيمياء متحمس وملهم لمنصة كيم تحصيلي.
+أسلوبك: إيجابي، محفز، مليء بالطاقة، وداعم.
 
-بيانات الطالب: {data['student_name']}
+الطالب: {data['student_name']}
+الصف: {data['grade']}
+الإحصائيات العامة:
 - الاختبارات: {data['total_quizzes']}
 - المعدل: {data['average_score']}%
 - المعدل الأخير: {data['recent_average']}%

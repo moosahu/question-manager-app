@@ -1,7 +1,6 @@
 # src/services/question_classifier.py
 """
 خدمة تصنيف الأسئلة بالذكاء الاصطناعي (Gemini)
-مع معالجة Rate Limit (10 طلبات/دقيقة)
 """
 
 import os
@@ -36,15 +35,15 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionClassifier:
-    """خدمة تصنيف الأسئلة بالذكاء الاصطناعي مع معالجة Rate Limit"""
+    """خدمة تصنيف الأسئلة بالذكاء الاصطناعي"""
     
     def __init__(self):
         self.model = None
         self.is_configured = False
         self.api_key = None
-        self.model_name = 'gemini-2.0-flash-exp'
+        self.model_name = 'gemini-1.5-flash'  # ✅ موديل مستقر
         self.last_request_time = 0
-        self.min_delay = 7.0  # 7 ثواني بين كل طلب (10 طلبات/دقيقة + هامش أمان)
+        self.min_delay = 4.0  # 4 ثواني (15 طلب/دقيقة)
     
     def _ensure_configured(self) -> bool:
         """تهيئة Gemini"""
@@ -77,15 +76,14 @@ class QuestionClassifier:
             return False
     
     def _wait_for_rate_limit(self):
-        """انتظار ذكي لتجنب rate limit"""
+        """انتظار لتجنب rate limit"""
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_delay:
-            wait_time = self.min_delay - elapsed
-            time.sleep(wait_time)
+            time.sleep(self.min_delay - elapsed)
         self.last_request_time = time.time()
     
     def _call_api_with_retry(self, prompt: str, max_retries: int = 3) -> Optional[str]:
-        """استدعاء API مع إعادة المحاولة عند rate limit"""
+        """استدعاء API مع retry"""
         
         for attempt in range(max_retries):
             try:
@@ -96,24 +94,19 @@ class QuestionClassifier:
             except Exception as e:
                 error_str = str(e)
                 
-                # Rate limit (429)
                 if '429' in error_str or 'quota' in error_str.lower():
-                    # استخراج وقت الانتظار
-                    wait_time = 65  # افتراضي دقيقة + 5 ثواني
+                    wait_time = 60
                     match = re.search(r'seconds:\s*(\d+)', error_str)
                     if match:
                         wait_time = int(match.group(1)) + 5
                     
-                    logger.warning(f"⏳ Rate limit - انتظار {wait_time}s (محاولة {attempt+1}/{max_retries})")
+                    logger.warning(f"⏳ Rate limit - انتظار {wait_time}s")
                     time.sleep(wait_time)
-                    self.last_request_time = time.time()
                     continue
                 
-                # أخطاء أخرى
-                logger.error(f"❌ خطأ API: {error_str[:100]}")
+                logger.error(f"❌ خطأ: {error_str[:100]}")
                 if attempt < max_retries - 1:
-                    time.sleep(10)
-                    continue
+                    time.sleep(5)
                 return None
         
         return None
@@ -133,7 +126,6 @@ class QuestionClassifier:
             return self._parse_response(response_text)
             
         except Exception as e:
-            logger.error(f"❌ خطأ: {e}")
             return {'difficulty': 'medium', 'bloom_level': 'remember', 'error': str(e)}
     
     def _build_prompt(self, question_text: str, options: List[str] = None) -> str:
@@ -142,79 +134,62 @@ class QuestionClassifier:
         if options:
             options_text = "\nالخيارات: " + " | ".join([opt for opt in options if opt])
         
-        return f"""صنّف سؤال الكيمياء التالي:
+        return f"""صنّف سؤال الكيمياء:
 
 السؤال: {question_text}{options_text}
 
 أجب بـ JSON فقط:
 {{"difficulty": "easy/medium/hard", "bloom_level": "remember/understand/apply/analyze/evaluate/create"}}
 
-معايير الصعوبة:
-- easy: تعريف مباشر، حقيقة بسيطة
-- medium: تطبيق قانون، حساب بسيط، فهم مفهوم
-- hard: حسابات معقدة، ربط عدة مفاهيم، تحليل عميق
+الصعوبة:
+- easy: تعريف، حقيقة بسيطة
+- medium: تطبيق قانون، حساب بسيط
+- hard: حسابات معقدة، ربط مفاهيم
 
-معايير بلوم:
-- remember: اذكر، عرّف، سمّ
-- understand: اشرح، وضّح، فسّر
-- apply: احسب، طبّق، أوجد
-- analyze: قارن، حلل، ميّز
-- evaluate: قيّم، احكم
-- create: صمم، اقترح"""
+بلوم:
+- remember: اذكر، عرّف
+- understand: اشرح، فسّر
+- apply: احسب، طبّق
+- analyze: قارن، حلل
+- evaluate: قيّم
+- create: صمم"""
     
     def _parse_response(self, response_text: str) -> Dict:
         """تحليل رد AI"""
         result = {'difficulty': 'medium', 'bloom_level': 'remember'}
         
         try:
-            # استخراج JSON
             json_match = re.search(r'\{[^}]+\}', response_text)
             if json_match:
                 parsed = json.loads(json_match.group())
                 
-                valid_diff = ['easy', 'medium', 'hard']
-                valid_bloom = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
-                
-                if parsed.get('difficulty') in valid_diff:
+                if parsed.get('difficulty') in ['easy', 'medium', 'hard']:
                     result['difficulty'] = parsed['difficulty']
-                if parsed.get('bloom_level') in valid_bloom:
+                if parsed.get('bloom_level') in ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']:
                     result['bloom_level'] = parsed['bloom_level']
         except:
             pass
         
         return result
     
-    def classify_all_unclassified(self, batch_size: int = 10, delay: float = 7.0) -> Dict:
-        """
-        تصنيف الأسئلة غير المصنفة
-        
-        ⚠️ Rate Limit: 10 طلبات/دقيقة
-        - batch_size=10 موصى به
-        - delay=7 ثواني بين كل طلب
-        """
+    def classify_all_unclassified(self, batch_size: int = 15, delay: float = 4.0) -> Dict:
+        """تصنيف الأسئلة غير المصنفة"""
         if not self._ensure_configured():
             return {'success': False, 'error': 'AI not configured'}
         
         if Question is None:
             return {'success': False, 'error': 'Question model not available'}
         
-        # تحديث التأخير
-        self.min_delay = max(delay, 6.0)
+        self.min_delay = max(delay, 4.0)
         
         try:
-            # جلب الأسئلة غير المصنفة
             questions = Question.query.filter(
                 (Question.difficulty == 'medium') | (Question.difficulty == None),
                 (Question.bloom_level == 'remember') | (Question.bloom_level == None)
             ).limit(batch_size).all()
             
             if not questions:
-                return {
-                    'success': True,
-                    'message': 'لا توجد أسئلة تحتاج تصنيف',
-                    'classified': 0,
-                    'total': 0
-                }
+                return {'success': True, 'message': 'لا توجد أسئلة تحتاج تصنيف', 'classified': 0, 'total': 0}
             
             stats = {
                 'total': len(questions),
@@ -224,7 +199,7 @@ class QuestionClassifier:
                 'bloom_counts': {}
             }
             
-            logger.info(f"🔄 بدء تصنيف {len(questions)} سؤال (تأخير {self.min_delay}s)...")
+            logger.info(f"🔄 بدء تصنيف {len(questions)} سؤال...")
             
             for i, question in enumerate(questions):
                 try:
@@ -245,27 +220,23 @@ class QuestionClassifier:
                         logger.info(f"  ✅ [{i+1}/{len(questions)}] Q{question.question_id}: {classification['difficulty']}, {classification['bloom_level']}")
                     else:
                         stats['failed'] += 1
-                        logger.warning(f"  ⚠️ [{i+1}/{len(questions)}] Q{question.question_id}: {classification.get('error', 'unknown')[:50]}")
+                        logger.warning(f"  ⚠️ [{i+1}/{len(questions)}] Q{question.question_id}: فشل")
                     
                 except Exception as e:
                     stats['failed'] += 1
                     logger.error(f"  ❌ [{i+1}/{len(questions)}] Q{question.question_id}: {e}")
             
-            # حفظ التغييرات
             db.session.commit()
             
             stats['success'] = True
             stats['message'] = f"تم تصنيف {stats['classified']} من {stats['total']} سؤال"
             
             logger.info(f"✅ {stats['message']}")
-            logger.info(f"   الصعوبة: {stats['difficulty_counts']}")
-            logger.info(f"   بلوم: {stats['bloom_counts']}")
             
             return stats
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ خطأ: {e}")
             return {'success': False, 'error': str(e)}
     
     def get_classification_stats(self) -> Dict:
@@ -293,5 +264,4 @@ class QuestionClassifier:
             return {'error': str(e)}
 
 
-# Instance
 question_classifier = QuestionClassifier()
