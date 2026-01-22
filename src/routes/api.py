@@ -4685,13 +4685,24 @@ def browse_questions_classifications():
                     correct_option = opt.option_text
                     break
             
+            # جلب ai_classified باستخدام raw SQL
+            try:
+                from sqlalchemy import text
+                ai_result = db.session.execute(
+                    text("SELECT ai_classified FROM questions WHERE question_id = :qid"),
+                    {"qid": q.question_id}
+                )
+                ai_classified_value = ai_result.scalar()
+            except:
+                ai_classified_value = False
+            
             questions.append({
                 'question_id': q.question_id,
                 'question_text': q.question_text[:100] + '...' if q.question_text and len(q.question_text) > 100 else q.question_text,
                 'has_image': bool(q.image_url),
                 'difficulty': q.difficulty or 'medium',
                 'bloom_level': q.bloom_level or 'remember',
-                'ai_classified': getattr(q, 'ai_classified', False) if hasattr(q, 'ai_classified') else False,
+                'ai_classified': ai_classified_value or False,
                 'correct_answer': correct_option,
                 'lesson': q.lesson.name if q.lesson else None,
                 'unit': q.lesson.unit.name if q.lesson and q.lesson.unit else None,
