@@ -1,9 +1,6 @@
 """
 🔄 Automation Scheduler - جدولة الرسائل التلقائية الذكية
 يستخدم smart_notifications.py الموجود
-
-⚠️ مهم: يستخدم قفل ملف لضمان تشغيل scheduler واحد فقط
-حتى مع وجود عدة workers في Gunicorn
 """
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,9 +10,6 @@ from flask import current_app
 from src.extensions import db
 from sqlalchemy import text
 import logging
-import fcntl
-import os
-import atexit
 
 logger = logging.getLogger(__name__)
 
@@ -24,61 +18,6 @@ automation_scheduler = None
 
 # App reference للـ jobs (مهم!)
 _flask_app = None
-
-# قفل الملف لمنع تشغيل أكثر من scheduler
-LOCK_FILE_PATH = '/tmp/automation_scheduler.lock'
-_lock_file = None
-_has_lock = False
-
-
-def _acquire_scheduler_lock():
-    """
-    محاولة الحصول على قفل حصري للـ scheduler
-    يضمن أن worker واحد فقط يشغّل الـ scheduler
-    """
-    global _lock_file, _has_lock
-    
-    try:
-        # فتح/إنشاء ملف القفل
-        _lock_file = open(LOCK_FILE_PATH, 'w')
-        
-        # محاولة الحصول على قفل حصري (non-blocking)
-        fcntl.flock(_lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        
-        # نجحنا في الحصول على القفل
-        _has_lock = True
-        
-        # كتابة معلومات الـ worker
-        _lock_file.write(f"PID: {os.getpid()}\nTime: {datetime.now()}\n")
-        _lock_file.flush()
-        
-        logger.info(f"🔒 Worker {os.getpid()} حصل على قفل الـ Scheduler")
-        return True
-        
-    except (IOError, OSError) as e:
-        # فشلنا - worker آخر يملك القفل
-        _has_lock = False
-        if _lock_file:
-            _lock_file.close()
-            _lock_file = None
-        logger.info(f"⏭️ Worker {os.getpid()} - الـ Scheduler يعمل في worker آخر")
-        return False
-
-
-def _release_scheduler_lock():
-    """تحرير قفل الـ scheduler"""
-    global _lock_file, _has_lock
-    
-    if _lock_file and _has_lock:
-        try:
-            fcntl.flock(_lock_file.fileno(), fcntl.LOCK_UN)
-            _lock_file.close()
-            logger.info(f"🔓 Worker {os.getpid()} حرّر قفل الـ Scheduler")
-        except Exception as e:
-            logger.warning(f"⚠️ خطأ في تحرير القفل: {e}")
-        finally:
-            _lock_file = None
-            _has_lock = False
 
 
 def is_within_working_hours(start_hour, end_hour):
@@ -260,12 +199,7 @@ def send_automatic_messages_job():
 
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
-    global automation_scheduler, _flask_app, _has_lock
-    
-    # ⚠️ محاولة الحصول على القفل أولاً
-    if not _acquire_scheduler_lock():
-        logger.info(f"⏭️ Worker {os.getpid()} - تخطي تشغيل الـ Scheduler (يعمل في worker آخر)")
-        return
+    global automation_scheduler, _flask_app
     
     if automation_scheduler is not None:
         logger.warning("⚠️ Scheduler يعمل بالفعل!")
@@ -301,31 +235,22 @@ def start_automation_scheduler(app):
         # بدء التشغيل
         automation_scheduler.start()
         
-        # تسجيل تحرير القفل عند إغلاق التطبيق
-        atexit.register(_release_scheduler_lock)
-        atexit.register(stop_automation_scheduler)
-        
-        logger.info(f"✅ Worker {os.getpid()} - بدء جدولة الرسائل التلقائية: كل {interval_hours} ساعة ({interval_minutes} دقيقة)")
+        logger.info(f"✅ بدء جدولة الرسائل التلقائية: كل {interval_hours} ساعة ({interval_minutes} دقيقة)")
         
     except Exception as e:
         logger.error(f"❌ فشل بدء Scheduler: {e}")
-        _release_scheduler_lock()  # تحرير القفل في حالة الفشل
         import traceback
         traceback.print_exc()
 
 
 def stop_automation_scheduler():
     """إيقاف جدولة الرسائل التلقائية"""
-    global automation_scheduler, _has_lock
+    global automation_scheduler
     
     if automation_scheduler is not None:
         automation_scheduler.shutdown()
         automation_scheduler = None
         logger.info("⏹️ تم إيقاف جدولة الرسائل التلقائية")
-    
-    # تحرير القفل
-    if _has_lock:
-        _release_scheduler_lock()
     
     # ملاحظة: نحتفظ بـ _flask_app للـ restart
 
