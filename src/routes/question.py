@@ -81,8 +81,8 @@ class SavedExam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True)
-    unit_id = db.Column(db.Integer, db.ForeignKey('units.id'), nullable=True)
+    course_id = db.Column(db.Integer, nullable=True)  # بدون ForeignKey لتجنب مشاكل العلاقات
+    unit_id = db.Column(db.Integer, nullable=True)
     question_ids = db.Column(db.JSON, nullable=False, default=list)
     questions_count = db.Column(db.Integer, nullable=False, default=0)
     models = db.Column(db.JSON, default=['أ'])
@@ -96,8 +96,12 @@ class SavedExam(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
-    # العلاقات
-    course = db.relationship('Course', backref='saved_exams', lazy=True)
+    def get_course_name(self):
+        """جلب اسم المنهج"""
+        if self.course_id:
+            course = Course.query.get(self.course_id)
+            return course.name if course else None
+        return None
     
     def to_dict(self):
         return {
@@ -105,7 +109,7 @@ class SavedExam(db.Model):
             'name': self.name,
             'description': self.description,
             'course_id': self.course_id,
-            'course_name': self.course.name if self.course else None,
+            'course_name': self.get_course_name(),
             'unit_id': self.unit_id,
             'question_ids': self.question_ids,
             'questions_count': self.questions_count,
