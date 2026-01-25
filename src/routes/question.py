@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 import io # Added for reading/writing file in memory
+import json
 import pandas as pd # Added for reading Excel/CSV
 from datetime import datetime
 import random
@@ -2223,7 +2224,7 @@ def generate_qr_code(data_dict):
     return f"data:image/png;base64,{img_base64}"
 
 
-def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=None):
+def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=None, saved_options_order=None):
     """
     خلط ترتيب الأسئلة والخيارات
     
@@ -2232,6 +2233,7 @@ def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=N
         shuffle_questions: خلط ترتيب الأسئلة
         shuffle_options: خلط ترتيب الخيارات
         seed: بذرة للعشوائية (لإعادة الإنتاج)
+        saved_options_order: ترتيب الخيارات المحفوظ لكل سؤال (dict: question_id -> [option_ids])
         
     Returns:
         قائمة الأسئلة المخلوطة مع تتبع الإجابات الصحيحة
@@ -2247,22 +2249,46 @@ def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=N
         random.shuffle(shuffled)
     
     # خلط ترتيب الخيارات لكل سؤال
-    if shuffle_options:
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
-        for question in shuffled:
-            options = question.get('options', [])
-            if options:
-                # خلط الخيارات
+    letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    
+    for question in shuffled:
+        options = question.get('options', [])
+        if not options:
+            continue
+            
+        question_id = str(question.get('question_id', ''))
+        
+        # التحقق من وجود ترتيب محفوظ لهذا السؤال
+        if saved_options_order and question_id in saved_options_order:
+            saved_order = saved_options_order[question_id]
+            # إنشاء قاموس للخيارات حسب الـ ID
+            options_by_id = {str(opt.get('option_id', i)): opt for i, opt in enumerate(options)}
+            
+            # ترتيب الخيارات حسب الترتيب المحفوظ
+            ordered_options = []
+            for opt_id in saved_order:
+                opt_id_str = str(opt_id)
+                if opt_id_str in options_by_id:
+                    ordered_options.append(options_by_id[opt_id_str])
+            
+            # إذا تم ترتيب جميع الخيارات بنجاح، نستخدم الترتيب المحفوظ
+            if len(ordered_options) == len(options):
+                options = ordered_options
+            elif shuffle_options:
+                # إذا فشل الترتيب المحفوظ، نخلط عشوائياً
                 random.shuffle(options)
-                
-                # تحديث الإجابة الصحيحة بعد الخلط
-                for i, opt in enumerate(options):
-                    if opt.get('is_correct'):
-                        question['correct_answer_index'] = i
-                        question['correct_answer_letter'] = letters[i] if i < len(letters) else str(i+1)
-                        break
-                
-                question['options'] = options
+        elif shuffle_options:
+            # لا يوجد ترتيب محفوظ، نخلط عشوائياً
+            random.shuffle(options)
+        
+        # تحديث الإجابة الصحيحة بعد الترتيب
+        for i, opt in enumerate(options):
+            if opt.get('is_correct'):
+                question['correct_answer_index'] = i
+                question['correct_answer_letter'] = letters[i] if i < len(letters) else str(i+1)
+                break
+        
+        question['options'] = options
     
     return shuffled
 
@@ -2481,6 +2507,9 @@ def preview_multi_models():
         font_size = data.get('font_size', 14)  # حجم الخط الافتراضي 14px
         image_size = data.get('image_size', 100)  # حجم الصور الافتراضي 100%
         
+        # ترتيب الخيارات المحفوظ (من اختبار محفوظ سابقاً)
+        saved_options_order = data.get('saved_options_order', {})
+        
         # إعدادات التنسيق المتقدمة
         columns = data.get('columns', 2)  # عدد الأعمدة الافتراضي 2
         spacing = data.get('spacing', 'normal')  # المسافة الافتراضية متوسطة
@@ -2573,11 +2602,16 @@ def preview_multi_models():
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
             seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            
+            # إذا كان هناك ترتيب محفوظ وهذا هو النموذج الأول، نستخدم الترتيب المحفوظ
+            use_saved_order = saved_options_order if (idx == 0 and saved_options_order) else None
+            
             shuffled_questions = shuffle_exam(
                 questions_data,
-                shuffle_questions=True,
+                shuffle_questions=True if not use_saved_order else False,
                 shuffle_options=shuffle_options,
-                seed=seed
+                seed=seed if not use_saved_order else None,
+                saved_options_order=use_saved_order
             )
             
             # بناء مفتاح الإجابات من الأسئلة المخلوطة لهذا النموذج تحديداً
@@ -2675,6 +2709,35 @@ def preview_multi_models():
             combined_html += model_html
             if i < len(all_models_html) - 1:
                 combined_html += '<div class="page-break"></div>'
+        
+        # إضافة سكربت لحفظ ترتيب الخيارات في النافذة الأصلية
+        # نبني ترتيب الخيارات من النموذج الأول فقط
+        first_model_order = {}
+        if all_models_html and questions_data:
+            # نستخدم الأسئلة المخلوطة من أول نموذج
+            first_shuffled = shuffle_exam(
+                questions_data,
+                shuffle_questions=True if not saved_options_order else False,
+                shuffle_options=shuffle_options,
+                seed=(hash(''.join(str(q['question_id']) for q in questions_data) + models[0]) + 15485863) % (2**31) if not saved_options_order else None,
+                saved_options_order=saved_options_order if saved_options_order else None
+            )
+            for q in first_shuffled:
+                qid = str(q.get('question_id', ''))
+                options = q.get('options', [])
+                first_model_order[qid] = [opt.get('option_id') for opt in options]
+        
+        # إضافة السكربت لإرسال الترتيب للنافذة الأصلية
+        options_order_json = json.dumps(first_model_order, ensure_ascii=False)
+        combined_html += f'''
+<script>
+// إرسال ترتيب الخيارات للنافذة الأصلية
+if (window.opener && !window.opener.closed) {{
+    window.opener.shuffledOptionsOrder = {options_order_json};
+    console.log('تم حفظ ترتيب الخيارات:', window.opener.shuffledOptionsOrder);
+}}
+</script>
+'''
         
         combined_html += "</body></html>"
         
@@ -3445,6 +3508,13 @@ def save_exam():
         if not question_ids:
             return jsonify({'success': False, 'error': 'يجب اختيار أسئلة للحفظ'}), 400
         
+        # الحصول على ترتيب الخيارات لكل سؤال (إذا كان موجوداً)
+        questions_with_order = data.get('questions_with_order', [])
+        options_order = {}
+        for q in questions_with_order:
+            if q.get('options_order'):
+                options_order[str(q['question_id'])] = q['options_order']
+        
         # إنشاء الاختبار الجديد
         new_exam = SavedExam(
             name=name,
@@ -3461,7 +3531,8 @@ def save_exam():
                 'image_size': data.get('image_size', 100),
                 'columns': data.get('columns', 2),
                 'spacing': data.get('spacing', 'normal'),
-                'options_layout': data.get('options_layout', 'vertical')
+                'options_layout': data.get('options_layout', 'vertical'),
+                'options_order': options_order  # ترتيب الخيارات المخلوط لكل سؤال
             },
             header_settings=data.get('header_settings', {}),
             exam_type=data.get('exam_type', ''),
@@ -3583,42 +3654,80 @@ def delete_saved_exam(exam_id):
 @question_bp.route('/saved-exams/<int:exam_id>/load', methods=['POST'])
 @login_required
 def load_saved_exam(exam_id):
-    """تحميل اختبار محفوظ مع جلب الأسئلة"""
+    """تحميل اختبار محفوظ مع جلب الأسئلة بنفس الترتيب المحفوظ"""
     try:
         exam = SavedExam.query.filter_by(id=exam_id, is_active=True).first()
         
         if not exam:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
         
-        # جلب الأسئلة المحفوظة
-        questions = get_ordered_questions(exam.question_ids)
+        # جلب الأسئلة المحفوظة بنفس الترتيب الأصلي
+        saved_question_ids = exam.question_ids or []
         
-        # تحويل الأسئلة لقائمة
+        # جلب ترتيب الخيارات المحفوظ (إذا وجد)
+        settings = exam.settings or {}
+        options_order = settings.get('options_order', {})
+        
+        # جلب جميع الأسئلة دفعة واحدة
+        questions_dict = {}
+        if saved_question_ids:
+            questions = Question.query.filter(
+                Question.question_id.in_(saved_question_ids)
+            ).options(
+                joinedload(Question.options),
+                joinedload(Question.lesson).joinedload(Lesson.unit)
+            ).all()
+            
+            # تحويل لقاموس للوصول السريع
+            for q in questions:
+                questions_dict[q.question_id] = q
+        
+        # بناء قائمة الأسئلة بنفس الترتيب المحفوظ
         questions_data = []
-        for q in questions:
-            q_dict = {
-                'question_id': q.question_id,
-                'question_text': q.question_text or '',
-                'image_url': getattr(q, 'image_url', None) or '',
-                'difficulty': getattr(q, 'difficulty', 'medium'),
-                'bloom_level': getattr(q, 'bloom_level', 'remember'),
-                'unit': q.lesson.unit.name if q.lesson and q.lesson.unit else 'غير محدد',
-                'lesson': q.lesson.name if q.lesson else 'غير محدد',
-                'options': []
-            }
-            for opt in q.options:
-                q_dict['options'].append({
-                    'option_id': getattr(opt, 'option_id', None),
-                    'option_text': getattr(opt, 'option_text', '') or '',
-                    'image_url': getattr(opt, 'image_url', None) or '',
-                    'is_correct': getattr(opt, 'is_correct', False)
-                })
-            questions_data.append(q_dict)
+        for qid in saved_question_ids:
+            q = questions_dict.get(qid)
+            if q:  # السؤال موجود
+                # جلب الخيارات
+                options_list = []
+                for opt in q.options:
+                    options_list.append({
+                        'option_id': getattr(opt, 'option_id', None),
+                        'option_text': getattr(opt, 'option_text', '') or '',
+                        'image_url': getattr(opt, 'image_url', None) or '',
+                        'is_correct': getattr(opt, 'is_correct', False)
+                    })
+                
+                # إذا كان هناك ترتيب محفوظ للخيارات، نرتبها حسبه
+                saved_order = options_order.get(str(qid))
+                if saved_order and len(saved_order) == len(options_list):
+                    # إنشاء قاموس للخيارات حسب الـ ID
+                    options_by_id = {opt['option_id']: opt for opt in options_list}
+                    # ترتيب الخيارات حسب الترتيب المحفوظ
+                    ordered_options = []
+                    for opt_id in saved_order:
+                        if opt_id in options_by_id:
+                            ordered_options.append(options_by_id[opt_id])
+                    # إذا تم ترتيب جميع الخيارات بنجاح
+                    if len(ordered_options) == len(options_list):
+                        options_list = ordered_options
+                
+                q_dict = {
+                    'question_id': q.question_id,
+                    'question_text': q.question_text or '',
+                    'image_url': getattr(q, 'image_url', None) or '',
+                    'difficulty': getattr(q, 'difficulty', 'medium'),
+                    'bloom_level': getattr(q, 'bloom_level', 'remember'),
+                    'unit': q.lesson.unit.name if q.lesson and q.lesson.unit else 'غير محدد',
+                    'lesson': q.lesson.name if q.lesson else 'غير محدد',
+                    'options': options_list
+                }
+                questions_data.append(q_dict)
         
         return jsonify({
             'success': True,
             'exam': exam.to_dict(),
-            'questions': questions_data
+            'questions': questions_data,
+            'options_order': options_order  # إرسال ترتيب الخيارات للـ Frontend
         })
         
     except Exception as e:

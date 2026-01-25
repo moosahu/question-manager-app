@@ -3874,6 +3874,8 @@ function generatePrintableDocument(questions, includeAnswers) {
             columns: layoutSettings.columns,
             spacing: layoutSettings.spacing,
             options_layout: layoutSettings.options_layout,
+            // ترتيب الخيارات المحفوظ (إذا وجد)
+            saved_options_order: window.shuffledOptionsOrder || {},
             // إعدادات الكليشة
             header_size: headerFormatSettings.header_size,
             show_logo: headerFormatSettings.show_logo,
@@ -3900,7 +3902,15 @@ function generatePrintableDocument(questions, includeAnswers) {
         const printWindow = window.open('', '_blank');
         printWindow.document.write(html);
         printWindow.document.close();
-        showSuccess('تم توليد النموذج بنجاح');
+        
+        // انتظار قليل ثم التحقق من حفظ الترتيب
+        setTimeout(() => {
+            if (window.shuffledOptionsOrder && Object.keys(window.shuffledOptionsOrder).length > 0) {
+                showSuccess('تم توليد النموذج بنجاح ✅ (ترتيب الخيارات محفوظ - يمكنك حفظ الاختبار الآن)');
+            } else {
+                showSuccess('تم توليد النموذج بنجاح');
+            }
+        }, 500);
     })
     .catch(error => {
         showError('خطأ: ' + error.message);
@@ -4228,6 +4238,25 @@ async function saveCurrentExam() {
         const headerFormatSettings = getHeaderSettings();
         const layoutSettings = getLayoutSettings();
         
+        // بناء قائمة الأسئلة مع ترتيب الخيارات
+        // إذا كان هناك ترتيب مخلوط محفوظ، نستخدمه
+        const questionsWithOrder = [];
+        const questionIdsArray = Array.from(selectedQuestionIds);
+        
+        questionIdsArray.forEach(qId => {
+            const questionData = {
+                question_id: qId,
+                options_order: null  // سيتم ملؤه إذا كان هناك خلط محفوظ
+            };
+            
+            // التحقق من وجود ترتيب مخلوط محفوظ لهذا السؤال
+            if (window.shuffledOptionsOrder && window.shuffledOptionsOrder[qId]) {
+                questionData.options_order = window.shuffledOptionsOrder[qId];
+            }
+            
+            questionsWithOrder.push(questionData);
+        });
+        
         const response = await fetch('/questions/saved-exams', {
             method: 'POST',
             headers: {
@@ -4239,7 +4268,8 @@ async function saveCurrentExam() {
                 description: '',
                 course_id: currentCourseId,
                 unit_id: currentUnitId,
-                question_ids: Array.from(selectedQuestionIds),
+                question_ids: questionIdsArray,
+                questions_with_order: questionsWithOrder,  // الأسئلة مع ترتيب الخيارات
                 models: getSelectedModels(),
                 shuffle_questions: document.getElementById('shuffleQuestions')?.checked ?? true,
                 shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
@@ -4268,6 +4298,9 @@ async function saveCurrentExam() {
         showLoading(false);
     }
 }
+
+// متغير عام لحفظ ترتيب الخيارات المخلوطة
+window.shuffledOptionsOrder = {};
 
 // فتح نافذة الاختبارات المحفوظة
 function openSavedExamsModal() {
@@ -4392,6 +4425,15 @@ async function loadSavedExam(examId) {
             document.getElementById('examNameInput').value = exam.name;
             currentLoadedExamId = exam.id;
             
+            // حفظ ترتيب الخيارات المخلوط (إذا وجد)
+            if (data.options_order) {
+                window.shuffledOptionsOrder = data.options_order;
+            } else if (exam.settings && exam.settings.options_order) {
+                window.shuffledOptionsOrder = exam.settings.options_order;
+            } else {
+                window.shuffledOptionsOrder = {};
+            }
+            
             // تحديث المنهج إذا كان مختلفاً
             if (exam.course_id && exam.course_id !== currentCourseId) {
                 document.getElementById('courseSelect').value = exam.course_id;
@@ -4457,7 +4499,9 @@ async function loadSavedExam(examId) {
             updateStats();
             updateSelectedCountDisplay();
             
-            showSuccess(`تم تحميل اختبار "${exam.name}" (${exam.questions_count} سؤال)`);
+            const hasOptionsOrder = Object.keys(window.shuffledOptionsOrder).length > 0;
+            const orderMsg = hasOptionsOrder ? ' (مع ترتيب الخيارات المحفوظ)' : '';
+            showSuccess(`تم تحميل اختبار "${exam.name}" (${exam.questions_count} سؤال)${orderMsg}`);
         } else {
             showError(data.error || 'فشل تحميل الاختبار');
         }
