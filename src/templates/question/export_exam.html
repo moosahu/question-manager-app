@@ -3876,6 +3876,7 @@ function generatePrintableDocument(questions, includeAnswers) {
             options_layout: layoutSettings.options_layout,
             // ترتيب الخيارات المحفوظ (إذا وجد)
             saved_options_order: window.shuffledOptionsOrder || {},
+            _debug_has_saved_order: Object.keys(window.shuffledOptionsOrder || {}).length > 0,
             // إعدادات الكليشة
             header_size: headerFormatSettings.header_size,
             show_logo: headerFormatSettings.show_logo,
@@ -4428,10 +4429,13 @@ async function loadSavedExam(examId) {
             // حفظ ترتيب الخيارات المخلوط (إذا وجد)
             if (data.options_order) {
                 window.shuffledOptionsOrder = data.options_order;
+                console.log('✅ تم تحميل ترتيب الخيارات من options_order:', window.shuffledOptionsOrder);
             } else if (exam.settings && exam.settings.options_order) {
                 window.shuffledOptionsOrder = exam.settings.options_order;
+                console.log('✅ تم تحميل ترتيب الخيارات من settings:', window.shuffledOptionsOrder);
             } else {
                 window.shuffledOptionsOrder = {};
+                console.log('⚠️ لا يوجد ترتيب خيارات محفوظ');
             }
             
             // تحديث المنهج إذا كان مختلفاً
