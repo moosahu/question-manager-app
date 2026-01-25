@@ -2248,6 +2248,12 @@ def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=N
     if shuffle_questions:
         random.shuffle(shuffled)
     
+    # تحويل مفاتيح saved_options_order لـ strings للمقارنة
+    saved_order_normalized = {}
+    if saved_options_order:
+        for k, v in saved_options_order.items():
+            saved_order_normalized[str(k)] = [str(x) for x in v]
+    
     # خلط ترتيب الخيارات لكل سؤال
     letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
     
@@ -2259,17 +2265,16 @@ def shuffle_exam(questions, shuffle_questions=True, shuffle_options=True, seed=N
         question_id = str(question.get('question_id', ''))
         
         # التحقق من وجود ترتيب محفوظ لهذا السؤال
-        if saved_options_order and question_id in saved_options_order:
-            saved_order = saved_options_order[question_id]
+        if saved_order_normalized and question_id in saved_order_normalized:
+            saved_order = saved_order_normalized[question_id]
             # إنشاء قاموس للخيارات حسب الـ ID
-            options_by_id = {str(opt.get('option_id', i)): opt for i, opt in enumerate(options)}
+            options_by_id = {str(opt.get('option_id', '')): opt for opt in options}
             
             # ترتيب الخيارات حسب الترتيب المحفوظ
             ordered_options = []
             for opt_id in saved_order:
-                opt_id_str = str(opt_id)
-                if opt_id_str in options_by_id:
-                    ordered_options.append(options_by_id[opt_id_str])
+                if opt_id in options_by_id:
+                    ordered_options.append(options_by_id[opt_id])
             
             # إذا تم ترتيب جميع الخيارات بنجاح، نستخدم الترتيب المحفوظ
             if len(ordered_options) == len(options):
@@ -2603,15 +2608,17 @@ def preview_multi_models():
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
             seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
             
-            # إذا كان هناك ترتيب محفوظ وهذا هو النموذج الأول، نستخدم الترتيب المحفوظ
-            use_saved_order = saved_options_order if (idx == 0 and saved_options_order) else None
+            # التحقق من وجود ترتيب محفوظ (للنموذج الأول فقط)
+            has_saved_order = saved_options_order and len(saved_options_order) > 0 and idx == 0
+            
+            current_app.logger.info(f"Model {model_letter}: has_saved_order={has_saved_order}, saved_options_order keys={list(saved_options_order.keys())[:5] if saved_options_order else 'None'}")
             
             shuffled_questions = shuffle_exam(
                 questions_data,
-                shuffle_questions=True if not use_saved_order else False,
-                shuffle_options=shuffle_options,
-                seed=seed if not use_saved_order else None,
-                saved_options_order=use_saved_order
+                shuffle_questions=not has_saved_order,  # لا تخلط الأسئلة إذا فيه ترتيب محفوظ
+                shuffle_options=shuffle_options if not has_saved_order else True,  # استخدم الترتيب المحفوظ
+                seed=seed if not has_saved_order else None,
+                saved_options_order=saved_options_order if has_saved_order else None
             )
             
             # بناء مفتاح الإجابات من الأسئلة المخلوطة لهذا النموذج تحديداً
