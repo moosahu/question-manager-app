@@ -647,6 +647,403 @@
             font-size: 0.75rem;
             margin-right: 5px;
         }
+
+        /* ==================== Popup معاينة السؤال ==================== */
+        .question-preview-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(3px);
+        }
+
+        .question-preview-overlay.active {
+            display: flex;
+        }
+
+        .question-preview-popup {
+            background: white;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: popupSlideIn 0.3s ease;
+        }
+
+        @keyframes popupSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .popup-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .popup-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .popup-body {
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .popup-question-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-right: 4px solid #667eea;
+        }
+
+        .popup-question-image {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .popup-question-image img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .popup-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .popup-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .popup-option.correct {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .popup-option-letter {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .popup-option.correct .popup-option-letter {
+            background: #4caf50;
+            color: white;
+        }
+
+        .popup-option-text {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+        .popup-option-image img {
+            max-height: 80px;
+            border-radius: 4px;
+        }
+
+        .popup-meta {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .popup-meta-item {
+            background: #f0f0f0;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .popup-meta-item i {
+            margin-left: 5px;
+            color: #999;
+        }
+
+        .popup-footer {
+            padding: 15px 24px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #eee;
+        }
+
+        .popup-nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .popup-nav-btn:hover {
+            background: #5a6fd6;
+            transform: translateY(-2px);
+        }
+
+        .popup-nav-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .popup-select-btn {
+            background: #4caf50;
+        }
+
+        .popup-select-btn:hover {
+            background: #43a047;
+        }
+
+        .popup-select-btn.selected {
+            background: #ff9800;
+        }
+
+        /* ==================== التوليد العشوائي الذكي ==================== */
+        .smart-random-section {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .smart-random-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .smart-random-option:last-child {
+            border-bottom: none;
+        }
+
+        .smart-random-option label {
+            font-size: 0.85rem;
+            color: #1565c0;
+            cursor: pointer;
+        }
+
+        .unit-distribution {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 6px;
+            padding: 8px;
+        }
+
+        .unit-dist-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+        }
+
+        .unit-dist-item input {
+            width: 50px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        /* زر المعاينة على السؤال */
+        .question-preview-btn {
+            background: transparent;
+            border: 1px solid #ddd;
+            color: #666;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .question-preview-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* ==================== أنماط فلاتر الصعوبة وبلوم ==================== */
+        .filter-label {
+            display: block;
+            padding: 6px 8px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            user-select: none;
+        }
+
+        /* فلاتر الصعوبة */
+        .filter-easy {
+            background: #f0fff4;
+            color: #276749;
+            border-color: #9ae6b4;
+        }
+
+        .filter-medium {
+            background: #fffff0;
+            color: #975a16;
+            border-color: #faf089;
+        }
+
+        .filter-hard {
+            background: #fff5f5;
+            color: #c53030;
+            border-color: #feb2b2;
+        }
+
+        /* عند إلغاء التحديد */
+        input[name="difficultyFilter"]:not(:checked) + .filter-easy,
+        input[name="difficultyFilter"]:not(:checked) + .filter-medium,
+        input[name="difficultyFilter"]:not(:checked) + .filter-hard {
+            background: #f5f5f5;
+            color: #999;
+            border-color: #ddd;
+            opacity: 0.6;
+        }
+
+        /* عند التحديد - تأثير مميز */
+        input[name="difficultyFilter"]:checked + .filter-easy {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border-color: #38a169;
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4);
+        }
+
+        input[name="difficultyFilter"]:checked + .filter-medium {
+            background: linear-gradient(135deg, #ecc94b, #d69e2e);
+            color: white;
+            border-color: #d69e2e;
+            box-shadow: 0 2px 8px rgba(236, 201, 75, 0.4);
+        }
+
+        input[name="difficultyFilter"]:checked + .filter-hard {
+            background: linear-gradient(135deg, #fc8181, #e53e3e);
+            color: white;
+            border-color: #e53e3e;
+            box-shadow: 0 2px 8px rgba(252, 129, 129, 0.4);
+        }
+
+        /* فلاتر بلوم */
+        .filter-bloom {
+            background: #f7fafc;
+            color: #4a5568;
+            border-color: #e2e8f0;
+            font-size: 0.7rem;
+            padding: 5px 6px;
+        }
+
+        input[name="bloomFilter"]:not(:checked) + .filter-bloom {
+            background: #f5f5f5;
+            color: #999;
+            border-color: #ddd;
+            opacity: 0.5;
+        }
+
+        input[name="bloomFilter"]:checked + .filter-bloom {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        }
+
+        .difficulty-filter-btn,
+        .bloom-filter-btn {
+            display: block;
+        }
+
+        .difficulty-filter-btn:hover .filter-label,
+        .bloom-filter-btn:hover .filter-label {
+            transform: translateY(-1px);
+        }
     </style>
 {% endblock %}
 
@@ -766,10 +1163,154 @@
                         <input type="number" id="questionCount" min="1" max="100" value="10" style="width: 100%; padding: 8px; margin-top: 5px;" />
                     </div>
 
+                    <!-- التوليد العشوائي الذكي -->
+                    <div class="smart-random-section">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #1565c0; display: block; margin-bottom: 10px;">
+                            <i class="fas fa-magic"></i> خيارات التوليد الذكي:
+                        </label>
+                        
+                        <div class="smart-random-option">
+                            <input type="radio" name="randomMode" id="randomModeNormal" value="normal" checked>
+                            <label for="randomModeNormal">عشوائي عادي</label>
+                        </div>
+                        
+                        <div class="smart-random-option">
+                            <input type="radio" name="randomMode" id="randomModeBalanced" value="balanced">
+                            <label for="randomModeBalanced">توزيع متساوي على الوحدات</label>
+                        </div>
+                        
+                        <div class="smart-random-option">
+                            <input type="radio" name="randomMode" id="randomModePerLesson" value="perLesson">
+                            <label for="randomModePerLesson">سؤال من كل درس</label>
+                        </div>
+                        
+                        <div class="smart-random-option">
+                            <input type="radio" name="randomMode" id="randomModeCustom" value="custom">
+                            <label for="randomModeCustom">توزيع مخصص</label>
+                        </div>
+                        
+                        <!-- توزيع مخصص للوحدات -->
+                        <div class="unit-distribution" id="unitDistribution" style="display: none;">
+                            <p style="font-size: 0.75rem; color: #666; margin-bottom: 8px;">حدد عدد الأسئلة من كل وحدة:</p>
+                            <div id="unitDistributionList">
+                                <!-- سيتم ملؤها ديناميكياً -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== فلاتر الصعوبة ومستوى بلوم ==================== -->
+                    <div style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 8px; border: 1px solid #667eea30;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #5a67d8; display: block; margin-bottom: 12px;">
+                            <i class="fas fa-filter"></i> فلاتر متقدمة:
+                        </label>
+                        
+                        <!-- فلتر الصعوبة -->
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 6px;">
+                                <i class="fas fa-signal"></i> مستوى الصعوبة:
+                            </label>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="easy" checked style="display: none;">
+                                    <span class="filter-label filter-easy">🟢 سهل</span>
+                                </label>
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="medium" checked style="display: none;">
+                                    <span class="filter-label filter-medium">🟡 متوسط</span>
+                                </label>
+                                <label class="difficulty-filter-btn" style="flex: 1; min-width: 70px;">
+                                    <input type="checkbox" name="difficultyFilter" value="hard" checked style="display: none;">
+                                    <span class="filter-label filter-hard">🔴 صعب</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- توزيع الصعوبة المخصص -->
+                        <div id="difficultyDistribution" style="display: none; margin-bottom: 12px; padding: 10px; background: white; border-radius: 6px;">
+                            <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 8px;">
+                                <input type="checkbox" id="useDifficultyRatio" style="margin-left: 5px;">
+                                توزيع نسبي للصعوبة:
+                            </label>
+                            <div style="display: flex; gap: 10px; align-items: center;" id="difficultyRatioInputs">
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #48bb78;">سهل %</label>
+                                    <input type="number" id="easyRatio" value="30" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #ecc94b;">متوسط %</label>
+                                    <input type="number" id="mediumRatio" value="50" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="flex: 1; text-align: center;">
+                                    <label style="font-size: 0.7rem; color: #fc8181;">صعب %</label>
+                                    <input type="number" id="hardRatio" value="20" min="0" max="100" style="width: 100%; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- فلتر مستوى بلوم -->
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 6px;">
+                                <i class="fas fa-brain"></i> مستويات بلوم:
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="remember" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">📚 تذكر <small id="rememberCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="understand" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">💡 فهم <small id="understandCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="apply" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">⚙️ تطبيق <small id="applyCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="analyze" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">🔍 تحليل <small id="analyzeCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="evaluate" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">⚖️ تقويم <small id="evaluateCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                                <label class="bloom-filter-btn">
+                                    <input type="checkbox" name="bloomFilter" value="create" checked style="display: none;">
+                                    <span class="filter-label filter-bloom">🎨 إبداع <small id="createCount" style="opacity:0.7">(0)</small></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- توزيع بلوم المخصص -->
+                        <div id="bloomDistribution" style="display: none; margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
+                            <label style="font-size: 0.75rem; color: #666; display: block; margin-bottom: 8px;">
+                                <input type="checkbox" id="useBloomRatio" style="margin-left: 5px;">
+                                توزيع نسبي لمستويات بلوم:
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;" id="bloomRatioInputs">
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تذكر/فهم %</label>
+                                    <input type="number" id="rememberUnderstandRatio" value="40" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                    <div id="ruAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تطبيق %</label>
+                                    <input type="number" id="applyRatio" value="35" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                    <div id="applyAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <label style="font-size: 0.65rem; color: #666;">تحليل+ %</label>
+                                    <input type="number" id="analyzeUpRatio" value="25" min="0" max="100" style="width: 100%; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem;">
+                                    <div id="auAvailableCount" style="font-size: 0.6rem; color: #666; margin-top: 2px;">متاح: 0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- ============================================================== -->
+
                     <!-- أزرار التوليد -->
-                    <div class="btn-group" style="margin-bottom: 10px;">
+                    <div class="btn-group" style="margin-bottom: 10px; margin-top: 15px;">
                         <button class="btn btn-primary" id="generateRandomBtn" style="flex: 1;">
-                            <i class="fas fa-random"></i> توليد عشوائي
+                            <i class="fas fa-magic"></i> توليد ذكي
                         </button>
                         <button class="btn btn-secondary" id="clearAllBtn" style="flex: 1;">
                             <i class="fas fa-times"></i> مسح الكل
@@ -1121,6 +1662,35 @@
     </div>
 </div>
 
+<!-- Popup معاينة السؤال -->
+<div class="question-preview-overlay" id="questionPreviewOverlay" onclick="closeQuestionPreview(event)">
+    <div class="question-preview-popup" onclick="event.stopPropagation()">
+        <div class="popup-header">
+            <h3><i class="fas fa-eye"></i> <span id="popupTitle">معاينة السؤال</span></h3>
+            <button class="popup-close" onclick="closeQuestionPreview()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-body">
+            <div class="popup-question-text" id="popupQuestionText"></div>
+            <div class="popup-question-image" id="popupQuestionImage"></div>
+            <div class="popup-options" id="popupOptions"></div>
+            <div class="popup-meta" id="popupMeta"></div>
+        </div>
+        <div class="popup-footer">
+            <button class="popup-nav-btn" id="popupPrevBtn" onclick="navigateQuestion(-1)">
+                <i class="fas fa-arrow-right"></i> السابق
+            </button>
+            <button class="popup-nav-btn popup-select-btn" id="popupSelectBtn" onclick="toggleQuestionFromPopup()">
+                <i class="fas fa-check"></i> <span id="popupSelectText">تحديد</span>
+            </button>
+            <button class="popup-nav-btn" id="popupNextBtn" onclick="navigateQuestion(1)">
+                التالي <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ==================== دالة الطي والفتح ====================
 function toggleSection(header) {
@@ -1172,6 +1742,459 @@ let currentCourseId = null;
 let currentUnitId = null;
 let currentLessonId = null;
 let currentStudents = []; // قائمة الطلاب لنماذج ريمارك
+let currentPreviewIndex = 0; // فهرس السؤال الحالي في المعاينة
+
+// ==================== دوال معاينة السؤال ====================
+
+function openQuestionPreview(questionId) {
+    const question = allQuestions.find(q => q.question_id === questionId);
+    if (!question) return;
+    
+    currentPreviewIndex = allQuestions.findIndex(q => q.question_id === questionId);
+    showQuestionInPopup(question);
+    document.getElementById('questionPreviewOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeQuestionPreview(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('questionPreviewOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function showQuestionInPopup(question) {
+    // عنوان
+    document.getElementById('popupTitle').textContent = `سؤال ${currentPreviewIndex + 1} من ${allQuestions.length}`;
+    
+    // نص السؤال
+    const questionText = question.question_text || '<em style="color:#999;">سؤال بالصورة فقط</em>';
+    document.getElementById('popupQuestionText').innerHTML = questionText;
+    
+    // صورة السؤال
+    const imageContainer = document.getElementById('popupQuestionImage');
+    if (question.question_image) {
+        imageContainer.innerHTML = `<img src="${question.question_image}" alt="صورة السؤال">`;
+        imageContainer.style.display = 'block';
+    } else {
+        imageContainer.innerHTML = '';
+        imageContainer.style.display = 'none';
+    }
+    
+    // الخيارات
+    const optionsContainer = document.getElementById('popupOptions');
+    const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
+    let optionsHtml = '';
+    
+    if (question.options && question.options.length > 0) {
+        question.options.forEach((opt, idx) => {
+            const isCorrect = opt.is_correct;
+            optionsHtml += `
+                <div class="popup-option ${isCorrect ? 'correct' : ''}">
+                    <span class="popup-option-letter">${letters[idx]}</span>
+                    <span class="popup-option-text">
+                        ${opt.option_text || ''}
+                        ${opt.option_image ? `<div class="popup-option-image"><img src="${opt.option_image}" alt="صورة الخيار"></div>` : ''}
+                    </span>
+                    ${isCorrect ? '<i class="fas fa-check-circle" style="color: #4caf50; margin-right: auto;"></i>' : ''}
+                </div>
+            `;
+        });
+    }
+    optionsContainer.innerHTML = optionsHtml;
+    
+    // المعلومات الإضافية
+    const metaContainer = document.getElementById('popupMeta');
+    metaContainer.innerHTML = `
+        <span class="popup-meta-item"><i class="fas fa-folder"></i> ${question.unit || 'غير محدد'}</span>
+        <span class="popup-meta-item"><i class="fas fa-book"></i> ${question.lesson || 'غير محدد'}</span>
+        <span class="popup-meta-item"><i class="fas fa-hashtag"></i> ID: ${question.question_id}</span>
+    `;
+    
+    // تحديث زر التحديد
+    updatePopupSelectButton(question.question_id);
+    
+    // تحديث أزرار التنقل
+    document.getElementById('popupPrevBtn').disabled = currentPreviewIndex === 0;
+    document.getElementById('popupNextBtn').disabled = currentPreviewIndex === allQuestions.length - 1;
+}
+
+function navigateQuestion(direction) {
+    const newIndex = currentPreviewIndex + direction;
+    if (newIndex >= 0 && newIndex < allQuestions.length) {
+        currentPreviewIndex = newIndex;
+        showQuestionInPopup(allQuestions[newIndex]);
+    }
+}
+
+function toggleQuestionFromPopup() {
+    const question = allQuestions[currentPreviewIndex];
+    if (!question) return;
+    
+    const qId = question.question_id;
+    const checkbox = document.querySelector(`.question-checkbox[value="${qId}"]`);
+    const questionDiv = document.getElementById(`question-${qId}`);
+    
+    if (selectedQuestionIds.has(qId)) {
+        selectedQuestionIds.delete(qId);
+        if (checkbox) checkbox.checked = false;
+        if (questionDiv) questionDiv.classList.remove('selected');
+    } else {
+        selectedQuestionIds.add(qId);
+        if (checkbox) checkbox.checked = true;
+        if (questionDiv) questionDiv.classList.add('selected');
+    }
+    
+    updatePopupSelectButton(qId);
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+function updatePopupSelectButton(questionId) {
+    const btn = document.getElementById('popupSelectBtn');
+    const textSpan = document.getElementById('popupSelectText');
+    
+    if (selectedQuestionIds.has(questionId)) {
+        btn.classList.add('selected');
+        textSpan.textContent = 'إلغاء التحديد';
+    } else {
+        btn.classList.remove('selected');
+        textSpan.textContent = 'تحديد';
+    }
+}
+
+// إغلاق popup بالضغط على Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeQuestionPreview();
+    }
+    // التنقل بالأسهم
+    if (document.getElementById('questionPreviewOverlay').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') navigateQuestion(1);
+        if (e.key === 'ArrowRight') navigateQuestion(-1);
+        if (e.key === ' ') {
+            e.preventDefault();
+            toggleQuestionFromPopup();
+        }
+    }
+});
+
+// ==================== دوال التوليد العشوائي الذكي ====================
+
+function updateUnitDistributionList() {
+    const container = document.getElementById('unitDistributionList');
+    if (!container) return;
+    
+    // تجميع الأسئلة حسب الوحدة (بعد تطبيق الفلاتر)
+    const filteredQuestions = getFilteredQuestions();
+    const questionsByUnit = {};
+    filteredQuestions.forEach(q => {
+        const unit = q.unit || 'وحدة غير محددة';
+        if (!questionsByUnit[unit]) questionsByUnit[unit] = 0;
+        questionsByUnit[unit]++;
+    });
+    
+    const unitColors = ['#2196f3', '#4caf50', '#ff9800', '#9c27b0', '#f44336', '#00bcd4', '#e91e63', '#8bc34a'];
+    
+    let html = '';
+    Object.keys(questionsByUnit).forEach((unit, idx) => {
+        const color = unitColors[idx % unitColors.length];
+        html += `
+            <div class="unit-dist-item" style="background: ${color}15; border-right: 3px solid ${color};">
+                <span style="color: ${color}; font-weight: 500;">${unit}</span>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="color: #999; font-size: 0.7rem;">من ${questionsByUnit[unit]}</span>
+                    <input type="number" class="unit-count-input" data-unit="${unit}" min="0" max="${questionsByUnit[unit]}" value="2">
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html || '<p style="color: #999; font-size: 0.8rem;">اختر منهج أولاً</p>';
+}
+
+// الحصول على الفلاتر المحددة
+function getSelectedFilters() {
+    // فلاتر الصعوبة
+    const difficultyFilters = [];
+    document.querySelectorAll('input[name="difficultyFilter"]:checked').forEach(cb => {
+        difficultyFilters.push(cb.value);
+    });
+    
+    // فلاتر بلوم
+    const bloomFilters = [];
+    document.querySelectorAll('input[name="bloomFilter"]:checked').forEach(cb => {
+        bloomFilters.push(cb.value);
+    });
+    
+    return { difficultyFilters, bloomFilters };
+}
+
+// فلترة الأسئلة حسب الفلاتر المحددة
+function getFilteredQuestions() {
+    const { difficultyFilters, bloomFilters } = getSelectedFilters();
+    
+    return allQuestions.filter(q => {
+        // فلتر الصعوبة (إذا لم يكن للسؤال صعوبة، نعتبره متوسط)
+        const qDifficulty = q.difficulty || 'medium';
+        const passedDifficulty = difficultyFilters.length === 0 || difficultyFilters.includes(qDifficulty);
+        
+        // فلتر بلوم (إذا لم يكن للسؤال مستوى، نعتبره تذكر)
+        const qBloom = q.bloom_level || 'remember';
+        const passedBloom = bloomFilters.length === 0 || bloomFilters.includes(qBloom);
+        
+        return passedDifficulty && passedBloom;
+    });
+}
+
+// إظهار/إخفاء التوزيع المخصص
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'randomMode') {
+        const distDiv = document.getElementById('unitDistribution');
+        if (e.target.value === 'custom') {
+            distDiv.style.display = 'block';
+            updateUnitDistributionList();
+        } else {
+            distDiv.style.display = 'none';
+        }
+    }
+    
+    // إظهار/إخفاء توزيع الصعوبة
+    if (e.target.name === 'difficultyFilter' || e.target.id === 'useDifficultyRatio') {
+        const distDiv = document.getElementById('difficultyDistribution');
+        const anyDifficultySelected = document.querySelectorAll('input[name="difficultyFilter"]:checked').length > 0;
+        distDiv.style.display = anyDifficultySelected ? 'block' : 'none';
+    }
+    
+    // إظهار/إخفاء توزيع بلوم
+    if (e.target.name === 'bloomFilter' || e.target.id === 'useBloomRatio') {
+        const distDiv = document.getElementById('bloomDistribution');
+        const anyBloomSelected = document.querySelectorAll('input[name="bloomFilter"]:checked').length > 0;
+        distDiv.style.display = anyBloomSelected ? 'block' : 'none';
+    }
+});
+
+function smartRandomSelect() {
+    const mode = document.querySelector('input[name="randomMode"]:checked').value;
+    const totalCount = parseInt(document.getElementById('questionCount').value) || 10;
+    
+    // مسح التحديدات السابقة
+    deselectAllQuestions();
+    
+    // الحصول على الأسئلة المفلترة
+    const filteredQuestions = getFilteredQuestions();
+    
+    if (filteredQuestions.length === 0) {
+        showError('لا توجد أسئلة تطابق الفلاتر المحددة');
+        return;
+    }
+    
+    let selectedIds = [];
+    
+    // التحقق من استخدام التوزيع النسبي للصعوبة
+    const useDifficultyRatio = document.getElementById('useDifficultyRatio')?.checked;
+    const useBloomRatio = document.getElementById('useBloomRatio')?.checked;
+    
+    if (useDifficultyRatio) {
+        selectedIds = difficultyBasedSelect(filteredQuestions, totalCount);
+    } else if (useBloomRatio) {
+        selectedIds = bloomBasedSelect(filteredQuestions, totalCount);
+    } else {
+        switch(mode) {
+            case 'normal':
+                selectedIds = normalRandomSelect(filteredQuestions, totalCount);
+                break;
+            case 'balanced':
+                selectedIds = balancedRandomSelect(filteredQuestions, totalCount);
+                break;
+            case 'perLesson':
+                selectedIds = perLessonRandomSelect(filteredQuestions);
+                break;
+            case 'custom':
+                selectedIds = customRandomSelect(filteredQuestions);
+                break;
+        }
+    }
+    
+    // تحديد الأسئلة
+    selectedIds.forEach(id => {
+        selectedQuestionIds.add(id);
+        const checkbox = document.querySelector(`.question-checkbox[value="${id}"]`);
+        const questionDiv = document.getElementById(`question-${id}`);
+        if (checkbox) checkbox.checked = true;
+        if (questionDiv) questionDiv.classList.add('selected');
+    });
+    
+    updateStats();
+    updateSelectedCountDisplay();
+    
+    // رسالة توضيحية
+    const { difficultyFilters, bloomFilters } = getSelectedFilters();
+    let message = `تم تحديد ${selectedIds.length} سؤال`;
+    if (difficultyFilters.length < 3) {
+        message += ` (صعوبة: ${difficultyFilters.join('، ')})`;
+    }
+    showSuccess(message);
+}
+
+// التوليد العشوائي العادي
+function normalRandomSelect(questions, count) {
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length)).map(q => q.question_id);
+}
+
+// التوليد المتوازن على الوحدات
+function balancedRandomSelect(questions, count) {
+    const byUnit = {};
+    questions.forEach(q => {
+        const unit = q.unit || 'other';
+        if (!byUnit[unit]) byUnit[unit] = [];
+        byUnit[unit].push(q);
+    });
+    
+    const units = Object.keys(byUnit);
+    const perUnit = Math.floor(count / units.length);
+    const remainder = count % units.length;
+    
+    let selected = [];
+    units.forEach((unit, idx) => {
+        const unitQuestions = [...byUnit[unit]].sort(() => Math.random() - 0.5);
+        const takeCount = perUnit + (idx < remainder ? 1 : 0);
+        selected = selected.concat(unitQuestions.slice(0, takeCount).map(q => q.question_id));
+    });
+    
+    return selected;
+}
+
+// سؤال من كل درس
+function perLessonRandomSelect(questions) {
+    const byLesson = {};
+    questions.forEach(q => {
+        const lesson = q.lesson || 'other';
+        if (!byLesson[lesson]) byLesson[lesson] = [];
+        byLesson[lesson].push(q);
+    });
+    
+    let selected = [];
+    Object.values(byLesson).forEach(lessonQuestions => {
+        const random = lessonQuestions[Math.floor(Math.random() * lessonQuestions.length)];
+        selected.push(random.question_id);
+    });
+    
+    return selected;
+}
+
+// توزيع مخصص
+function customRandomSelect(questions) {
+    const inputs = document.querySelectorAll('.unit-count-input');
+    let selected = [];
+    
+    inputs.forEach(input => {
+        const unit = input.dataset.unit;
+        const count = parseInt(input.value) || 0;
+        
+        const unitQuestions = questions.filter(q => (q.unit || 'وحدة غير محددة') === unit);
+        const shuffled = [...unitQuestions].sort(() => Math.random() - 0.5);
+        selected = selected.concat(shuffled.slice(0, count).map(q => q.question_id));
+    });
+    
+    return selected;
+}
+
+// التوليد حسب نسب الصعوبة (مع تكملة من المستويات الأخرى)
+function difficultyBasedSelect(questions, totalCount) {
+    const easyRatio = parseInt(document.getElementById('easyRatio')?.value) || 30;
+    const mediumRatio = parseInt(document.getElementById('mediumRatio')?.value) || 50;
+    const hardRatio = parseInt(document.getElementById('hardRatio')?.value) || 20;
+    
+    const total = easyRatio + mediumRatio + hardRatio;
+    let easyCount = Math.round((easyRatio / total) * totalCount);
+    let mediumCount = Math.round((mediumRatio / total) * totalCount);
+    let hardCount = totalCount - easyCount - mediumCount;
+    
+    const byDifficulty = {
+        easy: [...questions.filter(q => (q.difficulty || 'medium') === 'easy')].sort(() => Math.random() - 0.5),
+        medium: [...questions.filter(q => (q.difficulty || 'medium') === 'medium')].sort(() => Math.random() - 0.5),
+        hard: [...questions.filter(q => (q.difficulty || 'medium') === 'hard')].sort(() => Math.random() - 0.5)
+    };
+    
+    let selected = [];
+    let remaining = totalCount;
+    
+    // المرحلة 1: أخذ الأسئلة المتاحة من كل مستوى
+    const easyAvailable = Math.min(easyCount, byDifficulty.easy.length);
+    const mediumAvailable = Math.min(mediumCount, byDifficulty.medium.length);
+    const hardAvailable = Math.min(hardCount, byDifficulty.hard.length);
+    
+    selected = selected.concat(byDifficulty.easy.slice(0, easyAvailable).map(q => q.question_id));
+    selected = selected.concat(byDifficulty.medium.slice(0, mediumAvailable).map(q => q.question_id));
+    selected = selected.concat(byDifficulty.hard.slice(0, hardAvailable).map(q => q.question_id));
+    
+    remaining = totalCount - selected.length;
+    
+    // المرحلة 2: إذا فيه نقص، نكمّل من المستويات الأخرى
+    if (remaining > 0) {
+        // الأسئلة المتبقية من كل مستوى
+        const easyRemaining = byDifficulty.easy.slice(easyAvailable);
+        const mediumRemaining = byDifficulty.medium.slice(mediumAvailable);
+        const hardRemaining = byDifficulty.hard.slice(hardAvailable);
+        
+        // نجمع كل الأسئلة المتبقية ونخلطها
+        const allRemaining = [...easyRemaining, ...mediumRemaining, ...hardRemaining]
+            .sort(() => Math.random() - 0.5);
+        
+        // نكمّل العدد المطلوب
+        const additionalQuestions = allRemaining.slice(0, remaining).map(q => q.question_id);
+        selected = selected.concat(additionalQuestions);
+    }
+    
+    return selected;
+}
+
+// التوليد حسب نسب بلوم (مع تكملة من المستويات الأخرى)
+function bloomBasedSelect(questions, totalCount) {
+    const rememberUnderstandRatio = parseInt(document.getElementById('rememberUnderstandRatio')?.value) || 40;
+    const applyRatio = parseInt(document.getElementById('applyRatio')?.value) || 35;
+    const analyzeUpRatio = parseInt(document.getElementById('analyzeUpRatio')?.value) || 25;
+    
+    const total = rememberUnderstandRatio + applyRatio + analyzeUpRatio;
+    let rememberUnderstandCount = Math.round((rememberUnderstandRatio / total) * totalCount);
+    let applyCount = Math.round((applyRatio / total) * totalCount);
+    let analyzeUpCount = totalCount - rememberUnderstandCount - applyCount;
+    
+    const byBloom = {
+        rememberUnderstand: [...questions.filter(q => ['remember', 'understand'].includes(q.bloom_level || 'remember'))].sort(() => Math.random() - 0.5),
+        apply: [...questions.filter(q => (q.bloom_level || 'remember') === 'apply')].sort(() => Math.random() - 0.5),
+        analyzeUp: [...questions.filter(q => ['analyze', 'evaluate', 'create'].includes(q.bloom_level || 'remember'))].sort(() => Math.random() - 0.5)
+    };
+    
+    let selected = [];
+    
+    // المرحلة 1: أخذ الأسئلة المتاحة من كل مستوى
+    const ruAvailable = Math.min(rememberUnderstandCount, byBloom.rememberUnderstand.length);
+    const applyAvailable = Math.min(applyCount, byBloom.apply.length);
+    const auAvailable = Math.min(analyzeUpCount, byBloom.analyzeUp.length);
+    
+    selected = selected.concat(byBloom.rememberUnderstand.slice(0, ruAvailable).map(q => q.question_id));
+    selected = selected.concat(byBloom.apply.slice(0, applyAvailable).map(q => q.question_id));
+    selected = selected.concat(byBloom.analyzeUp.slice(0, auAvailable).map(q => q.question_id));
+    
+    let remaining = totalCount - selected.length;
+    
+    // المرحلة 2: إذا فيه نقص، نكمّل من المستويات الأخرى
+    if (remaining > 0) {
+        const ruRemaining = byBloom.rememberUnderstand.slice(ruAvailable);
+        const applyRemaining = byBloom.apply.slice(applyAvailable);
+        const auRemaining = byBloom.analyzeUp.slice(auAvailable);
+        
+        const allRemaining = [...ruRemaining, ...applyRemaining, ...auRemaining]
+            .sort(() => Math.random() - 0.5);
+        
+        const additionalQuestions = allRemaining.slice(0, remaining).map(q => q.question_id);
+        selected = selected.concat(additionalQuestions);
+    }
+    
+    return selected;
+}
 
 // الحصول على النماذج المختارة
 function getSelectedModels() {
@@ -2054,80 +3077,134 @@ function updateQuestionsList() {
 
     // ألوان مميزة للوحدات
     const unitColors = [
-        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb' },  // أزرق
-        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9' },  // أخضر
-        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2' },  // برتقالي
-        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7' },  // بنفسجي
-        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2' },  // أحمر
-        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2' },  // سماوي
-        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9' },  // وردي
-        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8' },  // أخضر فاتح
-        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9' },  // بنفسجي غامق
-        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3' },  // أصفر
+        { bg: '#e3f2fd', border: '#2196f3', header: '#1565c0', light: '#bbdefb', lighter: '#e3f2fd' },  // أزرق
+        { bg: '#e8f5e9', border: '#4caf50', header: '#2e7d32', light: '#c8e6c9', lighter: '#e8f5e9' },  // أخضر
+        { bg: '#fff3e0', border: '#ff9800', header: '#e65100', light: '#ffe0b2', lighter: '#fff3e0' },  // برتقالي
+        { bg: '#f3e5f5', border: '#9c27b0', header: '#7b1fa2', light: '#e1bee7', lighter: '#f3e5f5' },  // بنفسجي
+        { bg: '#ffebee', border: '#f44336', header: '#c62828', light: '#ffcdd2', lighter: '#ffebee' },  // أحمر
+        { bg: '#e0f7fa', border: '#00bcd4', header: '#00838f', light: '#b2ebf2', lighter: '#e0f7fa' },  // سماوي
+        { bg: '#fce4ec', border: '#e91e63', header: '#ad1457', light: '#f8bbd9', lighter: '#fce4ec' },  // وردي
+        { bg: '#f1f8e9', border: '#8bc34a', header: '#558b2f', light: '#dcedc8', lighter: '#f1f8e9' },  // أخضر فاتح
+        { bg: '#ede7f6', border: '#673ab7', header: '#4527a0', light: '#d1c4e9', lighter: '#ede7f6' },  // بنفسجي غامق
+        { bg: '#fff8e1', border: '#ffc107', header: '#ff8f00', light: '#ffecb3', lighter: '#fff8e1' },  // أصفر
     ];
 
-    // تجميع الأسئلة حسب الوحدة
-    const questionsByUnit = {};
+    // تجميع الأسئلة حسب الوحدة ثم الدرس
+    const questionsByUnitAndLesson = {};
+    let totalLessons = 0;
+    
     allQuestions.forEach(question => {
         const unitName = question.unit || 'وحدة غير محددة';
-        if (!questionsByUnit[unitName]) {
-            questionsByUnit[unitName] = [];
+        const lessonName = question.lesson || 'درس غير محدد';
+        
+        if (!questionsByUnitAndLesson[unitName]) {
+            questionsByUnitAndLesson[unitName] = {};
         }
-        questionsByUnit[unitName].push(question);
+        if (!questionsByUnitAndLesson[unitName][lessonName]) {
+            questionsByUnitAndLesson[unitName][lessonName] = [];
+            totalLessons++;
+        }
+        questionsByUnitAndLesson[unitName][lessonName].push(question);
     });
 
-    // إنشاء HTML للوحدات
+    // إنشاء HTML للوحدات والدروس
     let html = '<div class="units-container">';
     
-    Object.keys(questionsByUnit).forEach((unitName, unitIndex) => {
+    Object.keys(questionsByUnitAndLesson).forEach((unitName, unitIndex) => {
         const color = unitColors[unitIndex % unitColors.length];
-        const questions = questionsByUnit[unitName];
+        const lessons = questionsByUnitAndLesson[unitName];
+        const lessonNames = Object.keys(lessons);
         const unitId = `unit-${unitIndex}`;
         
+        // حساب إجمالي أسئلة الوحدة
+        const totalUnitQuestions = lessonNames.reduce((sum, lesson) => sum + lessons[lesson].length, 0);
+        
         html += `
-            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
-                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-folder-open"></i>
-                        <span style="font-weight: bold; font-size: 1rem;">${unitName}</span>
-                        <span style="background: rgba(255,255,255,0.3); padding: 2px 10px; border-radius: 15px; font-size: 0.85rem;">${questions.length} سؤال</span>
+            <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-folder-open" style="font-size: 1.2rem;"></i>
+                        <span style="font-weight: bold; font-size: 1.1rem;">${unitName}</span>
+                        <span style="background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
+                            <i class="fas fa-book-open"></i> ${lessonNames.length} دروس
+                        </span>
+                        <span style="background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
+                            <i class="fas fa-question-circle"></i> ${totalUnitQuestions} سؤال
+                        </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">
-                            <i class="fas fa-check-double"></i> تحديد الكل
+                        <button onclick="event.stopPropagation(); selectAllInUnit('${unitName}')" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                            <i class="fas fa-check-double"></i> تحديد الوحدة
                         </button>
-                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s;"></i>
+                        <i class="fas fa-chevron-down unit-toggle" id="toggle-${unitId}" style="transition: transform 0.3s; font-size: 1rem;"></i>
                     </div>
                 </div>
-                <div class="unit-content" id="${unitId}" style="padding: 15px; display: block;">
-                    <div class="unit-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;">
+                <div class="unit-content" id="${unitId}" style="padding: 0; display: block;">
         `;
         
-        questions.forEach((question, qIndex) => {
-            const isSelected = selectedQuestionIds.has(question.question_id);
+        // إضافة الدروس داخل الوحدة
+        lessonNames.forEach((lessonName, lessonIndex) => {
+            const questions = lessons[lessonName];
+            const lessonId = `lesson-${unitIndex}-${lessonIndex}`;
+            const isFirstLesson = lessonIndex === 0;
+            
+            // ألوان متدرجة للدروس (أفتح من لون الوحدة)
+            const lessonOpacity = 0.6 + (lessonIndex * 0.1);
+            
             html += `
-                <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
-                     style="background: white; border: 1px solid ${color.light}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `border-color: ${color.border}; box-shadow: 0 0 0 2px ${color.light};` : ''}">
-                    <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
-                        <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
-                               ${isSelected ? 'checked' : ''} 
-                               data-unit="${unitName}"
-                               style="margin-top: 3px; accent-color: ${color.border};" />
-                        <div style="flex: 1;">
-                            <div class="question-text" style="font-size: 0.9rem; line-height: 1.5; margin-bottom: 5px;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
-                            <div class="question-meta" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                <span style="background: ${color.light}; color: ${color.header}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">
-                                    <i class="fas fa-book"></i> ${question.lesson || 'درس غير محدد'}
-                                </span>
-                            </div>
+                <div class="lesson-section" style="border-bottom: 1px solid ${color.light};">
+                    <div class="lesson-header" onclick="toggleLessonSection('${lessonId}')" style="background: ${color.lighter}; padding: 10px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" onmouseover="this.style.background='${color.light}'" onmouseout="this.style.background='${color.lighter}'">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: ${color.border}; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">${lessonIndex + 1}</span>
+                            <i class="fas fa-book" style="color: ${color.header};"></i>
+                            <span style="font-weight: 600; color: ${color.header}; font-size: 0.95rem;">${lessonName}</span>
+                            <span style="background: ${color.light}; color: ${color.header}; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                ${questions.length} سؤال
+                            </span>
                         </div>
-                    </label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button onclick="event.stopPropagation(); selectAllInLesson('${unitName}', '${lessonName}')" style="background: ${color.light}; border: 1px solid ${color.border}; color: ${color.header}; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; transition: all 0.2s;" onmouseover="this.style.background='${color.border}'; this.style.color='white'" onmouseout="this.style.background='${color.light}'; this.style.color='${color.header}'">
+                                <i class="fas fa-check"></i> تحديد
+                            </button>
+                            <i class="fas fa-chevron-down lesson-toggle" id="toggle-${lessonId}" style="transition: transform 0.3s; color: ${color.header}; font-size: 0.85rem; ${isFirstLesson ? '' : 'transform: rotate(-90deg);'}"></i>
+                        </div>
+                    </div>
+                    <div class="lesson-content" id="${lessonId}" style="padding: 12px 18px; background: white; display: ${isFirstLesson ? 'block' : 'none'};">
+                        <div class="lesson-questions-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+            `;
+            
+            questions.forEach((question, qIndex) => {
+                const isSelected = selectedQuestionIds.has(question.question_id);
+                html += `
+                    <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
+                         style="background: ${isSelected ? color.lighter : '#fafafa'}; border: 2px solid ${isSelected ? color.border : '#eee'}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `box-shadow: 0 2px 8px ${color.light};` : ''}" 
+                         onmouseover="if(!this.classList.contains('selected')) this.style.borderColor='${color.light}'" 
+                         onmouseout="if(!this.classList.contains('selected')) this.style.borderColor='#eee'">
+                        <div style="display: flex; align-items: flex-start; gap: 10px;">
+                            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
+                                   ${isSelected ? 'checked' : ''} 
+                                   data-unit="${unitName}"
+                                   data-lesson="${lessonName}"
+                                   style="margin-top: 3px; accent-color: ${color.border}; width: 18px; height: 18px; cursor: pointer;" />
+                            <div style="flex: 1; cursor: pointer;" onclick="document.querySelector('.question-checkbox[value=\\'${question.question_id}\\']').click()">
+                                <div class="question-text" style="font-size: 0.88rem; line-height: 1.6; color: #333;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
+                            </div>
+                            <button class="question-preview-btn" onclick="event.stopPropagation(); openQuestionPreview(${question.question_id})" title="معاينة السؤال">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
+                    </div>
                 </div>
             `;
         });
         
         html += `
-                    </div>
                 </div>
             </div>
         `;
@@ -2136,26 +3213,30 @@ function updateQuestionsList() {
     html += '</div>';
     
     // إضافة شريط الإحصائيات السريعة
-    const totalUnits = Object.keys(questionsByUnit).length;
+    const totalUnits = Object.keys(questionsByUnitAndLesson).length;
     html = `
-        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div class="quick-stats" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">${allQuestions.length}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">إجمالي الأسئلة</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${allQuestions.length}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-question-circle"></i> إجمالي الأسئلة</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;">${totalUnits}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">الوحدات</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${totalUnits}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-folder"></i> الوحدات</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 1.5rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
-                <div style="font-size: 0.8rem; opacity: 0.9;">المحددة</div>
+                <div style="font-size: 1.8rem; font-weight: bold;">${totalLessons}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-book"></i> الدروس</div>
             </div>
-            <div>
-                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: bold;" id="selectedCountDisplay">${selectedQuestionIds.size}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;"><i class="fas fa-check-square"></i> المحددة</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="selectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
                     <i class="fas fa-check-double"></i> تحديد الكل
                 </button>
-                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                <button onclick="deselectAllQuestions()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
                     <i class="fas fa-times"></i> إلغاء الكل
                 </button>
             </div>
@@ -2197,9 +3278,38 @@ function toggleUnitSection(unitId) {
     }
 }
 
+// دالة طي/فتح الدرس
+function toggleLessonSection(lessonId) {
+    const content = document.getElementById(lessonId);
+    const toggle = document.getElementById(`toggle-${lessonId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.display = 'none';
+        toggle.style.transform = 'rotate(-90deg)';
+    }
+}
+
 // دالة تحديد كل أسئلة وحدة معينة
 function selectAllInUnit(unitName) {
     document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"]`).forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            const qId = parseInt(checkbox.value);
+            selectedQuestionIds.add(qId);
+            const questionDiv = document.getElementById(`question-${qId}`);
+            if (questionDiv) questionDiv.classList.add('selected');
+        }
+    });
+    updateStats();
+    updateSelectedCountDisplay();
+}
+
+// دالة تحديد كل أسئلة درس معين
+function selectAllInLesson(unitName, lessonName) {
+    document.querySelectorAll(`.question-checkbox[data-unit="${unitName}"][data-lesson="${lessonName}"]`).forEach(checkbox => {
         if (!checkbox.checked) {
             checkbox.checked = true;
             const qId = parseInt(checkbox.value);
@@ -2250,51 +3360,13 @@ async function generateRandomExam() {
         return;
     }
     
-    const questionCount = parseInt(document.getElementById('questionCount').value);
-    
-    if (questionCount < 1) {
-        showError('يجب تحديد عدد أسئلة صحيح');
+    if (allQuestions.length === 0) {
+        showError('لا توجد أسئلة متاحة');
         return;
     }
     
-    showLoading(true);
-    
-    try {
-        const response = await fetch(`${API_BASE}/questions/generate-exam`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                course_id: currentCourseId,
-                unit_id: currentUnitId,
-                lesson_id: currentLessonId,
-                question_count: questionCount,
-                include_answers: false
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            selectedQuestionIds.clear();
-            data.exam.questions.forEach(q => {
-                selectedQuestionIds.add(q.question_id);
-            });
-            
-            updateQuestionsList();
-            updateStats();
-            showSuccess(`تم توليد نموذج عشوائي بـ ${data.exam.count} أسئلة`);
-            showPreview(data.exam);
-        } else {
-            showError(data.error || 'فشل توليد النموذج');
-        }
-    } catch (error) {
-        showError('خطأ في التوليد: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
+    // استخدام التوليد الذكي
+    smartRandomSelect();
 }
 
 function clearAllSelections() {
@@ -2444,6 +3516,53 @@ function generatePrintableDocument(questions, includeAnswers) {
 function updateStats() {
     document.getElementById('selectedQuestionsCount').textContent = selectedQuestionIds.size;
     document.getElementById('totalQuestionsCount').textContent = allQuestions.length;
+    
+    // تحديث أعداد مستويات الصعوبة
+    const easyQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'easy');
+    const mediumQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'medium');
+    const hardQuestions = allQuestions.filter(q => (q.difficulty || 'medium') === 'hard');
+    
+    const easyEl = document.getElementById('easyAvailableCount');
+    const mediumEl = document.getElementById('mediumAvailableCount');
+    const hardEl = document.getElementById('hardAvailableCount');
+    
+    if (easyEl) easyEl.textContent = `متاح: ${easyQuestions.length}`;
+    if (mediumEl) mediumEl.textContent = `متاح: ${mediumQuestions.length}`;
+    if (hardEl) hardEl.textContent = `متاح: ${hardQuestions.length}`;
+    
+    // تحديث أعداد مستويات بلوم
+    const rememberQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'remember');
+    const understandQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'understand');
+    const applyQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'apply');
+    const analyzeQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'analyze');
+    const evaluateQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'evaluate');
+    const createQuestions = allQuestions.filter(q => (q.bloom_level || 'remember') === 'create');
+    
+    const rememberEl = document.getElementById('rememberCount');
+    const understandEl = document.getElementById('understandCount');
+    const applyCountEl = document.getElementById('applyCount');
+    const analyzeEl = document.getElementById('analyzeCount');
+    const evaluateEl = document.getElementById('evaluateCount');
+    const createEl = document.getElementById('createCount');
+    
+    if (rememberEl) rememberEl.textContent = `(${rememberQuestions.length})`;
+    if (understandEl) understandEl.textContent = `(${understandQuestions.length})`;
+    if (applyCountEl) applyCountEl.textContent = `(${applyQuestions.length})`;
+    if (analyzeEl) analyzeEl.textContent = `(${analyzeQuestions.length})`;
+    if (evaluateEl) evaluateEl.textContent = `(${evaluateQuestions.length})`;
+    if (createEl) createEl.textContent = `(${createQuestions.length})`;
+    
+    // تحديث أعداد توزيع بلوم النسبي
+    const ruCount = rememberQuestions.length + understandQuestions.length;
+    const auCount = analyzeQuestions.length + evaluateQuestions.length + createQuestions.length;
+    
+    const ruEl = document.getElementById('ruAvailableCount');
+    const applyAvailEl = document.getElementById('applyAvailableCount');
+    const auEl = document.getElementById('auAvailableCount');
+    
+    if (ruEl) ruEl.textContent = `متاح: ${ruCount}`;
+    if (applyAvailEl) applyAvailEl.textContent = `متاح: ${applyQuestions.length}`;
+    if (auEl) auEl.textContent = `متاح: ${auCount}`;
 }
 
 function showPreview(exam) {
