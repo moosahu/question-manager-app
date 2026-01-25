@@ -3411,6 +3411,11 @@ function updateQuestionsList() {
         // حساب إجمالي أسئلة الوحدة
         const totalUnitQuestions = lessonNames.reduce((sum, lesson) => sum + lessons[lesson].length, 0);
         
+        // حساب الأسئلة المختارة في الوحدة
+        const selectedUnitQuestions = lessonNames.reduce((sum, lesson) => {
+            return sum + lessons[lesson].filter(q => selectedQuestionIds.has(q.question_id)).length;
+        }, 0);
+        
         html += `
             <div class="unit-section" style="background: ${color.bg}; border: 2px solid ${color.border}; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <div class="unit-header" onclick="toggleUnitSection('${unitId}')" style="background: linear-gradient(135deg, ${color.border}, ${color.header}); color: white; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
@@ -3422,6 +3427,9 @@ function updateQuestionsList() {
                         </span>
                         <span style="background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
                             <i class="fas fa-question-circle"></i> ${totalUnitQuestions} سؤال
+                        </span>
+                        <span id="unit-selected-${unitIndex}" style="background: ${selectedUnitQuestions > 0 ? '#4caf50' : 'rgba(255,255,255,0.15)'}; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; transition: all 0.3s;">
+                            <i class="fas fa-check-circle"></i> <span class="selected-count">${selectedUnitQuestions}</span> محدد
                         </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -3440,6 +3448,9 @@ function updateQuestionsList() {
             const lessonId = `lesson-${unitIndex}-${lessonIndex}`;
             const isFirstLesson = lessonIndex === 0;
             
+            // حساب الأسئلة المختارة في الدرس
+            const selectedLessonQuestions = questions.filter(q => selectedQuestionIds.has(q.question_id)).length;
+            
             // ألوان متدرجة للدروس (أفتح من لون الوحدة)
             const lessonOpacity = 0.6 + (lessonIndex * 0.1);
             
@@ -3452,6 +3463,9 @@ function updateQuestionsList() {
                             <span style="font-weight: 600; color: ${color.header}; font-size: 0.95rem;">${lessonName}</span>
                             <span style="background: ${color.light}; color: ${color.header}; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem;">
                                 ${questions.length} سؤال
+                            </span>
+                            <span id="lesson-selected-${unitIndex}-${lessonIndex}" style="background: ${selectedLessonQuestions > 0 ? '#4caf50' : '#e0e0e0'}; color: ${selectedLessonQuestions > 0 ? 'white' : '#999'}; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; transition: all 0.3s;">
+                                <i class="fas fa-check"></i> <span class="selected-count">${selectedLessonQuestions}</span> محدد
                             </span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -3638,12 +3652,72 @@ function deselectAllQuestions() {
     updateSelectedCountDisplay();
 }
 
-// تحديث عداد المحددة في الشريط العلوي
+// تحديث عداد المحددة في الشريط العلوي وفي الوحدات والدروس
 function updateSelectedCountDisplay() {
     const display = document.getElementById('selectedCountDisplay');
     if (display) {
         display.textContent = selectedQuestionIds.size;
     }
+    
+    // تحديث عدادات الوحدات والدروس
+    updateUnitAndLessonCounters();
+}
+
+// دالة تحديث عدادات الوحدات والدروس
+function updateUnitAndLessonCounters() {
+    // تجميع الأسئلة المختارة حسب الوحدة والدرس
+    const selectedByUnit = {};
+    const selectedByLesson = {};
+    
+    document.querySelectorAll('.question-checkbox:checked').forEach(checkbox => {
+        const unitName = checkbox.dataset.unit;
+        const lessonName = checkbox.dataset.lesson;
+        
+        // عداد الوحدة
+        if (!selectedByUnit[unitName]) {
+            selectedByUnit[unitName] = 0;
+        }
+        selectedByUnit[unitName]++;
+        
+        // عداد الدرس
+        const lessonKey = `${unitName}|||${lessonName}`;
+        if (!selectedByLesson[lessonKey]) {
+            selectedByLesson[lessonKey] = 0;
+        }
+        selectedByLesson[lessonKey]++;
+    });
+    
+    // تحديث عدادات الوحدات في DOM
+    document.querySelectorAll('[id^="unit-selected-"]').forEach(el => {
+        const unitIndex = el.id.replace('unit-selected-', '');
+        const unitHeader = el.closest('.unit-header');
+        if (unitHeader) {
+            const unitName = unitHeader.querySelector('span[style*="font-weight: bold"]')?.textContent;
+            const count = selectedByUnit[unitName] || 0;
+            el.querySelector('.selected-count').textContent = count;
+            el.style.background = count > 0 ? '#4caf50' : 'rgba(255,255,255,0.15)';
+        }
+    });
+    
+    // تحديث عدادات الدروس في DOM
+    document.querySelectorAll('[id^="lesson-selected-"]').forEach(el => {
+        const count = parseInt(el.querySelector('.selected-count')?.textContent) || 0;
+        // البحث عن اسم الوحدة والدرس من العناصر المجاورة
+        const lessonHeader = el.closest('.lesson-header');
+        if (lessonHeader) {
+            const lessonNameEl = lessonHeader.querySelector('span[style*="font-weight: 600"]');
+            const unitSection = lessonHeader.closest('.unit-section');
+            const unitNameEl = unitSection?.querySelector('.unit-header span[style*="font-weight: bold"]');
+            
+            if (lessonNameEl && unitNameEl) {
+                const lessonKey = `${unitNameEl.textContent}|||${lessonNameEl.textContent}`;
+                const newCount = selectedByLesson[lessonKey] || 0;
+                el.querySelector('.selected-count').textContent = newCount;
+                el.style.background = newCount > 0 ? '#4caf50' : '#e0e0e0';
+                el.style.color = newCount > 0 ? 'white' : '#999';
+            }
+        }
+    });
 }
 
 async function generateRandomExam() {
