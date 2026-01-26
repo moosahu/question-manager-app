@@ -506,12 +506,14 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px 20px;
+            direction: rtl;
         }}
         
         /* === الخيارات - أفقي === */
         .options-horizontal {{
             display: flex;
             flex-wrap: wrap;
+            flex-direction: row-reverse;
             gap: 10px;
         }}
         .options-horizontal .option {{

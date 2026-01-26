@@ -1012,11 +1012,18 @@
     
     // ===== View Test =====
     window.viewTest = async function(testId) {
+        console.log('👁️ viewTest called with ID:', testId);
         showLoading(true);
         
         try {
-            const res = await fetch(`${API_BASE}/tests/${testId}`);
+            const url = `${API_BASE}/tests/${testId}`;
+            console.log('📡 Fetching:', url);
+            
+            const res = await fetch(url);
+            console.log('📥 Response status:', res.status);
+            
             const data = await res.json();
+            console.log('📦 Response data:', data);
             
             if (!data.success) {
                 showAlert(data.error || 'خطأ', 'error');
@@ -1025,11 +1032,14 @@
             
             const test = data.test;
             const questions = test.questions || [];
+            console.log('📝 Questions count:', questions.length);
             
             let html = `
                 <h4 style="margin-bottom: 1rem;">${test.title}</h4>
                 <p style="color: #6b7280; margin-bottom: 1.5rem;">${test.description || ''}</p>
             `;
+            
+            const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
             
             questions.forEach((q, i) => {
                 html += `
@@ -1038,10 +1048,11 @@
                         <div style="padding-right: 1rem;">
                 `;
                 
-                (q.options || []).forEach(opt => {
+                (q.options || []).forEach((opt, idx) => {
                     const isCorrect = opt.is_correct;
+                    const letter = arabicLetters[idx] || (idx + 1);
                     const style = isCorrect ? 'color: #047857; font-weight: 600;' : '';
-                    html += `<p style="${style}">(${opt.letter || ''}) ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
+                    html += `<p style="${style}">${letter}- ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
                 });
                 
                 if (q.feedback) {
@@ -1052,9 +1063,11 @@
             });
             
             document.getElementById('view-modal-body').innerHTML = html;
+            console.log('✅ Opening modal...');
             openModal('view-modal');
             
         } catch (e) {
+            console.error('❌ Error:', e);
             showAlert('خطأ: ' + e.message, 'error');
         } finally {
             showLoading(false);
