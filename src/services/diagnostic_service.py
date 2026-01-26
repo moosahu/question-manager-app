@@ -75,10 +75,13 @@ class DiagnosticService:
         test_type: str = 'pre_test',
         questions_count: int = 5,
         difficulty_dist: Optional[Dict] = None,
-        force_ai: bool = False
+        force_ai: bool = True  # تغيير: AI دائماً للاختبارات التشخيصية
     ) -> Dict:
         """
         توليد اختبار تشخيصي
+        
+        الاختبارات التشخيصية تُولَّد دائماً بالذكاء الاصطناعي
+        لضمان أسئلة جديدة ومختلفة عن بنك الأسئلة
         
         Args:
             lesson_id: معرف الدرس
@@ -87,7 +90,7 @@ class DiagnosticService:
             test_type: نوع الاختبار (pre_test أو post_test)
             questions_count: عدد الأسئلة
             difficulty_dist: توزيع الصعوبة
-            force_ai: توليد جميع الأسئلة بـ AI حتى لو وجدت في البنك
+            force_ai: توليد جميع الأسئلة بـ AI (افتراضي: True)
         """
         try:
             if not difficulty_dist:
@@ -98,23 +101,33 @@ class DiagnosticService:
             if not context:
                 return {'success': False, 'error': 'لم يتم العثور على الدرس أو الوحدة'}
             
-            # جلب الأسئلة من بنك الأسئلة (إلا إذا force_ai)
+            # === الاختبارات التشخيصية: توليد AI دائماً ===
             questions = []
-            if not force_ai:
+            
+            # محاولة توليد الأسئلة بـ AI
+            if self._configure_ai():
+                print(f"🤖 توليد {questions_count} أسئلة بالذكاء الاصطناعي...")
+                ai_questions = self._generate_ai_questions(
+                    context,
+                    questions_count,
+                    difficulty_dist,
+                    test_type
+                )
+                questions.extend(ai_questions)
+                print(f"✅ تم توليد {len(ai_questions)} أسئلة بـ AI")
+            else:
+                print("⚠️ AI غير متوفر - محاولة استخدام بنك الأسئلة كبديل")
+                # فقط كبديل إذا AI غير متوفر
                 questions = self._fetch_questions(
                     lesson_id, unit_id, course_id,
                     questions_count, difficulty_dist
                 )
             
-            # إذا لم تكفِ الأسئلة أو force_ai، حاول توليدها بـ AI
-            if len(questions) < questions_count and self._configure_ai():
-                ai_questions = self._generate_ai_questions(
-                    context,
-                    questions_count - len(questions),
-                    difficulty_dist,
-                    test_type
-                )
-                questions.extend(ai_questions)
+            if not questions:
+                return {
+                    'success': False, 
+                    'error': 'لم يتم توليد أي أسئلة. تأكد من إعداد مفتاح Gemini API'
+                }
             
             # تنسيق الأسئلة
             formatted_questions = self._format_questions(questions)
@@ -126,12 +139,11 @@ class DiagnosticService:
             return {
                 'success': True,
                 'title': title,
-                'description': f"اختبار تشخيصي {type_text} لقياس مستوى الفهم ({questions_count} أسئلة)",
+                'description': f"اختبار تشخيصي {type_text} لقياس مستوى الفهم ({len(formatted_questions)} أسئلة)",
                 'context': context,
                 'questions': formatted_questions,
-                'question_ids': [q.get('question_id') for q in formatted_questions if q.get('question_id')],
                 'questions_count': len(formatted_questions),
-                'ai_generated': any(q.get('source') == 'ai' for q in formatted_questions)
+                'ai_generated': True  # دائماً AI للتشخيصي
             }
             
         except Exception as e:
