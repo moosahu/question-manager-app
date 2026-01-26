@@ -52,7 +52,7 @@ class DiagnosticService:
         self.is_configured = False
     
     def _configure_ai(self):
-        """تهيئة AI"""
+        """تهيئة AI مع دعم البحث في الإنترنت"""
         if self.is_configured:
             return True
         
@@ -60,11 +60,24 @@ class DiagnosticService:
             api_key = os.getenv('GOOGLE_AI_API_KEY')
             if GEMINI_AVAILABLE and api_key:
                 genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel('gemini-2.0-flash')
+                # استخدام gemini-2.0-flash مع أدوات البحث
+                self.model = genai.GenerativeModel(
+                    'gemini-2.0-flash',
+                    tools=[{"google_search": {}}]  # تفعيل البحث في الإنترنت
+                )
                 self.is_configured = True
+                print("✅ AI configured with Google Search enabled")
                 return True
         except Exception as e:
             print(f"❌ AI Error: {e}")
+            # محاولة بدون أدوات البحث
+            try:
+                self.model = genai.GenerativeModel('gemini-2.0-flash')
+                self.is_configured = True
+                print("⚠️ AI configured without search (fallback)")
+                return True
+            except:
+                pass
         return False
     
     def generate_test(
@@ -298,17 +311,17 @@ class DiagnosticService:
         difficulty_dist: Dict,
         test_type: str = 'pre_test'
     ) -> List[Dict]:
-        """توليد أسئلة بـ AI باستخدام برومبت تربوي احترافي"""
+        """توليد أسئلة بـ AI بناءً على منهج الكيمياء السعودي (آخر طبعة)"""
         if not self.model:
             return []
         
         try:
             # تحديد نوع الأسئلة حسب نوع الاختبار
             if test_type == 'pre_test':
-                focus_text = """الأسئلة تركز على المفاهيم القبلية (Pre-requisites) والمهارات الرياضية اللازمة لهذا الدرس.
+                focus_text = """الأسئلة تركز على المفاهيم القبلية والمعرفة السابقة اللازمة لفهم هذا الدرس.
    الهدف: قياس استعداد الطالب قبل دراسة الدرس"""
             else:  # post_test
-                focus_text = """الأسئلة تركز على المفاهيم والمهارات التي تم شرحها في الدرس.
+                focus_text = """الأسئلة تركز على المفاهيم والمهارات الأساسية في هذا الدرس.
    الهدف: قياس مدى استيعاب الطالب بعد دراسة الدرس"""
             
             # توزيع الصعوبة
@@ -318,50 +331,59 @@ class DiagnosticService:
 - متوسط: {difficulty_dist.get('medium', 2)} أسئلة (تطبيق وتحليل)
 - صعب: {difficulty_dist.get('hard', 1)} أسئلة (تركيب وتقويم)"""
 
-            prompt = f"""أنت خبير كيميائي وتربوي. قم بصياغة اختبار تشخيصي لدرس [{context['name']}] يتكون من {count} أسئلة.
+            prompt = f"""أنت خبير في منهج الكيمياء السعودي (نظام المسارات - الثانوي).
 
-📚 معلومات الدرس:
-{f"- الوحدة: {context.get('unit_name', '')}" if context.get('unit_name') else ""}
-{f"- المنهج: {context.get('course_name', '')}" if context.get('course_name') else ""}
-- نوع الاختبار: {"قبلي" if test_type == 'pre_test' else "بعدي"}
+🎯 المطلوب: إنشاء {count} أسئلة اختبار تشخيصي {"قبلي" if test_type == 'pre_test' else "بعدي"}
+
+📚 معلومات الدرس من المنهج السعودي:
+- المنهج: {context.get('course_name', 'كيمياء')}
+- الوحدة/الفصل: {context.get('unit_name', context.get('name', ''))}
+- الدرس: {context.get('name', '')}
+
+⚠️ مهم جداً:
+1. الأسئلة يجب أن تكون من **محتوى منهج الكيمياء السعودي الرسمي** (وزارة التعليم السعودية - أحدث طبعة)
+2. استخدم المصطلحات والتعريفات الموجودة في الكتاب المدرسي السعودي الحالي
+3. الأسئلة تكون على نمط أسئلة اختبارات التحصيلي والقدرات
+4. تجنب أي معلومات ليست في المنهج السعودي الرسمي
 
 {diff_text}
 
-📋 المواصفات:
-1. لكل سؤال 4 خيارات فقط (أ، ب، ج، د).
-2. خيار واحد صحيح و3 خيارات تمثل أخطاء شائعة (Distractors) يقع فيها الطلاب فعلياً.
-3. {focus_text}
-4. أضف "تغذية راجعة" مختصرة لكل سؤال توضح سبب الخطأ أو تؤكد المفهوم الصحيح.
+📋 {focus_text}
 
-🎯 أنواع الأخطاء الشائعة في الخيارات (Distractors):
-- خلط بين مفاهيم متشابهة
-- أخطاء في العمليات الحسابية
-- سوء فهم للوحدات أو الرموز
-- تعميم خاطئ لقاعدة
-- خلط في اتجاه التفاعل أو الإشارة
+🔬 أنواع الأسئلة المطلوبة:
+- أسئلة على المفاهيم الأساسية في الدرس
+- أسئلة على القوانين والمعادلات الكيميائية
+- أسئلة تطبيقية وحسابية
+- أسئلة على التجارب والملاحظات العملية
+
+📝 مواصفات الأسئلة:
+1. لكل سؤال 4 خيارات فقط (أ، ب، ج، د)
+2. خيار واحد صحيح فقط
+3. الخيارات الخاطئة تمثل أخطاء شائعة يقع فيها الطلاب
+4. الصياغة واضحة ومباشرة بالعربية الفصحى
 
 ⚠️ تجنب:
 - "كل ما سبق" أو "لا شيء مما سبق"
 - خيارات واضح أنها خطأ
-- أسئلة تعتمد على الحفظ فقط
+- معلومات من خارج المنهج السعودي
 
-📤 أرجع JSON فقط بدون أي نص إضافي:
+📤 أرجع JSON فقط بهذا التنسيق:
 [
   {{
     "text": "نص السؤال",
     "difficulty": "easy/medium/hard",
     "bloom_level": "remember/understand/apply/analyze",
-    "prerequisite_concept": "المفهوم القبلي المطلوب لفهم السؤال",
     "options": [
-      {{"text": "نص الخيار أ", "is_correct": false, "distractor_type": "خلط مفاهيم"}},
-      {{"text": "نص الخيار ب", "is_correct": true, "distractor_type": null}},
-      {{"text": "نص الخيار ج", "is_correct": false, "distractor_type": "خطأ حسابي"}},
-      {{"text": "نص الخيار د", "is_correct": false, "distractor_type": "سوء فهم الوحدات"}}
+      {{"text": "نص الخيار أ", "is_correct": false}},
+      {{"text": "نص الخيار ب", "is_correct": true}},
+      {{"text": "نص الخيار ج", "is_correct": false}},
+      {{"text": "نص الخيار د", "is_correct": false}}
     ],
-    "feedback": "التغذية الراجعة: الإجابة الصحيحة هي (ب) لأن... والخطأ الشائع في (أ) هو..."
+    "feedback": "الإجابة الصحيحة (ب) لأن..."
   }}
 ]
 """
+            print(f"🤖 Generating questions for: {context.get('name', 'Unknown')}")
             response = self.model.generate_content(prompt)
             
             import re
@@ -370,12 +392,16 @@ class DiagnosticService:
             json_match = re.search(r'\[[\s\S]*\]', response.text)
             if json_match:
                 questions = json.loads(json_match.group())
+                print(f"✅ Generated {len(questions)} questions from AI")
                 return questions
             
+            print("⚠️ No valid JSON in AI response")
             return []
             
         except Exception as e:
             print(f"❌ AI Error: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def generate_pdf(
