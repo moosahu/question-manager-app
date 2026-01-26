@@ -299,69 +299,32 @@ def export_pdf(test_id):
         
         include_answers = request.args.get('include_answers', 'false').lower() == 'true'
         
-        # استخدام ExamGenerator الموجود (نفس المستخدم في export_exam)
-        try:
-            from src.routes.exam_generator import ExamGenerator
-        except ImportError:
-            try:
-                from exam_generator import ExamGenerator
-            except ImportError:
-                return jsonify({'success': False, 'error': 'ExamGenerator غير متوفر'}), 500
-        
         # جلب إعدادات الكليشة
+        header_settings = {}
         try:
             from src.models.exam_header_settings import ExamHeaderSettings
-        except ImportError:
-            try:
-                from models.exam_header_settings import ExamHeaderSettings
-            except:
-                ExamHeaderSettings = None
-        
-        settings_dict = {}
-        if ExamHeaderSettings:
             header = ExamHeaderSettings.query.first()
             if header:
-                settings_dict = {
+                header_settings = {
                     'country': header.country or "المملكة العربية السعودية",
                     'ministry': header.ministry or "وزارة التعليم",
-                    'education_department': getattr(header, 'education_department', '') or "",
                     'school_name': header.school_name or "",
                     'subject': header.subject or "كيمياء",
-                    'time': getattr(header, 'time', '') or str(test.time_limit_minutes) + " دقيقة",
-                    'grade': header.grade or "",
-                    'total_score': getattr(header, 'total_score', 30) or 30,
-                    'checker_name': getattr(header, 'checker_name', '') or "",
-                    'reviewer_name': getattr(header, 'reviewer_name', '') or "",
-                    'exam_date': getattr(header, 'exam_date', '') or ""
+                    'grade': header.grade or ""
                 }
+        except:
+            pass
         
-        # تحويل أسئلة الاختبار للتنسيق المطلوب
-        questions_data = []
-        for q in (test.questions_data or []):
-            q_dict = {
-                'id': q.get('question_id', 0),
-                'question_text': q.get('text', ''),
-                'points': 1,
-                'options': []
-            }
-            for opt in q.get('options', []):
-                q_dict['options'].append({
-                    'option_text': opt.get('text', ''),
-                    'is_correct': opt.get('is_correct', False)
-                })
-            questions_data.append(q_dict)
+        # بناء HTML
+        html_content = generate_diagnostic_html(test, include_answers, header_settings)
         
-        # توليد PDF باستخدام ExamGenerator
-        generator = ExamGenerator(header_settings=settings_dict)
-        
-        exam_title = test.title or "اختبار تشخيصي"
-        
-        pdf_bytes = generator.generate_pdf(
-            questions_data,
-            exam_title,
-            include_answers,
-            **settings_dict
-        )
+        # تحويل إلى PDF باستخدام WeasyPrint
+        try:
+            from weasyprint import HTML, CSS
+            pdf_bytes = HTML(string=html_content).write_pdf()
+        except Exception as e:
+            print(f"❌ WeasyPrint Error: {e}")
+            return jsonify({'success': False, 'error': f'خطأ في توليد PDF: {str(e)}'}), 500
         
         if not pdf_bytes:
             return jsonify({'success': False, 'error': 'فشل توليد PDF'}), 500
@@ -381,6 +344,198 @@ def export_pdf(test_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def generate_diagnostic_html(test, include_answers=False, header_settings=None):
+    """توليد HTML للاختبار التشخيصي"""
+    
+    questions = test.questions_data or []
+    
+    # CSS للتنسيق
+    css = """
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'Arial', 'Tahoma', sans-serif;
+            direction: rtl;
+            text-align: right;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+        }
+        .header h2 {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        .header h1 {
+            margin: 10px 0;
+            font-size: 20px;
+            color: #333;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        .student-info {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .student-info span {
+            margin-left: 30px;
+        }
+        .question {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .question-text {
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 10px;
+            color: #222;
+        }
+        .options {
+            margin-right: 20px;
+        }
+        .option {
+            margin: 8px 0;
+            padding: 5px 10px;
+        }
+        .option.correct {
+            background: #d4edda;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .answer-key {
+            page-break-before: always;
+            margin-top: 30px;
+        }
+        .answer-key h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .answer-table {
+            width: 50%;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        .answer-table th, .answer-table td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+        .answer-table th {
+            background: #333;
+            color: white;
+        }
+    </style>
+    """
+    
+    # Header
+    header_html = ""
+    if header_settings:
+        header_html = f"""
+        <div class="header">
+            <h2>{header_settings.get('country', 'المملكة العربية السعودية')}</h2>
+            <h2>{header_settings.get('ministry', 'وزارة التعليم')}</h2>
+            <h2>{header_settings.get('school_name', '')}</h2>
+        </div>
+        """
+    
+    # Title
+    test_type_ar = 'قبلي' if test.test_type == 'pre_test' else 'بعدي'
+    title_html = f"""
+    <div style="text-align: center; margin: 20px 0;">
+        <h1>{test.title or f'اختبار تشخيصي {test_type_ar}'}</h1>
+        <p>عدد الأسئلة: {len(questions)} | الوقت: {test.time_limit_minutes} دقيقة</p>
+    </div>
+    """
+    
+    # Student Info
+    student_html = """
+    <div class="student-info">
+        <span>الاسم: ________________________</span>
+        <span>الصف: __________</span>
+        <span>التاريخ: __________</span>
+    </div>
+    """
+    
+    # Questions
+    questions_html = ""
+    for i, q in enumerate(questions, 1):
+        q_text = q.get('text', '')
+        options_html = ""
+        
+        for opt in q.get('options', []):
+            letter = opt.get('letter', '')
+            text = opt.get('text', '')
+            is_correct = opt.get('is_correct', False)
+            
+            if include_answers and is_correct:
+                options_html += f'<div class="option correct">({letter}) {text} ✓</div>'
+            else:
+                options_html += f'<div class="option">({letter}) {text}</div>'
+        
+        questions_html += f"""
+        <div class="question">
+            <div class="question-text">س{i}: {q_text}</div>
+            <div class="options">{options_html}</div>
+        </div>
+        """
+    
+    # Answer Key (if needed)
+    answer_key_html = ""
+    if include_answers:
+        rows = ""
+        for i, q in enumerate(questions, 1):
+            correct = next((o for o in q.get('options', []) if o.get('is_correct')), None)
+            if correct:
+                rows += f"<tr><td>س{i}</td><td>{correct.get('letter', '')}</td></tr>"
+        
+        answer_key_html = f"""
+        <div class="answer-key">
+            <h2>نموذج الإجابة</h2>
+            <table class="answer-table">
+                <tr><th>السؤال</th><th>الإجابة</th></tr>
+                {rows}
+            </table>
+        </div>
+        """
+    
+    # Final HTML
+    html = f"""
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        {css}
+    </head>
+    <body>
+        {header_html}
+        {title_html}
+        {student_html}
+        {questions_html}
+        {answer_key_html}
+    </body>
+    </html>
+    """
+    
+    return html
 
 
 # ==========================================
