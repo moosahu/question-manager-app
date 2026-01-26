@@ -287,9 +287,14 @@ def get_test(test_id):
 @login_required
 def export_pdf(test_id):
     """
-    استخراج ورقة اختبار PDF
+    استخراج ورقة اختبار PDF بتنسيق احترافي
     
-    GET /api/diagnostic/tests/1/pdf?include_answers=true
+    GET /api/diagnostic/tests/1/pdf?include_answers=true&columns=2&layout=grid
+    
+    Parameters:
+        include_answers: إظهار الإجابات (true/false)
+        columns: عدد الأعمدة (1, 2, 3) - افتراضي: 2
+        layout: تنسيق الخيارات (vertical, horizontal, grid) - افتراضي: grid
     """
     try:
         test = DiagnosticTest.query.filter_by(id=test_id, is_active=True).first()
@@ -297,7 +302,16 @@ def export_pdf(test_id):
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
         
+        # قراءة المعاملات
         include_answers = request.args.get('include_answers', 'false').lower() == 'true'
+        columns = int(request.args.get('columns', 2))
+        options_layout = request.args.get('layout', 'grid')
+        
+        # التحقق من القيم
+        if columns not in [1, 2, 3]:
+            columns = 2
+        if options_layout not in ['vertical', 'horizontal', 'grid']:
+            options_layout = 'grid'
         
         # جلب إعدادات الكليشة
         header_settings = {}
@@ -315,8 +329,14 @@ def export_pdf(test_id):
         except:
             pass
         
-        # بناء HTML
-        html_content = generate_diagnostic_html(test, include_answers, header_settings)
+        # بناء HTML بالتنسيق المطلوب
+        html_content = generate_diagnostic_html(
+            test, 
+            include_answers, 
+            header_settings,
+            columns=columns,
+            options_layout=options_layout
+        )
         
         # تحويل إلى PDF باستخدام WeasyPrint
         try:
@@ -346,138 +366,274 @@ def export_pdf(test_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def generate_diagnostic_html(test, include_answers=False, header_settings=None):
-    """توليد HTML للاختبار التشخيصي"""
+def generate_diagnostic_html(test, include_answers=False, header_settings=None, columns=2, options_layout='grid'):
+    """
+    توليد HTML للاختبار التشخيصي بتنسيق احترافي
+    
+    Args:
+        test: كائن الاختبار
+        include_answers: إظهار الإجابات
+        header_settings: إعدادات الكليشة
+        columns: عدد الأعمدة (1، 2، 3)
+        options_layout: تنسيق الخيارات (vertical، horizontal، grid)
+    """
     
     questions = test.questions_data or []
     
-    # CSS للتنسيق
-    css = """
+    # تحديد عرض الأعمدة
+    if columns == 1:
+        column_width = "100%"
+        questions_per_column = len(questions)
+    elif columns == 2:
+        column_width = "48%"
+        questions_per_column = (len(questions) + 1) // 2
+    else:  # 3 columns
+        column_width = "31%"
+        questions_per_column = (len(questions) + 2) // 3
+    
+    # CSS للتنسيق الاحترافي
+    css = f"""
     <style>
-        @page {
+        @page {{
             size: A4;
-            margin: 1.5cm;
-        }
-        body {
-            font-family: 'Arial', 'Tahoma', sans-serif;
+            margin: 1cm;
+        }}
+        * {{
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Traditional Arabic', 'Arial', 'Tahoma', sans-serif;
             direction: rtl;
             text-align: right;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-        .header {
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 10px;
+        }}
+        
+        /* === الكليشة === */
+        .header-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }}
+        .header-table td {{
+            padding: 3px 8px;
+            vertical-align: top;
+        }}
+        .header-right, .header-left {{
+            width: 35%;
+            font-size: 11px;
+        }}
+        .header-center {{
+            width: 30%;
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-        }
-        .header h2 {
-            margin: 5px 0;
-            font-size: 16px;
-        }
-        .header h1 {
+        }}
+        .header-center img {{
+            max-width: 60px;
+            max-height: 60px;
+        }}
+        
+        /* === عنوان الاختبار === */
+        .exam-title {{
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
             margin: 10px 0;
-            font-size: 20px;
-            color: #333;
-        }
-        .info-row {
+            font-size: 16px;
+            font-weight: bold;
+        }}
+        
+        /* === معلومات الطالب === */
+        .student-info {{
             display: flex;
             justify-content: space-between;
-            margin: 15px 0;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 5px;
-        }
-        .student-info {
-            margin: 20px 0;
-            padding: 10px;
-            border: 1px solid #ddd;
-        }
-        .student-info span {
-            margin-left: 30px;
-        }
-        .question {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background: #fafafa;
-        }
-        .question-text {
-            font-weight: bold;
-            font-size: 15px;
-            margin-bottom: 10px;
-            color: #222;
-        }
-        .options {
-            margin-right: 20px;
-        }
-        .option {
-            margin: 8px 0;
-            padding: 5px 10px;
-        }
-        .option.correct {
-            background: #d4edda;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        .answer-key {
-            page-break-before: always;
-            margin-top: 30px;
-        }
-        .answer-key h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .answer-table {
-            width: 50%;
-            margin: 0 auto;
-            border-collapse: collapse;
-        }
-        .answer-table th, .answer-table td {
             border: 1px solid #333;
-            padding: 10px;
+            padding: 8px 15px;
+            margin: 10px 0;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }}
+        .student-info span {{
+            font-size: 12px;
+        }}
+        
+        /* === الأعمدة === */
+        .questions-container {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2%;
+            justify-content: space-between;
+        }}
+        .questions-column {{
+            width: {column_width};
+            display: flex;
+            flex-direction: column;
+        }}
+        
+        /* === السؤال === */
+        .question {{
+            margin-bottom: 12px;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #fafafa;
+            page-break-inside: avoid;
+        }}
+        .question-text {{
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #333;
+            line-height: 1.5;
+        }}
+        
+        /* === الخيارات - شبكة === */
+        .options-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }}
+        
+        /* === الخيارات - أفقي === */
+        .options-horizontal {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }}
+        .options-horizontal .option {{
+            flex: 1;
+            min-width: 45%;
+        }}
+        
+        /* === الخيارات - عمودي === */
+        .options-vertical {{
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }}
+        
+        /* === الخيار === */
+        .option {{
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+            background: white;
+        }}
+        .option.correct {{
+            background: #d4edda;
+            border-color: #28a745;
+            font-weight: bold;
+        }}
+        .option-letter {{
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
             text-align: center;
-        }
-        .answer-table th {
-            background: #333;
+            background: #667eea;
             color: white;
-        }
+            border-radius: 50%;
+            font-size: 10px;
+            margin-left: 5px;
+        }}
+        
+        /* === نموذج الإجابة === */
+        .answer-key {{
+            page-break-before: always;
+            margin-top: 20px;
+        }}
+        .answer-key h2 {{
+            text-align: center;
+            background: #28a745;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }}
+        .answer-grid {{
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            max-width: 500px;
+            margin: 0 auto;
+        }}
+        .answer-box {{
+            border: 2px solid #333;
+            padding: 8px;
+            text-align: center;
+            border-radius: 5px;
+            background: #f5f5f5;
+        }}
+        .answer-box .q-num {{
+            font-weight: bold;
+            color: #667eea;
+        }}
+        .answer-box .q-ans {{
+            font-size: 14px;
+            font-weight: bold;
+            color: #28a745;
+        }}
+        
+        @media print {{
+            body {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+        }}
     </style>
     """
     
-    # Header
+    # === الكليشة ===
     header_html = ""
     if header_settings:
         header_html = f"""
-        <div class="header">
-            <h2>{header_settings.get('country', 'المملكة العربية السعودية')}</h2>
-            <h2>{header_settings.get('ministry', 'وزارة التعليم')}</h2>
-            <h2>{header_settings.get('school_name', '')}</h2>
-        </div>
+        <table class="header-table">
+            <tr>
+                <td class="header-right">
+                    <div>{header_settings.get('country', 'المملكة العربية السعودية')}</div>
+                    <div>{header_settings.get('ministry', 'وزارة التعليم')}</div>
+                    <div>{header_settings.get('school_name', '')}</div>
+                </td>
+                <td class="header-center">
+                    <div>🔬</div>
+                </td>
+                <td class="header-left" style="text-align: left;">
+                    <div>المادة: {header_settings.get('subject', 'كيمياء')}</div>
+                    <div>الصف: {header_settings.get('grade', '')}</div>
+                    <div>الزمن: {test.time_limit_minutes} دقيقة</div>
+                </td>
+            </tr>
+        </table>
         """
     
-    # Title
+    # === عنوان الاختبار ===
     test_type_ar = 'قبلي' if test.test_type == 'pre_test' else 'بعدي'
     title_html = f"""
-    <div style="text-align: center; margin: 20px 0;">
-        <h1>{test.title or f'اختبار تشخيصي {test_type_ar}'}</h1>
-        <p>عدد الأسئلة: {len(questions)} | الوقت: {test.time_limit_minutes} دقيقة</p>
+    <div class="exam-title">
+        📝 {test.title or f'اختبار تشخيصي {test_type_ar}'}
+        <br>
+        <span style="font-size: 12px; font-weight: normal;">عدد الأسئلة: {len(questions)}</span>
     </div>
     """
     
-    # Student Info
+    # === معلومات الطالب ===
     student_html = """
     <div class="student-info">
-        <span>الاسم: ________________________</span>
-        <span>الصف: __________</span>
-        <span>التاريخ: __________</span>
+        <span>الاسم: ________________________________</span>
+        <span>الصف: ____________</span>
+        <span>التاريخ: ____/____/______</span>
     </div>
     """
     
-    # Questions
-    questions_html = ""
-    for i, q in enumerate(questions, 1):
+    # === تحديد class الخيارات ===
+    options_class = f"options-{options_layout}"
+    
+    # === بناء الأسئلة ===
+    def build_question_html(q, num):
         q_text = q.get('text', '')
         options_html = ""
         
@@ -486,17 +642,87 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None):
             text = opt.get('text', '')
             is_correct = opt.get('is_correct', False)
             
-            if include_answers and is_correct:
-                options_html += f'<div class="option correct">({letter}) {text} ✓</div>'
-            else:
-                options_html += f'<div class="option">({letter}) {text}</div>'
+            correct_class = ' correct' if include_answers and is_correct else ''
+            check_mark = ' ✓' if include_answers and is_correct else ''
+            
+            options_html += f'''
+            <div class="option{correct_class}">
+                <span class="option-letter">{letter}</span>
+                {text}{check_mark}
+            </div>
+            '''
         
-        questions_html += f"""
+        return f'''
         <div class="question">
-            <div class="question-text">س{i}: {q_text}</div>
-            <div class="options">{options_html}</div>
+            <div class="question-text">س{num}: {q_text}</div>
+            <div class="{options_class}">{options_html}</div>
+        </div>
+        '''
+    
+    # === توزيع الأسئلة على الأعمدة ===
+    questions_html = '<div class="questions-container">'
+    
+    if columns == 1:
+        questions_html += '<div class="questions-column">'
+        for i, q in enumerate(questions, 1):
+            questions_html += build_question_html(q, i)
+        questions_html += '</div>'
+    else:
+        # توزيع على أعمدة متعددة
+        for col in range(columns):
+            questions_html += '<div class="questions-column">'
+            start_idx = col * questions_per_column
+            end_idx = min(start_idx + questions_per_column, len(questions))
+            
+            for i in range(start_idx, end_idx):
+                questions_html += build_question_html(questions[i], i + 1)
+            
+            questions_html += '</div>'
+    
+    questions_html += '</div>'
+    
+    # === نموذج الإجابة ===
+    answer_key_html = ""
+    if include_answers:
+        answers_grid = ""
+        for i, q in enumerate(questions, 1):
+            correct = next((o for o in q.get('options', []) if o.get('is_correct')), None)
+            if correct:
+                answers_grid += f'''
+                <div class="answer-box">
+                    <div class="q-num">س{i}</div>
+                    <div class="q-ans">{correct.get('letter', '')}</div>
+                </div>
+                '''
+        
+        answer_key_html = f"""
+        <div class="answer-key">
+            <h2>🔑 نموذج الإجابة</h2>
+            <div class="answer-grid">
+                {answers_grid}
+            </div>
         </div>
         """
+    
+    # === HTML النهائي ===
+    html = f"""
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        {css}
+    </head>
+    <body>
+        {header_html}
+        {title_html}
+        {student_html}
+        {questions_html}
+        {answer_key_html}
+    </body>
+    </html>
+    """
+    
+    return html
     
     # Answer Key (if needed)
     answer_key_html = ""
