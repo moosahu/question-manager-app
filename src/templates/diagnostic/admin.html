@@ -524,21 +524,21 @@
                     
                     <div class="form-group">
                         <label>المنهج</label>
-                        <select class="form-control" id="course_id" name="course_id" onchange="loadUnits()">
+                        <select class="form-control" id="diag_course_id" name="course_id" onchange="loadUnits()">
                             <option value="">-- اختر المنهج --</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label>الوحدة</label>
-                        <select class="form-control" id="unit_id" name="unit_id" onchange="loadLessons()">
+                        <select class="form-control" id="diag_unit_id" name="unit_id" onchange="loadLessons()">
                             <option value="">-- اختر الوحدة --</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label>الدرس</label>
-                        <select class="form-control" id="lesson_id" name="lesson_id">
+                        <select class="form-control" id="diag_lesson_id" name="lesson_id">
                             <option value="">-- اختر الدرس --</option>
                         </select>
                     </div>
@@ -676,10 +676,13 @@
 
 {% block extra_js %}
 <script>
+    console.log('🚀 Diagnostic Admin v2.0 - ' + new Date().toISOString());
+    
     const API_BASE = '/api/diagnostic';
     
     // ===== Test Type Selection (Global) =====
     window.selectTestType = function(type) {
+        console.log('🔄 selectTestType called:', type);
         document.querySelectorAll('.test-type-btn').forEach(btn => {
             btn.classList.remove('active');
         });
@@ -691,6 +694,7 @@
     
     // ===== Initialization =====
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('📋 DOM Ready - Loading data...');
         loadCourses();
         loadTests();
         loadStats();
@@ -698,14 +702,17 @@
     
     // ===== Load Courses =====
     window.loadCourses = async function() {
+        console.log('📚 loadCourses() called');
         try {
-            const res = await fetch('/api/v1/courses?show_all=true');
+            const url = '/api/v1/courses?show_all=true';
+            console.log('📚 Fetching:', url);
+            const res = await fetch(url);
             const data = await res.json();
             console.log('📚 Courses API response:', data);
             
-            const select = document.getElementById('course_id');
+            const select = document.getElementById('diag_course_id');
             if (!select) {
-                console.error('❌ course_id select not found');
+                console.error('❌ diag_course_id select not found');
                 return;
             }
             
@@ -722,8 +729,9 @@
                     option.value = course.id;
                     option.textContent = course.name;
                     select.appendChild(option);
+                    console.log('  ✅ Added course:', course.id, course.name);
                 });
-                console.log('✅ Courses loaded:', courses.length);
+                console.log('✅ All courses loaded:', courses.length);
             } else {
                 console.log('⚠️ No courses found');
             }
@@ -734,9 +742,9 @@
     
     // ===== Load Units =====
     window.loadUnits = async function() {
-        const courseId = document.getElementById('course_id').value;
-        const select = document.getElementById('unit_id');
-        const lessonSelect = document.getElementById('lesson_id');
+        const courseId = document.getElementById('diag_course_id').value;
+        const select = document.getElementById('diag_unit_id');
+        const lessonSelect = document.getElementById('diag_lesson_id');
         
         select.innerHTML = '<option value="">-- اختر الوحدة --</option>';
         lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
@@ -766,9 +774,9 @@
     
     // ===== Load Lessons =====
     window.loadLessons = async function() {
-        const courseId = document.getElementById('course_id').value;
-        const unitId = document.getElementById('unit_id').value;
-        const select = document.getElementById('lesson_id');
+        const courseId = document.getElementById('diag_course_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
+        const select = document.getElementById('diag_lesson_id');
         select.innerHTML = '<option value="">-- اختر الدرس --</option>';
         
         if (!courseId || !unitId) return;
@@ -798,8 +806,8 @@
     document.getElementById('create-test-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const lessonId = document.getElementById('lesson_id').value;
-        const unitId = document.getElementById('unit_id').value;
+        const lessonId = document.getElementById('diag_lesson_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
         
         if (!lessonId && !unitId) {
             showAlert('يرجى اختيار درس أو وحدة على الأقل', 'error');
@@ -846,8 +854,8 @@
     
     // ===== Generate Pair =====
     window.generatePair = async function() {
-        const lessonId = document.getElementById('lesson_id').value;
-        const unitId = document.getElementById('unit_id').value;
+        const lessonId = document.getElementById('diag_lesson_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
         
         if (!lessonId && !unitId) {
             showAlert('يرجى اختيار درس أو وحدة أولاً', 'error');
