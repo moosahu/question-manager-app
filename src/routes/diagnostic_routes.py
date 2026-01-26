@@ -506,14 +506,17 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px 20px;
-            direction: rtl;
         }}
+        /* ترتيب الخيارات: أ يمين، ب يسار */
+        .options-grid .option:nth-child(1) {{ order: 1; }}
+        .options-grid .option:nth-child(2) {{ order: 2; }}
+        .options-grid .option:nth-child(3) {{ order: 3; }}
+        .options-grid .option:nth-child(4) {{ order: 4; }}
         
         /* === الخيارات - أفقي === */
         .options-horizontal {{
             display: flex;
             flex-wrap: wrap;
-            flex-direction: row-reverse;
             gap: 10px;
         }}
         .options-horizontal .option {{
@@ -536,7 +539,6 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             font-size: 12px;
             background: white;
             text-align: right;
-            direction: rtl;
         }}
         .option.correct {{
             background: #d4edda;
@@ -662,18 +664,36 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
     def build_question_html(q, num):
         q_text = q.get('text', '')
         options_list = q.get('options', [])
-        options_html = ""
         
-        for idx, opt in enumerate(options_list):
-            # استخدام الحرف العربي بالترتيب
-            letter = arabic_letters[idx] if idx < len(arabic_letters) else str(idx + 1)
+        # بناء الخيارات بترتيب صحيح للشبكة RTL
+        # الترتيب المطلوب في HTML: [ب، أ، د، ج] ليظهر [أ، ب] في الصف الأول و[ج، د] في الثاني
+        if options_layout == 'grid' and len(options_list) >= 4:
+            # إعادة ترتيب: نضع ب قبل أ، د قبل ج
+            reordered = [
+                options_list[1] if len(options_list) > 1 else None,  # ب
+                options_list[0] if len(options_list) > 0 else None,  # أ
+                options_list[3] if len(options_list) > 3 else None,  # د
+                options_list[2] if len(options_list) > 2 else None,  # ج
+            ]
+            reordered = [o for o in reordered if o]  # إزالة None
+            letter_order = ['ب', 'أ', 'د', 'ج']
+        else:
+            reordered = options_list
+            letter_order = arabic_letters
+        
+        options_html = ""
+        for idx, opt in enumerate(reordered):
+            if options_layout == 'grid' and len(options_list) >= 4:
+                letter = letter_order[idx] if idx < len(letter_order) else str(idx + 1)
+            else:
+                letter = arabic_letters[idx] if idx < len(arabic_letters) else str(idx + 1)
+            
             text = opt.get('text', '')
             is_correct = opt.get('is_correct', False)
             
             correct_class = ' correct' if include_answers and is_correct else ''
             check_mark = ' ✓' if include_answers and is_correct else ''
             
-            # الحرف ثم شرطة ثم النص: أ- الجول
             options_html += f'''
             <div class="option{correct_class}">{letter}- {text}{check_mark}</div>
             '''
