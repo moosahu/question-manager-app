@@ -299,28 +299,68 @@ def export_pdf(test_id):
         
         include_answers = request.args.get('include_answers', 'false').lower() == 'true'
         
+        # استخدام ExamGenerator الموجود (نفس المستخدم في export_exam)
+        try:
+            from src.routes.exam_generator import ExamGenerator
+        except ImportError:
+            try:
+                from exam_generator import ExamGenerator
+            except ImportError:
+                return jsonify({'success': False, 'error': 'ExamGenerator غير متوفر'}), 500
+        
         # جلب إعدادات الكليشة
         try:
-            from src.routes.question import ExamHeaderSettings
+            from src.models.exam_header_settings import ExamHeaderSettings
+        except ImportError:
+            try:
+                from models.exam_header_settings import ExamHeaderSettings
+            except:
+                ExamHeaderSettings = None
+        
+        settings_dict = {}
+        if ExamHeaderSettings:
             header = ExamHeaderSettings.query.first()
-            header_settings = {
-                'country': header.country if header else 'المملكة العربية السعودية',
-                'ministry': header.ministry if header else 'وزارة التعليم',
-                'school_name': header.school_name if header else '',
-                'subject': header.subject if header else 'كيمياء',
-                'grade': header.grade if header else ''
+            if header:
+                settings_dict = {
+                    'country': header.country or "المملكة العربية السعودية",
+                    'ministry': header.ministry or "وزارة التعليم",
+                    'education_department': getattr(header, 'education_department', '') or "",
+                    'school_name': header.school_name or "",
+                    'subject': header.subject or "كيمياء",
+                    'time': getattr(header, 'time', '') or str(test.time_limit_minutes) + " دقيقة",
+                    'grade': header.grade or "",
+                    'total_score': getattr(header, 'total_score', 30) or 30,
+                    'checker_name': getattr(header, 'checker_name', '') or "",
+                    'reviewer_name': getattr(header, 'reviewer_name', '') or "",
+                    'exam_date': getattr(header, 'exam_date', '') or ""
+                }
+        
+        # تحويل أسئلة الاختبار للتنسيق المطلوب
+        questions_data = []
+        for q in (test.questions_data or []):
+            q_dict = {
+                'id': q.get('question_id', 0),
+                'question_text': q.get('text', ''),
+                'points': 1,
+                'options': []
             }
-        except:
-            header_settings = None
+            for opt in q.get('options', []):
+                q_dict['options'].append({
+                    'option_text': opt.get('text', ''),
+                    'is_correct': opt.get('is_correct', False)
+                })
+            questions_data.append(q_dict)
         
-        # توليد PDF
-        test_data = test.to_dict(include_questions=True)
-        test_data['time_limit'] = test.time_limit_minutes
+        # توليد PDF باستخدام ExamGenerator
+        generator = ExamGenerator(header_settings=settings_dict)
         
-        pdf_bytes = diagnostic_service.generate_pdf(
-            test_data,
-            include_answers=include_answers,
-            header_settings=header_settings
+        exam_title = test.title or "اختبار تشخيصي"
+        
+        pdf_bytes = generator.generate_pdf(
+            questions_data,
+            exam_title,
+            include_answers,
+            **settings_dict
         )
         
         if not pdf_bytes:
