@@ -6,11 +6,13 @@ API للاختبارات التشخيصية
 - استخراج PDF
 """
 
-from flask import Blueprint, request, jsonify, send_file, render_template
+from flask import Blueprint, request, jsonify, send_file, render_template, current_app
 from flask_login import login_required, current_user
 from datetime import datetime
 from functools import wraps
 import io
+import os
+import base64
 
 try:
     from src.extensions import db
@@ -324,11 +326,19 @@ def export_pdf(test_id):
                     'ministry': header.ministry or "وزارة التعليم",
                     'school_name': header.school_name or "",
                     'subject': header.subject or "كيمياء",
-                    'grade': header.grade or "",
-                    'logo_url': getattr(header, 'logo_url', '') or getattr(header, 'logo', '') or ""
+                    'grade': header.grade or ""
                 }
-        except:
-            pass
+            
+            # جلب الشعار من الملف
+            import os
+            import base64
+            logo_path = os.path.join(current_app.root_path, 'static', 'images', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_base64 = base64.b64encode(f.read()).decode('utf-8')
+                    header_settings['logo_base64'] = f"data:image/png;base64,{logo_base64}"
+        except Exception as e:
+            print(f"⚠️ Error loading header settings: {e}")
         
         # بناء HTML بالتنسيق المطلوب
         html_content = generate_diagnostic_html(
@@ -495,17 +505,14 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         .options-grid {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 5px;
-            direction: rtl;
+            gap: 6px 20px;
         }}
         
         /* === الخيارات - أفقي === */
         .options-horizontal {{
             display: flex;
             flex-wrap: wrap;
-            flex-direction: row-reverse;
             gap: 10px;
-            direction: rtl;
         }}
         .options-horizontal .option {{
             flex: 1;
@@ -521,10 +528,10 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         
         /* === الخيار === */
         .option {{
-            padding: 4px 8px;
+            padding: 5px 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 12px;
             background: white;
             text-align: right;
             direction: rtl;
@@ -598,9 +605,9 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
     header_html = ""
     if header_settings:
         # الشعار
-        logo_url = header_settings.get('logo_url', '')
-        if logo_url:
-            logo_html = f'<img src="{logo_url}" style="max-width: 60px; max-height: 60px;">'
+        logo_base64 = header_settings.get('logo_base64', '')
+        if logo_base64:
+            logo_html = f'<img src="{logo_base64}" style="max-width: 60px; max-height: 60px;">'
         else:
             logo_html = ''
         
@@ -647,23 +654,26 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
     options_class = f"options-{options_layout}"
     
     # === بناء الأسئلة ===
+    # === الأحرف العربية للخيارات ===
+    arabic_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    
     def build_question_html(q, num):
         q_text = q.get('text', '')
+        options_list = q.get('options', [])
         options_html = ""
         
-        for opt in q.get('options', []):
-            letter = opt.get('letter', '')
+        for idx, opt in enumerate(options_list):
+            # استخدام الحرف العربي بالترتيب
+            letter = arabic_letters[idx] if idx < len(arabic_letters) else str(idx + 1)
             text = opt.get('text', '')
             is_correct = opt.get('is_correct', False)
             
             correct_class = ' correct' if include_answers and is_correct else ''
             check_mark = ' ✓' if include_answers and is_correct else ''
             
+            # الحرف ثم شرطة ثم النص: أ- الجول
             options_html += f'''
-            <div class="option{correct_class}">
-                <span class="option-letter">{letter}</span>
-                {text}{check_mark}
-            </div>
+            <div class="option{correct_class}">{letter}- {text}{check_mark}</div>
             '''
         
         return f'''
