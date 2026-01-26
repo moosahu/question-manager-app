@@ -323,34 +323,25 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
+        background: rgba(0,0,0,0.6);
+        display: none;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s;
+        z-index: 9999;
     }
     
     .modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
+        display: flex !important;
     }
     
     .modal {
         background: white;
         border-radius: 1rem;
         width: 90%;
-        max-width: 500px;
-        max-height: 90vh;
+        max-width: 600px;
+        max-height: 85vh;
         overflow-y: auto;
-        transform: scale(0.9);
-        transition: transform 0.3s;
-    }
-    
-    .modal-overlay.active .modal {
-        transform: scale(1);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
     }
     
     .modal-header {
