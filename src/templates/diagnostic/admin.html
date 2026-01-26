@@ -699,7 +699,7 @@
     // ===== Load Courses =====
     window.loadCourses = async function() {
         try {
-            const res = await fetch('/api/courses');
+            const res = await fetch('/api/v1/courses?show_all=true');
             const data = await res.json();
             console.log('📚 Courses API response:', data);
             
@@ -712,25 +712,21 @@
             select.innerHTML = '<option value="">-- اختر المنهج --</option>';
             
             // التعامل مع مختلف أشكال الـ response
-            let courses = [];
-            if (Array.isArray(data)) {
-                courses = data;
-            } else if (data.courses && Array.isArray(data.courses)) {
-                courses = data.courses;
-            } else if (data.data && Array.isArray(data.data)) {
-                courses = data.data;
-            }
+            const courses = Array.isArray(data) ? data : (data.courses || []);
             
             console.log('📚 Courses to display:', courses.length);
             
-            courses.forEach(c => {
-                const option = document.createElement('option');
-                option.value = c.id;
-                option.textContent = c.name;
-                select.appendChild(option);
-            });
-            
-            console.log('✅ Courses loaded:', courses.length);
+            if (courses.length > 0) {
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.id;
+                    option.textContent = course.name;
+                    select.appendChild(option);
+                });
+                console.log('✅ Courses loaded:', courses.length);
+            } else {
+                console.log('⚠️ No courses found');
+            }
         } catch (e) {
             console.error('❌ Error loading courses:', e);
         }
@@ -748,27 +744,21 @@
         if (!courseId) return;
         
         try {
-            const res = await fetch(`/api/units?course_id=${courseId}`);
+            const res = await fetch(`/api/v1/courses/${courseId}/units`);
             const data = await res.json();
             console.log('📂 Units API response:', data);
             
-            let units = [];
-            if (Array.isArray(data)) {
-                units = data;
-            } else if (data.units && Array.isArray(data.units)) {
-                units = data.units;
-            } else if (data.data && Array.isArray(data.data)) {
-                units = data.data;
+            const units = Array.isArray(data) ? data : (data.units || []);
+            
+            if (units.length > 0) {
+                units.forEach(unit => {
+                    const option = document.createElement('option');
+                    option.value = unit.id;
+                    option.textContent = unit.name;
+                    select.appendChild(option);
+                });
+                console.log('✅ Units loaded:', units.length);
             }
-            
-            units.forEach(u => {
-                const option = document.createElement('option');
-                option.value = u.id;
-                option.textContent = u.name;
-                select.appendChild(option);
-            });
-            
-            console.log('✅ Units loaded:', units.length);
         } catch (e) {
             console.error('❌ Error loading units:', e);
         }
@@ -776,34 +766,29 @@
     
     // ===== Load Lessons =====
     window.loadLessons = async function() {
+        const courseId = document.getElementById('course_id').value;
         const unitId = document.getElementById('unit_id').value;
         const select = document.getElementById('lesson_id');
         select.innerHTML = '<option value="">-- اختر الدرس --</option>';
         
-        if (!unitId) return;
+        if (!courseId || !unitId) return;
         
         try {
-            const res = await fetch(`/api/lessons?unit_id=${unitId}`);
+            const res = await fetch(`/api/v1/courses/${courseId}/units/${unitId}/lessons`);
             const data = await res.json();
             console.log('📖 Lessons API response:', data);
             
-            let lessons = [];
-            if (Array.isArray(data)) {
-                lessons = data;
-            } else if (data.lessons && Array.isArray(data.lessons)) {
-                lessons = data.lessons;
-            } else if (data.data && Array.isArray(data.data)) {
-                lessons = data.data;
+            const lessons = Array.isArray(data) ? data : (data.lessons || []);
+            
+            if (lessons.length > 0) {
+                lessons.forEach(lesson => {
+                    const option = document.createElement('option');
+                    option.value = lesson.id;
+                    option.textContent = lesson.name;
+                    select.appendChild(option);
+                });
+                console.log('✅ Lessons loaded:', lessons.length);
             }
-            
-            lessons.forEach(l => {
-                const option = document.createElement('option');
-                option.value = l.id;
-                option.textContent = l.name;
-                select.appendChild(option);
-            });
-            
-            console.log('✅ Lessons loaded:', lessons.length);
         } catch (e) {
             console.error('❌ Error loading lessons:', e);
         }
