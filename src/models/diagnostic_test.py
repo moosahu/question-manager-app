@@ -142,3 +142,50 @@ class DiagnosticResult(db.Model):
             'time_spent_seconds': self.time_spent_seconds,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
+
+
+class DiagnosticComparison(db.Model):
+    """مقارنة نتائج الاختبارات القبلية والبعدية"""
+    __tablename__ = 'diagnostic_comparisons'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # الاختبارات
+    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    
+    # النتائج
+    pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)
+    post_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)
+    
+    # الطالب
+    student_id = db.Column(db.String(100), nullable=True)
+    student_name = db.Column(db.String(255), nullable=True)
+    device_id = db.Column(db.String(255), nullable=True)
+    
+    # النتائج
+    pre_score = db.Column(db.Float, default=0)
+    post_score = db.Column(db.Float, default=0)
+    improvement = db.Column(db.Float, default=0)  # نسبة التحسن
+    
+    # التواريخ
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # العلاقات
+    pre_test = db.relationship('DiagnosticTest', foreign_keys=[pre_test_id])
+    post_test = db.relationship('DiagnosticTest', foreign_keys=[post_test_id])
+    pre_result = db.relationship('DiagnosticResult', foreign_keys=[pre_result_id])
+    post_result = db.relationship('DiagnosticResult', foreign_keys=[post_result_id])
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'pre_test_id': self.pre_test_id,
+            'post_test_id': self.post_test_id,
+            'student_id': self.student_id,
+            'student_name': self.student_name,
+            'pre_score': self.pre_score,
+            'post_score': self.post_score,
+            'improvement': self.improvement,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
