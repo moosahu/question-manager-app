@@ -676,133 +676,160 @@
 
 {% block extra_js %}
 <script>
-    console.log('🚀 Diagnostic Admin v3.0 - ' + new Date().toISOString());
+    // ========== DIAGNOSTIC ADMIN v4.0 ==========
+    console.log('🚀🚀🚀 Diagnostic Admin v4.0 LOADED! 🚀🚀🚀');
     
+    const DIAG_API = '/api/v1';
     const API_BASE = '/api/diagnostic';
+    var currentCourseId = null;
     
-    // ===== Test Type Selection (Global) =====
+    // ===== Test Type Selection =====
     window.selectTestType = function(type) {
-        console.log('🔄 selectTestType called:', type);
-        document.querySelectorAll('.test-type-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        const targetBtn = document.querySelector(`[data-type="${type}"]`);
+        document.querySelectorAll('.test-type-btn').forEach(btn => btn.classList.remove('active'));
+        const targetBtn = document.querySelector('[data-type="' + type + '"]');
         if (targetBtn) targetBtn.classList.add('active');
-        const testTypeInput = document.getElementById('test_type');
-        if (testTypeInput) testTypeInput.value = type;
+        document.getElementById('test_type').value = type;
     };
     
-    // ===== Initialization =====
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('📋 DOM Ready - Loading diagnostic data...');
-        // استخدام setTimeout لضمان تنفيذ الكود بعد script.js
-        setTimeout(function() {
-            diagLoadCourses();
-            diagLoadTests();
-            diagLoadStats();
-        }, 100);
-    });
-    
-    // ===== Load Courses (unique name to avoid conflict) =====
+    // ===== Load Courses =====
     window.diagLoadCourses = async function() {
-        console.log('📚 diagLoadCourses() called');
+        console.log('📚 === diagLoadCourses START ===');
         try {
-            const url = '/api/v1/courses?show_all=true';
-            console.log('📚 Fetching:', url);
-            const res = await fetch(url);
-            const data = await res.json();
-            console.log('📚 Courses API response:', data);
+            const url = DIAG_API + '/courses?show_all=true';
+            console.log('📚 Fetching URL:', url);
             
-            const select = document.getElementById('diag_course_id');
-            if (!select) {
-                console.error('❌ diag_course_id select not found');
+            const response = await fetch(url);
+            console.log('📚 Response status:', response.status);
+            
+            const data = await response.json();
+            console.log('📚 Raw data:', data);
+            
+            const courseSelect = document.getElementById('diag_course_id');
+            console.log('📚 Select element:', courseSelect);
+            
+            if (!courseSelect) {
+                console.error('❌ SELECT NOT FOUND: diag_course_id');
                 return;
             }
             
-            select.innerHTML = '<option value="">-- اختر المنهج --</option>';
+            courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
             
             const courses = Array.isArray(data) ? data : (data.courses || []);
-            
-            console.log('📚 Courses to display:', courses.length);
+            console.log('📚 Courses array:', courses);
+            console.log('📚 Courses count:', courses.length);
             
             if (courses.length > 0) {
-                courses.forEach(course => {
-                    const option = document.createElement('option');
+                courses.forEach(function(course, index) {
+                    console.log('📚 Adding course ' + index + ':', course.id, course.name);
+                    var option = document.createElement('option');
                     option.value = course.id;
                     option.textContent = course.name;
-                    select.appendChild(option);
+                    courseSelect.appendChild(option);
                 });
-                console.log('✅ All courses loaded:', courses.length);
+                console.log('✅✅✅ ALL COURSES ADDED! Count:', courseSelect.options.length - 1);
             } else {
-                console.log('⚠️ No courses found');
+                console.warn('⚠️ No courses in data');
             }
-        } catch (e) {
-            console.error('❌ Error loading courses:', e);
+        } catch (error) {
+            console.error('❌ ERROR in diagLoadCourses:', error);
         }
+        console.log('📚 === diagLoadCourses END ===');
     };
     
     // ===== Load Units =====
     window.diagLoadUnits = async function() {
-        console.log('📂 diagLoadUnits() called');
-        const courseId = document.getElementById('diag_course_id').value;
-        const select = document.getElementById('diag_unit_id');
-        const lessonSelect = document.getElementById('diag_lesson_id');
+        console.log('📂 === diagLoadUnits START ===');
+        var courseId = document.getElementById('diag_course_id').value;
+        var unitSelect = document.getElementById('diag_unit_id');
+        var lessonSelect = document.getElementById('diag_lesson_id');
         
-        select.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        currentCourseId = courseId;
+        
+        unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
         lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
         
-        if (!courseId) return;
+        if (!courseId) {
+            console.log('📂 No course selected');
+            return;
+        }
         
         try {
-            const res = await fetch(`/api/v1/courses/${courseId}/units`);
-            const data = await res.json();
-            console.log('📂 Units API response:', data);
+            var url = DIAG_API + '/courses/' + courseId + '/units';
+            console.log('📂 Fetching:', url);
             
-            const units = Array.isArray(data) ? data : (data.units || []);
+            var response = await fetch(url);
+            var data = await response.json();
+            console.log('📂 Units data:', data);
             
-            if (units.length > 0) {
-                units.forEach(unit => {
-                    const option = document.createElement('option');
-                    option.value = unit.id;
-                    option.textContent = unit.name;
-                    select.appendChild(option);
-                });
-                console.log('✅ Units loaded:', units.length);
-            }
-        } catch (e) {
-            console.error('❌ Error loading units:', e);
+            var units = Array.isArray(data) ? data : (data.units || []);
+            
+            units.forEach(function(unit) {
+                var option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                unitSelect.appendChild(option);
+            });
+            console.log('✅ Units loaded:', units.length);
+        } catch (error) {
+            console.error('❌ Error loading units:', error);
         }
     };
     
     // ===== Load Lessons =====
     window.diagLoadLessons = async function() {
-        const courseId = document.getElementById('diag_course_id').value;
-        const unitId = document.getElementById('diag_unit_id').value;
-        const select = document.getElementById('diag_lesson_id');
-        select.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        console.log('📖 === diagLoadLessons START ===');
+        var courseId = document.getElementById('diag_course_id').value;
+        var unitId = document.getElementById('diag_unit_id').value;
+        var lessonSelect = document.getElementById('diag_lesson_id');
+        
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
         
         if (!courseId || !unitId) return;
         
         try {
-            const res = await fetch(`/api/v1/courses/${courseId}/units/${unitId}/lessons`);
-            const data = await res.json();
-            console.log('📖 Lessons API response:', data);
+            var url = DIAG_API + '/courses/' + courseId + '/units/' + unitId + '/lessons';
+            console.log('📖 Fetching:', url);
             
-            const lessons = Array.isArray(data) ? data : (data.lessons || []);
+            var response = await fetch(url);
+            var data = await response.json();
+            console.log('📖 Lessons data:', data);
             
-            if (lessons.length > 0) {
-                lessons.forEach(lesson => {
-                    const option = document.createElement('option');
-                    option.value = lesson.id;
-                    option.textContent = lesson.name;
-                    select.appendChild(option);
-                });
-                console.log('✅ Lessons loaded:', lessons.length);
-            }
-        } catch (e) {
-            console.error('❌ Error loading lessons:', e);
+            var lessons = Array.isArray(data) ? data : (data.lessons || []);
+            
+            lessons.forEach(function(lesson) {
+                var option = document.createElement('option');
+                option.value = lesson.id;
+                option.textContent = lesson.name;
+                lessonSelect.appendChild(option);
+            });
+            console.log('✅ Lessons loaded:', lessons.length);
+        } catch (error) {
+            console.error('❌ Error loading lessons:', error);
         }
-    }
+    };
+    
+    // ===== Initialize on DOM Ready =====
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📋📋📋 DOM READY - Starting initialization... 📋📋📋');
+        
+        // تأخير للتأكد من تحميل كل شيء
+        setTimeout(function() {
+            console.log('⏰ Timeout fired - calling diagLoadCourses...');
+            diagLoadCourses();
+            diagLoadTests();
+            diagLoadStats();
+        }, 200);
+    });
+    
+    // ===== Also try on window load =====
+    window.addEventListener('load', function() {
+        console.log('🌐🌐🌐 WINDOW LOAD - Double checking... 🌐🌐🌐');
+        var select = document.getElementById('diag_course_id');
+        if (select && select.options.length <= 1) {
+            console.log('🔄 Select still empty, reloading courses...');
+            diagLoadCourses();
+        }
+    });
     
     // ===== Create Test =====
     document.getElementById('create-test-form').addEventListener('submit', async function(e) {
