@@ -635,6 +635,25 @@ def create_app():
         print("   - /api/admin/ai/report/daily")
         print("   - /api/admin/ai/status")
     
+    # ✅ تسجيل Gamification Blueprint لنظام النقاط والإنجازات
+    try:
+        from src.routes.gamification_routes import gamification_bp
+        csrf.exempt(gamification_bp)
+        app.register_blueprint(gamification_bp)
+        print("✅ Gamification blueprint registered successfully")
+        print("🎮 Gamification System activated!")
+        print("🏆 Gamification endpoints available at:")
+        print("   - /api/gamification/points/<id>")
+        print("   - /api/gamification/leaderboard")
+        print("   - /api/gamification/achievements/<id>")
+        print("   - /api/gamification/challenge/today")
+        print("   - /api/gamification/challenge/progress/<id>")
+        print("   - /api/gamification/stats/<id>")
+    except ImportError as e:
+        print(f"⚠️ Gamification blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Error registering Gamification blueprint: {e}")
+    
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
         try:
@@ -798,10 +817,22 @@ def create_app():
     @app.route("/notifications")
     @login_required
     def view_notifications():
-        from src.models.notification import Notification
-        """عرض صفحة الإشعارات المحسنة"""
+        from src.models.notification import Notification, StudentNotification
+        """عرض صفحة الإشعارات المُرسلة للطلاب"""
         try:
-            notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+            # التحقق من صلاحيات الأدمن
+            if not current_user.is_admin:
+                flash('ليس لديك صلاحية الوصول', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # جلب جميع الإشعارات التي لها student_notifications (أي المُرسلة للطلاب)
+            # باستخدام join للتأكد من وجود ارتباط في student_notifications
+            notifications = db.session.query(Notification).join(
+                StudentNotification,
+                Notification.id == StudentNotification.notification_id
+            ).distinct().order_by(Notification.created_at.desc()).limit(100).all()
+            
+            # حساب عدد غير المقروءة (من منظور الإشعارات نفسها)
             unread_count = sum(1 for n in notifications if not n.is_read)
             
             return render_template("notifications.html", 
@@ -809,6 +840,8 @@ def create_app():
                                  unread_count=unread_count)
         except Exception as e:
             print(f"Error loading notifications page: {e}")
+            import traceback
+            traceback.print_exc()
             flash('حدث خطأ في تحميل صفحة الإشعارات', 'error')
             return redirect(url_for('dashboard'))
     
@@ -2440,6 +2473,14 @@ def create_app():
             </script>
             """
 
+
+    # ============================================
+    # بدء جدولة الرسائل التلقائية
+    # ملاحظة: في production، يتم بدء الـ Scheduler عبر gunicorn hooks
+    # هذا الكود للـ development mode فقط
+    # ============================================
+    print("🔥 DEBUG: تهيئة automation_scheduler (development mode)")
+    
     return app
 
 if __name__ == "__main__":
@@ -2633,7 +2674,7 @@ def get_backup_stats():
 @app.route('/api/admin/send-notification', methods=['POST'])
 @login_required
 def api_send_notification():
-    """إرسال إشعار للطلاب"""
+    """إرسال إشعار للطلاب - نسخة محسّنة (إشعار واحد مشترك)"""
     try:
         # التحقق من أن المستخدم أدمن
         if not current_user.is_admin:
@@ -2665,9 +2706,9 @@ def api_send_notification():
                 'error': 'العنوان والنص مطلوبان'
             }), 400
         
-        # استيراد نموذج Student
+        # استيراد النماذج المطلوبة
         from src.models.student import Student
-        from src.models.notification import Notification
+        from src.models.notification import Notification, StudentNotification
         
         # جلب الطلاب المستهدفين
         target_students = []
@@ -2704,52 +2745,119 @@ def api_send_notification():
             target_students = Student.query.filter_by(grade=level, is_active=True).all()
             print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
         
-        # إرسال الإشعارات
+        if not target_students:
+            return jsonify({
+                'success': False,
+                'error': 'لم يتم العثور على مستلمين'
+            }), 400
+        
+        # ✅ تحديد نوع الإشعار حسب عدد المستلمين
+        is_single_recipient = len(target_students) == 1
+        
+        if is_single_recipient:
+            # إرسال لطالب واحد محدد
+            single_student = target_students[0]
+            notification = Notification(
+                title=notification_title,
+                message=notification_body,
+                type='info',
+                student_id=single_student.id,  # ← طالب محدد
+                user_id=current_user.id,
+                is_read=False,
+                created_at=datetime.utcnow(),
+                created_by_admin=True if current_user.is_admin else False,
+                notification_type='broadcast'
+            )
+            db.session.add(notification)
+            db.session.flush()
+            
+            print(f"✅ تم إنشاء إشعار فردي للطالب {single_student.username}: ID={notification.id}")
+            
+            # ✅ إنشاء StudentNotification (مطلوب لعمل القراءة)
+            student_notification = StudentNotification(
+                notification_id=notification.id,
+                student_id=single_student.id,
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(student_notification)
+            
+        else:
+            # إرسال جماعي (أكثر من طالب) - إشعار واحد مشترك
+            notification = Notification(
+                title=notification_title,
+                message=notification_body,
+                type='info',
+                student_id=None,  # ← إشعار مشترك للجميع
+                user_id=current_user.id,
+                is_read=False,
+                created_at=datetime.utcnow(),
+                created_by_admin=True if current_user.is_admin else False,
+                notification_type='broadcast'
+            )
+            db.session.add(notification)
+            db.session.flush()
+            
+            print(f"✅ تم إنشاء الإشعار المشترك: ID={notification.id}")
+            
+            # إنشاء StudentNotification لكل طالب
+            for student in target_students:
+                student_notification = StudentNotification(
+                    notification_id=notification.id,
+                    student_id=student.id,
+                    is_read=False,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(student_notification)
+        
+        # إرسال الإشعارات عبر FCM
         sent_count = 0
         failed_count = 0
         
         for student in target_students:
-            if not student.fcm_token:
-                print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
-                failed_count += 1
-                continue
-            
             try:
-                # استيراد Firebase Admin SDK
-                import firebase_admin
-                from firebase_admin import messaging
-                
-                # إنشاء الرسالة
-                message = messaging.Message(
-                    notification=messaging.Notification(
-                        title=notification_title,
-                        body=notification_body,
-                    ),
-                    token=student.fcm_token,
-                )
-                
-                # إرسال الرسالة
-                response = messaging.send(message)
-                print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
-                sent_count += 1
-                
-                # حفظ الإشعار في قاعدة البيانات
-                notification = Notification(
-                    title=notification_title,
-                    message=notification_body,
-                    type='info',
-                    student_id=student.id,
-                    user_id=current_user.id,
-                    is_read=False,
-                    created_at = datetime.utcnow()
-                )
-                db.session.add(notification)
+                # إرسال عبر FCM إذا كان لدى الطالب token
+                if student.fcm_token:
+                    # استيراد Firebase Admin SDK
+                    import firebase_admin
+                    from firebase_admin import messaging
+                    
+                    # إنشاء الرسالة
+                    message = messaging.Message(
+                        notification=messaging.Notification(
+                            title=notification_title,
+                            body=notification_body,
+                        ),
+                        token=student.fcm_token,
+                        android=messaging.AndroidConfig(
+                            priority='high',
+                            notification=messaging.AndroidNotification(
+                                click_action='FLUTTER_NOTIFICATION_CLICK',
+                                channel_id='high_importance_channel',
+                            ),
+                        ),
+                        data={
+                            'notification_id': str(notification.id),
+                            'title': notification_title,
+                            'body': notification_body,
+                            'type': 'info',
+                            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+                        }
+                    )
+                    
+                    # إرسال الرسالة
+                    response = messaging.send(message)
+                    print(f"✅ تم إرسال الإشعار للطالب {student.username}: {response}")
+                    sent_count += 1
+                else:
+                    print(f"⚠️  الطالب {student.username} لا يملك FCM Token")
+                    failed_count += 1
                 
             except Exception as e:
                 print(f"❌ خطأ في إرسال الإشعار للطالب {student.username}: {str(e)}")
                 failed_count += 1
         
-        # حفظ التغييرات
+        # حفظ جميع التغييرات
         db.session.commit()
         
         print(f"✅ تم إرسال {sent_count} إشعار بنجاح")
@@ -2765,10 +2873,180 @@ def api_send_notification():
         })
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ خطأ في إرسال الإشعارات: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
             'success': False,
             'error': f'خطأ في إرسال الإشعارات: {str(e)}'
+        }), 500
+
+
+# ==================== API جديد: إحصائيات قراءة الإشعارات للأدمن ====================
+
+@app.route('/api/admin/notification/<int:notification_id>/read-stats', methods=['GET'])
+@login_required
+def api_notification_read_stats(notification_id):
+    """
+    عرض إحصائيات قراءة إشعار معين
+    - من قرأ الإشعار
+    - من لم يقرأ الإشعار
+    - نسبة القراءة
+    """
+    try:
+        # التحقق من صلاحيات الأدمن
+        if not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': 'ليس لديك صلاحية الوصول'
+            }), 403
+        
+        from src.models.notification import Notification, StudentNotification
+        from src.models.student import Student
+        
+        # التحقق من وجود الإشعار
+        notification = Notification.query.get(notification_id)
+        if not notification:
+            return jsonify({
+                'success': False,
+                'error': 'الإشعار غير موجود'
+            }), 404
+        
+        # جلب جميع الطلاب المرتبطين بهذا الإشعار
+        student_notifications = StudentNotification.query.filter_by(
+            notification_id=notification_id
+        ).all()
+        
+        # تصنيف الطلاب
+        read_students = []
+        unread_students = []
+        
+        for sn in student_notifications:
+            student_data = {
+                'id': sn.student_id,
+                'name': sn.student.name if sn.student else 'غير معروف',
+                'username': sn.student.username if sn.student else '',
+                'read_at': sn.read_at.isoformat() if sn.read_at else None,
+            }
+            
+            if sn.is_read:
+                read_students.append(student_data)
+            else:
+                unread_students.append(student_data)
+        
+        # حساب النسب
+        total_students = len(student_notifications)
+        read_count = len(read_students)
+        unread_count = len(unread_students)
+        read_percentage = (read_count / total_students * 100) if total_students > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'notification': {
+                'id': notification.id,
+                'title': notification.title,
+                'body': notification.body or notification.message,
+                'created_at': notification.created_at.isoformat() if notification.created_at else None,
+            },
+            'stats': {
+                'total_students': total_students,
+                'read_count': read_count,
+                'unread_count': unread_count,
+                'read_percentage': round(read_percentage, 2),
+            },
+            'read_students': read_students,
+            'unread_students': unread_students,
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب إحصائيات القراءة: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/notifications/overview', methods=['GET'])
+@login_required
+def api_notifications_overview():
+    """
+    عرض نظرة عامة على جميع الإشعارات مع إحصائيات القراءة
+    """
+    try:
+        # التحقق من صلاحيات الأدمن
+        if not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'error': 'ليس لديك صلاحية الوصول'
+            }), 403
+        
+        from src.models.notification import Notification, StudentNotification
+        from sqlalchemy import func
+        
+        # جلب الإشعارات مع إحصائيات القراءة
+        notifications_query = db.session.query(
+            Notification.id,
+            Notification.title,
+            Notification.body,
+            Notification.message,
+            Notification.notification_type,
+            Notification.created_at,
+            Notification.created_by_admin,
+            Notification.created_by_ai,
+            func.count(StudentNotification.id).label('total_recipients'),
+            func.sum(
+                db.case(
+                    (StudentNotification.is_read == True, 1),
+                    else_=0
+                )
+            ).label('read_count')
+        ).outerjoin(
+            StudentNotification,
+            Notification.id == StudentNotification.notification_id
+        ).group_by(
+            Notification.id
+        ).order_by(
+            Notification.created_at.desc()
+        ).limit(100).all()
+        
+        # تحويل النتائج
+        notifications = []
+        for n in notifications_query:
+            total = int(n.total_recipients) if n.total_recipients else 0
+            read = int(n.read_count) if n.read_count else 0
+            unread = total - read
+            read_percentage = (read / total * 100) if total > 0 else 0
+            
+            notifications.append({
+                'id': n.id,
+                'title': n.title,
+                'body': n.body or n.message,
+                'notification_type': n.notification_type,
+                'created_at': n.created_at.isoformat() if n.created_at else None,
+                'created_by_admin': n.created_by_admin,
+                'created_by_ai': n.created_by_ai,
+                'stats': {
+                    'total_recipients': total,
+                    'read_count': read,
+                    'unread_count': unread,
+                    'read_percentage': round(read_percentage, 2),
+                }
+            })
+        
+        return jsonify({
+            'success': True,
+            'notifications': notifications,
+            'total_notifications': len(notifications)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ خطأ في جلب نظرة عامة على الإشعارات: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500

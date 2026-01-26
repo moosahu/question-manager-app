@@ -132,6 +132,15 @@ try:
 except ImportError as e:
     print(f"⚠️ Admin AI blueprint not available: {e}")
 
+# ✅ استيراد Diagnostic Blueprint للاختبارات التشخيصية (قبلي/بعدي)
+diagnostic_available = False
+try:
+    from src.routes.diagnostic_routes import diagnostic_bp
+    diagnostic_available = True
+    print("✅ Diagnostic blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Diagnostic blueprint not available: {e}")
+
 # ✅ استيراد reports blueprint لنظام التقارير الشامل
 reports_available = False
 try:
@@ -653,6 +662,23 @@ def create_app():
         print(f"⚠️ Gamification blueprint not available: {e}")
     except Exception as e:
         print(f"❌ Error registering Gamification blueprint: {e}")
+    
+    # ✅ تسجيل Diagnostic Blueprint للاختبارات التشخيصية (قبلي/بعدي)
+    if diagnostic_available:
+        try:
+            csrf.exempt(diagnostic_bp)
+            app.register_blueprint(diagnostic_bp)
+            print("✅ Diagnostic blueprint registered successfully")
+            print("🧪 Diagnostic Tests System activated!")
+            print("📋 Diagnostic endpoints available at:")
+            print("   - /api/diagnostic/admin (صفحة الإدارة)")
+            print("   - /api/diagnostic/generate")
+            print("   - /api/diagnostic/generate-pair")
+            print("   - /api/diagnostic/tests")
+            print("   - /api/diagnostic/tests/<id>/pdf")
+            print("   - /api/diagnostic/compare")
+        except Exception as e:
+            print(f"❌ Error registering Diagnostic blueprint: {e}")
     
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:

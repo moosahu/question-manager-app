@@ -1,0 +1,1064 @@
+{% extends "base.html" %}
+
+{% block title %}الاختبارات التشخيصية{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #8b5cf6;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);
+    }
+    
+    .page-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+    
+    .page-header p {
+        margin: 0.5rem 0 0;
+        opacity: 0.9;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .stat-card .icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+    }
+    
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .stat-card .label {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f9fafb;
+    }
+    
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
+    }
+    
+    .btn-success {
+        background: var(--success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #059669;
+    }
+    
+    .btn-info {
+        background: var(--info);
+        color: white;
+    }
+    
+    .btn-warning {
+        background: var(--warning);
+        color: white;
+    }
+    
+    .btn-danger {
+        background: var(--danger);
+        color: white;
+    }
+    
+    .btn-outline {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+    }
+    
+    .btn-outline:hover {
+        background: var(--primary);
+        color: white;
+    }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .test-type-selector {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .test-type-btn {
+        flex: 1;
+        padding: 1.25rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: white;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    
+    .test-type-btn:hover {
+        border-color: var(--primary);
+    }
+    
+    .test-type-btn.active {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    }
+    
+    .test-type-btn .icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .test-type-btn .title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .test-type-btn .desc {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .tests-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .tests-table th,
+    .tests-table td {
+        padding: 1rem;
+        text-align: right;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .tests-table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .tests-table tr:hover {
+        background: #f9fafb;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .badge-pre {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+    
+    .badge-post {
+        background: #d1fae5;
+        color: #047857;
+    }
+    
+    .actions-cell {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+    
+    .difficulty-inputs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    
+    .difficulty-input {
+        text-align: center;
+    }
+    
+    .difficulty-input label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .difficulty-input input {
+        width: 60px;
+        padding: 0.5rem;
+        text-align: center;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    
+    .empty-state .icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+    
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .modal {
+        background: white;
+        border-radius: 1rem;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: scale(0.9);
+        transition: transform 0.3s;
+    }
+    
+    .modal-overlay.active .modal {
+        transform: scale(1);
+    }
+    
+    .modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+    
+    .loading-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #e5e7eb;
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .alert-success {
+        background: #d1fae5;
+        color: #047857;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .test-type-selector {
+            flex-direction: column;
+        }
+        
+        .difficulty-inputs {
+            grid-template-columns: 1fr;
+        }
+        
+        .actions-cell {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem;">
+    
+    <!-- Header -->
+    <div class="page-header">
+        <h1>🧪 الاختبارات التشخيصية</h1>
+        <p>إنشاء اختبارات قبلية وبعدية واستخراج أوراق للطباعة</p>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="icon" style="background: #dbeafe;">📝</div>
+            <div class="value" id="stat-pre">0</div>
+            <div class="label">اختبارات قبلية</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon" style="background: #d1fae5;">✅</div>
+            <div class="value" id="stat-post">0</div>
+            <div class="label">اختبارات بعدية</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon" style="background: #fef3c7;">📊</div>
+            <div class="value" id="stat-results">0</div>
+            <div class="label">نتائج مسجلة</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon" style="background: #ede9fe;">📈</div>
+            <div class="value" id="stat-improvement">0%</div>
+            <div class="label">متوسط التحسن</div>
+        </div>
+    </div>
+    
+    <!-- Alert -->
+    <div id="alert-container"></div>
+    
+    <div class="row">
+        <!-- Create Test Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3>➕ إنشاء اختبار جديد</h3>
+            </div>
+            <div class="card-body">
+                <!-- Test Type Selector -->
+                <div class="test-type-selector">
+                    <div class="test-type-btn active" data-type="pre_test" onclick="selectTestType('pre_test')">
+                        <div class="icon">📝</div>
+                        <div class="title">اختبار قبلي</div>
+                        <div class="desc">قبل دراسة الدرس</div>
+                    </div>
+                    <div class="test-type-btn" data-type="post_test" onclick="selectTestType('post_test')">
+                        <div class="icon">✅</div>
+                        <div class="title">اختبار بعدي</div>
+                        <div class="desc">بعد دراسة الدرس</div>
+                    </div>
+                </div>
+                
+                <form id="create-test-form">
+                    <input type="hidden" name="test_type" id="test_type" value="pre_test">
+                    
+                    <div class="form-group">
+                        <label>المنهج</label>
+                        <select class="form-control" id="course_id" name="course_id" onchange="loadUnits()">
+                            <option value="">-- اختر المنهج --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>الوحدة</label>
+                        <select class="form-control" id="unit_id" name="unit_id" onchange="loadLessons()">
+                            <option value="">-- اختر الوحدة --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>الدرس</label>
+                        <select class="form-control" id="lesson_id" name="lesson_id">
+                            <option value="">-- اختر الدرس --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>عدد الأسئلة</label>
+                        <input type="number" class="form-control" id="questions_count" name="questions_count" value="5" min="3" max="20">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>توزيع الصعوبة</label>
+                        <div class="difficulty-inputs">
+                            <div class="difficulty-input">
+                                <label>🟢 سهل</label>
+                                <input type="number" id="diff_easy" value="2" min="0" max="10">
+                            </div>
+                            <div class="difficulty-input">
+                                <label>🟡 متوسط</label>
+                                <input type="number" id="diff_medium" value="2" min="0" max="10">
+                            </div>
+                            <div class="difficulty-input">
+                                <label>🔴 صعب</label>
+                                <input type="number" id="diff_hard" value="1" min="0" max="10">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span>🚀</span> إنشاء الاختبار
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h3>⚡ إجراءات سريعة</h3>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-info" style="width: 100%; margin-bottom: 1rem;" onclick="generatePair()">
+                    <span>🔄</span> إنشاء زوج (قبلي + بعدي)
+                </button>
+                
+                <button class="btn btn-outline" style="width: 100%; margin-bottom: 1rem;" onclick="loadTests()">
+                    <span>🔄</span> تحديث القائمة
+                </button>
+                
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e5e7eb;">
+                
+                <h4 style="margin-bottom: 1rem; color: #374151;">📄 استخراج ورقة اختبار</h4>
+                
+                <div class="form-group">
+                    <label>اختر الاختبار</label>
+                    <select class="form-control" id="export_test_id">
+                        <option value="">-- اختر اختبار --</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="exportPDF(false)">
+                        <span>📄</span> ورقة الأسئلة
+                    </button>
+                    <button class="btn btn-warning" style="flex: 1;" onclick="exportPDF(true)">
+                        <span>📋</span> مع الإجابات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tests List -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 قائمة الاختبارات</h3>
+            <div style="display: flex; gap: 0.5rem;">
+                <select class="form-control" id="filter_type" style="width: auto;" onchange="loadTests()">
+                    <option value="">الكل</option>
+                    <option value="pre_test">قبلي فقط</option>
+                    <option value="post_test">بعدي فقط</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="tests-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>العنوان</th>
+                        <th>النوع</th>
+                        <th>الدرس/الوحدة</th>
+                        <th>الأسئلة</th>
+                        <th>التاريخ</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tests-tbody">
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="icon">📭</div>
+                                <p>جاري التحميل...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- View Test Modal -->
+<div class="modal-overlay" id="view-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>👁️ عرض الاختبار</h3>
+            <button class="modal-close" onclick="closeModal('view-modal')">&times;</button>
+        </div>
+        <div class="modal-body" id="view-modal-body">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('view-modal')">إغلاق</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <p style="margin-top: 1rem; color: #6b7280;">جاري المعالجة...</p>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_BASE = '/api/diagnostic';
+    
+    // ===== Initialization =====
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCourses();
+        loadTests();
+        loadStats();
+    });
+    
+    // ===== Test Type Selection =====
+    function selectTestType(type) {
+        document.querySelectorAll('.test-type-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-type="${type}"]`).classList.add('active');
+        document.getElementById('test_type').value = type;
+    }
+    
+    // ===== Load Courses =====
+    async function loadCourses() {
+        try {
+            const res = await fetch('/api/courses');
+            const data = await res.json();
+            
+            const select = document.getElementById('course_id');
+            select.innerHTML = '<option value="">-- اختر المنهج --</option>';
+            
+            if (data.courses) {
+                data.courses.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            }
+        } catch (e) {
+            console.error('Error loading courses:', e);
+        }
+    }
+    
+    // ===== Load Units =====
+    async function loadUnits() {
+        const courseId = document.getElementById('course_id').value;
+        const select = document.getElementById('unit_id');
+        select.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        document.getElementById('lesson_id').innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        if (!courseId) return;
+        
+        try {
+            const res = await fetch(`/api/units?course_id=${courseId}`);
+            const data = await res.json();
+            
+            if (data.units) {
+                data.units.forEach(u => {
+                    select.innerHTML += `<option value="${u.id}">${u.name}</option>`;
+                });
+            }
+        } catch (e) {
+            console.error('Error loading units:', e);
+        }
+    }
+    
+    // ===== Load Lessons =====
+    async function loadLessons() {
+        const unitId = document.getElementById('unit_id').value;
+        const select = document.getElementById('lesson_id');
+        select.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        if (!unitId) return;
+        
+        try {
+            const res = await fetch(`/api/lessons?unit_id=${unitId}`);
+            const data = await res.json();
+            
+            if (data.lessons) {
+                data.lessons.forEach(l => {
+                    select.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+                });
+            }
+        } catch (e) {
+            console.error('Error loading lessons:', e);
+        }
+    }
+    
+    // ===== Create Test =====
+    document.getElementById('create-test-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const lessonId = document.getElementById('lesson_id').value;
+        const unitId = document.getElementById('unit_id').value;
+        
+        if (!lessonId && !unitId) {
+            showAlert('يرجى اختيار درس أو وحدة على الأقل', 'error');
+            return;
+        }
+        
+        showLoading(true);
+        
+        try {
+            const body = {
+                test_type: document.getElementById('test_type').value,
+                questions_count: parseInt(document.getElementById('questions_count').value),
+                difficulty_distribution: {
+                    easy: parseInt(document.getElementById('diff_easy').value),
+                    medium: parseInt(document.getElementById('diff_medium').value),
+                    hard: parseInt(document.getElementById('diff_hard').value)
+                }
+            };
+            
+            if (lessonId) body.lesson_id = parseInt(lessonId);
+            if (unitId) body.unit_id = parseInt(unitId);
+            
+            const res = await fetch(`${API_BASE}/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showAlert('تم إنشاء الاختبار بنجاح! 🎉', 'success');
+                loadTests();
+                loadStats();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ في الاتصال: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    });
+    
+    // ===== Generate Pair =====
+    async function generatePair() {
+        const lessonId = document.getElementById('lesson_id').value;
+        const unitId = document.getElementById('unit_id').value;
+        
+        if (!lessonId && !unitId) {
+            showAlert('يرجى اختيار درس أو وحدة أولاً', 'error');
+            return;
+        }
+        
+        showLoading(true);
+        
+        try {
+            const body = {
+                questions_count: parseInt(document.getElementById('questions_count').value)
+            };
+            
+            if (lessonId) body.lesson_id = parseInt(lessonId);
+            if (unitId) body.unit_id = parseInt(unitId);
+            
+            const res = await fetch(`${API_BASE}/generate-pair`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showAlert('تم إنشاء الاختبارين القبلي والبعدي بنجاح! 🎉', 'success');
+                loadTests();
+                loadStats();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ في الاتصال: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // ===== Load Tests =====
+    async function loadTests() {
+        try {
+            const filterType = document.getElementById('filter_type').value;
+            let url = `${API_BASE}/tests`;
+            if (filterType) url += `?test_type=${filterType}`;
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('tests-tbody');
+            const exportSelect = document.getElementById('export_test_id');
+            
+            exportSelect.innerHTML = '<option value="">-- اختر اختبار --</option>';
+            
+            if (!data.tests || data.tests.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="icon">📭</div>
+                                <p>لا توجد اختبارات</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            data.tests.forEach((test, index) => {
+                const typeClass = test.test_type === 'pre_test' ? 'badge-pre' : 'badge-post';
+                const typeText = test.test_type === 'pre_test' ? 'قبلي' : 'بعدي';
+                const date = test.created_at ? new Date(test.created_at).toLocaleDateString('ar-SA') : '-';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${test.id}</td>
+                        <td><strong>${test.title}</strong></td>
+                        <td><span class="badge ${typeClass}">${typeText}</span></td>
+                        <td>${test.lesson_name || test.unit_name || '-'}</td>
+                        <td>${test.questions_count}</td>
+                        <td>${date}</td>
+                        <td>
+                            <div class="actions-cell">
+                                <button class="btn btn-sm btn-info" onclick="viewTest(${test.id})" title="عرض">
+                                    👁️
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="downloadPDF(${test.id}, false)" title="تحميل PDF">
+                                    📄
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="downloadPDF(${test.id}, true)" title="PDF مع الإجابات">
+                                    📋
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteTest(${test.id})" title="حذف">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                exportSelect.innerHTML += `<option value="${test.id}">${test.title}</option>`;
+            });
+            
+        } catch (e) {
+            console.error('Error loading tests:', e);
+        }
+    }
+    
+    // ===== Load Stats =====
+    async function loadStats() {
+        try {
+            const res = await fetch(`${API_BASE}/stats`);
+            const data = await res.json();
+            
+            if (data.stats) {
+                document.getElementById('stat-pre').textContent = data.stats.pre_tests || 0;
+                document.getElementById('stat-post').textContent = data.stats.post_tests || 0;
+                document.getElementById('stat-results').textContent = data.stats.total_results || 0;
+                document.getElementById('stat-improvement').textContent = (data.stats.avg_improvement || 0).toFixed(0) + '%';
+            }
+        } catch (e) {
+            console.error('Error loading stats:', e);
+        }
+    }
+    
+    // ===== View Test =====
+    async function viewTest(testId) {
+        showLoading(true);
+        
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}`);
+            const data = await res.json();
+            
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+            
+            const test = data.test;
+            const questions = test.questions || [];
+            
+            let html = `
+                <h4 style="margin-bottom: 1rem;">${test.title}</h4>
+                <p style="color: #6b7280; margin-bottom: 1.5rem;">${test.description || ''}</p>
+            `;
+            
+            questions.forEach((q, i) => {
+                html += `
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <p style="font-weight: 600; margin-bottom: 0.75rem;">س${i + 1}: ${q.text}</p>
+                        <div style="padding-right: 1rem;">
+                `;
+                
+                (q.options || []).forEach(opt => {
+                    const isCorrect = opt.is_correct;
+                    const style = isCorrect ? 'color: #047857; font-weight: 600;' : '';
+                    html += `<p style="${style}">(${opt.letter || ''}) ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
+                });
+                
+                if (q.feedback) {
+                    html += `<p style="color: #6366f1; margin-top: 0.5rem; font-size: 0.9rem;">💡 ${q.feedback}</p>`;
+                }
+                
+                html += `</div></div>`;
+            });
+            
+            document.getElementById('view-modal-body').innerHTML = html;
+            openModal('view-modal');
+            
+        } catch (e) {
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // ===== Download PDF =====
+    function downloadPDF(testId, includeAnswers) {
+        const url = `${API_BASE}/tests/${testId}/pdf?include_answers=${includeAnswers}`;
+        window.open(url, '_blank');
+    }
+    
+    // ===== Export PDF from dropdown =====
+    function exportPDF(includeAnswers) {
+        const testId = document.getElementById('export_test_id').value;
+        if (!testId) {
+            showAlert('يرجى اختيار اختبار أولاً', 'error');
+            return;
+        }
+        downloadPDF(testId, includeAnswers);
+    }
+    
+    // ===== Delete Test =====
+    async function deleteTest(testId) {
+        if (!confirm('هل أنت متأكد من حذف هذا الاختبار؟')) return;
+        
+        showLoading(true);
+        
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showAlert('تم حذف الاختبار', 'success');
+                loadTests();
+                loadStats();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // ===== Helpers =====
+    function showLoading(show) {
+        document.getElementById('loading').classList.toggle('active', show);
+    }
+    
+    function showAlert(message, type) {
+        const container = document.getElementById('alert-container');
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+        const icon = type === 'success' ? '✅' : '❌';
+        
+        container.innerHTML = `
+            <div class="alert ${alertClass}">
+                <span>${icon}</span>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            container.innerHTML = '';
+        }, 5000);
+    }
+    
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+    
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+</script>
+{% endblock %}
