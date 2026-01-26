@@ -324,7 +324,8 @@ def export_pdf(test_id):
                     'ministry': header.ministry or "وزارة التعليم",
                     'school_name': header.school_name or "",
                     'subject': header.subject or "كيمياء",
-                    'grade': header.grade or ""
+                    'grade': header.grade or "",
+                    'logo_url': getattr(header, 'logo_url', '') or getattr(header, 'logo', '') or ""
                 }
         except:
             pass
@@ -495,13 +496,16 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 5px;
+            direction: rtl;
         }}
         
         /* === الخيارات - أفقي === */
         .options-horizontal {{
             display: flex;
             flex-wrap: wrap;
+            flex-direction: row-reverse;
             gap: 10px;
+            direction: rtl;
         }}
         .options-horizontal .option {{
             flex: 1;
@@ -522,6 +526,8 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             border-radius: 4px;
             font-size: 11px;
             background: white;
+            text-align: right;
+            direction: rtl;
         }}
         .option.correct {{
             background: #d4edda;
@@ -530,15 +536,16 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         }}
         .option-letter {{
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            line-height: 20px;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
             text-align: center;
             background: #667eea;
             color: white;
             border-radius: 50%;
-            font-size: 10px;
-            margin-left: 5px;
+            font-size: 11px;
+            margin-left: 8px;
+            font-weight: bold;
         }}
         
         /* === نموذج الإجابة === */
@@ -590,16 +597,23 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
     # === الكليشة ===
     header_html = ""
     if header_settings:
+        # الشعار
+        logo_url = header_settings.get('logo_url', '')
+        if logo_url:
+            logo_html = f'<img src="{logo_url}" style="max-width: 60px; max-height: 60px;">'
+        else:
+            logo_html = ''
+        
         header_html = f"""
         <table class="header-table">
             <tr>
                 <td class="header-right">
-                    <div>{header_settings.get('country', 'المملكة العربية السعودية')}</div>
+                    <div style="font-weight: bold;">{header_settings.get('country', 'المملكة العربية السعودية')}</div>
                     <div>{header_settings.get('ministry', 'وزارة التعليم')}</div>
                     <div>{header_settings.get('school_name', '')}</div>
                 </td>
                 <td class="header-center">
-                    <div>🔬</div>
+                    {logo_html}
                 </td>
                 <td class="header-left" style="text-align: left;">
                     <div>المادة: {header_settings.get('subject', 'كيمياء')}</div>
@@ -614,7 +628,7 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
     test_type_ar = 'قبلي' if test.test_type == 'pre_test' else 'بعدي'
     title_html = f"""
     <div class="exam-title">
-        📝 {test.title or f'اختبار تشخيصي {test_type_ar}'}
+        {test.title or f'اختبار تشخيصي {test_type_ar}'}
         <br>
         <span style="font-size: 12px; font-weight: normal;">عدد الأسئلة: {len(questions)}</span>
     </div>
