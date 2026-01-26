@@ -524,14 +524,14 @@
                     
                     <div class="form-group">
                         <label>المنهج</label>
-                        <select class="form-control" id="diag_course_id" name="course_id" onchange="loadUnits()">
+                        <select class="form-control" id="diag_course_id" name="course_id" onchange="diagLoadUnits()">
                             <option value="">-- اختر المنهج --</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label>الوحدة</label>
-                        <select class="form-control" id="diag_unit_id" name="unit_id" onchange="loadLessons()">
+                        <select class="form-control" id="diag_unit_id" name="unit_id" onchange="diagLoadLessons()">
                             <option value="">-- اختر الوحدة --</option>
                         </select>
                     </div>
@@ -742,8 +742,8 @@
     };
     
     // ===== Load Units =====
-    window.loadUnits = async function() {
-        console.log('📂 loadUnits() called');
+    window.diagLoadUnits = async function() {
+        console.log('📂 diagLoadUnits() called');
         const courseId = document.getElementById('diag_course_id').value;
         const select = document.getElementById('diag_unit_id');
         const lessonSelect = document.getElementById('diag_lesson_id');
@@ -775,7 +775,7 @@
     };
     
     // ===== Load Lessons =====
-    window.loadLessons = async function() {
+    window.diagLoadLessons = async function() {
         const courseId = document.getElementById('diag_course_id').value;
         const unitId = document.getElementById('diag_unit_id').value;
         const select = document.getElementById('diag_lesson_id');
