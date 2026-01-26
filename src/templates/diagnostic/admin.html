@@ -1025,37 +1025,98 @@
             const questions = test.questions || [];
             console.log('📝 Questions count:', questions.length);
             
+            const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
+            
             let html = `
-                <h4 style="margin-bottom: 1rem;">${test.title}</h4>
+                <h4 style="margin-bottom: 1rem; color: #333;">${test.title}</h4>
                 <p style="color: #6b7280; margin-bottom: 1.5rem;">${test.description || ''}</p>
             `;
             
-            const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
-            
             questions.forEach((q, i) => {
                 html += `
-                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                        <p style="font-weight: 600; margin-bottom: 0.75rem;">س${i + 1}: ${q.text}</p>
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #e5e7eb;">
+                        <p style="font-weight: 600; margin-bottom: 0.75rem; color: #1f2937;">س${i + 1}: ${q.text}</p>
                         <div style="padding-right: 1rem;">
                 `;
                 
                 (q.options || []).forEach((opt, idx) => {
                     const isCorrect = opt.is_correct;
                     const letter = arabicLetters[idx] || (idx + 1);
-                    const style = isCorrect ? 'color: #047857; font-weight: 600;' : '';
-                    html += `<p style="${style}">${letter}- ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
+                    const style = isCorrect ? 'color: #047857; font-weight: 600;' : 'color: #374151;';
+                    html += `<p style="${style}; margin: 0.5rem 0;">${letter}- ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
                 });
                 
                 if (q.feedback) {
-                    html += `<p style="color: #6366f1; margin-top: 0.5rem; font-size: 0.9rem;">💡 ${q.feedback}</p>`;
+                    html += `<p style="color: #6366f1; margin-top: 0.75rem; font-size: 0.9rem; background: #eef2ff; padding: 0.5rem; border-radius: 0.25rem;">💡 ${q.feedback}</p>`;
                 }
                 
                 html += `</div></div>`;
             });
             
-            document.getElementById('view-modal-body').innerHTML = html;
-            console.log('✅ Opening modal...');
-            openModal('view-modal');
+            // إنشاء Modal مخصص
+            const existingModal = document.getElementById('custom-view-modal');
+            const existingOverlay = document.getElementById('custom-overlay');
+            if (existingModal) existingModal.remove();
+            if (existingOverlay) existingOverlay.remove();
+
+            const newModal = document.createElement('div');
+            newModal.id = 'custom-view-modal';
+            newModal.innerHTML = html;
+            newModal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 25px;
+                border-radius: 15px;
+                width: 90%;
+                max-width: 650px;
+                max-height: 85vh;
+                overflow-y: auto;
+                z-index: 9999999;
+                box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+                direction: rtl;
+                text-align: right;
+            `;
+
+            // زر إغلاق
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕ إغلاق';
+            closeBtn.style.cssText = `
+                position: sticky;
+                top: 0;
+                float: left;
+                background: #dc3545;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
+                margin-bottom: 15px;
+                font-size: 14px;
+            `;
+            closeBtn.onclick = () => { newModal.remove(); overlay.remove(); };
+            newModal.insertBefore(closeBtn, newModal.firstChild);
+
+            // Overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'custom-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                z-index: 9999998;
+            `;
+            overlay.onclick = () => { newModal.remove(); overlay.remove(); };
+
+            document.body.appendChild(overlay);
+            document.body.appendChild(newModal);
+            
+            console.log('✅ Custom modal opened!');
             
         } catch (e) {
             console.error('❌ Error:', e);
