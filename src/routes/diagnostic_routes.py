@@ -85,6 +85,12 @@ def generate_test():
         if not result.get('success'):
             return jsonify(result), 400
         
+        # جلب الأسماء من السياق
+        context = result.get('context', {})
+        lesson_name = context.get('name') if context.get('type') == 'lesson' else None
+        unit_name = context.get('name') if context.get('type') == 'unit' else context.get('unit_name')
+        course_name = context.get('course_name') or (context.get('name') if context.get('type') == 'course' else None)
+        
         # حفظ في قاعدة البيانات
         test = DiagnosticTest(
             title=result['title'],
@@ -93,6 +99,9 @@ def generate_test():
             lesson_id=lesson_id,
             unit_id=unit_id,
             course_id=course_id,
+            lesson_name=lesson_name,
+            unit_name=unit_name,
+            course_name=course_name,
             questions_count=result['questions_count'],
             questions_data=result['questions'],
             difficulty_distribution=difficulty_dist,
@@ -150,6 +159,12 @@ def generate_test_pair():
         if not pre_result.get('success'):
             return jsonify(pre_result), 400
         
+        # جلب الأسماء
+        context = pre_result.get('context', {})
+        lesson_name = context.get('name') if context.get('type') == 'lesson' else None
+        unit_name = context.get('name') if context.get('type') == 'unit' else context.get('unit_name')
+        course_name = context.get('course_name')
+        
         # حفظ القبلي
         pre_test = DiagnosticTest(
             title=pre_result['title'],
@@ -157,6 +172,9 @@ def generate_test_pair():
             test_type='pre_test',
             lesson_id=lesson_id,
             unit_id=unit_id,
+            lesson_name=lesson_name,
+            unit_name=unit_name,
+            course_name=course_name,
             questions_count=pre_result['questions_count'],
             questions_data=pre_result['questions'],
             ai_generated=pre_result.get('ai_generated', False),
@@ -180,6 +198,9 @@ def generate_test_pair():
             test_type='post_test',
             lesson_id=lesson_id,
             unit_id=unit_id,
+            lesson_name=lesson_name,
+            unit_name=unit_name,
+            course_name=course_name,
             questions_count=post_result.get('questions_count', questions_count),
             questions_data=post_result.get('questions', pre_result['questions']),
             ai_generated=post_result.get('ai_generated', False),

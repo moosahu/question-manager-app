@@ -1,10 +1,18 @@
+# src/models/diagnostic_test.py
 """
-نماذج الاختبارات التشخيصية (قبلي/بعدي)
-Diagnostic Tests Models - Pre/Post Assessment
+نموذج الاختبار التشخيصي (قبلي/بعدي) - النسخة الكاملة
 """
 
 from datetime import datetime
-from src.extensions import db
+
+try:
+    from src.extensions import db
+except ImportError:
+    try:
+        from extensions import db
+    except ImportError:
+        from flask_sqlalchemy import SQLAlchemy
+        db = SQLAlchemy()
 
 
 class DiagnosticTest(db.Model):
@@ -13,77 +21,76 @@ class DiagnosticTest(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # نوع الاختبار: قبلي أو بعدي
-    test_type = db.Column(db.String(20), nullable=False)  # 'pre_test' or 'post_test'
-    
-    # العنوان والوصف
+    # معلومات الاختبار
     title = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
+    description = db.Column(db.Text, nullable=True)
     
-    # الربط بالمنهج (بدون Foreign Key constraints)
+    # نوع الاختبار: pre_test (قبلي), post_test (بعدي)
+    test_type = db.Column(db.String(20), nullable=False, default='pre_test')
+    
+    # ربط مع المنهج (IDs فقط - بدون ForeignKey لتجنب مشاكل العلاقات)
     lesson_id = db.Column(db.Integer, nullable=True)
     unit_id = db.Column(db.Integer, nullable=True)
     course_id = db.Column(db.Integer, nullable=True)
     
     # أسماء للعرض (cached)
-    lesson_name = db.Column(db.String(255))
-    unit_name = db.Column(db.String(255))
-    course_name = db.Column(db.String(255))
+    lesson_name = db.Column(db.String(255), nullable=True)
+    unit_name = db.Column(db.String(255), nullable=True)
+    course_name = db.Column(db.String(255), nullable=True)
     
-    # الأسئلة (JSON)
-    questions = db.Column(db.JSON, default=list)
-    questions_count = db.Column(db.Integer, default=0)
+    # عدد الأسئلة
+    questions_count = db.Column(db.Integer, default=5)
     
-    # إعدادات الاختبار
+    # الأسئلة الكاملة مع الخيارات (JSON)
+    questions_data = db.Column(db.JSON, default=[])
+    
+    # إعدادات
+    difficulty_distribution = db.Column(db.JSON, default={'easy': 2, 'medium': 2, 'hard': 1})
     time_limit_minutes = db.Column(db.Integer, default=15)
     passing_score = db.Column(db.Float, default=60.0)
     
-    # توزيع الصعوبة
-    difficulty_distribution = db.Column(db.JSON, default=dict)
+    # AI
+    ai_generated = db.Column(db.Boolean, default=False)
     
-    # معلومات الإنشاء
-    created_by = db.Column(db.Integer)  # Admin user ID
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # حالة الاختبار
-    is_active = db.Column(db.Boolean, default=True)
-    is_ai_generated = db.Column(db.Boolean, default=True)
-    
-    # ربط الاختبار القبلي بالبعدي
+    # ربط قبلي ↔ بعدي
     paired_test_id = db.Column(db.Integer, nullable=True)
     
-    # العلاقات - النتائج فقط (جدول محلي)
-    results = db.relationship('DiagnosticResult', backref='test', lazy='dynamic',
-                             foreign_keys='DiagnosticResult.test_id')
+    # حالة
+    is_active = db.Column(db.Boolean, default=True)
+    is_published = db.Column(db.Boolean, default=False)
+    
+    # التواريخ
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.Integer, nullable=True)
     
     def to_dict(self, include_questions=False):
-        """تحويل لـ Dictionary"""
+        """تحويل إلى dictionary"""
         data = {
             'id': self.id,
-            'test_type': self.test_type,
-            'test_type_display': 'قبلي' if self.test_type == 'pre_test' else 'بعدي',
             'title': self.title,
             'description': self.description,
+            'test_type': self.test_type,
+            'test_type_ar': 'قبلي' if self.test_type == 'pre_test' else 'بعدي',
             'lesson_id': self.lesson_id,
-            'unit_id': self.unit_id,
-            'course_id': self.course_id,
             'lesson_name': self.lesson_name,
+            'unit_id': self.unit_id,
             'unit_name': self.unit_name,
+            'course_id': self.course_id,
             'course_name': self.course_name,
             'questions_count': self.questions_count,
+            'difficulty_distribution': self.difficulty_distribution,
             'time_limit_minutes': self.time_limit_minutes,
             'passing_score': self.passing_score,
-            'difficulty_distribution': self.difficulty_distribution,
-            'is_active': self.is_active,
-            'is_ai_generated': self.is_ai_generated,
+            'ai_generated': self.ai_generated,
             'paired_test_id': self.paired_test_id,
+            'is_active': self.is_active,
+            'is_published': self.is_published,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         
         if include_questions:
-            data['questions'] = self.questions or []
+            data['questions'] = self.questions_data or []
         
         return data
     
@@ -92,117 +99,46 @@ class DiagnosticTest(db.Model):
 
 
 class DiagnosticResult(db.Model):
-    """نموذج نتيجة الاختبار التشخيصي"""
+    """نتيجة اختبار تشخيصي"""
     __tablename__ = 'diagnostic_results'
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # الربط بالاختبار والطالب
+    # الاختبار
     test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    student_id = db.Column(db.Integer, nullable=False)  # بدون FK constraint
+    
+    # الطالب
+    student_id = db.Column(db.String(100), nullable=True)
+    student_name = db.Column(db.String(255), nullable=True)
+    device_id = db.Column(db.String(255), nullable=True)
     
     # النتيجة
-    score = db.Column(db.Float, nullable=False)  # النسبة المئوية
-    correct_answers = db.Column(db.Integer, default=0)
-    wrong_answers = db.Column(db.Integer, default=0)
+    score = db.Column(db.Float, default=0)
     total_questions = db.Column(db.Integer, default=0)
+    correct_answers = db.Column(db.Integer, default=0)
+    percentage = db.Column(db.Float, default=0)
     
-    # تفاصيل الإجابات (JSON)
-    answers_detail = db.Column(db.JSON, default=list)
+    # الإجابات التفصيلية
+    answers = db.Column(db.JSON, default=[])
     
-    # الوقت المستغرق
+    # الوقت
     time_spent_seconds = db.Column(db.Integer, default=0)
-    started_at = db.Column(db.DateTime)
-    completed_at = db.Column(db.DateTime)
+    started_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # تحليل الذكاء الاصطناعي
-    ai_analysis = db.Column(db.JSON, default=dict)
-    weak_topics = db.Column(db.JSON, default=list)
-    strong_topics = db.Column(db.JSON, default=list)
-    recommendations = db.Column(db.JSON, default=list)
-    
-    # حالة النتيجة
-    passed = db.Column(db.Boolean, default=False)
-    
-    # معلومات الإنشاء
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # العلاقة
+    test = db.relationship('DiagnosticTest', backref=db.backref('results', lazy='dynamic'))
     
     def to_dict(self):
-        """تحويل لـ Dictionary"""
         return {
             'id': self.id,
             'test_id': self.test_id,
             'student_id': self.student_id,
+            'student_name': self.student_name,
             'score': self.score,
-            'correct_answers': self.correct_answers,
-            'wrong_answers': self.wrong_answers,
             'total_questions': self.total_questions,
-            'answers_detail': self.answers_detail,
+            'correct_answers': self.correct_answers,
+            'percentage': self.percentage,
             'time_spent_seconds': self.time_spent_seconds,
-            'time_spent_formatted': f"{self.time_spent_seconds // 60}:{self.time_spent_seconds % 60:02d}" if self.time_spent_seconds else "0:00",
-            'started_at': self.started_at.isoformat() if self.started_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'ai_analysis': self.ai_analysis,
-            'weak_topics': self.weak_topics,
-            'strong_topics': self.strong_topics,
-            'recommendations': self.recommendations,
-            'passed': self.passed,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
-    
-    def __repr__(self):
-        return f'<DiagnosticResult {self.id}: Test {self.test_id}, Student {self.student_id}, Score {self.score}%>'
-
-
-class DiagnosticComparison(db.Model):
-    """نموذج مقارنة الاختبار القبلي والبعدي"""
-    __tablename__ = 'diagnostic_comparisons'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    
-    # الربط
-    student_id = db.Column(db.Integer, nullable=False)
-    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=False)
-    post_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=False)
-    
-    # نتائج المقارنة
-    pre_score = db.Column(db.Float, nullable=False)
-    post_score = db.Column(db.Float, nullable=False)
-    improvement = db.Column(db.Float, nullable=False)  # الفرق بين الدرجتين
-    improvement_percentage = db.Column(db.Float)  # نسبة التحسن
-    
-    # تحليل التحسن
-    improved_topics = db.Column(db.JSON, default=list)
-    still_weak_topics = db.Column(db.JSON, default=list)
-    new_weak_topics = db.Column(db.JSON, default=list)
-    
-    # تحليل AI
-    ai_comparison_analysis = db.Column(db.JSON, default=dict)
-    
-    # معلومات الإنشاء
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        """تحويل لـ Dictionary"""
-        return {
-            'id': self.id,
-            'student_id': self.student_id,
-            'pre_test_id': self.pre_test_id,
-            'post_test_id': self.post_test_id,
-            'pre_result_id': self.pre_result_id,
-            'post_result_id': self.post_result_id,
-            'pre_score': self.pre_score,
-            'post_score': self.post_score,
-            'improvement': self.improvement,
-            'improvement_percentage': self.improvement_percentage,
-            'improved_topics': self.improved_topics,
-            'still_weak_topics': self.still_weak_topics,
-            'new_weak_topics': self.new_weak_topics,
-            'ai_comparison_analysis': self.ai_comparison_analysis,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-        }
-    
-    def __repr__(self):
-        return f'<DiagnosticComparison {self.id}: Student {self.student_id}, Improvement {self.improvement}%>'
