@@ -16,10 +16,7 @@ class Course(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
     show_in_bot = db.Column(db.Boolean, default=True, nullable=False)  # إظهار في البوت (جديد)
-    
-    # ✅ تعديل: إضافة order_by للترتيب حسب order_num
-    units = db.relationship('Unit', backref='course', lazy=True, cascade="all, delete-orphan",
-                           order_by="Unit.order_num")
+    units = db.relationship('Unit', backref='course', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Course {self.name}>'
@@ -30,10 +27,7 @@ class Unit(db.Model):
     name = db.Column(db.String(100), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
-    
-    # ✅ تعديل: إضافة order_by للترتيب حسب order_num
-    lessons = db.relationship('Lesson', backref='unit', lazy=True, cascade="all, delete-orphan",
-                             order_by="Lesson.order_num")
+    lessons = db.relationship('Lesson', backref='unit', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Unit {self.name}>'
