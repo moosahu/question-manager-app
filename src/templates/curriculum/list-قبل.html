@@ -63,7 +63,7 @@
                                 <i class="fas fa-edit"></i>
                                 تعديل
                             </a>
-                            <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('course', {{ course.id }}); return false;">
+                            <button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('course', {{ course.id }}, event); return false;">
                                 <i class="fas fa-trash"></i>
                                 حذف
                             </button>
@@ -93,7 +93,7 @@
                                                     <i class="fas fa-edit"></i>
                                                     تعديل
                                                 </a>
-                                                <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('unit', {{ unit.id }}); return false;">
+                                                <button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('unit', {{ unit.id }}, event); return false;">
                                                     <i class="fas fa-trash"></i>
                                                     حذف
                                                 </button>
@@ -127,7 +127,7 @@
                                                                         <i class="fas fa-edit"></i>
                                                                         تعديل
                                                                     </a>
-                                                                    <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('lesson', {{ lesson.id }}); return false;">
+                                                                    <button class="btn-action btn-delete" onclick="event.stopPropagation(); confirmDelete('lesson', {{ lesson.id }}, event); return false;">
                                                                         <i class="fas fa-trash"></i>
                                                                         حذف
                                                                     </button>
@@ -298,70 +298,65 @@
         border: 1px solid #dee2e6;
         border-radius: 4px;
         background-color: white;
-        color: #495057;
+        color: #333;
         cursor: pointer;
-        font-size: 13px;
         transition: all 0.3s;
         display: inline-flex;
         align-items: center;
         gap: 5px;
+        font-size: 14px;
         text-decoration: none;
     }
 
     .btn-action:hover {
         background-color: #e9ecef;
+        border-color: #adb5bd;
     }
 
-    .btn-edit {
-        color: #007bff;
-        border-color: #007bff;
+    .btn-action.btn-edit {
+        color: #0c5460;
+        border-color: #0c5460;
     }
 
-    .btn-edit:hover {
-        background-color: #007bff;
+    .btn-action.btn-edit:hover {
+        background-color: #0c5460;
         color: white;
     }
 
-    .btn-delete {
-        color: #dc3545;
-        border-color: #dc3545;
+    .btn-action.btn-delete {
+        color: #721c24;
+        border-color: #721c24;
     }
 
-    .btn-delete:hover {
-        background-color: #dc3545;
+    .btn-action.btn-delete:hover {
+        background-color: #721c24;
         color: white;
     }
 
-    .btn-add {
-        color: #28a745;
-        border-color: #28a745;
+    .btn-action.btn-add {
+        color: #155724;
+        border-color: #155724;
     }
 
-    .btn-add:hover {
-        background-color: #28a745;
-        color: white;
-    }
-
-    .btn-move {
-        color: #6c757d;
-        padding: 6px 8px;
-    }
-
-    .btn-move:hover {
-        background-color: #6c757d;
+    .btn-action.btn-add:hover {
+        background-color: #155724;
         color: white;
     }
 
     .order-badge {
-        background-color: #28a745;
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background-color: #007bff;
         color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 24px;
         font-size: 12px;
         font-weight: bold;
     }
 
-    /* تنسيقات الوحدات */
+    /* تنسيقات المحتوى */
     .course-content {
         padding: 15px;
         background-color: #fff;
@@ -375,7 +370,7 @@
 
     .unit-item {
         background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
+        border: 1px solid #dee2e6;
         border-radius: 6px;
         overflow: hidden;
     }
@@ -384,12 +379,13 @@
         display: flex;
         align-items: center;
         padding: 12px;
+        background-color: #e9ecef;
         cursor: pointer;
         transition: background-color 0.3s;
     }
 
     .unit-header:hover {
-        background-color: #e9ecef;
+        background-color: #dee2e6;
     }
 
     .unit-indicator {
@@ -406,7 +402,7 @@
 
     .unit-title h4 {
         margin: 0;
-        color: #495057;
+        color: #333;
         font-size: 16px;
     }
 
@@ -416,10 +412,9 @@
         align-items: center;
     }
 
-    /* تنسيقات الدروس */
     .unit-content {
-        padding: 10px 15px;
-        background-color: white;
+        padding: 10px;
+        background-color: #fff;
     }
 
     .lessons-list {
@@ -430,19 +425,26 @@
 
     .lesson-item {
         background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
+        border: 1px solid #dee2e6;
         border-radius: 4px;
+        overflow: hidden;
     }
 
     .lesson-header {
         display: flex;
         align-items: center;
         padding: 10px;
+        background-color: #fff;
+        transition: background-color 0.3s;
+    }
+
+    .lesson-header:hover {
+        background-color: #f8f9fa;
     }
 
     .lesson-indicator {
         width: 2px;
-        height: 20px;
+        height: 24px;
         background-color: #ffc107;
         border-radius: 1px;
         margin-right: 10px;
@@ -454,7 +456,7 @@
 
     .lesson-title h5 {
         margin: 0;
-        color: #6c757d;
+        color: #333;
         font-size: 14px;
     }
 
@@ -464,29 +466,46 @@
         align-items: center;
     }
 
-    .lesson-actions .btn-action {
-        padding: 4px 8px;
-        font-size: 12px;
-    }
-
-    .lesson-actions .order-badge {
-        padding: 2px 8px;
-        font-size: 11px;
-    }
-
-    /* زر إضافة وحدة */
     .add-unit-btn {
-        margin-top: 15px;
+        margin-top: 10px;
         text-align: center;
     }
 
-    /* تنسيقات تنبيهات الحذف */
-    .alert-info a {
-        color: #0c5460;
-        text-decoration: underline;
+    .add-unit-btn .btn {
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
 
-    .alert-info a:hover {
+    .add-unit-btn .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: 1px solid #6c757d;
+    }
+
+    .add-unit-btn .btn-secondary:hover {
+        background-color: #5a6268;
+        border-color: #5a6268;
+    }
+
+    /* Alert */
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .alert-info {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+    }
+
+    .alert a {
+        color: #0c5460;
         text-decoration: underline;
     }
 
@@ -549,34 +568,21 @@
                 if (response.success) {
                     location.reload();
                 } else {
-                    showCurriculumToast('فشل في تحريك العنصر: ' + response.error, 'danger');
+                    showToast('فشل في تحريك العنصر: ' + response.error, 'danger');
                 }
             },
             error: function(xhr, status, error) {
-                showCurriculumToast('خطأ في الاتصال بالخادم', 'danger');
+                showToast('خطأ في الاتصال بالخادم', 'danger');
             }
         });
     }
 
-    // ✅ دالة حذف العناصر - تم تغيير الاسم لتجنب التعارض مع script.js
-    function curriculumConfirmDelete(type, id) {
-        // تحديد اسم العنصر بالعربي
-        const typeNames = {
-            'course': 'المنهج',
-            'unit': 'الوحدة',
-            'lesson': 'الدرس'
-        };
-        const typeName = typeNames[type] || 'العنصر';
+    // حذف العناصر
+    function confirmDelete(type, id, event) {
+        event.stopPropagation();
         
-        if (confirm(`هل أنت متأكد من حذف ${typeName}؟ سيتم حذف جميع محتوياته أيضاً.`)) {
-            // ✅ تحويل النوع للجمع (unit -> units, lesson -> lessons, course -> courses)
-            const typeMap = {
-                'unit': 'units',
-                'lesson': 'lessons',
-                'course': 'courses'
-            };
-            const typePlural = typeMap[type] || type + 's';
-            const url = `/curriculum/${typePlural}/delete/${id}`;
+        if (confirm('هل أنت متأكد من حذف هذا العنصر؟ سيتم حذف جميع محتوياته أيضاً.')) {
+            const url = `/curriculum/${type}/delete/${id}`;
             window.location.href = url;
         }
     }
@@ -628,9 +634,9 @@
                         }
                     }
                     
-                    showCurriculumToast(response.message, 'success');
+                    showToast(response.message, 'success');
                 } else {
-                    showCurriculumToast('فشل في تغيير الحالة: ' + response.error, 'danger');
+                    showToast('فشل في تغيير الحالة: ' + response.error, 'danger');
                 }
             },
             error: function(xhr, status, error) {
@@ -646,13 +652,13 @@
                 } else if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
                 }
-                showCurriculumToast(errorMsg, 'danger');
+                showToast(errorMsg, 'danger');
             }
         });
     }
 
-    // ✅ دالة عرض الإشعارات - تم تغيير الاسم لتجنب التعارض
-    function showCurriculumToast(message, type) {
+    // دالة عرض الإشعارات
+    function showToast(message, type) {
         // يمكن استخدام مكتبة Toast أو إنشاء واحدة بسيطة
         alert(message);
     }
