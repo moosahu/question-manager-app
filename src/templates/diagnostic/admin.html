@@ -678,6 +678,17 @@
 <script>
     const API_BASE = '/api/diagnostic';
     
+    // ===== Test Type Selection (Global) =====
+    window.selectTestType = function(type) {
+        document.querySelectorAll('.test-type-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const targetBtn = document.querySelector(`[data-type="${type}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+        const testTypeInput = document.getElementById('test_type');
+        if (testTypeInput) testTypeInput.value = type;
+    };
+    
     // ===== Initialization =====
     document.addEventListener('DOMContentLoaded', function() {
         loadCourses();
@@ -685,17 +696,8 @@
         loadStats();
     });
     
-    // ===== Test Type Selection =====
-    function selectTestType(type) {
-        document.querySelectorAll('.test-type-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-type="${type}"]`).classList.add('active');
-        document.getElementById('test_type').value = type;
-    }
-    
     // ===== Load Courses =====
-    async function loadCourses() {
+    window.loadCourses = async function() {
         try {
             const res = await fetch('/api/courses');
             const data = await res.json();
@@ -711,10 +713,10 @@
         } catch (e) {
             console.error('Error loading courses:', e);
         }
-    }
+    };
     
     // ===== Load Units =====
-    async function loadUnits() {
+    window.loadUnits = async function() {
         const courseId = document.getElementById('course_id').value;
         const select = document.getElementById('unit_id');
         select.innerHTML = '<option value="">-- اختر الوحدة --</option>';
@@ -734,10 +736,10 @@
         } catch (e) {
             console.error('Error loading units:', e);
         }
-    }
+    };
     
     // ===== Load Lessons =====
-    async function loadLessons() {
+    window.loadLessons = async function() {
         const unitId = document.getElementById('unit_id').value;
         const select = document.getElementById('lesson_id');
         select.innerHTML = '<option value="">-- اختر الدرس --</option>';
@@ -809,7 +811,7 @@
     });
     
     // ===== Generate Pair =====
-    async function generatePair() {
+    window.generatePair = async function() {
         const lessonId = document.getElementById('lesson_id').value;
         const unitId = document.getElementById('unit_id').value;
         
@@ -848,10 +850,10 @@
         } finally {
             showLoading(false);
         }
-    }
+    };
     
     // ===== Load Tests =====
-    async function loadTests() {
+    window.loadTests = async function() {
         try {
             const filterType = document.getElementById('filter_type').value;
             let url = `${API_BASE}/tests`;
@@ -921,7 +923,7 @@
     }
     
     // ===== Load Stats =====
-    async function loadStats() {
+    window.loadStats = async function() {
         try {
             const res = await fetch(`${API_BASE}/stats`);
             const data = await res.json();
@@ -935,10 +937,10 @@
         } catch (e) {
             console.error('Error loading stats:', e);
         }
-    }
+    };
     
     // ===== View Test =====
-    async function viewTest(testId) {
+    window.viewTest = async function(testId) {
         showLoading(true);
         
         try {
@@ -986,26 +988,26 @@
         } finally {
             showLoading(false);
         }
-    }
+    };
     
     // ===== Download PDF =====
-    function downloadPDF(testId, includeAnswers) {
+    window.downloadPDF = function(testId, includeAnswers) {
         const url = `${API_BASE}/tests/${testId}/pdf?include_answers=${includeAnswers}`;
         window.open(url, '_blank');
-    }
+    };
     
     // ===== Export PDF from dropdown =====
-    function exportPDF(includeAnswers) {
+    window.exportPDF = function(includeAnswers) {
         const testId = document.getElementById('export_test_id').value;
         if (!testId) {
             showAlert('يرجى اختيار اختبار أولاً', 'error');
             return;
         }
         downloadPDF(testId, includeAnswers);
-    }
+    };
     
     // ===== Delete Test =====
-    async function deleteTest(testId) {
+    window.deleteTest = async function(testId) {
         if (!confirm('هل أنت متأكد من حذف هذا الاختبار؟')) return;
         
         showLoading(true);
@@ -1029,15 +1031,18 @@
         } finally {
             showLoading(false);
         }
-    }
+    };
     
     // ===== Helpers =====
     function showLoading(show) {
-        document.getElementById('loading').classList.toggle('active', show);
+        const el = document.getElementById('loading');
+        if (el) el.classList.toggle('active', show);
     }
     
     function showAlert(message, type) {
         const container = document.getElementById('alert-container');
+        if (!container) return;
+        
         const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
         const icon = type === 'success' ? '✅' : '❌';
         
@@ -1053,12 +1058,14 @@
         }, 5000);
     }
     
-    function openModal(id) {
-        document.getElementById(id).classList.add('active');
-    }
+    window.openModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('active');
+    };
     
-    function closeModal(id) {
-        document.getElementById(id).classList.remove('active');
-    }
+    window.closeModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    };
 </script>
 {% endblock %}
