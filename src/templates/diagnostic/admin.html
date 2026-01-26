@@ -583,7 +583,7 @@
                     <span>🔄</span> إنشاء زوج (قبلي + بعدي)
                 </button>
                 
-                <button class="btn btn-outline" style="width: 100%; margin-bottom: 1rem;" onclick="loadTests()">
+                <button class="btn btn-outline" style="width: 100%; margin-bottom: 1rem;" onclick="diagLoadTests()">
                     <span>🔄</span> تحديث القائمة
                 </button>
                 
@@ -615,7 +615,7 @@
         <div class="card-header">
             <h3>📋 قائمة الاختبارات</h3>
             <div style="display: flex; gap: 0.5rem;">
-                <select class="form-control" id="filter_type" style="width: auto;" onchange="loadTests()">
+                <select class="form-control" id="filter_type" style="width: auto;" onchange="diagLoadTests()">
                     <option value="">الكل</option>
                     <option value="pre_test">قبلي فقط</option>
                     <option value="post_test">بعدي فقط</option>
@@ -676,7 +676,7 @@
 
 {% block extra_js %}
 <script>
-    console.log('🚀 Diagnostic Admin v2.0 - ' + new Date().toISOString());
+    console.log('🚀 Diagnostic Admin v3.0 - ' + new Date().toISOString());
     
     const API_BASE = '/api/diagnostic';
     
@@ -694,15 +694,18 @@
     
     // ===== Initialization =====
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('📋 DOM Ready - Loading data...');
-        loadCourses();
-        loadTests();
-        loadStats();
+        console.log('📋 DOM Ready - Loading diagnostic data...');
+        // استخدام setTimeout لضمان تنفيذ الكود بعد script.js
+        setTimeout(function() {
+            diagLoadCourses();
+            diagLoadTests();
+            diagLoadStats();
+        }, 100);
     });
     
-    // ===== Load Courses =====
-    window.loadCourses = async function() {
-        console.log('📚 loadCourses() called');
+    // ===== Load Courses (unique name to avoid conflict) =====
+    window.diagLoadCourses = async function() {
+        console.log('📚 diagLoadCourses() called');
         try {
             const url = '/api/v1/courses?show_all=true';
             console.log('📚 Fetching:', url);
@@ -718,7 +721,6 @@
             
             select.innerHTML = '<option value="">-- اختر المنهج --</option>';
             
-            // التعامل مع مختلف أشكال الـ response
             const courses = Array.isArray(data) ? data : (data.courses || []);
             
             console.log('📚 Courses to display:', courses.length);
@@ -729,7 +731,6 @@
                     option.value = course.id;
                     option.textContent = course.name;
                     select.appendChild(option);
-                    console.log('  ✅ Added course:', course.id, course.name);
                 });
                 console.log('✅ All courses loaded:', courses.length);
             } else {
@@ -742,6 +743,7 @@
     
     // ===== Load Units =====
     window.loadUnits = async function() {
+        console.log('📂 loadUnits() called');
         const courseId = document.getElementById('diag_course_id').value;
         const select = document.getElementById('diag_unit_id');
         const lessonSelect = document.getElementById('diag_lesson_id');
@@ -840,8 +842,8 @@
             
             if (data.success) {
                 showAlert('تم إنشاء الاختبار بنجاح! 🎉', 'success');
-                loadTests();
-                loadStats();
+                diagLoadTests();
+                diagLoadStats();
             } else {
                 showAlert(data.error || 'حدث خطأ', 'error');
             }
@@ -882,8 +884,8 @@
             
             if (data.success) {
                 showAlert('تم إنشاء الاختبارين القبلي والبعدي بنجاح! 🎉', 'success');
-                loadTests();
-                loadStats();
+                diagLoadTests();
+                diagLoadStats();
             } else {
                 showAlert(data.error || 'حدث خطأ', 'error');
             }
@@ -895,7 +897,7 @@
     };
     
     // ===== Load Tests =====
-    window.loadTests = async function() {
+    window.diagLoadTests = async function() {
         try {
             const filterType = document.getElementById('filter_type').value;
             let url = `${API_BASE}/tests`;
@@ -965,7 +967,7 @@
     }
     
     // ===== Load Stats =====
-    window.loadStats = async function() {
+    window.diagLoadStats = async function() {
         try {
             const res = await fetch(`${API_BASE}/stats`);
             const data = await res.json();
@@ -1063,8 +1065,8 @@
             
             if (data.success) {
                 showAlert('تم حذف الاختبار', 'success');
-                loadTests();
-                loadStats();
+                diagLoadTests();
+                diagLoadStats();
             } else {
                 showAlert(data.error || 'حدث خطأ', 'error');
             }
