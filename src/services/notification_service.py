@@ -114,8 +114,9 @@ class NotificationService:
                 android=messaging.AndroidConfig(
                     priority='high',
                     notification=messaging.AndroidNotification(
-                        channel_id='chem_tahsili_channel',
+                        channel_id='high_importance_channel',
                         priority='high',
+                        click_action='FLUTTER_NOTIFICATION_CLICK',
                     )
                 ),
                 # ✅ إضافة خيارات iOS مع content_available للخلفية
@@ -200,8 +201,9 @@ class NotificationService:
                 android=messaging.AndroidConfig(
                     priority='high',
                     notification=messaging.AndroidNotification(
-                        channel_id='chem_tahsili_channel',
+                        channel_id='high_importance_channel',
                         priority='high',
+                        click_action='FLUTTER_NOTIFICATION_CLICK',
                     )
                 ),
                 # ✅ إضافة خيارات iOS مع content_available للخلفية
@@ -288,8 +290,9 @@ class NotificationService:
                 android=messaging.AndroidConfig(
                     priority='high',
                     notification=messaging.AndroidNotification(
-                        channel_id='chem_tahsili_channel',
+                        channel_id='high_importance_channel',
                         priority='high',
+                        click_action='FLUTTER_NOTIFICATION_CLICK',
                     )
                 ),
                 # ✅ إضافة خيارات iOS مع content_available للخلفية
