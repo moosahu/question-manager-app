@@ -118,12 +118,8 @@ class NotificationService:
                         priority='high',
                     )
                 ),
-                # ✅ إضافة خيارات iOS مع content_available للخلفية
+                # ✅ إضافة خيارات iOS
                 apns=messaging.APNSConfig(
-                    headers={
-                        'apns-priority': '10',
-                        'apns-push-type': 'alert'
-                    },
                     payload=messaging.APNSPayload(
                         aps=messaging.Aps(
                             alert=messaging.ApsAlert(
@@ -132,8 +128,6 @@ class NotificationService:
                             ),
                             badge=1,
                             sound='default',
-                            content_available=True,
-                            mutable_content=True,
                         )
                     )
                 ),
@@ -204,12 +198,8 @@ class NotificationService:
                         priority='high',
                     )
                 ),
-                # ✅ إضافة خيارات iOS مع content_available للخلفية
+                # ✅ إضافة خيارات iOS
                 apns=messaging.APNSConfig(
-                    headers={
-                        'apns-priority': '10',
-                        'apns-push-type': 'alert'
-                    },
                     payload=messaging.APNSPayload(
                         aps=messaging.Aps(
                             alert=messaging.ApsAlert(
@@ -218,8 +208,6 @@ class NotificationService:
                             ),
                             badge=1,
                             sound='default',
-                            content_available=True,
-                            mutable_content=True,
                         )
                     )
                 ),
@@ -292,12 +280,8 @@ class NotificationService:
                         priority='high',
                     )
                 ),
-                # ✅ إضافة خيارات iOS مع content_available للخلفية
+                # ✅ إضافة خيارات iOS
                 apns=messaging.APNSConfig(
-                    headers={
-                        'apns-priority': '10',
-                        'apns-push-type': 'alert'
-                    },
                     payload=messaging.APNSPayload(
                         aps=messaging.Aps(
                             alert=messaging.ApsAlert(
@@ -306,8 +290,6 @@ class NotificationService:
                             ),
                             badge=1,
                             sound='default',
-                            content_available=True,
-                            mutable_content=True,
                         )
                     )
                 ),
