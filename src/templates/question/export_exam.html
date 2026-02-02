@@ -4318,6 +4318,7 @@ async function saveCurrentExam() {
                 unit_id: currentUnitId,
                 question_ids: questionIdsArray,
                 questions_with_order: questionsWithOrder,  // الأسئلة مع ترتيب الخيارات
+                course_ids: selectedCourseIds.size > 0 ? Array.from(selectedCourseIds) : (currentCourseId ? [currentCourseId] : []),  // حفظ جميع المناهج المحددة
                 models: getSelectedModels(),
                 shuffle_questions: document.getElementById('shuffleQuestions')?.checked ?? true,
                 shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
@@ -4485,28 +4486,58 @@ async function loadSavedExam(examId) {
                 console.log('⚠️ لا يوجد ترتيب خيارات محفوظ');
             }
             
-            // تحديث المنهج إذا كان مختلفاً
-            if (exam.course_id) {
-                const courseSelect = document.getElementById('courseSelect');
+            // تحديث المنهج/المناهج
+            const courseSelect = document.getElementById('courseSelect');
+            
+            // إذا كان الاختبار يحتوي على مناهج متعددة محفوظة
+            if (exam.course_ids && Array.isArray(exam.course_ids) && exam.course_ids.length > 0) {
+                console.log('📚 تحميل مناهج متعددة:', exam.course_ids);
+                
+                // إلغاء تحديد جميع المناهج أولاً
+                document.querySelectorAll('.course-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                
+                // تحديد جميع المناهج المحفوظة
+                selectedCourseIds.clear();
+                exam.course_ids.forEach(courseId => {
+                    const courseCheckbox = document.getElementById(`course${courseId}`);
+                    if (courseCheckbox) {
+                        courseCheckbox.checked = true;
+                        selectedCourseIds.add(courseId);
+                    }
+                });
+                
+                handleCourseSelectionChange();
+                await loadQuestionsFromSelectedCourses();
+                
+            } else if (exam.course_id) {
+                // اختبار قديم بمنهج واحد فقط
+                console.log('📚 تحميل منهج واحد:', exam.course_id);
+                
                 if (courseSelect && exam.course_id !== currentCourseId) {
                     // النظام القديم - استخدام select
                     courseSelect.value = exam.course_id;
                     await handleCourseChange();
                 } else {
                     // النظام الجديد - استخدام checkboxes
-                    // تحديد المنهج في الشبكة
+                    document.querySelectorAll('.course-checkbox').forEach(cb => {
+                        cb.checked = false;
+                    });
+                    
                     const courseCheckbox = document.getElementById(`course${exam.course_id}`);
                     if (courseCheckbox) {
                         courseCheckbox.checked = true;
+                        selectedCourseIds.clear();
+                        selectedCourseIds.add(exam.course_id);
                         handleCourseSelectionChange();
-                        // تحميل الأسئلة من هذا المنهج
                         await loadQuestionsFromSelectedCourses();
                     }
                 }
             }
             
             // انتظار تحميل الأسئلة
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
             
             // تحديد الأسئلة المحفوظة
             deselectAllQuestions();
