@@ -3273,6 +3273,13 @@ async function loadCourses() {
         const data = await response.json();
         
         const courseSelect = document.getElementById('courseSelect');
+        
+        // التحقق من وجود courseSelect (قد لا يكون موجوداً في النظام الجديد)
+        if (!courseSelect) {
+            console.log('ℹ️ courseSelect غير موجود - تم استبداله بنظام المناهج المتعددة');
+            return;
+        }
+        
         courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
         
         const courses = Array.isArray(data) ? data : (data.courses || []);
