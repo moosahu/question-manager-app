@@ -2689,9 +2689,32 @@ async function previewMultipleModels() {
 // تحميل المناهج عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
-    loadCoursesToGrid(); // تحميل المناهج للشبكة الجديدة
     setupEventListeners();
     loadHeaderSettingsFromServer();
+    
+    // تحميل المناهج عند فتح القسم لأول مرة
+    const section = document.querySelector('.collapsible-section.section-primary');
+    if (section) {
+        const header = section.querySelector('.section-header');
+        if (header) {
+            header.addEventListener('click', function() {
+                // تحميل المناهج بعد فتح القسم
+                setTimeout(() => {
+                    if (!allCoursesData || allCoursesData.length === 0) {
+                        loadCoursesToGrid();
+                    }
+                }, 300);
+            }, { once: false });
+        }
+    }
+    
+    // محاولة تحميل المناهج إذا كان القسم مفتوح
+    setTimeout(() => {
+        const grid = document.getElementById('coursesGrid');
+        if (grid && grid.offsetParent !== null) {
+            loadCoursesToGrid();
+        }
+    }, 500);
 });
 
 function setupEventListeners() {
@@ -4622,19 +4645,15 @@ document.addEventListener('keydown', function(e) {
 
 // تحميل المناهج إلى الشبكة
 async function loadCoursesToGrid() {
-    // انتظار تحميل DOM بالكامل
-    await new Promise(resolve => setTimeout(resolve, 100));
+    const grid = document.getElementById('coursesGrid');
+    
+    // التحقق من وجود العنصر
+    if (!grid) {
+        console.warn('⚠️ coursesGrid غير موجود');
+        return;
+    }
     
     try {
-        const grid = document.getElementById('coursesGrid');
-        
-        // التحقق من وجود العنصر
-        if (!grid) {
-            console.warn('⚠️ coursesGrid غير موجود بعد، سيتم المحاولة مرة أخرى...');
-            setTimeout(loadCoursesToGrid, 500);
-            return;
-        }
-        
         const response = await fetch('/api/v1/courses?show_all=true');
         
         if (!response.ok) {
@@ -4653,8 +4672,7 @@ async function loadCoursesToGrid() {
         }
     } catch (error) {
         console.error('❌ خطأ في تحميل المناهج:', error);
-        const grid = document.getElementById('coursesGrid');
-        if (grid) grid.innerHTML = '<p style="text-align:center;color:#dc3545;padding:20px;">خطأ في تحميل المناهج</p>';
+        grid.innerHTML = '<p style="text-align:center;color:#dc3545;padding:20px;">خطأ في تحميل المناهج</p>';
     }
 }
 
