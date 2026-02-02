@@ -4348,18 +4348,21 @@ async function saveCurrentExam() {
             body: JSON.stringify({
                 name: examName,
                 description: '',
-                course_id: currentCourseId || (selectedCourseIds.size > 0 ? Array.from(selectedCourseIds)[0] : null),  // استخدام أول منهج من المناهج المتعددة
+                course_id: currentCourseId || (selectedCourseIds.size > 0 ? Array.from(selectedCourseIds)[0] : null),
                 unit_id: currentUnitId,
                 question_ids: questionIdsArray,
-                questions_with_order: questionsWithOrder,  // الأسئلة مع ترتيب الخيارات
-                course_ids: selectedCourseIds.size > 0 ? Array.from(selectedCourseIds) : (currentCourseId ? [currentCourseId] : []),  // حفظ جميع المناهج المحددة
+                questions_with_order: questionsWithOrder,
+                course_ids: selectedCourseIds.size > 0 ? Array.from(selectedCourseIds) : (currentCourseId ? [currentCourseId] : []),
                 models: getSelectedModels(),
                 shuffle_questions: document.getElementById('shuffleQuestions')?.checked ?? true,
                 shuffle_options: document.getElementById('shuffleOptions')?.checked ?? true,
                 font_size: getFontSize(),
                 image_size: getImageSize(),
                 ...layoutSettings,
-                header_settings: headerFormatSettings,
+                header_settings: {
+                    ...headerFormatSettings,
+                    course_ids: selectedCourseIds.size > 0 ? Array.from(selectedCourseIds) : (currentCourseId ? [currentCourseId] : [])  // حفظ في settings أيضاً
+                },
                 exam_type: headerFormatSettings.exam_type,
                 semester: headerFormatSettings.semester,
                 academic_year: headerFormatSettings.academic_year
@@ -4534,9 +4537,28 @@ async function loadSavedExam(examId) {
                 console.log('🔍 المناهج المكتشفة من الأسئلة:', Array.from(detectedCourseIds));
             }
             
-            // إذا كان الاختبار يحتوي على مناهج متعددة محفوظة
+            // محاولة قراءة المناهج من أماكن مختلفة
+            let savedCourseIds = null;
+            
+            // 1. من exam.course_ids (المكان الأساسي)
             if (exam.course_ids && Array.isArray(exam.course_ids) && exam.course_ids.length > 0) {
-                console.log('📚 تحميل مناهج متعددة من course_ids:', exam.course_ids);
+                savedCourseIds = exam.course_ids;
+                console.log('📚 وجدت course_ids في exam:', savedCourseIds);
+            }
+            // 2. من exam.settings.course_ids (نسخة احتياطية)
+            else if (exam.settings && exam.settings.course_ids && Array.isArray(exam.settings.course_ids) && exam.settings.course_ids.length > 0) {
+                savedCourseIds = exam.settings.course_ids;
+                console.log('📚 وجدت course_ids في settings:', savedCourseIds);
+            }
+            // 3. من header_settings.course_ids (نسخة احتياطية ثانية)
+            else if (exam.header_settings && exam.header_settings.course_ids && Array.isArray(exam.header_settings.course_ids) && exam.header_settings.course_ids.length > 0) {
+                savedCourseIds = exam.header_settings.course_ids;
+                console.log('📚 وجدت course_ids في header_settings:', savedCourseIds);
+            }
+            
+            // إذا كان الاختبار يحتوي على مناهج متعددة محفوظة
+            if (savedCourseIds && savedCourseIds.length > 1) {
+                console.log('📚 تحميل مناهج متعددة:', savedCourseIds);
                 
                 // إلغاء تحديد جميع المناهج أولاً
                 document.querySelectorAll('.course-checkbox').forEach(cb => {
@@ -4545,11 +4567,11 @@ async function loadSavedExam(examId) {
                 
                 // تحديد جميع المناهج المحفوظة
                 selectedCourseIds.clear();
-                exam.course_ids.forEach(courseId => {
+                savedCourseIds.forEach(courseId => {
                     const courseCheckbox = document.getElementById(`course${courseId}`);
                     if (courseCheckbox) {
                         courseCheckbox.checked = true;
-                        selectedCourseIds.add(courseId);
+                        selectedCourseIds.add(parseInt(courseId));
                     }
                 });
                 
