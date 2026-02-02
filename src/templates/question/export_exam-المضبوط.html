@@ -1299,58 +1299,6 @@
                 justify-content: center;
             }
         }
-
-        /* ============================================================ */
-        /* ========== تصميم المناهج المتعددة (إضافة جديدة) ========== */
-        /* ============================================================ */
-        
-        .select-all-box:hover {
-            background: #f8fdff !important;
-            border-style: solid !important;
-            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.1);
-        }
-
-        .courses-grid::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .courses-grid::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-
-        .courses-grid::-webkit-scrollbar-thumb {
-            background: #17a2b8;
-            border-radius: 3px;
-        }
-
-        .courses-grid::-webkit-scrollbar-thumb:hover {
-            background: #138496;
-        }
-
-        .course-checkbox-item:hover {
-            box-shadow: 0 3px 6px rgba(23, 162, 184, 0.12);
-        }
-
-        .course-checkbox-item input[type="checkbox"]:checked + label {
-            color: #17a2b8;
-            font-weight: 600;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .course-checkbox-item {
-            animation: fadeIn 0.3s ease-out;
-        }
     </style>
 {% endblock %}
 
@@ -1420,22 +1368,11 @@
                     <i class="fas fa-chevron-down section-toggle"></i>
                 </div>
                 <div class="section-content">
-                    <!-- ========== اختيار المناهج المتعددة ========== -->
-                    <div class="courses-selection-box" style="background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 100%); border: 2px solid #17a2b8; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(23, 162, 184, 0.1);">
-                        <h4 style="margin: 0 0 15px 0; color: #17a2b8; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; font-weight: 600;">
-                            <i class="fas fa-book-open"></i> 
-                            اختر المناهج
-                            <span class="selected-courses-count" id="selectedCoursesCount" style="background: #17a2b8; color: white; padding: 3px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; min-width: 25px; text-align: center;">0</span>
-                        </h4>
-                        
-                        <div class="select-all-box" onclick="document.getElementById('selectAllCourses').click()" style="background: white; padding: 10px 12px; border-radius: 8px; border: 2px dashed #17a2b8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.3s;">
-                            <input type="checkbox" id="selectAllCourses" onchange="toggleAllCourses(this)" onclick="event.stopPropagation()" style="width: 16px; height: 16px; cursor: pointer; accent-color: #17a2b8;">
-                            <label for="selectAllCourses" style="margin: 0; cursor: pointer; font-weight: 600; color: #17a2b8; font-size: 0.9rem; flex: 1;">تحديد جميع المناهج</label>
-                        </div>
-
-                        <div class="courses-grid" id="coursesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px; background: rgba(255, 255, 255, 0.5); border-radius: 8px;">
-                            <!-- سيتم ملؤها ديناميكياً عبر JavaScript -->
-                        </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="courseSelect">المنهج <span style="color: red;">*</span></label>
+                        <select id="courseSelect" required>
+                            <option value="">-- اختر المنهج --</option>
+                        </select>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 12px;">
@@ -2099,11 +2036,6 @@ let currentLessonId = null;
 let currentStudents = []; // قائمة الطلاب لنماذج ريمارك
 let currentPreviewIndex = 0; // فهرس السؤال الحالي في المعاينة
 
-// ========== متغيرات المناهج المتعددة ==========
-let selectedCourseIds = new Set();
-let allQuestionsFromCourses = [];
-let allCoursesData = [];
-
 // ==================== دوال معاينة السؤال ====================
 
 function openQuestionPreview(questionId) {
@@ -2719,7 +2651,6 @@ async function previewMultipleModels() {
 // تحميل المناهج عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     loadCourses();
-    loadCoursesToGrid(); // تحميل المناهج للشبكة الجديدة
     setupEventListeners();
     loadHeaderSettingsFromServer();
 });
@@ -4645,209 +4576,6 @@ document.addEventListener('keydown', function(e) {
         closeSavedExamsModal();
     }
 });
-
-// ============================================================
-// ========== دوال المناهج المتعددة (إضافة جديدة) ==========
-// ============================================================
-
-// ========== تحميل المناهج إلى الشبكة ==========
-async function loadCoursesToGrid() {
-    try {
-        const response = await fetch('/questions/courses');
-        const data = await response.json();
-        
-        if (data.success && data.courses) {
-            allCoursesData = data.courses;
-            renderCoursesGrid(data.courses);
-        }
-    } catch (error) {
-        console.error('Error loading courses to grid:', error);
-    }
-}
-
-// ========== عرض شبكة المناهج ==========
-function renderCoursesGrid(courses) {
-    const coursesGrid = document.getElementById('coursesGrid');
-    
-    if (!coursesGrid) return;
-    
-    if (!courses || courses.length === 0) {
-        coursesGrid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;margin:0;">لا توجد مناهج متاحة</p>';
-        return;
-    }
-    
-    let html = '';
-    courses.forEach(course => {
-        html += `
-            <div class="course-checkbox-item" style="display: flex; align-items: center; gap: 10px; background: white; padding: 10px 12px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.3s ease;">
-                <input type="checkbox" 
-                       class="course-checkbox" 
-                       value="${course.id}" 
-                       id="course${course.id}"
-                       onchange="handleCourseSelectionChange()"
-                       style="width: 16px; height: 16px; cursor: pointer; accent-color: #17a2b8; flex-shrink: 0;">
-                <label for="course${course.id}" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; color: #333; flex: 1; line-height: 1.3;">${course.name}</label>
-            </div>
-        `;
-    });
-    
-    coursesGrid.innerHTML = html;
-    
-    // إضافة تأثيرات hover
-    document.querySelectorAll('.course-checkbox-item').forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
-                this.style.borderColor = '#17a2b8';
-                this.style.background = '#f8fdff';
-                this.style.transform = 'translateY(-1px)';
-            }
-        });
-        item.addEventListener('mouseleave', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
-                this.style.borderColor = '#e0e0e0';
-                this.style.background = 'white';
-                this.style.transform = 'translateY(0)';
-            }
-        });
-    });
-}
-
-// ========== تحديث عداد المناهج ==========
-function updateSelectedCoursesCount() {
-    const countElement = document.getElementById('selectedCoursesCount');
-    if (countElement) {
-        countElement.textContent = selectedCourseIds.size;
-    }
-}
-
-// ========== تبديل تحديد جميع المناهج ==========
-function toggleAllCourses(checkbox) {
-    const courseCheckboxes = document.querySelectorAll('.course-checkbox');
-    courseCheckboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-        const item = cb.closest('.course-checkbox-item');
-        if (item) {
-            if (checkbox.checked) {
-                item.style.borderColor = '#17a2b8';
-                item.style.background = 'linear-gradient(135deg, #f8fdff 0%, #e8f4f8 100%)';
-                const label = item.querySelector('label');
-                if (label) {
-                    label.style.color = '#17a2b8';
-                    label.style.fontWeight = '600';
-                }
-            } else {
-                item.style.borderColor = '#e0e0e0';
-                item.style.background = 'white';
-                const label = item.querySelector('label');
-                if (label) {
-                    label.style.color = '#333';
-                    label.style.fontWeight = '500';
-                }
-            }
-        }
-    });
-    handleCourseSelectionChange();
-}
-
-// ========== معالجة تغيير اختيار المناهج ==========
-function handleCourseSelectionChange() {
-    selectedCourseIds.clear();
-    const selectedCheckboxes = document.querySelectorAll('.course-checkbox:checked');
-    
-    selectedCheckboxes.forEach(cb => {
-        selectedCourseIds.add(parseInt(cb.value));
-        const item = cb.closest('.course-checkbox-item');
-        if (item) {
-            item.style.borderColor = '#17a2b8';
-            item.style.background = 'linear-gradient(135deg, #f8fdff 0%, #e8f4f8 100%)';
-            const label = item.querySelector('label');
-            if (label) {
-                label.style.color = '#17a2b8';
-                label.style.fontWeight = '600';
-            }
-        }
-    });
-    
-    // تحديث العناصر غير المحددة
-    document.querySelectorAll('.course-checkbox:not(:checked)').forEach(cb => {
-        const item = cb.closest('.course-checkbox-item');
-        if (item) {
-            item.style.borderColor = '#e0e0e0';
-            item.style.background = 'white';
-            const label = item.querySelector('label');
-            if (label) {
-                label.style.color = '#333';
-                label.style.fontWeight = '500';
-            }
-        }
-    });
-    
-    updateSelectedCoursesCount();
-    
-    // تحديث حالة "تحديد الكل"
-    const selectAllCheckbox = document.getElementById('selectAllCourses');
-    const allCheckboxes = document.querySelectorAll('.course-checkbox');
-    if (selectAllCheckbox && allCheckboxes.length > 0) {
-        selectAllCheckbox.checked = selectedCheckboxes.length === allCheckboxes.length;
-    }
-}
-
-// ========== تحميل الأسئلة من المناهج المختارة ==========
-async function loadQuestionsFromSelectedCourses() {
-    if (selectedCourseIds.size === 0) {
-        showError('الرجاء اختيار منهج واحد على الأقل');
-        return;
-    }
-    
-    showLoading(true);
-    allQuestionsFromCourses = [];
-    
-    try {
-        let loadedCount = 0;
-        const totalCourses = selectedCourseIds.size;
-        
-        for (const courseId of selectedCourseIds) {
-            loadedCount++;
-            console.log(`⏳ جاري تحميل المنهج ${loadedCount}/${totalCourses}...`);
-            
-            const response = await fetch(`/questions/course/${courseId}/questions`);
-            
-            if (!response.ok) {
-                console.error(`❌ فشل تحميل المنهج ${courseId}`);
-                continue;
-            }
-            
-            const data = await response.json();
-            
-            if (data.success && data.questions && data.questions.length > 0) {
-                const courseLabel = document.querySelector(`label[for="course${courseId}"]`);
-                const courseName = courseLabel ? courseLabel.textContent : `منهج ${courseId}`;
-                
-                data.questions.forEach(q => {
-                    q.course_name = courseName;
-                    q.course_id = courseId;
-                });
-                
-                allQuestionsFromCourses = allQuestionsFromCourses.concat(data.questions);
-            }
-        }
-        
-        if (allQuestionsFromCourses.length === 0) {
-            showError('لا توجد أسئلة في المناهج المختارة');
-        } else {
-            // استخدام دالة renderQuestions الموجودة بدلاً من إنشاء واحدة جديدة
-            allQuestions = allQuestionsFromCourses;
-            renderQuestions();
-            showSuccess(`تم تحميل ${allQuestionsFromCourses.length} سؤال من ${selectedCourseIds.size} منهج`);
-        }
-        
-    } catch (error) {
-        console.error('Error loading questions:', error);
-        showError('خطأ في تحميل الأسئلة: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
-}
 
 </script>
 {% endblock %}
