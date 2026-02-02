@@ -4660,26 +4660,34 @@ async function loadCoursesToGrid() {
         const data = await response.json();
         console.log('📦 البيانات المستلمة:', data);
         console.log('📦 نوع data:', typeof data);
-        console.log('📦 data.success:', data.success);
-        console.log('📦 data.courses:', data.courses);
+        console.log('📦 هل Array?:', Array.isArray(data));
         
-        if (data.success && data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
-            console.log('✅ تم العثور على', data.courses.length, 'منهج');
-            allCoursesData = data.courses;
-            renderCoursesGrid(data.courses);
+        // التعامل مع Array مباشرة أو Object يحتوي على courses
+        let courses = [];
+        
+        if (Array.isArray(data)) {
+            // الـ API يرجع array مباشرة
+            courses = data;
+            console.log('✅ تم استلام array مباشرة:', courses.length, 'منهج');
+        } else if (data.success && data.courses && Array.isArray(data.courses)) {
+            // الـ API يرجع object فيه success و courses
+            courses = data.courses;
+            console.log('✅ تم استلام object.courses:', courses.length, 'منهج');
         } else {
-            console.warn('⚠️ لا توجد مناهج في الاستجابة');
-            console.warn('⚠️ التفاصيل:', {
-                success: data.success,
-                hasCourses: !!data.courses,
-                isArray: Array.isArray(data.courses),
-                length: data.courses ? data.courses.length : 0
-            });
+            console.warn('⚠️ structure غير متوقع:', data);
+        }
+        
+        if (courses && courses.length > 0) {
+            console.log('✅ تم العثور على', courses.length, 'منهج');
+            allCoursesData = courses;
+            renderCoursesGrid(courses);
+        } else {
+            console.warn('⚠️ لا توجد مناهج');
             grid.innerHTML = `
                 <p style="text-align:center;color:#dc3545;padding:20px;margin:0;">
                     ⚠️ لا توجد مناهج متاحة<br>
                     <small style="color:#666;font-size:0.85rem;">
-                        Response: ${JSON.stringify(data).substring(0, 100)}...
+                        الاستجابة: ${JSON.stringify(data).substring(0, 150)}
                     </small>
                 </p>
             `;
