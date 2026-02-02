@@ -3804,13 +3804,9 @@ function updateUnitAndLessonCounters() {
 }
 
 async function generateRandomExam() {
-    if (!currentCourseId) {
-        showError('يجب اختيار منهج أولاً');
-        return;
-    }
-    
+    // التحقق من وجود أسئلة محملة (من المناهج المتعددة أو المنهج الواحد)
     if (allQuestions.length === 0) {
-        showError('لا توجد أسئلة متاحة');
+        showError('يجب تحميل الأسئلة أولاً. اختر المناهج واضغط "تحميل الأسئلة"');
         return;
     }
     
@@ -4318,7 +4314,7 @@ async function saveCurrentExam() {
             body: JSON.stringify({
                 name: examName,
                 description: '',
-                course_id: currentCourseId,
+                course_id: currentCourseId || (selectedCourseIds.size > 0 ? Array.from(selectedCourseIds)[0] : null),  // استخدام أول منهج من المناهج المتعددة
                 unit_id: currentUnitId,
                 question_ids: questionIdsArray,
                 questions_with_order: questionsWithOrder,  // الأسئلة مع ترتيب الخيارات
