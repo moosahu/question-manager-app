@@ -4523,9 +4523,20 @@ async function loadSavedExam(examId) {
             // تحديث المنهج/المناهج
             const courseSelect = document.getElementById('courseSelect');
             
+            // محاولة استخراج المناهج من الأسئلة المحفوظة
+            let detectedCourseIds = new Set();
+            if (data.questions && Array.isArray(data.questions)) {
+                data.questions.forEach(q => {
+                    if (q.course_id) {
+                        detectedCourseIds.add(q.course_id);
+                    }
+                });
+                console.log('🔍 المناهج المكتشفة من الأسئلة:', Array.from(detectedCourseIds));
+            }
+            
             // إذا كان الاختبار يحتوي على مناهج متعددة محفوظة
             if (exam.course_ids && Array.isArray(exam.course_ids) && exam.course_ids.length > 0) {
-                console.log('📚 تحميل مناهج متعددة:', exam.course_ids);
+                console.log('📚 تحميل مناهج متعددة من course_ids:', exam.course_ids);
                 
                 // إلغاء تحديد جميع المناهج أولاً
                 document.querySelectorAll('.course-checkbox').forEach(cb => {
@@ -4535,6 +4546,26 @@ async function loadSavedExam(examId) {
                 // تحديد جميع المناهج المحفوظة
                 selectedCourseIds.clear();
                 exam.course_ids.forEach(courseId => {
+                    const courseCheckbox = document.getElementById(`course${courseId}`);
+                    if (courseCheckbox) {
+                        courseCheckbox.checked = true;
+                        selectedCourseIds.add(courseId);
+                    }
+                });
+                
+                handleCourseSelectionChange();
+                await loadQuestionsFromSelectedCourses();
+                
+            } else if (detectedCourseIds.size > 1) {
+                // اكتشاف مناهج متعددة من الأسئلة (اختبار محفوظ بالطريقة القديمة)
+                console.log('📚 تحميل مناهج متعددة من الأسئلة المكتشفة:', Array.from(detectedCourseIds));
+                
+                document.querySelectorAll('.course-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                
+                selectedCourseIds.clear();
+                detectedCourseIds.forEach(courseId => {
                     const courseCheckbox = document.getElementById(`course${courseId}`);
                     if (courseCheckbox) {
                         courseCheckbox.checked = true;
