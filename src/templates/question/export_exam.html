@@ -1436,6 +1436,12 @@
                         <div class="courses-grid" id="coursesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px; background: rgba(255, 255, 255, 0.5); border-radius: 8px;">
                             <!-- سيتم ملؤها ديناميكياً عبر JavaScript -->
                         </div>
+                        
+                        <!-- زر تحميل الأسئلة -->
+                        <button onclick="loadQuestionsFromSelectedCourses()" style="width: 100%; margin-top: 12px; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;" onmouseover="this.style.background='#138496'" onmouseout="this.style.background='#17a2b8'">
+                            <i class="fas fa-download"></i>
+                            تحميل الأسئلة من المناهج المحددة
+                        </button>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 12px;">
@@ -4653,15 +4659,32 @@ document.addEventListener('keydown', function(e) {
 // ========== تحميل المناهج إلى الشبكة ==========
 async function loadCoursesToGrid() {
     try {
-        const response = await fetch('/questions/courses');
+        const response = await fetch('/api/v1/courses?show_all=true');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        
+        console.log('✅ تم تحميل المناهج:', data);
         
         if (data.success && data.courses) {
             allCoursesData = data.courses;
             renderCoursesGrid(data.courses);
+        } else {
+            console.warn('⚠️ لا توجد مناهج في الاستجابة');
+            const coursesGrid = document.getElementById('coursesGrid');
+            if (coursesGrid) {
+                coursesGrid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;margin:0;">لا توجد مناهج متاحة</p>';
+            }
         }
     } catch (error) {
-        console.error('Error loading courses to grid:', error);
+        console.error('❌ خطأ في تحميل المناهج:', error);
+        const coursesGrid = document.getElementById('coursesGrid');
+        if (coursesGrid) {
+            coursesGrid.innerHTML = '<p style="text-align:center;color:#dc3545;padding:20px;margin:0;">خطأ في تحميل المناهج. الرجاء تحديث الصفحة.</p>';
+        }
     }
 }
 
@@ -4810,7 +4833,9 @@ async function loadQuestionsFromSelectedCourses() {
             loadedCount++;
             console.log(`⏳ جاري تحميل المنهج ${loadedCount}/${totalCourses}...`);
             
-            const response = await fetch(`/questions/course/${courseId}/questions`);
+            // استخدام نفس API الموجود في الكود الأصلي
+            const endpoint = `${API_BASE}/courses/${courseId}/questions`;
+            const response = await fetch(endpoint);
             
             if (!response.ok) {
                 console.error(`❌ فشل تحميل المنهج ${courseId}`);
@@ -4818,27 +4843,29 @@ async function loadQuestionsFromSelectedCourses() {
             }
             
             const data = await response.json();
+            const questions = Array.isArray(data) ? data : (data.questions || []);
             
-            if (data.success && data.questions && data.questions.length > 0) {
+            if (questions && questions.length > 0) {
                 const courseLabel = document.querySelector(`label[for="course${courseId}"]`);
                 const courseName = courseLabel ? courseLabel.textContent : `منهج ${courseId}`;
                 
-                data.questions.forEach(q => {
+                questions.forEach(q => {
                     q.course_name = courseName;
                     q.course_id = courseId;
                 });
                 
-                allQuestionsFromCourses = allQuestionsFromCourses.concat(data.questions);
+                allQuestionsFromCourses = allQuestionsFromCourses.concat(questions);
             }
         }
         
         if (allQuestionsFromCourses.length === 0) {
             showError('لا توجد أسئلة في المناهج المختارة');
         } else {
-            // استخدام دالة renderQuestions الموجودة بدلاً من إنشاء واحدة جديدة
+            // استخدام دالة updateQuestionsList الموجودة
             allQuestions = allQuestionsFromCourses;
-            renderQuestions();
-            showSuccess(`تم تحميل ${allQuestionsFromCourses.length} سؤال من ${selectedCourseIds.size} منهج`);
+            updateQuestionsList();
+            updateStats();
+            showSuccess(`✅ تم تحميل ${allQuestionsFromCourses.length} سؤال من ${selectedCourseIds.size} منهج`);
         }
         
     } catch (error) {
