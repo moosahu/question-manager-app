@@ -4486,13 +4486,27 @@ async function loadSavedExam(examId) {
             }
             
             // تحديث المنهج إذا كان مختلفاً
-            if (exam.course_id && exam.course_id !== currentCourseId) {
-                document.getElementById('courseSelect').value = exam.course_id;
-                await handleCourseChange();
+            if (exam.course_id) {
+                const courseSelect = document.getElementById('courseSelect');
+                if (courseSelect && exam.course_id !== currentCourseId) {
+                    // النظام القديم - استخدام select
+                    courseSelect.value = exam.course_id;
+                    await handleCourseChange();
+                } else {
+                    // النظام الجديد - استخدام checkboxes
+                    // تحديد المنهج في الشبكة
+                    const courseCheckbox = document.getElementById(`course${exam.course_id}`);
+                    if (courseCheckbox) {
+                        courseCheckbox.checked = true;
+                        handleCourseSelectionChange();
+                        // تحميل الأسئلة من هذا المنهج
+                        await loadQuestionsFromSelectedCourses();
+                    }
+                }
             }
             
             // انتظار تحميل الأسئلة
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             // تحديد الأسئلة المحفوظة
             deselectAllQuestions();
