@@ -1414,18 +1414,52 @@
                         </button>
                     </div>
 
+                    <!-- ========== فاصل "أو" ========== -->
+                    <div style="text-align: center; margin: 20px 0; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: linear-gradient(to right, transparent, #ddd 20%, #ddd 80%, transparent);"></div>
+                        <span style="position: relative; background: white; padding: 8px 20px; color: #999; font-weight: 600; font-size: 0.9rem; border: 2px solid #ddd; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <i class="fas fa-arrows-alt-h"></i> أو
+                        </span>
+                    </div>
+
+                    <!-- ========== التحديد الدقيق (منهج واحد + وحدة + درس) ========== -->
+                    <div style="background: linear-gradient(135deg, #fff3e0 0%, #fff8e1 100%); border: 2px solid #ff9800; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);">
+                        <h4 style="margin: 0 0 10px 0; color: #ff9800; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; font-weight: 600;">
+                            <i class="fas fa-crosshairs"></i> 
+                            التحديد الدقيق (منهج واحد)
+                            <span style="background: #ff9800; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem;">للوحدات والدروس</span>
+                        </h4>
+                        
+                        <p style="margin: 0 0 15px 0; color: #f57c00; font-size: 0.85rem; line-height: 1.5; padding: 8px 12px; background: rgba(255,255,255,0.5); border-radius: 5px; border-right: 3px solid #ff9800;">
+                            <i class="fas fa-info-circle"></i> استخدم هذا الخيار لتحديد <strong>وحدة</strong> أو <strong>درس</strong> محدد من منهج واحد
+                        </p>
+                        
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label for="courseSelect" style="color: #ff9800; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; margin-bottom: 8px;">
+                                <i class="fas fa-book"></i> المنهج <span style="color: #f44336;">*</span>
+                            </label>
+                            <select id="courseSelect" onchange="handleCourseChange()" style="width: 100%; padding: 10px; border: 2px solid #ff9800; border-radius: 8px; background: white; font-size: 0.9rem; cursor: pointer; transition: all 0.3s;">
+                                <option value="">-- اختر المنهج --</option>
+                            </select>
+                        </div>
+
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="unitSelect">الوحدة (اختياري)</label>
-                        <select id="unitSelect">
+                        <label for="unitSelect" style="color: #ff9800; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; margin-bottom: 8px;">
+                            <i class="fas fa-layer-group"></i> الوحدة (اختياري)
+                        </label>
+                        <select id="unitSelect" style="width: 100%; padding: 10px; border: 2px solid #ffb74d; border-radius: 8px; background: white; font-size: 0.9rem;">
                             <option value="">-- جميع الوحدات --</option>
                         </select>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="lessonSelect">الدرس (اختياري)</label>
-                        <select id="lessonSelect">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="lessonSelect" style="color: #ff9800; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; margin-bottom: 8px;">
+                            <i class="fas fa-file-alt"></i> الدرس (اختياري)
+                        </label>
+                        <select id="lessonSelect" style="width: 100%; padding: 10px; border: 2px solid #ffb74d; border-radius: 8px; background: white; font-size: 0.9rem;">
                             <option value="">-- جميع الدروس --</option>
                         </select>
+                    </div>
                     </div>
 
                     <div class="stats-box" style="margin-top: 15px;">
