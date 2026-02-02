@@ -1300,56 +1300,20 @@
             }
         }
 
-        /* ============================================================ */
-        /* ========== تصميم المناهج المتعددة (إضافة جديدة) ========== */
-        /* ============================================================ */
-        
+        /* ========== تصميم المناهج المتعددة ========== */
         .select-all-box:hover {
             background: #f8fdff !important;
             border-style: solid !important;
-            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.1);
         }
-
         .courses-grid::-webkit-scrollbar {
             width: 6px;
         }
-
-        .courses-grid::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-
         .courses-grid::-webkit-scrollbar-thumb {
             background: #17a2b8;
             border-radius: 3px;
         }
-
-        .courses-grid::-webkit-scrollbar-thumb:hover {
-            background: #138496;
-        }
-
         .course-checkbox-item:hover {
             box-shadow: 0 3px 6px rgba(23, 162, 184, 0.12);
-        }
-
-        .course-checkbox-item input[type="checkbox"]:checked + label {
-            color: #17a2b8;
-            font-weight: 600;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .course-checkbox-item {
-            animation: fadeIn 0.3s ease-out;
         }
     </style>
 {% endblock %}
@@ -4653,10 +4617,10 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ============================================================
-// ========== دوال المناهج المتعددة (إضافة جديدة) ==========
+// ========== دوال المناهج المتعددة (NEW) ==========
 // ============================================================
 
-// ========== تحميل المناهج إلى الشبكة ==========
+// تحميل المناهج إلى الشبكة
 async function loadCoursesToGrid() {
     try {
         const response = await fetch('/api/v1/courses?show_all=true');
@@ -4666,118 +4630,92 @@ async function loadCoursesToGrid() {
         }
         
         const data = await response.json();
-        
         console.log('✅ تم تحميل المناهج:', data);
         
         if (data.success && data.courses) {
             allCoursesData = data.courses;
             renderCoursesGrid(data.courses);
         } else {
-            console.warn('⚠️ لا توجد مناهج في الاستجابة');
-            const coursesGrid = document.getElementById('coursesGrid');
-            if (coursesGrid) {
-                coursesGrid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;margin:0;">لا توجد مناهج متاحة</p>';
-            }
+            console.warn('⚠️ لا توجد مناهج');
+            const grid = document.getElementById('coursesGrid');
+            if (grid) grid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">لا توجد مناهج متاحة</p>';
         }
     } catch (error) {
         console.error('❌ خطأ في تحميل المناهج:', error);
-        const coursesGrid = document.getElementById('coursesGrid');
-        if (coursesGrid) {
-            coursesGrid.innerHTML = '<p style="text-align:center;color:#dc3545;padding:20px;margin:0;">خطأ في تحميل المناهج. الرجاء تحديث الصفحة.</p>';
-        }
+        const grid = document.getElementById('coursesGrid');
+        if (grid) grid.innerHTML = '<p style="text-align:center;color:#dc3545;padding:20px;">خطأ في تحميل المناهج</p>';
     }
 }
 
-// ========== عرض شبكة المناهج ==========
+// عرض شبكة المناهج
 function renderCoursesGrid(courses) {
-    const coursesGrid = document.getElementById('coursesGrid');
-    
-    if (!coursesGrid) return;
+    const grid = document.getElementById('coursesGrid');
+    if (!grid) return;
     
     if (!courses || courses.length === 0) {
-        coursesGrid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;margin:0;">لا توجد مناهج متاحة</p>';
+        grid.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">لا توجد مناهج</p>';
         return;
     }
     
     let html = '';
     courses.forEach(course => {
         html += `
-            <div class="course-checkbox-item" style="display: flex; align-items: center; gap: 10px; background: white; padding: 10px 12px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.3s ease;">
-                <input type="checkbox" 
-                       class="course-checkbox" 
-                       value="${course.id}" 
-                       id="course${course.id}"
-                       onchange="handleCourseSelectionChange()"
-                       style="width: 16px; height: 16px; cursor: pointer; accent-color: #17a2b8; flex-shrink: 0;">
-                <label for="course${course.id}" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; color: #333; flex: 1; line-height: 1.3;">${course.name}</label>
+            <div class="course-checkbox-item" style="display: flex; align-items: center; gap: 10px; background: white; padding: 10px 12px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.3s;">
+                <input type="checkbox" class="course-checkbox" value="${course.id}" id="course${course.id}" onchange="handleCourseSelectionChange()" style="width: 16px; height: 16px; cursor: pointer; accent-color: #17a2b8;">
+                <label for="course${course.id}" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; color: #333; flex: 1;">${course.name}</label>
             </div>
         `;
     });
     
-    coursesGrid.innerHTML = html;
+    grid.innerHTML = html;
     
-    // إضافة تأثيرات hover
+    // تأثيرات hover
     document.querySelectorAll('.course-checkbox-item').forEach(item => {
         item.addEventListener('mouseenter', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
+            if (!this.querySelector('input').checked) {
                 this.style.borderColor = '#17a2b8';
                 this.style.background = '#f8fdff';
-                this.style.transform = 'translateY(-1px)';
             }
         });
         item.addEventListener('mouseleave', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
+            if (!this.querySelector('input').checked) {
                 this.style.borderColor = '#e0e0e0';
                 this.style.background = 'white';
-                this.style.transform = 'translateY(0)';
             }
         });
     });
 }
 
-// ========== تحديث عداد المناهج ==========
+// تحديث عداد المناهج
 function updateSelectedCoursesCount() {
-    const countElement = document.getElementById('selectedCoursesCount');
-    if (countElement) {
-        countElement.textContent = selectedCourseIds.size;
-    }
+    const el = document.getElementById('selectedCoursesCount');
+    if (el) el.textContent = selectedCourseIds.size;
 }
 
-// ========== تبديل تحديد جميع المناهج ==========
+// تبديل تحديد الكل
 function toggleAllCourses(checkbox) {
-    const courseCheckboxes = document.querySelectorAll('.course-checkbox');
-    courseCheckboxes.forEach(cb => {
+    document.querySelectorAll('.course-checkbox').forEach(cb => {
         cb.checked = checkbox.checked;
         const item = cb.closest('.course-checkbox-item');
         if (item) {
-            if (checkbox.checked) {
-                item.style.borderColor = '#17a2b8';
-                item.style.background = 'linear-gradient(135deg, #f8fdff 0%, #e8f4f8 100%)';
-                const label = item.querySelector('label');
-                if (label) {
-                    label.style.color = '#17a2b8';
-                    label.style.fontWeight = '600';
-                }
-            } else {
-                item.style.borderColor = '#e0e0e0';
-                item.style.background = 'white';
-                const label = item.querySelector('label');
-                if (label) {
-                    label.style.color = '#333';
-                    label.style.fontWeight = '500';
-                }
+            item.style.borderColor = checkbox.checked ? '#17a2b8' : '#e0e0e0';
+            item.style.background = checkbox.checked ? 'linear-gradient(135deg, #f8fdff 0%, #e8f4f8 100%)' : 'white';
+            const label = item.querySelector('label');
+            if (label) {
+                label.style.color = checkbox.checked ? '#17a2b8' : '#333';
+                label.style.fontWeight = checkbox.checked ? '600' : '500';
             }
         }
     });
     handleCourseSelectionChange();
 }
 
-// ========== معالجة تغيير اختيار المناهج ==========
+// معالجة تغيير الاختيار
 function handleCourseSelectionChange() {
     selectedCourseIds.clear();
-    const selectedCheckboxes = document.querySelectorAll('.course-checkbox:checked');
+    const checked = document.querySelectorAll('.course-checkbox:checked');
     
-    selectedCheckboxes.forEach(cb => {
+    checked.forEach(cb => {
         selectedCourseIds.add(parseInt(cb.value));
         const item = cb.closest('.course-checkbox-item');
         if (item) {
@@ -4791,7 +4729,7 @@ function handleCourseSelectionChange() {
         }
     });
     
-    // تحديث العناصر غير المحددة
+    // تحديث غير المحددة
     document.querySelectorAll('.course-checkbox:not(:checked)').forEach(cb => {
         const item = cb.closest('.course-checkbox-item');
         if (item) {
@@ -4807,15 +4745,15 @@ function handleCourseSelectionChange() {
     
     updateSelectedCoursesCount();
     
-    // تحديث حالة "تحديد الكل"
-    const selectAllCheckbox = document.getElementById('selectAllCourses');
-    const allCheckboxes = document.querySelectorAll('.course-checkbox');
-    if (selectAllCheckbox && allCheckboxes.length > 0) {
-        selectAllCheckbox.checked = selectedCheckboxes.length === allCheckboxes.length;
+    // تحديث checkbox "الكل"
+    const selectAll = document.getElementById('selectAllCourses');
+    const all = document.querySelectorAll('.course-checkbox');
+    if (selectAll && all.length > 0) {
+        selectAll.checked = checked.length === all.length;
     }
 }
 
-// ========== تحميل الأسئلة من المناهج المختارة ==========
+// تحميل الأسئلة من المناهج المختارة
 async function loadQuestionsFromSelectedCourses() {
     if (selectedCourseIds.size === 0) {
         showError('الرجاء اختيار منهج واحد على الأقل');
@@ -4826,19 +4764,18 @@ async function loadQuestionsFromSelectedCourses() {
     allQuestionsFromCourses = [];
     
     try {
-        let loadedCount = 0;
-        const totalCourses = selectedCourseIds.size;
+        let count = 0;
+        const total = selectedCourseIds.size;
         
         for (const courseId of selectedCourseIds) {
-            loadedCount++;
-            console.log(`⏳ جاري تحميل المنهج ${loadedCount}/${totalCourses}...`);
+            count++;
+            console.log(`⏳ تحميل ${count}/${total}...`);
             
-            // استخدام نفس API الموجود في الكود الأصلي
             const endpoint = `${API_BASE}/courses/${courseId}/questions`;
             const response = await fetch(endpoint);
             
             if (!response.ok) {
-                console.error(`❌ فشل تحميل المنهج ${courseId}`);
+                console.error(`❌ فشل تحميل ${courseId}`);
                 continue;
             }
             
@@ -4846,11 +4783,11 @@ async function loadQuestionsFromSelectedCourses() {
             const questions = Array.isArray(data) ? data : (data.questions || []);
             
             if (questions && questions.length > 0) {
-                const courseLabel = document.querySelector(`label[for="course${courseId}"]`);
-                const courseName = courseLabel ? courseLabel.textContent : `منهج ${courseId}`;
+                const label = document.querySelector(`label[for="course${courseId}"]`);
+                const name = label ? label.textContent : `منهج ${courseId}`;
                 
                 questions.forEach(q => {
-                    q.course_name = courseName;
+                    q.course_name = name;
                     q.course_id = courseId;
                 });
                 
@@ -4859,9 +4796,8 @@ async function loadQuestionsFromSelectedCourses() {
         }
         
         if (allQuestionsFromCourses.length === 0) {
-            showError('لا توجد أسئلة في المناهج المختارة');
+            showError('لا توجد أسئلة');
         } else {
-            // استخدام دالة updateQuestionsList الموجودة
             allQuestions = allQuestionsFromCourses;
             updateQuestionsList();
             updateStats();
@@ -4869,8 +4805,8 @@ async function loadQuestionsFromSelectedCourses() {
         }
         
     } catch (error) {
-        console.error('Error loading questions:', error);
-        showError('خطأ في تحميل الأسئلة: ' + error.message);
+        console.error('❌ خطأ:', error);
+        showError('خطأ: ' + error.message);
     } finally {
         showLoading(false);
     }
