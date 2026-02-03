@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+    </div> <!-- End tab-tests -->
+
 {% block title %}الاختبارات التشخيصية{% endblock %}
 
 {% block extra_css %}
@@ -450,8 +452,7 @@
             flex-wrap: wrap;
         }
     }
-
-    /* ===== Tabs & Scheduling Styles ===== */
+    /* ===== Tabs Styles ===== */
     .tabs {
         display: flex;
         gap: 0.5rem;
@@ -471,27 +472,12 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
-        font-size: 0.95rem;
     }
     
-    .tab:hover {
-        color: var(--primary);
-        background: #f9fafb;
-    }
-    
-    .tab.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
-        background: #f9fafb;
-    }
-    
-    .tab-content {
-        display: none;
-    }
-    
-    .tab-content.active {
-        display: block;
-    }
+    .tab:hover { color: var(--primary); background: #f9fafb; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f9fafb; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
     
     .scheduled-test-card {
         background: #f9fafb;
@@ -500,18 +486,8 @@
         margin-bottom: 1rem;
         border-left: 4px solid var(--primary);
     }
-    
-    .scheduled-test-card h4 {
-        margin: 0 0 0.5rem 0;
-        color: #1f2937;
-    }
-    
-    .scheduled-test-card p {
-        margin: 0.25rem 0;
-        color: #6b7280;
-        font-size: 0.9rem;
-    }
-
+    .scheduled-test-card h4 { margin: 0 0 0.5rem 0; color: #1f2937; }
+    .scheduled-test-card p { margin: 0.25rem 0; color: #6b7280; font-size: 0.9rem; }
 </style>
 {% endblock %}
 
@@ -527,11 +503,6 @@
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
-            <div class="icon" style="background: #fef3c7;">📅</div>
-            <div class="value" id="stat-scheduled">0</div>
-            <div class="label">اختبارات مجدولة</div>
-        </div>
-        <div class="stat-card">
             <div class="icon" style="background: #dbeafe;">📝</div>
             <div class="value" id="stat-pre">0</div>
             <div class="label">اختبارات قبلية</div>
@@ -543,13 +514,14 @@
         </div>
         <div class="stat-card">
             <div class="icon" style="background: #fef3c7;">📊</div>
-            <div class="value" id="stat-results">0</div>
-            <div class="label">نتائج مسجلة</div>
-        </div>
         <div class="stat-card">
             <div class="icon" style="background: #fef3c7;">📅</div>
             <div class="value" id="stat-scheduled">0</div>
             <div class="label">اختبارات مجدولة</div>
+        </div>
+        
+            <div class="value" id="stat-results">0</div>
+            <div class="label">نتائج مسجلة</div>
         </div>
         <div class="stat-card">
             <div class="icon" style="background: #ede9fe;">📈</div>
@@ -684,6 +656,71 @@
         </div>
     </div>
     
+    </div> <!-- End tab-create -->
+    
+    <!-- Tab: Schedule Test -->
+    <div id="tab-schedule" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>📅 جدولة اختبار وإسناده للطلاب</h3>
+            </div>
+            <div class="card-body">
+                <form id="scheduleTestForm" onsubmit="handleScheduleTest(event); return false;">
+                    <div class="form-group">
+                        <label>اختر الاختبار</label>
+                        <select class="form-control" id="schedule_test_id" required>
+                            <option value="">اختر اختبار...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الطلاب</label>
+                        <select class="form-control" id="schedule_students" required>
+                            <option value="all">جميع الطلاب</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>وقت البداية</label>
+                        <input type="datetime-local" class="form-control" id="schedule_start" required>
+                    </div>
+                    <div class="form-group">
+                        <label>وقت النهاية</label>
+                        <input type="datetime-local" class="form-control" id="schedule_end" required>
+                    </div>
+                    <div class="form-group">
+                        <label>مدة الاختبار (بالدقائق)</label>
+                        <input type="number" class="form-control" id="schedule_time_limit" value="30" min="5" max="180">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="schedule_send_notification" checked>
+                            <span>إرسال إشعار للطلاب</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        📅 جدولة الاختبار وإرسال الإشعارات
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab: Scheduled Tests -->
+    <div id="tab-scheduled" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>⏰ الاختبارات المجدولة</h3>
+                <button class="btn btn-sm btn-primary" onclick="loadScheduledTests()">🔄 تحديث</button>
+            </div>
+            <div class="card-body">
+                <div id="scheduled-tests-list">
+                    <p style="text-align: center; color: #6b7280; padding: 2rem;">لا توجد اختبارات مجدولة حالياً</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab: All Tests -->
+    <div id="tab-tests" class="tab-content">
     <!-- Tests List -->
     <div class="card">
         <div class="card-header">
@@ -1286,5 +1323,107 @@
         const el = document.getElementById(id);
         if (el) el.classList.remove('active');
     };
+
+    // ========================================
+    // Scheduling Functions
+    // ========================================
+    
+    window.switchTab = function(tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        const tab = document.getElementById('tab-' + tabName);
+        if (tab) tab.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
+        
+        if (tabName === 'tests') diagLoadTests();
+        else if (tabName === 'scheduled') loadScheduledTests();
+        else if (tabName === 'schedule') { loadTestsForSchedule(); loadStudentsForSchedule(); }
+    };
+    
+    window.loadTestsForSchedule = async function() {
+        try {
+            const res = await fetch(DIAG_API + '/tests');
+            const data = await res.json();
+            const sel = document.getElementById('schedule_test_id');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">اختر اختبار...</option>';
+            if (data.tests) data.tests.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = `${t.title} (${t.test_type_ar})`;
+                sel.appendChild(opt);
+            });
+        } catch (e) { console.error(e); }
+    };
+    
+    window.loadStudentsForSchedule = async function() {
+        try {
+            const res = await fetch(DIAG_API + '/students');
+            const data = await res.json();
+            const sel = document.getElementById('schedule_students');
+            if (!sel) return;
+            sel.innerHTML = '<option value="all">جميع الطلاب</option>';
+            if (data.students) data.students.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name + (s.grade ? ` (${s.grade})` : '');
+                sel.appendChild(opt);
+            });
+        } catch (e) { console.error(e); }
+    };
+    
+    window.handleScheduleTest = async function(event) {
+        event.preventDefault();
+        const data = {
+            test_id: parseInt(document.getElementById('schedule_test_id').value),
+            student_ids: document.getElementById('schedule_students').value,
+            scheduled_start: document.getElementById('schedule_start').value,
+            scheduled_end: document.getElementById('schedule_end').value,
+            time_limit_minutes: parseInt(document.getElementById('schedule_time_limit').value),
+            send_notification: document.getElementById('schedule_send_notification').checked
+        };
+        try {
+            const res = await fetch(DIAG_API + '/assign', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert('✅ تم جدولة الاختبار بنجاح!');
+                loadScheduledTests();
+                document.getElementById('scheduleTestForm').reset();
+                switchTab('scheduled');
+            } else alert('❌ خطأ: ' + (result.error || 'حدث خطأ'));
+        } catch (e) { alert('❌ خطأ في الاتصال'); }
+    };
+    
+    window.loadScheduledTests = async function() {
+        try {
+            const res = await fetch(DIAG_API + '/scheduled');
+            const data = await res.json();
+            const container = document.getElementById('scheduled-tests-list');
+            if (!container) return;
+            if (!data.scheduled_tests || !data.scheduled_tests.length) {
+                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">لا توجد اختبارات مجدولة حالياً</p>';
+                const stat = document.getElementById('stat-scheduled');
+                if (stat) stat.textContent = '0';
+                return;
+            }
+            const stat = document.getElementById('stat-scheduled');
+            if (stat) stat.textContent = data.scheduled_tests.length;
+            container.innerHTML = data.scheduled_tests.map(t => `
+                <div class="scheduled-test-card">
+                    <h4>${t.title}</h4>
+                    <p><strong>النوع:</strong> ${t.test_type_ar}</p>
+                    <p><strong>البداية:</strong> ${t.scheduled_start ? new Date(t.scheduled_start).toLocaleString('ar-SA') : 'غير محدد'}</p>
+                    <p><strong>النهاية:</strong> ${t.scheduled_end ? new Date(t.scheduled_end).toLocaleString('ar-SA') : 'غير محدد'}</p>
+                    <p><strong>عدد الطلاب:</strong> ${t.assigned_students_count || 0}</p>
+                    <p><strong>الحالة:</strong> ${t.schedule_status || 'pending'}</p>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
+    };
+    
 </script>
 {% endblock %}
