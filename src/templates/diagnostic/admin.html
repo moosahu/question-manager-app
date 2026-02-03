@@ -34,45 +34,9 @@
         opacity: 0.9;
     }
     
-    .tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .tab {
-        padding: 0.75rem 1.5rem;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        font-weight: 600;
-        color: #6b7280;
-        transition: all 0.2s;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -2px;
-    }
-    
-    .tab:hover {
-        color: var(--primary);
-    }
-    
-    .tab.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
-    }
-    
-    .tab-content {
-        display: none;
-    }
-    
-    .tab-content.active {
-        display: block;
-    }
-    
     .stats-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
         margin-bottom: 2rem;
     }
@@ -194,6 +158,10 @@
         color: white;
     }
     
+    .btn-success:hover {
+        background: #059669;
+    }
+    
     .btn-info {
         background: var(--info);
         color: white;
@@ -206,6 +174,17 @@
     
     .btn-danger {
         background: var(--danger);
+        color: white;
+    }
+    
+    .btn-outline {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+    }
+    
+    .btn-outline:hover {
+        background: var(--primary);
         color: white;
     }
     
@@ -243,6 +222,17 @@
     .test-type-btn .icon {
         font-size: 2rem;
         margin-bottom: 0.5rem;
+    }
+    
+    .test-type-btn .title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .test-type-btn .desc {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
     }
     
     .tests-table {
@@ -285,64 +275,106 @@
         color: #047857;
     }
     
-    .badge-scheduled {
-        background: #fef3c7;
-        color: #92400e;
-    }
-    
-    .badge-active {
-        background: #d1fae5;
-        color: #047857;
-    }
-    
-    .badge-pending {
-        background: #e0e7ff;
-        color: #4338ca;
-    }
-    
-    .badge-expired {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-    
     .actions-cell {
         display: flex;
         gap: 0.5rem;
         justify-content: flex-end;
-        flex-wrap: wrap;
     }
     
-    .student-selector {
+    .difficulty-inputs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    
+    .difficulty-input {
+        text-align: center;
+    }
+    
+    .difficulty-input label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .difficulty-input input {
+        width: 60px;
+        padding: 0.5rem;
+        text-align: center;
         border: 2px solid #e5e7eb;
         border-radius: 0.5rem;
-        padding: 1rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    
+    .empty-state .icon {
+        font-size: 4rem;
         margin-bottom: 1rem;
+        opacity: 0.5;
     }
     
-    .student-selector h4 {
-        margin: 0 0 1rem 0;
-        font-size: 0.95rem;
-        color: #374151;
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
     }
     
-    .student-list {
-        max-height: 200px;
+    .modal-overlay.active {
+        display: flex !important;
+    }
+    
+    .modal {
+        background: white;
+        border-radius: 1rem;
+        width: 90%;
+        max-width: 600px;
+        max-height: 85vh;
         overflow-y: auto;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
     }
     
-    .student-item {
-        padding: 0.5rem;
+    .modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: space-between;
     }
     
-    .student-item:hover {
-        background: #f9fafb;
-        border-radius: 0.25rem;
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
     }
     
     .loading-overlay {
@@ -356,7 +388,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        z-index: 10000;
+        z-index: 2000;
         opacity: 0;
         visibility: hidden;
         transition: all 0.3s;
@@ -399,32 +431,35 @@
         color: #dc2626;
     }
     
-    .schedule-info {
-        background: #f9fafb;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
+    .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
     }
     
-    .schedule-info p {
-        margin: 0.25rem 0;
-        color: #6b7280;
-    }
-    
-    .schedule-info strong {
-        color: #374151;
+    @media (max-width: 768px) {
+        .test-type-selector {
+            flex-direction: column;
+        }
+        
+        .difficulty-inputs {
+            grid-template-columns: 1fr;
+        }
+        
+        .actions-cell {
+            flex-wrap: wrap;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 2rem;">
+<div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem;">
     
     <!-- Header -->
     <div class="page-header">
         <h1>🧪 الاختبارات التشخيصية</h1>
-        <p>إنشاء وجدولة اختبارات قبلية وبعدية مع إرسال إشعارات للطلاب</p>
+        <p>إنشاء اختبارات قبلية وبعدية واستخراج أوراق للطباعة</p>
     </div>
     
     <!-- Stats -->
@@ -440,295 +475,467 @@
             <div class="label">اختبارات بعدية</div>
         </div>
         <div class="stat-card">
-            <div class="icon" style="background: #fef3c7;">📅</div>
-            <div class="value" id="stat-scheduled">0</div>
-            <div class="label">اختبارات مجدولة</div>
-        </div>
-        <div class="stat-card">
-            <div class="icon" style="background: #ede9fe;">📊</div>
+            <div class="icon" style="background: #fef3c7;">📊</div>
             <div class="value" id="stat-results">0</div>
             <div class="label">نتائج مسجلة</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon" style="background: #ede9fe;">📈</div>
+            <div class="value" id="stat-improvement">0%</div>
+            <div class="label">متوسط التحسن</div>
         </div>
     </div>
     
     <!-- Alert -->
     <div id="alert-container"></div>
     
-    <!-- Tabs -->
-    <div class="tabs">
-        <button class="tab active" onclick="switchTab('create')">➕ إنشاء اختبار</button>
-        <button class="tab" onclick="switchTab('schedule')">📅 جدولة اختبار</button>
-        <button class="tab" onclick="switchTab('tests')">📋 الاختبارات</button>
-        <button class="tab" onclick="switchTab('scheduled')">⏰ الاختبارات المجدولة</button>
-    </div>
-    
-    <!-- Tab: Create Test -->
-    <div id="tab-create" class="tab-content active">
+    <div class="row">
+        <!-- Create Test Form -->
         <div class="card">
             <div class="card-header">
                 <h3>➕ إنشاء اختبار جديد</h3>
             </div>
             <div class="card-body">
-                <form id="createTestForm" onsubmit="handleCreateTest(event)">
-                    <!-- Test Type -->
-                    <div class="test-type-selector">
-                        <div class="test-type-btn active" onclick="selectTestType('pre_test', this)">
-                            <div class="icon">📝</div>
-                            <div class="title">اختبار قبلي</div>
-                            <div class="desc">قبل شرح الدرس</div>
-                        </div>
-                        <div class="test-type-btn" onclick="selectTestType('post_test', this)">
-                            <div class="icon">✅</div>
-                            <div class="title">اختبار بعدي</div>
-                            <div class="desc">بعد شرح الدرس</div>
-                        </div>
+                <!-- Test Type Selector -->
+                <div class="test-type-selector">
+                    <div class="test-type-btn active" data-type="pre_test" onclick="selectTestType('pre_test')">
+                        <div class="icon">📝</div>
+                        <div class="title">اختبار قبلي</div>
+                        <div class="desc">قبل دراسة الدرس</div>
                     </div>
-                    <input type="hidden" id="test_type" name="test_type" value="pre_test">
+                    <div class="test-type-btn" data-type="post_test" onclick="selectTestType('post_test')">
+                        <div class="icon">✅</div>
+                        <div class="title">اختبار بعدي</div>
+                        <div class="desc">بعد دراسة الدرس</div>
+                    </div>
+                </div>
+                
+                <form id="create-test-form">
+                    <input type="hidden" name="test_type" id="test_type" value="pre_test">
                     
-                    <!-- Lesson Selection -->
                     <div class="form-group">
-                        <label>الدرس</label>
-                        <select class="form-control" id="lesson_id" name="lesson_id" required>
-                            <option value="">اختر الدرس...</option>
+                        <label>المنهج</label>
+                        <select class="form-control" id="diag_course_id" name="course_id" onchange="diagLoadUnits()">
+                            <option value="">-- اختر المنهج --</option>
                         </select>
                     </div>
                     
-                    <!-- Questions Count -->
+                    <div class="form-group">
+                        <label>الوحدة</label>
+                        <select class="form-control" id="diag_unit_id" name="unit_id" onchange="diagLoadLessons()">
+                            <option value="">-- اختر الوحدة --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>الدرس</label>
+                        <select class="form-control" id="diag_lesson_id" name="lesson_id">
+                            <option value="">-- اختر الدرس --</option>
+                        </select>
+                    </div>
+                    
                     <div class="form-group">
                         <label>عدد الأسئلة</label>
                         <input type="number" class="form-control" id="questions_count" name="questions_count" value="5" min="3" max="20">
                     </div>
                     
-                    <!-- Submit -->
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">
-                        🤖 توليد الاختبار بالذكاء الاصطناعي
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tab: Schedule Test -->
-    <div id="tab-schedule" class="tab-content">
-        <div class="card">
-            <div class="card-header">
-                <h3>📅 جدولة اختبار وإسناده للطلاب</h3>
-            </div>
-            <div class="card-body">
-                <form id="scheduleTestForm" onsubmit="handleScheduleTest(event)">
-                    <!-- Select Test -->
                     <div class="form-group">
-                        <label>اختر الاختبار</label>
-                        <select class="form-control" id="schedule_test_id" name="test_id" required>
-                            <option value="">اختر اختبار...</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Student Selection -->
-                    <div class="student-selector">
-                        <h4>اختر الطلاب</h4>
-                        <div class="form-group">
-                            <label>
-                                <input type="radio" name="student_selection" value="all" checked onchange="toggleStudentSelection('all')">
-                                جميع الطلاب
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="radio" name="student_selection" value="grade" onchange="toggleStudentSelection('grade')">
-                                حسب الصف
-                            </label>
-                            <select class="form-control" id="grade_select" name="grade" disabled style="margin-top: 0.5rem;">
-                                <option value="">اختر الصف...</option>
-                                <option value="أول ثانوي">أول ثانوي</option>
-                                <option value="ثاني ثانوي">ثاني ثانوي</option>
-                                <option value="ثالث ثانوي">ثالث ثانوي</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="radio" name="student_selection" value="specific" onchange="toggleStudentSelection('specific')">
-                                طلاب محددين
-                            </label>
-                            <div id="student_list" class="student-list" style="display: none; margin-top: 0.5rem;">
-                                <!-- سيتم ملؤها ديناميكياً -->
+                        <label>توزيع الصعوبة</label>
+                        <div class="difficulty-inputs">
+                            <div class="difficulty-input">
+                                <label>🟢 سهل</label>
+                                <input type="number" id="diff_easy" value="2" min="0" max="10">
+                            </div>
+                            <div class="difficulty-input">
+                                <label>🟡 متوسط</label>
+                                <input type="number" id="diff_medium" value="2" min="0" max="10">
+                            </div>
+                            <div class="difficulty-input">
+                                <label>🔴 صعب</label>
+                                <input type="number" id="diff_hard" value="1" min="0" max="10">
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Schedule Times -->
-                    <div class="form-group">
-                        <label>وقت البداية</label>
-                        <input type="datetime-local" class="form-control" id="scheduled_start" name="scheduled_start" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>وقت النهاية</label>
-                        <input type="datetime-local" class="form-control" id="scheduled_end" name="scheduled_end" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>المدة المسموحة (دقيقة)</label>
-                        <input type="number" class="form-control" id="time_limit_minutes" name="time_limit_minutes" value="30" min="5" max="120">
-                    </div>
-                    
-                    <!-- Send Notification -->
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="send_notification" name="send_notification" checked>
-                            إرسال إشعار للطلاب
-                        </label>
-                    </div>
-                    
-                    <!-- Submit -->
-                    <button type="submit" class="btn btn-success" style="width: 100%;">
-                        📅 جدولة الاختبار وإرسال الإشعارات
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span>🚀</span> إنشاء الاختبار
                     </button>
                 </form>
             </div>
         </div>
-    </div>
-    
-    <!-- Tab: All Tests -->
-    <div id="tab-tests" class="tab-content">
+        
+        <!-- Quick Actions -->
         <div class="card">
             <div class="card-header">
-                <h3>📋 جميع الاختبارات</h3>
-                <button class="btn btn-sm btn-primary" onclick="diagLoadTests()">🔄 تحديث</button>
+                <h3>⚡ إجراءات سريعة</h3>
             </div>
             <div class="card-body">
-                <table class="tests-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>العنوان</th>
-                            <th>النوع</th>
-                            <th>الدرس</th>
-                            <th>الأسئلة</th>
-                            <th>التاريخ</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tests-tbody">
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem;">
-                                <div class="spinner" style="margin: 0 auto;"></div>
-                                <p style="margin-top: 1rem; color: #6b7280;">جاري التحميل...</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <button class="btn btn-info" style="width: 100%; margin-bottom: 1rem;" onclick="generatePair()">
+                    <span>🔄</span> إنشاء زوج (قبلي + بعدي)
+                </button>
+                
+                <button class="btn btn-outline" style="width: 100%; margin-bottom: 1rem;" onclick="diagLoadTests()">
+                    <span>🔄</span> تحديث القائمة
+                </button>
+                
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e5e7eb;">
+                
+                <h4 style="margin-bottom: 1rem; color: #374151;">📄 استخراج ورقة اختبار</h4>
+                
+                <div class="form-group">
+                    <label>اختر الاختبار</label>
+                    <select class="form-control" id="export_test_id">
+                        <option value="">-- اختر اختبار --</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="exportPDF(false)">
+                        <span>📄</span> ورقة الأسئلة
+                    </button>
+                    <button class="btn btn-warning" style="flex: 1;" onclick="exportPDF(true)">
+                        <span>📋</span> مع الإجابات
+                    </button>
+                </div>
             </div>
         </div>
     </div>
     
-    <!-- Tab: Scheduled Tests -->
-    <div id="tab-scheduled" class="tab-content">
-        <div class="card">
-            <div class="card-header">
-                <h3>⏰ الاختبارات المجدولة</h3>
-                <button class="btn btn-sm btn-primary" onclick="loadScheduledTests()">🔄 تحديث</button>
-            </div>
-            <div class="card-body">
-                <table class="tests-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>العنوان</th>
-                            <th>الحالة</th>
-                            <th>عدد الطلاب</th>
-                            <th>البداية</th>
-                            <th>النهاية</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduled-tbody">
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem;">
-                                <div class="spinner" style="margin: 0 auto;"></div>
-                                <p style="margin-top: 1rem; color: #6b7280;">جاري التحميل...</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+    <!-- Tests List -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 قائمة الاختبارات</h3>
+            <div style="display: flex; gap: 0.5rem;">
+                <select class="form-control" id="filter_type" style="width: auto;" onchange="diagLoadTests()">
+                    <option value="">الكل</option>
+                    <option value="pre_test">قبلي فقط</option>
+                    <option value="post_test">بعدي فقط</option>
+                </select>
             </div>
         </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="tests-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>العنوان</th>
+                        <th>النوع</th>
+                        <th>الدرس/الوحدة</th>
+                        <th>الأسئلة</th>
+                        <th>التاريخ</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tests-tbody">
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="icon">📭</div>
+                                <p>جاري التحميل...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    
+</div>
+
+<!-- View Test Modal -->
+<div class="modal-overlay" id="view-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>👁️ عرض الاختبار</h3>
+            <button class="modal-close" onclick="closeModal('view-modal')">&times;</button>
+        </div>
+        <div class="modal-body" id="view-modal-body">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('view-modal')">إغلاق</button>
+        </div>
+    </div>
 </div>
 
 <!-- Loading Overlay -->
-<div id="loading" class="loading-overlay">
+<div class="loading-overlay" id="loading">
     <div class="spinner"></div>
     <p style="margin-top: 1rem; color: #6b7280;">جاري المعالجة...</p>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
-    const API_BASE = '/api/diagnostic';
+    // ========== DIAGNOSTIC ADMIN v4.0 ==========
+    console.log('🚀🚀🚀 Diagnostic Admin v4.0 LOADED! 🚀🚀🚀');
     
-    // Initialize
+    const DIAG_API = '/api/v1';
+    const API_BASE = '/api/diagnostic';
+    var currentCourseId = null;
+    
+    // ===== Test Type Selection =====
+    window.selectTestType = function(type) {
+        document.querySelectorAll('.test-type-btn').forEach(btn => btn.classList.remove('active'));
+        const targetBtn = document.querySelector('[data-type="' + type + '"]');
+        if (targetBtn) targetBtn.classList.add('active');
+        document.getElementById('test_type').value = type;
+    };
+    
+    // ===== Load Courses =====
+    window.diagLoadCourses = async function() {
+        console.log('📚 === diagLoadCourses START ===');
+        try {
+            const url = DIAG_API + '/courses?show_all=true';
+            console.log('📚 Fetching URL:', url);
+            
+            const response = await fetch(url);
+            console.log('📚 Response status:', response.status);
+            
+            const data = await response.json();
+            console.log('📚 Raw data:', data);
+            
+            const courseSelect = document.getElementById('diag_course_id');
+            console.log('📚 Select element:', courseSelect);
+            
+            if (!courseSelect) {
+                console.error('❌ SELECT NOT FOUND: diag_course_id');
+                return;
+            }
+            
+            courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+            
+            const courses = Array.isArray(data) ? data : (data.courses || []);
+            console.log('📚 Courses array:', courses);
+            console.log('📚 Courses count:', courses.length);
+            
+            if (courses.length > 0) {
+                courses.forEach(function(course, index) {
+                    console.log('📚 Adding course ' + index + ':', course.id, course.name);
+                    var option = document.createElement('option');
+                    option.value = course.id;
+                    option.textContent = course.name;
+                    courseSelect.appendChild(option);
+                });
+                console.log('✅✅✅ ALL COURSES ADDED! Count:', courseSelect.options.length - 1);
+            } else {
+                console.warn('⚠️ No courses in data');
+            }
+        } catch (error) {
+            console.error('❌ ERROR in diagLoadCourses:', error);
+        }
+        console.log('📚 === diagLoadCourses END ===');
+    };
+    
+    // ===== Load Units =====
+    window.diagLoadUnits = async function() {
+        console.log('📂 === diagLoadUnits START ===');
+        var courseId = document.getElementById('diag_course_id').value;
+        var unitSelect = document.getElementById('diag_unit_id');
+        var lessonSelect = document.getElementById('diag_lesson_id');
+        
+        currentCourseId = courseId;
+        
+        unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        if (!courseId) {
+            console.log('📂 No course selected');
+            return;
+        }
+        
+        try {
+            var url = DIAG_API + '/courses/' + courseId + '/units';
+            console.log('📂 Fetching:', url);
+            
+            var response = await fetch(url);
+            var data = await response.json();
+            console.log('📂 Units data:', data);
+            
+            var units = Array.isArray(data) ? data : (data.units || []);
+            
+            units.forEach(function(unit) {
+                var option = document.createElement('option');
+                option.value = unit.id;
+                option.textContent = unit.name;
+                unitSelect.appendChild(option);
+            });
+            console.log('✅ Units loaded:', units.length);
+        } catch (error) {
+            console.error('❌ Error loading units:', error);
+        }
+    };
+    
+    // ===== Load Lessons =====
+    window.diagLoadLessons = async function() {
+        console.log('📖 === diagLoadLessons START ===');
+        var courseId = document.getElementById('diag_course_id').value;
+        var unitId = document.getElementById('diag_unit_id').value;
+        var lessonSelect = document.getElementById('diag_lesson_id');
+        
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        if (!courseId || !unitId) return;
+        
+        try {
+            var url = DIAG_API + '/courses/' + courseId + '/units/' + unitId + '/lessons';
+            console.log('📖 Fetching:', url);
+            
+            var response = await fetch(url);
+            var data = await response.json();
+            console.log('📖 Lessons data:', data);
+            
+            var lessons = Array.isArray(data) ? data : (data.lessons || []);
+            
+            lessons.forEach(function(lesson) {
+                var option = document.createElement('option');
+                option.value = lesson.id;
+                option.textContent = lesson.name;
+                lessonSelect.appendChild(option);
+            });
+            console.log('✅ Lessons loaded:', lessons.length);
+        } catch (error) {
+            console.error('❌ Error loading lessons:', error);
+        }
+    };
+    
+    // ===== Initialize on DOM Ready =====
     document.addEventListener('DOMContentLoaded', function() {
-        diagLoadLessons();
-        diagLoadTests();
-        diagLoadStats();
-        loadStudents();
-        loadTestsForSchedule();
+        console.log('📋📋📋 DOM READY - Starting initialization... 📋📋📋');
+        
+        // تأخير للتأكد من تحميل كل شيء
+        setTimeout(function() {
+            console.log('⏰ Timeout fired - calling diagLoadCourses...');
+            diagLoadCourses();
+            diagLoadTests();
+            diagLoadStats();
+        }, 200);
     });
     
-    // Tab Switching
-    function switchTab(tabName) {
-        // Update tabs
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        event.target.classList.add('active');
-        document.getElementById('tab-' + tabName).classList.add('active');
-        
-        // Load data if needed
-        if (tabName === 'scheduled') {
-            loadScheduledTests();
+    // ===== Also try on window load =====
+    window.addEventListener('load', function() {
+        console.log('🌐🌐🌐 WINDOW LOAD - Double checking... 🌐🌐🌐');
+        var select = document.getElementById('diag_course_id');
+        if (select && select.options.length <= 1) {
+            console.log('🔄 Select still empty, reloading courses...');
+            diagLoadCourses();
         }
-    }
+    });
     
-    // Test Type Selection
-    function selectTestType(type, element) {
-        document.querySelectorAll('.test-type-btn').forEach(btn => btn.classList.remove('active'));
-        element.classList.add('active');
-        document.getElementById('test_type').value = type;
-    }
-    
-    // Load Lessons
-    async function diagLoadLessons() {
+    // ===== Create Test =====
+    document.getElementById('create-test-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const lessonId = document.getElementById('diag_lesson_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
+        
+        if (!lessonId && !unitId) {
+            showAlert('يرجى اختيار درس أو وحدة على الأقل', 'error');
+            return;
+        }
+        
+        showLoading(true);
+        
         try {
-            const res = await fetch('/api/lessons');
-            const data = await res.json();
-            const select = document.getElementById('lesson_id');
+            const body = {
+                test_type: document.getElementById('test_type').value,
+                questions_count: parseInt(document.getElementById('questions_count').value),
+                difficulty_distribution: {
+                    easy: parseInt(document.getElementById('diff_easy').value),
+                    medium: parseInt(document.getElementById('diff_medium').value),
+                    hard: parseInt(document.getElementById('diff_hard').value)
+                }
+            };
             
-            if (data.success && data.lessons) {
-                select.innerHTML = '<option value="">اختر الدرس...</option>';
-                data.lessons.forEach(lesson => {
-                    select.innerHTML += `<option value="${lesson.id}">${lesson.name}</option>`;
-                });
+            if (lessonId) body.lesson_id = parseInt(lessonId);
+            if (unitId) body.unit_id = parseInt(unitId);
+            
+            const res = await fetch(`${API_BASE}/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showAlert('تم إنشاء الاختبار بنجاح! 🎉', 'success');
+                diagLoadTests();
+                diagLoadStats();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
             }
         } catch (e) {
-            console.error('Error loading lessons:', e);
+            showAlert('خطأ في الاتصال: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
         }
-    }
+    });
     
-    // Load Tests
+    // ===== Generate Pair =====
+    window.generatePair = async function() {
+        const lessonId = document.getElementById('diag_lesson_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
+        
+        if (!lessonId && !unitId) {
+            showAlert('يرجى اختيار درس أو وحدة أولاً', 'error');
+            return;
+        }
+        
+        showLoading(true);
+        
+        try {
+            const body = {
+                questions_count: parseInt(document.getElementById('questions_count').value)
+            };
+            
+            if (lessonId) body.lesson_id = parseInt(lessonId);
+            if (unitId) body.unit_id = parseInt(unitId);
+            
+            const res = await fetch(`${API_BASE}/generate-pair`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showAlert('تم إنشاء الاختبارين القبلي والبعدي بنجاح! 🎉', 'success');
+                diagLoadTests();
+                diagLoadStats();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ في الاتصال: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+    
+    // ===== Load Tests =====
     window.diagLoadTests = async function() {
         try {
-            const res = await fetch(`${API_BASE}/tests`);
-            const data = await res.json();
-            const tbody = document.getElementById('tests-tbody');
+            const filterType = document.getElementById('filter_type').value;
+            let url = `${API_BASE}/tests`;
+            if (filterType) url += `?test_type=${filterType}`;
             
-            if (!data.success || !data.tests || data.tests.length === 0) {
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('tests-tbody');
+            const exportSelect = document.getElementById('export_test_id');
+            
+            exportSelect.innerHTML = '<option value="">-- اختر اختبار --</option>';
+            
+            if (!data.tests || data.tests.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="7">
                             <div class="empty-state">
                                 <div class="icon">📭</div>
-                                <p>لا توجد اختبارات حالياً</p>
+                                <p>لا توجد اختبارات</p>
                             </div>
                         </td>
                     </tr>
@@ -737,7 +944,7 @@
             }
             
             tbody.innerHTML = '';
-            data.tests.forEach(test => {
+            data.tests.forEach((test, index) => {
                 const typeClass = test.test_type === 'pre_test' ? 'badge-pre' : 'badge-post';
                 const typeText = test.test_type === 'pre_test' ? 'قبلي' : 'بعدي';
                 const date = test.created_at ? new Date(test.created_at).toLocaleDateString('ar-SA') : '-';
@@ -745,32 +952,39 @@
                 tbody.innerHTML += `
                     <tr>
                         <td>${test.id}</td>
-                        <td>
-                            <strong>${test.title}</strong>
-                            ${test.is_scheduled ? '<span class="badge badge-scheduled" style="margin-right: 0.5rem;">مجدول</span>' : ''}
-                        </td>
+                        <td><strong>${test.title}</strong></td>
                         <td><span class="badge ${typeClass}">${typeText}</span></td>
                         <td>${test.lesson_name || test.unit_name || '-'}</td>
                         <td>${test.questions_count}</td>
                         <td>${date}</td>
                         <td>
                             <div class="actions-cell">
-                                <button class="btn btn-sm btn-info" onclick="viewTest(${test.id})" title="عرض">👁️</button>
-                                <button class="btn btn-sm btn-success" onclick="downloadPDF(${test.id}, false)" title="PDF">📄</button>
-                                <button class="btn btn-sm btn-warning" onclick="downloadPDF(${test.id}, true)" title="PDF + إجابات">📋</button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteTest(${test.id})" title="حذف">🗑️</button>
+                                <button class="btn btn-sm btn-info" onclick="viewTest(${test.id})" title="عرض">
+                                    👁️
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="downloadPDF(${test.id}, false)" title="تحميل PDF">
+                                    📄
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="downloadPDF(${test.id}, true)" title="PDF مع الإجابات">
+                                    📋
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteTest(${test.id})" title="حذف">
+                                    🗑️
+                                </button>
                             </div>
                         </td>
                     </tr>
                 `;
+                
+                exportSelect.innerHTML += `<option value="${test.id}">${test.title}</option>`;
             });
             
         } catch (e) {
             console.error('Error loading tests:', e);
         }
-    };
+    }
     
-    // Load Stats
+    // ===== Load Stats =====
     window.diagLoadStats = async function() {
         try {
             const res = await fetch(`${API_BASE}/stats`);
@@ -779,270 +993,28 @@
             if (data.stats) {
                 document.getElementById('stat-pre').textContent = data.stats.pre_tests || 0;
                 document.getElementById('stat-post').textContent = data.stats.post_tests || 0;
-                document.getElementById('stat-scheduled').textContent = data.stats.scheduled_tests || 0;
                 document.getElementById('stat-results').textContent = data.stats.total_results || 0;
+                document.getElementById('stat-improvement').textContent = (data.stats.avg_improvement || 0).toFixed(0) + '%';
             }
         } catch (e) {
             console.error('Error loading stats:', e);
         }
     };
     
-    // Load Students
-    async function loadStudents() {
-        try {
-            const res = await fetch('/api/students');
-            const data = await res.json();
-            const list = document.getElementById('student_list');
-            
-            if (data.success && data.students) {
-                list.innerHTML = '';
-                data.students.forEach(student => {
-                    list.innerHTML += `
-                        <div class="student-item">
-                            <input type="checkbox" name="student_ids[]" value="${student.id}" id="student_${student.id}">
-                            <label for="student_${student.id}">${student.name} (${student.grade || 'غير محدد'})</label>
-                        </div>
-                    `;
-                });
-            }
-        } catch (e) {
-            console.error('Error loading students:', e);
-        }
-    }
-    
-    // Load Tests for Schedule Dropdown
-    async function loadTestsForSchedule() {
-        try {
-            const res = await fetch(`${API_BASE}/tests`);
-            const data = await res.json();
-            const select = document.getElementById('schedule_test_id');
-            
-            if (data.success && data.tests) {
-                select.innerHTML = '<option value="">اختر اختبار...</option>';
-                data.tests.forEach(test => {
-                    const typeText = test.test_type === 'pre_test' ? 'قبلي' : 'بعدي';
-                    select.innerHTML += `<option value="${test.id}">${test.title} (${typeText})</option>`;
-                });
-            }
-        } catch (e) {
-            console.error('Error loading tests:', e);
-        }
-    }
-    
-    // Toggle Student Selection
-    function toggleStudentSelection(type) {
-        document.getElementById('grade_select').disabled = type !== 'grade';
-        document.getElementById('student_list').style.display = type === 'specific' ? 'block' : 'none';
-    }
-    
-    // Create Test
-    async function handleCreateTest(event) {
-        event.preventDefault();
-        showLoading(true);
-        
-        const formData = {
-            test_type: document.getElementById('test_type').value,
-            lesson_id: parseInt(document.getElementById('lesson_id').value),
-            questions_count: parseInt(document.getElementById('questions_count').value),
-            force_ai: true
-        };
-        
-        try {
-            const res = await fetch(`${API_BASE}/generate`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(formData)
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert('✅ تم إنشاء الاختبار بنجاح', 'success');
-                document.getElementById('createTestForm').reset();
-                diagLoadTests();
-                diagLoadStats();
-                loadTestsForSchedule();
-            } else {
-                showAlert('❌ ' + (data.error || 'حدث خطأ'), 'error');
-            }
-        } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    }
-    
-    // Schedule Test
-    async function handleScheduleTest(event) {
-        event.preventDefault();
-        showLoading(true);
-        
-        const selection = document.querySelector('input[name="student_selection"]:checked').value;
-        let studentIds = "all";
-        let grade = null;
-        
-        if (selection === 'grade') {
-            grade = document.getElementById('grade_select').value;
-            if (!grade) {
-                showAlert('❌ يرجى اختيار الصف', 'error');
-                showLoading(false);
-                return;
-            }
-        } else if (selection === 'specific') {
-            const checked = Array.from(document.querySelectorAll('input[name="student_ids[]"]:checked'));
-            if (checked.length === 0) {
-                showAlert('❌ يرجى اختيار طالب واحد على الأقل', 'error');
-                showLoading(false);
-                return;
-            }
-            studentIds = checked.map(cb => parseInt(cb.value));
-        }
-        
-        const formData = {
-            test_id: parseInt(document.getElementById('schedule_test_id').value),
-            student_ids: studentIds,
-            grade: grade,
-            scheduled_start: document.getElementById('scheduled_start').value,
-            scheduled_end: document.getElementById('scheduled_end').value,
-            time_limit_minutes: parseInt(document.getElementById('time_limit_minutes').value),
-            send_notification: document.getElementById('send_notification').checked
-        };
-        
-        try {
-            const res = await fetch(`${API_BASE}/assign`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(formData)
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert(`✅ ${data.message} - تم إرسال ${data.notifications_sent || 0} إشعار`, 'success');
-                document.getElementById('scheduleTestForm').reset();
-                diagLoadStats();
-                loadScheduledTests();
-            } else {
-                showAlert('❌ ' + (data.error || 'حدث خطأ'), 'error');
-            }
-        } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    }
-    
-    // Load Scheduled Tests
-    async function loadScheduledTests() {
-        try {
-            const res = await fetch(`${API_BASE}/scheduled`);
-            const data = await res.json();
-            const tbody = document.getElementById('scheduled-tbody');
-            
-            if (!data.success || !data.tests || data.tests.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7">
-                            <div class="empty-state">
-                                <div class="icon">📭</div>
-                                <p>لا توجد اختبارات مجدولة حالياً</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            data.tests.forEach(test => {
-                const statusClass = test.schedule_status === 'active' ? 'badge-active' : 
-                                   test.schedule_status === 'pending' ? 'badge-pending' : 'badge-expired';
-                const statusText = test.schedule_status === 'active' ? 'نشط' : 
-                                  test.schedule_status === 'pending' ? 'قادم' : 'منتهي';
-                
-                const start = test.scheduled_start ? new Date(test.scheduled_start).toLocaleString('ar-SA') : '-';
-                const end = test.scheduled_end ? new Date(test.scheduled_end).toLocaleString('ar-SA') : '-';
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${test.id}</td>
-                        <td><strong>${test.title}</strong></td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
-                        <td>${test.assigned_students_count || 0} طالب</td>
-                        <td>${start}</td>
-                        <td>${end}</td>
-                        <td>
-                            <div class="actions-cell">
-                                <button class="btn btn-sm btn-info" onclick="resendNotification(${test.id})" title="إعادة إرسال إشعار">🔔</button>
-                                <button class="btn btn-sm btn-danger" onclick="cancelSchedule(${test.id})" title="إلغاء الجدولة">❌</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-        } catch (e) {
-            console.error('Error loading scheduled tests:', e);
-        }
-    }
-    
-    // Cancel Schedule
-    async function cancelSchedule(testId) {
-        if (!confirm('هل أنت متأكد من إلغاء جدولة هذا الاختبار؟')) return;
-        
-        showLoading(true);
-        
-        try {
-            const res = await fetch(`${API_BASE}/tests/${testId}/cancel-schedule`, {
-                method: 'POST'
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert('✅ تم إلغاء الجدولة', 'success');
-                loadScheduledTests();
-                diagLoadStats();
-            } else {
-                showAlert('❌ ' + (data.error || 'حدث خطأ'), 'error');
-            }
-        } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    }
-    
-    // Resend Notification
-    async function resendNotification(testId) {
-        showLoading(true);
-        
-        try {
-            const res = await fetch(`${API_BASE}/tests/${testId}/send-notification`, {
-                method: 'POST'
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert(`✅ ${data.message}`, 'success');
-            } else {
-                showAlert('❌ ' + (data.error || 'حدث خطأ'), 'error');
-            }
-        } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    }
-    
-    // View Test
+    // ===== View Test =====
     window.viewTest = async function(testId) {
+        console.log('👁️ viewTest called with ID:', testId);
         showLoading(true);
         
         try {
-            const res = await fetch(`${API_BASE}/tests/${testId}`);
+            const url = `${API_BASE}/tests/${testId}`;
+            console.log('📡 Fetching:', url);
+            
+            const res = await fetch(url);
+            console.log('📥 Response status:', res.status);
+            
             const data = await res.json();
+            console.log('📦 Response data:', data);
             
             if (!data.success) {
                 showAlert(data.error || 'خطأ', 'error');
@@ -1051,6 +1023,8 @@
             
             const test = data.test;
             const questions = test.questions || [];
+            console.log('📝 Questions count:', questions.length);
+            
             const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
             
             let html = `
@@ -1058,20 +1032,9 @@
                 <p style="color: #6b7280; margin-bottom: 1.5rem;">${test.description || ''}</p>
             `;
             
-            if (test.is_scheduled) {
-                html += `
-                    <div class="schedule-info">
-                        <p><strong>⏰ اختبار مجدول</strong></p>
-                        <p>البداية: ${test.scheduled_start ? new Date(test.scheduled_start).toLocaleString('ar-SA') : '-'}</p>
-                        <p>النهاية: ${test.scheduled_end ? new Date(test.scheduled_end).toLocaleString('ar-SA') : '-'}</p>
-                        <p>عدد الطلاب: ${test.assigned_students_count || 0}</p>
-                    </div>
-                `;
-            }
-            
             questions.forEach((q, i) => {
                 html += `
-                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; border: 1px solid #e5e7eb;">
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #e5e7eb;">
                         <p style="font-weight: 600; margin-bottom: 0.75rem; color: #1f2937;">س${i + 1}: ${q.text}</p>
                         <div style="padding-right: 1rem;">
                 `;
@@ -1083,80 +1046,130 @@
                     html += `<p style="${style}; margin: 0.5rem 0;">${letter}- ${opt.text} ${isCorrect ? '✓' : ''}</p>`;
                 });
                 
+                if (q.feedback) {
+                    html += `<p style="color: #6366f1; margin-top: 0.75rem; font-size: 0.9rem; background: #eef2ff; padding: 0.5rem; border-radius: 0.25rem;">💡 ${q.feedback}</p>`;
+                }
+                
                 html += `</div></div>`;
             });
             
-            // Modal
-            const modal = document.createElement('div');
-            modal.id = 'view-modal';
-            modal.innerHTML = html;
-            modal.style.cssText = `
-                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background: white; padding: 25px; border-radius: 15px;
-                width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto;
-                z-index: 99999; box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-                direction: rtl; text-align: right;
+            // إنشاء Modal مخصص
+            const existingModal = document.getElementById('custom-view-modal');
+            const existingOverlay = document.getElementById('custom-overlay');
+            if (existingModal) existingModal.remove();
+            if (existingOverlay) existingOverlay.remove();
+
+            const newModal = document.createElement('div');
+            newModal.id = 'custom-view-modal';
+            newModal.innerHTML = html;
+            newModal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 25px;
+                border-radius: 15px;
+                width: 90%;
+                max-width: 650px;
+                max-height: 85vh;
+                overflow-y: auto;
+                z-index: 9999999;
+                box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+                direction: rtl;
+                text-align: right;
             `;
-            
+
+            // زر إغلاق
             const closeBtn = document.createElement('button');
             closeBtn.textContent = '✕ إغلاق';
             closeBtn.style.cssText = `
-                position: sticky; top: 0; float: left;
-                background: #dc3545; color: white; border: none;
-                padding: 8px 15px; border-radius: 5px; cursor: pointer;
+                position: sticky;
+                top: 0;
+                float: left;
+                background: #dc3545;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
                 margin-bottom: 15px;
+                font-size: 14px;
             `;
-            closeBtn.onclick = () => { modal.remove(); overlay.remove(); };
-            modal.insertBefore(closeBtn, modal.firstChild);
-            
+            closeBtn.onclick = () => { newModal.remove(); overlay.remove(); };
+            newModal.insertBefore(closeBtn, newModal.firstChild);
+
+            // Overlay
             const overlay = document.createElement('div');
+            overlay.id = 'custom-overlay';
             overlay.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.7); z-index: 99998;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                z-index: 9999998;
             `;
-            overlay.onclick = () => { modal.remove(); overlay.remove(); };
-            
+            overlay.onclick = () => { newModal.remove(); overlay.remove(); };
+
             document.body.appendChild(overlay);
-            document.body.appendChild(modal);
+            document.body.appendChild(newModal);
+            
+            console.log('✅ Custom modal opened!');
             
         } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
         } finally {
             showLoading(false);
         }
     };
     
-    // Download PDF
+    // ===== Download PDF =====
     window.downloadPDF = function(testId, includeAnswers) {
         const url = `${API_BASE}/tests/${testId}/pdf?include_answers=${includeAnswers}`;
         window.open(url, '_blank');
     };
     
-    // Delete Test
+    // ===== Export PDF from dropdown =====
+    window.exportPDF = function(includeAnswers) {
+        const testId = document.getElementById('export_test_id').value;
+        if (!testId) {
+            showAlert('يرجى اختيار اختبار أولاً', 'error');
+            return;
+        }
+        downloadPDF(testId, includeAnswers);
+    };
+    
+    // ===== Delete Test =====
     window.deleteTest = async function(testId) {
         if (!confirm('هل أنت متأكد من حذف هذا الاختبار؟')) return;
         
         showLoading(true);
         
         try {
-            const res = await fetch(`${API_BASE}/tests/${testId}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}/tests/${testId}`, {
+                method: 'DELETE'
+            });
+            
             const data = await res.json();
             
             if (data.success) {
-                showAlert('✅ تم حذف الاختبار', 'success');
+                showAlert('تم حذف الاختبار', 'success');
                 diagLoadTests();
                 diagLoadStats();
             } else {
-                showAlert('❌ ' + (data.error || 'حدث خطأ'), 'error');
+                showAlert(data.error || 'حدث خطأ', 'error');
             }
         } catch (e) {
-            showAlert('❌ خطأ: ' + e.message, 'error');
+            showAlert('خطأ: ' + e.message, 'error');
         } finally {
             showLoading(false);
         }
     };
     
-    // Helpers
+    // ===== Helpers =====
     function showLoading(show) {
         const el = document.getElementById('loading');
         if (el) el.classList.toggle('active', show);
@@ -1176,7 +1189,19 @@
             </div>
         `;
         
-        setTimeout(() => { container.innerHTML = ''; }, 5000);
+        setTimeout(() => {
+            container.innerHTML = '';
+        }, 5000);
     }
+    
+    window.openModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('active');
+    };
+    
+    window.closeModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    };
 </script>
 {% endblock %}
