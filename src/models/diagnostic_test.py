@@ -1,6 +1,6 @@
 # src/models/diagnostic_test.py
 """
-نموذج الاختبار التشخيصي (قبلي/بعدي) - النسخة الكاملة
+نموذج الاختبار التشخيصي (قبلي/بعدي) - النسخة المحدثة مع دعم الجدولة
 """
 
 from datetime import datetime
@@ -55,6 +55,25 @@ class DiagnosticTest(db.Model):
     # ربط قبلي ↔ بعدي
     paired_test_id = db.Column(db.Integer, nullable=True)
     
+    # ===== الجدولة والإسناد (جديد) =====
+    # وقت البداية والنهاية
+    scheduled_start = db.Column(db.DateTime, nullable=True)
+    scheduled_end = db.Column(db.DateTime, nullable=True)
+    
+    # الطلاب المخصص لهم الاختبار
+    assigned_students = db.Column(db.JSON, default=[])
+    
+    # تخصيص حسب الصف (اختياري)
+    assigned_grade = db.Column(db.String(50), nullable=True)
+    
+    # حالة الجدولة
+    is_scheduled = db.Column(db.Boolean, default=False)
+    schedule_status = db.Column(db.String(20), default='pending')
+    
+    # إشعارات
+    notification_sent = db.Column(db.Boolean, default=False)
+    notification_sent_at = db.Column(db.DateTime, nullable=True)
+    
     # حالة
     is_active = db.Column(db.Boolean, default=True)
     is_published = db.Column(db.Boolean, default=False)
@@ -84,6 +103,17 @@ class DiagnosticTest(db.Model):
             'passing_score': self.passing_score,
             'ai_generated': self.ai_generated,
             'paired_test_id': self.paired_test_id,
+            
+            # الجدولة
+            'is_scheduled': self.is_scheduled,
+            'schedule_status': self.schedule_status,
+            'scheduled_start': self.scheduled_start.isoformat() if self.scheduled_start else None,
+            'scheduled_end': self.scheduled_end.isoformat() if self.scheduled_end else None,
+            'assigned_students': self.assigned_students or [],
+            'assigned_students_count': len(self.assigned_students or []),
+            'assigned_grade': self.assigned_grade,
+            'notification_sent': self.notification_sent,
+            
             'is_active': self.is_active,
             'is_published': self.is_published,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -93,6 +123,44 @@ class DiagnosticTest(db.Model):
             data['questions'] = self.questions_data or []
         
         return data
+    
+    def is_available_now(self):
+        """هل الاختبار متاح الآن؟"""
+        if not self.is_scheduled:
+            return True
+        
+        now = datetime.utcnow()
+        
+        if self.scheduled_start and now < self.scheduled_start:
+            return False
+        
+        if self.scheduled_end and now > self.scheduled_end:
+            return False
+        
+        return True
+    
+    def is_student_assigned(self, student_id):
+        """هل الطالب مخصص له هذا الاختبار؟"""
+        if not self.is_scheduled:
+            return True
+        
+        assigned = self.assigned_students or []
+        return student_id in assigned
+    
+    def update_schedule_status(self):
+        """تحديث حالة الجدولة تلقائياً"""
+        if not self.is_scheduled:
+            self.schedule_status = 'not_scheduled'
+            return
+        
+        now = datetime.utcnow()
+        
+        if self.scheduled_start and now < self.scheduled_start:
+            self.schedule_status = 'pending'
+        elif self.scheduled_end and now > self.scheduled_end:
+            self.schedule_status = 'expired'
+        else:
+            self.schedule_status = 'active'
     
     def __repr__(self):
         return f'<DiagnosticTest {self.id}: {self.title}>'
@@ -166,7 +234,7 @@ class DiagnosticComparison(db.Model):
     # النتائج
     pre_score = db.Column(db.Float, default=0)
     post_score = db.Column(db.Float, default=0)
-    improvement = db.Column(db.Float, default=0)  # نسبة التحسن
+    improvement = db.Column(db.Float, default=0)
     
     # التواريخ
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
