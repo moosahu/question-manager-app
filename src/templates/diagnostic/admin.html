@@ -488,6 +488,34 @@
     }
     .scheduled-test-card h4 { margin: 0 0 0.5rem 0; color: #1f2937; }
     .scheduled-test-card p { margin: 0.25rem 0; color: #6b7280; font-size: 0.9rem; }
+
+    /* Fix overlapping cards */
+    .card {
+        position: relative;
+        z-index: 1;
+        margin-bottom: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
 </style>
 {% endblock %}
 
@@ -1341,35 +1369,67 @@
     };
     
     window.loadTestsForSchedule = async function() {
+        console.log('📋 Loading tests for schedule...');
         try {
-            const res = await fetch(DIAG_API + '/tests');
+            const res = await fetch('/api/diagnostic/tests');
+            console.log('Response:', res.status);
             const data = await res.json();
+            console.log('Data:', data);
+            
             const sel = document.getElementById('schedule_test_id');
-            if (!sel) return;
+            if (!sel) {
+                console.error('❌ Element not found: schedule_test_id');
+                return;
+            }
+            
             sel.innerHTML = '<option value="">اختر اختبار...</option>';
-            if (data.tests) data.tests.forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t.id;
-                opt.textContent = `${t.title} (${t.test_type_ar})`;
-                sel.appendChild(opt);
-            });
-        } catch (e) { console.error(e); }
+            
+            if (data.tests && data.tests.length > 0) {
+                data.tests.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = `${t.title} (${t.test_type_ar || t.test_type})`;
+                    sel.appendChild(opt);
+                });
+                console.log('✅ Loaded', data.tests.length, 'tests');
+            } else {
+                console.warn('⚠️ No tests found');
+            }
+        } catch (e) { 
+            console.error('❌ Error loading tests:', e); 
+        }
     };
     
     window.loadStudentsForSchedule = async function() {
+        console.log('👥 Loading students...');
         try {
-            const res = await fetch(DIAG_API + '/students');
+            const res = await fetch('/api/diagnostic/students');
+            console.log('Response:', res.status);
             const data = await res.json();
+            console.log('Data:', data);
+            
             const sel = document.getElementById('schedule_students');
-            if (!sel) return;
+            if (!sel) {
+                console.error('❌ Element not found: schedule_students');
+                return;
+            }
+            
             sel.innerHTML = '<option value="all">جميع الطلاب</option>';
-            if (data.students) data.students.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.name + (s.grade ? ` (${s.grade})` : '');
-                sel.appendChild(opt);
-            });
-        } catch (e) { console.error(e); }
+            
+            if (data.students && data.students.length > 0) {
+                data.students.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name + (s.grade ? ` (${s.grade})` : '');
+                    sel.appendChild(opt);
+                });
+                console.log('✅ Loaded', data.students.length, 'students');
+            } else {
+                console.warn('⚠️ No students found');
+            }
+        } catch (e) { 
+            console.error('❌ Error loading students:', e); 
+        }
     };
     
     window.handleScheduleTest = async function(event) {
@@ -1383,7 +1443,7 @@
             send_notification: document.getElementById('schedule_send_notification').checked
         };
         try {
-            const res = await fetch(DIAG_API + '/assign', {
+            const res = await fetch('/api/diagnostic/assign', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
@@ -1400,7 +1460,7 @@
     
     window.loadScheduledTests = async function() {
         try {
-            const res = await fetch(DIAG_API + '/scheduled');
+            const res = await fetch('/api/diagnostic/scheduled');
             const data = await res.json();
             const container = document.getElementById('scheduled-tests-list');
             if (!container) return;
