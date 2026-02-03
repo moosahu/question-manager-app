@@ -1411,8 +1411,17 @@ def get_student_assigned_tests():
                 is_available = True
                 if test.scheduled_start and test.scheduled_end:
                     now = datetime.utcnow()
-                    is_available = test.scheduled_start <= now <= test.scheduled_end
+                    
+                    # إزالة timezone للمقارنة الصحيحة
+                    start = test.scheduled_start.replace(tzinfo=None) if test.scheduled_start.tzinfo else test.scheduled_start
+                    end = test.scheduled_end.replace(tzinfo=None) if test.scheduled_end.tzinfo else test.scheduled_end
+                    
+                    is_available = start <= now <= end
+                    
                     print(f"  → Available (time): {is_available}")
+                    print(f"     Now (UTC): {now}")
+                    print(f"     Start: {start}")
+                    print(f"     End: {end}")
                 
                 if is_available:
                     assigned_tests.append(test)
