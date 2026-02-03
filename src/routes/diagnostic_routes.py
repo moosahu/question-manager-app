@@ -1148,185 +1148,143 @@ def delete_test(test_id):
 @admin_required
 def admin_page():
     """صفحة إدارة الاختبارات التشخيصية"""
+    return render_template('diagnostic/admin.html')
 
 
-# ==========================================
-# ✅ الجدولة والإسناد (جديد)
-# ==========================================
-
-@diagnostic_bp.route('/assign', methods=['POST'])
-@login_required
-@admin_required
-def assign_test():
-    """
-    إسناد اختبار لطالب أو مجموعة طلاب مع جدولة زمنية
-    
-    POST /api/diagnostic/assign
-    {
-        "test_id": 1,
-        "student_ids": [1, 2, 3],  // أو "all" للجميع
-        "grade": "ثالث ثانوي",  // اختياري
-        "scheduled_start": "2024-02-05T10:00:00",
-        "scheduled_end": "2024-02-05T12:00:00",
-        "time_limit_minutes": 30,
-        "send_notification": true
-    }
-    """
-    try:
-        data = request.get_json() or {}
-        
-        test_id = data.get('test_id')
-        student_ids = data.get('student_ids', [])
-        grade = data.get('grade')
-        scheduled_start = data.get('scheduled_start')
-        scheduled_end = data.get('scheduled_end')
-        time_limit = data.get('time_limit_minutes', 15)
-        send_notification = data.get('send_notification', True)
-        
-        if not test_id:
-            return jsonify({'success': False, 'error': 'يجب تحديد الاختبار'}), 400
-        
-        test = DiagnosticTest.query.get(test_id)
-        if not test:
-            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
-        
-        # تحديد الطلاب
-        final_student_ids = []
-        
-        if student_ids == "all":
-            students = Student.get_active_students()
-            final_student_ids = [s.id for s in students]
-        elif grade:
-            students = Student.get_students_by_grade(grade)
-            final_student_ids = [s.id for s in students]
-        elif isinstance(student_ids, list) and len(student_ids) > 0:
-            final_student_ids = student_ids
-        else:
-            return jsonify({'success': False, 'error': 'يجب تحديد طلاب'}), 400
-        
-        # تحديث الاختبار
-        test.is_scheduled = True
-        test.assigned_students = final_student_ids
-        test.assigned_grade = grade
-        test.time_limit_minutes = time_limit
-        
-        if scheduled_start:
-            test.scheduled_start = datetime.fromisoformat(scheduled_start.replace('Z', '+00:00'))
-        if scheduled_end:
-            test.scheduled_end = datetime.fromisoformat(scheduled_end.replace('Z', '+00:00'))
-        
-        test.update_schedule_status()
-        
-        db.session.commit()
-        
-        # إرسال إشعارات
-        notifications_sent = 0
-        if send_notification:
-            notifications_sent = send_test_notifications(test, final_student_ids)
-        
-        return jsonify({
-            'success': True,
-            'message': f'تم إسناد الاختبار لـ {len(final_student_ids)} طالب',
-            'test': test.to_dict(),
-            'assigned_count': len(final_student_ids),
-            'notifications_sent': notifications_sent
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
+# =====================================================
+# ✅ Routes الجدولة والإسناد (مضافة - جديدة)
+# =====================================================
 
 @diagnostic_bp.route('/scheduled', methods=['GET'])
 @login_required
 @admin_required
 def get_scheduled_tests():
-    """
-    عرض الاختبارات المجدولة
-    
-    GET /api/diagnostic/scheduled?status=active
-    """
+    """جلب الاختبارات المجدولة"""
     try:
-        status = request.args.get('status', 'all')
+        tests = DiagnosticTest.query.filter_by(
+            is_scheduled=True,
+            is_active=True
+        ).order_by(DiagnosticTest.scheduled_start.desc()).all()
         
-        query = DiagnosticTest.query.filter_by(is_active=True, is_scheduled=True)
-        
-        if status != 'all':
-            query = query.filter_by(schedule_status=status)
-        
-        tests = query.order_by(DiagnosticTest.scheduled_start.desc()).all()
-        
-        # تحديث الحالات
+        # تحديث حالة كل اختبار
         for test in tests:
-            test.update_schedule_status()
+            if hasattr(test, 'update_schedule_status'):
+                test.update_schedule_status()
         db.session.commit()
         
         return jsonify({
-            'success': True,
-            'tests': [test.to_dict() for test in tests],
-            'count': len(tests)
-        })
+            'scheduled_tests': [test.to_dict() for test in tests]
+        }), 200
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"❌ Error getting scheduled tests: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/assign', methods=['POST'])
+@login_required
+@admin_required
+def assign_test():
+    """إسناد اختبار لطلاب مع جدولة"""
+    try:
+        data = request.get_json()
+        test_id = data.get('test_id')
+        student_ids = data.get('student_ids')
+        scheduled_start = data.get('scheduled_start')
+        scheduled_end = data.get('scheduled_end')
+        time_limit = data.get('time_limit_minutes', 30)
+        send_notification = data.get('send_notification', True)
+        
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'error': 'Test not found'}), 404
+        
+        # تحضير قائمة الطلاب
+        if student_ids == 'all':
+            students = Student.query.filter_by(is_active=True).all()
+            student_ids_list = [s.id for s in students]
+        else:
+            student_ids_list = student_ids
+        
+        # تحديث الاختبار
+        test.is_scheduled = True
+        test.scheduled_start = datetime.fromisoformat(scheduled_start.replace('Z', '+00:00'))
+        test.scheduled_end = datetime.fromisoformat(scheduled_end.replace('Z', '+00:00'))
+        test.assigned_students = student_ids_list
+        test.time_limit_minutes = time_limit
+        test.schedule_status = 'pending'
+        
+        if hasattr(test, 'update_schedule_status'):
+            test.update_schedule_status()
+        
+        db.session.commit()
+        
+        # إرسال إشعارات
+        if send_notification:
+            try:
+                from src.services.fcm_service import send_notification_to_students
+                
+                students = Student.query.filter(
+                    Student.id.in_(student_ids_list),
+                    Student.fcm_token.isnot(None)
+                ).all()
+                
+                send_notification_to_students(
+                    students,
+                    '📝 اختبار تشخيصي جديد',
+                    f'{test.title}',
+                    {
+                        'type': 'diagnostic_test',
+                        'test_id': str(test.id),
+                        'scheduled_start': scheduled_start,
+                        'scheduled_end': scheduled_end
+                    }
+                )
+                
+                test.notification_sent = True
+                test.notification_sent_at = datetime.utcnow()
+                db.session.commit()
+                
+            except Exception as e:
+                print(f"⚠️ Error sending notifications: {e}")
+        
+        return jsonify({
+            'message': 'Test assigned successfully',
+            'test': test.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error assigning test: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/student/assigned', methods=['GET'])
 @login_required
 def get_student_assigned_tests():
-    """
-    الاختبارات المخصصة للطالب الحالي
-    
-    GET /api/diagnostic/student/assigned
-    """
+    """اختبارات الطالب المخصصة"""
     try:
-        # التحقق من أن المستخدم طالب
-        if not isinstance(current_user, Student):
-            return jsonify({'success': False, 'error': 'يجب أن تكون طالباً'}), 403
-        
         student_id = current_user.id
         
-        # جلب الاختبارات المخصصة
-        all_tests = DiagnosticTest.query.filter_by(is_active=True, is_scheduled=True).all()
+        tests = DiagnosticTest.query.filter(
+            DiagnosticTest.is_scheduled == True,
+            DiagnosticTest.is_active == True
+        ).all()
         
+        # فلتر الاختبارات حسب الطالب
         assigned_tests = []
-        for test in all_tests:
-            if test.is_student_assigned(student_id):
-                test.update_schedule_status()
-                
-                # التحقق من وجود نتيجة سابقة
-                result = DiagnosticResult.query.filter_by(
-                    diagnostic_test_id=test.id,
-                    student_id=student_id,
-                    status='completed'
-                ).first()
-                
-                test_dict = test.to_dict()
-                test_dict['is_available'] = test.is_available_now()
-                test_dict['already_completed'] = result is not None
-                
-                if result:
-                    test_dict['result_id'] = result.id
-                    test_dict['score_percentage'] = result.score_percentage
-                
-                assigned_tests.append(test_dict)
-        
-        db.session.commit()
+        for test in tests:
+            if hasattr(test, 'is_student_assigned') and test.is_student_assigned(student_id):
+                if hasattr(test, 'is_available_now') and test.is_available_now():
+                    assigned_tests.append(test)
         
         return jsonify({
-            'success': True,
-            'tests': assigned_tests,
-            'count': len(assigned_tests)
-        })
+            'assigned_tests': [test.to_dict() for test in assigned_tests]
+        }), 200
         
     except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"❌ Error getting student tests: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/tests/<int:test_id>/cancel-schedule', methods=['POST'])
@@ -1337,75 +1295,21 @@ def cancel_schedule(test_id):
     try:
         test = DiagnosticTest.query.get(test_id)
         if not test:
-            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+            return jsonify({'error': 'Test not found'}), 404
         
         test.is_scheduled = False
         test.schedule_status = 'cancelled'
-        test.assigned_students = []
-        test.scheduled_start = None
-        test.scheduled_end = None
-        
         db.session.commit()
         
-        return jsonify({'success': True, 'message': 'تم إلغاء جدولة الاختبار'})
+        return jsonify({
+            'message': 'Schedule cancelled successfully',
+            'test': test.to_dict()
+        }), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-def send_test_notifications(test, student_ids):
-    """إرسال إشعارات FCM للطلاب"""
-    try:
-        try:
-            from src.services.fcm_service import send_notification_to_students
-            HAS_FCM = True
-        except ImportError:
-            HAS_FCM = False
-            print("⚠️ FCM service not available")
-        
-        if not HAS_FCM:
-            return 0
-        
-        students = Student.query.filter(
-            Student.id.in_(student_ids),
-            Student.fcm_token.isnot(None),
-            Student.is_active == True
-        ).all()
-        
-        if not students:
-            return 0
-        
-        notification_data = {
-            'title': '📝 اختبار تشخيصي جديد',
-            'body': f'{test.title} - {test.description or ""}',
-            'data': {
-                'type': 'diagnostic_test',
-                'test_id': str(test.id),
-                'test_type': test.test_type,
-                'scheduled_start': test.scheduled_start.isoformat() if test.scheduled_start else None,
-                'scheduled_end': test.scheduled_end.isoformat() if test.scheduled_end else None,
-                'time_limit_minutes': str(test.time_limit_minutes)
-            }
-        }
-        
-        success_count = send_notification_to_students(
-            students,
-            notification_data['title'],
-            notification_data['body'],
-            notification_data['data']
-        )
-        
-        test.notification_sent = True
-        test.notification_sent_at = datetime.utcnow()
-        db.session.commit()
-        
-        print(f"✅ تم إرسال {success_count} إشعار من أصل {len(students)}")
-        return success_count
-        
-    except Exception as e:
-        print(f"❌ خطأ في إرسال الإشعارات: {e}")
-        return 0
+        print(f"❌ Error cancelling schedule: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/tests/<int:test_id>/send-notification', methods=['POST'])
@@ -1416,18 +1320,118 @@ def resend_notification(test_id):
     try:
         test = DiagnosticTest.query.get(test_id)
         if not test:
-            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+            return jsonify({'error': 'Test not found'}), 404
         
         if not test.is_scheduled or not test.assigned_students:
-            return jsonify({'success': False, 'error': 'الاختبار غير مجدول'}), 400
+            return jsonify({'error': 'Test not scheduled or no students assigned'}), 400
         
-        count = send_test_notifications(test, test.assigned_students)
-        
-        return jsonify({
-            'success': True,
-            'message': f'تم إرسال {count} إشعار',
-            'sent_count': count
-        })
+        try:
+            from src.services.fcm_service import send_notification_to_students
+            
+            students = Student.query.filter(
+                Student.id.in_(test.assigned_students),
+                Student.fcm_token.isnot(None)
+            ).all()
+            
+            success_count = send_notification_to_students(
+                students,
+                '📝 اختبار تشخيصي',
+                f'{test.title}',
+                {
+                    'type': 'diagnostic_test',
+                    'test_id': str(test.id)
+                }
+            )
+            
+            test.notification_sent = True
+            test.notification_sent_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'message': f'Notifications sent to {success_count} students',
+                'success_count': success_count
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Error sending notifications: {e}")
+            return jsonify({'error': str(e)}), 500
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"❌ Error in resend_notification: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# ✅ Routes مساعدة للصفحة (مضافة - جديدة)
+# =====================================================
+
+@diagnostic_bp.route('/lessons', methods=['GET'])
+def get_lessons():
+    """جلب قائمة الدروس"""
+    try:
+        lessons = Lesson.query.filter_by(is_active=True).all()
+        return jsonify({
+            'lessons': [{'id': l.id, 'name': l.name, 'unit_id': l.unit_id} for l in lessons]
+        }), 200
+    except Exception as e:
+        print(f"❌ Error getting lessons: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/students', methods=['GET'])
+def get_students():
+    """جلب قائمة الطلاب"""
+    try:
+        students = Student.query.filter_by(is_active=True).all()
+        return jsonify({
+            'students': [{'id': s.id, 'name': s.name, 'grade': getattr(s, 'grade', None)} for s in students]
+        }), 200
+    except Exception as e:
+        print(f"❌ Error getting students: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ✅ تحسين route الإحصائيات (معدل)
+@diagnostic_bp.route('/stats', methods=['GET'])
+@login_required
+@admin_required
+def get_diagnostic_stats():
+    """إحصائيات الاختبارات التشخيصية"""
+    try:
+        total_tests = DiagnosticTest.query.filter_by(is_active=True).count()
+        
+        stats = {
+            'total_tests': total_tests,
+            'pre_tests': DiagnosticTest.query.filter_by(
+                test_type='pre_test', 
+                is_active=True
+            ).count(),
+            'post_tests': DiagnosticTest.query.filter_by(
+                test_type='post_test',
+                is_active=True
+            ).count(),
+            'scheduled_tests': 0  # قيمة افتراضية
+        }
+        
+        # إحصائيات الجدولة (إذا كانت متوفرة)
+        try:
+            stats['scheduled_tests'] = DiagnosticTest.query.filter_by(
+                is_scheduled=True,
+                is_active=True
+            ).count()
+        except:
+            pass
+        
+        return jsonify(stats), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        return jsonify({
+            'total_tests': 0,
+            'pre_tests': 0,
+            'post_tests': 0,
+            'scheduled_tests': 0
+        }), 200
+
+
+print("🧪 Diagnostic Tests System with Scheduling - Loaded successfully!")
