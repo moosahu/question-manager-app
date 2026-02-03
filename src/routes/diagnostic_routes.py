@@ -1278,31 +1278,72 @@ def assign_test():
 
 
 @diagnostic_bp.route('/student/assigned', methods=['GET'])
-@login_required
 def get_student_assigned_tests():
-    """اختبارات الطالب المخصصة"""
+    """اختبارات الطالب المخصصة (للتطبيق)"""
     try:
-        student_id = current_user.id
+        # للتطبيق: student_id من query parameter
+        student_id = request.args.get('student_id', type=int)
+        
+        # للويب: من current_user
+        if not student_id and current_user.is_authenticated:
+            student_id = current_user.id
+        
+        if not student_id:
+            return jsonify({'error': 'student_id required'}), 400
+        
+        print(f"📱 Getting assigned tests for student {student_id}")
         
         tests = DiagnosticTest.query.filter(
             DiagnosticTest.is_scheduled == True,
             DiagnosticTest.is_active == True
         ).all()
         
+        print(f"📋 Found {len(tests)} scheduled tests")
+        
         # فلتر الاختبارات حسب الطالب
         assigned_tests = []
         for test in tests:
-            if hasattr(test, 'is_student_assigned') and test.is_student_assigned(student_id):
-                if hasattr(test, 'is_available_now') and test.is_available_now():
+            print(f"🔍 Checking test {test.id}: assigned_students={test.assigned_students}")
+            
+            # تحقق من الإسناد
+            is_assigned = False
+            if test.assigned_students:
+                if isinstance(test.assigned_students, list):
+                    is_assigned = student_id in test.assigned_students
+                elif isinstance(test.assigned_students, str):
+                    import json
+                    try:
+                        students_list = json.loads(test.assigned_students)
+                        is_assigned = student_id in students_list
+                    except:
+                        is_assigned = str(student_id) in test.assigned_students
+            
+            print(f"✓ Test {test.id} assigned: {is_assigned}")
+            
+            if is_assigned:
+                # تحقق من التوقيت
+                is_available = True
+                if test.scheduled_start and test.scheduled_end:
+                    now = datetime.utcnow()
+                    is_available = test.scheduled_start <= now <= test.scheduled_end
+                
+                print(f"✓ Test {test.id} available: {is_available}")
+                
+                if is_available:
                     assigned_tests.append(test)
         
+        print(f"✅ Returning {len(assigned_tests)} assigned tests")
+        
         return jsonify({
+            'success': True,
             'assigned_tests': [test.to_dict() for test in assigned_tests]
         }), 200
         
     except Exception as e:
         print(f"❌ Error getting student tests: {e}")
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/tests/<int:test_id>/cancel-schedule', methods=['POST'])
