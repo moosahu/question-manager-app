@@ -1305,6 +1305,7 @@ def get_student_assigned_tests():
         
         # 4. من cookies (للتطبيق Flutter)
         if not student_id:
+            # جرب cookie مباشر
             cookie_id = request.cookies.get('student_id')
             if cookie_id:
                 try:
@@ -1312,6 +1313,24 @@ def get_student_assigned_tests():
                     print(f"📱 Got student_id from cookie: {student_id}")
                 except:
                     pass
+            
+            # جرب استخراج من session cookie
+            if not student_id:
+                for cookie_name, cookie_value in request.cookies.items():
+                    # ابحث عن pattern: student_session_{username}
+                    if cookie_name.startswith('student_session_'):
+                        print(f"🔍 Found session cookie: {cookie_name}")
+                        # جرب query الـ database
+                        try:
+                            username = cookie_name.replace('student_session_', '')
+                            student = Student.query.filter_by(username=username).first()
+                            if student:
+                                student_id = student.id
+                                print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")
+                                break
+                        except Exception as e:
+                            print(f"⚠️ Error extracting from session cookie: {e}")
+                            pass
         
         # 5. من session (Flask session)
         if not student_id:
