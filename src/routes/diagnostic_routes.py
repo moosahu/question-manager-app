@@ -1290,31 +1290,70 @@ def get_student_assigned_tests():
         # 2. من body (POST)
         if not student_id and request.method == 'POST':
             data = request.get_json() or {}
-            student_id = data.get('student_id', type=int)
+            student_id = data.get('student_id')
+            if student_id:
+                student_id = int(student_id)
         
         # 3. من headers
         if not student_id:
-            student_id = request.headers.get('X-Student-ID', type=int)
+            header_id = request.headers.get('X-Student-ID') or request.headers.get('Student-ID')
+            if header_id:
+                try:
+                    student_id = int(header_id)
+                except:
+                    pass
         
-        # 4. من form data
+        # 4. من cookies (للتطبيق Flutter)
         if not student_id:
-            student_id = request.form.get('student_id', type=int)
+            cookie_id = request.cookies.get('student_id')
+            if cookie_id:
+                try:
+                    student_id = int(cookie_id)
+                    print(f"📱 Got student_id from cookie: {student_id}")
+                except:
+                    pass
         
-        # 5. من current_user (للويب)
-        if not student_id and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-            student_id = current_user.id
+        # 5. من session (Flask session)
+        if not student_id:
+            from flask import session
+            session_id = session.get('student_id') or session.get('user_id')
+            if session_id:
+                try:
+                    student_id = int(session_id)
+                    print(f"📱 Got student_id from session: {student_id}")
+                except:
+                    pass
+        
+        # 6. من current_user (للويب)
+        if not student_id:
+            try:
+                if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                    student_id = current_user.id
+                    print(f"📱 Got student_id from current_user: {student_id}")
+            except:
+                pass
         
         print(f"📱 Getting assigned tests - Methods tried:")
         print(f"  - Query param: {request.args.get('student_id')}")
         print(f"  - Body: {request.get_json() if request.method == 'POST' else 'N/A'}")
-        print(f"  - Header: {request.headers.get('X-Student-ID')}")
+        print(f"  - Header X-Student-ID: {request.headers.get('X-Student-ID')}")
+        print(f"  - Header Student-ID: {request.headers.get('Student-ID')}")
+        print(f"  - Cookie student_id: {request.cookies.get('student_id')}")
+        print(f"  - All cookies: {list(request.cookies.keys())}")
         print(f"  - Final student_id: {student_id}")
         
         if not student_id:
             return jsonify({
                 'success': False,
                 'error': 'student_id required',
-                'hint': 'Send student_id as query param, body, or header'
+                'message_ar': 'يرجى تحديث التطبيق أو إرسال student_id',
+                'hint': 'Send student_id as: ?student_id=7 (query parameter)',
+                'fix_flutter': 'في diagnostic_service.dart أضف: ?student_id=$studentId في الـ URL',
+                'example_url': '/api/diagnostic/student/assigned?student_id=7',
+                'debug': {
+                    'cookies_received': list(request.cookies.keys()),
+                    'all_headers': {k: v for k, v in request.headers.items() if k.lower() not in ['cookie', 'authorization']}
+                }
             }), 400
         
         print(f"✅ Getting assigned tests for student {student_id}")
@@ -1335,7 +1374,6 @@ def get_student_assigned_tests():
             is_assigned = False
             
             if not test.assigned_students or test.assigned_students == 'all':
-                # إذا ما فيه قائمة محددة = للجميع
                 is_assigned = True
             elif test.assigned_students:
                 if isinstance(test.assigned_students, list):
@@ -1346,17 +1384,16 @@ def get_student_assigned_tests():
                         students_list = json.loads(test.assigned_students)
                         is_assigned = student_id in students_list
                     except:
-                        is_assigned = str(student_id) in test.assigned_students or student_id == int(test.assigned_students) if test.assigned_students.isdigit() else False
+                        is_assigned = str(student_id) in test.assigned_students or (student_id == int(test.assigned_students) if test.assigned_students.isdigit() else False)
             
             print(f"  → Assigned: {is_assigned}")
             
             if is_assigned:
-                # تحقق من التوقيت
                 is_available = True
                 if test.scheduled_start and test.scheduled_end:
                     now = datetime.utcnow()
                     is_available = test.scheduled_start <= now <= test.scheduled_end
-                    print(f"  → Available (time check): {is_available}")
+                    print(f"  → Available (time): {is_available}")
                 
                 if is_available:
                     assigned_tests.append(test)
