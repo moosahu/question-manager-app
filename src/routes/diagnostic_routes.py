@@ -27,6 +27,16 @@ except ImportError:
     from models.curriculum import Lesson, Unit, Course
     from models.student import Student
 
+# ✅ خدمة الإشعارات
+try:
+    from src.services.notification_service import NotificationService
+except ImportError:
+    try:
+        from services.notification_service import NotificationService
+    except:
+        NotificationService = None
+        print("⚠️ NotificationService غير متوفر")
+
 diagnostic_bp = Blueprint('diagnostic', __name__, url_prefix='/api/diagnostic')
 
 
@@ -1220,30 +1230,38 @@ def assign_test():
         db.session.commit()
         
         # إرسال إشعارات
-        if send_notification:
+        if send_notification and NotificationService:
             try:
-                from src.services.fcm_service import send_notification_to_students
-                
                 students = Student.query.filter(
                     Student.id.in_(student_ids_list),
                     Student.fcm_token.isnot(None)
                 ).all()
                 
-                send_notification_to_students(
-                    students,
-                    '📝 اختبار تشخيصي جديد',
-                    f'{test.title}',
-                    {
-                        'type': 'diagnostic_test',
-                        'test_id': str(test.id),
-                        'scheduled_start': scheduled_start,
-                        'scheduled_end': scheduled_end
-                    }
-                )
+                # ✅ استخدام NotificationService
+                success_count = 0
+                for student in students:
+                    if student.fcm_token:
+                        result = NotificationService.send_fcm_notification(
+                            student.fcm_token,
+                            '📝 اختبار تشخيصي جديد',
+                            f'{test.title}\n\nالوقت: من {scheduled_start[:16]} إلى {scheduled_end[:16]}',
+                            {
+                                'type': 'diagnostic_test',
+                                'test_id': str(test.id),
+                                'scheduled_start': scheduled_start,
+                                'scheduled_end': scheduled_end,
+                                'time_limit_minutes': str(test.time_limit_minutes)
+                            }
+                        )
+                        if result:
+                            success_count += 1
                 
-                test.notification_sent = True
-                test.notification_sent_at = datetime.utcnow()
-                db.session.commit()
+                print(f"✅ تم إرسال {success_count}/{len(students)} إشعار")
+                
+                if success_count > 0:
+                    test.notification_sent = True
+                    test.notification_sent_at = datetime.utcnow()
+                    db.session.commit()
                 
             except Exception as e:
                 print(f"⚠️ Error sending notifications: {e}")
@@ -1326,22 +1344,29 @@ def resend_notification(test_id):
             return jsonify({'error': 'Test not scheduled or no students assigned'}), 400
         
         try:
-            from src.services.fcm_service import send_notification_to_students
+            if not NotificationService:
+                return jsonify({'error': 'Notification service not available'}), 500
             
             students = Student.query.filter(
                 Student.id.in_(test.assigned_students),
                 Student.fcm_token.isnot(None)
             ).all()
             
-            success_count = send_notification_to_students(
-                students,
-                '📝 اختبار تشخيصي',
-                f'{test.title}',
-                {
-                    'type': 'diagnostic_test',
-                    'test_id': str(test.id)
-                }
-            )
+            # ✅ استخدام NotificationService
+            success_count = 0
+            for student in students:
+                if student.fcm_token:
+                    result = NotificationService.send_fcm_notification(
+                        student.fcm_token,
+                        '📝 اختبار تشخيصي',
+                        f'{test.title}',
+                        {
+                            'type': 'diagnostic_test',
+                            'test_id': str(test.id)
+                        }
+                    )
+                    if result:
+                        success_count += 1
             
             test.notification_sent = True
             test.notification_sent_at = datetime.utcnow()
