@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 
+    
+    <!-- Tab: Results -->
+    <div id="tab-results" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 نتائج الاختبارات</h3>
+                <button class="btn btn-sm btn-primary" onclick="loadAllResults()">🔄 تحديث</button>
+            </div>
+            <div class="card-body">
+                <div style="margin-bottom: 1rem;">
+                    <label>فلتر حسب الطالب:</label>
+                    <select class="form-control" id="filter_student" onchange="loadAllResults()" style="max-width: 300px;">
+                        <option value="">جميع الطلاب</option>
+                    </select>
+                </div>
+                
+                <div id="results-list">
+                    <p style="text-align: center; color: #6b7280; padding: 2rem;">
+                        جاري التحميل...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
     </div> <!-- End tab-tests -->
 
 {% block title %}الاختبارات التشخيصية{% endblock %}
@@ -675,6 +699,7 @@
         <button class="tab" onclick="switchTab('schedule')">📅 جدولة اختبار</button>
         <button class="tab" onclick="switchTab('tests')">📋 جميع الاختبارات</button>
         <button class="tab" onclick="switchTab('scheduled')">⏰ الاختبارات المجدولة</button>
+        <button class="tab" onclick="switchTab('results')">📊 النتائج</button>
     </div>
     
     <!-- Tab: Create Test -->
@@ -1462,6 +1487,117 @@
     // ========================================
     // Scheduling Functions
     // ========================================
+    
+
+    // Load All Results
+    window.loadAllResults = async function() {
+        console.log('📊 Loading all results...');
+        try {
+            const studentId = document.getElementById('filter_student')?.value;
+            let url = '/api/diagnostic/stats';
+            
+            // إذا فيه student محدد، استخدم history endpoint
+            if (studentId) {
+                url = `/api/diagnostic/student/${studentId}/history`;
+            }
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const container = document.getElementById('results-list');
+            if (!container) return;
+            
+            let results = [];
+            
+            if (studentId) {
+                // من history endpoint
+                results = data.results || [];
+            } else {
+                // من stats endpoint - نحتاج نجلب جميع النتائج
+                // استخدم endpoint آخر أو اعرض ملخص فقط
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <h4>إحصائيات عامة</h4>
+                        <p>إجمالي النتائج: ${data.stats?.total_results || 0}</p>
+                        <p>متوسط الدرجات: ${data.stats?.avg_score || 0}%</p>
+                        <p style="margin-top: 1rem; color: #6b7280;">
+                            اختر طالباً من القائمة أعلاه لعرض نتائجه التفصيلية
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (!results || results.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">لا توجد نتائج</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>الاختبار</th>
+                            <th>الطالب</th>
+                            <th>الدرجة</th>
+                            <th>النسبة</th>
+                            <th>الحالة</th>
+                            <th>التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${results.map(r => `
+                            <tr>
+                                <td>${r.test_title || 'N/A'}</td>
+                                <td>${r.student_name || r.student_id}</td>
+                                <td>${r.score || 0} / ${r.total_questions || 0}</td>
+                                <td>
+                                    <span style="color: ${(r.percentage || 0) >= 60 ? '#10b981' : '#ef4444'}">
+                                        ${(r.percentage || 0).toFixed(1)}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: ${r.status === 'completed' ? '#d1fae5' : '#fee2e2'}; color: ${r.status === 'completed' ? '#065f46' : '#991b1b'}">
+                                        ${r.status === 'completed' ? 'مكتمل' : 'غير مكتمل'}
+                                    </span>
+                                </td>
+                                <td>${r.completed_at ? new Date(r.completed_at).toLocaleString('ar-SA') : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            console.log('✅ Results loaded');
+        } catch (e) {
+            console.error('❌ Error loading results:', e);
+            const container = document.getElementById('results-list');
+            if (container) {
+                container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">خطأ في تحميل النتائج</p>';
+            }
+        }
+    };
+    
+    // Load students for filter
+    window.loadStudentsFilter = async function() {
+        try {
+            const res = await fetch('/api/diagnostic/students');
+            const data = await res.json();
+            const select = document.getElementById('filter_student');
+            if (!select) return;
+            
+            if (data.students) {
+                data.students.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name + (s.grade ? ` (${s.grade})` : '');
+                    select.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error('Error loading students:', e);
+        }
+    };
     
     window.switchTab = function(tabName) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));

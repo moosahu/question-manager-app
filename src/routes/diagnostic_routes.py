@@ -1277,21 +1277,47 @@ def assign_test():
         return jsonify({'error': str(e)}), 500
 
 
-@diagnostic_bp.route('/student/assigned', methods=['GET'])
+@diagnostic_bp.route('/student/assigned', methods=['GET', 'POST'])
 def get_student_assigned_tests():
-    """اختبارات الطالب المخصصة (للتطبيق)"""
+    """اختبارات الطالب المخصصة (للتطبيق والويب)"""
     try:
-        # للتطبيق: student_id من query parameter
+        # جرب جميع الطرق للحصول على student_id
+        student_id = None
+        
+        # 1. من query parameter (GET)
         student_id = request.args.get('student_id', type=int)
         
-        # للويب: من current_user
-        if not student_id and current_user.is_authenticated:
+        # 2. من body (POST)
+        if not student_id and request.method == 'POST':
+            data = request.get_json() or {}
+            student_id = data.get('student_id', type=int)
+        
+        # 3. من headers
+        if not student_id:
+            student_id = request.headers.get('X-Student-ID', type=int)
+        
+        # 4. من form data
+        if not student_id:
+            student_id = request.form.get('student_id', type=int)
+        
+        # 5. من current_user (للويب)
+        if not student_id and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
             student_id = current_user.id
         
-        if not student_id:
-            return jsonify({'error': 'student_id required'}), 400
+        print(f"📱 Getting assigned tests - Methods tried:")
+        print(f"  - Query param: {request.args.get('student_id')}")
+        print(f"  - Body: {request.get_json() if request.method == 'POST' else 'N/A'}")
+        print(f"  - Header: {request.headers.get('X-Student-ID')}")
+        print(f"  - Final student_id: {student_id}")
         
-        print(f"📱 Getting assigned tests for student {student_id}")
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'student_id required',
+                'hint': 'Send student_id as query param, body, or header'
+            }), 400
+        
+        print(f"✅ Getting assigned tests for student {student_id}")
         
         tests = DiagnosticTest.query.filter(
             DiagnosticTest.is_scheduled == True,
@@ -1303,11 +1329,15 @@ def get_student_assigned_tests():
         # فلتر الاختبارات حسب الطالب
         assigned_tests = []
         for test in tests:
-            print(f"🔍 Checking test {test.id}: assigned_students={test.assigned_students}")
+            print(f"🔍 Test {test.id}: assigned_students={test.assigned_students}")
             
             # تحقق من الإسناد
             is_assigned = False
-            if test.assigned_students:
+            
+            if not test.assigned_students or test.assigned_students == 'all':
+                # إذا ما فيه قائمة محددة = للجميع
+                is_assigned = True
+            elif test.assigned_students:
                 if isinstance(test.assigned_students, list):
                     is_assigned = student_id in test.assigned_students
                 elif isinstance(test.assigned_students, str):
@@ -1316,9 +1346,9 @@ def get_student_assigned_tests():
                         students_list = json.loads(test.assigned_students)
                         is_assigned = student_id in students_list
                     except:
-                        is_assigned = str(student_id) in test.assigned_students
+                        is_assigned = str(student_id) in test.assigned_students or student_id == int(test.assigned_students) if test.assigned_students.isdigit() else False
             
-            print(f"✓ Test {test.id} assigned: {is_assigned}")
+            print(f"  → Assigned: {is_assigned}")
             
             if is_assigned:
                 # تحقق من التوقيت
@@ -1326,8 +1356,7 @@ def get_student_assigned_tests():
                 if test.scheduled_start and test.scheduled_end:
                     now = datetime.utcnow()
                     is_available = test.scheduled_start <= now <= test.scheduled_end
-                
-                print(f"✓ Test {test.id} available: {is_available}")
+                    print(f"  → Available (time check): {is_available}")
                 
                 if is_available:
                     assigned_tests.append(test)
