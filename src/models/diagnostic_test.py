@@ -189,10 +189,6 @@ class DiagnosticResult(db.Model):
     # الإجابات التفصيلية
     answers = db.Column(db.JSON, default=[])
     
-    # ✅ حالة الاختبار
-    status = db.Column(db.String(20), default='in_progress')
-    # القيم الممكنة: 'in_progress', 'completed'
-    
     # الوقت
     time_spent_seconds = db.Column(db.Integer, default=0)
     started_at = db.Column(db.DateTime, nullable=True)
@@ -211,7 +207,6 @@ class DiagnosticResult(db.Model):
             'total_questions': self.total_questions,
             'correct_answers': self.correct_answers,
             'percentage': self.percentage,
-            'status': self.status,
             'time_spent_seconds': self.time_spent_seconds,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
@@ -224,8 +219,8 @@ class DiagnosticComparison(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبارات
-    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    pre_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    post_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # النتائج
     pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)

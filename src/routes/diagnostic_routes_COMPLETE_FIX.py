@@ -1046,13 +1046,13 @@ def compare_tests():
         
         # جلب النتائج
         pre_result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=pre_test_id,
+            test_id=pre_test_id,
             student_id=student_id,
             status='completed'
         ).first()
         
         post_result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=post_test_id,
+            test_id=post_test_id,
             student_id=student_id,
             status='completed'
         ).first()
