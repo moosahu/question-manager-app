@@ -8,7 +8,7 @@ API للاختبارات التشخيصية
 
 from flask import Blueprint, request, jsonify, send_file, render_template, current_app
 from flask_login import login_required, current_user
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from functools import wraps
 import io
 import os
@@ -38,27 +38,6 @@ except ImportError:
         print("⚠️ NotificationService غير متوفر")
 
 diagnostic_bp = Blueprint('diagnostic', __name__, url_prefix='/api/diagnostic')
-
-
-
-def convert_saudi_to_utc(dt_string):
-    """تحويل وقت من السعودية (UTC+3) إلى UTC"""
-    try:
-        # إزالة Z أو timezone info
-        dt_string = dt_string.replace('Z', '').replace('+00:00', '')
-        
-        # parse التاريخ
-        dt = datetime.fromisoformat(dt_string)
-        
-        # السعودية = UTC + 3، نطرح 3 ساعات
-        dt_utc = dt - timedelta(hours=3)
-        
-        print(f"⏰ Converted {dt_string} (Saudi) → {dt_utc} (UTC)")
-        return dt_utc
-    except Exception as e:
-        print(f"⚠️ Error converting timezone: {e}")
-        # fallback - استخدم الوقت كما هو
-        return datetime.fromisoformat(dt_string.replace('Z', ''))
 
 
 def admin_required(f):
@@ -1271,8 +1250,8 @@ def assign_test():
         
         # تحديث الاختبار
         test.is_scheduled = True
-        test.scheduled_start = convert_saudi_to_utc(scheduled_start)
-        test.scheduled_end = convert_saudi_to_utc(scheduled_end)
+        test.scheduled_start = datetime.fromisoformat(scheduled_start.replace('Z', '+00:00'))
+        test.scheduled_end = datetime.fromisoformat(scheduled_end.replace('Z', '+00:00'))
         test.assigned_students = student_ids_list
         test.time_limit_minutes = time_limit
         test.schedule_status = 'pending'
@@ -1662,16 +1641,12 @@ def get_all_results():
         
         results_data = []
         for r in results:
-            try:
-                result_dict = r.to_dict()
-                # إضافة معلومات الاختبار
-                if r.test:
-                    result_dict['test_title'] = r.test.title
-                    result_dict['test_type'] = r.test.test_type
-                results_data.append(result_dict)
-            except Exception as e:
-                print(f"⚠️ Error processing result {r.id}: {e}")
-                continue
+            result_dict = r.to_dict()
+            # إضافة معلومات الاختبار
+            if r.test:
+                result_dict['test_title'] = r.test.title
+                result_dict['test_type'] = r.test.test_type
+            results_data.append(result_dict)
         
         return jsonify({
             'success': True,
