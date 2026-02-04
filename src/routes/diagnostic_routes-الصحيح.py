@@ -944,46 +944,36 @@ def submit_test(result_id):
         corrected = []
         correct_count = 0
         
-        # ✅ استخدم index-based correction
-        for i, ans in enumerate(answers):
-            selected_answer = ans.get('selected_answer')  # index من Flutter
+        for ans in answers:
+            q_id = ans.get('question_id')
+            selected_id = ans.get('selected_option_id')
             
-            # استخدام index للوصول للسؤال
-            if i >= len(questions):
-                continue
+            # البحث عن السؤال
+            question = next((q for q in questions if q.get('question_id') == q_id), None)
             
-            question = questions[i]
-            options = question.get('options', [])
-            
-            # البحث عن الإجابة الصحيحة بالـ index
-            correct_index = None
-            for opt_idx, opt in enumerate(options):
-                if opt.get('is_correct'):
-                    correct_index = opt_idx
-                    break
-            
-            is_correct = (selected_answer == correct_index) if selected_answer is not None else False
-            
-            if is_correct:
-                correct_count += 1
-            
-            corrected.append({
-                'question_id': i,
-                'question_text': question.get('text', question.get('question_text', '')),
-                'selected_answer': selected_answer,
-                'correct_answer': correct_index,
-                'is_correct': is_correct,
-                'time_spent': ans.get('time_spent', 0),
-                'topic': question.get('lesson_name', '')
-            })
+            if question:
+                # البحث عن الإجابة الصحيحة
+                correct_opt = next((o for o in question.get('options', []) if o.get('is_correct')), None)
+                is_correct = str(selected_id) == str(correct_opt.get('id')) if correct_opt else False
+                
+                if is_correct:
+                    correct_count += 1
+                
+                corrected.append({
+                    'question_id': q_id,
+                    'question_text': question.get('text', ''),
+                    'selected_option_id': selected_id,
+                    'correct_option_id': correct_opt.get('id') if correct_opt else None,
+                    'is_correct': is_correct,
+                    'time_spent': ans.get('time_spent', 0),
+                    'topic': question.get('lesson_name', '')
+                })
         
         # تحديث النتيجة
         result.answers = corrected
         result.score = correct_count
         result.total_questions = len(corrected)
-        result.correct_answers = correct_count
-        result.percentage = (correct_count / len(corrected) * 100) if corrected else 0
-        result.score_percentage = result.percentage
+        result.score_percentage = (correct_count / len(corrected) * 100) if corrected else 0
         result.passed = result.score_percentage >= test.passing_score
         result.completed_at = datetime.utcnow()
         result.time_spent_seconds = sum(a.get('time_spent', 0) for a in corrected)
