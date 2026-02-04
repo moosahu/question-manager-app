@@ -866,7 +866,7 @@ def start_test(test_id):
         
         # التحقق من عدم وجود نتيجة سابقة مكتملة
         existing = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=test_id,
+            test_id=test_id,
             student_id=student_id,
             status='completed'
         ).first()
@@ -880,13 +880,13 @@ def start_test(test_id):
         
         # إنشاء أو تحديث نتيجة
         result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=test_id,
+            test_id=test_id,
             student_id=student_id
         ).first()
         
         if not result:
             result = DiagnosticResult(
-                diagnostic_test_id=test_id,
+                test_id=test_id,
                 student_id=student_id,
                 total_questions=test.questions_count
             )
@@ -899,11 +899,35 @@ def start_test(test_id):
         # جلب الأسئلة من questions_data (JSON)
         questions = test.questions_data or []
         
+        # ✅ تحويل questions لـ Flutter format
+        formatted_questions = []
+        for q in questions:
+            formatted_q = {
+                'id': q.get('id'),
+                'question_text': q.get('text', q.get('question_text', '')),  # نسخ text لـ question_text
+                'text': q.get('text', ''),  # keep both
+                'options': []
+            }
+            for opt in q.get('options', []):
+                formatted_opt = {
+                    'text': opt.get('text', ''),
+                    'option_text': opt.get('text', ''),  # نسخ text لـ option_text
+                    'is_correct': opt.get('is_correct', False),
+                    'letter': opt.get('letter', '')
+                }
+                formatted_q['options'].append(formatted_opt)
+            formatted_questions.append(formatted_q)
+        
+        print(f"🔍 Formatted {len(formatted_questions)} questions")
+        if formatted_questions:
+            print(f"🔍 First Q keys: {formatted_questions[0].keys()}")
+            print(f"🔍 First Q text: {formatted_questions[0].get('question_text', 'NONE')}")
+        
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
             'result_id': result.id,
-            'questions': questions,
+            'questions': formatted_questions,
             'time_limit_minutes': test.time_limit_minutes
         })
         
@@ -944,37 +968,35 @@ def submit_test(result_id):
         correct_count = 0
         
         for i, ans in enumerate(answers):
-            q_id = ans.get('question_id')
-            selected_answer = ans.get('selected_answer')  # index من Flutter
+            selected_answer = ans.get('selected_answer')
             
-            # البحث عن السؤال بالـ ID أو index
-            question = None
-            if q_id is not None and not isinstance(q_id, int) or (isinstance(q_id, int) and q_id < len(questions)):
-                # محاولة بالـ ID
-                question = next((q for q in questions if q.get('id') == q_id or q.get('question_id') == q_id), None)
+            if i >= len(questions):
+                continue
             
-            # إذا ما لقينا، استخدم index
-            if not question and i < len(questions):
-                question = questions[i]
+            question = questions[i]
+            options = question.get('options', [])
             
-            if question and selected_answer is not None:
-                # البحث عن الإجابة الصحيحة
-                options = question.get('options', [])
-                correct_opt_index = next((i for i, o in enumerate(options) if o.get('is_correct')), None)
-                is_correct = (selected_answer == correct_opt_index)
-                
-                if is_correct:
-                    correct_count += 1
-                
-                corrected.append({
-                    'question_id': q_id,
-                    'question_text': question.get('question_text') or question.get('text', ''),
-                    'selected_answer': selected_answer,
-                    'correct_answer': correct_opt_index,
-                    'is_correct': is_correct,
-                    'time_spent': ans.get('time_spent', 0),
-                    'topic': question.get('lesson_name', '')
-                })
+            # البحث عن الإجابة الصحيحة
+            correct_index = None
+            for opt_idx, opt in enumerate(options):
+                if opt.get('is_correct'):
+                    correct_index = opt_idx
+                    break
+            
+            is_correct = (selected_answer == correct_index) if selected_answer is not None else False
+            
+            if is_correct:
+                correct_count += 1
+            
+            corrected.append({
+                'question_id': i,
+                'question_text': question.get('question_text', ''),
+                'selected_answer': selected_answer,
+                'correct_answer': correct_index,
+                'is_correct': is_correct,
+                'time_spent': ans.get('time_spent', 0),
+                'topic': question.get('lesson_name', '')
+            })
         
         # تحديث النتيجة
         result.answers = corrected
