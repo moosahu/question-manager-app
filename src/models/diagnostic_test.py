@@ -240,8 +240,8 @@ class DiagnosticComparison(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # العلاقات
-    pre_test = db.relationship('DiagnosticTest', foreign_keys=[pre_test_id])
-    post_test = db.relationship('DiagnosticTest', foreign_keys=[post_test_id])
+    pre_test = db.relationship('DiagnosticTest', foreign_keys=[pre_diagnostic_test_id])
+    post_test = db.relationship('DiagnosticTest', foreign_keys=[post_diagnostic_test_id])
     pre_result = db.relationship('DiagnosticResult', foreign_keys=[pre_result_id])
     post_result = db.relationship('DiagnosticResult', foreign_keys=[post_result_id])
     
