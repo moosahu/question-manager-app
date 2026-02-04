@@ -1641,3 +1641,33 @@ def get_diagnostic_stats():
 
 
 print("🧪 Diagnostic Tests System with Scheduling - Loaded successfully!")
+
+
+@diagnostic_bp.route('/api/diagnostic/results', methods=['GET'])
+def get_all_results():
+    """جلب جميع النتائج"""
+    try:
+        # جلب آخر 50 نتيجة
+        results = DiagnosticResult.query\
+            .order_by(DiagnosticResult.completed_at.desc())\
+            .limit(50)\
+            .all()
+        
+        results_data = []
+        for r in results:
+            result_dict = r.to_dict()
+            # إضافة معلومات الاختبار
+            if r.test:
+                result_dict['test_title'] = r.test.title
+                result_dict['test_type'] = r.test.test_type
+            results_data.append(result_dict)
+        
+        return jsonify({
+            'success': True,
+            'results': results_data,
+            'count': len(results_data)
+        })
+    except Exception as e:
+        print(f"❌ Error getting results: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+

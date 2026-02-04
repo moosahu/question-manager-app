@@ -1499,9 +1499,6 @@
             // إذا فيه student محدد، استخدم history endpoint
             if (studentId) {
                 url = `/api/diagnostic/student/${studentId}/history`;
-            } else {
-                // جلب كل النتائج
-                url = `/api/diagnostic/results`;
             }
             
             const res = await fetch(url);
@@ -1513,9 +1510,22 @@
             let results = [];
             
             if (studentId) {
+                // من history endpoint
                 results = data.results || [];
             } else {
-                results = data.results || data || [];
+                // من stats endpoint - نحتاج نجلب جميع النتائج
+                // استخدم endpoint آخر أو اعرض ملخص فقط
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <h4>إحصائيات عامة</h4>
+                        <p>إجمالي النتائج: ${data.stats?.total_results || 0}</p>
+                        <p>متوسط الدرجات: ${data.stats?.avg_score || 0}%</p>
+                        <p style="margin-top: 1rem; color: #6b7280;">
+                            اختر طالباً من القائمة أعلاه لعرض نتائجه التفصيلية
+                        </p>
+                    </div>
+                `;
+                return;
             }
             
             if (!results || results.length === 0) {
