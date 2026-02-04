@@ -1518,6 +1518,11 @@
                 results = data.results || data || [];
             }
             
+            console.log('📊 Results array:', results);
+            console.log('📊 Results length:', results ? results.length : 'null');
+            console.log('📊 Results type:', typeof results);
+            console.log('📊 Is array?', Array.isArray(results));
+            
             if (!results || results.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">لا توجد نتائج</p>';
                 return;
