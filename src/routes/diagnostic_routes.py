@@ -836,8 +836,24 @@ def start_test(test_id):
     try:
         data = request.get_json() or {}
         
-        # جلب student_id من التوكن أو الـ body
-        student_id = data.get('student_id')
+        # ✅ استخرج student_id من session cookie (كما في assigned tests)
+        student_id = None
+        
+        # 1. جرّب من session cookie
+        for cookie_name, cookie_value in request.cookies.items():
+            if cookie_name.startswith('student_session_'):
+                username = cookie_name.replace('student_session_', '')
+                student = Student.query.filter_by(username=username).first()
+                if student:
+                    student_id = student.id
+                    print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")
+                    break
+        
+        # 2. جرّب من body
+        if not student_id:
+            student_id = data.get('student_id')
+        
+        # 3. جرّب من current_user
         if not student_id and current_user.is_authenticated:
             student_id = current_user.id
         
