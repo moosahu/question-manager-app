@@ -896,19 +896,8 @@ def start_test(test_id):
         result.status = 'in_progress'
         db.session.commit()
         
-        # جلب الأسئلة
-        questions = []
-        for q in test.questions:
-            question_dict = {
-                'id': q.id,
-                'question_text': q.question_text,
-                'options': []
-            }
-            for opt in q.options:
-                question_dict['options'].append({
-                    'option_text': opt.option_text
-                })
-            questions.append(question_dict)
+        # جلب الأسئلة من questions_data (JSON)
+        questions = test.questions_data or []
         
         return jsonify({
             'success': True,
