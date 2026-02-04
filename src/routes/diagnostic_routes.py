@@ -866,7 +866,7 @@ def start_test(test_id):
         
         # التحقق من عدم وجود نتيجة سابقة مكتملة
         existing = DiagnosticResult.query.filter_by(
-            diagnostic_diagnostic_test_id=test_id,
+            diagnostic_test_id=test_id,
             student_id=student_id,
             status='completed'
         ).first()
@@ -880,13 +880,13 @@ def start_test(test_id):
         
         # إنشاء أو تحديث نتيجة
         result = DiagnosticResult.query.filter_by(
-            diagnostic_diagnostic_test_id=test_id,
+            diagnostic_test_id=test_id,
             student_id=student_id
         ).first()
         
         if not result:
             result = DiagnosticResult(
-                diagnostic_diagnostic_test_id=test_id,
+                diagnostic_test_id=test_id,
                 student_id=student_id,
                 total_questions=test.questions_count
             )
