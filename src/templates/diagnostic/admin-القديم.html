@@ -1518,6 +1518,11 @@
                 results = data.results || data || [];
             }
             
+            console.log('📊 Results array:', results);
+            console.log('📊 Results length:', results ? results.length : 'null');
+            console.log('📊 Results type:', typeof results);
+            console.log('📊 Is array?', Array.isArray(results));
+            
             if (!results || results.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">لا توجد نتائج</p>';
                 return;
@@ -1598,6 +1603,7 @@
         
         if (tabName === 'tests') diagLoadTests();
         else if (tabName === 'scheduled') loadScheduledTests();
+        else if (tabName === 'results') loadAllResults();
         else if (tabName === 'schedule') { loadTestsForSchedule(); loadStudentsForSchedule(); }
     };
     
@@ -1707,17 +1713,7 @@
             if (stat) stat.textContent = data.scheduled_tests.length;
             container.innerHTML = data.scheduled_tests.map(t => `
                 <div class="scheduled-test-card">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <h4>${t.title}</h4>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-warning" onclick="cancelSchedule(${t.id})" title="إلغاء الجدولة فقط">
-                                ⏸️ إلغاء الجدولة
-                            </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteScheduledTest(${t.id})" title="حذف الاختبار نهائياً">
-                                🗑️ حذف
-                            </button>
-                        </div>
-                    </div>
+                    <h4>${t.title}</h4>
                     <p><strong>النوع:</strong> ${t.test_type_ar}</p>
                     <p><strong>البداية:</strong> ${t.scheduled_start ? new Date(t.scheduled_start).toLocaleString('ar-SA') : 'غير محدد'}</p>
                     <p><strong>النهاية:</strong> ${t.scheduled_end ? new Date(t.scheduled_end).toLocaleString('ar-SA') : 'غير محدد'}</p>
@@ -1726,65 +1722,6 @@
                 </div>
             `).join('');
         } catch (e) { console.error(e); }
-    };
-    
-
-    // إلغاء الجدولة فقط (الاختبار يبقى موجود)
-    window.cancelSchedule = async function(testId) {
-        if (!confirm('هل تريد إلغاء جدولة هذا الاختبار؟\n\nملاحظة: الاختبار سيبقى موجوداً لكن لن يظهر للطلاب')) {
-            return;
-        }
-        
-        showLoading(true);
-        
-        try {
-            const res = await fetch(`/api/diagnostic/tests/${testId}/cancel-schedule`, {
-                method: 'POST'
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert('تم إلغاء جدولة الاختبار بنجاح', 'success');
-                loadScheduledTests();
-                diagLoadStats();
-            } else {
-                showAlert(data.error || 'حدث خطأ', 'error');
-            }
-        } catch (e) {
-            showAlert('خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    };
-    
-    // حذف الاختبار نهائياً
-    window.deleteScheduledTest = async function(testId) {
-        if (!confirm('⚠️ تحذير: حذف نهائي\n\nهل أنت متأكد من حذف هذا الاختبار نهائياً؟\n\nسيتم:\n- حذف الاختبار وجميع بياناته\n- لن يمكن استرجاعه\n\nللإلغاء المؤقت فقط، استخدم زر "إلغاء الجدولة"')) {
-            return;
-        }
-        
-        showLoading(true);
-        
-        try {
-            const res = await fetch(`/api/diagnostic/tests/${testId}`, {
-                method: 'DELETE'
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showAlert('تم حذف الاختبار نهائياً', 'success');
-                loadScheduledTests();
-                diagLoadStats();
-            } else {
-                showAlert(data.error || 'حدث خطأ', 'error');
-            }
-        } catch (e) {
-            showAlert('خطأ: ' + e.message, 'error');
-        } finally {
-            showLoading(false);
-        }
     };
     
 </script>
