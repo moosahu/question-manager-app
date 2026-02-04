@@ -122,9 +122,7 @@ def generate_test():
         )
         
         db.session.add(test)
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'success': True,
@@ -226,9 +224,7 @@ def generate_test_pair():
         # ربط القبلي بالبعدي
         pre_test.paired_test_id = post_test.id
         
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'success': True,
@@ -1006,9 +1002,7 @@ def submit_test(result_id):
         result.weak_topics = list(set(weak))
         result.strong_topics = list(set(strong))
         
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'success': True,
@@ -1090,9 +1084,7 @@ def compare_tests():
             ai_analysis=comparison_data['analysis']
         )
         db.session.add(comparison)
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'success': True,
@@ -1180,9 +1172,7 @@ def delete_test(test_id):
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
         
         test.is_active = False
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({'success': True, 'message': 'تم حذف الاختبار'})
         
@@ -1222,9 +1212,7 @@ def get_scheduled_tests():
         for test in tests:
             if hasattr(test, 'update_schedule_status'):
                 test.update_schedule_status()
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'scheduled_tests': [test.to_dict() for test in tests]
@@ -1496,9 +1484,7 @@ def cancel_schedule(test_id):
         
         test.is_scheduled = False
         test.schedule_status = 'cancelled'
-        print(f"✅ Before commit - result_id: {result.id}, correct: {correct_count}/{len(corrected)}")
         db.session.commit()
-        print(f"✅ After commit - saved successfully!")
         
         return jsonify({
             'message': 'Schedule cancelled successfully',
