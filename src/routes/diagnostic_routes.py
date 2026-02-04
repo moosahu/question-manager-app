@@ -947,7 +947,7 @@ def submit_test(result_id):
         if result.status == 'completed':
             return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
         
-        test = result.test
+        test = result.diagnostic_test
         questions = test.questions_data or []
         
         # تصحيح الإجابات

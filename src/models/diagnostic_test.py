@@ -173,7 +173,7 @@ class DiagnosticResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبار
-    diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # الطالب
     student_id = db.Column(db.String(100), nullable=True)
@@ -189,6 +189,10 @@ class DiagnosticResult(db.Model):
     # الإجابات التفصيلية
     answers = db.Column(db.JSON, default=[])
     
+    # ✅ حالة الاختبار
+    status = db.Column(db.String(20), default='in_progress')
+    # القيم الممكنة: 'in_progress', 'completed'
+    
     # الوقت
     time_spent_seconds = db.Column(db.Integer, default=0)
     started_at = db.Column(db.DateTime, nullable=True)
@@ -200,13 +204,14 @@ class DiagnosticResult(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'test_id': self.diagnostic_test_id,
+            'test_id': self.test_id,
             'student_id': self.student_id,
             'student_name': self.student_name,
             'score': self.score,
             'total_questions': self.total_questions,
             'correct_answers': self.correct_answers,
             'percentage': self.percentage,
+            'status': self.status,
             'time_spent_seconds': self.time_spent_seconds,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
@@ -219,8 +224,8 @@ class DiagnosticComparison(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبارات
-    pre_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    post_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # النتائج
     pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)
@@ -240,8 +245,8 @@ class DiagnosticComparison(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # العلاقات
-    pre_test = db.relationship('DiagnosticTest', foreign_keys=[pre_diagnostic_test_id])
-    post_test = db.relationship('DiagnosticTest', foreign_keys=[post_diagnostic_test_id])
+    pre_test = db.relationship('DiagnosticTest', foreign_keys=[pre_test_id])
+    post_test = db.relationship('DiagnosticTest', foreign_keys=[post_test_id])
     pre_result = db.relationship('DiagnosticResult', foreign_keys=[pre_result_id])
     post_result = db.relationship('DiagnosticResult', foreign_keys=[post_result_id])
     
