@@ -866,7 +866,7 @@ def start_test(test_id):
         
         # التحقق من عدم وجود نتيجة سابقة مكتملة
         existing = DiagnosticResult.query.filter_by(
-            test_id=test_id,
+            diagnostic_test_id=test_id,
             student_id=student_id,
             status='completed'
         ).first()
@@ -880,13 +880,13 @@ def start_test(test_id):
         
         # إنشاء أو تحديث نتيجة
         result = DiagnosticResult.query.filter_by(
-            test_id=test_id,
+            diagnostic_test_id=test_id,
             student_id=student_id
         ).first()
         
         if not result:
             result = DiagnosticResult(
-                test_id=test_id,
+                diagnostic_test_id=test_id,
                 student_id=student_id,
                 total_questions=test.questions_count
             )
@@ -1046,13 +1046,13 @@ def compare_tests():
         
         # جلب النتائج
         pre_result = DiagnosticResult.query.filter_by(
-            test_id=pre_test_id,
+            diagnostic_test_id=pre_test_id,
             student_id=student_id,
             status='completed'
         ).first()
         
         post_result = DiagnosticResult.query.filter_by(
-            test_id=post_test_id,
+            diagnostic_test_id=post_test_id,
             student_id=student_id,
             status='completed'
         ).first()
