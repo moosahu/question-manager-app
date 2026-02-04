@@ -896,38 +896,25 @@ def start_test(test_id):
         result.status = 'in_progress'
         db.session.commit()
         
-        # جلب الأسئلة من questions_data (JSON)
-        questions = test.questions_data or []
-        
-        # ✅ تحويل questions لـ Flutter format
-        formatted_questions = []
-        for q in questions:
-            formatted_q = {
-                'id': q.get('id'),
-                'question_text': q.get('text', q.get('question_text', '')),  # نسخ text لـ question_text
-                'text': q.get('text', ''),  # keep both
+        # جلب الأسئلة
+        questions = []
+        for q in test.questions:
+            question_dict = {
+                'id': q.id,
+                'question_text': q.question_text,
                 'options': []
             }
-            for opt in q.get('options', []):
-                formatted_opt = {
-                    'text': opt.get('text', ''),
-                    'option_text': opt.get('text', ''),  # نسخ text لـ option_text
-                    'is_correct': opt.get('is_correct', False),
-                    'letter': opt.get('letter', '')
-                }
-                formatted_q['options'].append(formatted_opt)
-            formatted_questions.append(formatted_q)
-        
-        print(f"🔍 Formatted {len(formatted_questions)} questions")
-        if formatted_questions:
-            print(f"🔍 First Q keys: {formatted_questions[0].keys()}")
-            print(f"🔍 First Q text: {formatted_questions[0].get('question_text', 'NONE')}")
+            for opt in q.options:
+                question_dict['options'].append({
+                    'option_text': opt.option_text
+                })
+            questions.append(question_dict)
         
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
             'result_id': result.id,
-            'questions': formatted_questions,
+            'questions': questions,
             'time_limit_minutes': test.time_limit_minutes
         })
         
@@ -967,51 +954,43 @@ def submit_test(result_id):
         corrected = []
         correct_count = 0
         
-        for i, ans in enumerate(answers):
-            selected_answer = ans.get('selected_answer')
+        for ans in answers:
+            q_id = ans.get('question_id')
+            selected_id = ans.get('selected_option_id')
             
-            if i >= len(questions):
-                continue
+            # البحث عن السؤال
+            question = next((q for q in questions if q.get('question_id') == q_id), None)
             
-            question = questions[i]
-            options = question.get('options', [])
-            
-            # البحث عن الإجابة الصحيحة
-            correct_index = None
-            for opt_idx, opt in enumerate(options):
-                if opt.get('is_correct'):
-                    correct_index = opt_idx
-                    break
-            
-            is_correct = (selected_answer == correct_index) if selected_answer is not None else False
-            
-            if is_correct:
-                correct_count += 1
-            
-            corrected.append({
-                'question_id': i,
-                'question_text': question.get('question_text', ''),
-                'selected_answer': selected_answer,
-                'correct_answer': correct_index,
-                'is_correct': is_correct,
-                'time_spent': ans.get('time_spent', 0),
-                'topic': question.get('lesson_name', '')
-            })
+            if question:
+                # البحث عن الإجابة الصحيحة
+                correct_opt = next((o for o in question.get('options', []) if o.get('is_correct')), None)
+                is_correct = str(selected_id) == str(correct_opt.get('id')) if correct_opt else False
+                
+                if is_correct:
+                    correct_count += 1
+                
+                corrected.append({
+                    'question_id': q_id,
+                    'question_text': question.get('text', ''),
+                    'selected_option_id': selected_id,
+                    'correct_option_id': correct_opt.get('id') if correct_opt else None,
+                    'is_correct': is_correct,
+                    'time_spent': ans.get('time_spent', 0),
+                    'topic': question.get('lesson_name', '')
+                })
         
         # تحديث النتيجة
         result.answers = corrected
         result.score = correct_count
         result.total_questions = len(corrected)
-        result.correct_answers = correct_count
-        result.percentage = (correct_count / len(corrected) * 100) if corrected else 0
-        result.score_percentage = result.percentage
+        result.score_percentage = (correct_count / len(corrected) * 100) if corrected else 0
         result.passed = result.score_percentage >= test.passing_score
         result.completed_at = datetime.utcnow()
         result.time_spent_seconds = sum(a.get('time_spent', 0) for a in corrected)
         result.status = 'completed'
         
         # تحليل النتيجة
-        context = {'name': test.lesson_name or test.unit_name or 'عام'}
+        context = {'name': test.lesson.name if test.lesson else (test.unit.name if test.unit else 'عام')}
         analysis = diagnostic_service.analyze_result(result, context, test.test_type)
         
         result.ai_analysis = analysis.get('analysis', '')
@@ -1086,7 +1065,7 @@ def compare_tests():
         
         # المقارنة
         pre_test = DiagnosticTest.query.get(pre_test_id)
-        context = {'name': pre_test.lesson_name or 'عام'}
+        context = {'name': pre_test.lesson.name if pre_test.lesson else 'عام'}
         
         comparison_data = diagnostic_service.compare_results(pre_result, post_result, context)
         
