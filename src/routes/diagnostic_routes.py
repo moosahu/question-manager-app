@@ -896,11 +896,26 @@ def start_test(test_id):
         result.status = 'in_progress'
         db.session.commit()
         
+        # جلب الأسئلة
+        questions = []
+        for q in test.questions:
+            question_dict = {
+                'id': q.id,
+                'question_text': q.question_text,
+                'options': []
+            }
+            for opt in q.options:
+                question_dict['options'].append({
+                    'option_text': opt.option_text
+                })
+            questions.append(question_dict)
+        
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
             'result_id': result.id,
-            'test': test.to_dict(include_questions=True)
+            'questions': questions,
+            'time_limit_minutes': test.time_limit_minutes
         })
         
     except Exception as e:
