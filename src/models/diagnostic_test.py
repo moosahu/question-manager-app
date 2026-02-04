@@ -224,8 +224,8 @@ class DiagnosticComparison(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبارات
-    pre_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    post_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # النتائج
     pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)
@@ -244,11 +244,17 @@ class DiagnosticComparison(db.Model):
     # التواريخ
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # العلاقات
-    pre_test = db.relationship('DiagnosticTest', foreign_keys='pre_test_id')
-    post_test = db.relationship('DiagnosticTest', foreign_keys='post_test_id')
-    pre_result = db.relationship('DiagnosticResult', foreign_keys='pre_result_id')
-    post_result = db.relationship('DiagnosticResult', foreign_keys='post_result_id')
+    # العلاقات - استخدم lambda للتأخير
+    pre_test = db.relationship('DiagnosticTest', 
+                               foreign_keys=[pre_test_id],
+                               backref='pre_comparisons')
+    post_test = db.relationship('DiagnosticTest', 
+                                foreign_keys=[post_test_id],
+                                backref='post_comparisons')
+    pre_result = db.relationship('DiagnosticResult', 
+                                 foreign_keys=[pre_result_id])
+    post_result = db.relationship('DiagnosticResult', 
+                                  foreign_keys=[post_result_id])
     
     def to_dict(self):
         return {
