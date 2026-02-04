@@ -234,14 +234,8 @@ def generate_test_pair():
         })
         
     except Exception as e:
-        import traceback
         db.session.rollback()
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"❌❌❌ START TEST ERROR: {error_msg}")
-        print(f"❌ Traceback:
-{error_trace}")
-        return jsonify({'success': False, 'error': error_msg}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==========================================
@@ -832,7 +826,6 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
 
 @diagnostic_bp.route('/tests/<int:test_id>/start', methods=['POST'])
 def start_test(test_id):
-    """بدء اختبار تشخيصي"""
     """
     بدء اختبار (للطالب من التطبيق)
     
@@ -926,14 +919,8 @@ def start_test(test_id):
         })
         
     except Exception as e:
-        import traceback
         db.session.rollback()
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"❌❌❌ START TEST ERROR: {error_msg}")
-        print(f"❌ Traceback:
-{error_trace}")
-        return jsonify({'success': False, 'error': error_msg}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/results/<int:result_id>/submit', methods=['POST'])
@@ -960,7 +947,7 @@ def submit_test(result_id):
         if result.status == 'completed':
             return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
         
-        test = result.test
+        test = result.diagnostic_test
         questions = test.questions_data or []
         
         # تصحيح الإجابات
@@ -1106,14 +1093,8 @@ def compare_tests():
         })
         
     except Exception as e:
-        import traceback
         db.session.rollback()
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"❌❌❌ START TEST ERROR: {error_msg}")
-        print(f"❌ Traceback:
-{error_trace}")
-        return jsonify({'success': False, 'error': error_msg}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==========================================
@@ -1195,14 +1176,8 @@ def delete_test(test_id):
         return jsonify({'success': True, 'message': 'تم حذف الاختبار'})
         
     except Exception as e:
-        import traceback
         db.session.rollback()
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"❌❌❌ START TEST ERROR: {error_msg}")
-        print(f"❌ Traceback:
-{error_trace}")
-        return jsonify({'success': False, 'error': error_msg}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==========================================

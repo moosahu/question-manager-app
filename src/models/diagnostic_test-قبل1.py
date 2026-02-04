@@ -173,7 +173,7 @@ class DiagnosticResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبار
-    diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # الطالب
     student_id = db.Column(db.String(100), nullable=True)
@@ -204,7 +204,7 @@ class DiagnosticResult(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'test_id': self.diagnostic_test_id,
+            'test_id': self.test_id,
             'student_id': self.student_id,
             'student_name': self.student_name,
             'score': self.score,
@@ -224,8 +224,8 @@ class DiagnosticComparison(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # الاختبارات
-    pre_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
-    post_diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    pre_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
+    post_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # النتائج
     pre_result_id = db.Column(db.Integer, db.ForeignKey('diagnostic_results.id'), nullable=True)

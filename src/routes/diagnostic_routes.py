@@ -866,7 +866,7 @@ def start_test(test_id):
         
         # التحقق من عدم وجود نتيجة سابقة مكتملة
         existing = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=test_id,
+            diagnostic_diagnostic_test_id=test_id,
             student_id=student_id,
             status='completed'
         ).first()
@@ -880,13 +880,13 @@ def start_test(test_id):
         
         # إنشاء أو تحديث نتيجة
         result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=test_id,
+            diagnostic_diagnostic_test_id=test_id,
             student_id=student_id
         ).first()
         
         if not result:
             result = DiagnosticResult(
-                diagnostic_test_id=test_id,
+                diagnostic_diagnostic_test_id=test_id,
                 student_id=student_id,
                 total_questions=test.questions_count
             )
@@ -898,17 +898,7 @@ def start_test(test_id):
         
         # جلب الأسئلة
         questions = []
-        for q in test.questions:
-            question_dict = {
-                'id': q.id,
-                'question_text': q.question_text,
-                'options': []
-            }
-            for opt in q.options:
-                question_dict['options'].append({
-                    'option_text': opt.option_text
-                })
-            questions.append(question_dict)
+        questions = test.questions_data or []
         
         return jsonify({
             'success': True,
@@ -947,7 +937,7 @@ def submit_test(result_id):
         if result.status == 'completed':
             return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
         
-        test = result.diagnostic_test
+        test = result.test
         questions = test.questions_data or []
         
         # تصحيح الإجابات
