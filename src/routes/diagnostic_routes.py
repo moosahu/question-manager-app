@@ -1629,7 +1629,7 @@ def get_diagnostic_stats():
 print("🧪 Diagnostic Tests System with Scheduling - Loaded successfully!")
 
 
-@diagnostic_bp.route('/api/diagnostic/results', methods=['GET'])
+@diagnostic_bp.route('/results', methods=['GET'])
 def get_all_results():
     """جلب جميع النتائج"""
     try:
