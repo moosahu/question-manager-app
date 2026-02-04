@@ -979,7 +979,7 @@ def submit_test(result_id):
         result.status = 'completed'
         
         # تحليل النتيجة
-        context = {'name': test.lesson.name if test.lesson else (test.unit.name if test.unit else 'عام')}
+        context = {'name': test.lesson_name or test.unit_name or 'عام'}
         analysis = diagnostic_service.analyze_result(result, context, test.test_type)
         
         result.ai_analysis = analysis.get('analysis', '')
@@ -1054,7 +1054,7 @@ def compare_tests():
         
         # المقارنة
         pre_test = DiagnosticTest.query.get(pre_test_id)
-        context = {'name': pre_test.lesson.name if pre_test.lesson else 'عام'}
+        context = {'name': pre_test.lesson_name or 'عام'}
         
         comparison_data = diagnostic_service.compare_results(pre_result, post_result, context)
         
