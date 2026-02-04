@@ -943,26 +943,34 @@ def submit_test(result_id):
         corrected = []
         correct_count = 0
         
-        for ans in answers:
+        for i, ans in enumerate(answers):
             q_id = ans.get('question_id')
-            selected_id = ans.get('selected_option_id')
+            selected_answer = ans.get('selected_answer')  # index من Flutter
             
-            # البحث عن السؤال
-            question = next((q for q in questions if q.get('question_id') == q_id), None)
+            # البحث عن السؤال بالـ ID أو index
+            question = None
+            if q_id is not None and not isinstance(q_id, int) or (isinstance(q_id, int) and q_id < len(questions)):
+                # محاولة بالـ ID
+                question = next((q for q in questions if q.get('id') == q_id or q.get('question_id') == q_id), None)
             
-            if question:
+            # إذا ما لقينا، استخدم index
+            if not question and i < len(questions):
+                question = questions[i]
+            
+            if question and selected_answer is not None:
                 # البحث عن الإجابة الصحيحة
-                correct_opt = next((o for o in question.get('options', []) if o.get('is_correct')), None)
-                is_correct = str(selected_id) == str(correct_opt.get('id')) if correct_opt else False
+                options = question.get('options', [])
+                correct_opt_index = next((i for i, o in enumerate(options) if o.get('is_correct')), None)
+                is_correct = (selected_answer == correct_opt_index)
                 
                 if is_correct:
                     correct_count += 1
                 
                 corrected.append({
                     'question_id': q_id,
-                    'question_text': question.get('text', ''),
-                    'selected_option_id': selected_id,
-                    'correct_option_id': correct_opt.get('id') if correct_opt else None,
+                    'question_text': question.get('question_text') or question.get('text', ''),
+                    'selected_answer': selected_answer,
+                    'correct_answer': correct_opt_index,
                     'is_correct': is_correct,
                     'time_spent': ans.get('time_spent', 0),
                     'topic': question.get('lesson_name', '')
@@ -972,7 +980,9 @@ def submit_test(result_id):
         result.answers = corrected
         result.score = correct_count
         result.total_questions = len(corrected)
-        result.score_percentage = (correct_count / len(corrected) * 100) if corrected else 0
+        result.correct_answers = correct_count
+        result.percentage = (correct_count / len(corrected) * 100) if corrected else 0
+        result.score_percentage = result.percentage
         result.passed = result.score_percentage >= test.passing_score
         result.completed_at = datetime.utcnow()
         result.time_spent_seconds = sum(a.get('time_spent', 0) for a in corrected)
