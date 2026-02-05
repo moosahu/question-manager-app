@@ -37,6 +37,22 @@ except ImportError:
         Notification = None
         print("⚠️ Notification model غير متوفر - الإشعارات لن تُحفظ في قاعدة البيانات")
 
+# ✅ استيراد StudentNotification (جدول الربط بين الطالب والإشعار)
+try:
+    from src.models.student_notification import StudentNotification
+except ImportError:
+    try:
+        from models.student_notification import StudentNotification
+    except:
+        try:
+            from src.models.notification import StudentNotification
+        except:
+            try:
+                from models.notification import StudentNotification
+            except:
+                StudentNotification = None
+                print("⚠️ StudentNotification model غير متوفر")
+
 # ✅ خدمة الإشعارات
 try:
     from src.services.notification_service import NotificationService
@@ -51,31 +67,51 @@ diagnostic_bp = Blueprint('diagnostic', __name__, url_prefix='/api/diagnostic')
 
 
 def _save_notification_to_db(student_id, title, message, notification_type='reminder', data=None):
-    """حفظ الإشعار في قاعدة البيانات ليظهر في صفحة الإشعارات"""
+    """
+    حفظ الإشعار في قاعدة البيانات ليظهر في صفحة الإشعارات
+    ✅ يحفظ في جدولين: Notification + StudentNotification (نفس طريقة إشعارات الأدمن)
+    """
     try:
         if Notification is None:
             print(f"⚠️ Notification model غير متوفر - لن يتم حفظ الإشعار في DB")
             return False
         
+        # 1️⃣ إنشاء سجل في جدول Notification
         notification = Notification(
             student_id=student_id,
             title=title,
             message=message,
+            body=message,  # بعض الأماكن تقرأ body بدل message
             notification_type=notification_type,
-            type=notification_type,  # الموديل فيه حقلين: type و notification_type
+            type=notification_type,
             is_read=False,
             status='delivered',
             sent_at=datetime.utcnow(),
         )
         
-        # إضافة data إذا موجودة
         if data:
             notification.data = data
         
         db.session.add(notification)
+        db.session.flush()  # للحصول على notification.id
+        
+        # 2️⃣ إنشاء سجل في جدول StudentNotification (الربط بين الطالب والإشعار)
+        if StudentNotification is not None:
+            student_notif = StudentNotification(
+                student_id=student_id,
+                notification_id=notification.id,
+                is_read=False,
+            )
+            db.session.add(student_notif)
+            print(f"  ✅ تم إنشاء Notification #{notification.id} + StudentNotification للطالب {student_id}")
+        else:
+            print(f"  ✅ تم إنشاء Notification #{notification.id} للطالب {student_id} (بدون StudentNotification)")
+        
         return True
     except Exception as e:
         print(f"❌ خطأ في حفظ الإشعار في DB: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
