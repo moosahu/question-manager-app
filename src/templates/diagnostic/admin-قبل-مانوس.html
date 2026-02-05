@@ -1,5 +1,31 @@
 {% extends "base.html" %}
 
+    
+    <!-- Tab: Results -->
+    <div id="tab-results" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 نتائج الاختبارات</h3>
+                <button class="btn btn-sm btn-primary" onclick="loadAllResults()">🔄 تحديث</button>
+            </div>
+            <div class="card-body">
+                <div style="margin-bottom: 1rem;">
+                    <label>فلتر حسب الطالب:</label>
+                    <select class="form-control" id="filter_student" onchange="loadAllResults()" style="max-width: 300px;">
+                        <option value="">جميع الطلاب</option>
+                    </select>
+                </div>
+                
+                <div id="results-list">
+                    <p style="text-align: center; color: #6b7280; padding: 2rem;">
+                        جاري التحميل...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div> <!-- End tab-tests -->
+
 {% block title %}الاختبارات التشخيصية{% endblock %}
 
 {% block extra_css %}
@@ -621,42 +647,6 @@
         z-index: 1;
         clear: both;
     }
-    
-    /* Results Table Styles */
-    .table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-    
-    .table thead {
-        background: #f9fafb;
-    }
-    
-    .table th {
-        padding: 1rem;
-        text-align: right;
-        font-weight: 600;
-        color: #374151;
-        border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .table td {
-        padding: 1rem;
-        text-align: right;
-        border-bottom: 1px solid #e5e7eb;
-        color: #1f2937;
-    }
-    
-    .table tbody tr:hover {
-        background: #f9fafb;
-    }
-    
-    .table tbody tr:last-child td {
-        border-bottom: none;
-    }
 
 </style>
 {% endblock %}
@@ -946,32 +936,6 @@
         </div>
     </div>
 </div>
-
-    <!-- Tab: Results -->
-    <div id="tab-results" class="tab-content">
-        <div class="card">
-            <div class="card-header">
-                <h3>📊 نتائج الاختبارات</h3>
-                <button class="btn btn-sm btn-primary" onclick="loadAllResults()">🔄 تحديث</button>
-            </div>
-            <div class="card-body">
-                <div style="margin-bottom: 1rem;">
-                    <label>فلتر حسب الطالب:</label>
-                    <select class="form-control" id="filter_student" onchange="loadAllResults()" style="max-width: 300px;">
-                        <option value="">جميع الطلاب</option>
-                    </select>
-                </div>
-                
-                <div id="results-list">
-                    <p style="text-align: center; color: #6b7280; padding: 2rem;">
-                        جاري التحميل...
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div> <!-- End container -->
 
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loading">
