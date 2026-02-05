@@ -1662,7 +1662,7 @@
         else if (tabName === 'results') loadAllResults();
         else if (tabName === 'schedule') { 
             loadTestsForSchedule(); 
-            loadStudentsForSchedule();
+            loadStudents(); // ✅ تحميل الطلاب
             loadGrades(); // ✅ تحميل الصفوف الدراسية
         }
     };
