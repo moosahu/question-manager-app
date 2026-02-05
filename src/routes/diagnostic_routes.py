@@ -1397,11 +1397,16 @@ def assign_test():
                     from datetime import datetime as dt_parse
                     start_dt = dt_parse.fromisoformat(scheduled_start.replace('Z', ''))
                     end_dt = dt_parse.fromisoformat(scheduled_end.replace('Z', ''))
-                    start_hour = start_dt.strftime('%I:%M')
-                    start_period = 'م' if start_dt.hour >= 12 else 'ص'
-                    end_hour = end_dt.strftime('%I:%M')
-                    end_period = 'م' if end_dt.hour >= 12 else 'ص'
-                    fcm_body = f'{test.title}\n⏰ من {start_hour} {start_period} إلى {end_hour} {end_period}'
+                    
+                    def _fmt_t(dt):
+                        h = dt.hour % 12 or 12
+                        p = 'م' if dt.hour >= 12 else 'ص'
+                        return f'{h}:{dt.minute:02d} {p}'
+                    
+                    if start_dt.date() == end_dt.date():
+                        fcm_body = f'{test.title}\n📅 {start_dt.day}/{start_dt.month} | 🕐 {_fmt_t(start_dt)} - {_fmt_t(end_dt)}'
+                    else:
+                        fcm_body = f'{test.title}\n🟢 {start_dt.day}/{start_dt.month} {_fmt_t(start_dt)}\n🔴 {end_dt.day}/{end_dt.month} {_fmt_t(end_dt)}'
                 except:
                     fcm_body = f'{test.title}'
                 
@@ -1432,19 +1437,37 @@ def assign_test():
                     start_dt = dt_parse.fromisoformat(scheduled_start.replace('Z', ''))
                     end_dt = dt_parse.fromisoformat(scheduled_end.replace('Z', ''))
                     
-                    # تنسيق عربي مقروء
-                    start_hour = start_dt.strftime('%I:%M')
-                    start_period = 'مساءً' if start_dt.hour >= 12 else 'صباحاً'
-                    end_hour = end_dt.strftime('%I:%M')
-                    end_period = 'مساءً' if end_dt.hour >= 12 else 'صباحاً'
-                    date_str = f"{start_dt.day}/{start_dt.month}/{start_dt.year}"
+                    def _format_period(hour):
+                        return 'مساءً' if hour >= 12 else 'صباحاً'
                     
-                    notification_message = (
-                        f'تم تعيين اختبار: {test.title}\n\n'
-                        f'📅 التاريخ: {date_str}\n'
-                        f'⏰ من {start_hour} {start_period} إلى {end_hour} {end_period}\n'
-                        f'⏱ المدة: {test.time_limit_minutes} دقيقة'
-                    )
+                    def _format_time_12h(dt):
+                        h = dt.hour % 12 or 12
+                        return f'{h}:{dt.minute:02d}'
+                    
+                    start_time = _format_time_12h(start_dt)
+                    start_p = _format_period(start_dt.hour)
+                    end_time = _format_time_12h(end_dt)
+                    end_p = _format_period(end_dt.hour)
+                    
+                    start_date_str = f'{start_dt.day}/{start_dt.month}/{start_dt.year}'
+                    end_date_str = f'{end_dt.day}/{end_dt.month}/{end_dt.year}'
+                    
+                    # إذا نفس اليوم
+                    if start_dt.date() == end_dt.date():
+                        notification_message = (
+                            f'تم تعيين اختبار: {test.title}\n\n'
+                            f'📅 التاريخ: {start_date_str}\n'
+                            f'🕐 البداية: {start_time} {start_p}\n'
+                            f'🕐 النهاية: {end_time} {end_p}\n'
+                            f'⏱ المدة: {test.time_limit_minutes} دقيقة'
+                        )
+                    else:
+                        notification_message = (
+                            f'تم تعيين اختبار: {test.title}\n\n'
+                            f'🟢 البداية: {start_date_str} - {start_time} {start_p}\n'
+                            f'🔴 النهاية: {end_date_str} - {end_time} {end_p}\n'
+                            f'⏱ المدة: {test.time_limit_minutes} دقيقة'
+                        )
                 except:
                     notification_message = f'تم تعيين اختبار: {test.title}'
                 
