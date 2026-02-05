@@ -396,56 +396,6 @@ def mark_notification_as_read(notification_id):
 
 # ==================== حفظ FCM Token ====================
 
-# ==================== حذف إشعار (للطالب) ====================
-
-@api_bp.route('/students/api/notifications/<int:notification_id>/delete', methods=['POST'])
-def delete_student_notification(notification_id):
-    """حذف إشعار للطالب (يُستخدم للحذف التلقائي بعد القراءة بيومين)"""
-    try:
-        data = request.get_json() or {}
-        student_id = data.get('student_id')
-
-        if not student_id:
-            return jsonify({
-                'success': False,
-                'message': 'student_id مطلوب'
-            }), 400
-
-        # حذف من StudentNotification
-        student_notification = StudentNotification.query.filter_by(
-            notification_id=notification_id,
-            student_id=student_id
-        ).first()
-
-        if student_notification:
-            db.session.delete(student_notification)
-
-        # حذف الإشعار الأصلي إذا كان خاص بهذا الطالب فقط
-        notification = Notification.query.get(notification_id)
-        if notification and notification.student_id == student_id:
-            # تأكد ما فيه طلاب ثانيين مرتبطين بنفس الإشعار
-            other_links = StudentNotification.query.filter(
-                StudentNotification.notification_id == notification_id,
-                StudentNotification.student_id != student_id
-            ).count()
-            
-            if other_links == 0:
-                db.session.delete(notification)
-
-        db.session.commit()
-        print(f'🗑️ تم حذف الإشعار {notification_id} للطالب {student_id}')
-        return jsonify({'success': True}), 200
-
-    except Exception as e:
-        db.session.rollback()
-        print(f'❌ خطأ في حذف الإشعار: {e}')
-        return jsonify({
-            'success': False,
-            'message': f'خطأ في الخادم: {str(e)}'
-        }), 500
-
-# ==================== حفظ FCM Token (الأصلي) ====================
-
 @api_bp.route('/students/api/fcm-token', methods=['POST'])
 def save_fcm_token():
     """حفظ FCM Token للطالب"""
