@@ -1279,6 +1279,7 @@ def assign_test():
         else:
             # طلاب محددين
             student_ids_list = student_ids if isinstance(student_ids, list) else [student_ids]
+            print(f"✅ تم اختيار {len(student_ids_list)} طالب محدد")
         
         # ✅ جديد: دعم الإضافة بدلاً من الاستبدال
         if append_students and test.assigned_students:
@@ -1287,6 +1288,9 @@ def assign_test():
             new_ids = set(student_ids_list)
             student_ids_list = list(existing_ids.union(new_ids))
             print(f"✅ تم إضافة طلاب جدد. الإجمالي: {len(student_ids_list)}")
+        else:
+            # استبدال القائمة بالكامل
+            print(f"✅ تم استبدال قائمة الطلاب. العدد: {len(student_ids_list)}")
         
         # تحديث الاختبار
         test.is_scheduled = True
