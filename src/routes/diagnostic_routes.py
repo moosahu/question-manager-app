@@ -1668,6 +1668,13 @@ def get_all_results():
                 if r.test:
                     result_dict['test_title'] = r.test.title
                     result_dict['test_type'] = r.test.test_type
+                
+                # جلب اسم الطالب
+                if r.student_id:
+                    student = Student.query.get(r.student_id)
+                    if student:
+                        result_dict['student_name'] = student.name
+                
                 results_data.append(result_dict)
             except Exception as e:
                 print(f"⚠️ Error processing result {r.id}: {e}")

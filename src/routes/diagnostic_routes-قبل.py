@@ -8,7 +8,7 @@ API للاختبارات التشخيصية
 
 from flask import Blueprint, request, jsonify, send_file, render_template, current_app
 from flask_login import login_required, current_user
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 import io
 import os
@@ -27,7 +27,38 @@ except ImportError:
     from models.curriculum import Lesson, Unit, Course
     from models.student import Student
 
+# ✅ خدمة الإشعارات
+try:
+    from src.services.notification_service import NotificationService
+except ImportError:
+    try:
+        from services.notification_service import NotificationService
+    except:
+        NotificationService = None
+        print("⚠️ NotificationService غير متوفر")
+
 diagnostic_bp = Blueprint('diagnostic', __name__, url_prefix='/api/diagnostic')
+
+
+
+def convert_saudi_to_utc(dt_string):
+    """تحويل وقت من السعودية (UTC+3) إلى UTC"""
+    try:
+        # إزالة Z أو timezone info
+        dt_string = dt_string.replace('Z', '').replace('+00:00', '')
+        
+        # parse التاريخ
+        dt = datetime.fromisoformat(dt_string)
+        
+        # السعودية = UTC + 3، نطرح 3 ساعات
+        dt_utc = dt - timedelta(hours=3)
+        
+        print(f"⏰ Converted {dt_string} (Saudi) → {dt_utc} (UTC)")
+        return dt_utc
+    except Exception as e:
+        print(f"⚠️ Error converting timezone: {e}")
+        # fallback - استخدم الوقت كما هو
+        return datetime.fromisoformat(dt_string.replace('Z', ''))
 
 
 def admin_required(f):
@@ -826,8 +857,24 @@ def start_test(test_id):
     try:
         data = request.get_json() or {}
         
-        # جلب student_id من التوكن أو الـ body
-        student_id = data.get('student_id')
+        # ✅ استخرج student_id من session cookie (كما في assigned tests)
+        student_id = None
+        
+        # 1. جرّب من session cookie
+        for cookie_name, cookie_value in request.cookies.items():
+            if cookie_name.startswith('student_session_'):
+                username = cookie_name.replace('student_session_', '')
+                student = Student.query.filter_by(username=username).first()
+                if student:
+                    student_id = student.id
+                    print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")
+                    break
+        
+        # 2. جرّب من body
+        if not student_id:
+            student_id = data.get('student_id')
+        
+        # 3. جرّب من current_user
         if not student_id and current_user.is_authenticated:
             student_id = current_user.id
         
@@ -870,11 +917,16 @@ def start_test(test_id):
         result.status = 'in_progress'
         db.session.commit()
         
+        # جلب الأسئلة
+        questions = []
+        questions = test.questions_data or []
+        
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
             'result_id': result.id,
-            'test': test.to_dict(include_questions=True)
+            'questions': questions,
+            'time_limit_minutes': test.time_limit_minutes
         })
         
     except Exception as e:
@@ -898,6 +950,7 @@ def submit_test(result_id):
     try:
         data = request.get_json() or {}
         answers = data.get('answers', [])
+        print(f"📝 Submit - result_id: {result_id}, answers: {len(answers)}")
         
         result = DiagnosticResult.query.get(result_id)
         if not result:
@@ -906,50 +959,60 @@ def submit_test(result_id):
         if result.status == 'completed':
             return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
         
-        test = result.diagnostic_test
+        test = result.test
         questions = test.questions_data or []
         
         # تصحيح الإجابات
         corrected = []
         correct_count = 0
         
-        for ans in answers:
-            q_id = ans.get('question_id')
-            selected_id = ans.get('selected_option_id')
+        # ✅ استخدم index-based correction
+        for i, ans in enumerate(answers):
+            selected_answer = ans.get('selected_answer')  # index من Flutter
             
-            # البحث عن السؤال
-            question = next((q for q in questions if q.get('question_id') == q_id), None)
+            # استخدام index للوصول للسؤال
+            if i >= len(questions):
+                continue
             
-            if question:
-                # البحث عن الإجابة الصحيحة
-                correct_opt = next((o for o in question.get('options', []) if o.get('is_correct')), None)
-                is_correct = str(selected_id) == str(correct_opt.get('id')) if correct_opt else False
-                
-                if is_correct:
-                    correct_count += 1
-                
-                corrected.append({
-                    'question_id': q_id,
-                    'question_text': question.get('text', ''),
-                    'selected_option_id': selected_id,
-                    'correct_option_id': correct_opt.get('id') if correct_opt else None,
-                    'is_correct': is_correct,
-                    'time_spent': ans.get('time_spent', 0),
-                    'topic': question.get('lesson_name', '')
-                })
+            question = questions[i]
+            options = question.get('options', [])
+            
+            # البحث عن الإجابة الصحيحة بالـ index
+            correct_index = None
+            for opt_idx, opt in enumerate(options):
+                if opt.get('is_correct'):
+                    correct_index = opt_idx
+                    break
+            
+            is_correct = (selected_answer == correct_index) if selected_answer is not None else False
+            
+            if is_correct:
+                correct_count += 1
+            
+            corrected.append({
+                'question_id': i,
+                'question_text': question.get('text', question.get('question_text', '')),
+                'selected_answer': selected_answer,
+                'correct_answer': correct_index,
+                'is_correct': is_correct,
+                'time_spent': ans.get('time_spent', 0),
+                'topic': question.get('lesson_name', '')
+            })
         
         # تحديث النتيجة
         result.answers = corrected
         result.score = correct_count
         result.total_questions = len(corrected)
-        result.score_percentage = (correct_count / len(corrected) * 100) if corrected else 0
+        result.correct_answers = correct_count
+        result.percentage = (correct_count / len(corrected) * 100) if corrected else 0
+        result.score_percentage = result.percentage
         result.passed = result.score_percentage >= test.passing_score
         result.completed_at = datetime.utcnow()
         result.time_spent_seconds = sum(a.get('time_spent', 0) for a in corrected)
         result.status = 'completed'
         
         # تحليل النتيجة
-        context = {'name': test.lesson.name if test.lesson else (test.unit.name if test.unit else 'عام')}
+        context = {'name': test.lesson_name or test.unit_name or 'عام'}
         analysis = diagnostic_service.analyze_result(result, context, test.test_type)
         
         result.ai_analysis = analysis.get('analysis', '')
@@ -1005,13 +1068,13 @@ def compare_tests():
         
         # جلب النتائج
         pre_result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=pre_test_id,
+            test_id=pre_test_id,
             student_id=student_id,
             status='completed'
         ).first()
         
         post_result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=post_test_id,
+            test_id=post_test_id,
             student_id=student_id,
             status='completed'
         ).first()
@@ -1024,7 +1087,7 @@ def compare_tests():
         
         # المقارنة
         pre_test = DiagnosticTest.query.get(pre_test_id)
-        context = {'name': pre_test.lesson.name if pre_test.lesson else 'عام'}
+        context = {'name': pre_test.lesson_name or 'عام'}
         
         comparison_data = diagnostic_service.compare_results(pre_result, post_result, context)
         
@@ -1149,3 +1212,473 @@ def delete_test(test_id):
 def admin_page():
     """صفحة إدارة الاختبارات التشخيصية"""
     return render_template('diagnostic/admin.html')
+
+
+# =====================================================
+# ✅ Routes الجدولة والإسناد (مضافة - جديدة)
+# =====================================================
+
+@diagnostic_bp.route('/scheduled', methods=['GET'])
+@login_required
+@admin_required
+def get_scheduled_tests():
+    """جلب الاختبارات المجدولة"""
+    try:
+        tests = DiagnosticTest.query.filter_by(
+            is_scheduled=True,
+            is_active=True
+        ).order_by(DiagnosticTest.scheduled_start.desc()).all()
+        
+        # تحديث حالة كل اختبار
+        for test in tests:
+            if hasattr(test, 'update_schedule_status'):
+                test.update_schedule_status()
+        db.session.commit()
+        
+        return jsonify({
+            'scheduled_tests': [test.to_dict() for test in tests]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting scheduled tests: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/assign', methods=['POST'])
+@login_required
+@admin_required
+def assign_test():
+    """إسناد اختبار لطلاب مع جدولة"""
+    try:
+        data = request.get_json()
+        test_id = data.get('test_id')
+        student_ids = data.get('student_ids')
+        scheduled_start = data.get('scheduled_start')
+        scheduled_end = data.get('scheduled_end')
+        time_limit = data.get('time_limit_minutes', 30)
+        send_notification = data.get('send_notification', True)
+        
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'error': 'Test not found'}), 404
+        
+        # تحضير قائمة الطلاب
+        if student_ids == 'all':
+            students = Student.query.filter_by(is_active=True).all()
+            student_ids_list = [s.id for s in students]
+        else:
+            student_ids_list = student_ids
+        
+        # تحديث الاختبار
+        test.is_scheduled = True
+        test.scheduled_start = convert_saudi_to_utc(scheduled_start)
+        test.scheduled_end = convert_saudi_to_utc(scheduled_end)
+        test.assigned_students = student_ids_list
+        test.time_limit_minutes = time_limit
+        test.schedule_status = 'pending'
+        
+        if hasattr(test, 'update_schedule_status'):
+            test.update_schedule_status()
+        
+        db.session.commit()
+        
+        # إرسال إشعارات
+        if send_notification and NotificationService:
+            try:
+                students = Student.query.filter(
+                    Student.id.in_(student_ids_list),
+                    Student.fcm_token.isnot(None)
+                ).all()
+                
+                # ✅ استخدام NotificationService
+                success_count = 0
+                for student in students:
+                    if student.fcm_token:
+                        result = NotificationService.send_fcm_notification(
+                            student.fcm_token,
+                            '📝 اختبار تشخيصي جديد',
+                            f'{test.title}\n\nالوقت: من {scheduled_start[:16]} إلى {scheduled_end[:16]}',
+                            {
+                                'type': 'diagnostic_test',
+                                'test_id': str(test.id),
+                                'scheduled_start': scheduled_start,
+                                'scheduled_end': scheduled_end,
+                                'time_limit_minutes': str(test.time_limit_minutes)
+                            }
+                        )
+                        if result:
+                            success_count += 1
+                
+                print(f"✅ تم إرسال {success_count}/{len(students)} إشعار")
+                
+                if success_count > 0:
+                    test.notification_sent = True
+                    test.notification_sent_at = datetime.utcnow()
+                    db.session.commit()
+                
+            except Exception as e:
+                print(f"⚠️ Error sending notifications: {e}")
+        
+        return jsonify({
+            'message': 'Test assigned successfully',
+            'test': test.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error assigning test: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/student/assigned', methods=['GET', 'POST'])
+def get_student_assigned_tests():
+    """اختبارات الطالب المخصصة (للتطبيق والويب)"""
+    try:
+        # جرب جميع الطرق للحصول على student_id
+        student_id = None
+        
+        # 1. من query parameter (GET)
+        student_id = request.args.get('student_id', type=int)
+        
+        # 2. من body (POST)
+        if not student_id and request.method == 'POST':
+            data = request.get_json() or {}
+            student_id = data.get('student_id')
+            if student_id:
+                student_id = int(student_id)
+        
+        # 3. من headers
+        if not student_id:
+            header_id = request.headers.get('X-Student-ID') or request.headers.get('Student-ID')
+            if header_id:
+                try:
+                    student_id = int(header_id)
+                except:
+                    pass
+        
+        # 4. من cookies (للتطبيق Flutter)
+        if not student_id:
+            # جرب cookie مباشر
+            cookie_id = request.cookies.get('student_id')
+            if cookie_id:
+                try:
+                    student_id = int(cookie_id)
+                    print(f"📱 Got student_id from cookie: {student_id}")
+                except:
+                    pass
+            
+            # جرب استخراج من session cookie
+            if not student_id:
+                for cookie_name, cookie_value in request.cookies.items():
+                    # ابحث عن pattern: student_session_{username}
+                    if cookie_name.startswith('student_session_'):
+                        print(f"🔍 Found session cookie: {cookie_name}")
+                        # جرب query الـ database
+                        try:
+                            username = cookie_name.replace('student_session_', '')
+                            student = Student.query.filter_by(username=username).first()
+                            if student:
+                                student_id = student.id
+                                print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")
+                                break
+                        except Exception as e:
+                            print(f"⚠️ Error extracting from session cookie: {e}")
+                            pass
+        
+        # 5. من session (Flask session)
+        if not student_id:
+            from flask import session
+            session_id = session.get('student_id') or session.get('user_id')
+            if session_id:
+                try:
+                    student_id = int(session_id)
+                    print(f"📱 Got student_id from session: {student_id}")
+                except:
+                    pass
+        
+        # 6. من current_user (للويب)
+        if not student_id:
+            try:
+                if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                    student_id = current_user.id
+                    print(f"📱 Got student_id from current_user: {student_id}")
+            except:
+                pass
+        
+        print(f"📱 Getting assigned tests - Methods tried:")
+        print(f"  - Query param: {request.args.get('student_id')}")
+        print(f"  - Body: {request.get_json() if request.method == 'POST' else 'N/A'}")
+        print(f"  - Header X-Student-ID: {request.headers.get('X-Student-ID')}")
+        print(f"  - Header Student-ID: {request.headers.get('Student-ID')}")
+        print(f"  - Cookie student_id: {request.cookies.get('student_id')}")
+        print(f"  - All cookies: {list(request.cookies.keys())}")
+        print(f"  - Final student_id: {student_id}")
+        
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'student_id required',
+                'message_ar': 'يرجى تحديث التطبيق أو إرسال student_id',
+                'hint': 'Send student_id as: ?student_id=7 (query parameter)',
+                'fix_flutter': 'في diagnostic_service.dart أضف: ?student_id=$studentId في الـ URL',
+                'example_url': '/api/diagnostic/student/assigned?student_id=7',
+                'debug': {
+                    'cookies_received': list(request.cookies.keys()),
+                    'all_headers': {k: v for k, v in request.headers.items() if k.lower() not in ['cookie', 'authorization']}
+                }
+            }), 400
+        
+        print(f"✅ Getting assigned tests for student {student_id}")
+        
+        tests = DiagnosticTest.query.filter(
+            DiagnosticTest.is_scheduled == True,
+            DiagnosticTest.is_active == True
+        ).all()
+        
+        print(f"📋 Found {len(tests)} scheduled tests")
+        
+        # فلتر الاختبارات حسب الطالب
+        assigned_tests = []
+        for test in tests:
+            print(f"🔍 Test {test.id}: assigned_students={test.assigned_students}")
+            
+            # تحقق من الإسناد
+            is_assigned = False
+            
+            if not test.assigned_students or test.assigned_students == 'all':
+                is_assigned = True
+            elif test.assigned_students:
+                if isinstance(test.assigned_students, list):
+                    is_assigned = student_id in test.assigned_students
+                elif isinstance(test.assigned_students, str):
+                    import json
+                    try:
+                        students_list = json.loads(test.assigned_students)
+                        is_assigned = student_id in students_list
+                    except:
+                        is_assigned = str(student_id) in test.assigned_students or (student_id == int(test.assigned_students) if test.assigned_students.isdigit() else False)
+            
+            print(f"  → Assigned: {is_assigned}")
+            
+            if is_assigned:
+                is_available = True
+                if test.scheduled_start and test.scheduled_end:
+                    now = datetime.utcnow()
+                    
+                    # إزالة timezone للمقارنة الصحيحة
+                    start = test.scheduled_start.replace(tzinfo=None) if test.scheduled_start.tzinfo else test.scheduled_start
+                    end = test.scheduled_end.replace(tzinfo=None) if test.scheduled_end.tzinfo else test.scheduled_end
+                    
+                    is_available = start <= now <= end
+                    
+                    print(f"  → Available (time): {is_available}")
+                    print(f"     Now (UTC): {now}")
+                    print(f"     Start: {start}")
+                    print(f"     End: {end}")
+                
+                if is_available:
+                    assigned_tests.append(test)
+        
+        print(f"✅ Returning {len(assigned_tests)} assigned tests")
+        
+        return jsonify({
+            'success': True,
+            'assigned_tests': [test.to_dict() for test in assigned_tests]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting student tests: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/cancel-schedule', methods=['POST'])
+@login_required
+@admin_required
+def cancel_schedule(test_id):
+    """إلغاء جدولة اختبار"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'error': 'Test not found'}), 404
+        
+        test.is_scheduled = False
+        test.schedule_status = 'cancelled'
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Schedule cancelled successfully',
+            'test': test.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error cancelling schedule: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/send-notification', methods=['POST'])
+@login_required
+@admin_required
+def resend_notification(test_id):
+    """إعادة إرسال إشعار"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'error': 'Test not found'}), 404
+        
+        if not test.is_scheduled or not test.assigned_students:
+            return jsonify({'error': 'Test not scheduled or no students assigned'}), 400
+        
+        try:
+            if not NotificationService:
+                return jsonify({'error': 'Notification service not available'}), 500
+            
+            students = Student.query.filter(
+                Student.id.in_(test.assigned_students),
+                Student.fcm_token.isnot(None)
+            ).all()
+            
+            # ✅ استخدام NotificationService
+            success_count = 0
+            for student in students:
+                if student.fcm_token:
+                    result = NotificationService.send_fcm_notification(
+                        student.fcm_token,
+                        '📝 اختبار تشخيصي',
+                        f'{test.title}',
+                        {
+                            'type': 'diagnostic_test',
+                            'test_id': str(test.id)
+                        }
+                    )
+                    if result:
+                        success_count += 1
+            
+            test.notification_sent = True
+            test.notification_sent_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'message': f'Notifications sent to {success_count} students',
+                'success_count': success_count
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Error sending notifications: {e}")
+            return jsonify({'error': str(e)}), 500
+        
+    except Exception as e:
+        print(f"❌ Error in resend_notification: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# ✅ Routes مساعدة للصفحة (مضافة - جديدة)
+# =====================================================
+
+@diagnostic_bp.route('/lessons', methods=['GET'])
+def get_lessons():
+    """جلب قائمة الدروس"""
+    try:
+        lessons = Lesson.query.filter_by(is_active=True).all()
+        return jsonify({
+            'lessons': [{'id': l.id, 'name': l.name, 'unit_id': l.unit_id} for l in lessons]
+        }), 200
+    except Exception as e:
+        print(f"❌ Error getting lessons: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/students', methods=['GET'])
+def get_students():
+    """جلب قائمة الطلاب"""
+    try:
+        students = Student.query.filter_by(is_active=True).all()
+        return jsonify({
+            'students': [{'id': s.id, 'name': s.name, 'grade': getattr(s, 'grade', None)} for s in students]
+        }), 200
+    except Exception as e:
+        print(f"❌ Error getting students: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ✅ تحسين route الإحصائيات (معدل)
+@diagnostic_bp.route('/stats', methods=['GET'])
+@login_required
+@admin_required
+def get_diagnostic_stats():
+    """إحصائيات الاختبارات التشخيصية"""
+    try:
+        total_tests = DiagnosticTest.query.filter_by(is_active=True).count()
+        
+        stats = {
+            'total_tests': total_tests,
+            'pre_tests': DiagnosticTest.query.filter_by(
+                test_type='pre_test', 
+                is_active=True
+            ).count(),
+            'post_tests': DiagnosticTest.query.filter_by(
+                test_type='post_test',
+                is_active=True
+            ).count(),
+            'scheduled_tests': 0  # قيمة افتراضية
+        }
+        
+        # إحصائيات الجدولة (إذا كانت متوفرة)
+        try:
+            stats['scheduled_tests'] = DiagnosticTest.query.filter_by(
+                is_scheduled=True,
+                is_active=True
+            ).count()
+        except:
+            pass
+        
+        return jsonify(stats), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        return jsonify({
+            'total_tests': 0,
+            'pre_tests': 0,
+            'post_tests': 0,
+            'scheduled_tests': 0
+        }), 200
+
+
+print("🧪 Diagnostic Tests System with Scheduling - Loaded successfully!")
+
+
+@diagnostic_bp.route('/results', methods=['GET'])
+def get_all_results():
+    """جلب جميع النتائج"""
+    try:
+        # جلب آخر 50 نتيجة
+        results = DiagnosticResult.query\
+            .order_by(DiagnosticResult.completed_at.desc())\
+            .limit(50)\
+            .all()
+        
+        results_data = []
+        for r in results:
+            try:
+                result_dict = r.to_dict()
+                # إضافة معلومات الاختبار
+                if r.test:
+                    result_dict['test_title'] = r.test.title
+                    result_dict['test_type'] = r.test.test_type
+                results_data.append(result_dict)
+            except Exception as e:
+                print(f"⚠️ Error processing result {r.id}: {e}")
+                continue
+        
+        return jsonify({
+            'success': True,
+            'results': results_data,
+            'count': len(results_data)
+        })
+    except Exception as e:
+        print(f"❌ Error getting results: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+

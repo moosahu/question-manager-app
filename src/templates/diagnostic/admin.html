@@ -1575,7 +1575,7 @@
                         ${results.map(r => `
                             <tr>
                                 <td>${r.test_title || 'N/A'}</td>
-                                <td>${r.student_name || r.student_id}</td>
+                                <td>${r.student_name || `طالب #${r.student_id}`}</td>
                                 <td>${r.score || 0} / ${r.total_questions || 0}</td>
                                 <td>
                                     <span style="color: ${(r.percentage || 0) >= 60 ? '#10b981' : '#ef4444'}">
