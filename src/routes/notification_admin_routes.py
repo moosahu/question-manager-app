@@ -2,6 +2,7 @@
 notification_admin_routes.py
 
 إدارة الإشعارات - واجهة ويب + API للتطبيق
+✅ مع دعم badge لـ iOS + حذف الإشعارات + تعليم الكل كمقروء
 """
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, Blueprint
@@ -200,6 +201,12 @@ def send_notification():
                     success_count += 1
                 elif FCM_ENABLED:
                     try:
+                        # ✅ حساب عدد الإشعارات غير المقروءة لهذا الطالب
+                        unread_count = StudentNotification.query.filter_by(
+                            student_id=student.id,
+                            is_read=False
+                        ).count() + 1  # +1 للإشعار الجديد اللي لسه ما انحفظ
+
                         message = messaging.Message(
                             notification=messaging.Notification(
                                 title=title,
@@ -217,49 +224,38 @@ def send_notification():
                                 payload=messaging.APNSPayload(
                                     aps=messaging.Aps(
                                         sound='default',
+                                        badge=unread_count,  # ✅ عدد الإشعارات غير المقروءة على أيقونة التطبيق
                                     ),
                                 ),
                             ),
                         )
                         response = messaging.send(message)
-                        print(f'✅ Push notification sent to {student.username}')
+                        print(f'✅ Push notification sent to {student.username} (badge: {unread_count})')
                         success_count += 1
                     except messaging.UnregisteredError:
                         print(f'⚠️ Invalid FCM token for {student.username}')
                         failed_tokens.append(student.id)
                         success_count += 1  # الإشعار محفوظ في DB
-                    except messaging.InvalidArgumentError as e:
-                        print(f'❌ Invalid argument error for {student.username}: {e}')
-                        # هذا قد يكون SenderId mismatch
+                    except messaging.SenderIdMismatchError:
+                        print(f'⚠️ Sender ID mismatch for {student.username}')
                         failed_tokens.append(student.id)
                         success_count += 1
                     except Exception as fcm_error:
-                        error_msg = str(fcm_error)
-                        print(f'❌ خطأ في إرسال الإشعار للطالب {student.username}: {error_msg}')
-                        # إذا كان SenderId mismatch، احذف الـ token
-                        if 'SenderId mismatch' in error_msg or 'mismatched' in error_msg.lower():
-                            print(f'⚠️ SenderId mismatch detected - deleting invalid token')
-                            failed_tokens.append(student.id)
-                            success_count += 1  # الإشعار محفوظ في DB
-                        else:
-                            # FCM فشل فعليًا
-                            failed_count += 1
+                        print(f'⚠️ FCM error for {student.username}: {fcm_error}')
+                        failed_count += 1
                 else:
-                    # FCM غير مفعل - الإشعار محفوظ في DB فقط
+                    # FCM غير مفعل لكن الإشعار محفوظ
                     success_count += 1
 
-            except Exception as e:
-                print(f'❌ خطأ في معالجة الطالب {student.username}: {e}')
+            except Exception as student_error:
+                print(f'❌ Error sending to student {student.id}: {student_error}')
                 failed_count += 1
 
-        # تحديث عداد الإرسال في الإشعار
-        notification.sent_count = sent_count
-        notification.success_count = success_count
+        # حفظ كل شيء
         db.session.commit()
 
-        # حذف FCM tokens غير صالحة
+        # تنظيف FCM tokens غير صالحة
         if failed_tokens:
-            from models.student_model import Student
             for student_id in failed_tokens:
                 student_obj = Student.query.get(student_id)
                 if student_obj:
@@ -394,9 +390,47 @@ def mark_notification_as_read(notification_id):
             'message': f'خطأ في الخادم: {str(e)}'
         }), 500
 
-# ==================== حفظ FCM Token ====================
+# ==================== ✅ تعليم كل الإشعارات كمقروءة ====================
 
-# ==================== حذف إشعار (للطالب) ====================
+@api_bp.route('/students/api/notifications/mark-all-read', methods=['POST'])
+def mark_all_notifications_as_read():
+    """تعليم كل إشعارات الطالب كمقروءة دفعة واحدة"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'message': 'student_id مطلوب'
+            }), 400
+
+        # تحديث كل الإشعارات غير المقروءة دفعة واحدة
+        updated = StudentNotification.query.filter_by(
+            student_id=student_id,
+            is_read=False
+        ).update({
+            'is_read': True,
+            'read_at': datetime.utcnow()
+        }, synchronize_session=False)
+
+        db.session.commit()
+
+        print(f'✅ تم تعليم {updated} إشعار كمقروء للطالب {student_id}')
+        return jsonify({
+            'success': True,
+            'updated_count': updated
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f'❌ خطأ في تعليم الكل كمقروء: {e}')
+        return jsonify({
+            'success': False,
+            'message': f'خطأ في الخادم: {str(e)}'
+        }), 500
+
+# ==================== ✅ حذف إشعار (للطالب) ====================
 
 @api_bp.route('/students/api/notifications/<int:notification_id>/delete', methods=['POST'])
 def delete_student_notification(notification_id):
@@ -420,15 +454,14 @@ def delete_student_notification(notification_id):
         if student_notification:
             db.session.delete(student_notification)
 
-        # حذف الإشعار الأصلي إذا كان خاص بهذا الطالب فقط
+        # حذف الإشعار الأصلي إذا ما فيه طلاب ثانيين مرتبطين فيه
         notification = Notification.query.get(notification_id)
-        if notification and notification.student_id == student_id:
-            # تأكد ما فيه طلاب ثانيين مرتبطين بنفس الإشعار
+        if notification:
             other_links = StudentNotification.query.filter(
                 StudentNotification.notification_id == notification_id,
                 StudentNotification.student_id != student_id
             ).count()
-            
+
             if other_links == 0:
                 db.session.delete(notification)
 
@@ -444,7 +477,7 @@ def delete_student_notification(notification_id):
             'message': f'خطأ في الخادم: {str(e)}'
         }), 500
 
-# ==================== حفظ FCM Token (الأصلي) ====================
+# ==================== حفظ FCM Token ====================
 
 @api_bp.route('/students/api/fcm-token', methods=['POST'])
 def save_fcm_token():
@@ -530,6 +563,62 @@ def delete_fcm_token():
         return jsonify({
             'success': False,
             'message': f'خطأ في الخادم: {str(e)}'
+        }), 500
+
+# ==================== ✅ نظرة عامة على الإشعارات (للأدمن) ====================
+
+@api_bp.route('/admin/notifications/overview', methods=['GET'])
+@login_required
+def get_admin_notifications_overview():
+    """جلب نظرة عامة على الإشعارات للأدمن"""
+    try:
+        if not current_user.is_admin:
+            return jsonify({
+                'success': False,
+                'message': 'غير مصرح'
+            }), 403
+
+        notifications = Notification.query.filter_by(
+            user_id=current_user.id
+        ).order_by(
+            Notification.created_at.desc()
+        ).limit(50).all()
+
+        notifications_list = []
+        for n in notifications:
+            # عدد الطلاب اللي وصلهم هذا الإشعار
+            total_sent = StudentNotification.query.filter_by(
+                notification_id=n.id
+            ).count()
+            total_read = StudentNotification.query.filter_by(
+                notification_id=n.id,
+                is_read=True
+            ).count()
+
+            notifications_list.append({
+                'id': n.id,
+                'title': n.title,
+                'body': n.body,
+                'created_at': n.created_at.isoformat() if n.created_at else None,
+                'recipient_type': n.recipient_type,
+                'total_sent': total_sent,
+                'total_read': total_read,
+            })
+
+        return jsonify({
+            'success': True,
+            'notifications': notifications_list,
+            'stats': {
+                'total': len(notifications_list),
+            }
+        }), 200
+
+    except Exception as e:
+        print(f'❌ خطأ في جلب إشعارات Admin: {e}')
+        return jsonify({
+            'success': False,
+            'message': f'خطأ: {str(e)}',
+            'notifications': []
         }), 500
 
 # =============================================================================
