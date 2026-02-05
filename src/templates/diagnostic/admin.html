@@ -842,11 +842,28 @@
                             <option value="">اختر اختبار...</option>
                         </select>
                     </div>
+                    
                     <div class="form-group">
-                        <label>الطلاب</label>
-                        <select class="form-control" id="schedule_students" required>
-                            <option value="all">جميع الطلاب</option>
+                        <label>طريقة الإرسال</label>
+                        <select class="form-control" id="schedule_send_type" onchange="updateStudentOptions()">
+                            <option value="all">🌐 جميع الطلاب</option>
+                            <option value="grade">🏛️ صف دراسي محدد</option>
+                            <option value="students">👥 طلاب محددين</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-group" id="grade_selector" style="display: none;">
+                        <label>الصف الدراسي</label>
+                        <select class="form-control" id="schedule_grade">
+                            <option value="">اختر الصف...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="students_selector" style="display: none;">
+                        <label>الطلاب</label>
+                        <select class="form-control" id="schedule_students" multiple size="8">
+                        </select>
+                        <small style="color: #6b7280; margin-top: 0.5rem; display: block;">اضغط Ctrl (أو Cmd) لاختيار عدة طلاب</small>
                     </div>
                     <div class="form-group">
                         <label>وقت البداية</label>
@@ -865,6 +882,14 @@
                             <input type="checkbox" id="schedule_send_notification" checked>
                             <span>إرسال إشعار للطلاب</span>
                         </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="schedule_append_students">
+                            <span>إضافة للطلاب الحاليين (بدلاً من الاستبدال)</span>
+                        </label>
+                        <small style="color: #6b7280; margin-top: 0.25rem; display: block;">فعّل هذا الخيار لإرسال الاختبار لطلاب إضافيين</small>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         📅 جدولة الاختبار وإرسال الإشعارات
@@ -1635,7 +1660,11 @@
         if (tabName === 'tests') diagLoadTests();
         else if (tabName === 'scheduled') loadScheduledTests();
         else if (tabName === 'results') loadAllResults();
-        else if (tabName === 'schedule') { loadTestsForSchedule(); loadStudentsForSchedule(); }
+        else if (tabName === 'schedule') { 
+            loadTestsForSchedule(); 
+            loadStudentsForSchedule();
+            loadGrades(); // ✅ تحميل الصفوف الدراسية
+        }
     };
     
     window.loadTestsForSchedule = async function() {
@@ -1670,7 +1699,7 @@
         }
     };
     
-    window.loadStudentsForSchedule = async function() {
+    window.loadStudents = async function() {
         console.log('👥 Loading students...');
         try {
             const res = await fetch('/api/diagnostic/students');
@@ -1678,22 +1707,25 @@
             const data = await res.json();
             console.log('Data:', data);
             
+            // حفظ الطلاب في متغير عام
+            window.allStudents = data.students || [];
+            
             const sel = document.getElementById('schedule_students');
             if (!sel) {
                 console.error('❌ Element not found: schedule_students');
                 return;
             }
             
-            sel.innerHTML = '<option value="all">جميع الطلاب</option>';
+            sel.innerHTML = '';
             
-            if (data.students && data.students.length > 0) {
-                data.students.forEach(s => {
+            if (window.allStudents.length > 0) {
+                window.allStudents.forEach(s => {
                     const opt = document.createElement('option');
                     opt.value = s.id;
                     opt.textContent = s.name + (s.grade ? ` (${s.grade})` : '');
                     sel.appendChild(opt);
                 });
-                console.log('✅ Loaded', data.students.length, 'students');
+                console.log('✅ Loaded', window.allStudents.length, 'students');
             } else {
                 console.warn('⚠️ No students found');
             }
@@ -1702,15 +1734,80 @@
         }
     };
     
+    window.loadGrades = async function() {
+        console.log('🏛️ Loading grades...');
+        try {
+            const res = await fetch('/api/diagnostic/grades');
+            const data = await res.json();
+            
+            const sel = document.getElementById('schedule_grade');
+            if (!sel) return;
+            
+            sel.innerHTML = '<option value="">اختر الصف...</option>';
+            
+            if (data.grades && data.grades.length > 0) {
+                data.grades.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.grade;
+                    opt.textContent = `${g.grade} (${g.count} طالب)`;
+                    sel.appendChild(opt);
+                });
+                console.log('✅ Loaded', data.grades.length, 'grades');
+            }
+        } catch (e) { 
+            console.error('❌ Error loading grades:', e); 
+        }
+    };
+    
+    window.updateStudentOptions = function() {
+        const sendType = document.getElementById('schedule_send_type').value;
+        const gradeSelector = document.getElementById('grade_selector');
+        const studentsSelector = document.getElementById('students_selector');
+        
+        // إخفاء جميع الخيارات
+        gradeSelector.style.display = 'none';
+        studentsSelector.style.display = 'none';
+        
+        // إظهار الخيار المناسب
+        if (sendType === 'grade') {
+            gradeSelector.style.display = 'block';
+        } else if (sendType === 'students') {
+            studentsSelector.style.display = 'block';
+        }
+    };
+    
     window.handleScheduleTest = async function(event) {
         event.preventDefault();
+        
+        const sendType = document.getElementById('schedule_send_type').value;
+        let studentIds = 'all';
+        let grade = null;
+        
+        if (sendType === 'grade') {
+            grade = document.getElementById('schedule_grade').value;
+            if (!grade) {
+                alert('⚠️ يرجى اختيار الصف الدراسي');
+                return;
+            }
+        } else if (sendType === 'students') {
+            const select = document.getElementById('schedule_students');
+            const selected = Array.from(select.selectedOptions).map(o => parseInt(o.value));
+            if (selected.length === 0) {
+                alert('⚠️ يرجى اختيار طالب واحد على الأقل');
+                return;
+            }
+            studentIds = selected;
+        }
+        
         const data = {
             test_id: parseInt(document.getElementById('schedule_test_id').value),
-            student_ids: document.getElementById('schedule_students').value,
+            student_ids: studentIds,
+            grade: grade,
             scheduled_start: document.getElementById('schedule_start').value,
             scheduled_end: document.getElementById('schedule_end').value,
             time_limit_minutes: parseInt(document.getElementById('schedule_time_limit').value),
-            send_notification: document.getElementById('schedule_send_notification').checked
+            send_notification: document.getElementById('schedule_send_notification').checked,
+            append_students: document.getElementById('schedule_append_students').checked
         };
         try {
             const res = await fetch('/api/diagnostic/assign', {
