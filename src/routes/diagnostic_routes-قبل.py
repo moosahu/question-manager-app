@@ -1248,26 +1248,50 @@ def get_scheduled_tests():
 @login_required
 @admin_required
 def assign_test():
-    """إسناد اختبار لطلاب مع جدولة"""
+    """إسناد اختبار لطلاب مع جدولة - محدث لدعم الإرسال المتعدد والصفوف الدراسية"""
     try:
         data = request.get_json()
         test_id = data.get('test_id')
         student_ids = data.get('student_ids')
+        grade = data.get('grade')  # ✅ جديد: الصف الدراسي
         scheduled_start = data.get('scheduled_start')
         scheduled_end = data.get('scheduled_end')
         time_limit = data.get('time_limit_minutes', 30)
         send_notification = data.get('send_notification', True)
+        append_students = data.get('append_students', False)  # ✅ جديد: إضافة بدلاً من الاستبدال
         
         test = DiagnosticTest.query.get(test_id)
         if not test:
             return jsonify({'error': 'Test not found'}), 404
         
         # تحضير قائمة الطلاب
-        if student_ids == 'all':
+        student_ids_list = []
+        
+        if grade:
+            # ✅ طلاب صف دراسي محدد (أولوية عليا)
+            students = Student.query.filter_by(is_active=True, grade=grade).all()
+            student_ids_list = [s.id for s in students]
+            print(f"✅ تم اختيار {len(student_ids_list)} طالب من الصف {grade}")
+        elif student_ids == 'all':
+            # جميع الطلاب النشطين
             students = Student.query.filter_by(is_active=True).all()
             student_ids_list = [s.id for s in students]
+            print(f"✅ تم اختيار جميع الطلاب: {len(student_ids_list)} طالب")
         else:
-            student_ids_list = student_ids
+            # طلاب محددين
+            student_ids_list = student_ids if isinstance(student_ids, list) else [student_ids]
+            print(f"✅ تم اختيار {len(student_ids_list)} طالب محدد")
+        
+        # ✅ جديد: دعم الإضافة بدلاً من الاستبدال
+        if append_students and test.assigned_students:
+            # إضافة الطلاب الجدد للقائمة الحالية
+            existing_ids = set(test.assigned_students)
+            new_ids = set(student_ids_list)
+            student_ids_list = list(existing_ids.union(new_ids))
+            print(f"✅ تم إضافة طلاب جدد. الإجمالي: {len(student_ids_list)}")
+        else:
+            # استبدال القائمة بالكامل
+            print(f"✅ تم استبدال قائمة الطلاب. العدد: {len(student_ids_list)}")
         
         # تحديث الاختبار
         test.is_scheduled = True
@@ -1604,6 +1628,37 @@ def get_students():
         return jsonify({'error': str(e)}), 500
 
 
+@diagnostic_bp.route('/grades', methods=['GET'])
+def get_grades():
+    """جلب قائمة الصفوف الدراسية المتوفرة"""
+    try:
+        # جلب جميع الصفوف الفريدة من جدول الطلاب
+        grades_query = db.session.query(Student.grade).filter(
+            Student.is_active == True,
+            Student.grade.isnot(None),
+            Student.grade != ''
+        ).distinct().all()
+        
+        grades = [g[0] for g in grades_query if g[0]]
+        
+        # حساب عدد الطلاب لكل صف
+        grades_with_count = []
+        for grade in grades:
+            count = Student.query.filter_by(is_active=True, grade=grade).count()
+            grades_with_count.append({
+                'grade': grade,
+                'count': count
+            })
+        
+        return jsonify({
+            'success': True,
+            'grades': grades_with_count
+        }), 200
+    except Exception as e:
+        print(f"❌ Error getting grades: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ✅ تحسين route الإحصائيات (معدل)
 @diagnostic_bp.route('/stats', methods=['GET'])
 @login_required
@@ -1668,6 +1723,13 @@ def get_all_results():
                 if r.test:
                     result_dict['test_title'] = r.test.title
                     result_dict['test_type'] = r.test.test_type
+                
+                # جلب اسم الطالب
+                if r.student_id:
+                    student = Student.query.get(r.student_id)
+                    if student:
+                        result_dict['student_name'] = student.name
+                
                 results_data.append(result_dict)
             except Exception as e:
                 print(f"⚠️ Error processing result {r.id}: {e}")

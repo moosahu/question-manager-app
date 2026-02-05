@@ -27,6 +27,16 @@ except ImportError:
     from models.curriculum import Lesson, Unit, Course
     from models.student import Student
 
+# ✅ استيراد موديل الإشعارات لحفظها في قاعدة البيانات
+try:
+    from src.models.notification import Notification
+except ImportError:
+    try:
+        from models.notification import Notification
+    except:
+        Notification = None
+        print("⚠️ Notification model غير متوفر - الإشعارات لن تُحفظ في قاعدة البيانات")
+
 # ✅ خدمة الإشعارات
 try:
     from src.services.notification_service import NotificationService
@@ -38,6 +48,35 @@ except ImportError:
         print("⚠️ NotificationService غير متوفر")
 
 diagnostic_bp = Blueprint('diagnostic', __name__, url_prefix='/api/diagnostic')
+
+
+def _save_notification_to_db(student_id, title, message, notification_type='reminder', data=None):
+    """حفظ الإشعار في قاعدة البيانات ليظهر في صفحة الإشعارات"""
+    try:
+        if Notification is None:
+            print(f"⚠️ Notification model غير متوفر - لن يتم حفظ الإشعار في DB")
+            return False
+        
+        notification = Notification(
+            student_id=student_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            type=notification_type,  # الموديل فيه حقلين: type و notification_type
+            is_read=False,
+            status='delivered',
+            sent_at=datetime.utcnow(),
+        )
+        
+        # إضافة data إذا موجودة
+        if data:
+            notification.data = data
+        
+        db.session.add(notification)
+        return True
+    except Exception as e:
+        print(f"❌ خطأ في حفظ الإشعار في DB: {e}")
+        return False
 
 
 
@@ -1333,7 +1372,28 @@ def assign_test():
                         if result:
                             success_count += 1
                 
-                print(f"✅ تم إرسال {success_count}/{len(students)} إشعار")
+                # ✅ حفظ الإشعار في قاعدة البيانات لكل الطلاب المعينين (ليظهر في صفحة الإشعارات)
+                db_save_count = 0
+                notification_title = '📝 اختبار تشخيصي جديد'
+                notification_message = f'{test.title}\n\nالوقت: من {scheduled_start[:16]} إلى {scheduled_end[:16]}'
+                notification_data = {
+                    'type': 'diagnostic_test',
+                    'test_id': str(test.id),
+                }
+                
+                for sid in student_ids_list:
+                    if _save_notification_to_db(
+                        student_id=sid,
+                        title=notification_title,
+                        message=notification_message,
+                        notification_type='reminder',
+                        data=notification_data
+                    ):
+                        db_save_count += 1
+                
+                db.session.commit()
+                print(f"✅ تم إرسال {success_count}/{len(students)} إشعار FCM")
+                print(f"✅ تم حفظ {db_save_count}/{len(student_ids_list)} إشعار في قاعدة البيانات")
                 
                 if success_count > 0:
                     test.notification_sent = True
@@ -1580,9 +1640,22 @@ def resend_notification(test_id):
                     if result:
                         success_count += 1
             
+            # ✅ حفظ الإشعار في قاعدة البيانات لكل الطلاب المعينين
+            db_save_count = 0
+            for sid in test.assigned_students:
+                if _save_notification_to_db(
+                    student_id=sid,
+                    title='📝 تذكير: اختبار تشخيصي',
+                    message=f'{test.title}',
+                    notification_type='reminder',
+                    data={'type': 'diagnostic_test', 'test_id': str(test.id)}
+                ):
+                    db_save_count += 1
+            
             test.notification_sent = True
             test.notification_sent_at = datetime.utcnow()
             db.session.commit()
+            print(f"✅ تم حفظ {db_save_count} إشعار في قاعدة البيانات (إعادة إرسال)")
             
             return jsonify({
                 'message': f'Notifications sent to {success_count} students',
