@@ -1355,12 +1355,26 @@ def assign_test():
                 
                 # ✅ استخدام NotificationService
                 success_count = 0
+                
+                # ✅ تنسيق رسالة FCM بشكل مقروء
+                try:
+                    from datetime import datetime as dt_parse
+                    start_dt = dt_parse.fromisoformat(scheduled_start.replace('Z', ''))
+                    end_dt = dt_parse.fromisoformat(scheduled_end.replace('Z', ''))
+                    start_hour = start_dt.strftime('%I:%M')
+                    start_period = 'م' if start_dt.hour >= 12 else 'ص'
+                    end_hour = end_dt.strftime('%I:%M')
+                    end_period = 'م' if end_dt.hour >= 12 else 'ص'
+                    fcm_body = f'{test.title}\n⏰ من {start_hour} {start_period} إلى {end_hour} {end_period}'
+                except:
+                    fcm_body = f'{test.title}'
+                
                 for student in students:
                     if student.fcm_token:
                         result = NotificationService.send_fcm_notification(
                             student.fcm_token,
                             '📝 اختبار تشخيصي جديد',
-                            f'{test.title}\n\nالوقت: من {scheduled_start[:16]} إلى {scheduled_end[:16]}',
+                            fcm_body,
                             {
                                 'type': 'diagnostic_test',
                                 'test_id': str(test.id),
@@ -1375,7 +1389,29 @@ def assign_test():
                 # ✅ حفظ الإشعار في قاعدة البيانات لكل الطلاب المعينين (ليظهر في صفحة الإشعارات)
                 db_save_count = 0
                 notification_title = '📝 اختبار تشخيصي جديد'
-                notification_message = f'{test.title}\n\nالوقت: من {scheduled_start[:16]} إلى {scheduled_end[:16]}'
+                
+                # ✅ تنسيق الوقت بشكل مقروء
+                try:
+                    from datetime import datetime as dt_parse
+                    start_dt = dt_parse.fromisoformat(scheduled_start.replace('Z', ''))
+                    end_dt = dt_parse.fromisoformat(scheduled_end.replace('Z', ''))
+                    
+                    # تنسيق عربي مقروء
+                    start_hour = start_dt.strftime('%I:%M')
+                    start_period = 'مساءً' if start_dt.hour >= 12 else 'صباحاً'
+                    end_hour = end_dt.strftime('%I:%M')
+                    end_period = 'مساءً' if end_dt.hour >= 12 else 'صباحاً'
+                    date_str = f"{start_dt.day}/{start_dt.month}/{start_dt.year}"
+                    
+                    notification_message = (
+                        f'تم تعيين اختبار: {test.title}\n\n'
+                        f'📅 التاريخ: {date_str}\n'
+                        f'⏰ من {start_hour} {start_period} إلى {end_hour} {end_period}\n'
+                        f'⏱ المدة: {test.time_limit_minutes} دقيقة'
+                    )
+                except:
+                    notification_message = f'تم تعيين اختبار: {test.title}'
+                
                 notification_data = {
                     'type': 'diagnostic_test',
                     'test_id': str(test.id),
