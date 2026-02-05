@@ -1267,15 +1267,16 @@ def assign_test():
         # تحضير قائمة الطلاب
         student_ids_list = []
         
-        if student_ids == 'all':
-            # جميع الطلاب النشطين
-            students = Student.query.filter_by(is_active=True).all()
-            student_ids_list = [s.id for s in students]
-        elif grade:
-            # ✅ جديد: طلاب صف دراسي محدد
+        if grade:
+            # ✅ طلاب صف دراسي محدد (أولوية عليا)
             students = Student.query.filter_by(is_active=True, grade=grade).all()
             student_ids_list = [s.id for s in students]
             print(f"✅ تم اختيار {len(student_ids_list)} طالب من الصف {grade}")
+        elif student_ids == 'all':
+            # جميع الطلاب النشطين
+            students = Student.query.filter_by(is_active=True).all()
+            student_ids_list = [s.id for s in students]
+            print(f"✅ تم اختيار جميع الطلاب: {len(student_ids_list)} طالب")
         else:
             # طلاب محددين
             student_ids_list = student_ids if isinstance(student_ids, list) else [student_ids]
