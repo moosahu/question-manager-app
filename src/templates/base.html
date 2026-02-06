@@ -10,6 +10,45 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     {% block head_extra %}{% endblock %}
     {% block extra_css %}{% endblock %}
+    <style>
+        /* ===== Compact Navigation ===== */
+        .main-navigation .nav-list {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 2px;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .main-navigation .nav-list li a {
+            font-size: 0.75rem;
+            padding: 6px 8px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .main-navigation .nav-list li a i {
+            font-size: 0.8rem;
+        }
+        @media (max-width: 1400px) {
+            .main-navigation .nav-list li a {
+                font-size: 0.7rem;
+                padding: 5px 5px;
+                gap: 2px;
+            }
+            .main-navigation .nav-list li a i {
+                font-size: 0.7rem;
+            }
+        }
+        @media (max-width: 1100px) {
+            .main-navigation .nav-list {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <div class="particles-container">
