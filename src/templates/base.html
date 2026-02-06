@@ -153,7 +153,8 @@
                             <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
                             <li><a href="{{ url_for('diagnostic.admin_page') }}" {% if request.endpoint == 'diagnostic.admin_page' %}class="active"{% endif %}><i class="fas fa-stethoscope"></i> الاختبارات التشخيصية</a></li>
                             <li class="dropdown-divider"></li>
-                            <li><a href="{{ url_for('question.export_exam') }}" {% if request.endpoint == 'question.export_exam' or request.endpoint == 'question.header_settings' %}class="active"{% endif %}><i class="fas fa-file-export"></i> استخراج نماذج الاختبار</a></li>
+                            <li><a href="{{ url_for('question.export_exam') }}" {% if request.endpoint == 'question.export_exam' %}class="active"{% endif %}><i class="fas fa-file-export"></i> استخراج نماذج الاختبار</a></li>
+                            <li><a href="{{ url_for('question.header_settings') }}" {% if request.endpoint == 'question.header_settings' %}class="active"{% endif %}><i class="fas fa-stamp"></i> إعدادات الكليشة</a></li>
                         </ul>
                     </li>
 
