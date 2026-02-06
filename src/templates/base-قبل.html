@@ -47,10 +47,6 @@
                     <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
                     <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
                     <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
-                    <li><a href="{{ url_for('diagnostic.admin_page') }}" {% if request.endpoint == 'diagnostic.admin_page' %}class="active"{% endif %}><i class="fas fa-stethoscope"></i> الاختبارات التشخيصية</a></li>
-                    <li><a href="{{ url_for('teachers.list_teachers') }}" {% if request.endpoint == 'teachers.list_teachers' %}class="active"{% endif %}><i class="fas fa-chalkboard-teacher"></i> إدارة المعلمين</a></li>
-                    <li><a href="{{ url_for('students.list_students') }}" {% if request.endpoint == 'students.list_students' %}class="active"{% endif %}><i class="fas fa-user-graduate"></i> إدارة الطلاب</a></li>
-                    <li><a href="{{ url_for('question.export_exam') }}" {% if request.endpoint == 'question.export_exam' or request.endpoint == 'question.header_settings' %}class="active"{% endif %}><i class="fas fa-file-export"></i> استخراج نماذج الاختبار</a></li>
                     <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-user-cog"></i> تغير كلمة المرور</a></li>
                     <li><a href="{{ url_for('settings.index') }}" {% if request.endpoint == 'settings.index' %}class="active"{% endif %}><i class="fas fa-cog"></i> الإعدادات</a></li>
                     <li><a href="{{ url_for('view_notifications') }}" class="notifications-nav-link {% if request.endpoint == 'view_notifications' %}active{% endif %}">
