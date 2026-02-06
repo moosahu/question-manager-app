@@ -394,11 +394,6 @@ def verify_code():
                 }), 400
             
             # إنشاء حساب الطالب
-            # ✅ إذا الجوال مطلوب، لا يُفعّل الحساب إلا بعد التحقق من الجوال
-            should_activate = settings.auto_activate
-            if settings.require_phone and verification.phone:
-                should_activate = False  # ينتظر التحقق من الجوال
-            
             student = Student(
                 name=verification.name,
                 username=verification.username,
@@ -407,7 +402,7 @@ def verify_code():
                 phone=verification.phone,
                 school=verification.school,
                 grade=verification.grade,
-                is_active=should_activate
+                is_active=settings.auto_activate
             )
             
             db.session.add(student)
@@ -428,9 +423,7 @@ def verify_code():
                 'token': token,
                 'student': student.to_dict(),
                 'account_type': 'student',
-                'auto_login': should_activate,
-                'require_phone': settings.require_phone and bool(verification.phone),  # ✅ جديد
-                'phone': verification.phone  # ✅ جديد: رقم الجوال للتحقق
+                'auto_login': settings.auto_activate
             })
         
     except Exception as e:
@@ -445,76 +438,6 @@ def verify_code():
 
 
 # ==================== إعادة إرسال الرمز ====================
-
-# ==================== ✅ جديد: تفعيل الحساب بعد التحقق من الجوال ====================
-@registration_bp.route('/activate-after-phone', methods=['POST'])
-def activate_after_phone():
-    """تفعيل الحساب بعد التحقق من رقم الجوال عبر Firebase"""
-    try:
-        data = request.get_json() or request.form
-        
-        email = data.get('email', '').strip().lower()
-        phone = data.get('phone', '').strip()
-        firebase_uid = data.get('firebase_uid', '').strip()  # معرف Firebase للتوثيق
-        account_type = data.get('account_type', 'student')
-        
-        if not email or not phone:
-            return jsonify({
-                'success': False,
-                'error': 'الإيميل ورقم الجوال مطلوبان'
-            }), 400
-        
-        if account_type == 'teacher':
-            # تفعيل حساب معلم
-            user = Teacher.query.filter_by(email=email).first()
-        else:
-            # تفعيل حساب طالب
-            user = Student.query.filter_by(email=email).first()
-        
-        if not user:
-            return jsonify({
-                'success': False,
-                'error': 'الحساب غير موجود'
-            }), 404
-        
-        # تفعيل الحساب
-        user.is_active = True
-        # تحديث رقم الجوال المتحقق منه
-        user.phone = phone
-        db.session.commit()
-        
-        # إنشاء التوكن
-        if account_type == 'teacher':
-            token = create_teacher_token(
-                teacher_id=user.id,
-                username=user.username
-            )
-        else:
-            token = create_student_token(
-                student_id=user.id,
-                username=user.username
-            )
-        
-        print(f"✅ تم تفعيل حساب {account_type}: {email} بعد التحقق من الجوال {phone}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'تم تفعيل الحساب بنجاح',
-            'token': token,
-            'is_active': True
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ خطأ في تفعيل الحساب: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': 'حدث خطأ في تفعيل الحساب'
-        }), 500
-
-
 @registration_bp.route('/resend', methods=['POST'])
 def resend_code():
     """إعادة إرسال رمز التحقق"""
