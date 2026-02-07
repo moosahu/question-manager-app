@@ -240,13 +240,9 @@ def api_get_all_lessons():
         }), 401
     
     try:
-        # جلب الدروس فقط من المناهج المفعلة للطلاب
-        lessons = Lesson.query.join(Unit).join(Course).filter(
-            Course.show_in_bot == True  # ✅ فقط المناهج المفعلة
-        ).order_by(
-            Course.order_num,  # ✅ الترتيب حسب order_num
-            Unit.order_num, 
-            Lesson.order_num
+        # جلب جميع الدروس مع الوحدات والمناهج
+        lessons = Lesson.query.join(Unit).join(Course).order_by(
+            Course.name, Unit.name, Lesson.order_num
         ).all()
         
         # تنظيم الدروس حسب المناهج والوحدات
@@ -272,14 +268,9 @@ def api_get_all_lessons():
             ).first()
             
             # اسم المنهج
-            course = lesson.unit.course if lesson.unit and lesson.unit.course else None
-            course_name = course.name if course else 'غير محدد'
-            course_order = course.order_num if course else 999
-            
+            course_name = lesson.unit.course.name if lesson.unit and lesson.unit.course else 'غير محدد'
             # اسم الوحدة
-            unit = lesson.unit if lesson.unit else None
-            unit_name = unit.name if unit else 'غير محدد'
-            unit_order = unit.order_num if unit else 999
+            unit_name = lesson.unit.name if lesson.unit else 'غير محدد'
             
             # إنشاء هيكل المنهج إذا لم يكن موجوداً
             if course_name not in organized_lessons:
@@ -293,12 +284,13 @@ def api_get_all_lessons():
             organized_lessons[course_name][unit_name].append({
                 'id': lesson.id,
                 'name': lesson.name,
-                'order_num': lesson.order_num,  # ✅ أضف order_num
+                'order_num': lesson.order_num,  # ✅ إضافة order_num
                 'unit_id': lesson.unit_id,
                 'unit_name': unit_name,
-                'unit_order_num': unit_order,  # ✅ أضف unit order
+                'unit_order_num': lesson.unit.order_num if lesson.unit else None,  # ✅ إضافة
+                'course_id': lesson.unit.course_id if lesson.unit else None,  # ✅ إضافة
                 'course_name': course_name,
-                'course_order_num': course_order,  # ✅ أضف course order
+                'course_order_num': lesson.unit.course.order_num if lesson.unit and lesson.unit.course else None,  # ✅ إضافة
                 'has_summary': has_summary,
                 'has_concept_map': has_concept_map,
                 'completion_percentage': progress.completion_percentage if progress else 0,
