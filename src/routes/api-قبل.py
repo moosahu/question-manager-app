@@ -506,7 +506,7 @@ def get_all_courses():
             courses = Course.query.filter(Course.show_in_bot == True).order_by(Course.order_num.asc(), Course.id).all()
         
         logger.info(f"Found {len(courses)} courses.")
-        formatted_courses = [{"id": c.id, "name": c.name, "order_num": c.order_num} for c in courses]
+        formatted_courses = [{"id": c.id, "name": c.name} for c in courses]
         return jsonify(formatted_courses)
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching courses: {e}")
@@ -583,7 +583,7 @@ def get_course_units(course_id):
             .all()
         )
         logger.info(f"Found {len(units)} units for course_id: {course_id}")
-        formatted_units = [{"id": u.id, "name": u.name, "order_num": u.order_num} for u in units]
+        formatted_units = [{"id": u.id, "name": u.name} for u in units]
         return jsonify(formatted_units)
 
     except SQLAlchemyError as e:
@@ -611,7 +611,7 @@ def get_unit_lessons(unit_id):
             .all()
         )
         logger.info(f"Found {len(lessons)} lessons for unit_id: {unit_id}")
-        formatted_lessons = [{"id": l.id, "name": l.name, "order_num": l.order_num} for l in lessons]
+        formatted_lessons = [{"id": l.id, "name": l.name} for l in lessons]
         return jsonify(formatted_lessons)
 
     except SQLAlchemyError as e:
