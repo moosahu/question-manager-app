@@ -160,27 +160,40 @@ def api_update_progress(lesson_id):
 @login_required
 def api_get_all_lessons():
     """
-    API: جلب جميع الدروس مع تقدم الطالب
-    Query params: ?unit_id=1 or ?course_id=1
+    API: جلب جميع الدروس مع تقدم الطالب (منظمة حسب المناهج والوحدات)
+    Returns: {
+        "success": true,
+        "lessons": {
+            "كيمياء 1": {
+                "الوحدة الأولى": [lessons],
+                "الوحدة الثانية": [lessons]
+            },
+            "كيمياء 2": {...}
+        },
+        "total": 10
+    }
     """
     try:
-        unit_id = request.args.get('unit_id', type=int)
-        course_id = request.args.get('course_id', type=int)
+        # جلب جميع الدروس مع الوحدات والمناهج
+        lessons = Lesson.query.join(Unit).join(Course).order_by(
+            Course.name, Unit.name, Lesson.order_num
+        ).all()
         
-        query = Lesson.query
+        # تنظيم الدروس حسب المناهج والوحدات
+        organized_lessons = {}
+        total_with_content = 0
         
-        if unit_id:
-            query = query.filter_by(unit_id=unit_id)
-        elif course_id:
-            query = query.join(Unit).filter(Unit.course_id == course_id)
-        
-        lessons = query.order_by(Lesson.order_num).all()
-        
-        result = []
         for lesson in lessons:
             # تحقق من وجود محتوى
             has_summary = LessonSummary.query.filter_by(lesson_id=lesson.id).first() is not None
             has_concept_map = ConceptMap.query.filter_by(lesson_id=lesson.id).first() is not None
+            has_content = has_summary or has_concept_map
+            
+            # إذا مافي محتوى، تجاهل الدرس
+            if not has_content:
+                continue
+            
+            total_with_content += 1
             
             # جلب التقدم
             progress = StudentLessonProgress.query.filter_by(
@@ -188,23 +201,35 @@ def api_get_all_lessons():
                 lesson_id=lesson.id
             ).first()
             
-            result.append({
+            # اسم المنهج
+            course_name = lesson.unit.course.name if lesson.unit and lesson.unit.course else 'غير محدد'
+            # اسم الوحدة
+            unit_name = lesson.unit.name if lesson.unit else 'غير محدد'
+            
+            # إنشاء هيكل المنهج إذا لم يكن موجوداً
+            if course_name not in organized_lessons:
+                organized_lessons[course_name] = {}
+            
+            # إنشاء هيكل الوحدة إذا لم يكن موجوداً
+            if unit_name not in organized_lessons[course_name]:
+                organized_lessons[course_name][unit_name] = []
+            
+            # إضافة الدرس
+            organized_lessons[course_name][unit_name].append({
                 'id': lesson.id,
                 'name': lesson.name,
                 'unit_id': lesson.unit_id,
-                'unit_name': lesson.unit.name if lesson.unit else None,
-                'has_content': has_summary or has_concept_map,
+                'unit_name': unit_name,
+                'course_name': course_name,
                 'has_summary': has_summary,
                 'has_concept_map': has_concept_map,
-                'progress': progress.to_dict() if progress else {
-                    'status': 'not_started',
-                    'completion_percentage': 0
-                }
+                'completion_percentage': progress.completion_percentage if progress else 0,
             })
         
         return jsonify({
             'success': True,
-            'data': result
+            'lessons': organized_lessons,
+            'total': total_with_content
         })
         
     except Exception as e:
