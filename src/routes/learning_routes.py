@@ -255,9 +255,9 @@ def api_get_all_lessons():
             has_concept_map = ConceptMap.query.filter_by(lesson_id=lesson.id).first() is not None
             has_content = has_summary or has_concept_map
             
-            # إذا مافي محتوى، تجاهل الدرس
-            if not has_content:
-                continue
+            # ✅ تعطيل الفلترة مؤقتاً - يعرض كل الدروس
+            # if not has_content:
+            #     continue
             
             total_with_content += 1
             
@@ -444,6 +444,29 @@ def admin_concept_maps():
     
     return render_template('learning/admin_concept_maps.html',
                          concept_maps=concept_maps)
+
+
+@learning_bp.route('/admin/concept-map/<int:concept_map_id>', methods=['GET'])
+@login_required
+def admin_view_concept_map(concept_map_id):
+    """عرض خريطة مفاهيم"""
+    if not current_user.is_admin:
+        flash('ليس لديك صلاحية الوصول', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # جلب الخريطة
+    concept_map = ConceptMap.query.get_or_404(concept_map_id)
+    
+    # جلب معلومات الدرس
+    lesson = Lesson.query.get(concept_map.lesson_id)
+    unit = Unit.query.get(lesson.unit_id) if lesson else None
+    course = Course.query.get(unit.course_id) if unit else None
+    
+    return render_template('learning/admin_view_concept_map.html',
+                         concept_map=concept_map,
+                         lesson=lesson,
+                         unit=unit,
+                         course=course)
 
 
 @learning_bp.route('/admin/summary/add', methods=['GET', 'POST'])

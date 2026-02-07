@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}عرض خريطة المفاهيم - {{ lesson.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- العنوان -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2">
+                        <i class="fas fa-project-diagram text-primary"></i>
+                        خريطة المفاهيم: {{ lesson.name }}
+                    </h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="{{ url_for('learning.admin_dashboard') }}">
+                                    <i class="fas fa-home"></i> الرئيسية
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                <a href="{{ url_for('learning.admin_concept_maps') }}">
+                                    <i class="fas fa-project-diagram"></i> خرائط المفاهيم
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item active">{{ lesson.name }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('learning.admin_concept_maps') }}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-arrow-right"></i> رجوع
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات الدرس -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> معلومات الدرس
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>المنهج:</strong><br>
+                            {{ course.name if course else 'غير محدد' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الوحدة:</strong><br>
+                            {{ unit.name if unit else 'غير محدد' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الدرس:</strong><br>
+                            {{ lesson.name }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>المشاهدات:</strong><br>
+                            <span class="badge badge-info">{{ concept_map.view_count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات الخريطة -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog"></i> إعدادات الخريطة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>نمط التخطيط:</strong> <span class="badge badge-primary">{{ concept_map.layout_type }}</span></p>
+                    <p><strong>الثيم:</strong> <span class="badge badge-secondary">{{ concept_map.theme }}</span></p>
+                    <p><strong>تاريخ الإنشاء:</strong> {{ concept_map.created_at.strftime('%Y-%m-%d %H:%M') if concept_map.created_at else 'غير محدد' }}</p>
+                    <p><strong>آخر تحديث:</strong> {{ concept_map.updated_at.strftime('%Y-%m-%d %H:%M') if concept_map.updated_at else 'غير محدد' }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> إحصائيات
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>عدد الفروع:</strong> <span class="badge badge-success">{{ concept_map.branches|length if concept_map.branches else 0 }}</span></p>
+                    <p><strong>إجمالي الأمثلة:</strong> 
+                        <span class="badge badge-info">
+                            {% set example_count = 0 %}
+                            {% if concept_map.branches %}
+                                {% for branch in concept_map.branches %}
+                                    {% if branch.examples %}
+                                        {% set example_count = example_count + branch.examples|length %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            {{ example_count }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- العقدة المركزية -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header" style="background-color: {{ concept_map.center_node.color if concept_map.center_node and concept_map.center_node.color else '#FFD54F' }};">
+                    <h5 class="mb-0">
+                        <i class="fas fa-dot-circle"></i> العقدة المركزية
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if concept_map.center_node %}
+                        <h4 class="text-center mb-3">{{ concept_map.center_node.text }}</h4>
+                        {% if concept_map.center_node.description %}
+                            <p class="text-center text-muted">{{ concept_map.center_node.description }}</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted text-center">لا توجد عقدة مركزية</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الفروع -->
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="fas fa-code-branch"></i> الفروع
+            </h4>
+        </div>
+        
+        {% if concept_map.branches %}
+            {% for branch in concept_map.branches %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header" style="background-color: {{ branch.color if branch.color else '#4CAF50' }}; color: white;">
+                            <h5 class="mb-0">{{ branch.text }}</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if branch.description %}
+                                <p class="text-muted mb-3">{{ branch.description }}</p>
+                            {% endif %}
+                            
+                            {% if branch.examples %}
+                                <h6 class="mb-2">
+                                    <i class="fas fa-list"></i> الأمثلة:
+                                </h6>
+                                <ul class="list-unstyled">
+                                    {% for example in branch.examples %}
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success"></i>
+                                            {{ example }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">لا توجد أمثلة</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    لا توجد فروع في هذه الخريطة
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        font-weight: bold;
+        border-bottom: none;
+    }
+    
+    .badge {
+        font-size: 0.9rem;
+        padding: 0.4em 0.8em;
+    }
+    
+    .breadcrumb {
+        background-color: transparent;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .list-unstyled li {
+        padding: 0.5rem;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
