@@ -55,11 +55,6 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item">
-                                <a href="{{ url_for('learning.admin_dashboard') }}">
-                                    <i class="fas fa-home"></i> الرئيسية
-                                </a>
-                            </li>
-                            <li class="breadcrumb-item">
                                 <a href="{{ url_for('learning.admin_concept_maps') }}">
                                     <i class="fas fa-project-diagram"></i> خرائط المفاهيم
                                 </a>
@@ -86,6 +81,8 @@
     <div class="row mb-3">
         <div class="col-md-12">
             <div class="alert alert-info">
+                <strong>المنهج:</strong> {{ course.name if course else 'غير محدد' }} |
+                <strong>الوحدة:</strong> {{ unit.name if unit else 'غير محدد' }} |
                 <strong>نمط التخطيط:</strong> {{ concept_map.layout_type }} |
                 <strong>الثيم:</strong> {{ concept_map.theme }} |
                 <strong>المشاهدات:</strong> {{ concept_map.view_count }}
