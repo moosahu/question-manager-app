@@ -240,9 +240,12 @@ def api_get_all_lessons():
         }), 401
     
     try:
-        # جلب جميع الدروس مع الوحدات والمناهج
-        lessons = Lesson.query.join(Unit).join(Course).order_by(
-            Course.name, Unit.name, Lesson.order_num
+        # ✅ جلب الدروس مع فلترة show_in_bot
+        lessons = Lesson.query.join(Unit).join(Course).filter(
+            Course.show_in_bot == True,  # ✅ فقط المناهج للطلاب
+            Lesson.show_in_bot == True   # ✅ فقط الدروس للطلاب
+        ).order_by(
+            Course.order_num, Unit.order_num, Lesson.order_num
         ).all()
         
         # تنظيم الدروس حسب المناهج والوحدات
@@ -254,10 +257,6 @@ def api_get_all_lessons():
             has_summary = LessonSummary.query.filter_by(lesson_id=lesson.id).first() is not None
             has_concept_map = ConceptMap.query.filter_by(lesson_id=lesson.id).first() is not None
             has_content = has_summary or has_concept_map
-            
-            # ✅ تعطيل الفلترة مؤقتاً - يعرض كل الدروس
-            # if not has_content:
-            #     continue
             
             total_with_content += 1
             
