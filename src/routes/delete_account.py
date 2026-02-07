@@ -162,64 +162,66 @@ def verify_session(user_id, user_type, session_token, device_id):
     return False
 
 
-def _get_existing_tables():
-    """جلب أسماء الجداول الموجودة"""
-    result = db.session.execute(db.text(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-    ))
-    return {row[0] for row in result}
-
-
 def delete_user_data(user_id, user_type):
     """
     حذف جميع بيانات المستخدم نهائياً
-    يتحقق من وجود الجداول قبل الحذف
+    محدّث حسب الجداول الفعلية في قاعدة البيانات
     """
     try:
-        tables = _get_existing_tables()
-        print(f"📋 الجداول الموجودة: {tables}")
-
         if user_type == 'student':
-            # حذف بيانات الطالب (فقط من الجداول الموجودة)
-            for table in ['student_answers', 'student_results', 'diagnostic_results', 'exam_results']:
-                if table in tables:
-                    db.session.execute(
-                        db.text(f"DELETE FROM {table} WHERE student_id = :id"),
-                        {'id': user_id}
-                    )
-                    print(f"  🗑️ حذف من {table}")
-
-            if 'fcm_tokens' in tables:
+            # ✅ جداول فيها student_id (حسب قاعدة البيانات الفعلية)
+            student_tables = [
+                'ai_actions',
+                'ai_analysis',
+                'ai_logs',
+                'challenge_completions',
+                'diagnostic_comparisons',
+                'diagnostic_results',
+                'password_resets',
+                'point_transactions',
+                'student_achievements',
+                'student_challenges',
+                'student_notifications',
+                'student_points',
+                'student_results',
+            ]
+            for table in student_tables:
                 db.session.execute(
-                    db.text("DELETE FROM fcm_tokens WHERE user_id = :id AND user_type = 'student'"),
+                    db.text(f"DELETE FROM {table} WHERE student_id = :id"),
                     {'id': user_id}
                 )
+                print(f"  🗑️ حذف من {table}")
+
+            # جداول فيها user_id (قد تكون مرتبطة بالطالب)
+            db.session.execute(
+                db.text("DELETE FROM notifications WHERE student_id = :id"),
+                {'id': user_id}
+            )
+            db.session.execute(
+                db.text("DELETE FROM email_verifications WHERE email = (SELECT email FROM students WHERE id = :id)"),
+                {'id': user_id}
+            )
 
             # حذف الطالب نفسه
             db.session.execute(
                 db.text("DELETE FROM students WHERE id = :id"),
                 {'id': user_id}
             )
+            print(f"  🗑️ حذف الطالب من students")
 
         elif user_type == 'teacher':
-            if 'fcm_tokens' in tables:
-                db.session.execute(
-                    db.text("DELETE FROM fcm_tokens WHERE user_id = :id AND user_type = 'teacher'"),
-                    {'id': user_id}
-                )
-
-            # حذف المعلم نفسه
+            # حذف المعلم
             db.session.execute(
                 db.text("DELETE FROM teachers WHERE id = :id"),
                 {'id': user_id}
             )
+            print(f"  🗑️ حذف المعلم من teachers")
 
         # حذف OTP records
-        if 'delete_account_otps' in tables:
-            DeleteAccountOTP.query.filter_by(
-                user_id=user_id,
-                user_type=user_type
-            ).delete()
+        DeleteAccountOTP.query.filter_by(
+            user_id=user_id,
+            user_type=user_type
+        ).delete()
 
         db.session.commit()
         print(f"✅ تم حذف جميع بيانات {user_type} ID={user_id}")
