@@ -348,17 +348,72 @@ def verify_code():
         
         # =================================================================
         #  السيناريو 1: المستخدم أدخل رقم جوال (التحقق عبر Firebase)
+        #  → ننشئ الحساب بـ is_active=False وننتظر التحقق من الجوال
         # =================================================================
         if has_phone:
-            # إبلاغ الواجهة الأمامية بأن الخطوة التالية هي التحقق من الجوال عبر Firebase
-            return jsonify({
-                'success': True,
-                'message': 'تم التحقق من الإيميل. يرجى التحقق من رقم الجوال لإكمال التسجيل.',
-                'require_phone_verification': True,
-                'email': verification.email,
-                'phone': verification.phone,
-                'account_type': 'teacher' if is_teacher else 'student'
-            })
+            if is_teacher:
+                if Teacher.query.filter_by(username=verification.username).first():
+                    return jsonify({'success': False, 'error': 'اسم المستخدم أصبح محجوزاً'}), 400
+                if Teacher.query.filter_by(email=verification.email).first():
+                    return jsonify({'success': False, 'error': 'الإيميل أصبح مسجلاً'}), 400
+                
+                teacher = Teacher(
+                    name=verification.name,
+                    username=verification.username,
+                    email=verification.email,
+                    password_hash=verification.password_hash,
+                    phone=verification.phone,
+                    school=verification.school,
+                    is_active=False  # ❌ غير مفعّل حتى يتحقق من الجوال
+                )
+                db.session.add(teacher)
+                db.session.commit()
+                
+                token = create_teacher_token(teacher_id=teacher.id, username=teacher.username)
+                print(f"🐞 Teacher created (inactive): phone='{verification.phone}', waiting for phone verification")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'تم التحقق من الإيميل. يرجى التحقق من رقم الجوال.',
+                    'require_phone_verification': True,
+                    'phone': verification.phone,
+                    'token': token,
+                    'teacher': teacher.to_dict(),
+                    'account_type': 'teacher',
+                    'auto_login': False
+                })
+            else:
+                if Student.query.filter_by(username=verification.username).first():
+                    return jsonify({'success': False, 'error': 'اسم المستخدم أصبح محجوزاً'}), 400
+                if Student.query.filter_by(email=verification.email).first():
+                    return jsonify({'success': False, 'error': 'الإيميل أصبح مسجلاً'}), 400
+                
+                student = Student(
+                    name=verification.name,
+                    username=verification.username,
+                    email=verification.email,
+                    password_hash=verification.password_hash,
+                    phone=verification.phone,
+                    school=verification.school,
+                    grade=verification.grade,
+                    is_active=False  # ❌ غير مفعّل حتى يتحقق من الجوال
+                )
+                db.session.add(student)
+                db.session.commit()
+                
+                token = create_student_token(student_id=student.id, username=student.username)
+                print(f"🐞 Student created (inactive): phone='{verification.phone}', waiting for phone verification")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'تم التحقق من الإيميل. يرجى التحقق من رقم الجوال.',
+                    'require_phone_verification': True,
+                    'phone': verification.phone,
+                    'token': token,
+                    'student': student.to_dict(),
+                    'account_type': 'student',
+                    'auto_login': False
+                })
         
         # =================================================================
         #  السيناريو 2: المستخدم لم يدخل رقم جوال (تفعيل مباشر)
