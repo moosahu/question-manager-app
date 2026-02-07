@@ -2,160 +2,397 @@
 
 {% block title %}تعديل خريطة المفاهيم - {{ lesson.name }}{% endblock %}
 
-{% block content %}
-<div style="max-width: 1200px; margin: 30px auto; padding: 0 20px;">
-    <!-- العنوان -->
-    <div style="margin-bottom: 30px;">
-        <h1 style="margin-bottom: 10px;">✏️ تعديل خريطة المفاهيم</h1>
-        <p style="color: #6b7280;">{{ course.name }} ← {{ unit.name }} ← {{ lesson.name }}</p>
-    </div>
+{% block head_extra %}
+<!-- Same styles as admin_add_concept_map.html -->
+<style>
+    .form-container {
+        max-width: 1200px;
+        margin: 30px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #333;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #4ecdc4;
+        box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .branch-item {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .color-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 2px solid #ddd;
+        cursor: pointer;
+    }
+    
+    .example-item {
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .lesson-info-box {
+        background: #f0f9ff;
+        border: 2px solid #3b82f6;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+</style>
+{% endblock %}
 
-    <!-- نموذج التعديل -->
-    <form method="POST" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+{% block content %}
+<div class="form-container">
+    <h1 style="margin-bottom: 10px;">✏️ تعديل خريطة المفاهيم</h1>
+    <p style="color: #6b7280; margin-bottom: 30px;">تعديل بيانات الخريطة بطريقة تفاعلية</p>
+
+    <form id="conceptMapForm" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="map_data" id="mapDataInput">
 
         <!-- معلومات الدرس (للعرض فقط) -->
-        <div style="background: #f0f9ff; border: 2px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <div class="lesson-info-box">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 24px;"></i>
                 <div>
                     <div style="font-weight: bold; font-size: 16px; color: #1e40af;">الدرس:</div>
-                    <div style="color: #1e3a8a; margin-top: 5px;">{{ lesson.name }}</div>
-                    <div style="color: #6b7280; font-size: 14px; margin-top: 5px;">
+                    <div style="color: #1e3a8a; margin-top: 5px; font-size: 15px;">{{ lesson.name }}</div>
+                    <div style="color: #6b7280; font-size: 14px; margin-top: 3px;">
                         {{ course.name }} - {{ unit.name }}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- الإعدادات -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
-            <!-- Layout Type -->
-            <div>
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
-                    <i class="fas fa-sitemap"></i> نمط التخطيط *
-                </label>
-                <select name="layout_type" required style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                    <option value="radial" {% if concept_map.layout_type == 'radial' %}selected{% endif %}>Radial (دائري)</option>
-                    <option value="hierarchical" {% if concept_map.layout_type == 'hierarchical' %}selected{% endif %}>Hierarchical (شجري)</option>
-                    <option value="mindmap" {% if concept_map.layout_type == 'mindmap' %}selected{% endif %}>Mindmap (خريطة ذهنية)</option>
+        <!-- إعدادات التصميم -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+            <div class="form-group">
+                <label><i class="fas fa-sitemap"></i> نمط الخريطة</label>
+                <select id="layout_type" name="layout_type" class="form-control">
+                    <option value="radial" {% if concept_map.layout_type == 'radial' %}selected{% endif %}>⭕ دائري</option>
+                    <option value="hierarchical" {% if concept_map.layout_type == 'hierarchical' %}selected{% endif %}>🌳 شجري</option>
+                    <option value="mindmap" {% if concept_map.layout_type == 'mindmap' %}selected{% endif %}>🧠 خريطة ذهنية</option>
                 </select>
             </div>
-
-            <!-- Theme -->
-            <div>
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
-                    <i class="fas fa-palette"></i> الثيم *
-                </label>
-                <select name="theme" required style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                    <option value="modern" {% if concept_map.theme == 'modern' %}selected{% endif %}>Modern</option>
-                    <option value="classic" {% if concept_map.theme == 'classic' %}selected{% endif %}>Classic</option>
-                    <option value="pastel" {% if concept_map.theme == 'pastel' %}selected{% endif %}>Pastel</option>
+            
+            <div class="form-group">
+                <label><i class="fas fa-palette"></i> الثيم</label>
+                <select id="theme" name="theme" class="form-control">
+                    <option value="modern" {% if concept_map.theme == 'modern' %}selected{% endif %}>عصري</option>
+                    <option value="classic" {% if concept_map.theme == 'classic' %}selected{% endif %}>كلاسيكي</option>
+                    <option value="pastel" {% if concept_map.theme == 'pastel' %}selected{% endif %}>باستيل</option>
                 </select>
             </div>
-
-            <!-- Animation -->
-            <div>
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
-                    <i class="fas fa-magic"></i> الحركة
-                </label>
-                <select name="animation_type" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            
+            <div class="form-group">
+                <label><i class="fas fa-magic"></i> الحركة</label>
+                <select id="animation_type" name="animation_type" class="form-control">
                     <option value="fade-in" {% if concept_map.animation_type == 'fade-in' %}selected{% endif %}>Fade In</option>
                     <option value="slide-in" {% if concept_map.animation_type == 'slide-in' %}selected{% endif %}>Slide In</option>
-                    <option value="none" {% if concept_map.animation_type == 'none' %}selected{% endif %}>بدون حركة</option>
+                    <option value="none" {% if concept_map.animation_type == 'none' %}selected{% endif %}>بدون</option>
                 </select>
             </div>
         </div>
 
-        <!-- بيانات الخريطة (JSON) -->
-        <div style="margin-bottom: 25px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
-                <i class="fas fa-code"></i> بيانات الخريطة (JSON) *
-            </label>
-            <textarea name="map_data" id="mapDataInput" required rows="20" 
-                      style="width: 100%; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; direction: ltr;">{{ concept_map.map_data | tojson(indent=2) }}</textarea>
-            <div style="display: flex; justify-content: space-between; align-items-center; margin-top: 10px;">
-                <small style="color: #6b7280;">قم بتعديل بيانات الخريطة بصيغة JSON</small>
-                <button type="button" onclick="validateJSON()" style="padding: 8px 15px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                    ✓ تحقق من JSON
-                </button>
+        <!-- العقدة المركزية -->
+        <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;"><i class="fas fa-dot-circle"></i> العقدة المركزية</h3>
+            
+            <div class="form-group">
+                <label>النص *</label>
+                <input type="text" id="centerText" class="form-control" placeholder="مثال: الكيمياء" value="{{ concept_map.center_node.text if concept_map.center_node else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>الوصف</label>
+                <input type="text" id="centerDescription" class="form-control" placeholder="وصف مختصر..." value="{{ concept_map.center_node.description if concept_map.center_node else '' }}">
+            </div>
+            
+            <div class="form-group">
+                <label>اللون</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="color" id="centerColor" class="color-preview" value="{{ concept_map.center_node.color if concept_map.center_node else '#FFD54F' }}">
+                    <span id="centerColorCode">{{ concept_map.center_node.color if concept_map.center_node else '#FFD54F' }}</span>
+                </div>
             </div>
         </div>
 
-        <!-- الأزرار -->
+        <!-- الفروع -->
+        <div style="margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3><i class="fas fa-code-branch"></i> الفروع</h3>
+                <button type="button" class="btn btn-success" onclick="addBranch()">+ إضافة فرع</button>
+            </div>
+            
+            <div id="branchesContainer"></div>
+        </div>
+
+        <!-- أزرار الحفظ -->
         <div style="display: flex; gap: 15px; border-top: 2px solid #e5e7eb; padding-top: 25px;">
-            <button type="submit" style="flex: 1; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
                 <i class="fas fa-save"></i> حفظ التعديلات
             </button>
-            <a href="{{ url_for('learning.admin_concept_maps') }}" style="flex: 0.3; padding: 14px; background: #6b7280; color: white; border: none; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+            <button type="button" onclick="updateJSONPreview()" class="btn btn-secondary">
+                🔄 معاينة JSON
+            </button>
+            <a href="{{ url_for('learning.admin_concept_maps') }}" class="btn btn-secondary">
                 <i class="fas fa-times"></i> إلغاء
             </a>
         </div>
     </form>
 
-    <!-- معاينة البيانات الحالية -->
-    <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-top: 30px;">
-        <h3 style="margin-bottom: 20px;">📊 البيانات الحالية</h3>
-        
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
-            <div style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 12px; color: #6b7280;">النمط</div>
-                <div style="font-weight: 600; margin-top: 5px;">{{ concept_map.layout_type }}</div>
-            </div>
-            <div style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 12px; color: #6b7280;">الثيم</div>
-                <div style="font-weight: 600; margin-top: 5px;">{{ concept_map.theme }}</div>
-            </div>
-            <div style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 12px; color: #6b7280;">المشاهدات</div>
-                <div style="font-weight: 600; margin-top: 5px;">{{ concept_map.view_count }}</div>
-            </div>
-        </div>
-
-        {% if concept_map.center_node %}
-        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <div style="font-weight: bold; margin-bottom: 5px;">العقدة المركزية:</div>
-            <div>{{ concept_map.center_node.text }}</div>
-            {% if concept_map.center_node.description %}
-                <div style="color: #6b7280; font-size: 14px; margin-top: 5px;">{{ concept_map.center_node.description }}</div>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        {% if concept_map.branches %}
-        <div>
-            <div style="font-weight: bold; margin-bottom: 10px;">الفروع ({{ concept_map.branches|length }}):</div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
-                {% for branch in concept_map.branches %}
-                <div style="background: #f9fafb; padding: 12px; border-radius: 8px; border-right: 4px solid {{ branch.color if branch.color else '#4CAF50' }};">
-                    <div style="font-weight: 600;">{{ branch.text }}</div>
-                    {% if branch.examples %}
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 5px;">
-                            {{ branch.examples|length }} أمثلة
-                        </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
+    <!-- معاينة JSON -->
+    <div id="jsonPreview" style="display:none; background:#f9fafb; padding:20px; border-radius:10px; margin-top:20px;">
+        <h4>معاينة JSON:</h4>
+        <pre id="jsonContent" style="background:#1f2937; color:#10b981; padding:15px; border-radius:8px; overflow:auto; max-height:400px;"></pre>
     </div>
 </div>
 
 <script>
-function validateJSON() {
-    const input = document.getElementById('mapDataInput');
-    try {
-        JSON.parse(input.value);
-        input.style.borderColor = '#10b981';
-        alert('✓ JSON صحيح!');
-        setTimeout(() => {
-            input.style.borderColor = '#e5e7eb';
-        }, 2000);
-    } catch (error) {
-        input.style.borderColor = '#ef4444';
-        alert('✗ خطأ في JSON:\n' + error.message);
+let branchCount = 0;
+const colors = ['#4CAF50', '#2196F3', '#FF5722', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#009688'];
+
+// تحميل البيانات الحالية
+const existingData = {{ concept_map.map_data | tojson | safe }};
+
+// تحميل الفروع الموجودة عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('تحميل البيانات:', existingData);
+    
+    if (existingData && existingData.branches) {
+        existingData.branches.forEach((branch, index) => {
+            addBranch();
+            const currentId = branchCount;
+            
+            // ملء بيانات الفرع
+            setTimeout(() => {
+                document.getElementById(`branchText${currentId}`).value = branch.text || '';
+                document.getElementById(`branchDescription${currentId}`).value = branch.description || '';
+                document.getElementById(`branchColor${currentId}`).value = branch.color || colors[index % colors.length];
+                updateColorDisplay(currentId);
+                
+                // إضافة الأمثلة
+                if (branch.examples && branch.examples.length > 0) {
+                    branch.examples.forEach(example => {
+                        addExample(currentId, example);
+                    });
+                }
+            }, 50);
+        });
+    }
+    
+    // تحديث عرض لون المركز
+    document.getElementById('centerColor').addEventListener('input', function() {
+        document.getElementById('centerColorCode').textContent = this.value;
+    });
+});
+
+function addBranch() {
+    branchCount++;
+    const color = colors[(branchCount - 1) % colors.length];
+    
+    const branchHTML = `
+        <div class="branch-item" id="branch${branchCount}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4>فرع ${branchCount}</h4>
+                <button type="button" class="btn btn-danger" onclick="removeBranch(${branchCount})" style="padding: 8px 16px;">
+                    <i class="fas fa-trash"></i> حذف
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label>النص *</label>
+                <input type="text" id="branchText${branchCount}" class="form-control" placeholder="مثال: أهمية الكيمياء" required>
+            </div>
+            
+            <div class="form-group">
+                <label>الوصف</label>
+                <input type="text" id="branchDescription${branchCount}" class="form-control" placeholder="وصف الفرع...">
+            </div>
+            
+            <div class="form-group">
+                <label>اللون</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="color" id="branchColor${branchCount}" class="color-preview" value="${color}" onchange="updateColorDisplay(${branchCount})">
+                    <span id="branchColorCode${branchCount}">${color}</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>الأمثلة</label>
+                <div id="examplesContainer${branchCount}"></div>
+                <button type="button" class="btn btn-success" style="margin-top: 10px; font-size: 13px; padding: 8px 15px;" onclick="addExample(${branchCount})">
+                    + إضافة مثال
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('branchesContainer').insertAdjacentHTML('beforeend', branchHTML);
+}
+
+function removeBranch(id) {
+    if (confirm('هل أنت متأكد من حذف هذا الفرع؟')) {
+        document.getElementById(`branch${id}`).remove();
     }
 }
+
+function addExample(branchId, value = '') {
+    const exampleId = Date.now() + Math.random();
+    const exampleHTML = `
+        <div class="example-item" id="example${branchId}_${exampleId}">
+            <input type="text" class="form-control" placeholder="مثال..." value="${value}" style="flex: 1;">
+            <button type="button" class="btn btn-danger" style="padding: 8px 12px; font-size: 12px;" onclick="removeExample(${branchId}, ${exampleId})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    document.getElementById(`examplesContainer${branchId}`).insertAdjacentHTML('beforeend', exampleHTML);
+}
+
+function removeExample(branchId, exampleId) {
+    document.getElementById(`example${branchId}_${exampleId}`).remove();
+}
+
+function updateColorDisplay(branchId) {
+    const color = document.getElementById(`branchColor${branchId}`).value;
+    document.getElementById(`branchColorCode${branchId}`).textContent = color;
+}
+
+function updateJSONPreview() {
+    const mapData = collectMapData();
+    document.getElementById('jsonContent').textContent = JSON.stringify(mapData, null, 2);
+    document.getElementById('jsonPreview').style.display = 'block';
+}
+
+function collectMapData() {
+    const mapData = {
+        center_node: {
+            text: document.getElementById('centerText').value,
+            description: document.getElementById('centerDescription').value,
+            color: document.getElementById('centerColor').value
+        },
+        branches: []
+    };
+    
+    // جمع الفروع
+    const branchCards = document.querySelectorAll('.branch-item');
+    branchCards.forEach(card => {
+        const id = card.id.replace('branch', '');
+        const textInput = document.getElementById(`branchText${id}`);
+        
+        if (!textInput || !textInput.value) return;
+        
+        const branch = {
+            text: textInput.value,
+            description: document.getElementById(`branchDescription${id}`).value,
+            color: document.getElementById(`branchColor${id}`).value,
+            examples: []
+        };
+        
+        // جمع الأمثلة
+        const exampleInputs = card.querySelectorAll('.example-item input');
+        exampleInputs.forEach(input => {
+            if (input.value.trim()) {
+                branch.examples.push(input.value.trim());
+            }
+        });
+        
+        mapData.branches.push(branch);
+    });
+    
+    return mapData;
+}
+
+// عند الإرسال
+document.getElementById('conceptMapForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const mapData = collectMapData();
+    
+    // التحقق من البيانات
+    if (!mapData.center_node.text) {
+        alert('الرجاء إدخال نص العقدة المركزية!');
+        return;
+    }
+    
+    if (mapData.branches.length === 0) {
+        alert('الرجاء إضافة فرع واحد على الأقل!');
+        return;
+    }
+    
+    // وضع JSON في الحقل المخفي
+    document.getElementById('mapDataInput').value = JSON.stringify(mapData);
+    
+    console.log('إرسال البيانات:', mapData);
+    
+    // إرسال النموذج
+    this.submit();
+});
 </script>
 {% endblock %}
