@@ -39,6 +39,9 @@
                             <a href="#" class="btn btn-sm btn-warning" title="تعديل">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            <button onclick="deleteSummary({{ summary.id }}, '{{ lesson.name }}')" class="btn btn-sm btn-danger" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -56,4 +59,84 @@
         </div>
     {% endif %}
 </div>
+
+<style>
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    transition: all 0.3s;
+    font-size: 13px;
+    margin: 0 2px;
+}
+
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+</style>
+
+<script>
+// دالة حذف ملخص
+async function deleteSummary(summaryId, lessonName) {
+    // تأكيد الحذف
+    if (!confirm(`هل أنت متأكد من حذف ملخص الدرس:\n"${lessonName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه!`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/learning/admin/summaries/${summaryId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (response.ok) {
+            alert('✅ تم حذف الملخص بنجاح!');
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert('❌ خطأ في الحذف: ' + (error.error || 'حدث خطأ غير متوقع'));
+        }
+    } catch (error) {
+        console.error('Error deleting summary:', error);
+        alert('❌ خطأ في الاتصال بالخادم');
+    }
+}
+</script>
 {% endblock %}
