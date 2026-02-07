@@ -115,13 +115,17 @@ except ImportError:
     print("⚠️ Password Reset blueprint not available")
 
 # استيراد delete account blueprint لحذف الحساب (Apple Guideline 5.1.1)
+delete_account_available = False
 try:
     from src.routes.delete_account import delete_account_bp
     delete_account_available = True
     print("✅ Delete Account blueprint imported successfully")
-except ImportError:
-    delete_account_available = False
-    print("⚠️ Delete Account blueprint not available")
+except ImportError as e:
+    print(f"⚠️ Delete Account blueprint not available: {e}")
+except Exception as e:
+    print(f"❌ Delete Account blueprint error: {e}")
+    import traceback
+    traceback.print_exc()
 
 # استيراد admin profile blueprint لجلب بيانات الأدمن
 try:

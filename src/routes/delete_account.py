@@ -12,8 +12,8 @@ import random
 import string
 import secrets
 
-# استيراد خدمة الإيميل
-from email_service import email_service
+# ✅ المسار الصحيح لخدمة الإيميل
+from src.services.email_service import email_service
 
 
 delete_account_bp = Blueprint('delete_account', __name__)
@@ -205,7 +205,6 @@ def confirm_delete():
                 db.session.execute(db.text("DELETE FROM fcm_tokens WHERE user_id = :id AND user_type = 'teacher'"), {'id': user_id})
                 db.session.execute(db.text("DELETE FROM teachers WHERE id = :id"), {'id': user_id})
 
-            # حذف OTP records
             DeleteAccountOTP.query.filter_by(user_id=user_id, user_type=user_type).delete()
             db.session.commit()
 
