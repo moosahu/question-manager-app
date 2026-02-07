@@ -469,6 +469,56 @@ def admin_view_concept_map(concept_map_id):
                          course=course)
 
 
+@learning_bp.route('/admin/concept-map/<int:concept_map_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_concept_map(concept_map_id):
+    """تعديل خريطة مفاهيم"""
+    if not current_user.is_admin:
+        flash('ليس لديك صلاحية الوصول', 'error')
+        return redirect(url_for('dashboard'))
+    
+    concept_map = ConceptMap.query.get_or_404(concept_map_id)
+    
+    if request.method == 'POST':
+        try:
+            layout_type = request.form.get('layout_type', 'radial')
+            theme = request.form.get('theme', 'modern')
+            animation_type = request.form.get('animation_type', 'fade-in')
+            map_data = request.form.get('map_data')
+            
+            # تحويل JSON
+            import json
+            map_data_dict = json.loads(map_data)
+            
+            # تحديث البيانات
+            concept_map.layout_type = layout_type
+            concept_map.theme = theme
+            concept_map.animation_type = animation_type
+            concept_map.map_data = map_data_dict
+            
+            db.session.commit()
+            
+            flash('تم تحديث خريطة المفاهيم بنجاح!', 'success')
+            return redirect(url_for('learning.admin_concept_maps'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطأ في التحديث: {str(e)}', 'error')
+            import traceback
+            traceback.print_exc()
+    
+    # GET: عرض نموذج التعديل
+    lesson = Lesson.query.get(concept_map.lesson_id)
+    unit = Unit.query.get(lesson.unit_id) if lesson else None
+    course = Course.query.get(unit.course_id) if unit else None
+    
+    return render_template('learning/admin_edit_concept_map.html',
+                         concept_map=concept_map,
+                         lesson=lesson,
+                         unit=unit,
+                         course=course)
+
+
 @learning_bp.route('/admin/summary/add', methods=['GET', 'POST'])
 @login_required
 def admin_add_summary():
