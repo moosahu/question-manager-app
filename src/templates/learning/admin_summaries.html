@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة الملخصات - نظام التعلم{% endblock %}
+
+{% block content %}
+<div style="max-width: 1400px; margin: 30px auto; padding: 0 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1 style="margin: 0;">📖 إدارة الملخصات</h1>
+        <a href="{{ url_for('learning.admin_add_summary') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> إضافة ملخص جديد
+        </a>
+    </div>
+
+    {% if summaries %}
+        <div style="background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                        <th style="padding: 15px; text-align: right; font-weight: 600;">الدرس</th>
+                        <th style="padding: 15px; text-align: right; font-weight: 600;">الوحدة</th>
+                        <th style="padding: 15px; text-align: right; font-weight: 600;">المقرر</th>
+                        <th style="padding: 15px; text-align: center; font-weight: 600;">وقت القراءة</th>
+                        <th style="padding: 15px; text-align: center; font-weight: 600;">تاريخ الإنشاء</th>
+                        <th style="padding: 15px; text-align: center; font-weight: 600;">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for summary, lesson, unit, course in summaries %}
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 15px;">{{ lesson.name }}</td>
+                        <td style="padding: 15px;">{{ unit.name }}</td>
+                        <td style="padding: 15px;">{{ course.name }}</td>
+                        <td style="padding: 15px; text-align: center;">{{ summary.estimated_reading_time }} دقائق</td>
+                        <td style="padding: 15px; text-align: center;">{{ summary.created_at.strftime('%Y-%m-%d') if summary.created_at else '-' }}</td>
+                        <td style="padding: 15px; text-align: center;">
+                            <a href="#" class="btn btn-sm btn-info" title="عرض">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="#" class="btn btn-sm btn-warning" title="تعديل">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="background: white; padding: 60px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <i class="fas fa-inbox" style="font-size: 64px; color: #d1d5db; margin-bottom: 20px;"></i>
+            <h3 style="color: #6b7280; margin: 0 0 15px 0;">لا توجد ملخصات بعد</h3>
+            <p style="color: #9ca3af; margin-bottom: 20px;">ابدأ بإنشاء أول ملخص للدروس</p>
+            <a href="{{ url_for('learning.admin_add_summary') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> إضافة ملخص جديد
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
