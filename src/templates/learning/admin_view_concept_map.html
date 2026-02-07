@@ -2,6 +2,45 @@
 
 {% block title %}عرض خريطة المفاهيم - {{ lesson.name }}{% endblock %}
 
+{% block head_extra %}
+<!-- D3.js Library -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    #conceptMapContainer {
+        width: 100%;
+        min-height: 600px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .node-circle {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .node-circle:hover {
+        filter: brightness(1.2);
+    }
+    
+    .node-text {
+        font-size: 14px;
+        font-weight: bold;
+        text-anchor: middle;
+        pointer-events: none;
+        fill: #333;
+    }
+    
+    .link-path {
+        fill: none;
+        stroke-width: 2px;
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- العنوان -->
@@ -16,7 +55,7 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item">
-                                <a href="{{ url_for('learning.admin_index') }}">
+                                <a href="{{ url_for('learning.admin_dashboard') }}">
                                     <i class="fas fa-home"></i> الرئيسية
                                 </a>
                             </li>
@@ -30,6 +69,10 @@
                     </nav>
                 </div>
                 <div>
+                    <a href="{{ url_for('learning.admin_edit_concept_map', concept_map_id=concept_map.id) }}" 
+                       class="btn btn-warning">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
                     <a href="{{ url_for('learning.admin_concept_maps') }}" 
                        class="btn btn-secondary">
                         <i class="fas fa-arrow-right"></i> رجوع
@@ -39,185 +82,226 @@
         </div>
     </div>
 
-    <!-- معلومات الدرس -->
-    <div class="row mb-4">
+    <!-- معلومات سريعة -->
+    <div class="row mb-3">
         <div class="col-md-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle"></i> معلومات الدرس
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <strong>المنهج:</strong><br>
-                            {{ course.name if course else 'غير محدد' }}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>الوحدة:</strong><br>
-                            {{ unit.name if unit else 'غير محدد' }}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>الدرس:</strong><br>
-                            {{ lesson.name }}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>المشاهدات:</strong><br>
-                            <span class="badge badge-info">{{ concept_map.view_count }}</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="alert alert-info">
+                <strong>نمط التخطيط:</strong> {{ concept_map.layout_type }} |
+                <strong>الثيم:</strong> {{ concept_map.theme }} |
+                <strong>المشاهدات:</strong> {{ concept_map.view_count }}
             </div>
         </div>
     </div>
 
-    <!-- معلومات الخريطة -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-cog"></i> إعدادات الخريطة
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>نمط التخطيط:</strong> <span class="badge badge-primary">{{ concept_map.layout_type }}</span></p>
-                    <p><strong>الثيم:</strong> <span class="badge badge-secondary">{{ concept_map.theme }}</span></p>
-                    <p><strong>تاريخ الإنشاء:</strong> {{ concept_map.created_at.strftime('%Y-%m-%d %H:%M') if concept_map.created_at else 'غير محدد' }}</p>
-                    <p><strong>آخر تحديث:</strong> {{ concept_map.updated_at.strftime('%Y-%m-%d %H:%M') if concept_map.updated_at else 'غير محدد' }}</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-bar"></i> إحصائيات
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>عدد الفروع:</strong> <span class="badge badge-success">{{ concept_map.branches|length if concept_map.branches else 0 }}</span></p>
-                    <p><strong>إجمالي الأمثلة:</strong> 
-                        <span class="badge badge-info">
-                            {% set example_count = 0 %}
-                            {% if concept_map.branches %}
-                                {% for branch in concept_map.branches %}
-                                    {% if branch.examples %}
-                                        {% set example_count = example_count + branch.examples|length %}
-                                    {% endif %}
-                                {% endfor %}
-                            {% endif %}
-                            {{ example_count }}
-                        </span>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- العقدة المركزية -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header" style="background-color: {{ concept_map.center_node.color if concept_map.center_node and concept_map.center_node.color else '#FFD54F' }};">
-                    <h5 class="mb-0">
-                        <i class="fas fa-dot-circle"></i> العقدة المركزية
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if concept_map.center_node %}
-                        <h4 class="text-center mb-3">{{ concept_map.center_node.text }}</h4>
-                        {% if concept_map.center_node.description %}
-                            <p class="text-center text-muted">{{ concept_map.center_node.description }}</p>
-                        {% endif %}
-                    {% else %}
-                        <p class="text-muted text-center">لا توجد عقدة مركزية</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- الفروع -->
+    <!-- الخريطة البصرية -->
     <div class="row">
         <div class="col-12">
-            <h4 class="mb-3">
-                <i class="fas fa-code-branch"></i> الفروع
-            </h4>
+            <div id="conceptMapContainer"></div>
         </div>
-        
-        {% if concept_map.branches %}
-            {% for branch in concept_map.branches %}
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header" style="background-color: {{ branch.color if branch.color else '#4CAF50' }}; color: white;">
-                            <h5 class="mb-0">{{ branch.text }}</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if branch.description %}
-                                <p class="text-muted mb-3">{{ branch.description }}</p>
-                            {% endif %}
-                            
-                            {% if branch.examples %}
-                                <h6 class="mb-2">
-                                    <i class="fas fa-list"></i> الأمثلة:
-                                </h6>
-                                <ul class="list-unstyled">
-                                    {% for example in branch.examples %}
-                                        <li class="mb-2">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            {{ example }}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <p class="text-muted">لا توجد أمثلة</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    لا توجد فروع في هذه الخريطة
-                </div>
-            </div>
-        {% endif %}
     </div>
 </div>
 
-<style>
-    .card {
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-radius: 8px;
-        overflow: hidden;
-    }
+<script>
+// البيانات من Backend
+const mapData = {{ concept_map.map_data | tojson | safe }};
+const layoutType = "{{ concept_map.layout_type }}";
+const theme = "{{ concept_map.theme }}";
+
+console.log('📊 Concept Map Data:', mapData);
+console.log('🎨 Layout Type:', layoutType);
+
+// إعداد SVG
+const container = document.getElementById('conceptMapContainer');
+const width = container.clientWidth;
+const height = 600;
+
+const svg = d3.select('#conceptMapContainer')
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('dir', 'rtl');
+
+const g = svg.append('g')
+    .attr('transform', `translate(${width/2}, ${height/2})`);
+
+// الألوان حسب الثيم
+const themes = {
+    modern: { bg: '#f8f9fa', center: '#4A90E2', branch: '#50C878' },
+    neon: { bg: '#1a1a2e', center: '#FF10F0', branch: '#00FFF0' },
+    minimal: { bg: '#ffffff', center: '#333333', branch: '#666666' },
+    glassmorphism: { bg: '#e0e5ec', center: '#5B9BD5', branch: '#70AD47' },
+    gradient: { bg: '#f5f7fa', center: '#667eea', branch: '#764ba2' }
+};
+
+const colors = themes[theme] || themes.modern;
+
+// رسم حسب النمط
+if (layoutType === 'radial' || layoutType === 'mindmap') {
+    drawRadialMap();
+} else if (layoutType === 'hierarchical') {
+    drawHierarchicalMap();
+} else {
+    // Default: radial
+    drawRadialMap();
+}
+
+// ============================================
+// دالة رسم خريطة دائرية (Radial/Mindmap)
+// ============================================
+function drawRadialMap() {
+    const centerNode = mapData.center_node;
+    const branches = mapData.branches || [];
     
-    .card-header {
-        font-weight: bold;
-        border-bottom: none;
-    }
+    // العقدة المركزية
+    const centerRadius = 60;
     
-    .badge {
-        font-size: 0.9rem;
-        padding: 0.4em 0.8em;
-    }
+    g.append('circle')
+        .attr('r', centerRadius)
+        .attr('fill', centerNode.color || colors.center)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 3)
+        .attr('class', 'node-circle');
     
-    .breadcrumb {
-        background-color: transparent;
-        padding: 0;
-        margin: 0;
-    }
+    g.append('text')
+        .attr('class', 'node-text')
+        .attr('dy', '0.35em')
+        .text(centerNode.text)
+        .style('font-size', '16px')
+        .style('fill', '#fff')
+        .call(wrap, centerRadius * 1.8);
     
-    .list-unstyled li {
-        padding: 0.5rem;
-        border-radius: 4px;
-        background-color: #f8f9fa;
-        margin-bottom: 0.5rem;
-    }
-</style>
+    // الفروع
+    const angleStep = (2 * Math.PI) / branches.length;
+    const radius = 200;
+    
+    branches.forEach((branch, i) => {
+        const angle = angleStep * i - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        
+        // الخط
+        g.append('line')
+            .attr('class', 'link-path')
+            .attr('x1', 0)
+            .attr('y1', 0)
+            .attr('x2', x)
+            .attr('y2', y)
+            .attr('stroke', branch.color || colors.branch)
+            .attr('stroke-width', 2);
+        
+        // الفرع
+        const branchGroup = g.append('g')
+            .attr('transform', `translate(${x}, ${y})`);
+        
+        branchGroup.append('circle')
+            .attr('r', 40)
+            .attr('fill', branch.color || colors.branch)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .attr('class', 'node-circle');
+        
+        branchGroup.append('text')
+            .attr('class', 'node-text')
+            .attr('dy', '0.35em')
+            .text(branch.text)
+            .style('font-size', '12px')
+            .style('fill', '#fff')
+            .call(wrap, 70);
+    });
+}
+
+// ============================================
+// دالة رسم خريطة شجرية (Hierarchical)
+// ============================================
+function drawHierarchicalMap() {
+    const centerNode = mapData.center_node;
+    const branches = mapData.branches || [];
+    
+    // العقدة المركزية في الأعلى
+    const topY = -height / 2 + 80;
+    
+    g.append('circle')
+        .attr('r', 50)
+        .attr('cx', 0)
+        .attr('cy', topY)
+        .attr('fill', centerNode.color || colors.center)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 3)
+        .attr('class', 'node-circle');
+    
+    g.append('text')
+        .attr('x', 0)
+        .attr('y', topY)
+        .attr('class', 'node-text')
+        .attr('dy', '0.35em')
+        .text(centerNode.text)
+        .style('font-size', '14px')
+        .style('fill', '#fff')
+        .call(wrap, 90);
+    
+    // الفروع في صفوف
+    const xStep = width / (branches.length + 1);
+    const branchY = topY + 150;
+    
+    branches.forEach((branch, i) => {
+        const x = -width/2 + xStep * (i + 1);
+        
+        // الخط
+        g.append('line')
+            .attr('class', 'link-path')
+            .attr('x1', 0)
+            .attr('y1', topY)
+            .attr('x2', x)
+            .attr('y2', branchY)
+            .attr('stroke', branch.color || colors.branch);
+        
+        // الفرع
+        const branchGroup = g.append('g')
+            .attr('transform', `translate(${x}, ${branchY})`);
+        
+        branchGroup.append('circle')
+            .attr('r', 35)
+            .attr('fill', branch.color || colors.branch)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .attr('class', 'node-circle');
+        
+        branchGroup.append('text')
+            .attr('class', 'node-text')
+            .attr('dy', '0.35em')
+            .text(branch.text)
+            .style('font-size', '11px')
+            .style('fill', '#fff')
+            .call(wrap, 60);
+    });
+}
+
+// ============================================
+// دالة لف النص في عدة أسطر
+// ============================================
+function wrap(text, width) {
+    text.each(function() {
+        const text = d3.select(this);
+        const words = text.text().split(/\s+/).reverse();
+        let word;
+        let line = [];
+        let lineNumber = 0;
+        const lineHeight = 1.1;
+        const y = text.attr("y") || 0;
+        const dy = parseFloat(text.attr("dy"));
+        let tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+        
+        while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            }
+        }
+    });
+}
+</script>
 {% endblock %}
