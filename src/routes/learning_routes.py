@@ -23,15 +23,29 @@ def api_get_lesson_content(lesson_id):
     """
     API: جلب محتوى الدرس الكامل (ملخص + خريطة مفاهيم + تقدم الطالب)
     """
-    # ✅ التحقق من الجلسة مباشرة
+    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
-    if 'user_id' not in session:
+    from src.models.student import Student
+    
+    student_id = None
+    
+    # محاولة 1: Session Cookie
+    if 'user_id' in session:
+        student_id = session['user_id']
+    
+    # محاولة 2: Device ID من Header
+    if not student_id:
+        device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+        if device_id:
+            student = Student.query.filter_by(device_id=device_id).first()
+            if student:
+                student_id = student.id
+    
+    if not student_id:
         return jsonify({
             'success': False,
             'error': 'يرجى تسجيل الدخول أولاً'
         }), 401
-    
-    student_id = session['user_id']
     
     try:
         # التحقق من وجود الدرس
@@ -105,15 +119,29 @@ def api_update_progress(lesson_id):
         "total_nodes": 5
     }
     """
-    # ✅ التحقق من الجلسة مباشرة
+    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
-    if 'user_id' not in session:
+    from src.models.student import Student
+    
+    student_id = None
+    
+    # محاولة 1: Session Cookie
+    if 'user_id' in session:
+        student_id = session['user_id']
+    
+    # محاولة 2: Device ID من Header
+    if not student_id:
+        device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+        if device_id:
+            student = Student.query.filter_by(device_id=device_id).first()
+            if student:
+                student_id = student.id
+    
+    if not student_id:
         return jsonify({
             'success': False,
             'error': 'يرجى تسجيل الدخول أولاً'
         }), 401
-    
-    student_id = session['user_id']
     
     try:
         data = request.json
@@ -184,15 +212,32 @@ def api_get_all_lessons():
     """
     API: جلب جميع الدروس مع تقدم الطالب (منظمة حسب المناهج والوحدات)
     """
-    # ✅ التحقق من الجلسة مباشرة
+    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
-    if 'user_id' not in session:
+    from src.models.student import Student
+    
+    student_id = None
+    
+    # محاولة 1: Session Cookie
+    if 'user_id' in session:
+        student_id = session['user_id']
+        print(f"✅ Student authenticated via session: {student_id}")
+    
+    # محاولة 2: Device ID من Header
+    if not student_id:
+        device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+        if device_id:
+            student = Student.query.filter_by(device_id=device_id).first()
+            if student:
+                student_id = student.id
+                print(f"✅ Student authenticated via device_id: {student_id}")
+    
+    if not student_id:
+        print("❌ No authentication found")
         return jsonify({
             'success': False,
             'error': 'يرجى تسجيل الدخول أولاً'
         }), 401
-    
-    student_id = session['user_id']
     
     try:
         # جلب جميع الدروس مع الوحدات والمناهج
