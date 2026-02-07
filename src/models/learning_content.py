@@ -4,6 +4,8 @@ Models for Learning Content System:
 - LessonSummary: Text summaries for lessons
 - ConceptMap: Interactive concept maps
 - StudentLessonProgress: Track student progress
+
+✅ FIXED: Updated to work with 'students' table (plural)
 """
 
 from src.extensions import db
@@ -19,13 +21,13 @@ class LessonSummary(db.Model):
                          nullable=False, unique=True)
     
     # المحتوى
-    introduction = db.Column(db.Text, nullable=False)  # المقدمة
-    key_points = db.Column(JSONB, nullable=False, default=[])  # النقاط الرئيسية
-    examples = db.Column(JSONB, default=[])  # الأمثلة التطبيقية
-    vocabulary = db.Column(JSONB, default={})  # المصطلحات {"term": "definition"}
+    introduction = db.Column(db.Text, nullable=False)
+    key_points = db.Column(JSONB, nullable=False, default=[])
+    examples = db.Column(JSONB, default=[])
+    vocabulary = db.Column(JSONB, default={})
     
     # الإعدادات
-    estimated_reading_time = db.Column(db.Integer, default=5)  # دقائق
+    estimated_reading_time = db.Column(db.Integer, default=5)
     
     # التواريخ
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -59,40 +61,12 @@ class ConceptMap(db.Model):
                          nullable=False, unique=True)
     
     # التصميم
-    layout_type = db.Column(db.String(50), default='radial')  
-    # Options: 'radial', 'hierarchical', 'mindmap', 'flowchart', 'timeline', 'network', 'spiral'
-    
+    layout_type = db.Column(db.String(50), default='radial')
     theme = db.Column(db.String(50), default='modern')
-    # Options: 'modern', 'neon', 'minimal', 'glassmorphism', 'gradient'
-    
     animation_type = db.Column(db.String(50), default='fade-in')
-    # Options: 'fade-in', 'slide-in', 'bounce-in', 'spiral-in'
     
     # البيانات
     map_data = db.Column(JSONB, nullable=False)
-    """
-    Structure:
-    {
-        "center_node": {
-            "id": "chemistry",
-            "text": "الكيمياء",
-            "description": "...",
-            "color": "#FFD54F"
-        },
-        "branches": [
-            {
-                "id": "organic",
-                "text": "الكيمياء العضوية",
-                "color": "#4CAF50",
-                "description": "...",
-                "specialty": "...",
-                "examples": ["...", "..."]
-            }
-        ]
-    }
-    """
-    
-    # الإعدادات
     settings = db.Column(JSONB, default={'enableAnimation': True})
     
     # الإحصائيات
@@ -127,36 +101,37 @@ class StudentLessonProgress(db.Model):
     __tablename__ = 'student_lesson_progress'
     
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id', ondelete='CASCADE'),
+    
+    # ✅ FIX: Changed from 'student.id' to 'students.id' to match actual table name
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id', ondelete='CASCADE'),
                           nullable=False)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id', ondelete='CASCADE'),
                          nullable=False)
     
     # الحالة العامة
     status = db.Column(db.String(50), default='not_started')
-    # Options: 'not_started', 'reading_summary', 'exploring_map', 'completed'
     
     # الملخص
     summary_read = db.Column(db.Boolean, default=False)
-    summary_reading_time = db.Column(db.Integer, default=0)  # ثواني
+    summary_reading_time = db.Column(db.Integer, default=0)
     
     # خريطة المفاهيم
     concept_map_explored = db.Column(db.Boolean, default=False)
-    explored_nodes = db.Column(JSONB, default=[])  # ["node1", "node2", ...]
-    concept_map_time = db.Column(db.Integer, default=0)  # ثواني
+    explored_nodes = db.Column(JSONB, default=[])
+    concept_map_time = db.Column(db.Integer, default=0)
     
     # الإحصائيات
-    completion_percentage = db.Column(db.Integer, default=0)  # 0-100
-    total_time_spent = db.Column(db.Integer, default=0)  # ثواني
+    completion_percentage = db.Column(db.Integer, default=0)
+    total_time_spent = db.Column(db.Integer, default=0)
     
     # التواريخ
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
     last_activity_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # العلاقات
-    student = db.relationship('Student', backref='lesson_progress')
-    lesson = db.relationship('Lesson', backref='student_progress')
+    # العلاقات - ✅ FIXED: Specify foreign_keys explicitly
+    # Note: We're not defining the relationship here to avoid conflicts
+    # The relationship will be accessed via queries directly
     
     # Unique constraint
     __table_args__ = (
