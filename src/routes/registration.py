@@ -379,7 +379,14 @@ def verify_code():
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
                 }), 400
             
-            # إنشاء حساب المعلم وتفعيله مباشرة
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
+            should_activate = settings.teacher_auto_activate
+            if has_phone:
+                should_activate = False
+            
+            print(f"🐞 Teacher verify: phone='{verification.phone}', has_phone={has_phone}, should_activate={should_activate}")
+            
             teacher = Teacher(
                 name=verification.name,
                 username=verification.username,
@@ -387,7 +394,7 @@ def verify_code():
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
-                is_active=settings.teacher_auto_activate  # ✅ تفعيل مباشر
+                is_active=should_activate
             )
             
             db.session.add(teacher)
@@ -405,8 +412,9 @@ def verify_code():
                 'token': token,
                 'teacher': teacher.to_dict(),
                 'account_type': 'teacher',
-                'auto_login': settings.teacher_auto_activate,
-                'require_phone_verification': False
+                'auto_login': should_activate,
+                'require_phone_verification': has_phone,
+                'phone': verification.phone
             })
         else:
             # ==================== إنشاء حساب طالب ====================
@@ -423,7 +431,14 @@ def verify_code():
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
                 }), 400
             
-            # إنشاء حساب الطالب وتفعيله مباشرة
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
+            should_activate = settings.auto_activate
+            if has_phone:
+                should_activate = False  # ينتظر التحقق من الجوال
+            
+            print(f"🐞 Student verify: phone='{verification.phone}', has_phone={has_phone}, should_activate={should_activate}")
+            
             student = Student(
                 name=verification.name,
                 username=verification.username,
@@ -432,7 +447,7 @@ def verify_code():
                 phone=verification.phone,
                 school=verification.school,
                 grade=verification.grade,
-                is_active=settings.auto_activate  # ✅ تفعيل مباشر
+                is_active=should_activate
             )
             
             db.session.add(student)
@@ -453,8 +468,9 @@ def verify_code():
                 'token': token,
                 'student': student.to_dict(),
                 'account_type': 'student',
-                'auto_login': settings.auto_activate,
-                'require_phone_verification': False
+                'auto_login': should_activate,
+                'require_phone_verification': has_phone,
+                'phone': verification.phone
             })
         
     except Exception as e:
