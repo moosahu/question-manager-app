@@ -351,6 +351,12 @@ def verify_code():
                 }), 400
             
             # إنشاء حساب المعلم
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
+            should_activate = settings.teacher_auto_activate
+            if has_phone:
+                should_activate = False
+            
             teacher = Teacher(
                 name=verification.name,
                 username=verification.username,
@@ -358,7 +364,7 @@ def verify_code():
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
-                is_active=settings.teacher_auto_activate  # التفعيل حسب الإعدادات
+                is_active=should_activate
             )
             
             db.session.add(teacher)
@@ -376,7 +382,9 @@ def verify_code():
                 'token': token,
                 'teacher': teacher.to_dict(),
                 'account_type': 'teacher',
-                'auto_login': settings.teacher_auto_activate
+                'auto_login': should_activate,
+                'require_phone_verification': has_phone,
+                'phone': verification.phone
             })
         else:
             # ==================== إنشاء حساب طالب ====================
@@ -394,9 +402,10 @@ def verify_code():
                 }), 400
             
             # إنشاء حساب الطالب
-            # ✅ إذا الجوال مطلوب، لا يُفعّل الحساب إلا بعد التحقق من الجوال
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
             should_activate = settings.auto_activate
-            if settings.require_phone and verification.phone:
+            if has_phone:
                 should_activate = False  # ينتظر التحقق من الجوال
             
             student = Student(
@@ -429,8 +438,8 @@ def verify_code():
                 'student': student.to_dict(),
                 'account_type': 'student',
                 'auto_login': should_activate,
-                'require_phone': settings.require_phone and bool(verification.phone),  # ✅ جديد
-                'phone': verification.phone  # ✅ جديد: رقم الجوال للتحقق
+                'require_phone_verification': has_phone,  # ✅ هل يحتاج تحقق جوال؟
+                'phone': verification.phone  # ✅ رقم الجوال للتحقق
             })
         
     except Exception as e:
