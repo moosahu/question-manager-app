@@ -19,14 +19,28 @@ learning_bp = Blueprint('learning', __name__, url_prefix='/learning')
 # ===================================
 
 @learning_bp.route('/api/lessons/<int:lesson_id>', methods=['GET'])
-@login_required
 def api_get_lesson_content(lesson_id):
     """
     API: جلب محتوى الدرس الكامل (ملخص + خريطة مفاهيم + تقدم الطالب)
     """
+    # ✅ التحقق من الجلسة مباشرة
+    from flask import session
+    if 'user_id' not in session:
+        return jsonify({
+            'success': False,
+            'error': 'يرجى تسجيل الدخول أولاً'
+        }), 401
+    
+    student_id = session['user_id']
+    
     try:
         # التحقق من وجود الدرس
-        lesson = Lesson.query.get_or_404(lesson_id)
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
         
         # جلب الملخص
         summary = LessonSummary.query.filter_by(lesson_id=lesson_id).first()
@@ -41,13 +55,13 @@ def api_get_lesson_content(lesson_id):
         
         # جلب أو إنشاء تقدم الطالب
         progress = StudentLessonProgress.query.filter_by(
-            student_id=current_user.id,
+            student_id=student_id,
             lesson_id=lesson_id
         ).first()
         
         if not progress:
             progress = StudentLessonProgress(
-                student_id=current_user.id,
+                student_id=student_id,
                 lesson_id=lesson_id,
                 status='reading_summary'
             )
@@ -81,7 +95,6 @@ def api_get_lesson_content(lesson_id):
 
 
 @learning_bp.route('/api/lessons/<int:lesson_id>/progress', methods=['POST'])
-@login_required
 def api_update_progress(lesson_id):
     """
     API: تحديث تقدم الطالب
@@ -92,19 +105,29 @@ def api_update_progress(lesson_id):
         "total_nodes": 5
     }
     """
+    # ✅ التحقق من الجلسة مباشرة
+    from flask import session
+    if 'user_id' not in session:
+        return jsonify({
+            'success': False,
+            'error': 'يرجى تسجيل الدخول أولاً'
+        }), 401
+    
+    student_id = session['user_id']
+    
     try:
         data = request.json
         action = data.get('action')
         
         # جلب التقدم
         progress = StudentLessonProgress.query.filter_by(
-            student_id=current_user.id,
+            student_id=student_id,
             lesson_id=lesson_id
         ).first()
         
         if not progress:
             progress = StudentLessonProgress(
-                student_id=current_user.id,
+                student_id=student_id,
                 lesson_id=lesson_id
             )
             db.session.add(progress)
@@ -157,22 +180,20 @@ def api_update_progress(lesson_id):
 
 
 @learning_bp.route('/api/lessons', methods=['GET'])
-@login_required
 def api_get_all_lessons():
     """
     API: جلب جميع الدروس مع تقدم الطالب (منظمة حسب المناهج والوحدات)
-    Returns: {
-        "success": true,
-        "lessons": {
-            "كيمياء 1": {
-                "الوحدة الأولى": [lessons],
-                "الوحدة الثانية": [lessons]
-            },
-            "كيمياء 2": {...}
-        },
-        "total": 10
-    }
     """
+    # ✅ التحقق من الجلسة مباشرة
+    from flask import session
+    if 'user_id' not in session:
+        return jsonify({
+            'success': False,
+            'error': 'يرجى تسجيل الدخول أولاً'
+        }), 401
+    
+    student_id = session['user_id']
+    
     try:
         # جلب جميع الدروس مع الوحدات والمناهج
         lessons = Lesson.query.join(Unit).join(Course).order_by(
@@ -197,7 +218,7 @@ def api_get_all_lessons():
             
             # جلب التقدم
             progress = StudentLessonProgress.query.filter_by(
-                student_id=current_user.id,
+                student_id=student_id,
                 lesson_id=lesson.id
             ).first()
             
