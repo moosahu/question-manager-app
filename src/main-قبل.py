@@ -114,15 +114,6 @@ except ImportError:
     password_reset_available = False
     print("⚠️ Password Reset blueprint not available")
 
-# استيراد delete account blueprint لحذف الحساب (Apple Guideline 5.1.1)
-try:
-    from src.routes.delete_account import delete_account_bp
-    delete_account_available = True
-    print("✅ Delete Account blueprint imported successfully")
-except ImportError:
-    delete_account_available = False
-    print("⚠️ Delete Account blueprint not available")
-
 # استيراد admin profile blueprint لجلب بيانات الأدمن
 try:
     from src.routes.admin_profile import admin_profile_bp
@@ -620,16 +611,6 @@ def create_app():
         app.register_blueprint(admin_profile_bp)
         print("✅ Admin Profile blueprint registered successfully")
         print("🔐 Admin profile endpoint available at: /api/admin/profile")
-    
-    # ✅ تسجيل delete account blueprint لحذف الحساب (Apple Guideline 5.1.1)
-    if delete_account_available:
-        csrf.exempt(delete_account_bp)
-        app.register_blueprint(delete_account_bp)
-        print("✅ Delete Account blueprint registered successfully")
-        print("🗑️ Delete Account endpoints available at:")
-        print("   - /api/account/request-delete")
-        print("   - /api/account/verify-delete-otp")
-        print("   - /api/account/confirm-delete")
     
     # ✅ تسجيل reports blueprint لنظام التقارير الشامل
     if reports_available:
