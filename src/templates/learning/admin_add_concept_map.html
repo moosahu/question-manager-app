@@ -38,6 +38,17 @@
         box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
     }
     
+    .form-control:disabled {
+        background: #f9fafb;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .form-control:not(:disabled) {
+        background: white;
+        cursor: pointer;
+    }
+    
     .branch-item {
         background: #f8f9fa;
         padding: 20px;
@@ -69,6 +80,7 @@
     
     .btn-primary:hover {
         background: #3db8af;
+        transform: translateY(-2px);
     }
     
     .btn-success {
@@ -99,12 +111,6 @@
         border: 2px solid #ddd;
     }
     
-    .example-item {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-    
     .json-preview {
         background: #f4f4f4;
         border: 1px solid #ddd;
@@ -116,6 +122,14 @@
         font-size: 12px;
         white-space: pre-wrap;
     }
+    
+    #lessonInfo {
+        background: #f0f9ff;
+        border: 2px solid #3b82f6;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+    }
 </style>
 {% endblock %}
 
@@ -124,20 +138,44 @@
     <h1 style="margin-bottom: 30px; color: #333;">🗺️ إضافة خريطة مفاهيم جديدة</h1>
     
     <form id="conceptMapForm" method="POST">
-        <!-- CSRF Token -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
-        <!-- اختيار الدرس -->
-        <div class="form-group">
-            <label for="lesson_id">اختر الدرس *</label>
-            <select id="lesson_id" name="lesson_id" class="form-control" required>
-                <option value="">-- اختر الدرس --</option>
-                {% for lesson in lessons %}
-                <option value="{{ lesson.id }}">
-                    {{ lesson.unit.course.name }} - {{ lesson.unit.name }} - {{ lesson.name }}
-                </option>
-                {% endfor %}
-            </select>
+        <!-- ✅ اختيار ديناميكي متسلسل -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+            <!-- المنهج -->
+            <div class="form-group">
+                <label for="courseSelect"><i class="fas fa-book"></i> المنهج *</label>
+                <select id="courseSelect" required class="form-control">
+                    <option value="">-- اختر المنهج --</option>
+                </select>
+            </div>
+
+            <!-- الوحدة -->
+            <div class="form-group">
+                <label for="unitSelect"><i class="fas fa-folder"></i> الوحدة *</label>
+                <select id="unitSelect" required disabled class="form-control">
+                    <option value="">-- اختر الوحدة --</option>
+                </select>
+            </div>
+
+            <!-- الدرس -->
+            <div class="form-group">
+                <label for="lessonSelect"><i class="fas fa-file-alt"></i> الدرس *</label>
+                <select id="lessonSelect" name="lesson_id" required disabled class="form-control">
+                    <option value="">-- اختر الدرس --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- معلومات الدرس المختار -->
+        <div id="lessonInfo" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 20px;"></i>
+                <div>
+                    <div style="font-weight: bold; color: #1e40af;">الدرس المختار:</div>
+                    <div id="selectedLessonPath" style="color: #1e3a8a; margin-top: 5px;"></div>
+                </div>
+            </div>
         </div>
         
         <!-- إعدادات التصميم -->
@@ -240,15 +278,139 @@
 <script>
 let branchCount = 0;
 
-// Add initial branch on page load
-window.addEventListener('DOMContentLoaded', () => {
-    addBranch();
+// تحميل البيانات عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCourses();
+    setupEventListeners();
+    addBranch(); // Add initial branch
     
     // Update color code display
     document.getElementById('center_color').addEventListener('input', (e) => {
         document.getElementById('center_color_code').textContent = e.target.value;
     });
 });
+
+// جلب جميع المناهج
+async function loadCourses() {
+    try {
+        const response = await fetch('/api/v1/courses?show_all=true');
+        const courses = await response.json();
+        
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+        
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.name;
+            courseSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('خطأ في تحميل المناهج:', error);
+        alert('حدث خطأ في تحميل المناهج');
+    }
+}
+
+// جلب الوحدات
+async function loadUnits(courseId) {
+    try {
+        const response = await fetch(`/api/v1/courses/${courseId}/units`);
+        const units = await response.json();
+        
+        const unitSelect = document.getElementById('unitSelect');
+        unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        
+        units.forEach(unit => {
+            const option = document.createElement('option');
+            option.value = unit.id;
+            option.textContent = unit.name;
+            unitSelect.appendChild(option);
+        });
+        
+        unitSelect.disabled = false;
+        
+        // Reset lessons
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        lessonSelect.disabled = true;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الوحدات:', error);
+        alert('حدث خطأ في تحميل الوحدات');
+    }
+}
+
+// جلب الدروس
+async function loadLessons(unitId) {
+    try {
+        const response = await fetch(`/api/v1/units/${unitId}/lessons`);
+        const lessons = await response.json();
+        
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        lessons.forEach(lesson => {
+            const option = document.createElement('option');
+            option.value = lesson.id;
+            option.textContent = lesson.name;
+            lessonSelect.appendChild(option);
+        });
+        
+        lessonSelect.disabled = false;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الدروس:', error);
+        alert('حدث خطأ في تحميل الدروس');
+    }
+}
+
+// Event Listeners
+function setupEventListeners() {
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    courseSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadUnits(e.target.value);
+        } else {
+            unitSelect.disabled = true;
+            lessonSelect.disabled = true;
+            unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    unitSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadLessons(e.target.value);
+        } else {
+            lessonSelect.disabled = true;
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    lessonSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            showLessonInfo();
+        } else {
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+}
+
+// عرض معلومات الدرس
+function showLessonInfo() {
+    const courseName = document.getElementById('courseSelect').selectedOptions[0].text;
+    const unitName = document.getElementById('unitSelect').selectedOptions[0].text;
+    const lessonName = document.getElementById('lessonSelect').selectedOptions[0].text;
+    
+    const path = `${courseName} ← ${unitName} ← ${lessonName}`;
+    document.getElementById('selectedLessonPath').textContent = path;
+    document.getElementById('lessonInfo').style.display = 'block';
+}
 
 function addBranch() {
     branchCount++;
@@ -352,6 +514,12 @@ function collectMapData() {
 // Submit form
 document.getElementById('conceptMapForm').addEventListener('submit', (e) => {
     e.preventDefault();
+    
+    const lessonId = document.getElementById('lessonSelect').value;
+    if (!lessonId) {
+        alert('الرجاء اختيار الدرس');
+        return;
+    }
     
     const mapData = collectMapData();
     document.getElementById('map_data').value = JSON.stringify(mapData);

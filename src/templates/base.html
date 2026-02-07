@@ -158,6 +158,19 @@
                         </ul>
                     </li>
 
+                    <!-- قائمة نظام التعلم الذكي -->
+                    <li class="nav-dropdown {% if request.endpoint in ['learning.admin_index', 'learning.admin_concept_maps', 'learning.admin_summaries', 'learning.admin_add_concept_map', 'learning.admin_add_summary', 'learning.admin_reports'] %}has-active{% endif %}">
+                        <a href="#" class="nav-dropdown-toggle"><i class="fas fa-brain"></i> نظام التعلم الذكي <i class="fas fa-chevron-down dropdown-arrow"></i></a>
+                        <ul class="nav-dropdown-menu">
+                            <li><a href="{{ url_for('learning.admin_index') }}" {% if request.endpoint == 'learning.admin_index' %}class="active"{% endif %}><i class="fas fa-home"></i> لوحة التحكم</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('learning.admin_concept_maps') }}" {% if request.endpoint == 'learning.admin_concept_maps' %}class="active"{% endif %}><i class="fas fa-project-diagram"></i> خرائط المفاهيم</a></li>
+                            <li><a href="{{ url_for('learning.admin_summaries') }}" {% if request.endpoint == 'learning.admin_summaries' %}class="active"{% endif %}><i class="fas fa-file-alt"></i> الملخصات</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('learning.admin_reports') }}" {% if request.endpoint == 'learning.admin_reports' %}class="active"{% endif %}><i class="fas fa-chart-bar"></i> التقارير</a></li>
+                        </ul>
+                    </li>
+
                     <!-- قائمة الإدارة -->
                     <li class="nav-dropdown {% if request.endpoint in ['teachers.list_teachers', 'students.list_students'] %}has-active{% endif %}">
                         <a href="#" class="nav-dropdown-toggle"><i class="fas fa-users-cog"></i> الإدارة <i class="fas fa-chevron-down dropdown-arrow"></i></a>

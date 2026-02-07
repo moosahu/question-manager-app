@@ -6,59 +6,110 @@
 <div style="max-width: 1000px; margin: 30px auto; padding: 0 20px;">
     <h1 style="margin-bottom: 30px;">➕ إضافة ملخص جديد</h1>
 
-    <form method="POST" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        {{ form.hidden_tag() if form else '' }}
+    <form id="summaryForm" method="POST" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Lesson Selection -->
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">اختر الدرس *</label>
-            <select name="lesson_id" required style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                <option value="">-- اختر الدرس --</option>
-                {% for lesson in lessons %}
-                <option value="{{ lesson.id }}">{{ lesson.unit.course.name }} - {{ lesson.unit.name }} - {{ lesson.name }}</option>
-                {% endfor %}
-            </select>
+        <!-- ✅ اختيار ديناميكي متسلسل -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+            <!-- المنهج -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-book"></i> المنهج *
+                </label>
+                <select id="courseSelect" required style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                    <option value="">-- اختر المنهج --</option>
+                </select>
+            </div>
+
+            <!-- الوحدة -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-folder"></i> الوحدة *
+                </label>
+                <select id="unitSelect" required disabled style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: #f9fafb;">
+                    <option value="">-- اختر الوحدة --</option>
+                </select>
+            </div>
+
+            <!-- الدرس -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-file-alt"></i> الدرس *
+                </label>
+                <select id="lessonSelect" name="lesson_id" required disabled style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: #f9fafb;">
+                    <option value="">-- اختر الدرس --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- معلومات الدرس المختار -->
+        <div id="lessonInfo" style="display: none; background: #f0f9ff; border: 2px solid #3b82f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 20px;"></i>
+                <div>
+                    <div style="font-weight: bold; color: #1e40af;">الدرس المختار:</div>
+                    <div id="selectedLessonPath" style="color: #1e3a8a; margin-top: 5px;"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Introduction -->
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">المقدمة *</label>
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-paragraph"></i> المقدمة *
+            </label>
             <textarea name="introduction" required rows="4" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;" placeholder="مقدمة تعريفية عن الدرس..."></textarea>
+            <small style="color: #6b7280;">نبذة مختصرة عن موضوع الدرس</small>
         </div>
 
         <!-- Key Points -->
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">النقاط الرئيسية (JSON Array) *</label>
-            <textarea name="key_points" required rows="4" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: monospace;" placeholder='["النقطة الأولى", "النقطة الثانية"]'>[]</textarea>
-            <small style="color: #6b7280;">مثال: ["النقطة 1", "النقطة 2", "النقطة 3"]</small>
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-list-ul"></i> النقاط الرئيسية (JSON Array) *
+            </label>
+            <textarea name="key_points" id="keyPointsInput" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px;" placeholder='["النقطة الأولى", "النقطة الثانية", "النقطة الثالثة"]'>[]</textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                <small style="color: #6b7280;">أهم النقاط التي يجب على الطالب معرفتها</small>
+                <button type="button" onclick="validateJSON('keyPointsInput')" style="padding: 5px 10px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                    ✓ تحقق من JSON
+                </button>
+            </div>
         </div>
 
         <!-- Examples -->
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">الأمثلة (JSON Array)</label>
-            <textarea name="examples" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: monospace;" placeholder='["مثال 1", "مثال 2"]'>[]</textarea>
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-lightbulb"></i> الأمثلة (JSON Array)
+            </label>
+            <textarea name="examples" id="examplesInput" rows="4" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px;" placeholder='["مثال 1", "مثال 2"]'>[]</textarea>
+            <small style="color: #6b7280;">أمثلة عملية لتوضيح المفاهيم</small>
         </div>
 
         <!-- Vocabulary -->
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">المصطلحات (JSON Object)</label>
-            <textarea name="vocabulary" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: monospace;" placeholder='{"المصطلح": "التعريف"}'>{}</textarea>
-            <small style="color: #6b7280;">مثال: {"المادة": "كل ما له كتلة", "الذرة": "أصغر جزء"}</small>
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-book-open"></i> المصطلحات (JSON Object)
+            </label>
+            <textarea name="vocabulary" id="vocabularyInput" rows="4" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px;" placeholder='{"المصطلح الأول": "تعريفه", "المصطلح الثاني": "تعريفه"}'>{}</textarea>
+            <small style="color: #6b7280;">المصطلحات والمفاهيم الجديدة في الدرس</small>
         </div>
 
         <!-- Reading Time -->
         <div style="margin-bottom: 30px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 8px;">وقت القراءة المتوقع (بالدقائق)</label>
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-clock"></i> وقت القراءة المتوقع (بالدقائق)
+            </label>
             <input type="number" name="estimated_reading_time" value="5" min="1" max="60" style="width: 200px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <small style="color: #6b7280; display: block; margin-top: 5px;">متوسط الوقت المتوقع لقراءة هذا الملخص</small>
         </div>
 
         <!-- Buttons -->
-        <div style="display: flex; gap: 15px;">
+        <div style="display: flex; gap: 15px; border-top: 2px solid #e5e7eb; padding-top: 20px;">
             <button type="submit" class="btn btn-primary" style="flex: 1;">
                 <i class="fas fa-save"></i> حفظ الملخص
             </button>
             <a href="{{ url_for('learning.admin_summaries') }}" class="btn btn-secondary">
-                إلغاء
+                <i class="fas fa-times"></i> إلغاء
             </a>
         </div>
     </form>
@@ -66,7 +117,7 @@
 
 <style>
 .btn {
-    padding: 12px 24px;
+    padding: 14px 24px;
     border: none;
     border-radius: 8px;
     font-weight: 600;
@@ -74,14 +125,197 @@
     text-decoration: none;
     display: inline-block;
     text-align: center;
+    font-size: 15px;
+    transition: all 0.3s;
 }
 .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
 .btn-secondary {
     background: #6b7280;
     color: white;
 }
+.btn-secondary:hover {
+    background: #4b5563;
+}
+select:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+select:not(:disabled) {
+    background: white !important;
+    cursor: pointer;
+}
 </style>
+
+<script>
+// ✅ تحميل المناهج عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCourses();
+    setupEventListeners();
+});
+
+// جلب جميع المناهج
+async function loadCourses() {
+    try {
+        const response = await fetch('/api/v1/courses?show_all=true');
+        const courses = await response.json();
+        
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+        
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.name;
+            courseSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('خطأ في تحميل المناهج:', error);
+        alert('حدث خطأ في تحميل المناهج');
+    }
+}
+
+// جلب الوحدات لمنهج معين
+async function loadUnits(courseId) {
+    try {
+        const response = await fetch(`/api/v1/courses/${courseId}/units`);
+        const units = await response.json();
+        
+        const unitSelect = document.getElementById('unitSelect');
+        unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        
+        units.forEach(unit => {
+            const option = document.createElement('option');
+            option.value = unit.id;
+            option.textContent = unit.name;
+            unitSelect.appendChild(option);
+        });
+        
+        unitSelect.disabled = false;
+        
+        // إعادة تعيين الدروس
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        lessonSelect.disabled = true;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الوحدات:', error);
+        alert('حدث خطأ في تحميل الوحدات');
+    }
+}
+
+// جلب الدروس لوحدة معينة
+async function loadLessons(unitId) {
+    try {
+        const response = await fetch(`/api/v1/units/${unitId}/lessons`);
+        const lessons = await response.json();
+        
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        lessons.forEach(lesson => {
+            const option = document.createElement('option');
+            option.value = lesson.id;
+            option.textContent = lesson.name;
+            lessonSelect.appendChild(option);
+        });
+        
+        lessonSelect.disabled = false;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الدروس:', error);
+        alert('حدث خطأ في تحميل الدروس');
+    }
+}
+
+// إعداد Event Listeners
+function setupEventListeners() {
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    courseSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadUnits(e.target.value);
+        } else {
+            unitSelect.disabled = true;
+            lessonSelect.disabled = true;
+            unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    unitSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadLessons(e.target.value);
+        } else {
+            lessonSelect.disabled = true;
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    lessonSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            showLessonInfo();
+        } else {
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+}
+
+// عرض معلومات الدرس المختار
+function showLessonInfo() {
+    const courseName = document.getElementById('courseSelect').selectedOptions[0].text;
+    const unitName = document.getElementById('unitSelect').selectedOptions[0].text;
+    const lessonName = document.getElementById('lessonSelect').selectedOptions[0].text;
+    
+    const path = `${courseName} ← ${unitName} ← ${lessonName}`;
+    document.getElementById('selectedLessonPath').textContent = path;
+    document.getElementById('lessonInfo').style.display = 'block';
+}
+
+// التحقق من صحة JSON
+function validateJSON(inputId) {
+    const input = document.getElementById(inputId);
+    try {
+        JSON.parse(input.value);
+        input.style.borderColor = '#10b981';
+        alert('✓ JSON صحيح!');
+        setTimeout(() => {
+            input.style.borderColor = '#e5e7eb';
+        }, 2000);
+    } catch (error) {
+        input.style.borderColor = '#ef4444';
+        alert('✗ خطأ في JSON:\n' + error.message);
+    }
+}
+
+// التحقق قبل الإرسال
+document.getElementById('summaryForm').addEventListener('submit', (e) => {
+    const lessonId = document.getElementById('lessonSelect').value;
+    if (!lessonId) {
+        e.preventDefault();
+        alert('الرجاء اختيار الدرس');
+        return;
+    }
+    
+    // التحقق من JSON
+    const keyPoints = document.getElementById('keyPointsInput').value;
+    try {
+        JSON.parse(keyPoints);
+    } catch (error) {
+        e.preventDefault();
+        alert('خطأ في النقاط الرئيسية: ' + error.message);
+        return;
+    }
+});
+</script>
 {% endblock %}

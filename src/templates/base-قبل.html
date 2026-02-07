@@ -10,6 +10,105 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     {% block head_extra %}{% endblock %}
     {% block extra_css %}{% endblock %}
+    <style>
+        /* ===== Dropdown Navigation ===== */
+        .main-navigation .nav-list {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .main-navigation .nav-list > li {
+            position: relative;
+        }
+        .main-navigation .nav-list > li > a {
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        /* سهم القائمة المنسدلة */
+        .nav-dropdown-toggle .dropdown-arrow {
+            font-size: 0.6rem;
+            transition: transform 0.3s ease;
+        }
+        .nav-dropdown:hover .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        /* القائمة المنسدلة */
+        .nav-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: rgba(20, 25, 45, 0.97);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 220px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            list-style: none;
+            margin: 0;
+        }
+        .nav-dropdown:hover .nav-dropdown-menu {
+            display: block;
+            animation: dropdownFade 0.25s ease;
+        }
+        @keyframes dropdownFade {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-dropdown-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            color: #c0c4d0;
+            text-decoration: none;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .nav-dropdown-menu li a:hover {
+            background: rgba(78, 205, 196, 0.12);
+            color: #4ecdc4;
+            padding-right: 22px;
+        }
+        .nav-dropdown-menu li a.active {
+            color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.08);
+        }
+        .nav-dropdown-menu li a i {
+            width: 18px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        /* خط فاصل */
+        .nav-dropdown-menu .dropdown-divider {
+            height: 1px;
+            background: rgba(78, 205, 196, 0.1);
+            margin: 6px 12px;
+        }
+        /* تمييز القائمة المنسدلة إذا فيها عنصر active */
+        .nav-dropdown.has-active > a {
+            color: #4ecdc4 !important;
+        }
+        /* الإشعارات badge في القائمة المنسدلة */
+        .nav-dropdown-menu .notification-badge-inline {
+            background: #ef4444;
+            color: white;
+            font-size: 0.7rem;
+            padding: 1px 7px;
+            border-radius: 10px;
+            margin-right: auto;
+        }
+    </style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <div class="particles-container">
@@ -44,20 +143,45 @@
                     <!-- قائمة المستخدمين المسجلين -->
                     <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
                     <li><a href="{{ url_for('curriculum.list_courses') }}" {% if request.endpoint == 'curriculum.list_courses' %}class="active"{% endif %}><i class="fas fa-flask"></i> إدارة المنهج</a></li>
-                    <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-question-circle"></i> إدارة الأسئلة</a></li>
-                    <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
-                    <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
-                    <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-user-cog"></i> تغير كلمة المرور</a></li>
-                    <li><a href="{{ url_for('settings.index') }}" {% if request.endpoint == 'settings.index' %}class="active"{% endif %}><i class="fas fa-cog"></i> الإعدادات</a></li>
-                    <li><a href="{{ url_for('view_notifications') }}" class="notifications-nav-link {% if request.endpoint == 'view_notifications' %}active{% endif %}">
-                        <span class="notification-icon-wrapper">
-                            <i class="fas fa-bell"></i>
-                            {% if unread_count and unread_count > 0 %}
-                            <span class="nav-notification-badge">{{ unread_count }}</span>
-                            {% endif %}
-                        </span>
-                        الإشعارات
-                    </a></li>
+                    
+                    <!-- قائمة الأسئلة والاختبارات -->
+                    <li class="nav-dropdown {% if request.endpoint in ['question.list_questions', 'question.import_questions', 'question.quiz', 'diagnostic.admin_page', 'question.export_exam', 'question.header_settings'] %}has-active{% endif %}">
+                        <a href="#" class="nav-dropdown-toggle"><i class="fas fa-question-circle"></i> الأسئلة والاختبارات <i class="fas fa-chevron-down dropdown-arrow"></i></a>
+                        <ul class="nav-dropdown-menu">
+                            <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-list"></i> إدارة الأسئلة</a></li>
+                            <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
+                            <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
+                            <li><a href="{{ url_for('diagnostic.admin_page') }}" {% if request.endpoint == 'diagnostic.admin_page' %}class="active"{% endif %}><i class="fas fa-stethoscope"></i> الاختبارات التشخيصية</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('question.export_exam') }}" {% if request.endpoint == 'question.export_exam' %}class="active"{% endif %}><i class="fas fa-file-export"></i> استخراج نماذج الاختبار</a></li>
+                            <li><a href="{{ url_for('question.header_settings') }}" {% if request.endpoint == 'question.header_settings' %}class="active"{% endif %}><i class="fas fa-stamp"></i> إعدادات الكليشة</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- قائمة الإدارة -->
+                    <li class="nav-dropdown {% if request.endpoint in ['teachers.list_teachers', 'students.list_students'] %}has-active{% endif %}">
+                        <a href="#" class="nav-dropdown-toggle"><i class="fas fa-users-cog"></i> الإدارة <i class="fas fa-chevron-down dropdown-arrow"></i></a>
+                        <ul class="nav-dropdown-menu">
+                            <li><a href="{{ url_for('teachers.list_teachers') }}" {% if request.endpoint == 'teachers.list_teachers' %}class="active"{% endif %}><i class="fas fa-chalkboard-teacher"></i> إدارة المعلمين</a></li>
+                            <li><a href="{{ url_for('students.list_students') }}" {% if request.endpoint == 'students.list_students' %}class="active"{% endif %}><i class="fas fa-user-graduate"></i> إدارة الطلاب</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- قائمة الحساب -->
+                    <li class="nav-dropdown {% if request.endpoint in ['user.change_password', 'settings.index', 'view_notifications'] %}has-active{% endif %}">
+                        <a href="#" class="nav-dropdown-toggle">
+                            <i class="fas fa-cog"></i> الحساب
+                            {% if unread_count and unread_count > 0 %}<span class="nav-notification-badge">{{ unread_count }}</span>{% endif %}
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
+                        </a>
+                        <ul class="nav-dropdown-menu">
+                            <li><a href="{{ url_for('user.change_password') }}" {% if request.endpoint == 'user.change_password' %}class="active"{% endif %}><i class="fas fa-key"></i> تغيير كلمة المرور</a></li>
+                            <li><a href="{{ url_for('settings.index') }}" {% if request.endpoint == 'settings.index' %}class="active"{% endif %}><i class="fas fa-sliders-h"></i> الإعدادات</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('view_notifications') }}" {% if request.endpoint == 'view_notifications' %}class="active"{% endif %}><i class="fas fa-bell"></i> الإشعارات {% if unread_count and unread_count > 0 %}<span class="notification-badge-inline">{{ unread_count }}</span>{% endif %}</a></li>
+                        </ul>
+                    </li>
+
                     <li><a href="{{ url_for('auth.logout') }}" class="logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
                 {% else %}
                     <!-- قائمة المستخدمين غير المسجلين -->
@@ -154,6 +278,22 @@
                     });
                 });
             }
+
+            // منع الروابط الوهمية في القوائم المنسدلة من التنقل
+            document.querySelectorAll('.nav-dropdown-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                });
+            });
+
+            // إغلاق القوائم المنسدلة عند النقر خارجها (للموبايل)
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.nav-dropdown')) {
+                    document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
+                        menu.style.display = '';
+                    });
+                }
+            });
         });
     </script>
     {% block scripts %}{% endblock %}

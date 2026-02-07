@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.learning_content import LessonSummary, ConceptMap, StudentLessonProgress
 from src.models.curriculum import Lesson, Unit, Course
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func
 
 learning_bp = Blueprint('learning', __name__, url_prefix='/learning')
