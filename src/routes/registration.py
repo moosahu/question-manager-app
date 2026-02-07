@@ -338,6 +338,14 @@ def verify_code():
         # ✅ نقطة القرار: هل أدخل المستخدم رقم جوال؟
         has_phone = bool(verification.phone)
         
+        # ✅ فحص إضافي: إذا الجوال إجباري ولكن المستخدم ما أدخله
+        require_phone = settings.teacher_require_phone if is_teacher else settings.require_phone
+        if require_phone and not has_phone:
+            return jsonify({
+                'success': False,
+                'error': 'رقم الجوال مطلوب لإكمال التسجيل'
+            }), 400
+        
         # =================================================================
         #  السيناريو 1: المستخدم أدخل رقم جوال (التحقق عبر Firebase)
         # =================================================================
