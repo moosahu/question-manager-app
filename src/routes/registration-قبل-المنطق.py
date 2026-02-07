@@ -9,7 +9,7 @@ from src.models.student import Student
 from src.models.teacher import Teacher  # ✅ جديد
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
-from src.middleware.auth_middleware import create_student_token, create_teacher_token
+from src.middleware.auth_middleware import create_student_token, create_teacher_token  # ✅ جديد
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -335,27 +335,6 @@ def verify_code():
         # ✅ التحقق من نوع الحساب
         is_teacher = verification.grade == 'teacher' or account_type == 'teacher'
         
-        # ✅ نقطة القرار: هل أدخل المستخدم رقم جوال؟
-        has_phone = bool(verification.phone)
-        
-        # =================================================================
-        #  السيناريو 1: المستخدم أدخل رقم جوال (التحقق عبر Firebase)
-        # =================================================================
-        if has_phone:
-            # إبلاغ الواجهة الأمامية بأن الخطوة التالية هي التحقق من الجوال عبر Firebase
-            return jsonify({
-                'success': True,
-                'message': 'تم التحقق من الإيميل. يرجى التحقق من رقم الجوال لإكمال التسجيل.',
-                'require_phone_verification': True,
-                'email': verification.email,
-                'phone': verification.phone,
-                'account_type': 'teacher' if is_teacher else 'student'
-            })
-        
-        # =================================================================
-        #  السيناريو 2: المستخدم لم يدخل رقم جوال (تفعيل مباشر)
-        # =================================================================
-        
         if is_teacher:
             # ==================== إنشاء حساب معلم ====================
             # التحقق مرة أخرى من عدم تكرار البيانات
@@ -371,7 +350,13 @@ def verify_code():
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
                 }), 400
             
-            # إنشاء حساب المعلم وتفعيله مباشرة
+            # إنشاء حساب المعلم
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
+            should_activate = settings.teacher_auto_activate
+            if has_phone:
+                should_activate = False
+            
             teacher = Teacher(
                 name=verification.name,
                 username=verification.username,
@@ -379,7 +364,7 @@ def verify_code():
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
-                is_active=settings.teacher_auto_activate  # ✅ تفعيل مباشر
+                is_active=should_activate
             )
             
             db.session.add(teacher)
@@ -397,8 +382,9 @@ def verify_code():
                 'token': token,
                 'teacher': teacher.to_dict(),
                 'account_type': 'teacher',
-                'auto_login': settings.teacher_auto_activate,
-                'require_phone_verification': False
+                'auto_login': should_activate,
+                'require_phone_verification': has_phone,
+                'phone': verification.phone
             })
         else:
             # ==================== إنشاء حساب طالب ====================
@@ -415,7 +401,13 @@ def verify_code():
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
                 }), 400
             
-            # إنشاء حساب الطالب وتفعيله مباشرة
+            # إنشاء حساب الطالب
+            # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
+            has_phone = bool(verification.phone)
+            should_activate = settings.auto_activate
+            if has_phone:
+                should_activate = False  # ينتظر التحقق من الجوال
+            
             student = Student(
                 name=verification.name,
                 username=verification.username,
@@ -424,7 +416,7 @@ def verify_code():
                 phone=verification.phone,
                 school=verification.school,
                 grade=verification.grade,
-                is_active=settings.auto_activate  # ✅ تفعيل مباشر
+                is_active=should_activate
             )
             
             db.session.add(student)
@@ -445,8 +437,9 @@ def verify_code():
                 'token': token,
                 'student': student.to_dict(),
                 'account_type': 'student',
-                'auto_login': settings.auto_activate,
-                'require_phone_verification': False
+                'auto_login': should_activate,
+                'require_phone_verification': has_phone,  # ✅ هل يحتاج تحقق جوال؟
+                'phone': verification.phone  # ✅ رقم الجوال للتحقق
             })
         
     except Exception as e:
@@ -462,123 +455,7 @@ def verify_code():
 
 # ==================== إعادة إرسال الرمز ====================
 
-# ==================== ✅ جديد: التحقق من رمز الجوال وإنشاء الحساب ====================
-@registration_bp.route('/verify-phone', methods=['POST'])
-def verify_phone_code():
-    """التحقق من رمز الجوال وإنشاء الحساب وتفعيله"""
-    try:
-        data = request.get_json() or request.form
-        email = data.get('email', '').strip().lower()
-        phone_code = data.get('code', '').strip()
-        account_type = data.get('account_type', 'student')
-
-        if not email or not phone_code:
-            return jsonify({
-                'success': False,
-                'error': 'الإيميل ورمز التحقق من الجوال مطلوبان'
-            }), 400
-
-        # البحث عن طلب التحقق الذي تم فيه التحقق من الإيميل
-        verification = EmailVerification.query.filter_by(
-            email=email,
-            is_verified=True
-        ).order_by(EmailVerification.created_at.desc()).first()
-
-        if not verification or not verification.phone:
-            return jsonify({
-                'success': False,
-                'error': 'لم يتم العثور على طلب تسجيل صالح للتحقق من الجوال.'
-            }), 404
-
-        # التحقق من رمز الجوال
-        success, message = verification.verify_phone_code(phone_code)
-        if not success:
-            return jsonify({
-                'success': False,
-                'error': message
-            }), 400
-
-        # الآن يمكننا إنشاء الحساب وتفعيله
-        settings = RegistrationSettings.get_settings()
-        is_teacher = verification.grade == 'teacher' or account_type == 'teacher'
-
-        if is_teacher:
-            # ==================== إنشاء حساب معلم ====================
-            if Teacher.query.filter_by(username=verification.username).first() or \
-               Teacher.query.filter_by(email=verification.email).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'اسم المستخدم أو الإيميل أصبح محجوزاً.'
-                }), 400
-
-            teacher = Teacher(
-                name=verification.name,
-                username=verification.username,
-                email=verification.email,
-                password_hash=verification.password_hash,
-                phone=verification.phone,
-                school=verification.school,
-                is_active=True  # ✅ تفعيل الحساب
-            )
-            db.session.add(teacher)
-            db.session.commit()
-            
-            token = create_teacher_token(teacher_id=teacher.id, username=teacher.username)
-
-            return jsonify({
-                'success': True,
-                'message': 'تم إنشاء حساب المعلم بنجاح',
-                'token': token,
-                'teacher': teacher.to_dict(),
-                'account_type': 'teacher',
-                'auto_login': True
-            })
-        else:
-            # ==================== إنشاء حساب طالب ====================
-            if Student.query.filter_by(username=verification.username).first() or \
-               Student.query.filter_by(email=verification.email).first():
-                return jsonify({
-                    'success': False,
-                    'error': 'اسم المستخدم أو الإيميل أصبح محجوزاً.'
-                }), 400
-
-            student = Student(
-                name=verification.name,
-                username=verification.username,
-                email=verification.email,
-                password_hash=verification.password_hash,
-                phone=verification.phone,
-                school=verification.school,
-                grade=verification.grade,
-                is_active=True  # ✅ تفعيل الحساب
-            )
-            db.session.add(student)
-            db.session.commit()
-            student.update_last_login()
-            
-            token = create_student_token(student_id=student.id, username=student.username)
-
-            return jsonify({
-                'success': True,
-                'message': 'تم إنشاء الحساب بنجاح',
-                'token': token,
-                'student': student.to_dict(),
-                'account_type': 'student',
-                'auto_login': True
-            })
-
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ خطأ في التحقق من الجوال: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': 'حدث خطأ في التحقق من الجوال'
-        }), 500
-
-
-# ==================== تفعيل الحساب بعد التحقق من الجوال عبر Firebase ====================
+# ==================== ✅ جديد: تفعيل الحساب بعد التحقق من الجوال ====================
 @registration_bp.route('/activate-after-phone', methods=['POST'])
 def activate_after_phone():
     """تفعيل الحساب بعد التحقق من رقم الجوال عبر Firebase"""
