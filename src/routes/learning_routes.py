@@ -499,8 +499,8 @@ def admin_edit_concept_map(concept_map_id):
             db.session.commit()
             
             flash('تم تحديث خريطة المفاهيم بنجاح!', 'success')
-            return redirect(url_for('learning.admin_concept_maps'))
-            
+            return redirect(url_for('learning.admin_view_concept_map', concept_map_id=concept_map.id))
+
         except Exception as e:
             db.session.rollback()
             flash(f'خطأ في التحديث: {str(e)}', 'error')
@@ -606,8 +606,8 @@ def admin_add_concept_map():
             db.session.commit()
             
             flash('تم إضافة خريطة المفاهيم بنجاح!', 'success')
-            return redirect(url_for('learning.admin_concept_maps'))
-            
+            return redirect(url_for('learning.admin_view_concept_map', concept_map_id=concept_map.id))
+                        
         except Exception as e:
             db.session.rollback()
             flash(f'خطأ في إضافة خريطة المفاهيم: {str(e)}', 'error')
