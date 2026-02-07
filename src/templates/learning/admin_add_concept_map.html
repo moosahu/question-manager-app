@@ -296,6 +296,9 @@ async function loadCourses() {
         const response = await fetch('/api/v1/courses?show_all=true');
         const courses = await response.json();
         
+        // ✅ ترتيب المناهج حسب order_num
+        courses.sort((a, b) => (a.order_num ?? 999999) - (b.order_num ?? 999999));
+        
         const courseSelect = document.getElementById('courseSelect');
         courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
         
@@ -316,6 +319,9 @@ async function loadUnits(courseId) {
     try {
         const response = await fetch(`/api/v1/courses/${courseId}/units`);
         const units = await response.json();
+        
+        // ✅ ترتيب الوحدات حسب order_num
+        units.sort((a, b) => (a.order_num ?? 999999) - (b.order_num ?? 999999));
         
         const unitSelect = document.getElementById('unitSelect');
         unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
@@ -345,6 +351,9 @@ async function loadLessons(unitId) {
     try {
         const response = await fetch(`/api/v1/units/${unitId}/lessons`);
         const lessons = await response.json();
+        
+        // ✅ ترتيب الدروس حسب order_num
+        lessons.sort((a, b) => (a.order_num ?? 999999) - (b.order_num ?? 999999));
         
         const lessonSelect = document.getElementById('lessonSelect');
         lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
