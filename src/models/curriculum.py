@@ -1,52 +1,70 @@
 # src/models/curriculum.py
+# ✅ Updated with Learning Content relationships
 
 try:
     from src.extensions import db
 except ImportError:
-    # Fallback for direct execution or different structure
-    # Ensure this import points to your actual db instance
-    # Maybe from .user import db or from ..extensions import db
-    # Adjust the import based on your project structure
-    # Assuming db is accessible via src.extensions
     from src.extensions import db 
 
 class Course(db.Model):
-    __tablename__ = 'course' # Explicit table name is good practice
+    __tablename__ = 'course'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
-    order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
-    show_in_bot = db.Column(db.Boolean, default=True, nullable=False)  # إظهار في البوت (جديد)
+    order_num = db.Column(db.Integer, default=0)
+    show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
     
-    # ✅ تعديل: إضافة order_by للترتيب حسب order_num
-    units = db.relationship('Unit', backref='course', lazy=True, cascade="all, delete-orphan",
+    # العلاقات
+    units = db.relationship('Unit', backref='course', lazy=True, 
+                           cascade="all, delete-orphan",
                            order_by="Unit.order_num")
 
     def __repr__(self):
         return f'<Course {self.name}>'
 
 class Unit(db.Model):
-    __tablename__ = 'unit' # Explicit table name
+    __tablename__ = 'unit'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
+    order_num = db.Column(db.Integer, default=0)
     
-    # ✅ تعديل: إضافة order_by للترتيب حسب order_num
-    lessons = db.relationship('Lesson', backref='unit', lazy=True, cascade="all, delete-orphan",
+    # العلاقات
+    lessons = db.relationship('Lesson', backref='unit', lazy=True,
+                             cascade="all, delete-orphan",
                              order_by="Lesson.order_num")
 
     def __repr__(self):
         return f'<Unit {self.name}>'
 
 class Lesson(db.Model):
-    __tablename__ = 'lesson' # Explicit table name
+    __tablename__ = 'lesson'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=False)
-    order_num = db.Column(db.Integer, default=0)  # إضافة حقل الترتيب
-    # --- FIX: Removed conflicting backref --- #
-    questions = db.relationship("Question", back_populates="lesson", lazy=True) # Relationship to Question
-    # ---------------------------------------- #
+    order_num = db.Column(db.Integer, default=0)
+    
+    # العلاقات
+    questions = db.relationship("Question", back_populates="lesson", lazy=True)
+    
+    # ✅ جديد: العلاقات مع Learning Content
+    # لا نحتاج تعريفها هنا لأنها معرفة في learning_content.py
+    # لكن يمكننا الوصول إليها:
+    # lesson.summary - الملخص
+    # lesson.concept_map - خريطة المفاهيم
+    # lesson.student_progress - تقدم الطلاب
+    
+    def has_content(self):
+        """تحقق إذا الدرس له محتوى تعليمي"""
+        return self.summary is not None or self.concept_map is not None
+    
+    def content_completion_percentage(self):
+        """نسبة اكتمال المحتوى (ملخص + خريطة)"""
+        count = 0
+        if self.summary:
+            count += 1
+        if self.concept_map:
+            count += 1
+        return (count / 2) * 100 if count > 0 else 0
 
     def __repr__(self):
         return f'<Lesson {self.name}>'
