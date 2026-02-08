@@ -506,26 +506,31 @@ function updateJSONPreview() {
 function collectMapData() {
     const centerNode = {
         id: 'center',
-        text: document.getElementById('center_text').value,
-        description: document.getElementById('center_description').value,
-        color: document.getElementById('center_color').value
+        text: document.getElementById('center_text')?.value || '',
+        description: document.getElementById('center_description')?.value || '',
+        color: document.getElementById('center_color')?.value || '#FFD54F'
     };
     
     const branches = [];
     document.querySelectorAll('.branch-item').forEach((branch, index) => {
         const examples = [];
         branch.querySelectorAll('.branch-example').forEach(ex => {
-            if (ex.value.trim()) {
+            if (ex.value && ex.value.trim()) {
                 examples.push(ex.value.trim());
             }
         });
         
+        const textElement = branch.querySelector('.branch-text');
+        const colorElement = branch.querySelector('.branch-color');
+        const descElement = branch.querySelector('.branch-description');
+        const specialtyElement = branch.querySelector('.branch-specialty');
+        
         branches.push({
             id: `branch-${index + 1}`,
-            text: branch.querySelector('.branch-text').value,
-            color: branch.querySelector('.branch-color').value,
-            description: branch.querySelector('.branch-description').value,
-            specialty: branch.querySelector('.branch-specialty').value,
+            text: textElement?.value || '',
+            color: colorElement?.value || '#4CAF50',
+            description: descElement?.value || '',
+            specialty: specialtyElement?.value || '',
             examples: examples
         });
     });
