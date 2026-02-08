@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة ملخص جديد - نظام التعلم{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 30px auto; padding: 0 20px;">
+    <h1 style="margin-bottom: 30px;">➕ إضافة ملخص جديد</h1>
+
+    <form id="summaryForm" method="POST" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- ✅ اختيار ديناميكي متسلسل -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+            <!-- المنهج -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-book"></i> المنهج *
+                </label>
+                <select id="courseSelect" required style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                    <option value="">-- اختر المنهج --</option>
+                </select>
+            </div>
+
+            <!-- الوحدة -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-folder"></i> الوحدة *
+                </label>
+                <select id="unitSelect" required disabled style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: #f9fafb;">
+                    <option value="">-- اختر الوحدة --</option>
+                </select>
+            </div>
+
+            <!-- الدرس -->
+            <div>
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-file-alt"></i> الدرس *
+                </label>
+                <select id="lessonSelect" name="lesson_id" required disabled style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: #f9fafb;">
+                    <option value="">-- اختر الدرس --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- معلومات الدرس المختار -->
+        <div id="lessonInfo" style="display: none; background: #f0f9ff; border: 2px solid #3b82f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 20px;"></i>
+                <div>
+                    <div style="font-weight: bold; color: #1e40af;">الدرس المختار:</div>
+                    <div id="selectedLessonPath" style="color: #1e3a8a; margin-top: 5px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Introduction -->
+        <div style="margin-bottom: 25px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-paragraph"></i> المقدمة *
+            </label>
+            <textarea name="introduction" required rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;" placeholder="مقدمة تعريفية عن الدرس (2-4 أسطر)..."></textarea>
+            <small style="color: #6b7280;">نبذة مختصرة عن موضوع الدرس</small>
+        </div>
+
+        <!-- Key Points - NEW EASY INPUT! -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 12px;">
+                <i class="fas fa-list-ul"></i> النقاط الرئيسية * <span style="color: #10b981; font-size: 12px;">(بدون JSON!)</span>
+            </label>
+            <div id="keyPointsList"></div>
+            <button type="button" onclick="addKeyPoint()" class="btn-add" style="margin-top: 10px;">
+                <i class="fas fa-plus-circle"></i> إضافة نقطة جديدة
+            </button>
+            <input type="hidden" name="key_points" id="keyPointsHidden">
+            <small style="color: #6b7280; display: block; margin-top: 8px;">أهم النقاط التي يجب على الطالب معرفتها (3-7 نقاط)</small>
+        </div>
+
+        <!-- Examples - NEW EASY INPUT! -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 12px;">
+                <i class="fas fa-lightbulb"></i> الأمثلة <span style="color: #10b981; font-size: 12px;">(بدون JSON!)</span>
+            </label>
+            <div id="examplesList"></div>
+            <button type="button" onclick="addExample()" class="btn-add" style="margin-top: 10px;">
+                <i class="fas fa-plus-circle"></i> إضافة مثال
+            </button>
+            <input type="hidden" name="examples" id="examplesHidden">
+            <small style="color: #6b7280; display: block; margin-top: 8px;">أمثلة عملية لتوضيح المفاهيم (2-5 أمثلة)</small>
+        </div>
+
+        <!-- Vocabulary - NEW EASY INPUT! -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 12px;">
+                <i class="fas fa-book-open"></i> المصطلحات <span style="color: #10b981; font-size: 12px;">(بدون JSON!)</span>
+            </label>
+            <div id="vocabularyList"></div>
+            <button type="button" onclick="addVocabulary()" class="btn-add" style="margin-top: 10px;">
+                <i class="fas fa-plus-circle"></i> إضافة مصطلح
+            </button>
+            <input type="hidden" name="vocabulary" id="vocabularyHidden">
+            <small style="color: #6b7280; display: block; margin-top: 8px;">المصطلحات والمفاهيم الجديدة في الدرس (4-8 مصطلحات)</small>
+        </div>
+
+        <!-- Reading Time -->
+        <div style="margin-bottom: 30px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                <i class="fas fa-clock"></i> وقت القراءة المتوقع (بالدقائق)
+            </label>
+            <input type="number" name="estimated_reading_time" value="5" min="1" max="60" style="width: 200px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <small style="color: #6b7280; display: block; margin-top: 5px;">متوسط الوقت المتوقع لقراءة هذا الملخص (الأفضل 5-7 دقائق)</small>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display: flex; gap: 15px; border-top: 2px solid #e5e7eb; padding-top: 20px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                <i class="fas fa-save"></i> حفظ الملخص
+            </button>
+            <a href="{{ url_for('learning.admin_summaries') }}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.btn {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    font-size: 15px;
+    transition: all 0.3s;
+}
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+.btn-secondary:hover {
+    background: #4b5563;
+}
+.btn-add {
+    padding: 10px 16px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.btn-add:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+.btn-remove {
+    padding: 6px 12px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.btn-remove:hover {
+    background: #dc2626;
+}
+.input-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+.input-item input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.input-item input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+.vocab-item {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+.vocab-item input {
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.vocab-item input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+select:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+select:not(:disabled) {
+    background: white !important;
+    cursor: pointer;
+}
+.item-number {
+    font-weight: 600;
+    color: #6b7280;
+    min-width: 25px;
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════
+// Global counters
+// ═══════════════════════════════════════════════
+let keyPointCounter = 0;
+let exampleCounter = 0;
+let vocabularyCounter = 0;
+
+// ═══════════════════════════════════════════════
+// Initialize page
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCourses();
+    setupEventListeners();
+    
+    // Add initial items
+    addKeyPoint();
+    addKeyPoint();
+    addKeyPoint();
+    addExample();
+    addExample();
+    addVocabulary();
+    addVocabulary();
+});
+
+// ═══════════════════════════════════════════════
+// Key Points Functions
+// ═══════════════════════════════════════════════
+function addKeyPoint(value = '') {
+    keyPointCounter++;
+    const container = document.getElementById('keyPointsList');
+    const div = document.createElement('div');
+    div.className = 'input-item';
+    div.id = `keyPoint-${keyPointCounter}`;
+    div.innerHTML = `
+        <span class="item-number">${keyPointCounter}.</span>
+        <input type="text" 
+               placeholder="النقطة الرئيسية ${keyPointCounter}" 
+               value="${value}"
+               class="key-point-input">
+        <button type="button" class="btn-remove" onclick="removeKeyPoint(${keyPointCounter})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+    updateKeyPointNumbers();
+}
+
+function removeKeyPoint(id) {
+    const element = document.getElementById(`keyPoint-${id}`);
+    if (element) {
+        element.remove();
+        updateKeyPointNumbers();
+    }
+}
+
+function updateKeyPointNumbers() {
+    const items = document.querySelectorAll('#keyPointsList .input-item');
+    items.forEach((item, index) => {
+        const numberSpan = item.querySelector('.item-number');
+        if (numberSpan) {
+            numberSpan.textContent = `${index + 1}.`;
+        }
+        const input = item.querySelector('input');
+        if (input) {
+            input.placeholder = `النقطة الرئيسية ${index + 1}`;
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════
+// Examples Functions
+// ═══════════════════════════════════════════════
+function addExample(value = '') {
+    exampleCounter++;
+    const container = document.getElementById('examplesList');
+    const div = document.createElement('div');
+    div.className = 'input-item';
+    div.id = `example-${exampleCounter}`;
+    div.innerHTML = `
+        <span class="item-number">•</span>
+        <input type="text" 
+               placeholder="مثال عملي ${exampleCounter}" 
+               value="${value}"
+               class="example-input">
+        <button type="button" class="btn-remove" onclick="removeExample(${exampleCounter})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function removeExample(id) {
+    const element = document.getElementById(`example-${id}`);
+    if (element) {
+        element.remove();
+    }
+}
+
+// ═══════════════════════════════════════════════
+// Vocabulary Functions
+// ═══════════════════════════════════════════════
+function addVocabulary(term = '', definition = '') {
+    vocabularyCounter++;
+    const container = document.getElementById('vocabularyList');
+    const div = document.createElement('div');
+    div.className = 'vocab-item';
+    div.id = `vocab-${vocabularyCounter}`;
+    div.innerHTML = `
+        <input type="text" 
+               placeholder="المصطلح" 
+               value="${term}"
+               class="vocab-term-input">
+        <input type="text" 
+               placeholder="التعريف" 
+               value="${definition}"
+               class="vocab-def-input">
+        <button type="button" class="btn-remove" onclick="removeVocabulary(${vocabularyCounter})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function removeVocabulary(id) {
+    const element = document.getElementById(`vocab-${id}`);
+    if (element) {
+        element.remove();
+    }
+}
+
+// ═══════════════════════════════════════════════
+// Collect data and convert to JSON
+// ═══════════════════════════════════════════════
+function collectKeyPoints() {
+    const inputs = document.querySelectorAll('.key-point-input');
+    const points = [];
+    inputs.forEach(input => {
+        const value = input.value.trim();
+        if (value) {
+            points.push(value);
+        }
+    });
+    return points;
+}
+
+function collectExamples() {
+    const inputs = document.querySelectorAll('.example-input');
+    const examples = [];
+    inputs.forEach(input => {
+        const value = input.value.trim();
+        if (value) {
+            examples.push(value);
+        }
+    });
+    return examples;
+}
+
+function collectVocabulary() {
+    const items = document.querySelectorAll('.vocab-item');
+    const vocabulary = {};
+    items.forEach(item => {
+        const term = item.querySelector('.vocab-term-input').value.trim();
+        const definition = item.querySelector('.vocab-def-input').value.trim();
+        if (term && definition) {
+            vocabulary[term] = definition;
+        }
+    });
+    return vocabulary;
+}
+
+// ═══════════════════════════════════════════════
+// Course/Unit/Lesson Selection
+// ═══════════════════════════════════════════════
+async function loadCourses() {
+    try {
+        const response = await fetch('/api/v1/courses?show_all=true');
+        const courses = await response.json();
+        
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
+        
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.name;
+            courseSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('خطأ في تحميل المناهج:', error);
+        alert('حدث خطأ في تحميل المناهج');
+    }
+}
+
+async function loadUnits(courseId) {
+    try {
+        const response = await fetch(`/api/v1/courses/${courseId}/units`);
+        const units = await response.json();
+        
+        const unitSelect = document.getElementById('unitSelect');
+        unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+        
+        units.forEach(unit => {
+            const option = document.createElement('option');
+            option.value = unit.id;
+            option.textContent = unit.name;
+            unitSelect.appendChild(option);
+        });
+        
+        unitSelect.disabled = false;
+        
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        lessonSelect.disabled = true;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الوحدات:', error);
+        alert('حدث خطأ في تحميل الوحدات');
+    }
+}
+
+async function loadLessons(unitId) {
+    try {
+        const response = await fetch(`/api/v1/units/${unitId}/lessons`);
+        const lessons = await response.json();
+        
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+        
+        lessons.forEach(lesson => {
+            const option = document.createElement('option');
+            option.value = lesson.id;
+            option.textContent = lesson.name;
+            lessonSelect.appendChild(option);
+        });
+        
+        lessonSelect.disabled = false;
+        document.getElementById('lessonInfo').style.display = 'none';
+    } catch (error) {
+        console.error('خطأ في تحميل الدروس:', error);
+        alert('حدث خطأ في تحميل الدروس');
+    }
+}
+
+function setupEventListeners() {
+    const courseSelect = document.getElementById('courseSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const lessonSelect = document.getElementById('lessonSelect');
+    
+    courseSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadUnits(e.target.value);
+        } else {
+            unitSelect.disabled = true;
+            lessonSelect.disabled = true;
+            unitSelect.innerHTML = '<option value="">-- اختر الوحدة --</option>';
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    unitSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            loadLessons(e.target.value);
+        } else {
+            lessonSelect.disabled = true;
+            lessonSelect.innerHTML = '<option value="">-- اختر الدرس --</option>';
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+    
+    lessonSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            showLessonInfo();
+        } else {
+            document.getElementById('lessonInfo').style.display = 'none';
+        }
+    });
+}
+
+function showLessonInfo() {
+    const courseName = document.getElementById('courseSelect').selectedOptions[0].text;
+    const unitName = document.getElementById('unitSelect').selectedOptions[0].text;
+    const lessonName = document.getElementById('lessonSelect').selectedOptions[0].text;
+    
+    const path = `${courseName} ← ${unitName} ← ${lessonName}`;
+    document.getElementById('selectedLessonPath').textContent = path;
+    document.getElementById('lessonInfo').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════
+// Form Submission
+// ═══════════════════════════════════════════════
+document.getElementById('summaryForm').addEventListener('submit', (e) => {
+    // Validate lesson selection
+    const lessonId = document.getElementById('lessonSelect').value;
+    if (!lessonId) {
+        e.preventDefault();
+        alert('⚠️ الرجاء اختيار الدرس');
+        return;
+    }
+    
+    // Collect and validate key points
+    const keyPoints = collectKeyPoints();
+    if (keyPoints.length < 2) {
+        e.preventDefault();
+        alert('⚠️ الرجاء إدخال 3 نقاط رئيسية على الأقل');
+        return;
+    }
+    
+    // Collect examples (optional)
+    const examples = collectExamples();
+    
+    // Collect vocabulary (optional)
+    const vocabulary = collectVocabulary();
+    
+    // Convert to JSON and set hidden fields
+    document.getElementById('keyPointsHidden').value = JSON.stringify(keyPoints);
+    document.getElementById('examplesHidden').value = JSON.stringify(examples);
+    document.getElementById('vocabularyHidden').value = JSON.stringify(vocabulary);
+    
+    console.log('✅ Sending data:', {
+        keyPoints,
+        examples,
+        vocabulary
+    });
+});
+</script>
+{% endblock %}
