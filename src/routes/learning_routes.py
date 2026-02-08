@@ -747,3 +747,282 @@ def admin_delete_summary(summary_id):
             'error': str(e)
         }), 500
 
+
+# =====================================================
+# AI-Powered Concept Map Generation - جديد
+# =====================================================
+
+@learning_bp.route('/admin/concept-map/generate-ai', methods=['POST'])
+@login_required
+def admin_generate_concept_map_ai():
+    """توليد خريطة مفاهيم تلقائياً باستخدام الذكاء الاصطناعي"""
+    if not current_user.is_admin:
+        return jsonify({
+            'success': False,
+            'error': 'ليس لديك صلاحية الوصول'
+        }), 403
+    
+    try:
+        lesson_id = request.json.get('lesson_id')
+        lesson_content = request.json.get('lesson_content', '')
+        
+        if not lesson_id:
+            return jsonify({
+                'success': False,
+                'error': 'lesson_id مطلوب'
+            }), 400
+        
+        # جلب بيانات الدرس
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({
+                'success': False,
+                'error': 'الدرس غير موجود'
+            }), 404
+        
+        # جلب بيانات الوحدة والمنهج
+        unit = Unit.query.get(lesson.unit_id) if lesson.unit_id else None
+        course = Course.query.get(unit.course_id) if unit and unit.course_id else None
+        
+        # استيراد AI assistant
+        from src.services.ai_assistant import ai_assistant
+        
+        # توليد خريطة المفاهيم
+        concept_map_data = ai_assistant.generate_concept_map(
+            lesson_name=lesson.name,
+            lesson_content=lesson_content,
+            course_name=course.name if course else None,
+            unit_name=unit.name if unit else None
+        )
+        
+        if not concept_map_data:
+            return jsonify({
+                'success': False,
+                'error': 'فشل توليد خريطة المفاهيم'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم توليد خريطة المفاهيم بنجاح',
+            'data': concept_map_data
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في توليد خريطة المفاهيم: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@learning_bp.route('/admin/concept-map/save-ai-generated', methods=['POST'])
+@login_required
+def admin_save_ai_generated_concept_map():
+    """حفظ خريطة مفاهيم تم توليدها بالذكاء الاصطناعي"""
+    if not current_user.is_admin:
+        return jsonify({
+            'success': False,
+            'error': 'ليس لديك صلاحية الوصول'
+        }), 403
+    
+    try:
+        lesson_id = request.json.get('lesson_id')
+        map_data = request.json.get('map_data')
+        layout_type = request.json.get('layout_type', 'radial')
+        theme = request.json.get('theme', 'modern')
+        animation_type = request.json.get('animation_type', 'fade-in')
+        
+        if not lesson_id or not map_data:
+            return jsonify({
+                'success': False,
+                'error': 'lesson_id و map_data مطلوبان'
+            }), 400
+        
+        # التحقق من وجود خريطة سابقة
+        existing_map = ConceptMap.query.filter_by(lesson_id=lesson_id).first()
+        
+        if existing_map:
+            # تحديث الخريطة الموجودة
+            existing_map.layout_type = layout_type
+            existing_map.theme = theme
+            existing_map.animation_type = animation_type
+            existing_map.map_data = map_data
+            existing_map.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحديث خريطة المفاهيم بنجاح',
+                'data': existing_map.to_dict()
+            })
+        else:
+            # إنشاء خريطة جديدة
+            concept_map = ConceptMap(
+                lesson_id=lesson_id,
+                layout_type=layout_type,
+                theme=theme,
+                animation_type=animation_type,
+                map_data=map_data
+            )
+            
+            db.session.add(concept_map)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم حفظ خريطة المفاهيم بنجاح',
+                'data': concept_map.to_dict()
+            })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ خريطة المفاهيم: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@learning_bp.route('/admin/concept-map/suggest-branches', methods=['POST'])
+@login_required
+def admin_suggest_branches():
+    """اقتراح فروع جديدة بناءً على العقدة المركزية"""
+    if not current_user.is_admin:
+        return jsonify({
+            'success': False,
+            'error': 'ليس لديك صلاحية الوصول'
+        }), 403
+    
+    try:
+        center_text = request.json.get('center_text')
+        existing_branches = request.json.get('existing_branches', [])
+        
+        if not center_text:
+            return jsonify({
+                'success': False,
+                'error': 'center_text مطلوب'
+            }), 400
+        
+        # استيراد AI assistant
+        from src.services.ai_assistant import ai_assistant
+        
+        # التأكد من تهيئة AI
+        if not ai_assistant._ensure_configured():
+            return jsonify({
+                'success': False,
+                'error': 'نظام الذكاء الاصطناعي غير مفعل'
+            }), 503
+        
+        # بناء prompt لاقتراح الفروع
+        existing_text = ', '.join([b.get('text', '') for b in existing_branches]) if existing_branches else 'لا يوجد'
+        
+        prompt = f"""
+أنت خبير في تصميم خرائط المفاهيم التعليمية.
+
+المفهوم المركزي: {center_text}
+الفروع الموجودة حالياً: {existing_text}
+
+المطلوب: اقترح 3 فروع جديدة مختلفة ومكملة للفروع الموجودة.
+
+الرد يجب أن يكون بصيغة JSON فقط:
+{{
+  "suggestions": [
+    {{
+      "text": "فرع مقترح 1",
+      "color": "#4A90E2",
+      "description": "وصف مختصر"
+    }},
+    {{
+      "text": "فرع مقترح 2",
+      "color": "#50C878",
+      "description": "وصف مختصر"
+    }},
+    {{
+      "text": "فرع مقترح 3",
+      "color": "#FF6B6B",
+      "description": "وصف مختصر"
+    }}
+  ]
+}}
+
+تعليمات:
+- كل فرع يجب أن يكون مختصراً (4 كلمات كحد أقصى)
+- استخدم ألوان متنوعة
+- لا تكرر الفروع الموجودة
+- الرد JSON فقط بدون نص إضافي
+"""
+        
+        response = ai_assistant.model.generate_content(prompt)
+        ai_text = response.text
+        
+        # استخراج JSON
+        suggestions_data = ai_assistant._extract_json_from_response(ai_text)
+        
+        if not suggestions_data or 'suggestions' not in suggestions_data:
+            return jsonify({
+                'success': False,
+                'error': 'فشل استخراج الاقتراحات'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'data': suggestions_data['suggestions']
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في اقتراح الفروع: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@learning_bp.route('/admin/concept-map/export/<int:concept_map_id>/<format>', methods=['GET'])
+@login_required
+def admin_export_concept_map(concept_map_id, format):
+    """تصدير خريطة المفاهيم بصيغ متعددة (JSON, PNG, SVG)"""
+    if not current_user.is_admin:
+        flash('ليس لديك صلاحية الوصول', 'error')
+        return redirect(url_for('learning.admin_concept_maps'))
+    
+    try:
+        concept_map = ConceptMap.query.get_or_404(concept_map_id)
+        lesson = Lesson.query.get(concept_map.lesson_id)
+        
+        if format == 'json':
+            # تصدير JSON
+            import io
+            output = io.BytesIO()
+            json_data = json.dumps(concept_map.map_data, ensure_ascii=False, indent=2)
+            output.write(json_data.encode('utf-8'))
+            output.seek(0)
+            
+            filename = f"concept_map_{lesson.name}_{concept_map_id}.json"
+            
+            return send_file(
+                output,
+                mimetype='application/json',
+                as_attachment=True,
+                download_name=filename
+            )
+        
+        elif format in ['png', 'svg']:
+            # للتصدير كصورة، نحتاج إلى استخدام مكتبة خارجية
+            # هذا يتطلب تطوير إضافي
+            flash(f'تصدير {format.upper()} قيد التطوير', 'info')
+            return redirect(url_for('learning.admin_view_concept_map', concept_map_id=concept_map_id))
+        
+        else:
+            flash('صيغة غير مدعومة', 'error')
+            return redirect(url_for('learning.admin_view_concept_map', concept_map_id=concept_map_id))
+        
+    except Exception as e:
+        flash(f'خطأ في التصدير: {str(e)}', 'error')
+        return redirect(url_for('learning.admin_concept_maps'))

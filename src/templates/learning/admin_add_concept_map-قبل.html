@@ -215,19 +215,6 @@
             </div>
         </div>
         
-        <!-- زر التوليد التلقائي بالذكاء الاصطناعي -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; color: white;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h3 style="margin: 0 0 8px 0; color: white;">🤖 توليد تلقائي بالذكاء الاصطناعي</h3>
-                    <p style="margin: 0; opacity: 0.9; font-size: 14px;">وفر الوقت والجهد! دع الذكاء الاصطناعي يقوم بإنشاء خريطة المفاهيم تلقائياً</p>
-                </div>
-                <button type="button" class="btn" style="background: white; color: #667eea; font-weight: bold; padding: 12px 24px;" onclick="generateWithAI()" id="aiGenerateBtn">
-                    ✨ توليد تلقائي
-                </button>
-            </div>
-        </div>
-
         <!-- العقدة المركزية -->
         <div class="form-group" style="background: #fffbea; padding: 20px; border-radius: 8px; border: 2px solid #ffc107;">
             <h3 style="margin-bottom: 15px;">⭐ العقدة المركزية</h3>
@@ -257,10 +244,7 @@
         <div class="form-group" style="margin-top: 30px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3>🌿 الفروع</h3>
-                <div style="display: flex; gap: 10px;">
-                    <button type="button" class="btn" style="background: #9B59B6; color: white;" onclick="suggestBranches()">💡 اقتراح فروع</button>
-                    <button type="button" class="btn btn-success" onclick="addBranch()">+ إضافة فرع</button>
-                </div>
+                <button type="button" class="btn btn-success" onclick="addBranch()">+ إضافة فرع</button>
             </div>
             
             <div id="branchesContainer">
@@ -534,150 +518,6 @@ function collectMapData() {
         center_node: centerNode,
         branches: branches
     };
-}
-
-// توليد تلقائي بالذكاء الاصطناعي
-async function generateWithAI() {
-    const lessonId = document.getElementById('lessonSelect').value;
-    
-    if (!lessonId) {
-        alert('الرجاء اختيار الدرس أولاً');
-        return;
-    }
-    
-    const btn = document.getElementById('aiGenerateBtn');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ جاري التوليد...';
-    
-    try {
-        const response = await fetch('/learning/admin/concept-map/generate-ai', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                lesson_id: lessonId,
-                lesson_content: '' // يمكن إضافة محتوى الدرس لاحقاً
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // ملء العقدة المركزية
-            const centerNode = result.data.center_node;
-            document.getElementById('center_text').value = centerNode.text;
-            document.getElementById('center_color').value = centerNode.color;
-            document.getElementById('center_color_code').textContent = centerNode.color;
-            document.getElementById('center_description').value = centerNode.description || '';
-            
-            // حذف الفروع الموجودة
-            document.getElementById('branchesContainer').innerHTML = '';
-            branchCount = 0;
-            
-            // إضافة الفروع الجديدة
-            result.data.branches.forEach(branch => {
-                addBranchWithData(branch);
-            });
-            
-            // تحديث معاينة JSON
-            updateJSONPreview();
-            
-            alert('✅ تم توليد خريطة المفاهيم بنجاح!');
-        } else {
-            alert('❌ خطأ: ' + result.error);
-        }
-    } catch (error) {
-        console.error('خطأ في التوليد:', error);
-        alert('حدث خطأ في التوليد التلقائي');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
-}
-
-// اقتراح فروع جديدة
-async function suggestBranches() {
-    const centerText = document.getElementById('center_text').value;
-    
-    if (!centerText) {
-        alert('الرجاء إدخال العقدة المركزية أولاً');
-        return;
-    }
-    
-    // جمع الفروع الموجودة
-    const existingBranches = [];
-    document.querySelectorAll('.branch-item').forEach(branch => {
-        const text = branch.querySelector('.branch-text').value;
-        if (text) {
-            existingBranches.push({ text: text });
-        }
-    });
-    
-    try {
-        const response = await fetch('/learning/admin/concept-map/suggest-branches', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                center_text: centerText,
-                existing_branches: existingBranches
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // إضافة الفروع المقترحة
-            result.data.forEach(branch => {
-                addBranchWithData(branch);
-            });
-            
-            updateJSONPreview();
-            alert(`✅ تم إضافة ${result.data.length} فروع مقترحة`);
-        } else {
-            alert('❌ خطأ: ' + result.error);
-        }
-    } catch (error) {
-        console.error('خطأ في الاقتراح:', error);
-        alert('حدث خطأ في اقتراح الفروع');
-    }
-}
-
-// إضافة فرع مع بيانات
-function addBranchWithData(branchData) {
-    branchCount++;
-    const container = document.getElementById('branchesContainer');
-    
-    const branchHTML = `
-        <div class="branch-item" id="branch-${branchCount}">
-            <div class="branch-header">
-                <h4>فرع ${branchCount}</h4>
-                <button type="button" class="btn btn-danger" onclick="removeBranch(${branchCount})">🗑️ حذف</button>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 15px;">
-                <div>
-                    <label>النص *</label>
-                    <input type="text" class="form-control branch-text" value="${branchData.text}" required>
-                </div>
-                
-                <div>
-                    <label>اللون</label>
-                    <input type="color" class="form-control branch-color" value="${branchData.color}" style="height: 40px;">
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 15px;">
-                <label>الوصف</label>
-                <textarea class="form-control branch-description" rows="2">${branchData.description || ''}</textarea>
-            </div>
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', branchHTML);
 }
 
 // Submit form
