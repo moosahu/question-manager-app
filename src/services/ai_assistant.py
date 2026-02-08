@@ -407,9 +407,6 @@ class AIAssistant:
             return f"حدث خطأ: {str(e)}"
 
 
-ai_assistant = AIAssistant()
-
-
     # ============================================
     # Concept Map Generation - جديد
     # ============================================
