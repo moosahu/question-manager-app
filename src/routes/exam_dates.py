@@ -2,6 +2,7 @@
 Blueprint لإدارة مواعيد الاختبار التحصيلي
 يوفر APIs لإضافة وتعديل وحذف المواعيد المهمة
 السنة متغيرة وليست ثابتة
+✅ إصلاح: استخدام database_id='(default)' للاتصال بـ Firestore
 """
 
 from flask import Blueprint, render_template, request, jsonify
@@ -15,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 exam_dates_bp = Blueprint('exam_dates', __name__, url_prefix='/admin/exam-dates')
 
-# الحصول على Firestore client
+# ✅ الحصول على Firestore client مع تحديد database بشكل صريح
 try:
-    db = firestore.client()
+    db = firestore.client(database_id='(default)')
     FIRESTORE_AVAILABLE = True
-    logger.info("✅ Firestore client initialized successfully")
+    logger.info("✅ Firestore client initialized successfully with database (default)")
 except Exception as e:
     FIRESTORE_AVAILABLE = False
     logger.error(f"❌ Failed to initialize Firestore: {e}")
@@ -57,11 +58,13 @@ def get_all_dates():
         
         if doc.exists:
             data = doc.to_dict()
+            logger.info(f"✅ تم جلب المواعيد بنجاح: {len(data)} حقل")
             return jsonify({
                 'success': True,
                 'dates': data
             })
         else:
+            logger.warning("⚠️ المستند exam_dates غير موجود")
             # إرجاع بيانات افتراضية إذا لم يوجد المستند
             return jsonify({
                 'success': True,
@@ -70,6 +73,8 @@ def get_all_dates():
     
     except Exception as e:
         logger.error(f"❌ خطأ في جلب المواعيد: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
