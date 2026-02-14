@@ -2,7 +2,7 @@
 Blueprint لإدارة مواعيد الاختبار التحصيلي
 يوفر APIs لإضافة وتعديل وحذف المواعيد المهمة
 السنة متغيرة وليست ثابتة
-✅ إصلاح: استخدام database_id='(default)' للاتصال بـ Firestore
+✅ تحديث: error handling محسّن + debugging
 """
 
 from flask import Blueprint, render_template, request, jsonify
@@ -11,19 +11,45 @@ from datetime import datetime
 import firebase_admin
 from firebase_admin import firestore
 import logging
+import os
+import traceback
 
 logger = logging.getLogger(__name__)
 
 exam_dates_bp = Blueprint('exam_dates', __name__, url_prefix='/admin/exam-dates')
 
-# ✅ الحصول على Firestore client مع تحديد database بشكل صريح
+# الحصول على Firestore client مع error handling محسّن
 try:
-    db = firestore.client(database_id='(default)')
+    # محاولة الحصول على Firestore client
+    db = firestore.client()
+    
+    # ✅ اختبار الاتصال
+    logger.info("🔍 Testing Firestore connection...")
+    test_collection = db.collection('settings')
+    
+    # محاولة جلب document للتأكد من الاتصال
+    try:
+        test_doc = test_collection.document('exam_dates').get()
+        logger.info(f"✅ Firestore connection successful! Document exists: {test_doc.exists}")
+    except Exception as test_error:
+        logger.warning(f"⚠️ Firestore connection test warning: {test_error}")
+    
     FIRESTORE_AVAILABLE = True
-    logger.info("✅ Firestore client initialized successfully with database (default)")
+    logger.info("✅ Firestore client initialized successfully")
+    
 except Exception as e:
     FIRESTORE_AVAILABLE = False
     logger.error(f"❌ Failed to initialize Firestore: {e}")
+    logger.error(f"Error type: {type(e).__name__}")
+    traceback.print_exc()
+    
+    # طباعة معلومات إضافية للـ debugging
+    try:
+        import firebase_admin
+        apps = firebase_admin._apps
+        logger.info(f"📱 Firebase apps initialized: {list(apps.keys())}")
+    except:
+        pass
 
 
 # ==================== عرض صفحة الإدارة ====================
@@ -47,10 +73,13 @@ def get_all_dates():
     """جلب جميع المواعيد المخزنة في Firestore"""
     try:
         if not FIRESTORE_AVAILABLE:
+            logger.error("❌ Firestore not available in get_all_dates")
             return jsonify({
                 'success': False,
-                'error': 'Firestore غير متاح'
+                'error': 'Firestore غير متاح - تحقق من الإعدادات'
             }), 500
+        
+        logger.info("📥 Attempting to fetch exam dates from Firestore...")
         
         # جلب المستند من Firestore
         doc_ref = db.collection('settings').document('exam_dates')
@@ -64,7 +93,7 @@ def get_all_dates():
                 'dates': data
             })
         else:
-            logger.warning("⚠️ المستند exam_dates غير موجود")
+            logger.warning("⚠️ المستند exam_dates غير موجود في Firestore")
             # إرجاع بيانات افتراضية إذا لم يوجد المستند
             return jsonify({
                 'success': True,
@@ -73,11 +102,11 @@ def get_all_dates():
     
     except Exception as e:
         logger.error(f"❌ خطأ في جلب المواعيد: {e}")
-        import traceback
+        logger.error(f"Error type: {type(e).__name__}")
         traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'خطأ في الاتصال بقاعدة البيانات: {str(e)}'
         }), 500
 
 
@@ -95,6 +124,7 @@ def update_dates():
             }), 403
         
         if not FIRESTORE_AVAILABLE:
+            logger.error("❌ Firestore not available in update_dates")
             return jsonify({
                 'success': False,
                 'error': 'Firestore غير متاح'
@@ -108,6 +138,8 @@ def update_dates():
                 'success': False,
                 'error': 'لا توجد بيانات'
             }), 400
+        
+        logger.info(f"📝 Updating exam dates with {len(data)} fields...")
         
         # التحقق من صحة التواريخ
         required_fields = [
@@ -125,6 +157,7 @@ def update_dates():
         # التحقق من وجود الحقول المطلوبة
         for field in required_fields:
             if field not in data:
+                logger.warning(f"⚠️ Missing required field: {field}")
                 return jsonify({
                     'success': False,
                     'error': f'الحقل {field} مطلوب'
@@ -148,11 +181,11 @@ def update_dates():
     
     except Exception as e:
         logger.error(f"❌ خطأ في تحديث المواعيد: {e}")
-        import traceback
+        logger.error(f"Error type: {type(e).__name__}")
         traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'خطأ في الحفظ: {str(e)}'
         }), 500
 
 
@@ -175,6 +208,8 @@ def delete_date(field_name):
                 'error': 'Firestore غير متاح'
             }), 500
         
+        logger.info(f"🗑️ Deleting field: {field_name}")
+        
         # حذف الحقل من Firestore
         doc_ref = db.collection('settings').document('exam_dates')
         doc_ref.update({
@@ -190,6 +225,7 @@ def delete_date(field_name):
     
     except Exception as e:
         logger.error(f"❌ خطأ في حذف الموعد: {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
@@ -210,10 +246,13 @@ def reset_to_defaults():
             }), 403
         
         if not FIRESTORE_AVAILABLE:
+            logger.error("❌ Firestore not available in reset_to_defaults")
             return jsonify({
                 'success': False,
-                'error': 'Firestore غير متاح'
+                'error': 'Firestore غير متاح - لا يمكن إعادة التعيين'
             }), 500
+        
+        logger.info("🔄 Resetting exam dates to default values...")
         
         # القيم الافتراضية من الصورة
         default_dates = {
@@ -253,9 +292,9 @@ def reset_to_defaults():
     
     except Exception as e:
         logger.error(f"❌ خطأ في إعادة التعيين: {e}")
-        import traceback
+        logger.error(f"Error type: {type(e).__name__}")
         traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'خطأ في إعادة التعيين: {str(e)}'
         }), 500
