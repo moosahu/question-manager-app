@@ -154,6 +154,19 @@ try:
 except ImportError as e:
     print(f"⚠️ Diagnostic blueprint not available: {e}")
 
+# ✅ استيراد Learning Content Blueprint لنظام خرائط المفاهيم والملخصات
+learning_available = False
+try:
+    from src.routes.learning_routes import learning_bp
+    learning_available = True
+    print("✅ Learning Content blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Learning Content blueprint not available: {e}")
+except Exception as e:
+    print(f"❌ Learning Content blueprint error: {e}")
+    import traceback
+    traceback.print_exc()
+
 # ✅ استيراد reports blueprint لنظام التقارير الشامل
 reports_available = False
 try:
@@ -648,6 +661,21 @@ def create_app():
         print("   - /reports/api/activity")
         print("   - /reports/api/student/<id>")
         print("   - /reports/api/export-excel")
+    
+    # ✅ تسجيل Learning Content Blueprint لنظام خرائط المفاهيم والملخصات
+    if learning_available:
+        csrf.exempt(learning_bp)  # إعفاء من CSRF لأن APIs محمية بـ login
+        app.register_blueprint(learning_bp)  # يسجل البلوبرينت بـ url_prefix='/learning'
+        print("✅ Learning Content blueprint registered successfully")
+        print("🗺️ Learning System activated!")
+        print("📚 Learning endpoints available at:")
+        print("   - /learning/admin (Admin Panel)")
+        print("   - /learning/admin/concept-maps (إدارة الخرائط)")
+        print("   - /learning/admin/summaries (إدارة الملخصات)")
+        print("   - /learning/api/lessons/<id> (جلب محتوى الدرس)")
+        print("   - /learning/api/lessons/<id>/progress (تحديث التقدم)")
+        print("   - /learning/api/lessons (قائمة الدروس)")
+        print("   - /learning/api/students/<id>/stats (إحصائيات الطالب)")
     
     # ✅ تسجيل Admin AI Blueprint لنظام الذكاء الاصطناعي
     if admin_ai_available:

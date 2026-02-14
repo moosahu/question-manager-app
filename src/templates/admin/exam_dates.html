@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة مواعيد الاختبار التحصيلي{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* فرض الاتجاه العربي على كل شيء */
+    * {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    .dates-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        direction: rtl;
+    }
+
+    .dates-header {
+        text-align: center !important;
+        margin-bottom: 40px;
+        color: #4ecdc4;
+    }
+
+    .dates-header h1 {
+        font-size: 2.2rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+        direction: rtl;
+    }
+
+    .dates-header p {
+        color: #c0c4d0;
+        font-size: 1.1rem;
+        direction: rtl;
+    }
+
+    .dates-card {
+        background: rgba(20, 25, 45, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(78, 205, 196, 0.2);
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        direction: rtl;
+    }
+
+    .dates-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(78, 205, 196, 0.2);
+        border-color: rgba(78, 205, 196, 0.4);
+    }
+
+    .dates-card-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(78, 205, 196, 0.2);
+        flex-direction: row;
+        direction: rtl;
+    }
+
+    .dates-card-header i {
+        font-size: 2rem;
+        color: #4ecdc4;
+        margin-left: 10px;
+    }
+
+    .dates-card-header h2 {
+        color: #4ecdc4;
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin: 0;
+        direction: rtl;
+    }
+
+    .date-field-group {
+        margin-bottom: 25px;
+        direction: rtl;
+    }
+
+    .date-field-label {
+        display: block;
+        color: #c0c4d0;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-align: right !important;
+        direction: rtl;
+    }
+
+    .date-field-label i {
+        margin-left: 8px;
+        color: #4ecdc4;
+    }
+
+    .date-input-wrapper {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        direction: rtl;
+    }
+
+    .date-input, .year-input {
+        flex: 1;
+        background: rgba(30, 35, 55, 0.9);
+        border: 2px solid rgba(78, 205, 196, 0.3);
+        border-radius: 12px;
+        padding: 14px 18px;
+        color: #fff;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        direction: ltr;
+        text-align: left;
+    }
+
+    .year-input {
+        max-width: 150px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-align: center !important;
+    }
+
+    .date-input:focus, .year-input:focus {
+        outline: none;
+        border-color: #4ecdc4;
+        background: rgba(30, 35, 55, 1);
+        box-shadow: 0 0 20px rgba(78, 205, 196, 0.2);
+    }
+
+    .date-input::-webkit-calendar-picker-indicator {
+        filter: invert(0.8) sepia(1) saturate(3) hue-rotate(140deg);
+        cursor: pointer;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 35px;
+        flex-wrap: wrap;
+        direction: rtl;
+    }
+
+    .btn {
+        padding: 14px 30px;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        direction: rtl;
+    }
+
+    .btn i {
+        font-size: 1.1rem;
+        margin-left: 8px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #4ecdc4 0%, #44a8a0 100%);
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #44a8a0 0%, #3a9890 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(78, 205, 196, 0.4);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        color: #fff;
+    }
+
+    .btn-warning:hover {
+        background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(243, 156, 18, 0.4);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: #fff;
+    }
+
+    .btn-danger:hover {
+        background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(231, 76, 60, 0.4);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .info-box {
+        background: rgba(78, 205, 196, 0.1);
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+        color: #c0c4d0;
+        direction: rtl;
+        text-align: right !important;
+    }
+
+    .info-box i {
+        color: #4ecdc4;
+        margin-left: 10px;
+        font-size: 1.2rem;
+    }
+
+    .info-box strong {
+        color: #4ecdc4;
+    }
+
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .loading-spinner {
+        width: 80px;
+        height: 80px;
+        border: 5px solid rgba(78, 205, 196, 0.2);
+        border-top-color: #4ecdc4;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .gender-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        background: rgba(78, 205, 196, 0.15);
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #4ecdc4;
+        font-weight: 600;
+        direction: rtl;
+    }
+
+    .gender-indicator i {
+        margin-left: 5px;
+    }
+
+    .period-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        background: rgba(241, 196, 15, 0.15);
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #f1c40f;
+        font-weight: 600;
+        direction: rtl;
+    }
+
+    .period-indicator i {
+        margin-left: 5px;
+    }
+
+    .year-highlight {
+        background: rgba(78, 205, 196, 0.2);
+        border-color: rgba(78, 205, 196, 0.5) !important;
+    }
+
+    @media (max-width: 768px) {
+        .dates-container {
+            padding: 10px;
+        }
+
+        .dates-card {
+            padding: 20px 15px;
+        }
+
+        .dates-header h1 {
+            font-size: 1.6rem;
+        }
+
+        .btn-group {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dates-container">
+    <!-- العنوان -->
+    <div class="dates-header">
+        <h1><i class="fas fa-calendar-alt"></i> إدارة مواعيد الاختبار التحصيلي</h1>
+        <p>قم بتعديل وإدارة مواعيد التسجيل والاختبار - السنة متغيرة</p>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- معلومات مهمة -->
+    <div class="info-box">
+        <i class="fas fa-info-circle"></i>
+        <strong>ملاحظة هامة:</strong> جميع التغييرات ستظهر فوراً في التطبيق بدون الحاجة لتحديثه. تأكد من صحة التواريخ قبل الحفظ.
+    </div>
+
+    <!-- بطاقة السنة -->
+    <div class="dates-card">
+        <div class="dates-card-header">
+            <i class="fas fa-calendar"></i>
+            <h2>سنة الاختبار</h2>
+        </div>
+
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <i class="fas fa-calendar-alt"></i> السنة الميلادية
+            </label>
+            <div class="date-input-wrapper">
+                <input type="number" id="exam_year" class="year-input year-highlight" 
+                       placeholder="مثال: 2026" min="2024" max="2030" value="2026">
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقة مواعيد التسجيل -->
+    <div class="dates-card">
+        <div class="dates-card-header">
+            <i class="fas fa-user-edit"></i>
+            <h2>مواعيد التسجيل</h2>
+        </div>
+
+        <!-- الطلاب -->
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="gender-indicator"><i class="fas fa-mars"></i> الطلاب</span> - بداية التسجيل
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="registration_start_male" class="date-input">
+            </div>
+        </div>
+
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="gender-indicator"><i class="fas fa-mars"></i> الطلاب</span> - نهاية التسجيل
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="registration_end_male" class="date-input">
+            </div>
+        </div>
+
+        <!-- الطالبات -->
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="gender-indicator"><i class="fas fa-venus"></i> الطالبات</span> - بداية التسجيل
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="registration_start_female" class="date-input">
+            </div>
+        </div>
+
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="gender-indicator"><i class="fas fa-venus"></i> الطالبات</span> - نهاية التسجيل
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="registration_end_female" class="date-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقة فترات الاختبار -->
+    <div class="dates-card">
+        <div class="dates-card-header">
+            <i class="fas fa-calendar-check"></i>
+            <h2>فترات الاختبار</h2>
+        </div>
+
+        <!-- الفترة الأولى -->
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="period-indicator"><i class="fas fa-1"></i> الفترة الأولى</span> - بداية الاختبار
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="exam_period1_start" class="date-input">
+            </div>
+        </div>
+
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="period-indicator"><i class="fas fa-1"></i> الفترة الأولى</span> - نهاية الاختبار
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="exam_period1_end" class="date-input">
+            </div>
+        </div>
+
+        <!-- الفترة الثانية -->
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="period-indicator"><i class="fas fa-2"></i> الفترة الثانية</span> - بداية الاختبار
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="exam_period2_start" class="date-input">
+            </div>
+        </div>
+
+        <div class="date-field-group">
+            <label class="date-field-label">
+                <span class="period-indicator"><i class="fas fa-2"></i> الفترة الثانية</span> - نهاية الاختبار
+            </label>
+            <div class="date-input-wrapper">
+                <input type="datetime-local" id="exam_period2_end" class="date-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- أزرار التحكم -->
+    <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveDates()">
+            <i class="fas fa-save"></i> حفظ جميع التغييرات
+        </button>
+        <button class="btn btn-warning" onclick="loadDates()">
+            <i class="fas fa-sync-alt"></i> إعادة التحميل
+        </button>
+        <button class="btn btn-danger" onclick="resetToDefaults()">
+            <i class="fas fa-undo-alt"></i> إعادة تعيين للقيم الافتراضية (2026)
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/exam_dates.js') }}"></script>
+<script>
+    // تحميل البيانات عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDates();
+    });
+</script>
+{% endblock %}

@@ -167,6 +167,15 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
+# ✅ استيراد Exam Dates Blueprint لإدارة مواعيد الاختبار التحصيلي
+exam_dates_available = False
+try:
+    from src.routes.exam_dates import exam_dates_bp
+    exam_dates_available = True
+    print("✅ Exam Dates blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Exam Dates blueprint not available: {e}")
+
 # ✅ استيراد reports blueprint لنظام التقارير الشامل
 reports_available = False
 try:
@@ -631,6 +640,11 @@ def create_app():
     if password_reset_available:
         app.register_blueprint(password_reset_bp)
         print("✅ Password Reset blueprint registered successfully")
+    
+    # ✅ تسجيل Exam Dates Blueprint لإدارة مواعيد الاختبار
+    if exam_dates_available:
+        app.register_blueprint(exam_dates_bp)
+        print("✅ Exam Dates blueprint registered successfully")
     
     # تسجيل admin profile blueprint لجلب بيانات الأدمن
     if admin_profile_available:
