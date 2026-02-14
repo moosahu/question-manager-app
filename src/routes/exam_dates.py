@@ -19,12 +19,14 @@ logger = logging.getLogger(__name__)
 exam_dates_bp = Blueprint('exam_dates', __name__, url_prefix='/admin/exam-dates')
 
 # الحصول على Firestore client مع error handling محسّن
+# ✅ يستخدم 'default' database تلقائياً (Database Name: default)
 try:
     # محاولة الحصول على Firestore client
+    # firestore.client() يتصل بـ database اسمه 'default' تلقائياً
     db = firestore.client()
     
     # ✅ اختبار الاتصال
-    logger.info("🔍 Testing Firestore connection...")
+    logger.info("🔍 Testing Firestore connection to 'default' database...")
     test_collection = db.collection('settings')
     
     # محاولة جلب document للتأكد من الاتصال
