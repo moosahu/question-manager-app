@@ -75,8 +75,8 @@ gunicorn>=21.0.0
 # Cloud Services
 cloudinary>=1.40.0
 
-# Firebase for Push Notifications (موجود بالفعل)
-firebase-admin>=6.4.0
+# Firebase for Push Notifications & Firestore
+firebase-admin>=6.5.0
 
 # Development Tools
 setuptools>=65.0.0
