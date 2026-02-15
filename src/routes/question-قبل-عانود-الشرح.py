@@ -226,8 +226,7 @@ EXPECTED_IMPORT_COLUMNS = [
     "Option 2 Text", "Option 2 Image URL",
     "Option 3 Text", "Option 3 Image URL",
     "Option 4 Text", "Option 4 Image URL",
-    "Correct Option Number",
-    "Explanation"
+    "Correct Option Number"
 ]
 
 def allowed_image_file(filename):
@@ -1302,9 +1301,8 @@ def import_questions():
             current_app.logger.info(f"File read successfully. Shape: {df.shape}")
             current_app.logger.debug(f"Columns in file: {df.columns.tolist()}")
             
-            # Validate columns (Explanation is optional)
-            required_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col != "Explanation"]
-            missing_columns = [col for col in required_columns if col not in df.columns]
+            # Validate columns
+            missing_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col not in df.columns]
             if missing_columns:
                 flash(f"الملف يفتقد إلى الأعمدة التالية: {', '.join(missing_columns)}", "danger")
                 current_app.logger.warning(f"Missing columns in import file: {missing_columns}")
@@ -1363,15 +1361,11 @@ def import_questions():
                         error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
                         continue
                     
-                    # Extract explanation if available
-                    explanation = row["Explanation"] if pd.notna(row.get("Explanation")) else None
-                    
                     # Create question
                     new_question = Question(
                         question_text=question_text,
                         lesson_id=lesson_id,
-                        image_url=question_image_url,
-                        explanation=explanation
+                        image_url=question_image_url
                     )
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
@@ -1467,8 +1461,7 @@ def download_import_template():
             "Option 3 Image URL": "",
             "Option 4 Text": "O2",
             "Option 4 Image URL": "",
-            "Correct Option Number": 1,
-            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين"
+            "Correct Option Number": 1
         }
         df = pd.concat([df, pd.DataFrame([sample_row])], ignore_index=True)
         
