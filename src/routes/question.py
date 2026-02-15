@@ -1459,13 +1459,13 @@ def download_import_template():
         sample_row = {
             "Question Text": "ما هي الصيغة الكيميائية للماء؟",
             "Question Image URL": "",
-            "Option 1 Text": "H2O",
+            "Option 1 Text": "H₂O",
             "Option 1 Image URL": "",
-            "Option 2 Text": "CO2",
+            "Option 2 Text": "CO₂",
             "Option 2 Image URL": "",
             "Option 3 Text": "NaCl",
             "Option 3 Image URL": "",
-            "Option 4 Text": "O2",
+            "Option 4 Text": "O₂",
             "Option 4 Image URL": "",
             "Correct Option Number": 1,
             "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين"
