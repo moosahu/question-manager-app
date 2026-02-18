@@ -1332,7 +1332,7 @@ def import_questions():
                     ).first()
                     
                     if not lesson:
-                        error_details.append(f"صف {index+2}: لم يتم العثور على الدرس '"{lesson_name}"' في الوحدة '"{unit_name}"' في المنهج '"{course_name}"'.")
+                        error_details.append(f"صف {index+2}: لم يتم العثور على الدرس '{lesson_name}' في الوحدة '{unit_name}' في المنهج '{course_name}'.")
                         continue
                     
                     current_lesson_id = lesson.id
