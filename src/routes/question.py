@@ -1390,11 +1390,7 @@ def import_questions():
                     # Create question
                     new_question = Question(
                         question_text=question_text,
-<<<<<<< HEAD
                         lesson_id=current_lesson_id,
-=======
-                        lesson_id=lesson_id,
->>>>>>> 977a1ceb855b606ca2d902bdfd870c1836f5246a
                         image_url=question_image_url,
                         explanation=explanation
                     )
