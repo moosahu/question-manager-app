@@ -221,14 +221,12 @@ ALLOWED_IMPORT_EXTENSIONS = {"xlsx", "csv"}
 
 # Define expected columns for import template (used in import and download)
 EXPECTED_IMPORT_COLUMNS = [
-    "Course Name", "Unit Name", "Lesson Name",
     "Question Text", "Question Image URL",
     "Option 1 Text", "Option 1 Image URL",
     "Option 2 Text", "Option 2 Image URL",
     "Option 3 Text", "Option 3 Image URL",
     "Option 4 Text", "Option 4 Image URL",
-    "Correct Option Number",
-    "Explanation"
+    "Correct Option Number"
 ]
 
 def allowed_image_file(filename):
@@ -1275,8 +1273,11 @@ def import_questions():
         current_app.logger.debug(f"Form data: {request.form}")
         current_app.logger.debug(f"Files: {request.files}")
         
-        lesson_id = request.form.get("lesson_id")  # Optional now, as we'll use Course/Unit/Lesson names from Excel
-        # lesson_id is now optional - if not provided, we'll use the names from the Excel file
+        lesson_id = request.form.get("lesson_id")
+        if not lesson_id:
+            flash("يجب اختيار درس لاستيراد الأسئلة إليه.", "danger")
+            current_app.logger.warning("No lesson_id provided in import form.")
+            return render_template("question/import_questions.html", lessons=lessons, form=form)
         
         file = request.files.get("question_file")
         if not file or not file.filename:
@@ -1300,9 +1301,8 @@ def import_questions():
             current_app.logger.info(f"File read successfully. Shape: {df.shape}")
             current_app.logger.debug(f"Columns in file: {df.columns.tolist()}")
             
-            # Validate columns (Explanation is optional)
-            required_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col != "Explanation"]
-            missing_columns = [col for col in required_columns if col not in df.columns]
+            # Validate columns
+            missing_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col not in df.columns]
             if missing_columns:
                 flash(f"الملف يفتقد إلى الأعمدة التالية: {', '.join(missing_columns)}", "danger")
                 current_app.logger.warning(f"Missing columns in import file: {missing_columns}")
@@ -1314,29 +1314,6 @@ def import_questions():
             
             for index, row in df.iterrows():
                 try:
-                    # Extract course, unit, and lesson names
-                    course_name = row["Course Name"] if pd.notna(row.get("Course Name")) else None
-                    unit_name = row["Unit Name"] if pd.notna(row.get("Unit Name")) else None
-                    lesson_name = row["Lesson Name"] if pd.notna(row.get("Lesson Name")) else None
-                    
-                    # Validate course, unit, and lesson names
-                    if not course_name or not unit_name or not lesson_name:
-                        error_details.append(f"صف {index+2}: يجب توفير اسم المنهج والوحدة والدرس.")
-                        continue
-                    
-                    # Find the lesson by course, unit, and lesson names
-                    lesson = Lesson.query.join(Unit).join(Course).filter(
-                        Course.name == course_name,
-                        Unit.name == unit_name,
-                        Lesson.name == lesson_name
-                    ).first()
-                    
-                    if not lesson:
-                        error_details.append(f"صف {index+2}: لم يتم العثور على الدرس '"{lesson_name}"' في الوحدة '"{unit_name}"' في المنهج '"{course_name}"'.")
-                        continue
-                    
-                    current_lesson_id = lesson.id
-                    
                     # Extract question data
                     question_text = row["Question Text"] if pd.notna(row["Question Text"]) else None
                     question_image_url = row["Question Image URL"] if pd.notna(row["Question Image URL"]) else None
@@ -1384,19 +1361,11 @@ def import_questions():
                         error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
                         continue
                     
-                    # Extract explanation if available
-                    explanation = row["Explanation"] if pd.notna(row.get("Explanation")) else None
-                    
                     # Create question
                     new_question = Question(
                         question_text=question_text,
-<<<<<<< HEAD
-                        lesson_id=current_lesson_id,
-=======
                         lesson_id=lesson_id,
->>>>>>> 977a1ceb855b606ca2d902bdfd870c1836f5246a
-                        image_url=question_image_url,
-                        explanation=explanation
+                        image_url=question_image_url
                     )
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
@@ -1482,21 +1451,17 @@ def download_import_template():
         
         # Add a sample row
         sample_row = {
-            "Course Name": "مثال: كيمياء 1",
-            "Unit Name": "مثال: الوحدة الأولى",
-            "Lesson Name": "مثال: الدرس الأول",
             "Question Text": "ما هي الصيغة الكيميائية للماء؟",
             "Question Image URL": "",
-            "Option 1 Text": "H₂O",
+            "Option 1 Text": "H2O",
             "Option 1 Image URL": "",
-            "Option 2 Text": "CO₂",
+            "Option 2 Text": "CO2",
             "Option 2 Image URL": "",
             "Option 3 Text": "NaCl",
             "Option 3 Image URL": "",
-            "Option 4 Text": "O₂",
+            "Option 4 Text": "O2",
             "Option 4 Image URL": "",
-            "Correct Option Number": 1,
-            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين"
+            "Correct Option Number": 1
         }
         df = pd.concat([df, pd.DataFrame([sample_row])], ignore_index=True)
         
@@ -3776,62 +3741,3 @@ def load_saved_exam(exam_id):
         current_app.logger.error(f"Error loading exam {exam_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-# --- Export Courses/Units/Lessons list route --- #
-@question_bp.route("/export/courses_units_lessons")
-@login_required
-def export_courses_units_lessons():
-    """
-    تصدير قائمة بجميع المناهج والوحدات والدروس المتاحة في النظام
-    """
-    try:
-        # جلب جميع الدروس مع علاقاتها
-        lessons = Lesson.query.join(Unit).join(Course).order_by(
-            Course.name,
-            Unit.order_num,
-            Lesson.order_num
-        ).all()
-        
-        # إنشاء قائمة بالبيانات
-        data = []
-        for lesson in lessons:
-            data.append({
-                "Course Name": lesson.unit.course.name,
-                "Unit Name": lesson.unit.name,
-                "Lesson Name": lesson.name
-            })
-        
-        # إنشاء DataFrame
-        df = pd.DataFrame(data)
-        
-        # إزالة التكرارات (اختياري - يمكن إبقاء التكرارات لتوضيح جميع الدروس)
-        # df = df.drop_duplicates()
-        
-        # إنشاء BytesIO object
-        output = io.BytesIO()
-        
-        # كتابة DataFrame إلى BytesIO
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Courses_Units_Lessons')
-            
-            # ضبط عرض الأعمدة
-            worksheet = writer.sheets['Courses_Units_Lessons']
-            for i, col in enumerate(df.columns):
-                max_width = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                col_letter = chr(65 + i) if i < 26 else chr(65 + i // 26 - 1) + chr(65 + i % 26)
-                worksheet.column_dimensions[col_letter].width = max_width
-        
-        output.seek(0)
-        
-        # إرسال الملف
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name='courses_units_lessons.xlsx'
-        )
-        
-    except Exception as e:
-        current_app.logger.exception(f"Error exporting courses/units/lessons list: {e}")
-        flash(f"حدث خطأ أثناء تصدير قائمة المناهج والوحدات والدروس: {str(e)}", "danger")
-        return redirect(url_for("question.import_questions"))
