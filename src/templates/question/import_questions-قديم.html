@@ -451,9 +451,6 @@
                         <h5 class="alert-heading">متطلبات تنسيق الملف</h5>
                         <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
                         <ol>
-                            <li><code>Course Name</code> (اسم المنهج - مطلوب)</li>
-                            <li><code>Unit Name</code> (اسم الوحدة - مطلوب)</li>
-                            <li><code>Lesson Name</code> (اسم الدرس - مطلوب)</li>
                             <li><code>Question Text</code> (نص السؤال - اختياري في حال وجود صورة)</li>
                             <li><code>Question Image URL</code> (رابط صورة السؤال - اختياري)</li>
                             <li><code>Option 1 Text</code> (نص الخيار 1 - اختياري في حال وجود صورة)</li>
@@ -465,13 +462,11 @@
                             <li><code>Option 4 Text</code> (نص الخيار 4 - اختياري)</li>
                             <li><code>Option 4 Image URL</code> (رابط صورة الخيار 4 - اختياري)</li>
                             <li><code>Correct Option Number</code> (رقم الخيار الصحيح - مطلوب: 1، 2، 3، أو 4)</li>
-                            <li><code>Explanation</code> (شرح الإجابة الصحيحة - اختياري)</li>
                         </ol>
                         <p><strong>هام:</strong></p>
                         <ul>
                             <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة <strong>باللغة الإنجليزية</strong> تمامًا كما هي مذكورة أعلاه.</li>
                             <li>مطلوب خياران على الأقل (نص أو صورة) لكل سؤال.</li>
-                            <li>يجب أن تتطابق أسماء المنهج والوحدة والدرس مع الأسماء الموجودة في النظام بالضبط. <a href="{{ url_for('question.export_courses_units_lessons') }}" class="text-primary">انقر هنا لتنزيل قائمة المناهج والوحدات والدروس المتاحة</a>.</li>
                             <li>تأكد من أن روابط الصور صالحة ويمكن الوصول إليها بشكل عام.</li>
                         </ul>
                         <hr>
