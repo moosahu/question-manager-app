@@ -626,6 +626,111 @@
 .sched-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .sched-modal-actions { display: flex; gap: 10px; }
 
+/* ─── Exam countdown widget (view page) ──────────────────────────────────── */
+.sched-countdown-wrap {
+  background: linear-gradient(135deg, rgba(37,99,235,.18), rgba(78,205,196,.12));
+  border: 1px solid rgba(78,205,196,.25);
+  border-radius: 18px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Left section: icon + title + date */
+.sched-cd-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 160px;
+}
+.sched-cd-icon  { font-size: 2rem; flex-shrink: 0; }
+.sched-cd-title { font-size: 0.8rem; font-weight: 700; color: #94a3b8; margin-bottom: 3px; }
+.sched-cd-date  { font-size: 0.88rem; font-weight: 700; color: #c0c4d0;
+                   display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+/* Countdown badge inline */
+.sched-cd-badge {
+  font-size: 0.7rem; font-weight: 800;
+  padding: 2px 9px; border-radius: 20px;
+}
+.sched-cd-far   { background: rgba(78,205,196,.18);  color: #4ecdc4; }
+.sched-cd-soon  { background: rgba(245,158,11,.2);    color: #fcd34d; }
+.sched-cd-today { background: rgba(239,68,68,.2);     color: #f87171; animation: pulse 1s infinite; }
+.sched-cd-past  { background: rgba(100,116,139,.18);  color: #94a3b8; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }
+
+/* Digit blocks */
+.sched-cd-timer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sched-cd-block { text-align: center; min-width: 52px; }
+.sched-cd-num {
+  font-size: 2rem; font-weight: 900; color: #4ecdc4; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sched-cd-unit { font-size: 0.68rem; color: #64748b; margin-top: 2px; }
+.sched-cd-sep  { font-size: 1.6rem; font-weight: 900; color: #475569;
+                  padding-bottom: 8px; }
+
+/* "Done" message */
+.sched-cd-done {
+  font-size: 1rem; font-weight: 800; color: #6ee7b7;
+  text-align: center; padding: 6px 0; width: 100%;
+}
+
+/* Edit button */
+.sched-cd-edit-btn {
+  flex-shrink: 0; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #64748b; cursor: pointer; font-size: 0.8rem;
+  padding: 8px 10px; border-radius: 10px; transition: all .2s;
+}
+.sched-cd-edit-btn:hover { color: #4ecdc4; border-color: rgba(78,205,196,.4); }
+
+/* Empty-state (no exam date) */
+.sched-cd-empty {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap; width: 100%;
+  font-size: 0.88rem; color: #64748b;
+}
+
+/* ─── Exam date on create form ───────────────────────────────────────────── */
+.sched-optional {
+  font-size: 0.72rem; font-weight: 400; color: #475569;
+  background: rgba(255,255,255,.06); border-radius: 10px;
+  padding: 1px 7px; margin-right: 6px;
+}
+.sched-input-exam { border-color: rgba(78,205,196,.2); }
+.sched-input-exam:focus { border-color: #4ecdc4; }
+
+.sched-exam-hint {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 8px; font-size: 0.8rem; color: #6ee7b7;
+}
+
+/* ─── Exam badge on index cards ─────────────────────────────────────────── */
+.sched-card-exam {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 6px 18px 10px;
+  font-size: 0.78rem; color: #64748b;
+}
+.sched-card-exam i { color: #4ecdc4; }
+
+.sched-exam-badge {
+  font-size: 0.7rem; font-weight: 800;
+  padding: 2px 9px; border-radius: 20px;
+}
+.sched-exam-far   { background: rgba(78,205,196,.15);  color: #4ecdc4; }
+.sched-exam-soon  { background: rgba(245,158,11,.18);  color: #fcd34d; }
+.sched-exam-today { background: rgba(239,68,68,.18);   color: #f87171; }
+.sched-exam-past  { background: rgba(100,116,139,.15); color: #94a3b8; }
+
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .sched-hero-title { font-size: 1.5rem; }
@@ -635,4 +740,15 @@
   .sched-overview-grid { grid-template-columns: repeat(2, 1fr); }
   .sched-create-page { padding: 12px 12px 60px; }
   .sched-form-card  { padding: 20px 16px; }
+
+  /* Countdown: stack vertically on small screens */
+  .sched-countdown-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .sched-cd-timer { width: 100%; justify-content: center; }
+  .sched-cd-num   { font-size: 2.2rem; }
+  .sched-cd-block { min-width: 60px; }
+  .sched-cd-edit-btn { align-self: flex-end; }
 }

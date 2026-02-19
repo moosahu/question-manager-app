@@ -81,6 +81,26 @@
           <span class="sched-badge sched-badge-bio">أحياء</span>
         </div>
 
+        <!-- Exam date countdown badge -->
+        {% if s.exam_date %}
+        {% set d = s.days_until_exam %}
+        <div class="sched-card-exam">
+          <i class="fas fa-graduation-cap"></i>
+          <span>التحصيلي: {{ s.exam_date.strftime('%Y/%m/%d') }}</span>
+          {% if d is not none %}
+            {% if d < 0 %}
+              <span class="sched-exam-badge sched-exam-past">انتهى</span>
+            {% elif d == 0 %}
+              <span class="sched-exam-badge sched-exam-today">اليوم!</span>
+            {% elif d <= 7 %}
+              <span class="sched-exam-badge sched-exam-soon">{{ d }} أيام</span>
+            {% else %}
+              <span class="sched-exam-badge sched-exam-far">{{ d }} يوم</span>
+            {% endif %}
+          {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Progress bar -->
         <div class="sched-progress-wrap">
           <div class="sched-progress-row">

@@ -35,6 +35,16 @@ def _create_tables(state):
         except Exception as exc:
             logger.warning(f'⚠️  Could not create scheduler tables: {exc}')
 
+        # Migration: add exam_date column to existing installations
+        from sqlalchemy import text
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE study_schedules ADD COLUMN exam_date DATE'))
+                conn.commit()
+                logger.info('✅ Migration: exam_date column added')
+        except Exception:
+            pass  # Column already exists — safe to ignore
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def _mins_to_time(m: int) -> str:
@@ -97,6 +107,14 @@ def create_post():
     daily_hours  = request.form.get('daily_hours', 4.0, type=float)
     start_date   = request.form.get('start_date', '')
 
+    exam_date_str = request.form.get('exam_date', '').strip()
+    exam_date     = None
+    if exam_date_str:
+        try:
+            exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+
     # ── Validation ──
     if not student_name:
         flash('يرجى إدخال اسم الطالب', 'error')
@@ -119,6 +137,7 @@ def create_post():
         duration     = duration,
         daily_hours  = daily_hours,
         start_date   = start,
+        exam_date    = exam_date,
     )
     db.session.add(schedule)
     db.session.flush()          # احصل على الـ ID قبل توليد الجلسات
@@ -204,6 +223,30 @@ def update_session(schedule_id, session_id):
 
     db.session.commit()
     return jsonify({'ok': True, 'session': session.to_dict()})
+
+
+# ─── Exam date ────────────────────────────────────────────────────────────────
+@scheduler_bp.route('/<int:schedule_id>/exam-date', methods=['POST'])
+@login_required
+def update_exam_date(schedule_id):
+    """تحديث / مسح تاريخ الاختبار التحصيلي"""
+    schedule = StudySchedule.query.get_or_404(schedule_id)
+    exam_date_str = (request.get_json(silent=True) or {}).get('examDate') \
+                    or request.form.get('exam_date', '').strip()
+    if exam_date_str:
+        try:
+            schedule.exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return jsonify({'ok': False, 'error': 'تاريخ غير صحيح'}), 400
+    else:
+        schedule.exam_date = None
+
+    db.session.commit()
+    return jsonify({
+        'ok':            True,
+        'examDate':      schedule.exam_date.strftime('%Y-%m-%d') if schedule.exam_date else None,
+        'daysUntilExam': schedule.days_until_exam,
+    })
 
 
 # ─── PDF Export ───────────────────────────────────────────────────────────────

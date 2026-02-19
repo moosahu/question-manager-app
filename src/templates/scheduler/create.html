@@ -32,6 +32,7 @@
     <!-- hidden inputs for values set in earlier steps -->
     <input type="hidden" name="student_name" id="h_student_name">
     <input type="hidden" name="start_date"   id="h_start_date">
+    <input type="hidden" name="exam_date"    id="h_exam_date">
     <input type="hidden" name="duration"     id="h_duration" value="30">
     <input type="hidden" name="daily_hours"  id="h_daily_hours" value="4">
 
@@ -50,7 +51,21 @@
         <div class="sched-field">
           <label class="sched-label">تاريخ بداية الجدول</label>
           <input type="date" id="inp_date" value="{{ today }}" min="{{ today }}"
-                 class="sched-input">
+                 class="sched-input" oninput="onDateChange()">
+        </div>
+
+        <div class="sched-field">
+          <label class="sched-label">
+            <i class="fas fa-graduation-cap" style="color:#4ecdc4"></i>
+            تاريخ الاختبار التحصيلي
+            <span class="sched-optional">اختياري</span>
+          </label>
+          <input type="date" id="inp_exam" class="sched-input sched-input-exam"
+                 oninput="onExamChange()">
+          <div class="sched-exam-hint" id="examHint" style="display:none">
+            <i class="fas fa-info-circle"></i>
+            <span id="examHintText"></span>
+          </div>
         </div>
       </div>
 
@@ -161,6 +176,7 @@ function stepNext() {
     if (!name) { document.getElementById('inp_name').focus(); return; }
     document.getElementById('h_student_name').value = name;
     document.getElementById('h_start_date').value   = document.getElementById('inp_date').value;
+    document.getElementById('h_exam_date').value    = document.getElementById('inp_exam').value || '';
   }
   if (currentStep === 2) {
     document.getElementById('h_duration').value = selectedDur;
@@ -194,6 +210,46 @@ function selectDuration(btn) {
   document.querySelectorAll('.sched-dur-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedDur = parseInt(btn.dataset.value);
+}
+
+function selectDurationValue(val) {
+  document.querySelectorAll('.sched-dur-btn').forEach(b => {
+    const v = parseInt(b.dataset.value);
+    b.classList.toggle('selected', v === val);
+    if (v === val) selectedDur = val;
+  });
+}
+
+// ── Exam date logic ──────────────────────────────────────────────
+function onDateChange() {
+  if (document.getElementById('inp_exam').value) onExamChange();
+}
+
+function onExamChange() {
+  const examVal  = document.getElementById('inp_exam').value;
+  const hint     = document.getElementById('examHint');
+  const hintText = document.getElementById('examHintText');
+  if (!examVal) { hint.style.display = 'none'; return; }
+
+  const startVal  = document.getElementById('inp_date').value || '{{ today }}';
+  const examDate  = new Date(examVal  + 'T00:00:00');
+  const startDate = new Date(startVal + 'T00:00:00');
+
+  if (examDate <= startDate) {
+    hintText.textContent = '⚠️ تاريخ الاختبار يجب أن يكون بعد تاريخ البداية';
+    hintText.style.color = '#f87171';
+    hint.style.display   = 'flex';
+    return;
+  }
+
+  const days = Math.ceil((examDate - startDate) / 86400000);
+  let   dur  = days <= 15 ? 15 : days <= 30 ? 30 : 60;
+  selectDurationValue(dur);
+  updateSummary();
+
+  hintText.style.color = '#6ee7b7';
+  hintText.textContent = `📅 تبقى ${days} يوم للاختبار — تم اقتراح مدة ${dur} يوماً`;
+  hint.style.display   = 'flex';
 }
 
 // ── Hours slider ────────────────────────────────────────────────

@@ -39,6 +39,59 @@
     </a>
   </div>
 
+  <!-- ══════ Exam Countdown ══════ -->
+  <div class="sched-countdown-wrap" id="examCountdown">
+    {% if schedule.exam_date %}
+    {% set d = schedule.days_until_exam %}
+    <div class="sched-cd-left">
+      <div class="sched-cd-icon">🎓</div>
+      <div>
+        <div class="sched-cd-title">الاختبار التحصيلي</div>
+        <div class="sched-cd-date">
+          {{ schedule.exam_date.strftime('%Y/%m/%d') }}
+          {% if d is not none %}
+            {% if d < 0 %}
+              <span class="sched-cd-badge sched-cd-past">انتهى منذ {{ d|abs }} يوم</span>
+            {% elif d == 0 %}
+              <span class="sched-cd-badge sched-cd-today">اليوم!</span>
+            {% elif d <= 7 %}
+              <span class="sched-cd-badge sched-cd-soon">{{ d }} أيام</span>
+            {% else %}
+              <span class="sched-cd-badge sched-cd-far">{{ d }} يوم</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="sched-cd-timer" id="cdTimer">
+      <div class="sched-cd-block">
+        <div class="sched-cd-num" id="cdDays">--</div>
+        <div class="sched-cd-unit">يوم</div>
+      </div>
+      <div class="sched-cd-sep">:</div>
+      <div class="sched-cd-block">
+        <div class="sched-cd-num" id="cdHours">--</div>
+        <div class="sched-cd-unit">ساعة</div>
+      </div>
+      <div class="sched-cd-sep">:</div>
+      <div class="sched-cd-block">
+        <div class="sched-cd-num" id="cdMins">--</div>
+        <div class="sched-cd-unit">دقيقة</div>
+      </div>
+    </div>
+    <button class="sched-cd-edit-btn" onclick="openExamModal()" title="تعديل تاريخ الاختبار">
+      <i class="fas fa-pencil-alt"></i>
+    </button>
+    {% else %}
+    <div class="sched-cd-empty">
+      <span>🎓 لم يُحدَّد تاريخ الاختبار التحصيلي بعد</span>
+      <button class="sched-btn sched-btn-outline sched-btn-sm" onclick="openExamModal()">
+        <i class="fas fa-plus"></i> تحديد التاريخ
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
   <!-- ══════ Tabs ══════ -->
   <div class="sched-tabs">
     <button class="sched-tab active" id="tabSchedule" onclick="switchTab('schedule')">
@@ -115,6 +168,26 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ══════ Exam Date Modal ══════ -->
+<div class="sched-modal-overlay" id="examOverlay" onclick="if(event.target===this)closeExamModal()">
+  <div class="sched-modal">
+    <div class="sched-modal-head">
+      <span>🎓 تاريخ الاختبار التحصيلي</span>
+      <button onclick="closeExamModal()" class="sched-modal-close">&times;</button>
+    </div>
+    <p class="sched-label">حدد تاريخ اختبارك لمتابعة العد التنازلي</p>
+    <input type="date" id="examDateInput" class="sched-input" style="margin-bottom:20px">
+    <div class="sched-modal-actions">
+      <button class="sched-btn sched-btn-outline" onclick="clearExamDate()">
+        <i class="fas fa-times"></i> مسح التاريخ
+      </button>
+      <button class="sched-btn sched-btn-success" onclick="saveExamDate()">
+        <i class="fas fa-check"></i> حفظ
+      </button>
+    </div>
   </div>
 </div>
 
@@ -437,6 +510,67 @@ function saveEdit() {
       }
       closeEdit();
       renderWeekView();
+    },
+  });
+}
+
+// ─── Exam countdown ───────────────────────────────────────────────────────────
+const EXAM_URL = `{{ url_for('scheduler.update_exam_date', schedule_id=schedule.id) }}`;
+
+let examDateVal = SCHED.examDate ? SCHED.examDate : null;
+
+function updateCountdown() {
+  if (!examDateVal) return;
+  const target = new Date(examDateVal + 'T00:00:00');
+  const now    = new Date();
+  const diff   = target - now;
+
+  if (diff <= 0) {
+    document.getElementById('cdTimer').innerHTML =
+      '<div class="sched-cd-done">🎉 وفقك الله في اختبارك!</div>';
+    return;
+  }
+  const days  = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins  = Math.floor((diff % 3600000)  / 60000);
+  const pad   = n => String(n).padStart(2, '0');
+  document.getElementById('cdDays').textContent  = pad(days);
+  document.getElementById('cdHours').textContent = pad(hours);
+  document.getElementById('cdMins').textContent  = pad(mins);
+}
+
+if (examDateVal) {
+  updateCountdown();
+  setInterval(updateCountdown, 60000);
+}
+
+// ─── Exam date modal ──────────────────────────────────────────────────────────
+function openExamModal() {
+  document.getElementById('examDateInput').value = examDateVal || '';
+  document.getElementById('examOverlay').classList.add('open');
+}
+function closeExamModal() {
+  document.getElementById('examOverlay').classList.remove('open');
+}
+function clearExamDate() {
+  document.getElementById('examDateInput').value = '';
+  saveExamDate();
+}
+function saveExamDate() {
+  const val = document.getElementById('examDateInput').value;
+  $.ajax({
+    url:         EXAM_URL,
+    type:        'POST',
+    contentType: 'application/json',
+    headers:     { 'X-CSRFToken': CSRF },
+    data:        JSON.stringify({ examDate: val }),
+    success(res) {
+      if (!res.ok) return;
+      examDateVal = res.examDate;
+      SCHED.examDate      = res.examDate;
+      SCHED.daysUntilExam = res.daysUntilExam;
+      closeExamModal();
+      location.reload();   // reload to re-render server-side Jinja countdown header
     },
   });
 }

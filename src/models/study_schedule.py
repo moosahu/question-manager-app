@@ -2,7 +2,7 @@
 نماذج جداول المذاكرة للاختبار التحصيلي
 Study Schedule models — added to question_manager project
 """
-from datetime import datetime
+from datetime import datetime, date
 from src.extensions import db
 
 
@@ -15,6 +15,7 @@ class StudySchedule(db.Model):
     duration     = db.Column(db.Integer, nullable=False)        # 15 | 30 | 60 يوم
     daily_hours  = db.Column(db.Float,   nullable=False)        # ساعات الدراسة يومياً
     start_date   = db.Column(db.Date,    nullable=False)
+    exam_date    = db.Column(db.Date,    nullable=True)         # تاريخ الاختبار التحصيلي (اختياري)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
     sessions = db.relationship(
@@ -26,6 +27,12 @@ class StudySchedule(db.Model):
     )
 
     # ── helpers ──────────────────────────────────────────────────────────────
+    @property
+    def days_until_exam(self):
+        if not self.exam_date:
+            return None
+        return (self.exam_date - date.today()).days
+
     @property
     def total_sessions(self):
         return len(self.sessions)
@@ -47,6 +54,8 @@ class StudySchedule(db.Model):
             'duration':         self.duration,
             'dailyHours':       float(self.daily_hours),
             'startDate':        self.start_date.strftime('%Y-%m-%d'),
+            'examDate':         self.exam_date.strftime('%Y-%m-%d') if self.exam_date else None,
+            'daysUntilExam':    self.days_until_exam,
             'createdAt':        self.created_at.isoformat(),
             'totalSessions':    self.total_sessions,
             'completedSessions': self.completed_sessions,
