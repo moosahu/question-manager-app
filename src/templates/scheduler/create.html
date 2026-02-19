@@ -157,8 +157,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/scheduler.css') }}">
+{% block scripts %}
 <script>
 const SUBJECTS   = ['رياضيات', 'فيزياء', 'كيمياء', 'أحياء'];
 const SUB_CLASS  = { 'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio' };
@@ -301,4 +300,4 @@ document.getElementById('schedForm').addEventListener('submit', e => {
   if (currentStep !== 3) { e.preventDefault(); stepNext(); }
 });
 </script>
-{% endblock %}
+{% endblock scripts %}
