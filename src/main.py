@@ -802,6 +802,20 @@ def create_app():
         except Exception as e:
             print(f"Warning: Could not register settings blueprint: {e}")
 
+    # ✅ تسجيل Study Scheduler Blueprint — جداول المذاكرة للاختبار التحصيلي
+    try:
+        from src.routes.scheduler import scheduler_bp
+        csrf.exempt(scheduler_bp)           # CSRF يُعالج يدوياً داخل الـ blueprint
+        app.register_blueprint(scheduler_bp)
+        print("✅ Study Scheduler blueprint registered successfully")
+        print("📚 Scheduler available at: /scheduler/")
+    except ImportError as e:
+        print(f"⚠️  Study Scheduler blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Study Scheduler blueprint error: {e}")
+        import traceback
+        traceback.print_exc()
+
     @app.route("/", endpoint='index')
     def home():
         # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم

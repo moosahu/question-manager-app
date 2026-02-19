@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}جداول المذاكرة — الاختبار التحصيلي{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scheduler.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="sched-page">
+
+  <!-- ══════ Hero ══════ -->
+  <div class="sched-hero">
+    <div class="sched-hero-icon">📚</div>
+    <h1 class="sched-hero-title">مدير جداول المذاكرة</h1>
+    <p class="sched-hero-sub">
+      نظّم مذاكرتك للاختبار التحصيلي — وزّع
+      <strong>الرياضيات والفيزياء والكيمياء والأحياء</strong>
+      بشكل متوازن وفعّال
+    </p>
+    <a href="{{ url_for('scheduler.create') }}" class="sched-btn sched-btn-primary sched-btn-lg">
+      <i class="fas fa-plus"></i> إنشاء جدول جديد
+    </a>
+  </div>
+
+  <!-- ══════ Features ══════ -->
+  {% if not schedules %}
+  <div class="sched-features">
+    {% for icon, title, desc in [
+        ('🗓️', '15 / 30 / 60 يوم', 'اختر المدة المناسبة قبل اختبارك'),
+        ('⚖️', 'توزيع متوازن',       'المواد الأربعة بالتساوي كل يوم'),
+        ('✏️', 'تعديل مرن',          'غيّر الأوقات والمواد بسهولة'),
+        ('📄', 'تصدير PDF',          'احتفظ بنسخة ورقية من جدولك'),
+    ] %}
+    <div class="sched-feature-card">
+      <div class="sched-feature-icon">{{ icon }}</div>
+      <div class="sched-feature-title">{{ title }}</div>
+      <div class="sched-feature-desc">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ══════ Schedule list ══════ -->
+  {% if schedules %}
+  <div class="sched-section">
+    <h2 class="sched-section-title">
+      <i class="fas fa-calendar-alt"></i> جداولك السابقة
+    </h2>
+
+    <div class="sched-grid">
+      {% for s in schedules %}
+      {% set pct = s.completion_percent %}
+      <div class="sched-card">
+        <!-- Header -->
+        <div class="sched-card-head">
+          <div>
+            <h3 class="sched-card-name">{{ s.student_name }}</h3>
+            <p class="sched-card-meta">
+              {{ s.duration }} يوم &nbsp;·&nbsp; {{ s.daily_hours }} ساعة/يوم
+            </p>
+            <p class="sched-card-meta sched-card-date">
+              <i class="fas fa-calendar-day"></i>
+              يبدأ: {{ s.start_date.strftime('%Y/%m/%d') }}
+            </p>
+          </div>
+          <form method="POST"
+                action="{{ url_for('scheduler.delete_schedule', schedule_id=s.id) }}"
+                onsubmit="return confirm('هل أنت متأكد من حذف هذا الجدول؟')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="sched-delete-btn" title="حذف الجدول">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+        </div>
+
+        <!-- Subject badges -->
+        <div class="sched-badges">
+          <span class="sched-badge sched-badge-math">رياضيات</span>
+          <span class="sched-badge sched-badge-physics">فيزياء</span>
+          <span class="sched-badge sched-badge-chem">كيمياء</span>
+          <span class="sched-badge sched-badge-bio">أحياء</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="sched-progress-wrap">
+          <div class="sched-progress-row">
+            <span class="sched-progress-label">التقدم</span>
+            <span class="sched-progress-pct">{{ pct }}%</span>
+          </div>
+          <div class="sched-progress-bar">
+            <div class="sched-progress-fill" style="width: {{ pct }}%"></div>
+          </div>
+          <p class="sched-progress-detail">
+            {{ s.completed_sessions }} / {{ s.total_sessions }} جلسة مكتملة
+          </p>
+        </div>
+
+        <!-- Open button -->
+        <a href="{{ url_for('scheduler.view_schedule', schedule_id=s.id) }}"
+           class="sched-open-btn">
+          فتح الجدول <i class="fas fa-arrow-left"></i>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

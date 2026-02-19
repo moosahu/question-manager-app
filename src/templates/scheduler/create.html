@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}إنشاء جدول مذاكرة جديد{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scheduler.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="sched-page sched-create-page">
+
+  <!-- ══════ Steps Indicator ══════ -->
+  <div class="sched-steps" id="stepsIndicator">
+    <div class="sched-step active" data-step="1">
+      <div class="sched-step-circle">1</div>
+      <span class="sched-step-label">معلوماتك</span>
+    </div>
+    <div class="sched-step-line"></div>
+    <div class="sched-step" data-step="2">
+      <div class="sched-step-circle">2</div>
+      <span class="sched-step-label">مدة الجدول</span>
+    </div>
+    <div class="sched-step-line"></div>
+    <div class="sched-step" data-step="3">
+      <div class="sched-step-circle">3</div>
+      <span class="sched-step-label">ساعات الدراسة</span>
+    </div>
+  </div>
+
+  <!-- ══════ Form Card ══════ -->
+  <form method="POST" action="{{ url_for('scheduler.create_post') }}" id="schedForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <!-- hidden inputs for values set in earlier steps -->
+    <input type="hidden" name="student_name" id="h_student_name">
+    <input type="hidden" name="start_date"   id="h_start_date">
+    <input type="hidden" name="duration"     id="h_duration" value="30">
+    <input type="hidden" name="daily_hours"  id="h_daily_hours" value="4">
+
+    <div class="sched-form-card">
+
+      <!-- ── Step 1: Name & Date ── -->
+      <div class="sched-step-panel active" id="panel-1">
+        <h2 class="sched-form-title">مرحباً! ما اسمك؟</h2>
+        <p class="sched-form-sub">سنستخدم اسمك لتخصيص جدول المذاكرة</p>
+
+        <div class="sched-field">
+          <label class="sched-label">الاسم الكامل</label>
+          <input type="text" id="inp_name" placeholder="مثال: محمد العنزي"
+                 class="sched-input" autocomplete="off" autofocus>
+        </div>
+        <div class="sched-field">
+          <label class="sched-label">تاريخ بداية الجدول</label>
+          <input type="date" id="inp_date" value="{{ today }}" min="{{ today }}"
+                 class="sched-input">
+        </div>
+      </div>
+
+      <!-- ── Step 2: Duration ── -->
+      <div class="sched-step-panel" id="panel-2">
+        <h2 class="sched-form-title">كم مدة الجدول؟</h2>
+        <p class="sched-form-sub">اختر المدة المناسبة قبل الاختبار التحصيلي</p>
+
+        <div class="sched-duration-grid">
+          {% for val, label, desc, icon in [
+              (15,  '15 يوم', 'مراجعة مكثفة وسريعة',      '⚡'),
+              (30,  '30 يوم', 'الخيار المتوازن والأنسب',   '✨'),
+              (60,  '60 يوم', 'دراسة شاملة ومتعمقة',      '🎯'),
+          ] %}
+          <button type="button" class="sched-dur-btn {% if val == 30 %}selected{% endif %}"
+                  data-value="{{ val }}" onclick="selectDuration(this)">
+            <span class="sched-dur-icon">{{ icon }}</span>
+            <span class="sched-dur-label">{{ label }}</span>
+            <span class="sched-dur-desc">{{ desc }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- ── Step 3: Hours ── -->
+      <div class="sched-step-panel" id="panel-3">
+        <h2 class="sched-form-title">كم ساعة تدرس يومياً؟</h2>
+        <p class="sched-form-sub" id="hoursSubtitle">
+          كل مادة ستحصل على <strong id="sessionDur">60</strong> دقيقة يومياً
+        </p>
+
+        <div class="sched-slider-row">
+          <input type="range" min="2" max="12" step="0.5" value="4"
+                 id="inp_hours" oninput="updateHours(this.value)" class="sched-slider">
+          <div class="sched-slider-val">
+            <span id="hoursVal">4</span>
+            <small>ساعة</small>
+          </div>
+        </div>
+        <div class="sched-slider-labels">
+          <span>2 ساعات</span><span>12 ساعة</span>
+        </div>
+
+        <!-- Day Preview -->
+        <div class="sched-preview">
+          <p class="sched-preview-title">معاينة اليوم الدراسي</p>
+          <div id="dayPreview"></div>
+          <p class="sched-preview-end" id="previewEnd"></p>
+        </div>
+
+        <!-- Summary -->
+        <div class="sched-summary">
+          <div class="sched-summary-item">
+            <div class="sched-summary-val" id="sumDays">30</div>
+            <div class="sched-summary-key">يوم</div>
+          </div>
+          <div class="sched-summary-item">
+            <div class="sched-summary-val" id="sumSessions">120</div>
+            <div class="sched-summary-key">جلسة</div>
+          </div>
+          <div class="sched-summary-item">
+            <div class="sched-summary-val" id="sumHours">120</div>
+            <div class="sched-summary-key">ساعة دراسة</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Navigation buttons ── -->
+      <div class="sched-form-nav">
+        <button type="button" id="btnBack" class="sched-btn sched-btn-outline"
+                onclick="stepBack()" style="display:none">
+          <i class="fas fa-arrow-right"></i> السابق
+        </button>
+        <button type="button" id="btnNext" class="sched-btn sched-btn-primary"
+                onclick="stepNext()">
+          التالي <i class="fas fa-arrow-left"></i>
+        </button>
+        <button type="submit" id="btnSubmit" class="sched-btn sched-btn-success"
+                style="display:none">
+          <i class="fas fa-check"></i> إنشاء الجدول
+        </button>
+      </div>
+      <div class="sched-form-cancel">
+        <a href="{{ url_for('scheduler.index') }}" class="sched-cancel-link">إلغاء</a>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scheduler.css') }}">
+<script>
+const SUBJECTS   = ['رياضيات', 'فيزياء', 'كيمياء', 'أحياء'];
+const SUB_CLASS  = { 'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio' };
+const BREAK      = 15;
+const START_HOUR = {{ start_hour }};
+
+let currentStep = 1;
+let selectedDur = 30;
+let selectedHrs = 4;
+
+// ── Step navigation ──────────────────────────────────────────────
+function stepNext() {
+  if (currentStep === 1) {
+    const name = document.getElementById('inp_name').value.trim();
+    if (!name) { document.getElementById('inp_name').focus(); return; }
+    document.getElementById('h_student_name').value = name;
+    document.getElementById('h_start_date').value   = document.getElementById('inp_date').value;
+  }
+  if (currentStep === 2) {
+    document.getElementById('h_duration').value = selectedDur;
+    updateSummary();
+  }
+  if (currentStep < 3) {
+    goStep(currentStep + 1);
+  }
+}
+
+function stepBack() {
+  if (currentStep > 1) goStep(currentStep - 1);
+}
+
+function goStep(n) {
+  document.querySelectorAll('.sched-step-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sched-step').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.toggle('active', sn <= n);
+    s.classList.toggle('done',   sn < n);
+  });
+  document.getElementById(`panel-${n}`).classList.add('active');
+  document.getElementById('btnBack').style.display   = n > 1 ? '' : 'none';
+  document.getElementById('btnNext').style.display   = n < 3 ? '' : 'none';
+  document.getElementById('btnSubmit').style.display = n === 3 ? '' : 'none';
+  currentStep = n;
+}
+
+// ── Duration selection ───────────────────────────────────────────
+function selectDuration(btn) {
+  document.querySelectorAll('.sched-dur-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedDur = parseInt(btn.dataset.value);
+}
+
+// ── Hours slider ────────────────────────────────────────────────
+function updateHours(val) {
+  selectedHrs = parseFloat(val);
+  document.getElementById('hoursVal').textContent = val;
+  document.getElementById('h_daily_hours').value  = val;
+  const dur = Math.floor(selectedHrs * 60 / 4);
+  document.getElementById('sessionDur').textContent = dur;
+  renderDayPreview(dur);
+  updateSummary();
+}
+
+function renderDayPreview(dur) {
+  const container = document.getElementById('dayPreview');
+  let html = '';
+  let mins = START_HOUR * 60;
+  SUBJECTS.forEach(sub => {
+    const cls  = SUB_CLASS[sub];
+    const fmt  = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+    html += `<div class="sched-prev-row sched-badge-${cls}">
+               <span class="sched-prev-name">${sub}</span>
+               <span class="sched-prev-time">${fmt(mins)} – ${fmt(mins+dur)} (${dur}د)</span>
+             </div>`;
+    mins += dur + BREAK;
+  });
+  container.innerHTML = html;
+  const fmt2 = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  document.getElementById('previewEnd').textContent = 'ينتهي الجدول: ' + fmt2(START_HOUR*60 + 4*dur + 3*BREAK);
+}
+
+function updateSummary() {
+  document.getElementById('sumDays').textContent     = selectedDur;
+  document.getElementById('sumSessions').textContent = 4 * selectedDur;
+  document.getElementById('sumHours').textContent    = (selectedHrs * selectedDur).toFixed(0);
+}
+
+// ── Init ────────────────────────────────────────────────────────
+updateHours(4);
+updateSummary();
+
+// Enter key to advance
+document.getElementById('inp_name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') stepNext();
+});
+</script>
+{% endblock %}

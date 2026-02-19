@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+{% block title %}جدول {{ schedule.student_name }} — المذاكرة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scheduler.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="sched-page" id="schedApp">
+
+  <!-- ══════ Info Bar ══════ -->
+  <div class="sched-infobar">
+    <div class="sched-infobar-text">
+      <h2 class="sched-infobar-name">{{ schedule.student_name }}</h2>
+      <p class="sched-infobar-meta">
+        {{ schedule.duration }} يوم &nbsp;·&nbsp; {{ schedule.daily_hours }} ساعة/يوم &nbsp;·&nbsp;
+        {{ schedule.total_sessions }} جلسة
+      </p>
+    </div>
+
+    <!-- Progress mini -->
+    <div class="sched-mini-prog">
+      <span class="sched-mini-prog-txt" id="progressTxt">
+        {{ schedule.completed_sessions }}/{{ schedule.total_sessions }}
+      </span>
+      <div class="sched-mini-prog-bar">
+        <div class="sched-mini-prog-fill" id="progressFill"
+             style="width: {{ schedule.completion_percent }}%"></div>
+      </div>
+      <span class="sched-mini-prog-pct" id="progressPct">
+        {{ schedule.completion_percent }}%
+      </span>
+    </div>
+
+    <!-- PDF button -->
+    <a href="{{ url_for('scheduler.export_pdf', schedule_id=schedule.id) }}"
+       class="sched-btn sched-btn-pdf" target="_blank">
+      <i class="fas fa-file-pdf"></i> تحميل PDF
+    </a>
+  </div>
+
+  <!-- ══════ Tabs ══════ -->
+  <div class="sched-tabs">
+    <button class="sched-tab active" id="tabSchedule" onclick="switchTab('schedule')">
+      <i class="fas fa-calendar-week"></i> عرض الجدول
+    </button>
+    <button class="sched-tab" id="tabProgress" onclick="switchTab('progress')">
+      <i class="fas fa-chart-bar"></i> متابعة التقدم
+    </button>
+  </div>
+
+  <!-- ══════ Schedule Tab ══════ -->
+  <div id="viewSchedule">
+    <!-- Week Navigation -->
+    <div class="sched-weeknav">
+      <button class="sched-btn sched-btn-outline sched-btn-sm" id="btnPrevWeek"
+              onclick="changeWeek(-1)">
+        <i class="fas fa-chevron-right"></i> السابق
+      </button>
+      <div class="sched-weeknav-info">
+        <div class="sched-weeknav-title" id="weekTitle">الأسبوع 1</div>
+        <div class="sched-weeknav-sub"   id="weekRange">اليوم 1–7</div>
+      </div>
+      <button class="sched-btn sched-btn-outline sched-btn-sm" id="btnNextWeek"
+              onclick="changeWeek(1)">
+        التالي <i class="fas fa-chevron-left"></i>
+      </button>
+    </div>
+
+    <!-- Day cards -->
+    <div class="sched-day-grid" id="dayGrid"></div>
+
+    <!-- Week subject summary -->
+    <div class="sched-week-summary" id="weekSummary"></div>
+  </div>
+
+  <!-- ══════ Progress Tab ══════ -->
+  <div id="viewProgress" style="display:none">
+
+    <!-- Overview cards -->
+    <div class="sched-overview-grid" id="overviewCards"></div>
+
+    <!-- Overall progress bar -->
+    <div class="sched-panel">
+      <div class="sched-panel-header">
+        <span>التقدم الإجمالي</span>
+        <span id="overallPct2">{{ schedule.completion_percent }}%</span>
+      </div>
+      <div class="sched-big-bar">
+        <div class="sched-big-bar-fill" id="bigBarFill"
+             style="width:{{ schedule.completion_percent }}%">
+          {% if schedule.completion_percent > 8 %}
+          <span>{{ schedule.completion_percent }}%</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Per-subject progress -->
+    <div class="sched-panel">
+      <h3 class="sched-panel-title">التقدم حسب المادة</h3>
+      <div id="subjectBars"></div>
+    </div>
+
+    <!-- Day calendar -->
+    <div class="sched-panel">
+      <h3 class="sched-panel-title">تقويم الأيام</h3>
+      <div class="sched-calendar" id="dayCalendar"></div>
+      <div class="sched-legend">
+        <span class="sched-legend-item"><span class="sched-dot sched-dot-done"></span>مكتمل</span>
+        <span class="sched-legend-item"><span class="sched-dot sched-dot-partial"></span>جزئي</span>
+        <span class="sched-legend-item"><span class="sched-dot sched-dot-missed"></span>غير مكتمل</span>
+        <span class="sched-legend-item"><span class="sched-dot sched-dot-future"></span>مستقبل</span>
+        <span class="sched-legend-item"><span class="sched-dot sched-dot-today"></span>اليوم</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════ Edit Session Modal ══════ -->
+<div class="sched-modal-overlay" id="editOverlay" onclick="if(event.target===this)closeEdit()">
+  <div class="sched-modal">
+    <div class="sched-modal-head">
+      <span>تعديل الجلسة</span>
+      <button onclick="closeEdit()" class="sched-modal-close">&times;</button>
+    </div>
+
+    <p class="sched-label">المادة الدراسية</p>
+    <div class="sched-subject-grid" id="editSubjects"></div>
+
+    <div class="sched-time-row">
+      <div class="sched-field">
+        <label class="sched-label">وقت البداية</label>
+        <input type="time" id="editStart" class="sched-input">
+      </div>
+      <div class="sched-field">
+        <label class="sched-label">وقت النهاية</label>
+        <input type="time" id="editEnd" class="sched-input">
+      </div>
+    </div>
+
+    <div class="sched-modal-actions">
+      <button class="sched-btn sched-btn-outline" onclick="closeEdit()">إلغاء</button>
+      <button class="sched-btn sched-btn-primary"  onclick="saveEdit()">حفظ التغييرات</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+'use strict';
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const RAW      = {{ schedule_json | tojson | safe }};
+const CSRF     = '{{ csrf_token() }}';
+const BASE_URL = '{{ url_for("scheduler.view_schedule", schedule_id=schedule.id) }}';
+const TOGGLE_URL = (sid) =>
+  `{{ url_for("scheduler.toggle_session", schedule_id=schedule.id, session_id=0) }}`.replace('/0/', `/${sid}/`);
+const UPDATE_URL = (sid) =>
+  `{{ url_for("scheduler.update_session", schedule_id=schedule.id, session_id=0) }}`.replace('/0/', `/${sid}/`);
+
+// State (mutable copy)
+let SCHED    = JSON.parse(JSON.stringify(RAW));
+let curWeek  = 0;
+let editSid  = null;
+let editSub  = null;
+
+const SUBJECTS  = ['رياضيات', 'فيزياء', 'كيمياء', 'أحياء'];
+const DAYS_AR   = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const SUB_CSS   = { 'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio' };
+const SUB_LABEL = { math:'رياضيات', physics:'فيزياء', chem:'كيمياء', bio:'أحياء' };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function byDay() {
+  const d = {};
+  SCHED.sessions.forEach(s => {
+    (d[s.dayNumber] = d[s.dayNumber] || []).push(s);
+  });
+  Object.values(d).forEach(arr => arr.sort((a,b) => a.orderIndex - b.orderIndex));
+  return d;
+}
+
+function getDate(dayNum) {
+  const d = new Date(SCHED.startDate + 'T00:00:00');
+  d.setDate(d.getDate() + dayNum - 1);
+  return d;
+}
+
+function sameDay(a, b) {
+  return a.toDateString() === b.toDateString();
+}
+
+function totalWeeks() {
+  return Math.ceil(SCHED.duration / 7);
+}
+
+function updateGlobalProgress() {
+  const total = SCHED.sessions.length;
+  const done  = SCHED.sessions.filter(s => s.isCompleted).length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progressTxt').textContent  = `${done}/${total}`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+  document.getElementById('progressPct').textContent  = `${pct}%`;
+  return { done, total, pct };
+}
+
+// ─── Week view ────────────────────────────────────────────────────────────────
+function renderWeekView() {
+  const today   = new Date();
+  const days    = byDay();
+  const wkStart = curWeek * 7 + 1;
+  const wkEnd   = Math.min(wkStart + 6, SCHED.duration);
+  const wkDays  = Array.from({length: wkEnd - wkStart + 1}, (_, i) => wkStart + i);
+  const tw      = totalWeeks();
+
+  // Navigation
+  document.getElementById('weekTitle').textContent = `الأسبوع ${curWeek + 1} / ${tw}`;
+  document.getElementById('weekRange').textContent = `اليوم ${wkStart}–${wkEnd}`;
+  document.getElementById('btnPrevWeek').disabled  = curWeek === 0;
+  document.getElementById('btnNextWeek').disabled  = curWeek >= tw - 1;
+
+  // Day cards
+  const grid = document.getElementById('dayGrid');
+  grid.innerHTML = wkDays.map(day => {
+    const date    = getDate(day);
+    const dayName = DAYS_AR[date.getDay()];
+    const dateStr = date.toLocaleDateString('ar-SA', {month:'short', day:'numeric'});
+    const isToday = sameDay(date, today);
+    const daySess = (days[day] || []);
+    const doneC   = daySess.filter(s => s.isCompleted).length;
+    const allDone = doneC === daySess.length && daySess.length > 0;
+
+    const sessHTML = daySess.map(s => {
+      const css = SUB_CSS[s.subject] || 'math';
+      return `
+        <div class="sched-sess-item ${s.isCompleted ? 'sched-sess-done' : 'sched-sess-' + css}"
+             data-sid="${s.id}">
+          <button class="sched-check-btn ${s.isCompleted ? 'checked' : ''}"
+                  onclick="toggleSession(${s.id}, event)" title="تحديد كمنجز">
+            ${s.isCompleted ? '<i class="fas fa-check"></i>' : ''}
+          </button>
+          <div class="sched-sess-info">
+            <div class="sched-sess-name ${s.isCompleted ? 'sched-struck' : ''}">${s.subject}</div>
+            <div class="sched-sess-time">${s.startTime}–${s.endTime} · ${s.durationMinutes}د</div>
+          </div>
+          <button class="sched-edit-btn" onclick="openEdit(${s.id}, event)" title="تعديل">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="sched-day-card ${allDone ? 'day-done' : ''} ${isToday ? 'day-today' : ''}">
+        <div class="sched-day-head">
+          <div>
+            <div class="sched-day-name">${isToday ? '📍 ' : ''}${dayName}</div>
+            <div class="sched-day-sub">يوم ${day} · ${dateStr}</div>
+          </div>
+          <div class="sched-day-badge ${allDone ? 'badge-done' : isToday ? 'badge-today' : ''}">
+            ${doneC}/${daySess.length}
+          </div>
+        </div>
+        <div class="sched-day-body">${sessHTML}</div>
+        ${allDone ? '<div class="sched-day-complete-banner">🎉 تم إنجاز اليوم!</div>' : ''}
+      </div>`;
+  }).join('');
+
+  // Week summary
+  const sumHTML = SUBJECTS.map(sub => {
+    const wSess = wkDays.flatMap(d => (days[d] || []).filter(s => s.subject === sub));
+    const wDone = wSess.filter(s => s.isCompleted).length;
+    const wp    = wSess.length ? Math.round(wDone / wSess.length * 100) : 0;
+    const css   = SUB_CSS[sub];
+    return `<span class="sched-week-sub sched-col-${css}">${sub}: ${wp}%</span>`;
+  }).join('');
+  document.getElementById('weekSummary').innerHTML = sumHTML;
+}
+
+// ─── Progress tab ─────────────────────────────────────────────────────────────
+function renderProgressTab() {
+  const today      = new Date();
+  const startDate  = new Date(SCHED.startDate + 'T00:00:00');
+  const daysPassed = Math.max(0, Math.floor((today - startDate) / 86400000));
+  const currentDay = Math.min(daysPassed + 1, SCHED.duration);
+  const remaining  = Math.max(0, SCHED.duration - daysPassed);
+  const total      = SCHED.sessions.length;
+  const done       = SCHED.sessions.filter(s => s.isCompleted).length;
+  const pct        = total ? Math.round(done / total * 100) : 0;
+  const mins       = SCHED.sessions.filter(s => s.isCompleted).reduce((a,s) => a+s.durationMinutes, 0);
+  const hrs        = (mins / 60).toFixed(1);
+  const days       = byDay();
+
+  // Overview cards
+  document.getElementById('overviewCards').innerHTML = [
+    { i:'🎯', l:'الإنجاز الكلي',  v:`${pct}%`, c:'teal' },
+    { i:'⏱️', l:'ساعات الدراسة',  v: hrs,       c:'purple' },
+    { i:'📅', l:'أيام مضت',        v: Math.min(daysPassed, SCHED.duration), c:'amber' },
+    { i:'🏁', l:'أيام متبقية',     v: remaining, c:'green' },
+  ].map(c => `
+    <div class="sched-overview-card sched-ov-${c.c}">
+      <div class="sched-ov-icon">${c.i}</div>
+      <div class="sched-ov-val">${c.v}</div>
+      <div class="sched-ov-lbl">${c.l}</div>
+    </div>`).join('');
+
+  // Update big bar
+  document.getElementById('overallPct2').textContent  = `${pct}%`;
+  document.getElementById('bigBarFill').style.width   = `${pct}%`;
+  document.getElementById('bigBarFill').innerHTML      = pct > 8 ? `<span>${pct}%</span>` : '';
+
+  // Subject bars
+  document.getElementById('subjectBars').innerHTML = SUBJECTS.map(sub => {
+    const all  = SCHED.sessions.filter(s => s.subject === sub);
+    const sdone= all.filter(s => s.isCompleted).length;
+    const sp   = all.length ? Math.round(sdone / all.length * 100) : 0;
+    const css  = SUB_CSS[sub];
+    return `
+      <div class="sched-sub-bar">
+        <div class="sched-sub-bar-row">
+          <div class="sched-sub-dot sched-dot-${css}"></div>
+          <span class="sched-sub-name sched-col-${css}">${sub}</span>
+          <span class="sched-sub-stat">${sdone}/${all.length} (${sp}%)</span>
+        </div>
+        <div class="sched-bar-track">
+          <div class="sched-bar-fill sched-fill-${css}" style="width:${sp}%"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Day calendar
+  const statusOf = day => {
+    if (day > currentDay) return 'future';
+    const ds   = days[day] || [];
+    const dc   = ds.filter(s => s.isCompleted).length;
+    if (dc === ds.length && ds.length > 0) return 'done';
+    if (dc > 0) return 'partial';
+    return 'missed';
+  };
+
+  document.getElementById('dayCalendar').innerHTML =
+    Array.from({length: SCHED.duration}, (_, i) => i + 1).map(day => {
+      const st   = statusOf(day);
+      const ring = day === currentDay ? 'sched-cal-today' : '';
+      return `<div class="sched-cal-day sched-cal-${st} ${ring}" title="يوم ${day}">${day}</div>`;
+    }).join('');
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('viewSchedule').style.display = tab === 'schedule' ? '' : 'none';
+  document.getElementById('viewProgress').style.display = tab === 'progress' ? '' : 'none';
+  document.getElementById('tabSchedule').classList.toggle('active', tab === 'schedule');
+  document.getElementById('tabProgress').classList.toggle('active', tab === 'progress');
+  if (tab === 'progress') renderProgressTab();
+}
+
+function changeWeek(dir) {
+  const tw = totalWeeks();
+  curWeek  = Math.max(0, Math.min(curWeek + dir, tw - 1));
+  renderWeekView();
+}
+
+// ─── Toggle session ───────────────────────────────────────────────────────────
+function toggleSession(sid, evt) {
+  evt.stopPropagation();
+  $.ajax({
+    url:  TOGGLE_URL(sid),
+    type: 'POST',
+    data: { csrf_token: CSRF },
+    success(res) {
+      if (!res.ok) return;
+      const sess = SCHED.sessions.find(s => s.id === sid);
+      if (sess) sess.isCompleted = res.isCompleted;
+      updateGlobalProgress();
+      renderWeekView();
+    },
+  });
+}
+
+// ─── Edit session ─────────────────────────────────────────────────────────────
+function openEdit(sid, evt) {
+  evt.stopPropagation();
+  const sess = SCHED.sessions.find(s => s.id === sid);
+  if (!sess) return;
+  editSid = sid;
+  editSub = sess.subject;
+
+  // Subject buttons
+  document.getElementById('editSubjects').innerHTML = SUBJECTS.map(sub => {
+    const css    = SUB_CSS[sub];
+    const active = sub === sess.subject;
+    return `<button type="button"
+               class="sched-sub-btn sched-badge-${css} ${active ? 'active' : ''}"
+               onclick="editSelectSub(this, '${sub}')">${sub}</button>`;
+  }).join('');
+
+  document.getElementById('editStart').value = sess.startTime;
+  document.getElementById('editEnd').value   = sess.endTime;
+  document.getElementById('editOverlay').classList.add('open');
+}
+
+function editSelectSub(btn, sub) {
+  editSub = sub;
+  document.querySelectorAll('#editSubjects .sched-sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('open');
+  editSid = null; editSub = null;
+}
+
+function saveEdit() {
+  if (!editSid) return;
+  const payload = {
+    subject:   editSub,
+    startTime: document.getElementById('editStart').value,
+    endTime:   document.getElementById('editEnd').value,
+  };
+  $.ajax({
+    url:         UPDATE_URL(editSid),
+    type:        'POST',
+    contentType: 'application/json',
+    headers:     { 'X-CSRFToken': CSRF },
+    data:        JSON.stringify(payload),
+    success(res) {
+      if (!res.ok) return;
+      const idx = SCHED.sessions.findIndex(s => s.id === editSid);
+      if (idx !== -1) {
+        SCHED.sessions[idx].subject   = res.session.subject;
+        SCHED.sessions[idx].startTime = res.session.startTime;
+        SCHED.sessions[idx].endTime   = res.session.endTime;
+        SCHED.sessions[idx].durationMinutes = res.session.durationMinutes;
+      }
+      closeEdit();
+      renderWeekView();
+    },
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(function init() {
+  // Jump to current week
+  const startDate  = new Date(SCHED.startDate + 'T00:00:00');
+  const daysPassed = Math.max(0, Math.floor((new Date() - startDate) / 86400000));
+  curWeek = Math.max(0, Math.min(Math.floor(daysPassed / 7), totalWeeks() - 1));
+
+  renderWeekView();
+  updateGlobalProgress();
+})();
+</script>
+{% endblock %}

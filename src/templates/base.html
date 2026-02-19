@@ -171,6 +171,14 @@
                         </ul>
                     </li>
 
+                    <!-- جداول المذاكرة -->
+                    <li>
+                        <a href="{{ url_for('scheduler.index') }}"
+                           {% if request.blueprint == 'scheduler' %}class="active"{% endif %}>
+                            <i class="fas fa-calendar-check"></i> جداول المذاكرة
+                        </a>
+                    </li>
+
                     <!-- قائمة الإدارة -->
                     <li class="nav-dropdown {% if request.endpoint in ['teachers.list_teachers', 'students.list_students', 'exam_dates.index'] %}has-active{% endif %}">
                         <a href="#" class="nav-dropdown-toggle"><i class="fas fa-users-cog"></i> الإدارة <i class="fas fa-chevron-down dropdown-arrow"></i></a>
