@@ -62,6 +62,21 @@
           </label>
           <input type="date" id="inp_exam" class="sched-input sched-input-exam"
                  oninput="onExamChange()">
+
+          {% if tahsili_periods %}
+          <div class="sched-tahsili-btns">
+            <span class="sched-tahsili-label">
+              <i class="fas fa-calendar-alt"></i> مواعيد التحصيلي المسجّلة:
+            </span>
+            {% for period in tahsili_periods %}
+            <button type="button" class="sched-tahsili-btn"
+                    onclick="setExamDate('{{ period.date }}')">
+              {{ period.label }}
+            </button>
+            {% endfor %}
+          </div>
+          {% endif %}
+
           <div class="sched-exam-hint" id="examHint" style="display:none">
             <i class="fas fa-info-circle"></i>
             <span id="examHintText"></span>
@@ -220,6 +235,14 @@ function selectDurationValue(val) {
 }
 
 // ── Exam date logic ──────────────────────────────────────────────
+function setExamDate(dateVal) {
+  document.getElementById('inp_exam').value = dateVal;
+  document.querySelectorAll('.sched-tahsili-btn').forEach(b =>
+    b.classList.toggle('selected', b.getAttribute('onclick').includes(dateVal))
+  );
+  onExamChange();
+}
+
 function onDateChange() {
   if (document.getElementById('inp_exam').value) onExamChange();
 }

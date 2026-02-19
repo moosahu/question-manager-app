@@ -709,6 +709,42 @@
 .sched-input-exam { border-color: rgba(78,205,196,.2); }
 .sched-input-exam:focus { border-color: #4ecdc4; }
 
+/* أزرار مواعيد التحصيلي */
+.sched-tahsili-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(78,205,196,.06);
+  border: 1px solid rgba(78,205,196,.18);
+  border-radius: 12px;
+}
+.sched-tahsili-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  width: 100%;
+  margin-bottom: 2px;
+}
+.sched-tahsili-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(78,205,196,.35);
+  background: rgba(78,205,196,.08);
+  color: #4ecdc4;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+.sched-tahsili-btn:hover  { background: rgba(78,205,196,.18); border-color: #4ecdc4; }
+.sched-tahsili-btn.selected {
+  background: #4ecdc4;
+  color: #0f172a;
+  border-color: #4ecdc4;
+}
+
 .sched-exam-hint {
   display: flex; align-items: center; gap: 7px;
   margin-top: 8px; font-size: 0.8rem; color: #6ee7b7;

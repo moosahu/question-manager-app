@@ -179,6 +179,13 @@
       <button onclick="closeExamModal()" class="sched-modal-close">&times;</button>
     </div>
     <p class="sched-label">حدد تاريخ اختبارك لمتابعة العد التنازلي</p>
+
+    <!-- مواعيد التحصيلي من النظام -->
+    <div class="sched-tahsili-btns" id="modalTahsiliPeriods" style="display:none; margin-bottom:14px">
+      <span class="sched-tahsili-label"><i class="fas fa-calendar-alt"></i> مواعيد التحصيلي المسجّلة:</span>
+      <div id="modalPeriodBtns"></div>
+    </div>
+
     <input type="date" id="examDateInput" class="sched-input" style="margin-bottom:20px">
     <div class="sched-modal-actions">
       <button class="sched-btn sched-btn-outline" onclick="clearExamDate()">
@@ -548,6 +555,26 @@ if (examDateVal) {
 function openExamModal() {
   document.getElementById('examDateInput').value = examDateVal || '';
   document.getElementById('examOverlay').classList.add('open');
+
+  // جلب مواعيد التحصيلي من النظام
+  const TAHSILI_API = '{{ url_for("scheduler.api_tahsili_dates") }}';
+  $.getJSON(TAHSILI_API, function(res) {
+    if (!res.ok || !res.periods.length) return;
+    const wrap = document.getElementById('modalTahsiliPeriods');
+    const btns = document.getElementById('modalPeriodBtns');
+    btns.innerHTML = res.periods.map(p =>
+      `<button type="button" class="sched-tahsili-btn"
+               onclick="pickModalPeriod('${p.date}', this)">${p.label}</button>`
+    ).join('');
+    wrap.style.display = '';
+  });
+}
+
+function pickModalPeriod(dateVal, btn) {
+  document.getElementById('examDateInput').value = dateVal;
+  document.querySelectorAll('#modalPeriodBtns .sched-tahsili-btn')
+    .forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
 }
 function closeExamModal() {
   document.getElementById('examOverlay').classList.remove('open');

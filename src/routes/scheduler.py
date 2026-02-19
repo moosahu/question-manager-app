@@ -47,6 +47,38 @@ def _create_tables(state):
             pass  # Column already exists — safe to ignore
 
 
+# ─── Firestore: مواعيد التحصيلي ───────────────────────────────────────────────
+def _get_tahsili_periods() -> list[dict]:
+    """
+    جلب فترات الاختبار التحصيلي من Firestore (settings/exam_dates).
+    يُرجع قائمة بالفترتين إن وُجدتا، أو قائمة فارغة عند أي خطأ.
+    """
+    try:
+        from firebase_admin import firestore as fs
+        db = fs.client()
+        doc = db.collection('settings').document('exam_dates').get()
+        if not doc.exists:
+            return []
+        data = doc.to_dict() or {}
+        periods = []
+        for key, label in [('exam_period1_start', 'الفترة الأولى'),
+                            ('exam_period2_start', 'الفترة الثانية')]:
+            raw = data.get(key)
+            if raw:
+                try:
+                    d = datetime.fromisoformat(raw[:10])   # أخذ الجزء yyyy-mm-dd فقط
+                    periods.append({
+                        'label': f'{label} — {d.strftime("%Y/%m/%d")}',
+                        'date':  d.strftime('%Y-%m-%d'),
+                    })
+                except ValueError:
+                    pass
+        return periods
+    except Exception as exc:
+        logger.warning(f'Could not fetch Tahsili dates from Firestore: {exc}')
+        return []
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def _mins_to_time(m: int) -> str:
     return f'{(m // 60) % 24:02d}:{m % 60:02d}'
@@ -95,8 +127,10 @@ def index():
 def create():
     """صفحة إنشاء جدول جديد"""
     today = date.today().strftime('%Y-%m-%d')
+    tahsili_periods = _get_tahsili_periods()
     return render_template('scheduler/create.html', today=today, subjects=SUBJECTS,
-                           break_minutes=BREAK_MINUTES, start_hour=START_HOUR)
+                           break_minutes=BREAK_MINUTES, start_hour=START_HOUR,
+                           tahsili_periods=tahsili_periods)
 
 
 @scheduler_bp.route('/create', methods=['POST'])
@@ -226,6 +260,15 @@ def update_session(schedule_id, session_id):
     return jsonify({'ok': True, 'session': session.to_dict()})
 
 
+# ─── API: مواعيد التحصيلي للـ AJAX ───────────────────────────────────────────
+@scheduler_bp.route('/api/tahsili-dates')
+@login_required
+def api_tahsili_dates():
+    """إرجاع مواعيد التحصيلي من Firestore للاستخدام في AJAX"""
+    periods = _get_tahsili_periods()
+    return jsonify({'ok': True, 'periods': periods})
+
+
 # ─── Exam date ────────────────────────────────────────────────────────────────
 @scheduler_bp.route('/<int:schedule_id>/exam-date', methods=['POST'])
 @login_required
@@ -273,6 +316,7 @@ def export_pdf(schedule_id):
         schedule=schedule,
         sessions_by_day=sessions_by_day,
         days_dates=days_dates,
+        today_date=date.today(),
     )
 
     try:

@@ -6,208 +6,202 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
 
-  /* ─── إعداد الصفحة وأرقامها ───────────────────────────────── */
+  /* ─── إعداد الصفحة وأرقامها ─── */
   @page {
-    size: A4 portrait;
-    margin: 14mm 12mm 18mm 12mm;
+    size: A4 landscape;
+    margin: 10mm 10mm 14mm 10mm;
 
     @bottom-center {
       content: "صفحة " counter(page) " من " counter(pages);
       font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
       font-size: 8pt;
       color: #94a3b8;
-      direction: rtl;
     }
-
     @top-left {
-      content: "جدول مذاكرة — {{ schedule.student_name }}";
+      content: "جدول مذاكرة الاختبار التحصيلي — {{ schedule.student_name }}";
       font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
-      font-size: 8pt;
+      font-size: 7.5pt;
       color: #94a3b8;
     }
   }
+  @page :first { @top-left { content: ''; } }
 
-  /* الصفحة الأولى: بدون ترويسة متكررة */
-  @page :first {
-    @top-left { content: ''; }
-  }
-
-  /* ─── قاعدة ────────────────────────────────────────────────── */
+  /* ─── قاعدة ─── */
   * {
     font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+    box-sizing: border-box; margin: 0; padding: 0;
   }
+  body { background: #fff; color: #1e293b; direction: rtl; text-align: right; font-size: 9pt; }
 
-  body {
-    background: #fff;
-    color: #1e293b;
-    direction: rtl;
-    text-align: right;
-    font-size: 10pt;
-  }
-
-  /* ─── رأس الصفحة ──────────────────────────────────────────── */
+  /* ─── رأس الصفحة ─── */
   .header {
     background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-    color: #fff;
-    padding: 14px 18px;
-    border-radius: 10px;
-    margin-bottom: 12px;
+    color: #fff; padding: 10px 16px; border-radius: 10px; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
-  .header h1 { font-size: 15pt; font-weight: 900; margin-bottom: 5px; }
-  .header p  { font-size: 9.5pt; opacity: 0.9; line-height: 1.7; }
+  .header-main h1 { font-size: 14pt; font-weight: 900; }
+  .header-main p  { font-size: 8.5pt; opacity: 0.9; margin-top: 3px; }
 
-  /* ─── إحصائيات ────────────────────────────────────────────── */
-  .stats {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    direction: rtl;
+  /* فترات الاختبار في الرأس */
+  .header-periods { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .period-badge {
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+    border-radius: 8px; padding: 5px 10px; font-size: 8pt; font-weight: 700;
+    text-align: center; white-space: nowrap;
   }
-  .stat-card {
-    flex: 1;
-    background: #f8fafc;
+  .period-badge .p-label { font-size: 7pt; opacity: .8; display: block; margin-bottom: 2px; }
+
+  /* ─── شريط التقدم ─── */
+  .progress-bar-wrap { margin-bottom: 8px; }
+  .progress-bar-bg {
+    height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #10b981, #2563eb);
+    border-radius: 3px;
+  }
+  .progress-label {
+    display: flex; justify-content: space-between; font-size: 7.5pt;
+    color: #64748b; margin-bottom: 3px;
+  }
+
+  /* ─── دليل المواد ─── */
+  .legend {
+    display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+    padding: 5px 10px; background: #f8fafc; border-radius: 8px;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 8px;
-    text-align: center;
   }
-  .stat-val { font-size: 15pt; font-weight: 900; color: #2563eb; }
-  .stat-lbl { font-size: 7.5pt; color: #94a3b8; margin-top: 2px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; font-weight: 700; }
+  .legend-dot   { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .dot-math    { background: #3b82f6; }
+  .dot-physics { background: #8b5cf6; }
+  .dot-chem    { background: #10b981; }
+  .dot-bio     { background: #f59e0b; }
 
-  /* ─── شبكة الأيام (RTL: اليوم 1 في أعلى اليمين) ──────────── */
+  /* ─── شبكة الأيام (6 أعمدة أفقي) ─── */
   .day-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
     direction: rtl;
   }
 
   .day-card {
-    background: #fff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
-    break-inside: avoid;
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 7px;
+    overflow: hidden; break-inside: avoid;
   }
-  .day-card.done { border-color: #86efac; }
+  .day-card.done    { border-color: #86efac; background: #f0fdf4; }
+  .day-card.today   { border-color: #2563eb; box-shadow: 0 0 0 1.5px rgba(37,99,235,.3); }
 
-  /* رأس بطاقة اليوم */
+  /* رأس اليوم */
   .day-head {
-    padding: 5px 8px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 4px 6px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
     direction: rtl;
   }
-  .day-card.done .day-head {
-    background: #f0fdf4;
-    border-bottom-color: #bbf7d0;
-  }
+  .day-card.done  .day-head { background: #dcfce7; border-bottom-color: #bbf7d0; }
+  .day-card.today .day-head { background: #dbeafe; border-bottom-color: #93c5fd; }
 
-  .day-num  { font-weight: 900; font-size: 10pt; color: #1e293b; }
-  .day-info { font-size: 7pt; color: #94a3b8; margin-top: 1px; }
-
+  .day-row { display: flex; justify-content: space-between; align-items: center; }
+  .day-num  { font-weight: 900; font-size: 9.5pt; color: #1e293b; }
   .day-badge {
-    font-size: 7.5pt;
-    font-weight: 700;
-    background: #e2e8f0;
-    color: #475569;
-    padding: 1px 6px;
-    border-radius: 12px;
-    white-space: nowrap;
+    font-size: 7pt; font-weight: 700; background: #e2e8f0; color: #475569;
+    padding: 1px 5px; border-radius: 10px;
   }
-  .day-card.done .day-badge { background: #bbf7d0; color: #166534; }
+  .day-card.done  .day-badge { background: #bbf7d0; color: #166534; }
+  .day-card.today .day-badge { background: #bfdbfe; color: #1d4ed8; }
 
-  /* ─── جلسات الدراسة ────────────────────────────────────────── */
-  .day-body { padding: 5px; }
+  .day-date  { font-size: 6.5pt; color: #94a3b8; margin-top: 1px; }
+  .day-motiv { font-size: 6.5pt; color: #64748b; font-style: italic; margin-top: 1px; }
 
+  /* جلسات */
+  .day-body  { padding: 4px; }
   .sess {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 6px;
-    border-radius: 6px;
-    margin-bottom: 3px;
+    display: flex; align-items: center; gap: 4px;
+    padding: 2px 5px; border-radius: 4px; margin-bottom: 2px;
     border: 1px solid;
-    direction: rtl;
   }
-  .sess.done { opacity: 0.5; }
+  .sess.done { opacity: .45; }
 
   .sess-math    { background: #dbeafe; border-color: #93c5fd; }
   .sess-physics { background: #ede9fe; border-color: #c4b5fd; }
   .sess-chem    { background: #d1fae5; border-color: #6ee7b7; }
   .sess-bio     { background: #fef3c7; border-color: #fcd34d; }
 
-  .sess-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .dot-math    { background: #3b82f6; }
-  .dot-physics { background: #8b5cf6; }
-  .dot-chem    { background: #10b981; }
-  .dot-bio     { background: #f59e0b; }
-
-  .sess-name      { font-weight: 700; font-size: 9pt; flex: 1; }
+  .sess-dot   { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .sess-name  { font-weight: 700; font-size: 7.5pt; flex: 1; }
   .sess-name.done { text-decoration: line-through; color: #94a3b8; }
-  .sess-time      { font-size: 7pt; color: #64748b; white-space: nowrap; }
-  .sess-check     { font-size: 8pt; color: #16a34a; flex-shrink: 0; font-weight: 900; }
+  .sess-time  { font-size: 6pt; color: #64748b; white-space: nowrap; }
 
-  /* ─── تذييل ────────────────────────────────────────────────── */
-  .footer {
-    margin-top: 14px;
-    text-align: center;
-    font-size: 8pt;
-    color: #94a3b8;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 8px;
+  /* مربع الإنجاز */
+  .day-check {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 5px; border-top: 1px solid #e2e8f0;
+    font-size: 7pt; color: #94a3b8;
+  }
+  .check-box {
+    width: 11px; height: 11px; border: 1.5px solid #cbd5e1; border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7pt; font-weight: 900; color: #16a34a; flex-shrink: 0;
+  }
+  .day-card.done .check-box {
+    border-color: #16a34a; background: #dcfce7;
   }
 </style>
 </head>
 <body>
 
-<!-- رأس الجدول -->
+<!-- رأس الجدول مع فترات الاختبار -->
 <div class="header">
-  <h1>جدول مذاكرة الاختبار التحصيلي</h1>
-  <p>
-    الطالب: {{ schedule.student_name }}
-    &nbsp;&middot;&nbsp;
-    {{ schedule.duration }} يوم
-    &nbsp;&middot;&nbsp;
-    {{ schedule.daily_hours }} ساعة يومياً
-    &nbsp;&middot;&nbsp;
-    يبدأ: {{ schedule.start_date.strftime('%Y/%m/%d') }}
-    {% if schedule.exam_date %}
-    &nbsp;&middot;&nbsp;
-    موعد الاختبار: {{ schedule.exam_date.strftime('%Y/%m/%d') }}
-    {% endif %}
-  </p>
+  <div class="header-main">
+    <h1>جدول مذاكرة الاختبار التحصيلي</h1>
+    <p>
+      الطالب: <strong>{{ schedule.student_name }}</strong>
+      &nbsp;&middot;&nbsp; {{ schedule.duration }} يوم
+      &nbsp;&middot;&nbsp; {{ schedule.daily_hours }} ساعة/يوم
+      &nbsp;&middot;&nbsp; يبدأ: {{ schedule.start_date.strftime('%Y/%m/%d') }}
+    </p>
+  </div>
+
+  {% if schedule.exam_date %}
+  <div class="header-periods">
+    <div class="period-badge">
+      <span class="p-label">موعد الاختبار</span>
+      {{ schedule.exam_date.strftime('%Y/%m/%d') }}
+      {% if schedule.days_until_exam is not none %}
+        <br><strong>{{ schedule.days_until_exam }} يوم متبقي</strong>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 
-<!-- إحصائيات سريعة -->
-<div class="stats">
-  <div class="stat-card">
-    <div class="stat-val">{{ schedule.completion_percent }}%</div>
-    <div class="stat-lbl">الإنجاز</div>
+<!-- شريط التقدم -->
+<div class="progress-bar-wrap">
+  <div class="progress-label">
+    <span>التقدم الكلي: {{ schedule.completion_percent }}%</span>
+    <span>{{ schedule.completed_sessions }} / {{ schedule.total_sessions }} جلسة مكتملة</span>
   </div>
-  <div class="stat-card">
-    <div class="stat-val">{{ schedule.completed_sessions }}/{{ schedule.total_sessions }}</div>
-    <div class="stat-lbl">جلسات منجزة</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-val">{{ schedule.duration }}</div>
-    <div class="stat-lbl">إجمالي الأيام</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-val">{{ schedule.daily_hours }}</div>
-    <div class="stat-lbl">ساعات يومياً</div>
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" style="width: {{ schedule.completion_percent }}%"></div>
   </div>
 </div>
 
-<!-- شبكة الأيام — تبدأ من اليمين بسبب direction: rtl -->
-{% set ar_days = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'] %}
-{% set css_map = {'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio'} %}
+<!-- دليل المواد -->
+<div class="legend">
+  <span class="legend-item"><span class="legend-dot dot-math"></span> رياضيات</span>
+  <span class="legend-item"><span class="legend-dot dot-physics"></span> فيزياء</span>
+  <span class="legend-item"><span class="legend-dot dot-chem"></span> كيمياء</span>
+  <span class="legend-item"><span class="legend-dot dot-bio"></span> أحياء</span>
+</div>
+
+<!-- شبكة الأيام — 6 أعمدة، تبدأ من اليمين -->
+{% set ar_days  = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'] %}
+{% set motivs   = ['ابدأ بقوة', 'أنت قادر', 'استمر', 'رائع', 'ممتاز', 'واصل', 'تقدم جيد',
+                   'أكمل', 'قريب', 'متميز', 'شارفت', 'يومان', 'رائع جداً', 'نجم',
+                   'مبدع', 'فارس', 'همة', 'ثق بنفسك', 'أنجزت', 'أحسنت',
+                   'واصل التميز', 'خطوة أخرى', 'في الطريق', 'استمر هكذا', 'ممتاز جداً',
+                   'قاب قوسين', 'يوم واحد', 'اليوم الأخير', 'أنت بطل', 'وفقك الله'] %}
+{% set css_map  = {'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio'} %}
 
 <div class="day-grid">
 {% for day in range(1, schedule.duration + 1) %}
@@ -216,14 +210,17 @@
   {% set all_done     = done_count == day_sessions | length and day_sessions | length > 0 %}
   {% set d            = days_dates[day] %}
   {% set weekday_ar   = ar_days[d.weekday()] %}
+  {% set motiv        = motivs[(day - 1) % motivs | length] %}
+  {% set is_today     = d == today_date %}
 
-  <div class="day-card {{ 'done' if all_done else '' }}">
+  <div class="day-card {{ 'done' if all_done else '' }} {{ 'today' if is_today else '' }}">
     <div class="day-head">
-      <div>
-        <div class="day-num">يوم {{ day }}</div>
-        <div class="day-info">{{ weekday_ar }} &middot; {{ d.strftime('%d/%m/%Y') }}</div>
+      <div class="day-row">
+        <span class="day-num">يوم {{ day }}</span>
+        <span class="day-badge">{{ done_count }}/{{ day_sessions | length }}</span>
       </div>
-      <div class="day-badge">{{ done_count }}/{{ day_sessions | length }}</div>
+      <div class="day-date">{{ weekday_ar }} {{ d.strftime('%d/%m') }}</div>
+      <div class="day-motiv">{{ motiv }}</div>
     </div>
 
     <div class="day-body">
@@ -233,16 +230,16 @@
         <div class="sess-dot dot-{{ css }}"></div>
         <div class="sess-name {{ 'done' if s.is_completed else '' }}">{{ s.subject }}</div>
         <div class="sess-time">{{ s.start_time }}–{{ s.end_time }}</div>
-        {% if s.is_completed %}<div class="sess-check">&#10003;</div>{% endif %}
       </div>
       {% endfor %}
     </div>
+
+    <div class="day-check">
+      <div class="check-box">{% if all_done %}&#10003;{% endif %}</div>
+      <span>{% if all_done %}تم الإنجاز{% else %}للإنجاز{% endif %}</span>
+    </div>
   </div>
 {% endfor %}
-</div>
-
-<div class="footer">
-  تم إنشاؤه بواسطة نظام إدارة الأسئلة الكيميائية — جدول المذاكرة
 </div>
 
 </body>
