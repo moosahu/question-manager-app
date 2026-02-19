@@ -5,7 +5,7 @@ URL prefix: /scheduler
 import io
 import logging
 from math import floor
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from urllib.parse import quote
 from flask import (Blueprint, render_template, request, redirect,
@@ -263,10 +263,16 @@ def export_pdf(schedule_id):
     for day_sessions in sessions_by_day.values():
         day_sessions.sort(key=lambda x: x.order_index)
 
+    days_dates = {
+        day: schedule.start_date + timedelta(days=day - 1)
+        for day in range(1, schedule.duration + 1)
+    }
+
     html_content = render_template(
         'scheduler/pdf.html',
         schedule=schedule,
         sessions_by_day=sessions_by_day,
+        days_dates=days_dates,
     )
 
     try:

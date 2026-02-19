@@ -5,66 +5,187 @@
 <title>جدول مذاكرة — {{ schedule.student_name }}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-  * { font-family: 'Cairo', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #f8fafc; color: #1e293b; direction: rtl; padding: 20px; font-size: 12px; }
 
-  .header { background: linear-gradient(135deg, #1d4ed8, #3b82f6); color: #fff;
-            padding: 18px 22px; border-radius: 14px; margin-bottom: 16px; }
-  .header h1 { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
-  .header p  { font-size: 12px; opacity: 0.85; }
+  /* ─── إعداد الصفحة وأرقامها ───────────────────────────────── */
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 18mm 12mm;
 
-  .stats { display: flex; gap: 10px; margin-bottom: 16px; }
-  .stat-card { flex: 1; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
-               padding: 10px; text-align: center; }
-  .stat-val { font-size: 18px; font-weight: 900; color: #2563eb; }
-  .stat-lbl { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
+      font-size: 8pt;
+      color: #94a3b8;
+      direction: rtl;
+    }
 
-  .day-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .day-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden;
-              break-inside: avoid; }
+    @top-left {
+      content: "جدول مذاكرة — {{ schedule.student_name }}";
+      font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
+      font-size: 8pt;
+      color: #94a3b8;
+    }
+  }
+
+  /* الصفحة الأولى: بدون ترويسة متكررة */
+  @page :first {
+    @top-left { content: ''; }
+  }
+
+  /* ─── قاعدة ────────────────────────────────────────────────── */
+  * {
+    font-family: 'Cairo', 'Noto Sans Arabic', Arial, sans-serif;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: #fff;
+    color: #1e293b;
+    direction: rtl;
+    text-align: right;
+    font-size: 10pt;
+  }
+
+  /* ─── رأس الصفحة ──────────────────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .header h1 { font-size: 15pt; font-weight: 900; margin-bottom: 5px; }
+  .header p  { font-size: 9.5pt; opacity: 0.9; line-height: 1.7; }
+
+  /* ─── إحصائيات ────────────────────────────────────────────── */
+  .stats {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    direction: rtl;
+  }
+  .stat-card {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .stat-val { font-size: 15pt; font-weight: 900; color: #2563eb; }
+  .stat-lbl { font-size: 7.5pt; color: #94a3b8; margin-top: 2px; }
+
+  /* ─── شبكة الأيام (RTL: اليوم 1 في أعلى اليمين) ──────────── */
+  .day-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    direction: rtl;
+  }
+
+  .day-card {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    break-inside: avoid;
+  }
   .day-card.done { border-color: #86efac; }
 
-  .day-head { padding: 7px 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-              display: flex; justify-content: space-between; align-items: center; }
-  .day-card.done .day-head { background: #f0fdf4; border-bottom-color: #bbf7d0; }
-  .day-name  { font-weight: 700; font-size: 11px; color: #334155; }
-  .day-meta  { font-size: 9px; color: #94a3b8; }
-  .day-badge { font-size: 10px; font-weight: 700; background: #e2e8f0; color: #475569;
-               padding: 2px 7px; border-radius: 20px; }
+  /* رأس بطاقة اليوم */
+  .day-head {
+    padding: 5px 8px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    direction: rtl;
+  }
+  .day-card.done .day-head {
+    background: #f0fdf4;
+    border-bottom-color: #bbf7d0;
+  }
+
+  .day-num  { font-weight: 900; font-size: 10pt; color: #1e293b; }
+  .day-info { font-size: 7pt; color: #94a3b8; margin-top: 1px; }
+
+  .day-badge {
+    font-size: 7.5pt;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 1px 6px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
   .day-card.done .day-badge { background: #bbf7d0; color: #166534; }
 
-  .day-body { padding: 7px; }
-  .sess { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px;
-          margin-bottom: 3px; border: 1px solid; }
-  .sess.done { opacity: 0.55; }
+  /* ─── جلسات الدراسة ────────────────────────────────────────── */
+  .day-body { padding: 5px; }
+
+  .sess {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+    border: 1px solid;
+    direction: rtl;
+  }
+  .sess.done { opacity: 0.5; }
 
   .sess-math    { background: #dbeafe; border-color: #93c5fd; }
   .sess-physics { background: #ede9fe; border-color: #c4b5fd; }
   .sess-chem    { background: #d1fae5; border-color: #6ee7b7; }
   .sess-bio     { background: #fef3c7; border-color: #fcd34d; }
 
-  .sess-check { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0;
-                background: #e2e8f0; display: flex; align-items: center; justify-content: center;
-                font-size: 8px; color: #fff; font-weight: 700; }
-  .sess-check.done { background: #22c55e; }
-  .sess-name  { font-weight: 700; font-size: 11px; flex: 1; }
-  .sess-name.done { text-decoration: line-through; color: #94a3b8; }
-  .sess-time  { font-size: 9px; color: #64748b; }
+  .sess-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-math    { background: #3b82f6; }
+  .dot-physics { background: #8b5cf6; }
+  .dot-chem    { background: #10b981; }
+  .dot-bio     { background: #f59e0b; }
 
-  .footer { margin-top: 16px; text-align: center; font-size: 10px; color: #94a3b8; }
+  .sess-name      { font-weight: 700; font-size: 9pt; flex: 1; }
+  .sess-name.done { text-decoration: line-through; color: #94a3b8; }
+  .sess-time      { font-size: 7pt; color: #64748b; white-space: nowrap; }
+  .sess-check     { font-size: 8pt; color: #16a34a; flex-shrink: 0; font-weight: 900; }
+
+  /* ─── تذييل ────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 8pt;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 8px;
+  }
 </style>
 </head>
 <body>
 
-<!-- Header -->
+<!-- رأس الجدول -->
 <div class="header">
   <h1>جدول مذاكرة الاختبار التحصيلي</h1>
-  <p>الطالب: {{ schedule.student_name }} &nbsp;·&nbsp;
-     {{ schedule.duration }} يوم &nbsp;·&nbsp; {{ schedule.daily_hours }} ساعة يومياً &nbsp;·&nbsp;
-     يبدأ: {{ schedule.start_date.strftime('%Y/%m/%d') }}</p>
+  <p>
+    الطالب: {{ schedule.student_name }}
+    &nbsp;&middot;&nbsp;
+    {{ schedule.duration }} يوم
+    &nbsp;&middot;&nbsp;
+    {{ schedule.daily_hours }} ساعة يومياً
+    &nbsp;&middot;&nbsp;
+    يبدأ: {{ schedule.start_date.strftime('%Y/%m/%d') }}
+    {% if schedule.exam_date %}
+    &nbsp;&middot;&nbsp;
+    موعد الاختبار: {{ schedule.exam_date.strftime('%Y/%m/%d') }}
+    {% endif %}
+  </p>
 </div>
 
-<!-- Stats -->
+<!-- إحصائيات سريعة -->
 <div class="stats">
   <div class="stat-card">
     <div class="stat-val">{{ schedule.completion_percent }}%</div>
@@ -84,38 +205,35 @@
   </div>
 </div>
 
-<!-- Days grid -->
+<!-- شبكة الأيام — تبدأ من اليمين بسبب direction: rtl -->
+{% set ar_days = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'] %}
+{% set css_map = {'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio'} %}
+
 <div class="day-grid">
 {% for day in range(1, schedule.duration + 1) %}
   {% set day_sessions = sessions_by_day.get(day, []) %}
   {% set done_count   = day_sessions | selectattr('is_completed') | list | length %}
   {% set all_done     = done_count == day_sessions | length and day_sessions | length > 0 %}
-
-  {% set day_date = schedule.start_date.toordinal() + day - 1 %}
-  {% set weekday  = day_sessions[0].schedule.start_date if day_sessions else None %}
+  {% set d            = days_dates[day] %}
+  {% set weekday_ar   = ar_days[d.weekday()] %}
 
   <div class="day-card {{ 'done' if all_done else '' }}">
     <div class="day-head">
       <div>
-        <div class="day-name">يوم {{ day }}</div>
-        <div class="day-meta">
-          {% if day_sessions %}
-            {{ day_sessions[0].start_time }} – {{ day_sessions[-1].end_time }}
-          {% endif %}
-        </div>
+        <div class="day-num">يوم {{ day }}</div>
+        <div class="day-info">{{ weekday_ar }} &middot; {{ d.strftime('%d/%m/%Y') }}</div>
       </div>
       <div class="day-badge">{{ done_count }}/{{ day_sessions | length }}</div>
     </div>
+
     <div class="day-body">
       {% for s in day_sessions %}
-      {% set css_map = {'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio'} %}
       {% set css = css_map.get(s.subject, 'math') %}
       <div class="sess sess-{{ css }} {{ 'done' if s.is_completed else '' }}">
-        <div class="sess-check {{ 'done' if s.is_completed else '' }}">
-          {% if s.is_completed %}✓{% endif %}
-        </div>
+        <div class="sess-dot dot-{{ css }}"></div>
         <div class="sess-name {{ 'done' if s.is_completed else '' }}">{{ s.subject }}</div>
         <div class="sess-time">{{ s.start_time }}–{{ s.end_time }}</div>
+        {% if s.is_completed %}<div class="sess-check">&#10003;</div>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -126,5 +244,6 @@
 <div class="footer">
   تم إنشاؤه بواسطة نظام إدارة الأسئلة الكيميائية — جدول المذاكرة
 </div>
+
 </body>
 </html>
