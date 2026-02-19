@@ -7,6 +7,7 @@ import logging
 from math import floor
 from datetime import datetime, date
 
+from urllib.parse import quote
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, jsonify, make_response, abort)
 from flask_login import login_required, current_user
@@ -277,9 +278,9 @@ def export_pdf(schedule_id):
 
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
-        fname = f'جدول-{schedule.student_name}.pdf'.encode('utf-8')
+        encoded = quote(f'جدول-{schedule.student_name}.pdf', safe='')
         response.headers['Content-Disposition'] = (
-            f"attachment; filename*=UTF-8''{fname.decode('utf-8')}"
+            f"attachment; filename*=UTF-8''{encoded}"
         )
         return response
 
