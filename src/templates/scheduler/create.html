@@ -291,9 +291,14 @@ function updateSummary() {
 updateHours(4);
 updateSummary();
 
-// Enter key to advance
+// Enter key to advance (prevent form submit)
 document.getElementById('inp_name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') stepNext();
+  if (e.key === 'Enter') { e.preventDefault(); stepNext(); }
+});
+
+// Block form submission unless we are on step 3
+document.getElementById('schedForm').addEventListener('submit', e => {
+  if (currentStep !== 3) { e.preventDefault(); stepNext(); }
 });
 </script>
 {% endblock %}
