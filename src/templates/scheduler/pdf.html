@@ -304,9 +304,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        &#x202D;{{ s.start_time }} &#x2013; {{ s.end_time }}&#x202C;
+        {{ s.start_time }}-{{ s.end_time }}
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge">&#x202D;{{ s.pages_from }}&#x2013;{{ s.pages_to }}&#x202C; ص</span>
+        <br><span class="pages-badge">ص {{ s.pages_from }}-{{ s.pages_to }}</span>
         {% endif %}
       </div>
       {% else %}
