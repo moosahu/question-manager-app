@@ -46,6 +46,40 @@ def _parse_pages_input(raw: str) -> tuple[int, int]:
 
 scheduler_bp = Blueprint('scheduler', __name__, url_prefix='/scheduler')
 
+
+def _get_mobile_student_id() -> int | None:
+    """
+    استخراج معرف الطالب — نفس نهج diagnostic_routes:
+    1. Cookie: student_session_<username>  ← الطريقة الرئيسية للموبايل
+    2. X-Student-ID header                ← بديل
+    3. current_user (جلسة الويب)
+    """
+    # 1. Cookie student_session_<username>
+    try:
+        from src.models.student import Student
+        for cookie_name in request.cookies:
+            if cookie_name.startswith('student_session_'):
+                username = cookie_name.replace('student_session_', '')
+                student = Student.query.filter_by(username=username).first()
+                if student:
+                    return student.id
+    except Exception:
+        pass
+
+    # 2. X-Student-ID header
+    sid = request.headers.get('X-Student-ID', '').strip()
+    if sid:
+        try:
+            return int(sid)
+        except (ValueError, TypeError):
+            pass
+
+    # 3. جلسة الويب
+    if current_user.is_authenticated and hasattr(current_user, 'id'):
+        return current_user.id
+
+    return None
+
 # ─── Constants ────────────────────────────────────────────────────────────────
 SUBJECTS      = ['رياضيات', 'فيزياء', 'كيمياء', 'أحياء']
 BREAK_MINUTES = 15
@@ -73,6 +107,7 @@ def _create_tables(state):
                 'ALTER TABLE study_schedules ADD COLUMN subject_pages TEXT',
                 'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
                 'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
+                'ALTER TABLE study_schedules ADD COLUMN student_id INTEGER',
             ]:
                 try:
                     with db.engine.connect() as _conn:
@@ -503,3 +538,110 @@ def export_pdf(schedule_id):
         logger.error(f'PDF generation error: {exc}')
         flash('حدث خطأ أثناء توليد PDF', 'error')
         return redirect(url_for('scheduler.view_schedule', schedule_id=schedule_id))
+
+
+# ─── Mobile API ────────────────────────────────────────────────────────────────
+@scheduler_bp.route('/api/mobile/schedules')
+def mobile_list_schedules():
+    """قائمة جداول الطالب — للموبايل"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+    schedules = (StudySchedule.query
+                 .filter_by(student_id=student_id)
+                 .order_by(StudySchedule.created_at.desc())
+                 .all())
+    return jsonify({'ok': True, 'schedules': [s.to_summary_dict() for s in schedules]})
+
+
+@scheduler_bp.route('/api/mobile/schedules/create', methods=['POST'])
+def mobile_create_schedule():
+    """إنشاء جدول جديد من الموبايل — JSON body"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    data         = request.get_json(silent=True) or {}
+    student_name = (data.get('studentName') or '').strip()
+    duration     = data.get('duration', 30)
+    daily_hours  = data.get('dailyHours', 4.0)
+    start_date_s = (data.get('startDate') or '').strip()
+    exam_date_s  = (data.get('examDate') or '').strip()
+    pages        = data.get('pages') or {}
+
+    # ── Auto-fill student_name from DB if not provided ──
+    if not student_name:
+        try:
+            from src.models.student import Student
+            student = Student.query.get(student_id)
+            if student:
+                student_name = getattr(student, 'name', None) or getattr(student, 'username', '') or ''
+        except Exception:
+            pass
+    if not student_name:
+        student_name = 'طالب'
+    try:
+        duration = int(duration)
+        if duration not in (15, 30, 60):
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'ok': False, 'error': 'المدة يجب أن تكون 15 أو 30 أو 60 يوماً'}), 400
+    try:
+        daily_hours = float(daily_hours)
+        if not (1 <= daily_hours <= 16):
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'ok': False, 'error': 'عدد الساعات يجب أن يكون بين 1 و 16'}), 400
+    try:
+        start = datetime.strptime(start_date_s, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return jsonify({'ok': False, 'error': 'تاريخ البداية غير صحيح'}), 400
+
+    exam_date = None
+    if exam_date_s:
+        try:
+            exam_date = datetime.strptime(exam_date_s, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+
+    # ── Subject pages ──
+    subject_pages = {}
+    key_map = {'math': 'رياضيات', 'physics': 'فيزياء', 'chem': 'كيمياء', 'bio': 'أحياء'}
+    for key, subj in key_map.items():
+        raw = (pages.get(key) or '').strip()
+        if raw:
+            ps, pe = _parse_pages_input(raw)
+            if pe > ps >= 1:
+                subject_pages[subj] = [ps, pe]
+
+    schedule = StudySchedule(
+        student_id    = student_id,
+        student_name  = student_name,
+        duration      = duration,
+        daily_hours   = daily_hours,
+        start_date    = start,
+        exam_date     = exam_date,
+        subject_pages = json.dumps(subject_pages, ensure_ascii=False) if subject_pages else None,
+    )
+    db.session.add(schedule)
+    db.session.flush()
+
+    for sess in _generate_sessions(schedule):
+        db.session.add(sess)
+    db.session.commit()
+
+    return jsonify({'ok': True, 'schedule': schedule.to_dict()}), 201
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>')
+def mobile_get_schedule(schedule_id):
+    """تفاصيل جدول + جلساته — للموبايل"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود أو لا تملك صلاحية الوصول إليه'}), 404
+
+    return jsonify({'ok': True, 'schedule': schedule.to_dict()})

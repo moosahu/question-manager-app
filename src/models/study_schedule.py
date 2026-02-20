@@ -12,6 +12,7 @@ class StudySchedule(db.Model):
 
     id            = db.Column(db.Integer, primary_key=True)
     student_name  = db.Column(db.String(120), nullable=False)
+    student_id    = db.Column(db.Integer, nullable=True)         # لربط الجدول بطالب الموبايل
     duration      = db.Column(db.Integer, nullable=False)        # 15 | 30 | 60 يوم
     daily_hours   = db.Column(db.Float,   nullable=False)        # ساعات الدراسة يومياً
     start_date    = db.Column(db.Date,    nullable=False)
@@ -48,7 +49,8 @@ class StudySchedule(db.Model):
             return 0
         return round(self.completed_sessions / self.total_sessions * 100)
 
-    def to_dict(self):
+    def to_summary_dict(self):
+        """نسخة مختصرة بدون الجلسات — للقوائم"""
         return {
             'id':               self.id,
             'studentName':      self.student_name,
@@ -61,8 +63,12 @@ class StudySchedule(db.Model):
             'totalSessions':    self.total_sessions,
             'completedSessions': self.completed_sessions,
             'completionPercent': self.completion_percent,
-            'sessions':         [s.to_dict() for s in self.sessions],
         }
+
+    def to_dict(self):
+        d = self.to_summary_dict()
+        d['sessions'] = [s.to_dict() for s in self.sessions]
+        return d
 
     def __repr__(self):
         return f'<StudySchedule id={self.id} name={self.student_name}>'
