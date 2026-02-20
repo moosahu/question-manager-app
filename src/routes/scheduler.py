@@ -29,29 +29,32 @@ START_HOUR    = 8   # يبدأ الجدول الساعة 8 صباحاً
 @scheduler_bp.record_once
 def _create_tables(state):
     """إنشاء الجداول تلقائياً إذا لم تكن موجودة"""
-    with state.app.app_context():
-        try:
-            db.create_all()
-            logger.info('✅ Study scheduler tables ready')
-        except Exception as exc:
-            logger.warning(f'⚠️  Could not create scheduler tables: {exc}')
-
-        # Migrations for existing installations
-        # كل migration يأخذ connection مستقل — ضروري في PostgreSQL
-        # لأن فشل أي ALTER TABLE يُلغي الـ transaction الكامل
-        from sqlalchemy import text
-        for sql in [
-            'ALTER TABLE study_schedules ADD COLUMN exam_date DATE',
-            'ALTER TABLE study_schedules ADD COLUMN subject_pages TEXT',
-            'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
-            'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
-        ]:
+    try:
+        with state.app.app_context():
             try:
-                with db.engine.connect() as _conn:
-                    _conn.execute(text(sql))
-                    _conn.commit()
-            except Exception:
-                pass  # العمود موجود مسبقاً — آمن للتجاهل
+                db.create_all()
+                logger.info('✅ Study scheduler tables ready')
+            except Exception as exc:
+                logger.warning(f'⚠️  Could not create scheduler tables: {exc}')
+
+            # Migrations for existing installations
+            # كل migration يأخذ connection مستقل — ضروري في PostgreSQL
+            # لأن فشل أي ALTER TABLE يُلغي الـ transaction الكامل
+            from sqlalchemy import text
+            for sql in [
+                'ALTER TABLE study_schedules ADD COLUMN exam_date DATE',
+                'ALTER TABLE study_schedules ADD COLUMN subject_pages TEXT',
+                'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
+                'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
+            ]:
+                try:
+                    with db.engine.connect() as _conn:
+                        _conn.execute(text(sql))
+                        _conn.commit()
+                except Exception:
+                    pass  # العمود موجود مسبقاً — آمن للتجاهل
+    except Exception as exc:
+        logger.warning(f'⚠️  _create_tables failed (non-fatal): {exc}')
 
 
 # ─── Firestore: مواعيد التحصيلي ───────────────────────────────────────────────
@@ -169,9 +172,22 @@ def create():
     """صفحة إنشاء جدول جديد"""
     today = date.today().strftime('%Y-%m-%d')
     tahsili_periods = _get_tahsili_periods()
+    duration_options = [
+        {'val': 15, 'label': '15 يوم', 'desc': 'مراجعة مكثفة وسريعة',    'icon': '⚡'},
+        {'val': 30, 'label': '30 يوم', 'desc': 'الخيار المتوازن والأنسب', 'icon': '✨'},
+        {'val': 60, 'label': '60 يوم', 'desc': 'دراسة شاملة ومتعمقة',    'icon': '🎯'},
+    ]
+    subject_options = [
+        {'name': 'رياضيات', 'key': 'math',    'cls': 'math'},
+        {'name': 'فيزياء',  'key': 'physics', 'cls': 'physics'},
+        {'name': 'كيمياء',  'key': 'chem',    'cls': 'chem'},
+        {'name': 'أحياء',   'key': 'bio',     'cls': 'bio'},
+    ]
     return render_template('scheduler/create.html', today=today, subjects=SUBJECTS,
                            break_minutes=BREAK_MINUTES, start_hour=START_HOUR,
-                           tahsili_periods=tahsili_periods)
+                           tahsili_periods=tahsili_periods,
+                           duration_options=duration_options,
+                           subject_options=subject_options)
 
 
 @scheduler_bp.route('/create', methods=['POST'])

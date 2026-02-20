@@ -90,16 +90,12 @@
         <p class="sched-form-sub">اختر المدة المناسبة قبل الاختبار التحصيلي</p>
 
         <div class="sched-duration-grid">
-          {% for val, label, desc, icon in [
-              (15,  '15 يوم', 'مراجعة مكثفة وسريعة',      '⚡'),
-              (30,  '30 يوم', 'الخيار المتوازن والأنسب',   '✨'),
-              (60,  '60 يوم', 'دراسة شاملة ومتعمقة',      '🎯'),
-          ] %}
-          <button type="button" class="sched-dur-btn {% if val == 30 %}selected{% endif %}"
-                  data-value="{{ val }}" onclick="selectDuration(this)">
-            <span class="sched-dur-icon">{{ icon }}</span>
-            <span class="sched-dur-label">{{ label }}</span>
-            <span class="sched-dur-desc">{{ desc }}</span>
+          {% for opt in duration_options %}
+          <button type="button" class="sched-dur-btn {% if opt.val == 30 %}selected{% endif %}"
+                  data-value="{{ opt.val }}" onclick="selectDuration(this)">
+            <span class="sched-dur-icon">{{ opt.icon }}</span>
+            <span class="sched-dur-label">{{ opt.label }}</span>
+            <span class="sched-dur-desc">{{ opt.desc }}</span>
           </button>
           {% endfor %}
         </div>
@@ -112,15 +108,10 @@
             <span class="sched-optional">اختياري — يُستخدم لتوزيع الصفحات على الأيام</span>
           </p>
           <div class="sched-pages-grid">
-            {% for subj, key, cls in [
-                ('رياضيات','math','math'),
-                ('فيزياء','physics','physics'),
-                ('كيمياء','chem','chem'),
-                ('أحياء','bio','bio'),
-            ] %}
-            <div class="sched-pages-item sched-pages-{{ cls }}">
-              <label class="sched-pages-label">{{ subj }}</label>
-              <input type="number" name="pages_{{ key }}" id="inp_pages_{{ key }}"
+            {% for opt in subject_options %}
+            <div class="sched-pages-item sched-pages-{{ opt.cls }}">
+              <label class="sched-pages-label">{{ opt.name }}</label>
+              <input type="number" name="pages_{{ opt.key }}" id="inp_pages_{{ opt.key }}"
                      class="sched-input" min="1" max="9999" placeholder="الصفحات"
                      oninput="renderDayPreview()">
             </div>
