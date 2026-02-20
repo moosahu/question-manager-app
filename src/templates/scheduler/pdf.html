@@ -165,6 +165,8 @@
     color: #1e293b !important;
     border-top: 1px solid #e2e8f0;
     background: #f8fafc !important;
+    direction: ltr;
+    unicode-bidi: bidi-override;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -298,8 +300,8 @@
       <div class="subj-banner banner-{{ css }} {{ 'done' if s.is_completed else '' }}">
         {{ s.subject }}
       </div>
-      <div class="sess-meta">
-        <span class="time-ltr"><bdo dir="ltr">{{ s.start_time }}-{{ s.end_time }}</bdo></span>
+      <div class="sess-meta" dir="ltr">
+        <bdo dir="ltr">{{ s.start_time }}-{{ s.end_time }}</bdo>
         {% if s.pages_from is not none and s.pages_to is not none %}
         <br><span class="pages-badge"><bdo dir="ltr">ص {{ s.pages_from }}-{{ s.pages_to }}</bdo></span>
         {% endif %}
