@@ -27,7 +27,7 @@
   </div>
 
   <!-- ══════ Form Card ══════ -->
-  <form method="POST" action="{{ url_for('scheduler.create_post') }}" id="schedForm">
+  <form method="POST" action="{{ url_for('scheduler.create_post') }}" id="schedForm" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- hidden inputs for values set in earlier steps -->
     <input type="hidden" name="student_name" id="h_student_name">
@@ -101,7 +101,7 @@
             <div class="sched-pages-item sched-pages-{{ opt.cls }}">
               <label class="sched-pages-label">{{ opt.name }}</label>
               <input type="number" name="pages_{{ opt.key }}" id="inp_pages_{{ opt.key }}"
-                     class="sched-input" min="1" max="9999" placeholder="الصفحات"
+                     class="sched-input" min="0" max="9999" placeholder="الصفحات"
                      oninput="renderDayPreview()">
             </div>
             {% endfor %}
@@ -359,21 +359,6 @@ document.getElementById('schedForm').addEventListener('submit', e => {
   if (currentStep !== 3) { e.preventDefault(); stepNext(); }
 });
 
-// ── مواعيد التحصيلي عبر AJAX (لا نستدعي Firebase في server-side) ──
-(function loadTahsiliDates() {
-  fetch('{{ url_for("scheduler.api_tahsili_dates") }}')
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data || !data.periods || !data.periods.length) return;
-      const wrap = document.getElementById('tahsiliBtns');
-      let html = '<span class="sched-tahsili-label"><i class="fas fa-calendar-alt"></i> مواعيد التحصيلي المسجّلة:</span>';
-      data.periods.forEach(p => {
-        html += `<button type="button" class="sched-tahsili-btn" onclick="setExamDate('${p.date}')">${p.label}</button>`;
-      });
-      wrap.innerHTML = html;
-      wrap.style.display = '';
-    })
-    .catch(() => {}); // تجاهل الخطأ بصمت
-})();
+// مواعيد التحصيلي — معطّلة مؤقتاً (Firebase gRPC تسبب SIGSEGV crash)
 </script>
 {% endblock scripts %}
