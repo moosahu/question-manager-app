@@ -255,9 +255,56 @@ def create_post():
 def view_schedule(schedule_id):
     """عرض الجدول مع التنقل الأسبوعي وتتبع التقدم"""
     schedule = StudySchedule.query.get_or_404(schedule_id)
+    # parse stored subject_pages for display in view
+    stored_pages = {}
+    if schedule.subject_pages:
+        try:
+            stored_pages = json.loads(schedule.subject_pages)
+        except (ValueError, TypeError):
+            pass
     return render_template('scheduler/view.html',
                            schedule=schedule,
-                           schedule_json=schedule.to_dict())
+                           schedule_json=schedule.to_dict(),
+                           stored_pages=stored_pages)
+
+
+@scheduler_bp.route('/<int:schedule_id>/update-pages', methods=['POST'])
+@login_required
+def update_pages(schedule_id):
+    """تحديث عدد الصفحات لكل مادة وإعادة توليد أرقام الصفحات في الجلسات"""
+    schedule = StudySchedule.query.get_or_404(schedule_id)
+
+    subject_pages = {}
+    for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
+        val = request.form.get(f'pages_{key}', 0, type=int)
+        if val > 0:
+            subject_pages[subj] = val
+
+    schedule.subject_pages = json.dumps(subject_pages, ensure_ascii=False) if subject_pages else None
+    db.session.flush()
+
+    # أعد حساب pages_from و pages_to لكل جلسة موجودة
+    subject_block = {r['subject']: r for r in _subject_block_ranges(schedule.duration)}
+    sessions = StudySession.query.filter_by(schedule_id=schedule_id).all()
+    for sess in sessions:
+        r = subject_block.get(sess.subject, {})
+        total_pages = subject_pages.get(sess.subject, 0)
+        if total_pages > 0 and r:
+            days  = r['days']
+            idx   = sess.day_number - r['start']
+            p_from = round(idx / days * total_pages) + 1
+            p_to   = round((idx + 1) / days * total_pages)
+            if idx == days - 1:
+                p_to = total_pages
+            sess.pages_from = max(1, p_from)
+            sess.pages_to   = p_to
+        else:
+            sess.pages_from = None
+            sess.pages_to   = None
+
+    db.session.commit()
+    flash('تم تحديث عدد الصفحات وإعادة توزيعها على الجلسات ✅', 'success')
+    return redirect(url_for('scheduler.view_schedule', schedule_id=schedule_id))
 
 
 @scheduler_bp.route('/<int:schedule_id>/delete', methods=['POST'])

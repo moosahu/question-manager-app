@@ -33,10 +33,15 @@
     </div>
 
     <!-- PDF button -->
-    <a href="{{ url_for('scheduler.export_pdf', schedule_id=schedule.id) }}"
-       class="sched-btn sched-btn-pdf" target="_blank">
-      <i class="fas fa-file-pdf"></i> تحميل PDF
-    </a>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="sched-btn sched-btn-outline sched-btn-sm" onclick="openPagesModal()" title="تعديل عدد صفحات المواد">
+        <i class="fas fa-book-open"></i> الصفحات
+      </button>
+      <a href="{{ url_for('scheduler.export_pdf', schedule_id=schedule.id) }}"
+         class="sched-btn sched-btn-pdf" target="_blank">
+        <i class="fas fa-file-pdf"></i> تحميل PDF
+      </a>
+    </div>
   </div>
 
   <!-- ══════ Exam Countdown ══════ -->
@@ -224,6 +229,41 @@
       <button class="sched-btn sched-btn-outline" onclick="closeEdit()">إلغاء</button>
       <button class="sched-btn sched-btn-primary"  onclick="saveEdit()">حفظ التغييرات</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════ Pages Modal ══════ -->
+<div class="sched-modal-overlay" id="pagesOverlay" onclick="if(event.target===this)closePagesModal()">
+  <div class="sched-modal">
+    <div class="sched-modal-head">
+      <span>📖 عدد صفحات كل مادة</span>
+      <button onclick="closePagesModal()" class="sched-modal-close">&times;</button>
+    </div>
+    <p class="sched-label" style="margin-bottom:14px;font-size:0.85rem;color:#64748b">
+      أدخل عدد الصفحات لكل مادة — سيتم توزيعها تلقائياً على أيام الجدول
+    </p>
+    <form method="POST" action="{{ url_for('scheduler.update_pages', schedule_id=schedule.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% set sub_keys = [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')] %}
+      {% set sub_css  = {'رياضيات':'math','فيزياء':'physics','كيمياء':'chem','أحياء':'bio'} %}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+        {% for subj, key in sub_keys %}
+        <div class="sched-pages-item sched-pages-{{ key }}" style="display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0">
+          <label class="sched-pages-label" style="min-width:70px">{{ subj }}</label>
+          <input type="number" name="pages_{{ key }}" min="0" max="9999"
+                 value="{{ stored_pages.get(subj, '') or '' }}"
+                 placeholder="عدد الصفحات"
+                 class="sched-input" style="flex:1">
+        </div>
+        {% endfor %}
+      </div>
+      <div class="sched-modal-actions">
+        <button type="button" class="sched-btn sched-btn-outline" onclick="closePagesModal()">إلغاء</button>
+        <button type="submit" class="sched-btn sched-btn-success">
+          <i class="fas fa-check"></i> حفظ وتحديث الجدول
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -604,6 +644,10 @@ function saveExamDate() {
     },
   });
 }
+
+// ─── Pages modal ──────────────────────────────────────────────────────────────
+function openPagesModal()  { document.getElementById('pagesOverlay').classList.add('open'); }
+function closePagesModal() { document.getElementById('pagesOverlay').classList.remove('open'); }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (function init() {
