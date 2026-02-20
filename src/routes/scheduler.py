@@ -17,6 +17,30 @@ from src.models.study_schedule import StudySchedule, StudySession
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_pages_input(raw: str) -> int:
+    """
+    يقبل:
+    • عدد صحيح مثل "200"
+    • نطاق مثل "6-110" → يحسب الفرق: 110 - 6 + 1 = 105
+    يُرجع 0 إذا كانت القيمة غير صحيحة.
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return 0
+    if '-' in raw:
+        parts = raw.split('-', 1)
+        try:
+            start = int(parts[0].strip())
+            end   = int(parts[1].strip())
+            return max(0, end - start + 1)
+        except (ValueError, TypeError):
+            return 0
+    try:
+        return max(0, int(raw))
+    except (ValueError, TypeError):
+        return 0
+
 scheduler_bp = Blueprint('scheduler', __name__, url_prefix='/scheduler')
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -223,10 +247,10 @@ def create_post():
         flash('تاريخ البداية غير صحيح', 'error')
         return redirect(url_for('scheduler.create'))
 
-    # ── Subject pages (اختياري) ──
+    # ── Subject pages (اختياري) — يقبل "200" أو "6-110" ──
     subject_pages = {}
     for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
-        val = request.form.get(f'pages_{key}', 0, type=int)
+        val = _parse_pages_input(request.form.get(f'pages_{key}', ''))
         if val > 0:
             subject_pages[subj] = val
 
@@ -276,10 +300,11 @@ def update_pages(schedule_id):
 
     subject_pages = {}
     for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
-        val = request.form.get(f'pages_{key}', 0, type=int)
+        val = _parse_pages_input(request.form.get(f'pages_{key}', ''))
         if val > 0:
             subject_pages[subj] = val
 
+    logger.info(f'update_pages for schedule {schedule_id}: {subject_pages}')
     schedule.subject_pages = json.dumps(subject_pages, ensure_ascii=False) if subject_pages else None
     db.session.flush()
 
