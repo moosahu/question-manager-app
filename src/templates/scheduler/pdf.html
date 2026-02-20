@@ -178,6 +178,8 @@
     font-size: 7pt;
     font-weight: 900;
     color: #1e40af !important;
+    direction: ltr;
+    unicode-bidi: bidi-override;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -291,9 +293,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        &#x202D;{{ s.start_time }}-{{ s.end_time }}&#x202C;
+        <span dir="ltr">{{ s.start_time }}-{{ s.end_time }}</span>
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge">ص &#x202D;{{ s.pages_from }}-{{ s.pages_to }}&#x202C;</span>
+        <br><span class="pages-badge" dir="ltr">ص {{ s.pages_from }}-{{ s.pages_to }}</span>
         {% endif %}
       </div>
       {% else %}
