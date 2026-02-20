@@ -293,9 +293,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        <span dir="ltr">{{ s.start_time }}-{{ s.end_time }}</span>
+        <bdo dir="ltr">{{ s.start_time }}-{{ s.end_time }}</bdo>
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge" dir="ltr">ص {{ s.pages_from }}-{{ s.pages_to }}</span>
+        <br><span class="pages-badge"><bdo dir="ltr">ص {{ s.pages_from }}-{{ s.pages_to }}</bdo></span>
         {% endif %}
       </div>
       {% else %}
