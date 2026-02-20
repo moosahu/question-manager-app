@@ -37,20 +37,21 @@ def _create_tables(state):
             logger.warning(f'⚠️  Could not create scheduler tables: {exc}')
 
         # Migrations for existing installations
+        # كل migration يأخذ connection مستقل — ضروري في PostgreSQL
+        # لأن فشل أي ALTER TABLE يُلغي الـ transaction الكامل
         from sqlalchemy import text
-        migrations = [
+        for sql in [
             'ALTER TABLE study_schedules ADD COLUMN exam_date DATE',
             'ALTER TABLE study_schedules ADD COLUMN subject_pages TEXT',
             'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
             'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
-        ]
-        with db.engine.connect() as conn:
-            for sql in migrations:
-                try:
-                    conn.execute(text(sql))
-                    conn.commit()
-                except Exception:
-                    pass  # Column already exists — safe to ignore
+        ]:
+            try:
+                with db.engine.connect() as _conn:
+                    _conn.execute(text(sql))
+                    _conn.commit()
+            except Exception:
+                pass  # العمود موجود مسبقاً — آمن للتجاهل
 
 
 # ─── Firestore: مواعيد التحصيلي ───────────────────────────────────────────────
