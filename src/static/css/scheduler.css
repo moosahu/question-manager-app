@@ -830,6 +830,8 @@
 .sched-pages-item .sched-input {
   padding: 6px 10px;
   font-size: 0.85rem;
+  color: #1e293b;
+  background: rgba(255,255,255,.85);
 }
 .sched-pages-hint {
   font-size: 0.78rem;
