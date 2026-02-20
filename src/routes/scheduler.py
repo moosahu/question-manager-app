@@ -645,3 +645,111 @@ def mobile_get_schedule(schedule_id):
         return jsonify({'ok': False, 'error': 'الجدول غير موجود أو لا تملك صلاحية الوصول إليه'}), 404
 
     return jsonify({'ok': True, 'schedule': schedule.to_dict()})
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/session/<int:session_id>/toggle', methods=['POST'])
+def mobile_toggle_session(schedule_id, session_id):
+    """تبديل حالة إتمام الجلسة — للموبايل (بدون @login_required)"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    sess = StudySession.query.filter_by(id=session_id, schedule_id=schedule_id).first()
+    if not sess:
+        return jsonify({'ok': False, 'error': 'الجلسة غير موجودة'}), 404
+
+    sess.is_completed = not sess.is_completed
+    db.session.commit()
+
+    return jsonify({
+        'ok':           True,
+        'isCompleted':  sess.is_completed,
+        'completionPct': schedule.completion_percent,
+        'completedCount': schedule.completed_sessions,
+        'totalCount':   schedule.total_sessions,
+    })
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/pdf')
+def mobile_export_pdf(schedule_id):
+    """تصدير الجدول كـ PDF — للموبايل (بدون @login_required)"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    sessions_by_day: dict[int, list[StudySession]] = {}
+    for s in schedule.sessions:
+        sessions_by_day.setdefault(s.day_number, []).append(s)
+    for day_sessions in sessions_by_day.values():
+        day_sessions.sort(key=lambda x: x.order_index)
+
+    days_dates = {
+        day: schedule.start_date + timedelta(days=day - 1)
+        for day in range(1, schedule.duration + 1)
+    }
+
+    html_content = render_template(
+        'scheduler/pdf.html',
+        schedule=schedule,
+        sessions_by_day=sessions_by_day,
+        days_dates=days_dates,
+        today_date=date.today(),
+        subject_ranges=_subject_block_ranges(schedule.duration),
+    )
+
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(
+            string=html_content,
+            base_url=request.url_root
+        ).write_pdf()
+
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        encoded = quote(f'جدول-{schedule.student_name}.pdf', safe='')
+        response.headers['Content-Disposition'] = (
+            f"attachment; filename*=UTF-8''{encoded}"
+        )
+        return response
+
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'خدمة PDF غير متاحة حالياً'}), 503
+    except Exception as exc:
+        logger.error(f'Mobile PDF generation error: {exc}')
+        return jsonify({'ok': False, 'error': 'خطأ في توليد PDF'}), 500
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/exam-date', methods=['POST'])
+def mobile_update_exam_date(schedule_id):
+    """تحديث / مسح تاريخ الاختبار — للموبايل (بدون @login_required)"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    exam_date_str = ((request.get_json(silent=True) or {}).get('examDate') or '').strip()
+    if exam_date_str:
+        try:
+            schedule.exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return jsonify({'ok': False, 'error': 'تاريخ غير صحيح'}), 400
+    else:
+        schedule.exam_date = None
+
+    db.session.commit()
+    return jsonify({
+        'ok':            True,
+        'examDate':      schedule.exam_date.strftime('%Y-%m-%d') if schedule.exam_date else None,
+        'daysUntilExam': schedule.days_until_exam,
+    })
