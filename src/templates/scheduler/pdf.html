@@ -230,14 +230,14 @@
       الطالب: <strong>{{ schedule.student_name }}</strong>
       &nbsp;&middot;&nbsp; {{ schedule.duration }} يوم
       &nbsp;&middot;&nbsp; {{ schedule.daily_hours }} ساعة/يوم
-      &nbsp;&middot;&nbsp; يبدأ: <span class="ltr-num">{{ schedule.start_date.strftime('%Y/%m/%d') }}</span>
+      &nbsp;&middot;&nbsp; يبدأ: &#x202D;{{ schedule.start_date.strftime('%Y/%m/%d') }}&#x202C;
     </p>
   </div>
   {% if schedule.exam_date %}
   <div class="header-periods">
     <div class="period-badge">
       <span class="p-label">موعد الاختبار</span>
-      <span class="ltr-num">{{ schedule.exam_date.strftime('%Y/%m/%d') }}</span>
+      &#x202D;{{ schedule.exam_date.strftime('%Y/%m/%d') }}&#x202C;
       {% if schedule.days_until_exam is not none %}
         <br><strong>{{ schedule.days_until_exam }} يوم متبقي</strong>
       {% endif %}
@@ -296,7 +296,7 @@
           <span class="day-num">يوم {{ day }}</span>
           <span class="day-badge">{{ done_count }}/{{ day_sessions | length }}</span>
         </div>
-        <div class="day-meta">{{ ar_days[d.weekday()] }} <span class="ltr-num">{{ d.strftime('%d/%m') }}</span> &middot; {{ motiv }}</div>
+        <div class="day-meta">{{ ar_days[d.weekday()] }} &#x202D;{{ d.strftime('%d/%m') }}&#x202C; &middot; {{ motiv }}</div>
       </div>
 
       {% if s %}
@@ -304,9 +304,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        <span class="ltr-num">{{ s.start_time }} – {{ s.end_time }}</span>
+        &#x202D;{{ s.start_time }} &#x2013; {{ s.end_time }}&#x202C;
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge">{{ s.pages_from }}–{{ s.pages_to }} ص</span>
+        <br><span class="pages-badge">&#x202D;{{ s.pages_from }}&#x2013;{{ s.pages_to }}&#x202C; ص</span>
         {% endif %}
       </div>
       {% else %}
