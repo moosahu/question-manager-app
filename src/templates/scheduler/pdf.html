@@ -168,17 +168,6 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /*
-     الحل الموثوق لعرض الأرقام LTR في WeasyPrint داخل سياق RTL:
-     display:inline-block يُنشئ كتلة تنسيق مستقلة، direction:ltr يُجبر
-     الترتيب من اليسار لليمين بالكامل داخلها.
-  */
-  .ltr-num {
-    display: inline-block;
-    direction: ltr;
-    unicode-bidi: embed;
-    white-space: nowrap;
-  }
   .pages-badge {
     display: inline-block;
     margin-top: 3px;
@@ -189,8 +178,6 @@
     font-size: 7pt;
     font-weight: 900;
     color: #1e40af !important;
-    direction: ltr;
-    unicode-bidi: embed;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -306,7 +293,7 @@
       <div class="sess-meta">
         {{ s.start_time }}-{{ s.end_time }}
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge">ص {{ s.pages_from }}-{{ s.pages_to }}</span>
+        <br><span class="pages-badge">{{ s.pages_from }}-{{ s.pages_to }}</span>
         {% endif %}
       </div>
       {% else %}
