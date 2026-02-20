@@ -727,6 +727,22 @@ def mobile_export_pdf(schedule_id):
         return jsonify({'ok': False, 'error': 'خطأ في توليد PDF'}), 500
 
 
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/delete', methods=['POST'])
+def mobile_delete_schedule(schedule_id):
+    """حذف الجدول — للموبايل (بدون @login_required)"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    db.session.delete(schedule)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/exam-date', methods=['POST'])
 def mobile_update_exam_date(schedule_id):
     """تحديث / مسح تاريخ الاختبار — للموبايل (بدون @login_required)"""
