@@ -194,10 +194,11 @@
   {% set row_end   = [row_start + 6, schedule.duration] | min %}
   {% set row_count = row_end - row_start %}
 <tr>
-  {# خلايا فارغة للصف الناقص حتى يلتصق بالجانب الأيمن #}
-  {% for _ in range(6 - row_count) %}<td class="empty"></td>{% endfor %}
-  {# الأيام مقلوبة: الأعلى رقماً على اليسار، الأدنى (الأصغر) على اليمين #}
-  {% for day in range(row_end, row_start, -1) %}
+  {#
+     WeasyPrint يطبّق direction:rtl على الجدول → الخلية الأولى في DOM تظهر على اليمين.
+     لذا نرتّب الأيام بالترتيب الطبيعي (1→6) والخلايا الفارغة في النهاية (تظهر على اليسار).
+  #}
+  {% for day in range(row_start + 1, row_end + 1) %}
     {% set day_sessions = sessions_by_day.get(day, []) %}
     {% set done_count   = day_sessions | selectattr('is_completed') | list | length %}
     {% set all_done     = done_count == day_sessions | length and day_sessions | length > 0 %}
@@ -237,6 +238,8 @@
     </div>
   </td>
   {% endfor %}
+  {# خلايا فارغة في نهاية الصف الناقص — تظهر على اليسار في RTL #}
+  {% for _ in range(6 - row_count) %}<td class="empty"></td>{% endfor %}
 </tr>
 {% endfor %}
 </tbody>
