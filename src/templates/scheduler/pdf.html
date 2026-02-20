@@ -8,19 +8,24 @@
 
   @page {
     size: A4 landscape;
-    margin: 10mm 10mm 15mm 10mm;
+    margin: 14mm 10mm 14mm 10mm;
     @bottom-center {
-      content: "صفحة " counter(page) " من " counter(pages);
-      font-family: 'Cairo', Arial, sans-serif;
-      font-size: 8pt; color: #94a3b8;
+      content: "— الصفحة " counter(page) " —";
+      font-family: Arial, sans-serif;
+      font-size: 9pt;
+      color: #475569;
     }
-    @top-left {
+    @top-right {
       content: "جدول مذاكرة الاختبار التحصيلي — {{ schedule.student_name }}";
-      font-family: 'Cairo', Arial, sans-serif;
-      font-size: 7.5pt; color: #94a3b8;
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      color: #475569;
     }
   }
-  @page :first { @top-left { content: ''; } }
+  @page :first {
+    @top-right  { content: ''; }
+    @bottom-center { content: ''; }
+  }
 
   * { font-family: 'Cairo', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #fff; color: #1e293b; direction: rtl; text-align: right; font-size: 9pt; }
@@ -58,7 +63,7 @@
   .sr-bio     { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
   .sr-tag { font-size: 6.5pt; opacity: .65; background: rgba(0,0,0,.07); padding: 1px 5px; border-radius: 10px; }
 
-  /* ─── جدول الأيام (TABLE أفضل من flex في WeasyPrint للتوزيع متعدد الصفحات) ─── */
+  /* ─── جدول الأيام ─── */
   .day-table {
     width: calc(100% + 10px);
     margin: 0 -5px;
@@ -90,7 +95,9 @@
   }
   .day-card.done  .day-badge { background: #bbf7d0; color: #166534; }
   .day-card.today .day-badge { background: #bfdbfe; color: #1d4ed8; }
-  .day-meta { font-size: 6pt; color: #94a3b8; margin-top: 2px; }
+  .day-meta { font-size: 6pt; color: #94a3b8; margin-top: 2px; direction: rtl; }
+  /* منع عكس التاريخ في RTL */
+  .day-meta bdo { font-size: 6pt; }
 
   /* بانر المادة */
   .subj-banner {
@@ -103,17 +110,18 @@
   .banner-chem    { background: #d1fae5; color: #065f46; }
   .banner-bio     { background: #fef3c7; color: #92400e; }
 
-  /* الوقت والصفحات — .t يمنع عكس الوقت في RTL */
+  /* الوقت والصفحات */
   .sess-meta {
     padding: 3px 5px; text-align: center;
-    font-size: 6.5pt; color: #64748b; border-top: 1px solid #e2e8f0;
+    font-size: 7pt; color: #334155; border-top: 1px solid #e2e8f0;
   }
-  .t { direction: ltr; unicode-bidi: bidi-override; display: inline; }
+  /* bdo يُجبر WeasyPrint على LTR بدون اعتماد على CSS bidi */
+  .sess-meta bdo { font-size: 7pt; font-weight: 700; }
   .pages-badge {
     display: inline-block; margin-top: 2px;
-    background: #f1f5f9; border: 1px solid #cbd5e1;
+    background: #e0f2fe; border: 1px solid #7dd3fc;
     border-radius: 4px; padding: 1px 6px;
-    font-size: 6pt; font-weight: 700; color: #334155;
+    font-size: 6.5pt; font-weight: 900; color: #0369a1;
   }
 
   /* مربع الإنجاز */
@@ -139,14 +147,14 @@
       الطالب: <strong>{{ schedule.student_name }}</strong>
       &nbsp;&middot;&nbsp; {{ schedule.duration }} يوم
       &nbsp;&middot;&nbsp; {{ schedule.daily_hours }} ساعة/يوم
-      &nbsp;&middot;&nbsp; يبدأ: {{ schedule.start_date.strftime('%Y/%m/%d') }}
+      &nbsp;&middot;&nbsp; يبدأ: <bdo dir="ltr">{{ schedule.start_date.strftime('%Y/%m/%d') }}</bdo>
     </p>
   </div>
   {% if schedule.exam_date %}
   <div class="header-periods">
     <div class="period-badge">
       <span class="p-label">موعد الاختبار</span>
-      {{ schedule.exam_date.strftime('%Y/%m/%d') }}
+      <bdo dir="ltr">{{ schedule.exam_date.strftime('%Y/%m/%d') }}</bdo>
       {% if schedule.days_until_exam is not none %}
         <br><strong>{{ schedule.days_until_exam }} يوم متبقي</strong>
       {% endif %}
@@ -176,11 +184,6 @@
   {% endfor %}
 </div>
 
-{# ──────────────────────────────────────────────────────────────────
-   شبكة الأيام — HTML table (الأكثر ثباتاً في WeasyPrint)
-   لكل صف: الأيام مرتبة عكساً في Jinja2 → يوم 1 في أقصى اليمين
-   خلايا فارغة تُضاف في بداية الصف الأخير لملء الـ 6 أعمدة
-   ────────────────────────────────────────────────────────────────── #}
 {% set ar_days = ['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'] %}
 {% set motivs  = ['ابدأ بقوة','أنت قادر','استمر','رائع','ممتاز','واصل','تقدم جيد',
                   'أكمل','قريب','متميز','شارفت','يومان','رائع جداً','نجم',
@@ -195,8 +198,8 @@
   {% set row_count = row_end - row_start %}
 <tr>
   {#
-     WeasyPrint يطبّق direction:rtl على الجدول → الخلية الأولى في DOM تظهر على اليمين.
-     لذا نرتّب الأيام بالترتيب الطبيعي (1→6) والخلايا الفارغة في النهاية (تظهر على اليسار).
+     WeasyPrint RTL: الخلية الأولى في DOM تظهر على اليمين.
+     نرتّب الأيام طبيعياً (1→6) والخلايا الفارغة في النهاية (تظهر على اليسار).
   #}
   {% for day in range(row_start + 1, row_end + 1) %}
     {% set day_sessions = sessions_by_day.get(day, []) %}
@@ -214,7 +217,7 @@
           <span class="day-num">يوم {{ day }}</span>
           <span class="day-badge">{{ done_count }}/{{ day_sessions | length }}</span>
         </div>
-        <div class="day-meta">{{ ar_days[d.weekday()] }} {{ d.strftime('%d/%m') }} &middot; {{ motiv }}</div>
+        <div class="day-meta">{{ ar_days[d.weekday()] }} <bdo dir="ltr">{{ d.strftime('%d/%m') }}</bdo> &middot; {{ motiv }}</div>
       </div>
 
       {% if s %}
@@ -222,9 +225,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        <span class="t" dir="ltr">{{ s.start_time }}–{{ s.end_time }}</span>
-        {% if s.pages_from and s.pages_to %}
-        <br><span class="pages-badge">ص {{ s.pages_from }}–{{ s.pages_to }}</span>
+        <bdo dir="ltr">{{ s.start_time }} – {{ s.end_time }}</bdo>
+        {% if s.pages_from is not none and s.pages_to is not none %}
+        <br><span class="pages-badge">ص <bdo dir="ltr">{{ s.pages_from }}–{{ s.pages_to }}</bdo></span>
         {% endif %}
       </div>
       {% else %}
@@ -238,7 +241,6 @@
     </div>
   </td>
   {% endfor %}
-  {# خلايا فارغة في نهاية الصف الناقص — تظهر على اليسار في RTL #}
   {% for _ in range(6 - row_count) %}<td class="empty"></td>{% endfor %}
 </tr>
 {% endfor %}
