@@ -3,8 +3,8 @@ Blueprint جداول المذاكرة للاختبار التحصيلي
 URL prefix: /scheduler
 """
 import io
+import json
 import logging
-from math import floor
 from datetime import datetime, date, timedelta
 
 from urllib.parse import quote
@@ -36,15 +36,21 @@ def _create_tables(state):
         except Exception as exc:
             logger.warning(f'⚠️  Could not create scheduler tables: {exc}')
 
-        # Migration: add exam_date column to existing installations
+        # Migrations for existing installations
         from sqlalchemy import text
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE study_schedules ADD COLUMN exam_date DATE'))
-                conn.commit()
-                logger.info('✅ Migration: exam_date column added')
-        except Exception:
-            pass  # Column already exists — safe to ignore
+        migrations = [
+            'ALTER TABLE study_schedules ADD COLUMN exam_date DATE',
+            'ALTER TABLE study_schedules ADD COLUMN subject_pages TEXT',
+            'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
+            'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
+        ]
+        with db.engine.connect() as conn:
+            for sql in migrations:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception:
+                    pass  # Column already exists — safe to ignore
 
 
 # ─── Firestore: مواعيد التحصيلي ───────────────────────────────────────────────
@@ -104,22 +110,44 @@ def _generate_sessions(schedule: StudySchedule) -> list[StudySession]:
     """
     توليد جلسات الجدول.
     كل مادة تأخذ كتلة متتالية من الأيام (duration ÷ 4).
-    كل يوم: جلسة واحدة بالمادة المخصصة لتلك الكتلة — المدة الكاملة daily_hours.
+    كل يوم: جلسة واحدة — إذا أُدخلت صفحات تُوزَّع تلقائياً على أيام المادة.
     """
     duration_mins = int(schedule.daily_hours * 60)
     sessions      = []
 
+    subject_pages: dict = {}
+    if schedule.subject_pages:
+        try:
+            subject_pages = json.loads(schedule.subject_pages)
+        except (ValueError, TypeError):
+            pass
+
     for r in _subject_block_ranges(schedule.duration):
-        for day in range(r['start'], r['end'] + 1):
+        subj        = r['subject']
+        total_pages = subject_pages.get(subj, 0)
+        days        = r['days']
+
+        for idx, day in enumerate(range(r['start'], r['end'] + 1)):
+            if total_pages > 0:
+                p_from = round(idx / days * total_pages) + 1
+                p_to   = round((idx + 1) / days * total_pages)
+                if idx == days - 1:
+                    p_to = total_pages          # اليوم الأخير يأخذ ما تبقى
+                p_from = max(1, p_from)
+            else:
+                p_from = p_to = None
+
             sessions.append(StudySession(
                 schedule_id      = schedule.id,
                 day_number       = day,
-                subject          = r['subject'],
+                subject          = subj,
                 start_time       = _mins_to_time(START_HOUR * 60),
                 end_time         = _mins_to_time(START_HOUR * 60 + duration_mins),
                 duration_minutes = duration_mins,
                 is_completed     = False,
                 order_index      = 0,
+                pages_from       = p_from,
+                pages_to         = p_to,
             ))
 
     return sessions
@@ -178,13 +206,21 @@ def create_post():
         flash('تاريخ البداية غير صحيح', 'error')
         return redirect(url_for('scheduler.create'))
 
+    # ── Subject pages (اختياري) ──
+    subject_pages = {}
+    for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
+        val = request.form.get(f'pages_{key}', 0, type=int)
+        if val > 0:
+            subject_pages[subj] = val
+
     # ── Create ──
     schedule = StudySchedule(
-        student_name = student_name,
-        duration     = duration,
-        daily_hours  = daily_hours,
-        start_date   = start,
-        exam_date    = exam_date,
+        student_name  = student_name,
+        duration      = duration,
+        daily_hours   = daily_hours,
+        start_date    = start,
+        exam_date     = exam_date,
+        subject_pages = json.dumps(subject_pages, ensure_ascii=False) if subject_pages else None,
     )
     db.session.add(schedule)
     db.session.flush()          # احصل على الـ ID قبل توليد الجلسات

@@ -257,7 +257,12 @@
       <div class="sess sess-{{ css }} {{ 'done' if s.is_completed else '' }}">
         <div class="sess-dot dot-{{ css }}"></div>
         <div class="sess-name {{ 'done' if s.is_completed else '' }}">{{ s.subject }}</div>
-        <div class="sess-time">{{ s.start_time }}–{{ s.end_time }}</div>
+        <div class="sess-time">
+          {{ s.start_time }}–{{ s.end_time }}
+          {% if s.pages_from and s.pages_to %}
+          · ص{{ s.pages_from }}–{{ s.pages_to }}
+          {% endif %}
+        </div>
       </div>
       {% endfor %}
     </div>

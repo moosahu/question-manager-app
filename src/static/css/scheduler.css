@@ -788,3 +788,51 @@
   .sched-cd-block { min-width: 60px; }
   .sched-cd-edit-btn { align-self: flex-end; }
 }
+
+/* ─── حقول الصفحات لكل مادة (نموذج الإنشاء) ─── */
+.sched-pages-section {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.sched-pages-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sched-pages-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.sched-pages-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sched-pages-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sched-pages-math    .sched-pages-label { background: #dbeafe; color: #1e40af; }
+.sched-pages-physics .sched-pages-label { background: #ede9fe; color: #5b21b6; }
+.sched-pages-chem    .sched-pages-label { background: #d1fae5; color: #065f46; }
+.sched-pages-bio     .sched-pages-label { background: #fef3c7; color: #92400e; }
+.sched-pages-item .sched-input {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+.sched-pages-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 8px;
+}

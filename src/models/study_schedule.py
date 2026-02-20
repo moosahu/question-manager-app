@@ -10,13 +10,14 @@ class StudySchedule(db.Model):
     """جدول مذاكرة"""
     __tablename__ = 'study_schedules'
 
-    id           = db.Column(db.Integer, primary_key=True)
-    student_name = db.Column(db.String(120), nullable=False)
-    duration     = db.Column(db.Integer, nullable=False)        # 15 | 30 | 60 يوم
-    daily_hours  = db.Column(db.Float,   nullable=False)        # ساعات الدراسة يومياً
-    start_date   = db.Column(db.Date,    nullable=False)
-    exam_date    = db.Column(db.Date,    nullable=True)         # تاريخ الاختبار التحصيلي (اختياري)
-    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    id            = db.Column(db.Integer, primary_key=True)
+    student_name  = db.Column(db.String(120), nullable=False)
+    duration      = db.Column(db.Integer, nullable=False)        # 15 | 30 | 60 يوم
+    daily_hours   = db.Column(db.Float,   nullable=False)        # ساعات الدراسة يومياً
+    start_date    = db.Column(db.Date,    nullable=False)
+    exam_date     = db.Column(db.Date,    nullable=True)         # تاريخ الاختبار التحصيلي
+    subject_pages = db.Column(db.Text,    nullable=True)         # JSON: {"رياضيات": 200, ...}
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     sessions = db.relationship(
         'StudySession',
@@ -80,6 +81,8 @@ class StudySession(db.Model):
     duration_minutes = db.Column(db.Integer, nullable=False)
     is_completed     = db.Column(db.Boolean, default=False, nullable=False)
     order_index      = db.Column(db.Integer, nullable=False)
+    pages_from       = db.Column(db.Integer, nullable=True)       # أول صفحة ليوم هذا
+    pages_to         = db.Column(db.Integer, nullable=True)       # آخر صفحة ليوم هذا
 
     def to_dict(self):
         return {
@@ -92,6 +95,8 @@ class StudySession(db.Model):
             'durationMinutes': self.duration_minutes,
             'isCompleted':     self.is_completed,
             'orderIndex':      self.order_index,
+            'pagesFrom':       self.pages_from,
+            'pagesTo':         self.pages_to,
         }
 
     def __repr__(self):

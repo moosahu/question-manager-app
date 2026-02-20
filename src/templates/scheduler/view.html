@@ -324,7 +324,10 @@ function renderWeekView() {
           </button>
           <div class="sched-sess-info">
             <div class="sched-sess-name ${s.isCompleted ? 'sched-struck' : ''}">${s.subject}</div>
-            <div class="sched-sess-time">${s.startTime}–${s.endTime} · ${s.durationMinutes}د</div>
+            <div class="sched-sess-time">
+              ${s.startTime}–${s.endTime} · ${s.durationMinutes}د
+              ${s.pagesFrom && s.pagesTo ? ` · ص${s.pagesFrom}–${s.pagesTo}` : ''}
+            </div>
           </div>
           <button class="sched-edit-btn" onclick="openEdit(${s.id}, event)" title="تعديل">
             <i class="fas fa-pencil-alt"></i>

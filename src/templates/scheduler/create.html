@@ -103,6 +103,31 @@
           </button>
           {% endfor %}
         </div>
+
+        <!-- ── عدد الصفحات لكل مادة ── -->
+        <div class="sched-pages-section">
+          <p class="sched-pages-title">
+            <i class="fas fa-book-open" style="color:#4ecdc4"></i>
+            عدد صفحات كل مادة
+            <span class="sched-optional">اختياري — يُستخدم لتوزيع الصفحات على الأيام</span>
+          </p>
+          <div class="sched-pages-grid">
+            {% for subj, key, cls in [
+                ('رياضيات','math','math'),
+                ('فيزياء','physics','physics'),
+                ('كيمياء','chem','chem'),
+                ('أحياء','bio','bio'),
+            ] %}
+            <div class="sched-pages-item sched-pages-{{ cls }}">
+              <label class="sched-pages-label">{{ subj }}</label>
+              <input type="number" name="pages_{{ key }}" id="inp_pages_{{ key }}"
+                     class="sched-input" min="1" max="9999" placeholder="الصفحات"
+                     oninput="renderDayPreview()">
+            </div>
+            {% endfor %}
+          </div>
+          <p class="sched-pages-hint" id="pagesHint"></p>
+        </div>
       </div>
 
       <!-- ── Step 3: Hours ── -->
@@ -277,6 +302,8 @@ function onExamChange() {
 }
 
 // ── Block distribution helpers ───────────────────────────────────
+const PAGE_IDS = ['inp_pages_math', 'inp_pages_physics', 'inp_pages_chem', 'inp_pages_bio'];
+
 function computeBlockRanges(duration) {
   const n = SUBJECTS.length;
   const base = Math.floor(duration / n);
@@ -284,8 +311,15 @@ function computeBlockRanges(duration) {
   const ranges = [];
   let day = 1;
   for (let i = 0; i < n; i++) {
-    const cnt = base + (i < extra ? 1 : 0);
-    ranges.push({ subject: SUBJECTS[i], cls: SUB_CLASS[SUBJECTS[i]], start: day, end: day + cnt - 1, days: cnt });
+    const cnt        = base + (i < extra ? 1 : 0);
+    const pagesEl    = document.getElementById(PAGE_IDS[i]);
+    const totalPages = pagesEl ? (parseInt(pagesEl.value) || 0) : 0;
+    const pagesPerDay = totalPages > 0 ? Math.ceil(totalPages / cnt) : 0;
+    ranges.push({
+      subject: SUBJECTS[i], cls: SUB_CLASS[SUBJECTS[i]],
+      start: day, end: day + cnt - 1, days: cnt,
+      totalPages, pagesPerDay,
+    });
     day += cnt;
   }
   return ranges;
@@ -311,14 +345,17 @@ function renderDayPreview() {
   const tEnd   = fmt(START_HOUR * 60 + dur);
   let html = '';
   ranges.forEach(r => {
+    const pagesInfo = r.pagesPerDay > 0
+      ? ` · <strong>~${r.pagesPerDay} ص/يوم</strong> (${r.totalPages} ص إجمالاً)`
+      : '';
     html += `<div class="sched-prev-row sched-badge-${r.cls}">
                <span class="sched-prev-name">${r.subject}</span>
-               <span class="sched-prev-time">يوم ${r.start} &ndash; ${r.end} &nbsp;(${r.days} يوم &times; ${dur}د)</span>
+               <span class="sched-prev-time">يوم ${r.start}–${r.end} (${r.days} يوم × ${dur}د)${pagesInfo}</span>
              </div>`;
   });
   container.innerHTML = html;
   document.getElementById('previewEnd').textContent =
-    `وقت الجلسة: ${tStart} – ${tEnd} يومياً`;
+    `وقت الجلسة اليومية: ${tStart} – ${tEnd}`;
 }
 
 function updateSummary() {
