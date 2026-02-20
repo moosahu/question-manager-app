@@ -84,31 +84,43 @@ def _mins_to_time(m: int) -> str:
     return f'{(m // 60) % 24:02d}:{m % 60:02d}'
 
 
+def _subject_block_ranges(duration: int) -> list[dict]:
+    """
+    يُقسّم الأيام بالتساوي على المواد الأربعة في كتل متتالية.
+    مثال (30 يوم): رياضيات 1-8، فيزياء 9-15، كيمياء 16-22، أحياء 23-30
+    """
+    n     = len(SUBJECTS)
+    base  = duration // n
+    extra = duration % n
+    ranges, day = [], 1
+    for i, subj in enumerate(SUBJECTS):
+        cnt = base + (1 if i < extra else 0)
+        ranges.append({'subject': subj, 'start': day, 'end': day + cnt - 1, 'days': cnt})
+        day += cnt
+    return ranges
+
+
 def _generate_sessions(schedule: StudySchedule) -> list[StudySession]:
     """
     توليد جلسات الجدول.
-    كل يوم: 4 مواد × (dailyHours/4) ساعة، تبدأ 8:00 ص، فاصل 15 دقيقة.
-    الترتيب يتغير كل يوم (تدوير) لتجنب الرتابة.
+    كل مادة تأخذ كتلة متتالية من الأيام (duration ÷ 4).
+    كل يوم: جلسة واحدة بالمادة المخصصة لتلك الكتلة — المدة الكاملة daily_hours.
     """
-    session_dur = floor((schedule.daily_hours * 60) / len(SUBJECTS))
-    sessions    = []
+    duration_mins = int(schedule.daily_hours * 60)
+    sessions      = []
 
-    for day in range(1, schedule.duration + 1):
-        mins    = START_HOUR * 60
-        rotated = [SUBJECTS[(i + day - 1) % len(SUBJECTS)] for i in range(len(SUBJECTS))]
-
-        for idx, subject in enumerate(rotated):
+    for r in _subject_block_ranges(schedule.duration):
+        for day in range(r['start'], r['end'] + 1):
             sessions.append(StudySession(
                 schedule_id      = schedule.id,
                 day_number       = day,
-                subject          = subject,
-                start_time       = _mins_to_time(mins),
-                end_time         = _mins_to_time(mins + session_dur),
-                duration_minutes = session_dur,
+                subject          = r['subject'],
+                start_time       = _mins_to_time(START_HOUR * 60),
+                end_time         = _mins_to_time(START_HOUR * 60 + duration_mins),
+                duration_minutes = duration_mins,
                 is_completed     = False,
-                order_index      = idx,
+                order_index      = 0,
             ))
-            mins += session_dur + BREAK_MINUTES
 
     return sessions
 
@@ -317,6 +329,7 @@ def export_pdf(schedule_id):
         sessions_by_day=sessions_by_day,
         days_dates=days_dates,
         today_date=date.today(),
+        subject_ranges=_subject_block_ranges(schedule.duration),
     )
 
     try:

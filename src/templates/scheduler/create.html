@@ -109,7 +109,7 @@
       <div class="sched-step-panel" id="panel-3">
         <h2 class="sched-form-title">كم ساعة تدرس يومياً؟</h2>
         <p class="sched-form-sub" id="hoursSubtitle">
-          كل مادة ستحصل على <strong id="sessionDur">60</strong> دقيقة يومياً
+          مدة الجلسة اليومية: <strong id="sessionDur">240</strong> دقيقة — كل مادة تأخذ كتلة أيام متتالية
         </p>
 
         <div class="sched-slider-row">
@@ -124,9 +124,9 @@
           <span>2 ساعات</span><span>12 ساعة</span>
         </div>
 
-        <!-- Day Preview -->
+        <!-- Block Distribution Preview -->
         <div class="sched-preview">
-          <p class="sched-preview-title">معاينة اليوم الدراسي</p>
+          <p class="sched-preview-title">توزيع المواد على أيام الجدول</p>
           <div id="dayPreview"></div>
           <p class="sched-preview-end" id="previewEnd"></p>
         </div>
@@ -224,6 +224,8 @@ function selectDuration(btn) {
   document.querySelectorAll('.sched-dur-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedDur = parseInt(btn.dataset.value);
+  renderDayPreview();
+  updateSummary();
 }
 
 function selectDurationValue(val) {
@@ -274,43 +276,60 @@ function onExamChange() {
   hint.style.display   = 'flex';
 }
 
+// ── Block distribution helpers ───────────────────────────────────
+function computeBlockRanges(duration) {
+  const n = SUBJECTS.length;
+  const base = Math.floor(duration / n);
+  const extra = duration % n;
+  const ranges = [];
+  let day = 1;
+  for (let i = 0; i < n; i++) {
+    const cnt = base + (i < extra ? 1 : 0);
+    ranges.push({ subject: SUBJECTS[i], cls: SUB_CLASS[SUBJECTS[i]], start: day, end: day + cnt - 1, days: cnt });
+    day += cnt;
+  }
+  return ranges;
+}
+
 // ── Hours slider ────────────────────────────────────────────────
 function updateHours(val) {
   selectedHrs = parseFloat(val);
-  document.getElementById('hoursVal').textContent = val;
-  document.getElementById('h_daily_hours').value  = val;
-  const dur = Math.floor(selectedHrs * 60 / 4);
+  document.getElementById('hoursVal').textContent   = val;
+  document.getElementById('h_daily_hours').value    = val;
+  const dur = Math.floor(selectedHrs * 60);
   document.getElementById('sessionDur').textContent = dur;
-  renderDayPreview(dur);
+  renderDayPreview();
   updateSummary();
 }
 
-function renderDayPreview(dur) {
+function renderDayPreview() {
   const container = document.getElementById('dayPreview');
+  const ranges    = computeBlockRanges(selectedDur);
+  const dur       = Math.floor(selectedHrs * 60);
+  const fmt = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const tStart = fmt(START_HOUR * 60);
+  const tEnd   = fmt(START_HOUR * 60 + dur);
   let html = '';
-  let mins = START_HOUR * 60;
-  SUBJECTS.forEach(sub => {
-    const cls  = SUB_CLASS[sub];
-    const fmt  = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-    html += `<div class="sched-prev-row sched-badge-${cls}">
-               <span class="sched-prev-name">${sub}</span>
-               <span class="sched-prev-time">${fmt(mins)} – ${fmt(mins+dur)} (${dur}د)</span>
+  ranges.forEach(r => {
+    html += `<div class="sched-prev-row sched-badge-${r.cls}">
+               <span class="sched-prev-name">${r.subject}</span>
+               <span class="sched-prev-time">يوم ${r.start} &ndash; ${r.end} &nbsp;(${r.days} يوم &times; ${dur}د)</span>
              </div>`;
-    mins += dur + BREAK;
   });
   container.innerHTML = html;
-  const fmt2 = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-  document.getElementById('previewEnd').textContent = 'ينتهي الجدول: ' + fmt2(START_HOUR*60 + 4*dur + 3*BREAK);
+  document.getElementById('previewEnd').textContent =
+    `وقت الجلسة: ${tStart} – ${tEnd} يومياً`;
 }
 
 function updateSummary() {
   document.getElementById('sumDays').textContent     = selectedDur;
-  document.getElementById('sumSessions').textContent = 4 * selectedDur;
+  document.getElementById('sumSessions').textContent = selectedDur;       // جلسة واحدة/يوم
   document.getElementById('sumHours').textContent    = (selectedHrs * selectedDur).toFixed(0);
 }
 
 // ── Init ────────────────────────────────────────────────────────
 updateHours(4);
+renderDayPreview();
 updateSummary();
 
 // Enter key to advance (prevent form submit)

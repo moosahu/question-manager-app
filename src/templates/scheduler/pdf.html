@@ -67,9 +67,9 @@
 
   /* ─── دليل المواد ─── */
   .legend {
-    display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+    display: flex; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;
     padding: 5px 10px; background: #f8fafc; border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e2e8f0; direction: rtl;
   }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; font-weight: 700; }
   .legend-dot   { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
@@ -78,15 +78,31 @@
   .dot-chem    { background: #10b981; }
   .dot-bio     { background: #f59e0b; }
 
-  /* ─── شبكة الأيام (6 أعمدة أفقي) ─── */
+  /* ─── توزيع المواد على الأيام ─── */
+  .subj-ranges {
+    display: flex; gap: 6px; margin-bottom: 8px; direction: rtl; flex-wrap: wrap;
+  }
+  .sr-item {
+    flex: 1; display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 10px; border-radius: 7px; font-size: 8pt; font-weight: 700;
+    border: 1px solid;
+  }
+  .sr-math    { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+  .sr-physics { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+  .sr-chem    { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+  .sr-bio     { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+  .sr-label   { font-size: 7pt; opacity: .75; }
+
+  /* ─── شبكة الأيام — flex RTL (أكثر ثباتاً في WeasyPrint) ─── */
   .day-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 5px;
+    display: flex;
+    flex-wrap: wrap;
     direction: rtl;
+    gap: 5px;
   }
 
   .day-card {
+    flex: 0 0 calc((100% - 25px) / 6);
     background: #fff; border: 1.5px solid #e2e8f0; border-radius: 7px;
     overflow: hidden; break-inside: avoid;
   }
@@ -192,6 +208,18 @@
   <span class="legend-item"><span class="legend-dot dot-physics"></span> فيزياء</span>
   <span class="legend-item"><span class="legend-dot dot-chem"></span> كيمياء</span>
   <span class="legend-item"><span class="legend-dot dot-bio"></span> أحياء</span>
+</div>
+
+<!-- توزيع المواد على الأيام -->
+{% set css_map2 = {'رياضيات':'math', 'فيزياء':'physics', 'كيمياء':'chem', 'أحياء':'bio'} %}
+<div class="subj-ranges">
+  {% for r in subject_ranges %}
+  <div class="sr-item sr-{{ css_map2.get(r.subject, 'math') }}">
+    <strong>{{ r.subject }}</strong>
+    <span>يوم {{ r.start }} &larr; {{ r.end }}</span>
+    <span class="sr-label">{{ r.days }} يوم</span>
+  </div>
+  {% endfor %}
 </div>
 
 <!-- شبكة الأيام — 6 أعمدة، تبدأ من اليمين -->
