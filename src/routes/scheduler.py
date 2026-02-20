@@ -171,7 +171,8 @@ def index():
 def create():
     """صفحة إنشاء جدول جديد"""
     today = date.today().strftime('%Y-%m-%d')
-    tahsili_periods = _get_tahsili_periods()
+    # ⚠️ لا نستدعي Firebase هنا — مواعيد التحصيلي تُجلب عبر AJAX بعد تحميل الصفحة
+    # (استدعاء Firebase في server-side render يُسبب gRPC SIGSEGV crash في الـ worker)
     duration_options = [
         {'val': 15, 'label': '15 يوم', 'desc': 'مراجعة مكثفة وسريعة',    'icon': '⚡'},
         {'val': 30, 'label': '30 يوم', 'desc': 'الخيار المتوازن والأنسب', 'icon': '✨'},
@@ -185,7 +186,6 @@ def create():
     ]
     return render_template('scheduler/create.html', today=today, subjects=SUBJECTS,
                            break_minutes=BREAK_MINUTES, start_hour=START_HOUR,
-                           tahsili_periods=tahsili_periods,
                            duration_options=duration_options,
                            subject_options=subject_options)
 

@@ -63,19 +63,8 @@
           <input type="date" id="inp_exam" class="sched-input sched-input-exam"
                  oninput="onExamChange()">
 
-          {% if tahsili_periods %}
-          <div class="sched-tahsili-btns">
-            <span class="sched-tahsili-label">
-              <i class="fas fa-calendar-alt"></i> مواعيد التحصيلي المسجّلة:
-            </span>
-            {% for period in tahsili_periods %}
-            <button type="button" class="sched-tahsili-btn"
-                    onclick="setExamDate('{{ period.date }}')">
-              {{ period.label }}
-            </button>
-            {% endfor %}
-          </div>
-          {% endif %}
+          <!-- مواعيد التحصيلي — تُجلب عبر AJAX بعد تحميل الصفحة -->
+          <div class="sched-tahsili-btns" id="tahsiliBtns" style="display:none"></div>
 
           <div class="sched-exam-hint" id="examHint" style="display:none">
             <i class="fas fa-info-circle"></i>
@@ -369,5 +358,22 @@ document.getElementById('inp_name').addEventListener('keydown', e => {
 document.getElementById('schedForm').addEventListener('submit', e => {
   if (currentStep !== 3) { e.preventDefault(); stepNext(); }
 });
+
+// ── مواعيد التحصيلي عبر AJAX (لا نستدعي Firebase في server-side) ──
+(function loadTahsiliDates() {
+  fetch('{{ url_for("scheduler.api_tahsili_dates") }}')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || !data.periods || !data.periods.length) return;
+      const wrap = document.getElementById('tahsiliBtns');
+      let html = '<span class="sched-tahsili-label"><i class="fas fa-calendar-alt"></i> مواعيد التحصيلي المسجّلة:</span>';
+      data.periods.forEach(p => {
+        html += `<button type="button" class="sched-tahsili-btn" onclick="setExamDate('${p.date}')">${p.label}</button>`;
+      });
+      wrap.innerHTML = html;
+      wrap.style.display = '';
+    })
+    .catch(() => {}); // تجاهل الخطأ بصمت
+})();
 </script>
 {% endblock scripts %}
