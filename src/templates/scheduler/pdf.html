@@ -184,6 +184,12 @@
     print-color-adjust: exact;
   }
 
+  .time-ltr {
+    direction: ltr;
+    unicode-bidi: bidi-override;
+    display: inline-block;
+  }
+
   /* مربع الإنجاز */
   .day-check {
     display: flex; align-items: center; gap: 4px;
@@ -293,7 +299,7 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        <bdo dir="ltr">{{ s.start_time }}-{{ s.end_time }}</bdo>
+        <span class="time-ltr"><bdo dir="ltr">{{ s.start_time }}-{{ s.end_time }}</bdo></span>
         {% if s.pages_from is not none and s.pages_to is not none %}
         <br><span class="pages-badge"><bdo dir="ltr">ص {{ s.pages_from }}-{{ s.pages_to }}</bdo></span>
         {% endif %}
