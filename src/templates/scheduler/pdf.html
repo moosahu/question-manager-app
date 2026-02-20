@@ -168,6 +168,17 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /*
+     الحل الموثوق لعرض الأرقام LTR في WeasyPrint داخل سياق RTL:
+     display:inline-block يُنشئ كتلة تنسيق مستقلة، direction:ltr يُجبر
+     الترتيب من اليسار لليمين بالكامل داخلها.
+  */
+  .ltr-num {
+    display: inline-block;
+    direction: ltr;
+    unicode-bidi: embed;
+    white-space: nowrap;
+  }
   .pages-badge {
     display: inline-block;
     margin-top: 3px;
@@ -178,6 +189,8 @@
     font-size: 7pt;
     font-weight: 900;
     color: #1e40af !important;
+    direction: ltr;
+    unicode-bidi: embed;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -217,14 +230,14 @@
       الطالب: <strong>{{ schedule.student_name }}</strong>
       &nbsp;&middot;&nbsp; {{ schedule.duration }} يوم
       &nbsp;&middot;&nbsp; {{ schedule.daily_hours }} ساعة/يوم
-      &nbsp;&middot;&nbsp; يبدأ: <bdo dir="ltr">{{ schedule.start_date.strftime('%Y/%m/%d') }}</bdo>
+      &nbsp;&middot;&nbsp; يبدأ: <span class="ltr-num">{{ schedule.start_date.strftime('%Y/%m/%d') }}</span>
     </p>
   </div>
   {% if schedule.exam_date %}
   <div class="header-periods">
     <div class="period-badge">
       <span class="p-label">موعد الاختبار</span>
-      <bdo dir="ltr">{{ schedule.exam_date.strftime('%Y/%m/%d') }}</bdo>
+      <span class="ltr-num">{{ schedule.exam_date.strftime('%Y/%m/%d') }}</span>
       {% if schedule.days_until_exam is not none %}
         <br><strong>{{ schedule.days_until_exam }} يوم متبقي</strong>
       {% endif %}
@@ -283,7 +296,7 @@
           <span class="day-num">يوم {{ day }}</span>
           <span class="day-badge">{{ done_count }}/{{ day_sessions | length }}</span>
         </div>
-        <div class="day-meta">{{ ar_days[d.weekday()] }} <bdo dir="ltr">{{ d.strftime('%d/%m') }}</bdo> &middot; {{ motiv }}</div>
+        <div class="day-meta">{{ ar_days[d.weekday()] }} <span class="ltr-num">{{ d.strftime('%d/%m') }}</span> &middot; {{ motiv }}</div>
       </div>
 
       {% if s %}
@@ -291,9 +304,9 @@
         {{ s.subject }}
       </div>
       <div class="sess-meta">
-        <bdo dir="ltr">{{ s.start_time }} – {{ s.end_time }}</bdo>
+        <span class="ltr-num">{{ s.start_time }} – {{ s.end_time }}</span>
         {% if s.pages_from is not none and s.pages_to is not none %}
-        <br><span class="pages-badge">ص <bdo dir="ltr">{{ s.pages_from }}–{{ s.pages_to }}</bdo></span>
+        <br><span class="pages-badge">{{ s.pages_from }}–{{ s.pages_to }} ص</span>
         {% endif %}
       </div>
       {% else %}

@@ -18,28 +18,31 @@ from src.models.study_schedule import StudySchedule, StudySession
 logger = logging.getLogger(__name__)
 
 
-def _parse_pages_input(raw: str) -> int:
+def _parse_pages_input(raw: str) -> tuple[int, int]:
     """
     يقبل:
-    • عدد صحيح مثل "200"
-    • نطاق مثل "6-110" → يحسب الفرق: 110 - 6 + 1 = 105
-    يُرجع 0 إذا كانت القيمة غير صحيحة.
+    • عدد صحيح مثل "200"  → (1, 200)   — يبدأ من صفحة 1
+    • نطاق مثل "6-110"    → (6, 110)   — يبدأ من صفحة 6 وينتهي عند 110
+    يُرجع (0, 0) إذا كانت القيمة غير صحيحة.
     """
     raw = (raw or '').strip()
     if not raw:
-        return 0
+        return (0, 0)
     if '-' in raw:
         parts = raw.split('-', 1)
         try:
             start = int(parts[0].strip())
             end   = int(parts[1].strip())
-            return max(0, end - start + 1)
+            if end > start:
+                return (start, end)
         except (ValueError, TypeError):
-            return 0
+            pass
+        return (0, 0)
     try:
-        return max(0, int(raw))
+        val = int(raw)
+        return (1, val) if val > 0 else (0, 0)
     except (ValueError, TypeError):
-        return 0
+        return (0, 0)
 
 scheduler_bp = Blueprint('scheduler', __name__, url_prefix='/scheduler')
 
@@ -151,17 +154,28 @@ def _generate_sessions(schedule: StudySchedule) -> list[StudySession]:
             pass
 
     for r in _subject_block_ranges(schedule.duration):
-        subj        = r['subject']
-        total_pages = subject_pages.get(subj, 0)
-        days        = r['days']
+        subj = r['subject']
+        days = r['days']
+
+        # صيغة التخزين: [page_start, page_end] أو عدد صحيح قديم
+        raw_val = subject_pages.get(subj)
+        if isinstance(raw_val, list) and len(raw_val) == 2:
+            p_start, p_end = int(raw_val[0]), int(raw_val[1])
+            total_pages    = p_end - p_start + 1
+        elif isinstance(raw_val, int) and raw_val > 0:
+            p_start, p_end = 1, raw_val
+            total_pages    = raw_val
+        else:
+            p_start = p_end = total_pages = 0
 
         for idx, day in enumerate(range(r['start'], r['end'] + 1)):
             if total_pages > 0:
-                p_from = round(idx / days * total_pages) + 1
-                p_to   = round((idx + 1) / days * total_pages)
+                p_from = p_start + round(idx / days * total_pages)
+                p_to   = p_start + round((idx + 1) / days * total_pages) - 1
                 if idx == days - 1:
-                    p_to = total_pages          # اليوم الأخير يأخذ ما تبقى
-                p_from = max(1, p_from)
+                    p_to = p_end          # اليوم الأخير يأخذ ما تبقى
+                p_from = max(p_start, p_from)
+                p_to   = min(p_end,   p_to)
             else:
                 p_from = p_to = None
 
@@ -250,9 +264,9 @@ def create_post():
     # ── Subject pages (اختياري) — يقبل "200" أو "6-110" ──
     subject_pages = {}
     for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
-        val = _parse_pages_input(request.form.get(f'pages_{key}', ''))
-        if val > 0:
-            subject_pages[subj] = val
+        ps, pe = _parse_pages_input(request.form.get(f'pages_{key}', ''))
+        if pe > ps >= 1:
+            subject_pages[subj] = [ps, pe]
 
     # ── Create ──
     schedule = StudySchedule(
@@ -279,11 +293,16 @@ def create_post():
 def view_schedule(schedule_id):
     """عرض الجدول مع التنقل الأسبوعي وتتبع التقدم"""
     schedule = StudySchedule.query.get_or_404(schedule_id)
-    # parse stored subject_pages for display in view
+    # حوّل البيانات المخزنة إلى صيغة نطاق "start-end" لعرضها في modal
     stored_pages = {}
     if schedule.subject_pages:
         try:
-            stored_pages = json.loads(schedule.subject_pages)
+            raw = json.loads(schedule.subject_pages)
+            for subj, val in raw.items():
+                if isinstance(val, list) and len(val) == 2:
+                    stored_pages[subj] = f'{val[0]}-{val[1]}'
+                elif isinstance(val, int) and val > 0:
+                    stored_pages[subj] = str(val)
         except (ValueError, TypeError):
             pass
     return render_template('scheduler/view.html',
@@ -300,29 +319,31 @@ def update_pages(schedule_id):
 
     subject_pages = {}
     for subj, key in [('رياضيات','math'),('فيزياء','physics'),('كيمياء','chem'),('أحياء','bio')]:
-        val = _parse_pages_input(request.form.get(f'pages_{key}', ''))
-        if val > 0:
-            subject_pages[subj] = val
+        ps, pe = _parse_pages_input(request.form.get(f'pages_{key}', ''))
+        if pe > ps >= 1:
+            subject_pages[subj] = [ps, pe]
 
     logger.info(f'update_pages for schedule {schedule_id}: {subject_pages}')
     schedule.subject_pages = json.dumps(subject_pages, ensure_ascii=False) if subject_pages else None
     db.session.flush()
 
-    # أعد حساب pages_from و pages_to لكل جلسة موجودة
+    # أعد حساب pages_from و pages_to لكل جلسة موجودة بناءً على النطاق المدخل
     subject_block = {r['subject']: r for r in _subject_block_ranges(schedule.duration)}
     sessions = StudySession.query.filter_by(schedule_id=schedule_id).all()
     for sess in sessions:
-        r = subject_block.get(sess.subject, {})
-        total_pages = subject_pages.get(sess.subject, 0)
-        if total_pages > 0 and r:
-            days  = r['days']
-            idx   = sess.day_number - r['start']
-            p_from = round(idx / days * total_pages) + 1
-            p_to   = round((idx + 1) / days * total_pages)
+        r       = subject_block.get(sess.subject, {})
+        raw_val = subject_pages.get(sess.subject)
+        if isinstance(raw_val, list) and len(raw_val) == 2 and r:
+            p_start, p_end = raw_val[0], raw_val[1]
+            total  = p_end - p_start + 1
+            days   = r['days']
+            idx    = sess.day_number - r['start']
+            p_from = p_start + round(idx / days * total)
+            p_to   = p_start + round((idx + 1) / days * total) - 1
             if idx == days - 1:
-                p_to = total_pages
-            sess.pages_from = max(1, p_from)
-            sess.pages_to   = p_to
+                p_to = p_end
+            sess.pages_from = max(p_start, p_from)
+            sess.pages_to   = min(p_end,   p_to)
         else:
             sess.pages_from = None
             sess.pages_to   = None
