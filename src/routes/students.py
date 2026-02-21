@@ -1597,16 +1597,32 @@ def api_mark_notification_read(notification_id):
 def api_get_results():
     """جلب نتائج الطالب - محسّنة"""
     try:
-        # جلب student_id من الـ query parameter
-        student_id = request.args.get('student_id', type=int)
+        # جلب student_id من الـ header أولاً ثم query parameter
+        student_id = None
+        header_id = request.headers.get('X-Student-Id')
+        if header_id:
+            try:
+                student_id = int(header_id)
+            except (ValueError, TypeError):
+                pass
+        if not student_id:
+            student_id = request.args.get('student_id', type=int)
+
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
-        
+
         if not student_id:
             return jsonify({
                 'success': False,
                 'error': 'student_id مطلوب'
             }), 400
+
+        # ✅ التحقق من session_token إن أُرسل
+        session_token = request.headers.get('X-Session-Token')
+        if session_token:
+            student = Student.query.get(student_id)
+            if not student or not student.session_token or student.session_token != session_token:
+                return jsonify({'success': False, 'error': 'جلسة غير صالحة'}), 401
         
         # استيراد النموذج
         try:
@@ -1661,7 +1677,23 @@ def api_get_results():
 def api_get_results_stats():
     """جلب إحصائيات نتائج الطالب - محسّنة"""
     try:
-        student_id = request.args.get('student_id', type=int)
+        # جلب student_id من الـ header أولاً ثم query parameter
+        student_id = None
+        header_id = request.headers.get('X-Student-Id')
+        if header_id:
+            try:
+                student_id = int(header_id)
+            except (ValueError, TypeError):
+                pass
+        if not student_id:
+            student_id = request.args.get('student_id', type=int)
+
+        # ✅ التحقق من session_token إن أُرسل
+        session_token = request.headers.get('X-Session-Token')
+        if session_token and student_id:
+            student = Student.query.get(student_id)
+            if not student or not student.session_token or student.session_token != session_token:
+                return jsonify({'success': False, 'error': 'جلسة غير صالحة'}), 401
         
         if not student_id:
             return jsonify({
