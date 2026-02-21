@@ -216,28 +216,37 @@ def api_get_all_lessons():
     from flask import session
     from src.models.student import Student
     
+    from flask_login import current_user
+
     student_id = None
-    
-    # محاولة 1: Session Cookie
-    if 'user_id' in session:
-        student_id = session['user_id']
-        print(f"✅ Student authenticated via session: {student_id}")
-    
-    # محاولة 2: Device ID من Header
-    if not student_id:
-        device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
-        if device_id:
-            student = Student.query.filter_by(device_id=device_id).first()
-            if student:
-                student_id = student.id
-                print(f"✅ Student authenticated via device_id: {student_id}")
-    
-    if not student_id:
-        print("❌ No authentication found")
-        return jsonify({
-            'success': False,
-            'error': 'يرجى تسجيل الدخول أولاً'
-        }), 401
+    is_admin_view = False
+
+    # محاولة 0: أدمن عبر Flask-Login
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        is_admin_view = True
+        print("✅ Admin viewing lessons (read-only mode)")
+
+    if not is_admin_view:
+        # محاولة 1: Session Cookie للطالب
+        if 'user_id' in session:
+            student_id = session['user_id']
+            print(f"✅ Student authenticated via session: {student_id}")
+
+        # محاولة 2: Device ID من Header
+        if not student_id:
+            device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+            if device_id:
+                student = Student.query.filter_by(device_id=device_id).first()
+                if student:
+                    student_id = student.id
+                    print(f"✅ Student authenticated via device_id: {student_id}")
+
+        if not student_id:
+            print("❌ No authentication found")
+            return jsonify({
+                'success': False,
+                'error': 'يرجى تسجيل الدخول أولاً'
+            }), 401
     
     try:
         # جلب الدروس فقط من المناهج المفعلة للطلاب

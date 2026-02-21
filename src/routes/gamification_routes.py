@@ -5,6 +5,7 @@ API Routes لنظام التحفيز (Gamification)
 """
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from functools import wraps
 
 from src.services.gamification_service import gamification_service
@@ -81,11 +82,10 @@ def get_points(student_id):
 
 
 @gamification_bp.route('/points/<int:student_id>/add', methods=['POST'])
-@student_required
 def add_points(student_id):
     """
     إضافة نقاط للطالب (Admin only)
-    
+
     POST /api/gamification/points/1/add
     Body: {
         "amount": 50,
@@ -93,7 +93,20 @@ def add_points(student_id):
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        # التحقق: إما أدمن عبر Flask-Login أو طالب صاحب الحساب
+        is_admin = current_user.is_authenticated and getattr(current_user, 'is_admin', False)
+        if not is_admin:
+            session_token = (
+                request.headers.get('X-Session-Token') or
+                data.get('session_token') or
+                request.args.get('session_token')
+            )
+            student = Student.query.get(student_id)
+            if not student or not student.session_token or student.session_token != session_token:
+                return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
         amount = data.get('amount', 0)
         reason = data.get('reason', 'مكافأة')
         
