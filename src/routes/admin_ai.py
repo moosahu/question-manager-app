@@ -1718,7 +1718,6 @@ def api_get_low_score_students():
 # ==================== Audit Log ====================
 
 @admin_ai_bp.route('/audit-log', methods=['GET'])
-@login_required
 @admin_required
 def api_get_audit_log():
     """جلب سجل نشاط الادمن"""
