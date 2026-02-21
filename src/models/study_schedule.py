@@ -19,6 +19,7 @@ class StudySchedule(db.Model):
     exam_date     = db.Column(db.Date,    nullable=True)         # تاريخ الاختبار التحصيلي
     subject_pages = db.Column(db.Text,    nullable=True)         # JSON: {"رياضيات": 200, ...}
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    status        = db.Column(db.String(20), default='active')   # active | completed | archived
 
     sessions = db.relationship(
         'StudySession',
@@ -63,6 +64,7 @@ class StudySchedule(db.Model):
             'totalSessions':    self.total_sessions,
             'completedSessions': self.completed_sessions,
             'completionPercent': self.completion_percent,
+            'status':           self.status or 'active',
         }
 
     def to_dict(self):
@@ -89,6 +91,8 @@ class StudySession(db.Model):
     order_index      = db.Column(db.Integer, nullable=False)
     pages_from       = db.Column(db.Integer, nullable=True)       # أول صفحة ليوم هذا
     pages_to         = db.Column(db.Integer, nullable=True)       # آخر صفحة ليوم هذا
+    difficulty       = db.Column(db.String(10), nullable=True)    # easy | medium | hard
+    note             = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
         return {
@@ -103,6 +107,8 @@ class StudySession(db.Model):
             'orderIndex':      self.order_index,
             'pagesFrom':       self.pages_from,
             'pagesTo':         self.pages_to,
+            'difficulty':      self.difficulty,
+            'note':            self.note,
         }
 
     def __repr__(self):

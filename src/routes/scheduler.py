@@ -47,6 +47,25 @@ def _parse_pages_input(raw: str) -> tuple[int, int]:
 scheduler_bp = Blueprint('scheduler', __name__, url_prefix='/scheduler')
 
 
+def _get_schedule_for_mobile(schedule_id: int, student_id: int):
+    """
+    جلب الجدول مع معالجة احتياطية للجداول القديمة بدون student_id.
+    يُعيد None إذا لم يُوجد الجدول أو لا توجد صلاحية.
+    """
+    schedule = StudySchedule.query.filter_by(id=schedule_id, student_id=student_id).first()
+    if not schedule:
+        schedule = StudySchedule.query.filter_by(id=schedule_id).filter(
+            db.or_(StudySchedule.student_id == None, StudySchedule.student_id == student_id)
+        ).first()
+    if schedule and schedule.student_id is None:
+        try:
+            schedule.student_id = student_id
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    return schedule
+
+
 def _get_mobile_student_id() -> int | None:
     """
     استخراج معرف الطالب — نفس نهج diagnostic_routes:
@@ -108,6 +127,9 @@ def _create_tables(state):
                 'ALTER TABLE study_sessions ADD COLUMN pages_from INTEGER',
                 'ALTER TABLE study_sessions ADD COLUMN pages_to INTEGER',
                 'ALTER TABLE study_schedules ADD COLUMN student_id INTEGER',
+                "ALTER TABLE study_schedules ADD COLUMN status VARCHAR(20) DEFAULT 'active'",
+                'ALTER TABLE study_sessions ADD COLUMN difficulty VARCHAR(10)',
+                'ALTER TABLE study_sessions ADD COLUMN note TEXT',
             ]:
                 try:
                     with db.engine.connect() as _conn:
@@ -662,15 +684,29 @@ def mobile_toggle_session(schedule_id, session_id):
     if not sess:
         return jsonify({'ok': False, 'error': 'الجلسة غير موجودة'}), 404
 
+    data = request.get_json(silent=True) or {}
     sess.is_completed = not sess.is_completed
+
+    # حفظ الملاحظات عند الإتمام فقط
+    if sess.is_completed:
+        if 'difficulty' in data:
+            sess.difficulty = data['difficulty']
+        if 'note' in data:
+            sess.note = data['note']
+
+    # auto-complete الجدول عند الإتمام الكامل
+    if schedule.completion_percent == 100 and (schedule.status or 'active') == 'active':
+        schedule.status = 'completed'
+
     db.session.commit()
 
     return jsonify({
-        'ok':           True,
-        'isCompleted':  sess.is_completed,
-        'completionPct': schedule.completion_percent,
+        'ok':             True,
+        'isCompleted':    sess.is_completed,
+        'completionPct':  schedule.completion_percent,
         'completedCount': schedule.completed_sessions,
-        'totalCount':   schedule.total_sessions,
+        'totalCount':     schedule.total_sessions,
+        'scheduleStatus': schedule.status or 'active',
     })
 
 
@@ -768,4 +804,133 @@ def mobile_update_exam_date(schedule_id):
         'ok':            True,
         'examDate':      schedule.exam_date.strftime('%Y-%m-%d') if schedule.exam_date else None,
         'daysUntilExam': schedule.days_until_exam,
+    })
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/status', methods=['POST'])
+def mobile_update_status(schedule_id):
+    """تحديث حالة الجدول (active | completed | archived) — للموبايل"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = _get_schedule_for_mobile(schedule_id, student_id)
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    new_status = ((request.get_json(silent=True) or {}).get('status') or '').strip()
+    if new_status not in ('active', 'completed', 'archived'):
+        return jsonify({'ok': False, 'error': 'الحالة غير صحيحة'}), 400
+
+    schedule.status = new_status
+    db.session.commit()
+    return jsonify({'ok': True, 'status': schedule.status})
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/reschedule', methods=['POST'])
+def mobile_reschedule(schedule_id):
+    """إعادة جدولة الجلسات المتأخرة غير المكتملة — للموبايل"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = _get_schedule_for_mobile(schedule_id, student_id)
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    today = date.today()
+    start = schedule.start_date
+    # رقم اليوم الحالي في الجدول (1-based)
+    today_day = max(1, (today - start).days + 1)
+
+    # جلسات متأخرة: قبل اليوم وغير مكتملة
+    overdue = [s for s in schedule.sessions
+               if s.day_number < today_day and not s.is_completed]
+
+    if not overdue:
+        return jsonify({'ok': True, 'rescheduled': 0, 'schedule': schedule.to_dict()})
+
+    # الأيام المستقبلية المتاحة في الجدول (من اليوم حتى النهاية)
+    future_days = list(range(today_day, schedule.duration + 1))
+
+    if not future_days:
+        return jsonify({'ok': False, 'error': 'لا توجد أيام مستقبلية متاحة للإعادة الجدولة'}), 400
+
+    # توزيع الجلسات المتأخرة على الأيام المستقبلية بالتناوب
+    for idx, sess in enumerate(overdue):
+        sess.day_number = future_days[idx % len(future_days)]
+
+    db.session.commit()
+
+    # إعادة تحميل الجدول بعد التحديث
+    db.session.refresh(schedule)
+    return jsonify({'ok': True, 'rescheduled': len(overdue), 'schedule': schedule.to_dict()})
+
+
+@scheduler_bp.route('/api/mobile/schedules/<int:schedule_id>/stats')
+def mobile_get_stats(schedule_id):
+    """إحصائيات أداء الجدول — للموبايل"""
+    student_id = _get_mobile_student_id()
+    if student_id is None:
+        return jsonify({'ok': False, 'error': 'يجب تسجيل الدخول'}), 401
+
+    schedule = _get_schedule_for_mobile(schedule_id, student_id)
+    if not schedule:
+        return jsonify({'ok': False, 'error': 'الجدول غير موجود'}), 404
+
+    from collections import defaultdict
+    arabic_days = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
+    start = schedule.start_date
+
+    # تجميع الجلسات المكتملة حسب التاريخ
+    completed_by_date: dict = defaultdict(list)
+    for sess in schedule.sessions:
+        if sess.is_completed:
+            d = start + timedelta(days=sess.day_number - 1)
+            completed_by_date[d].append(sess)
+
+    # الـ Streak: أيام متواصلة مكتملة حتى أحدث يوم
+    streak = 0
+    if completed_by_date:
+        sorted_dates = sorted(completed_by_date.keys(), reverse=True)
+        expected = sorted_dates[0]
+        for d in sorted_dates:
+            if d == expected:
+                streak += 1
+                expected = expected - timedelta(days=1)
+            else:
+                break
+
+    # إجمالي الدقائق المكتملة
+    total_minutes = sum(
+        s.duration_minutes for s in schedule.sessions if s.is_completed
+    )
+
+    # أفضل يوم (الأكثر إنجازاً)
+    day_counts: dict = defaultdict(int)
+    for d, sessions_list in completed_by_date.items():
+        day_name = arabic_days[d.weekday()]
+        day_counts[day_name] += len(sessions_list)
+    best_day = max(day_counts, key=lambda k: day_counts[k]) if day_counts else None
+
+    # البيانات الأسبوعية
+    week_count = (schedule.duration + 6) // 7
+    weekly_data = []
+    for w in range(week_count):
+        w_start = w * 7 + 1
+        w_end   = min((w + 1) * 7, schedule.duration)
+        week_sessions = [s for s in schedule.sessions if w_start <= s.day_number <= w_end]
+        completed_count = sum(1 for s in week_sessions if s.is_completed)
+        weekly_data.append({
+            'week':      f'الأسبوع {w + 1}',
+            'completed': completed_count,
+            'total':     len(week_sessions),
+        })
+
+    return jsonify({
+        'ok':          True,
+        'streak':      streak,
+        'totalMinutes': total_minutes,
+        'bestDay':     best_day,
+        'weeklyData':  weekly_data,
     })
