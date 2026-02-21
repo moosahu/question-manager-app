@@ -153,6 +153,7 @@ def admin_required(f):
 
 @diagnostic_bp.route('/generate', methods=['POST'])
 @login_required
+@admin_required
 def generate_test():
     """
     توليد اختبار تشخيصي جديد
@@ -236,6 +237,7 @@ def generate_test():
 
 @diagnostic_bp.route('/generate-pair', methods=['POST'])
 @login_required
+@admin_required
 def generate_test_pair():
     """
     توليد زوج اختبارات (قبلي + بعدي) معاً

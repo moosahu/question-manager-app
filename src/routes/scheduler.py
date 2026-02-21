@@ -68,32 +68,26 @@ def _get_schedule_for_mobile(schedule_id: int, student_id: int):
 
 def _get_mobile_student_id() -> int | None:
     """
-    استخراج معرف الطالب — نفس نهج diagnostic_routes:
-    1. Cookie: student_session_<username>  ← الطريقة الرئيسية للموبايل
-    2. X-Student-ID header                ← بديل
-    3. current_user (جلسة الويب)
+    استخراج معرف الطالب بشكل آمن:
+    1. session_token (X-Session-Token header أو JSON body أو query param) ← الأساسي
+    2. current_user (جلسة الويب للواجهة الإدارية)
     """
-    # 1. Cookie student_session_<username>
-    try:
-        from src.models.student import Student
-        for cookie_name in request.cookies:
-            if cookie_name.startswith('student_session_'):
-                username = cookie_name.replace('student_session_', '')
-                student = Student.query.filter_by(username=username).first()
-                if student:
-                    return student.id
-    except Exception:
-        pass
-
-    # 2. X-Student-ID header
-    sid = request.headers.get('X-Student-ID', '').strip()
-    if sid:
+    # 1. session_token — التحقق من الهوية للموبايل
+    session_token = (
+        request.headers.get('X-Session-Token') or
+        (request.get_json(silent=True) or {}).get('session_token') or
+        request.args.get('session_token')
+    )
+    if session_token:
         try:
-            return int(sid)
-        except (ValueError, TypeError):
+            from src.models.student import Student
+            student = Student.query.filter_by(session_token=session_token).first()
+            if student:
+                return student.id
+        except Exception:
             pass
 
-    # 3. جلسة الويب
+    # 2. جلسة الويب (للواجهة الإدارية فقط)
     if current_user.is_authenticated and hasattr(current_user, 'id'):
         return current_user.id
 

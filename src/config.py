@@ -85,9 +85,9 @@ class ProductionConfig(Config):
     TESTING = False
     # في الإنتاج: استخدم HTTPS فقط
     SESSION_COOKIE_SECURE = True
-    # تأكد من تعيين المفاتيح من متغيرات البيئة
-    SECRET_KEY = os.getenv('SECRET_KEY', 'prod-secret-key-change-this')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'prod-jwt-secret-key-change-this')
+    # لا قيم افتراضية في الإنتاج — يُقرأ من متغيرات البيئة فقط
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
 
 
 class TestingConfig(Config):
@@ -112,4 +112,13 @@ config = {
 def get_config():
     """احصل على إعدادات التطبيق الحالية"""
     env = os.getenv('FLASK_ENV', 'development')
-    return config.get(env, config['default'])
+    cfg = config.get(env, config['default'])
+    # التحقق من المتغيرات الحرجة في بيئة الإنتاج
+    if env == 'production':
+        for var in ('SECRET_KEY', 'JWT_SECRET_KEY'):
+            if not os.getenv(var):
+                raise ValueError(
+                    f"متغير البيئة '{var}' مطلوب في بيئة الإنتاج. "
+                    "يرجى تعيينه قبل تشغيل التطبيق."
+                )
+    return cfg

@@ -2,12 +2,34 @@
 إعادة تعيين كلمة المرور - Password Reset Routes
 APIs لإعادة تعيين كلمة المرور للطلاب
 """
-from flask import Blueprint, request, jsonify
+import hmac
+import hashlib
+from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash
 from src.extensions import db
 from src.models.student import Student
 from src.models.password_reset import PasswordReset
 from src.services.email_service import email_service
+
+
+def _make_reset_token(reset_id: int) -> str:
+    """إنشاء token آمن موقَّع بـ HMAC لا يمكن تخمينه أو تتابعه"""
+    secret = current_app.config['SECRET_KEY'].encode()
+    sig = hmac.new(secret, str(reset_id).encode(), hashlib.sha256).hexdigest()
+    return f"{reset_id}.{sig}"
+
+
+def _parse_reset_token(token: str):
+    """التحقق من صحة token وإرجاع reset_id، أو None إن كان مزوراً"""
+    try:
+        reset_id_str, sig = token.split('.', 1)
+        reset_id = int(reset_id_str)
+        expected = _make_reset_token(reset_id)
+        if hmac.compare_digest(token, expected):
+            return reset_id
+    except Exception:
+        pass
+    return None
 
 password_reset_bp = Blueprint('password_reset', __name__, url_prefix='/api/password-reset')
 
@@ -30,13 +52,14 @@ def request_password_reset():
         
         # البحث عن الطالب بالبريد الإلكتروني
         student = Student.query.filter_by(email=email).first()
-        
+
         if not student:
-            # البريد غير موجود
+            # نُرجع نفس الرسالة لمنع اكتشاف الحسابات المسجلة
             return jsonify({
-                'success': False,
-                'error': 'البريد الإلكتروني غير مسجل'
-            }), 404
+                'success': True,
+                'message': 'إذا كان البريد مسجلاً، ستصلك رسالة تحقق قريباً',
+                'expires_in': 600
+            })
         
         # التحقق من وجود إيميل للطالب
         if not student.email:
@@ -144,7 +167,7 @@ def verify_reset_code():
         return jsonify({
             'success': True,
             'message': 'الرمز صحيح. يمكنك الآن إدخال كلمة المرور الجديدة',
-            'reset_token': str(reset_request.id)  # نستخدم ID كـ token
+            'reset_token': _make_reset_token(reset_request.id)  # HMAC-signed token
         })
         
     except Exception as e:
@@ -182,21 +205,20 @@ def reset_password():
             }), 400
         
         # التحقق من طول كلمة المرور
-        if len(new_password) < 6:
+        if len(new_password) < 8:
             return jsonify({
                 'success': False,
-                'error': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+                'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
             }), 400
-        
-        # البحث عن طلب إعادة التعيين
-        try:
-            reset_id = int(reset_token)
-        except ValueError:
+
+        # التحقق من صحة reset_token (HMAC-signed)
+        reset_id = _parse_reset_token(reset_token)
+        if reset_id is None:
             return jsonify({
                 'success': False,
                 'error': 'رمز التحقق غير صالح'
             }), 400
-        
+
         reset_request = PasswordReset.query.get(reset_id)
         
         if not reset_request:

@@ -476,7 +476,7 @@ def create_app():
     app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = '9f21cf001@smtp-brevo.com'  # ✅ Login من Brevo SMTP Settings
+    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '9f21cf001@smtp-brevo.com')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = ('no-reply@chem-tahsili.com')
     
@@ -530,8 +530,7 @@ def create_app():
         # إضافة CORS headers للـ APIs
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Session-Token'
         
         return response
 
@@ -547,7 +546,12 @@ def create_app():
             # Check if admin user exists
             admin_user = User.query.filter_by(username="admin").first()
             if not admin_user:
-                admin_password = os.environ.get("ADMIN_PASSWORD", "password")
+                admin_password = os.environ.get("ADMIN_PASSWORD")
+                if not admin_password:
+                    import secrets as _secrets
+                    admin_password = _secrets.token_urlsafe(16)
+                    print(f"⚠️  ADMIN_PASSWORD not set — generated random password: {admin_password}")
+                    print("⚠️  Set ADMIN_PASSWORD environment variable to use a fixed password.")
                 hashed_password = generate_password_hash(admin_password)
                 new_admin = User(username="admin", password_hash=hashed_password, is_admin=True)
                 db.session.add(new_admin)

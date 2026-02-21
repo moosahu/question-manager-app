@@ -79,10 +79,10 @@ def register_student():
             }), 400
         
         # التحقق من طول كلمة المرور
-        if len(password) < 6:
+        if len(password) < 8:
             return jsonify({
                 'success': False,
-                'error': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+                'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
             }), 400
         
         # التحقق من صيغة الإيميل
@@ -198,10 +198,10 @@ def register_teacher():
             }), 400
         
         # التحقق من طول كلمة المرور
-        if len(password) < 6:
+        if len(password) < 8:
             return jsonify({
                 'success': False,
-                'error': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+                'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
             }), 400
         
         # التحقق من صيغة الإيميل
