@@ -1609,7 +1609,7 @@ def test_automation():
 
 # ==================== Admin Dashboard ====================
 
-@admin_ai_bp.route('/api/admin/dashboard', methods=['GET'])
+@admin_ai_bp.route('/dashboard', methods=['GET'])
 @admin_required
 def api_admin_dashboard():
     """لوحة تحكم الادمن - إحصائيات سريعة"""
@@ -1652,7 +1652,7 @@ def api_admin_dashboard():
 
 # ==================== Targeted Notifications ====================
 
-@admin_ai_bp.route('/api/admin/students/inactive', methods=['GET'])
+@admin_ai_bp.route('/students/inactive', methods=['GET'])
 @admin_required
 def api_get_inactive_students():
     """طلاب لم يسجلوا دخول منذ X أيام"""
@@ -1679,7 +1679,7 @@ def api_get_inactive_students():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@admin_ai_bp.route('/api/admin/students/low-score', methods=['GET'])
+@admin_ai_bp.route('/students/low-score', methods=['GET'])
 @admin_required
 def api_get_low_score_students():
     """طلاب نتائجهم أقل من X%"""
@@ -1717,7 +1717,7 @@ def api_get_low_score_students():
 
 # ==================== Audit Log ====================
 
-@admin_ai_bp.route('/api/admin/audit-log', methods=['GET'])
+@admin_ai_bp.route('/audit-log', methods=['GET'])
 @login_required
 @admin_required
 def api_get_audit_log():
