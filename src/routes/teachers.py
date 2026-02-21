@@ -223,3 +223,106 @@ def toggle_registration():
         flash(f'خطأ في تغيير حالة التسجيل: {str(e)}', 'danger')
     
     return redirect(url_for('teachers.list_teachers'))
+
+
+# ==================== Mobile API Endpoints ====================
+
+@teachers_bp.route('/api/mobile/list', methods=['GET'])
+@login_required
+@admin_required
+def api_mobile_list_teachers():
+    """قائمة المعلمين للموبايل"""
+    from src.models.teacher import Teacher
+    search = request.args.get('search', '')
+    query = Teacher.query
+    if search:
+        query = query.filter(
+            db.or_(
+                Teacher.name.ilike(f'%{search}%'),
+                Teacher.username.ilike(f'%{search}%'),
+            )
+        )
+    teachers = query.order_by(Teacher.name).all()
+    return jsonify({
+        'success': True,
+        'teachers': [
+            {
+                'id': t.id,
+                'name': t.name,
+                'username': t.username,
+                'email': t.email or '',
+                'is_active': t.is_active if hasattr(t, 'is_active') else True,
+            }
+            for t in teachers
+        ],
+    })
+
+
+@teachers_bp.route('/api/mobile/add', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_add_teacher():
+    """إضافة معلم جديد"""
+    from src.models.teacher import Teacher
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    email = data.get('email', '').strip() or None
+
+    if not name or not username or not password:
+        return jsonify({'success': False, 'error': 'الاسم واسم المستخدم وكلمة المرور مطلوبة'}), 400
+
+    if Teacher.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
+
+    teacher = Teacher(name=name, username=username, email=email)
+    teacher.set_password(password)
+
+    try:
+        db.session.add(teacher)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'تم إضافة المعلم "{name}"', 'teacher_id': teacher.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/mobile/<int:teacher_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_edit_teacher(teacher_id):
+    """تعديل بيانات معلم"""
+    from src.models.teacher import Teacher
+    teacher = Teacher.query.get_or_404(teacher_id)
+    data = request.get_json() or {}
+    if 'name' in data:
+        teacher.name = data['name'].strip()
+    if 'email' in data:
+        teacher.email = data['email'].strip() or None
+    new_password = data.get('password', '')
+    if new_password:
+        teacher.set_password(new_password)
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم التحديث بنجاح'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/mobile/<int:teacher_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_delete_teacher(teacher_id):
+    """حذف معلم"""
+    from src.models.teacher import Teacher
+    teacher = Teacher.query.get_or_404(teacher_id)
+    name = teacher.name
+    try:
+        db.session.delete(teacher)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'تم حذف المعلم "{name}"'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -2200,3 +2200,224 @@ def get_notification_read_stats(notification_id):
             'success': False,
             'error': f'خطأ في جلب البيانات: {str(e)}'
         }), 500
+
+
+# ==================== Mobile API Endpoints ====================
+
+@students_bp.route('/api/mobile/students', methods=['GET'])
+@login_required
+@admin_required
+def api_mobile_list_students():
+    """قائمة الطلاب للموبايل مع بحث وفلترة"""
+    search = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+
+    query = Student.query
+    if search:
+        query = query.filter(
+            db.or_(
+                Student.name.ilike(f'%{search}%'),
+                Student.username.ilike(f'%{search}%'),
+                Student.email.ilike(f'%{search}%'),
+            )
+        )
+
+    total = query.count()
+    students = query.order_by(Student.name).offset((page - 1) * per_page).limit(per_page).all()
+
+    return jsonify({
+        'success': True,
+        'students': [
+            {
+                'id': s.id,
+                'name': s.name,
+                'username': s.username,
+                'email': s.email or '',
+                'phone': s.phone or '',
+                'school': s.school or '',
+                'grade': s.grade or '',
+                'is_active': s.is_active,
+                'notes': s.notes or '',
+                'created_at': s.created_at.isoformat() if hasattr(s, 'created_at') and s.created_at else '',
+            }
+            for s in students
+        ],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'pages': (total + per_page - 1) // per_page,
+    })
+
+
+@students_bp.route('/api/mobile/students/add', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_add_student():
+    """إضافة طالب جديد عبر الموبايل"""
+    data = request.get_json() or {}
+
+    name = data.get('name', '').strip()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    email = data.get('email', '').strip() or None
+    phone = data.get('phone', '').strip() or None
+    school = data.get('school', '').strip() or None
+    grade = data.get('grade', '').strip() or None
+    is_active = data.get('is_active', True)
+    notes = data.get('notes', '').strip() or None
+
+    if not name or not username or not password:
+        return jsonify({'success': False, 'error': 'الاسم واسم المستخدم وكلمة المرور مطلوبة'}), 400
+
+    if len(password) < 8:
+        return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'}), 400
+
+    if Student.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
+
+    if email and Student.query.filter_by(email=email).first():
+        return jsonify({'success': False, 'error': 'البريد الإلكتروني موجود مسبقاً'}), 409
+
+    student = Student(
+        name=name,
+        username=username,
+        email=email,
+        phone=phone,
+        school=school,
+        grade=grade,
+        is_active=is_active,
+        notes=notes,
+    )
+    student.set_password(password)
+
+    try:
+        db.session.add(student)
+        db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            from flask_login import current_user
+            AuditLog.log('add_student', f'إضافة طالب جديد: {name}',
+                        admin_name=current_user.username if current_user.is_authenticated else 'الادمن',
+                        target_type='student', target_id=student.id)
+        except Exception:
+            pass
+        return jsonify({
+            'success': True,
+            'message': f'تم إضافة الطالب "{name}" بنجاح',
+            'student_id': student.id,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/mobile/students/<int:student_id>', methods=['GET'])
+@login_required
+@admin_required
+def api_mobile_get_student(student_id):
+    """جلب بيانات طالب محدد"""
+    student = Student.query.get_or_404(student_id)
+    return jsonify({
+        'success': True,
+        'student': {
+            'id': student.id,
+            'name': student.name,
+            'username': student.username,
+            'email': student.email or '',
+            'phone': student.phone or '',
+            'school': student.school or '',
+            'grade': student.grade or '',
+            'is_active': student.is_active,
+            'notes': student.notes or '',
+        },
+    })
+
+
+@students_bp.route('/api/mobile/students/<int:student_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_edit_student(student_id):
+    """تعديل بيانات طالب"""
+    student = Student.query.get_or_404(student_id)
+    data = request.get_json() or {}
+
+    if 'name' in data:
+        student.name = data['name'].strip()
+    if 'email' in data:
+        student.email = data['email'].strip() or None
+    if 'phone' in data:
+        student.phone = data['phone'].strip() or None
+    if 'school' in data:
+        student.school = data['school'].strip() or None
+    if 'grade' in data:
+        student.grade = data['grade'].strip() or None
+    if 'is_active' in data:
+        student.is_active = bool(data['is_active'])
+    if 'notes' in data:
+        student.notes = data['notes'].strip() or None
+
+    new_password = data.get('password', '')
+    if new_password:
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'}), 400
+        student.set_password(new_password)
+
+    try:
+        db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            from flask_login import current_user
+            AuditLog.log('edit_student', f'تعديل بيانات الطالب: {student.name}',
+                        admin_name=current_user.username if current_user.is_authenticated else 'الادمن',
+                        target_type='student', target_id=student_id)
+        except Exception:
+            pass
+        return jsonify({'success': True, 'message': f'تم تحديث بيانات الطالب "{student.name}" بنجاح'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/mobile/students/<int:student_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_delete_student(student_id):
+    """حذف طالب"""
+    student = Student.query.get_or_404(student_id)
+    name = student.name
+    try:
+        db.session.delete(student)
+        db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            from flask_login import current_user
+            AuditLog.log('delete_student', f'حذف الطالب: {name}',
+                        admin_name=current_user.username if current_user.is_authenticated else 'الادمن',
+                        target_type='student', target_id=student_id)
+        except Exception:
+            pass
+        return jsonify({'success': True, 'message': f'تم حذف الطالب "{name}" بنجاح'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/mobile/students/<int:student_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_toggle_student(student_id):
+    """تفعيل/تعطيل حساب طالب"""
+    student = Student.query.get_or_404(student_id)
+    student.is_active = not student.is_active
+    try:
+        db.session.commit()
+        status = 'مفعل' if student.is_active else 'معطل'
+        return jsonify({
+            'success': True,
+            'message': f'تم تغيير حالة الطالب إلى {status}',
+            'is_active': student.is_active,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

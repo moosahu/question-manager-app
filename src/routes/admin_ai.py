@@ -1605,3 +1605,150 @@ def test_automation():
             'success': False,
             'error': f'خطأ في اختبار النظام: {str(e)}'
         }), 500
+
+
+# ==================== Admin Dashboard ====================
+
+@admin_ai_bp.route('/api/admin/dashboard', methods=['GET'])
+@admin_required
+def api_admin_dashboard():
+    """لوحة تحكم الادمن - إحصائيات سريعة"""
+    from src.models.student import Student
+    from src.models.result import Result
+    from datetime import datetime, timedelta
+
+    try:
+        total_students = Student.query.count()
+        active_students = Student.query.filter_by(is_active=True).count()
+
+        # نشطون اليوم (سجلوا دخول اليوم)
+        today = datetime.utcnow().date()
+        today_start = datetime.combine(today, datetime.min.time())
+
+        # متوسط الدرجات
+        results = Result.query.all()
+        avg_score = 0.0
+        if results:
+            scores = [r.score for r in results if r.score is not None]
+            avg_score = sum(scores) / len(scores) if scores else 0.0
+
+        # نتائج اليوم
+        today_results = Result.query.filter(Result.created_at >= today_start).count() if hasattr(Result, 'created_at') else 0
+
+        return jsonify({
+            'success': True,
+            'dashboard': {
+                'total_students': total_students,
+                'active_students': active_students,
+                'inactive_students': total_students - active_students,
+                'avg_score': round(avg_score, 1),
+                'total_results': len(results),
+                'today_results': today_results,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Targeted Notifications ====================
+
+@admin_ai_bp.route('/api/admin/students/inactive', methods=['GET'])
+@admin_required
+def api_get_inactive_students():
+    """طلاب لم يسجلوا دخول منذ X أيام"""
+    from src.models.student import Student
+    from datetime import datetime, timedelta
+
+    days = request.args.get('days', 7, type=int)
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    try:
+        students = Student.query.filter_by(is_active=True).all()
+        inactive = []
+        for s in students:
+            last_login = getattr(s, 'last_login', None)
+            if last_login is None or last_login < cutoff:
+                inactive.append({
+                    'id': s.id,
+                    'name': s.name,
+                    'username': s.username,
+                    'last_login': last_login.isoformat() if last_login else None,
+                })
+        return jsonify({'success': True, 'students': inactive, 'count': len(inactive)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_ai_bp.route('/api/admin/students/low-score', methods=['GET'])
+@admin_required
+def api_get_low_score_students():
+    """طلاب نتائجهم أقل من X%"""
+    from src.models.student import Student
+    from src.models.result import Result
+    from sqlalchemy import func
+
+    threshold = request.args.get('threshold', 50, type=int)
+
+    try:
+        subq = (
+            db.session.query(Result.student_id, func.avg(Result.score).label('avg_score'))
+            .group_by(Result.student_id)
+            .subquery()
+        )
+        rows = (
+            db.session.query(Student, subq.c.avg_score)
+            .join(subq, Student.id == subq.c.student_id)
+            .filter(subq.c.avg_score < threshold)
+            .all()
+        )
+        students = [
+            {
+                'id': s.id,
+                'name': s.name,
+                'username': s.username,
+                'avg_score': round(avg, 1),
+            }
+            for s, avg in rows
+        ]
+        return jsonify({'success': True, 'students': students, 'count': len(students)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Audit Log ====================
+
+@admin_ai_bp.route('/api/admin/audit-log', methods=['GET'])
+@login_required
+@admin_required
+def api_get_audit_log():
+    """جلب سجل نشاط الادمن"""
+    action = request.args.get('action')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+
+    try:
+        from src.models.audit_log import AuditLog
+        query = AuditLog.query
+        if action:
+            query = query.filter_by(action=action)
+        total = query.count()
+        logs = query.order_by(AuditLog.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        return jsonify({
+            'success': True,
+            'logs': [
+                {
+                    'id': log.id,
+                    'action': log.action,
+                    'description': log.description,
+                    'admin_name': log.admin_name,
+                    'created_at': log.created_at.isoformat() if log.created_at else None,
+                }
+                for log in logs
+            ],
+            'total': total,
+        })
+    except ImportError:
+        # إذا لم يكن النموذج موجوداً، ارجع قائمة فارغة
+        return jsonify({'success': True, 'logs': [], 'total': 0})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'logs': []}), 500
