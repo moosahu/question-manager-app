@@ -1754,6 +1754,12 @@ def api_save_result():
 
         print(f"✅ الطالب موجود: {student.name} ({student.username})")
 
+        # ✅ التحقق من session_token إن أُرسل
+        session_token = data.get('session_token')
+        if session_token and student.session_token:
+            if student.session_token != session_token:
+                return jsonify({'success': False, 'error': 'جلسة غير صالحة، أعد تسجيل الدخول'}), 401
+
         try:
             from src.models.student_result import StudentResult
         except ImportError:

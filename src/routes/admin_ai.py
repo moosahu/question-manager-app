@@ -5,6 +5,7 @@ Admin AI Routes - واجهات API للأدمن للتحكم في نظام AI
 """
 
 from flask import Blueprint, request, jsonify, send_file
+from flask_login import current_user
 from functools import wraps
 from datetime import datetime, timedelta
 import json
@@ -29,7 +30,8 @@ def admin_required(f):
     """Decorator للتحقق من صلاحيات الأدمن"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # TODO: تحقق من JWT token أو session
+        if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'صلاحيات غير كافية'}), 403
         return f(*args, **kwargs)
     return decorated_function
 

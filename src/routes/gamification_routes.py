@@ -22,8 +22,17 @@ def student_required(f):
     """Decorator للتحقق من أن المستخدم طالب"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # TODO: التحقق من JWT token أو session
-        # للتبسيط، نفترض أن الطالب مسجل دخول
+        student_id = kwargs.get('student_id')
+        session_token = (
+            request.headers.get('X-Session-Token') or
+            (request.get_json(silent=True) or {}).get('session_token') or
+            request.args.get('session_token')
+        )
+        if not session_token or not student_id:
+            return jsonify({'success': False, 'error': 'مطلوب تسجيل الدخول'}), 401
+        student = Student.query.get(student_id)
+        if not student or not student.session_token or student.session_token != session_token:
+            return jsonify({'success': False, 'error': 'جلسة غير صالحة'}), 401
         return f(*args, **kwargs)
     return decorated_function
 
