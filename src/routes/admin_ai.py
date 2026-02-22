@@ -1613,26 +1613,27 @@ def test_automation():
 def api_admin_dashboard():
     """لوحة تحكم الادمن - إحصائيات سريعة"""
     from src.models.student import Student
-    from src.models.result import Result
-    from datetime import datetime, timedelta
+    from src.models.student_result import StudentResult
+    from datetime import datetime as dt
+    from sqlalchemy import func
 
     try:
         total_students = Student.query.count()
         active_students = Student.query.filter_by(is_active=True).count()
+        total_results = StudentResult.query.count()
 
-        # نشطون اليوم (سجلوا دخول اليوم)
-        today = datetime.utcnow().date()
-        today_start = datetime.combine(today, datetime.min.time())
-
-        # متوسط الدرجات
-        results = Result.query.all()
-        avg_score = 0.0
-        if results:
-            scores = [r.score for r in results if r.score is not None]
-            avg_score = sum(scores) / len(scores) if scores else 0.0
+        # متوسط الدرجات عبر SQL مباشرة (أسرع وأأمن)
+        avg_row = db.session.query(func.avg(StudentResult.score_percentage)).scalar()
+        avg_score = float(avg_row) if avg_row is not None else 0.0
 
         # نتائج اليوم
-        today_results = Result.query.filter(Result.created_at >= today_start).count() if hasattr(Result, 'created_at') else 0
+        try:
+            today_start = dt.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_results = StudentResult.query.filter(
+                StudentResult.created_at >= today_start
+            ).count()
+        except Exception:
+            today_results = 0
 
         return jsonify({
             'success': True,
@@ -1641,7 +1642,7 @@ def api_admin_dashboard():
                 'active_students': active_students,
                 'inactive_students': total_students - active_students,
                 'avg_score': round(avg_score, 1),
-                'total_results': len(results),
+                'total_results': total_results,
                 'today_results': today_results,
             }
         })
