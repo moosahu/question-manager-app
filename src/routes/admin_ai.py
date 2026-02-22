@@ -1610,7 +1610,6 @@ def test_automation():
 # ==================== Admin Dashboard ====================
 
 @admin_ai_bp.route('/dashboard', methods=['GET'])
-@admin_required
 def api_admin_dashboard():
     """لوحة تحكم الادمن - إحصائيات سريعة"""
     from src.models.student import Student
@@ -1653,7 +1652,6 @@ def api_admin_dashboard():
 # ==================== Targeted Notifications ====================
 
 @admin_ai_bp.route('/students/inactive', methods=['GET'])
-@admin_required
 def api_get_inactive_students():
     """طلاب لم يسجلوا دخول منذ X أيام"""
     from src.models.student import Student
@@ -1680,7 +1678,6 @@ def api_get_inactive_students():
 
 
 @admin_ai_bp.route('/students/low-score', methods=['GET'])
-@admin_required
 def api_get_low_score_students():
     """طلاب نتائجهم أقل من X%"""
     from src.models.student import Student
@@ -1718,7 +1715,6 @@ def api_get_low_score_students():
 # ==================== Audit Log ====================
 
 @admin_ai_bp.route('/audit-log', methods=['GET'])
-@admin_required
 def api_get_audit_log():
     """جلب سجل نشاط الادمن"""
     action = request.args.get('action')

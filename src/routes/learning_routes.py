@@ -23,30 +23,36 @@ def api_get_lesson_content(lesson_id):
     """
     API: جلب محتوى الدرس الكامل (ملخص + خريطة مفاهيم + تقدم الطالب)
     """
-    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
+    from flask_login import current_user
     from src.models.student import Student
-    
+
     student_id = None
-    
-    # محاولة 1: Session Cookie
-    if 'user_id' in session:
-        student_id = session['user_id']
-    
-    # محاولة 2: Device ID من Header
-    if not student_id:
-        device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
-        if device_id:
-            student = Student.query.filter_by(device_id=device_id).first()
-            if student:
-                student_id = student.id
-    
-    if not student_id:
-        return jsonify({
-            'success': False,
-            'error': 'يرجى تسجيل الدخول أولاً'
-        }), 401
-    
+    is_admin_view = False
+
+    # محاولة 0: أدمن عبر Flask-Login
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        is_admin_view = True
+
+    if not is_admin_view:
+        # محاولة 1: Session Cookie للطالب
+        if 'user_id' in session:
+            student_id = session['user_id']
+
+        # محاولة 2: Device ID من Header
+        if not student_id:
+            device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+            if device_id:
+                student = Student.query.filter_by(device_id=device_id).first()
+                if student:
+                    student_id = student.id
+
+        if not student_id:
+            return jsonify({
+                'success': False,
+                'error': 'يرجى تسجيل الدخول أولاً'
+            }), 401
+
     try:
         # التحقق من وجود الدرس
         lesson = Lesson.query.get(lesson_id)
@@ -67,21 +73,22 @@ def api_get_lesson_content(lesson_id):
             concept_map.view_count += 1
             db.session.commit()
         
-        # جلب أو إنشاء تقدم الطالب
-        progress = StudentLessonProgress.query.filter_by(
-            student_id=student_id,
-            lesson_id=lesson_id
-        ).first()
-        
-        if not progress:
-            progress = StudentLessonProgress(
+        # جلب تقدم الطالب (للطالب فقط، الأدمن لا يحتاج تقدم)
+        progress = None
+        if student_id:
+            progress = StudentLessonProgress.query.filter_by(
                 student_id=student_id,
-                lesson_id=lesson_id,
-                status='reading_summary'
-            )
-            db.session.add(progress)
-            db.session.commit()
-        
+                lesson_id=lesson_id
+            ).first()
+            if not progress:
+                progress = StudentLessonProgress(
+                    student_id=student_id,
+                    lesson_id=lesson_id,
+                    status='reading_summary'
+                )
+                db.session.add(progress)
+                db.session.commit()
+
         return jsonify({
             'success': True,
             'data': {
@@ -94,7 +101,7 @@ def api_get_lesson_content(lesson_id):
                 },
                 'summary': summary.to_dict() if summary else None,
                 'concept_map': concept_map.to_dict() if concept_map else None,
-                'progress': progress.to_dict()
+                'progress': progress.to_dict() if progress else None
             }
         })
         
