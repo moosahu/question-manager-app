@@ -440,6 +440,16 @@ try:
         except ImportError:
             print("Warning: Could not import Activity. Activity tracking will be disabled.")
             activity_available = False
+
+    # استيراد AuditLog لضمان إنشاء جدول audit_logs عند db.create_all()
+    try:
+        from src.models.audit_log import AuditLog
+    except ImportError:
+        try:
+            from models.audit_log import AuditLog
+        except ImportError:
+            print("Warning: Could not import AuditLog.")
+
 except ImportError:
     try:
         from models.user import User

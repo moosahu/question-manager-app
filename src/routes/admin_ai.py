@@ -1748,3 +1748,28 @@ def api_get_audit_log():
         return jsonify({'success': True, 'logs': [], 'total': 0})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'logs': []}), 500
+
+
+@admin_ai_bp.route('/audit-log', methods=['POST'])
+@admin_required
+def api_create_audit_log():
+    """إنشاء سجل نشاط يدوياً من تطبيق الموبايل — POST /api/admin/ai/audit-log"""
+    data = request.get_json() or {}
+    action = data.get('action', '').strip()
+    description = data.get('description', '').strip()
+
+    if not action or not description:
+        return jsonify({'success': False, 'error': 'action و description مطلوبان'}), 400
+
+    try:
+        from src.models.audit_log import AuditLog
+        AuditLog.log(
+            action=action,
+            description=description,
+            admin_name=current_user.username if current_user.is_authenticated else 'الادمن',
+            target_type=data.get('target_type'),
+            target_id=data.get('student_id') or data.get('target_id'),
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
