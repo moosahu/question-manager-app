@@ -1610,6 +1610,62 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ إعدادات الأمان</button>
                 </form>
+
+                {% if current_user.is_admin %}
+                <!-- ═══ رقم الجوال للـ 2FA (أدمن فقط) ═══ -->
+                <hr class="my-4">
+                <h5><i class="fas fa-mobile-alt"></i> رقم الجوال للتحقق بـ SMS</h5>
+                <div id="phone-section">
+                    {% if current_user.phone_number %}
+                    <div class="alert alert-success py-2 mb-2" style="font-size:13px;">
+                        📱 الرقم المرتبط ينتهي بـ <strong>{{ current_user.phone_number[-4:] }}</strong>
+                    </div>
+                    <button class="btn btn-outline-warning btn-sm" onclick="startPhoneFlow()">
+                        🔄 تغيير رقم الجوال
+                    </button>
+                    {% else %}
+                    <div class="alert alert-warning py-2 mb-2" style="font-size:13px;">
+                        ⚠️ لم يتم ربط رقم جوال بعد
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm" onclick="startPhoneFlow()">
+                        ➕ إضافة رقم جوال
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="phone-change-form" style="display:none; margin-top:16px;">
+                    <div id="recaptcha-settings" class="mb-2"></div>
+                    {% if current_user.phone_number %}
+                    <div id="phase-old">
+                        <p style="font-size:13px;color:#555;">أكّد رقمك الحالي (ينتهي بـ <strong>{{ current_user.phone_number[-4:] }}</strong>):</p>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">+966</span>
+                            <input type="tel" id="old_phone_input" class="form-control" maxlength="9" placeholder="5XXXXXXXX" inputmode="numeric">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="sendOldPhoneSMS()">📤 إرسال كود للرقم القديم</button>
+                    </div>
+                    <div id="phase-old-code" style="display:none; margin-top:12px;">
+                        <p style="font-size:13px;color:#555;">أدخل الكود المُرسل للرقم القديم:</p>
+                        <input type="text" id="old_code_input" class="form-control mb-2 text-center" maxlength="6" inputmode="numeric" placeholder="• • • • • •" style="letter-spacing:6px;font-size:20px;">
+                        <button class="btn btn-primary btn-sm" onclick="confirmOldCode()">تأكيد ←</button>
+                    </div>
+                    {% endif %}
+                    <div id="phase-new" {% if current_user.phone_number %}style="display:none;"{% endif %}>
+                        <p style="font-size:13px;color:#555;">أدخل رقم الجوال الجديد:</p>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">+966</span>
+                            <input type="tel" id="new_phone_input" class="form-control" maxlength="9" placeholder="5XXXXXXXX" inputmode="numeric">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="sendNewPhoneSMS()">📤 إرسال كود للرقم الجديد</button>
+                    </div>
+                    <div id="phase-new-code" style="display:none; margin-top:12px;">
+                        <p style="font-size:13px;color:#555;">أدخل الكود المُرسل للرقم الجديد:</p>
+                        <input type="text" id="new_code_input" class="form-control mb-2 text-center" maxlength="6" inputmode="numeric" placeholder="• • • • • •" style="letter-spacing:6px;font-size:20px;">
+                        <button class="btn btn-success btn-sm" onclick="saveNewPhone()">💾 حفظ الرقم الجديد</button>
+                    </div>
+                    <div id="phone-msg" class="mt-2" style="font-size:13px;"></div>
+                    <button class="btn btn-link btn-sm" onclick="cancelPhoneChange()" style="font-size:12px;">إلغاء</button>
+                </div>
+                {% endif %}
             </section>
 
             <section id="integration-settings" class="settings-section">
@@ -2481,5 +2537,211 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== نهاية دوال النسخ الاحتياطي =====
 </script>
+
+{% if current_user.is_admin and firebase_api_key %}
+{# ══════════════════════════════════════════════════════
+   Firebase Phone Management — Admin Settings
+   ══════════════════════════════════════════════════════ #}
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey:     "{{ firebase_api_key }}",
+  authDomain: "{{ firebase_project_id }}.firebaseapp.com",
+  projectId:  "{{ firebase_project_id }}",
+};
+const app  = initializeApp(firebaseConfig, 'settings-app');
+const auth = getAuth(app);
+
+let oldConfirmation  = null;
+let newConfirmation  = null;
+let recaptchaVerifier = null;
+
+function showPhoneMsg(msg, isError = false) {
+  const el = document.getElementById('phone-msg');
+  el.innerHTML = `<div class="alert alert-${isError ? 'danger' : 'success'} py-2"
+                       style="font-size:13px;">${msg}</div>`;
+}
+function clearPhoneMsg() {
+  document.getElementById('phone-msg').innerHTML = '';
+}
+
+async function initRecaptcha() {
+  if (!recaptchaVerifier) {
+    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-settings', {
+      size: 'normal',
+      'expired-callback': () => {
+        try { recaptchaVerifier.clear(); } catch(e) {}
+        recaptchaVerifier = null;
+      }
+    });
+    await recaptchaVerifier.render();
+  }
+  return recaptchaVerifier;
+}
+
+// ── نمط إظهار / إخفاء النموذج ──
+window.startPhoneFlow = function() {
+  document.getElementById('phone-change-form').style.display = 'block';
+  clearPhoneMsg();
+};
+
+window.cancelPhoneChange = function() {
+  document.getElementById('phone-change-form').style.display = 'none';
+  clearPhoneMsg();
+  oldConfirmation = null;
+  newConfirmation = null;
+  if (recaptchaVerifier) {
+    try { recaptchaVerifier.clear(); } catch(e) {}
+    recaptchaVerifier = null;
+  }
+  document.getElementById('recaptcha-settings').innerHTML = '';
+  ['old_phone_input','old_code_input','new_phone_input','new_code_input'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+};
+
+// ── المرحلة 1: إرسال كود للرقم القديم ──
+window.sendOldPhoneSMS = async function() {
+  clearPhoneMsg();
+  const raw = (document.getElementById('old_phone_input').value || '').trim();
+  if (!/^\d{9}$/.test(raw)) {
+    showPhoneMsg('أدخل 9 أرقام بدون الصفر ورمز الدولة', true);
+    return;
+  }
+  const phone = '+966' + raw;
+  try {
+    showPhoneMsg('⏳ جارٍ الإرسال...');
+    const rcv = await initRecaptcha();
+    oldConfirmation = await signInWithPhoneNumber(auth, phone, rcv);
+    document.getElementById('phase-old').style.display = 'none';
+    document.getElementById('phase-old-code').style.display = 'block';
+    showPhoneMsg('✅ تم إرسال الكود للرقم القديم');
+  } catch(e) {
+    showPhoneMsg('خطأ في الإرسال: ' + (e.message || e.code), true);
+    if (recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch(er) {}
+      recaptchaVerifier = null;
+      document.getElementById('recaptcha-settings').innerHTML = '';
+    }
+  }
+};
+
+// ── المرحلة 1: تأكيد كود الرقم القديم ──
+window.confirmOldCode = async function() {
+  clearPhoneMsg();
+  const code = (document.getElementById('old_code_input').value || '').trim();
+  if (code.length !== 6) { showPhoneMsg('الكود 6 أرقام', true); return; }
+  if (!oldConfirmation) { showPhoneMsg('أرسل الكود أولاً', true); return; }
+  try {
+    showPhoneMsg('⏳ جارٍ التحقق...');
+    const result  = await oldConfirmation.confirm(code);
+    const idToken = await result.user.getIdToken();
+    const res  = await fetch('/settings/admin-phone/verify-firebase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ id_token: idToken, phase: 'old' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showPhoneMsg(data.message);
+      document.getElementById('phase-old-code').style.display = 'none';
+      document.getElementById('phase-new').style.display = 'block';
+      // إعادة تعيين reCAPTCHA للرقم الجديد
+      if (recaptchaVerifier) {
+        try { recaptchaVerifier.clear(); } catch(e) {}
+        recaptchaVerifier = null;
+        document.getElementById('recaptcha-settings').innerHTML = '';
+      }
+    } else {
+      showPhoneMsg(data.message || 'فشل التحقق', true);
+    }
+  } catch(e) {
+    showPhoneMsg(
+      e.code === 'auth/invalid-verification-code'
+        ? 'الكود غير صحيح، حاول مرة أخرى'
+        : 'خطأ: ' + (e.message || e.code),
+      true
+    );
+  }
+};
+
+// ── المرحلة 2: إرسال كود للرقم الجديد ──
+window.sendNewPhoneSMS = async function() {
+  clearPhoneMsg();
+  const raw = (document.getElementById('new_phone_input').value || '').trim();
+  if (!/^\d{9}$/.test(raw)) {
+    showPhoneMsg('أدخل 9 أرقام بدون الصفر ورمز الدولة', true);
+    return;
+  }
+  const phone = '+966' + raw;
+  try {
+    showPhoneMsg('⏳ جارٍ الإرسال...');
+    const rcv = await initRecaptcha();
+    newConfirmation = await signInWithPhoneNumber(auth, phone, rcv);
+    document.getElementById('phase-new').style.display = 'none';
+    document.getElementById('phase-new-code').style.display = 'block';
+    showPhoneMsg('✅ تم إرسال الكود للرقم الجديد');
+  } catch(e) {
+    showPhoneMsg('خطأ في الإرسال: ' + (e.message || e.code), true);
+    if (recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch(er) {}
+      recaptchaVerifier = null;
+      document.getElementById('recaptcha-settings').innerHTML = '';
+    }
+  }
+};
+
+// ── المرحلة 2: حفظ الرقم الجديد ──
+window.saveNewPhone = async function() {
+  clearPhoneMsg();
+  const code = (document.getElementById('new_code_input').value || '').trim();
+  if (code.length !== 6) { showPhoneMsg('الكود 6 أرقام', true); return; }
+  if (!newConfirmation) { showPhoneMsg('أرسل الكود أولاً', true); return; }
+  try {
+    showPhoneMsg('⏳ جارٍ الحفظ...');
+    const result  = await newConfirmation.confirm(code);
+    const idToken = await result.user.getIdToken();
+    const res  = await fetch('/settings/admin-phone/verify-firebase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ id_token: idToken, phase: 'new' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showPhoneMsg(data.message + ' — جارٍ تحديث الصفحة...');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showPhoneMsg(data.message || 'فشل الحفظ', true);
+    }
+  } catch(e) {
+    showPhoneMsg(
+      e.code === 'auth/invalid-verification-code'
+        ? 'الكود غير صحيح، حاول مرة أخرى'
+        : 'خطأ: ' + (e.message || e.code),
+      true
+    );
+  }
+};
+</script>
+{% else %}
+{# Firebase not configured or not admin — stub functions to prevent JS errors #}
+<script>
+window.startPhoneFlow = function() {
+  document.getElementById('phone-change-form').style.display = 'block';
+  document.getElementById('phone-msg').innerHTML =
+    '<div class="alert alert-warning py-2" style="font-size:13px;">⚠️ Firebase غير مضبوط في الخادم</div>';
+};
+window.cancelPhoneChange = function() {
+  document.getElementById('phone-change-form').style.display = 'none';
+};
+['sendOldPhoneSMS','confirmOldCode','sendNewPhoneSMS','saveNewPhone'].forEach(fn => {
+  window[fn] = function() { alert('Firebase غير مضبوط'); };
+});
+</script>
+{% endif %}
 {% endblock %}
 

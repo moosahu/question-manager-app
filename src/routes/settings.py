@@ -8,6 +8,7 @@ import pyotp
 import qrcode
 import io
 import base64
+import os
 
 try:
     from extensions import db
@@ -162,11 +163,13 @@ def index():
                 return redirect(url_for('settings.index'))
     
     # إصلاح مسار template
-    return render_template('settings.html', 
+    return render_template('settings.html',
                           profile_form=profile_form,
                           notification_form=notification_form,
                           security_form=security_form,
-                          integration_form=integration_form)
+                          integration_form=integration_form,
+                          firebase_api_key=os.environ.get('FIREBASE_WEB_API_KEY', ''),
+                          firebase_project_id=os.environ.get('FIREBASE_PROJECT_ID', 'chem-tahsili'))
 
 @settings_bp.route('/setup-2fa', methods=['GET', 'POST'])
 @login_required
