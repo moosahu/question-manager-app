@@ -1004,3 +1004,82 @@ def restore_backup():
             'message': f'خطأ في استعادة النسخة الاحتياطية: {str(e)}'
         }), 500
 
+
+
+
+# ==================== إدارة رقم جوال الأدمن للـ 2FA ====================
+
+@settings_bp.route('/admin-phone', methods=['GET'])
+@login_required
+def admin_phone_page():
+    """عرض إعدادات رقم الجوال للأدمن"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'غير مصرح'}), 403
+    from src.routes.auth import _mask_phone
+    return jsonify({
+        'has_phone': bool(current_user.phone_number),
+        'phone_masked': _mask_phone(current_user.phone_number) if current_user.phone_number else None
+    })
+
+
+@settings_bp.route('/admin-phone/verify-firebase', methods=['POST'])
+@login_required
+def admin_phone_verify_firebase():
+    """
+    تحديث رقم الجوال المرتبط بالأدمن
+    - إذا يوجد رقم قديم: يُشترط إثبات ملكية الرقم القديم أولاً (id_token من الرقم القديم)
+    - ثم قبول id_token من الرقم الجديد لحفظه
+    مرحلة واحدة: يُرسل id_token من الرقم الجديد بعد التحقق
+    """
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
+
+    data = request.get_json() or {}
+    id_token     = data.get('id_token', '').strip()
+    phase        = data.get('phase', 'new')  # 'old' أو 'new'
+
+    if not id_token:
+        return jsonify({'success': False, 'message': 'token مفقود'}), 400
+
+    try:
+        import firebase_admin
+        from firebase_admin import auth as firebase_auth
+        decoded       = firebase_auth.verify_id_token(id_token)
+        verified_phone = decoded.get('phone_number', '')
+
+        if not verified_phone:
+            return jsonify({'success': False, 'message': 'لا يوجد رقم في الـ token'}), 400
+
+        if phase == 'old':
+            # المرحلة 1: التحقق من الرقم القديم
+            if not current_user.phone_number:
+                return jsonify({'success': False, 'message': 'لا يوجد رقم قديم لتأكيده'}), 400
+            if verified_phone != current_user.phone_number:
+                return jsonify({'success': False, 'message': 'الرقم لا يطابق الحساب'}), 403
+            # نجح — خزّن في session
+            session['phone_change_old_verified'] = True
+            return jsonify({'success': True, 'message': 'تم التحقق من الرقم القديم ✅'})
+
+        elif phase == 'new':
+            # المرحلة 2: حفظ الرقم الجديد
+            # إذا كان هناك رقم قديم يجب المرور بمرحلة 'old' أولاً
+            if current_user.phone_number and not session.get('phone_change_old_verified'):
+                return jsonify({'success': False,
+                                'message': 'يجب التحقق من الرقم القديم أولاً'}), 403
+
+            current_user.phone_number = verified_phone
+            from src.extensions import db
+            db.session.commit()
+            session.pop('phone_change_old_verified', None)
+
+            from src.routes.auth import _mask_phone
+            return jsonify({
+                'success': True,
+                'message': f'تم حفظ الرقم الجديد ✅',
+                'phone_masked': _mask_phone(verified_phone)
+            })
+
+        return jsonify({'success': False, 'message': 'phase غير صحيح'}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'خطأ: {str(e)}'}), 500

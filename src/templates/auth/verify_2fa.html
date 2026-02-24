@@ -5,7 +5,6 @@
 <div class="container mt-5" style="max-width: 440px;">
   <div class="card shadow-sm border-0" style="border-radius:16px; overflow:hidden;">
 
-    <!-- Header -->
     <div class="card-header text-white text-center py-4"
          style="background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);">
       <h4 class="mb-1">🔐 التحقق بخطوتين</h4>
@@ -32,7 +31,7 @@
       </div>
       {% endif %}
 
-      <!-- ═══ قسم: Authenticator ═══ -->
+      <!-- ═══ قسم: Authenticator App ═══ -->
       <div id="section_app">
         <p class="text-muted" style="font-size:14px;">
           افتح تطبيق Google Authenticator وأدخل الكود الظاهر.
@@ -53,49 +52,45 @@
         </form>
       </div>
 
-      <!-- ═══ قسم: SMS (Firebase Phone Auth) ═══ -->
+      <!-- ═══ قسم: SMS ═══ -->
       <div id="section_sms" style="display:none;">
 
-        <!-- الخطوة 1: إدخال رقم الجوال -->
-        <div id="step_phone">
-          <p class="text-muted" style="font-size:14px;">
-            أدخل رقم جوالك لاستلام كود SMS.
-          </p>
-          <div class="input-group mb-2">
-            <span class="input-group-text">+966</span>
-            <input type="tel" id="phone_input" class="form-control form-control-lg"
-                   placeholder="5XXXXXXXX" maxlength="9" inputmode="numeric">
+        {% if saved_phone_masked %}
+          <!-- ✅ رقم محفوظ — يُرسل الكود إليه مباشرة -->
+          <div class="alert alert-info py-2 mb-3" style="font-size:13px;">
+            📱 سيُرسل الكود إلى: <strong>{{ saved_phone_masked }}</strong>
           </div>
-          <small class="text-muted">مثال: 501234567</small>
-          <br><br>
-          <!-- reCAPTCHA container (مطلوب من Firebase) -->
           <div id="recaptcha-container" class="mb-3"></div>
-          <button type="button" id="btn_send_sms" class="btn btn-outline-primary w-100"
+          <button type="button" id="btn_send_sms" class="btn btn-outline-primary w-100 mb-3"
                   onclick="sendSMS()">
             📤 إرسال كود SMS
           </button>
-        </div>
 
-        <!-- الخطوة 2: إدخال الكود -->
-        <div id="step_code" style="display:none;">
-          <div class="alert alert-success py-2" style="font-size:13px;" id="sms_sent_msg">
-            ✅ تم إرسال الكود
+          <div id="step_code" style="display:none;">
+            <div class="mb-3">
+              <label class="form-label fw-bold">كود SMS</label>
+              <input type="text" id="sms_code_input"
+                     class="form-control form-control-lg text-center"
+                     placeholder="• • • • • •" maxlength="6" inputmode="numeric"
+                     style="letter-spacing:8px; font-size:24px;">
+            </div>
+            <button type="button" class="btn btn-primary w-100 py-2 fw-bold"
+                    onclick="verifySMSCode()">
+              ✅ تأكيد الدخول
+            </button>
+            <button type="button" class="btn btn-link w-100 mt-1" onclick="resetSMS()"
+                    style="font-size:13px;">
+              ← إعادة الإرسال
+            </button>
           </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold">كود SMS</label>
-            <input type="text" id="sms_code_input" class="form-control form-control-lg text-center"
-                   placeholder="• • • • • •" maxlength="6" inputmode="numeric"
-                   style="letter-spacing:8px; font-size:24px;">
+
+        {% else %}
+          <!-- ❌ لا يوجد رقم محفوظ — يجب التسجيل أولاً -->
+          <div class="alert alert-warning" style="font-size:14px;">
+            ⚠️ لم يتم ربط رقم جوال بحسابك بعد.<br>
+            سجّل دخولك بتطبيق Authenticator، ثم أضف رقم جوالك من <strong>الإعدادات</strong>.
           </div>
-          <button type="button" class="btn btn-primary w-100 py-2 fw-bold"
-                  onclick="verifySMSCode()">
-            ✅ تأكيد الدخول
-          </button>
-          <button type="button" class="btn btn-link w-100 mt-2" onclick="resetSMS()"
-                  style="font-size:13px;">
-            ← تغيير رقم الجوال
-          </button>
-        </div>
+        {% endif %}
 
         <div id="sms_error" class="alert alert-danger mt-2" style="display:none; font-size:13px;"></div>
         <div id="sms_loading" class="text-center mt-2" style="display:none;">
@@ -104,7 +99,6 @@
         </div>
       </div>
 
-      <!-- رابط الرجوع -->
       <div class="text-center mt-3">
         <a href="{{ url_for('auth.login') }}" class="text-muted" style="font-size:13px;">
           ← العودة لصفحة تسجيل الدخول
@@ -114,37 +108,35 @@
   </div>
 </div>
 
-<!-- Firebase JS SDK -->
+<!-- Firebase JS SDK — يُحمَّل فقط إذا يوجد رقم محفوظ وAPI key -->
+{% if saved_phone_masked and firebase_api_key %}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, RecaptchaVerifier, signInWithPhoneNumber }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyDyn94bHLn1C4InJTd2aJsZ9lC1ido9SWQ",
-    authDomain: "chem-tahsili.firebaseapp.com",
-    projectId: "chem-tahsili",
+    apiKey:    "{{ firebase_api_key }}",
+    authDomain:"{{ firebase_project_id }}.firebaseapp.com",
+    projectId: "{{ firebase_project_id }}",
   };
 
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+
+  // الرقم الكامل يُطلب من السيرفر عند الحاجة فقط (لا يُضمَّن في HTML)
+  let SAVED_PHONE = null;
 
   let confirmationResult = null;
   let recaptchaVerifier  = null;
 
   function showError(msg) {
     const el = document.getElementById('sms_error');
-    el.textContent = msg;
-    el.style.display = 'block';
+    el.textContent = msg; el.style.display = 'block';
   }
-  function hideError() {
-    document.getElementById('sms_error').style.display = 'none';
-  }
-  function setLoading(val) {
-    document.getElementById('sms_loading').style.display = val ? 'block' : 'none';
-  }
+  function hideError() { document.getElementById('sms_error').style.display = 'none'; }
+  function setLoading(v) { document.getElementById('sms_loading').style.display = v ? 'block' : 'none'; }
 
-  // ═══ تبديل الأقسام ═══
   document.querySelectorAll('input[name="method"]').forEach(r => {
     r.addEventListener('change', function () {
       document.getElementById('section_app').style.display =
@@ -154,93 +146,67 @@
     });
   });
 
-  // ═══ إرسال SMS ═══
   window.sendSMS = async function () {
     hideError();
-    const raw = document.getElementById('phone_input').value.trim();
-    if (!/^\d{9}$/.test(raw)) {
-      showError('أدخل 9 أرقام (بدون الصفر ورمز الدولة)');
-      return;
-    }
-    const phone = '+966' + raw;
     document.getElementById('btn_send_sms').disabled = true;
     setLoading(true);
-
     try {
+      // ✅ اطلب الرقم الكامل من السيرفر (لا يُعرض في HTML)
+      if (!SAVED_PHONE) {
+        const phoneRes = await fetch("{{ url_for('auth.get_admin_phone') }}", { method: 'POST' });
+        const phoneData = await phoneRes.json();
+        if (!phoneData.success) { showError('تعذّر جلب رقم الجوال'); return; }
+        SAVED_PHONE = phoneData.phone;
+      }
       if (!recaptchaVerifier) {
         recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'normal',
-          callback: () => {},
-          'expired-callback': () => {
-            recaptchaVerifier.clear();
-            recaptchaVerifier = null;
-          }
+          'expired-callback': () => { recaptchaVerifier.clear(); recaptchaVerifier = null; }
         });
         await recaptchaVerifier.render();
       }
-
-      confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
-
-      document.getElementById('step_phone').style.display = 'none';
-      document.getElementById('step_code').style.display  = 'block';
-      document.getElementById('sms_sent_msg').textContent =
-        `✅ تم إرسال الكود إلى ${phone.replace('+966', '+966-')}`;
+      confirmationResult = await signInWithPhoneNumber(auth, SAVED_PHONE, recaptchaVerifier);
+      document.getElementById('btn_send_sms').style.display = 'none';
+      document.getElementById('step_code').style.display = 'block';
     } catch (e) {
-      showError('خطأ: ' + (e.message || e.code));
+      showError('خطأ في الإرسال: ' + (e.message || e.code));
       document.getElementById('btn_send_sms').disabled = false;
       if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ═══ التحقق من الكود ═══
   window.verifySMSCode = async function () {
     hideError();
     const code = document.getElementById('sms_code_input').value.trim();
     if (code.length !== 6) { showError('الكود 6 أرقام'); return; }
-    if (!confirmationResult)  { showError('أرسل الكود أولاً'); return; }
-
+    if (!confirmationResult) { showError('أرسل الكود أولاً'); return; }
     setLoading(true);
     try {
-      const result = await confirmationResult.confirm(code);
+      const result  = await confirmationResult.confirm(code);
       const idToken = await result.user.getIdToken();
-      const phone   = result.user.phoneNumber;
-
-      // إرسال الـ token للـ backend
       const res = await fetch("{{ url_for('auth.verify_firebase_phone') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken, phone_number: phone })
+        body: JSON.stringify({ id_token: idToken, phone_number: result.user.phoneNumber })
       });
       const data = await res.json();
-
-      if (data.success) {
-        window.location.href = data.redirect || '/';
-      } else {
-        showError(data.message || 'فشل التحقق');
-      }
+      if (data.success) { window.location.href = data.redirect || '/'; }
+      else { showError(data.message || 'فشل التحقق'); }
     } catch (e) {
-      if (e.code === 'auth/invalid-verification-code') {
-        showError('الكود غير صحيح، حاول مرة أخرى');
-      } else {
-        showError('خطأ: ' + (e.message || e.code));
-      }
-    } finally {
-      setLoading(false);
-    }
+      showError(e.code === 'auth/invalid-verification-code' ?
+        'الكود غير صحيح' : 'خطأ: ' + (e.message || e.code));
+    } finally { setLoading(false); }
   };
 
-  // ═══ إعادة تعيين ═══
-  window.resetSMS = function () {
+  window.resetSMS = async function () {
     confirmationResult = null;
     if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-    document.getElementById('step_phone').style.display = 'block';
-    document.getElementById('step_code').style.display  = 'none';
-    document.getElementById('btn_send_sms').disabled    = false;
-    document.getElementById('phone_input').value        = '';
+    document.getElementById('btn_send_sms').style.display = 'block';
+    document.getElementById('btn_send_sms').disabled = false;
+    document.getElementById('step_code').style.display = 'none';
     document.getElementById('recaptcha-container').innerHTML = '';
     hideError();
   };
 </script>
+{% endif %}
 {% endblock %}

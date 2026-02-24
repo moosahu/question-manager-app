@@ -130,13 +130,29 @@ def verify_2fa():
         else:
             flash('رمز التحقق غير صحيح أو منتهي الصلاحية', 'danger')
 
+    import os
     return render_template(
         'auth/verify_2fa.html',
         form=form,
         has_totp=has_totp,
         email_otp_sent=email_otp_sent,
-        admin_email_masked=_mask_email(user.email) if user.email else None
+        admin_email_masked=_mask_email(user.email) if user.email else None,
+        firebase_api_key=os.environ.get('FIREBASE_WEB_API_KEY', ''),
+        firebase_project_id=os.environ.get('FIREBASE_PROJECT_ID', 'chem-tahsili'),
+        # ✅ رقم مخفي فقط للعرض — الرقم الكامل يُطلب عند الحاجة عبر /get-admin-phone
+        saved_phone_masked=_mask_phone(user.phone_number) if user.phone_number else None
     )
+
+
+@auth_bp.route("/get-admin-phone", methods=["POST"])
+def get_admin_phone():
+    """إرجاع الرقم الكامل للـ JS فقط عند بدء Firebase Auth (محمي بالجلسة)"""
+    if 'pre_2fa_user_id' not in session:
+        return jsonify({'success': False}), 400
+    user = User.query.get(session['pre_2fa_user_id'])
+    if not user or not user.is_admin or not user.phone_number:
+        return jsonify({'success': False}), 403
+    return jsonify({'success': True, 'phone': user.phone_number})
 
 
 @auth_bp.route("/send-admin-otp", methods=["POST"])
@@ -176,6 +192,13 @@ def _mask_email(email):
     local, domain = email.split('@', 1)
     masked = local[0] + '***' if len(local) > 1 else '***'
     return f"{masked}@{domain}"
+
+
+def _mask_phone(phone):
+    """إخفاء جزء من رقم الجوال: +966 5XX XXX X89"""
+    if not phone or len(phone) < 4:
+        return phone
+    return phone[:-4].replace(phone[4:-4], '*' * len(phone[4:-4])) if len(phone) > 8 else phone[:3] + '****'
 
 @auth_bp.route("/logout")
 @login_required
