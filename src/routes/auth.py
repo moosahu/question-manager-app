@@ -155,6 +155,38 @@ def get_admin_phone():
     return jsonify({'success': True, 'phone': user.phone_number})
 
 
+@auth_bp.route("/check-phone", methods=["POST"])
+def check_phone():
+    """
+    التحقق المسبق: هل الرقم المُدخل مرتبط بهذا الحساب؟
+    يُستدعى قبل إرسال SMS — إذا الرقم مختلف يُرفض فوراً
+    """
+    if 'pre_2fa_user_id' not in session:
+        return jsonify({'success': False, 'message': 'جلسة منتهية'}), 400
+
+    user = User.query.get(session['pre_2fa_user_id'])
+    if not user or not user.is_admin:
+        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
+
+    data = request.get_json() or {}
+    entered_phone = data.get('phone', '').strip()
+
+    if not user.phone_number:
+        return jsonify({'success': False,
+                        'message': 'لم يتم ربط رقم جوال بحسابك، سجّل دخولك بتطبيق Authenticator ثم أضف رقمك من الإعدادات'}), 400
+
+    # تطبيع الرقمين للمقارنة (إزالة + والمسافات)
+    def normalize(p):
+        return ''.join(c for c in (p or '') if c.isdigit())
+
+    if normalize(entered_phone) != normalize(user.phone_number):
+        return jsonify({'success': False,
+                        'message': '❌ الجوال المُدخل غير مرتبط بحسابك'}), 403
+
+    # ✅ الرقم صحيح — أرجع الرقم الكامل للـ Firebase
+    return jsonify({'success': True, 'phone': user.phone_number})
+
+
 @auth_bp.route("/send-admin-otp", methods=["POST"])
 def send_admin_otp():
     """إرسال كود OTP للأدمن عبر الإيميل"""
@@ -195,10 +227,11 @@ def _mask_email(email):
 
 
 def _mask_phone(phone):
-    """إخفاء جزء من رقم الجوال: +966 5XX XXX X89"""
-    if not phone or len(phone) < 4:
-        return phone
-    return phone[:-4].replace(phone[4:-4], '*' * len(phone[4:-4])) if len(phone) > 8 else phone[:3] + '****'
+    """إرجاع آخر 4 أرقام فقط: XXXX"""
+    if not phone:
+        return None
+    digits = ''.join(c for c in phone if c.isdigit())
+    return digits[-4:] if len(digits) >= 4 else digits
 
 @auth_bp.route("/logout")
 @login_required
