@@ -1502,6 +1502,18 @@ def api_save_notification():
         )
 
         db.session.add(notification)
+        db.session.flush()  # نحصل على notification.id قبل commit
+
+        # ✅ ربط الإشعار بالطالب في student_notifications
+        # حتى يشتغل mark-as-read و delete لاحقاً
+        from src.models.notification import StudentNotification
+        student_notif = StudentNotification(
+            notification_id=notification.id,
+            student_id=student_id,
+            is_read=False,
+            created_at=get_utc_time()
+        )
+        db.session.add(student_notif)
         db.session.commit()
 
         print(f"✅ تم حفظ الإشعار بنجاح - ID: {notification.id}")
@@ -1541,7 +1553,7 @@ def api_mark_notification_read(notification_id):
                 'error': 'معرف المستخدم مطلوب'
             }), 400
         
-        # تحديث حالة الإشعار للطالب في student_notifications
+        # تحديث student_notifications أولاً
         result = db.session.execute(
             db.text("""
                 UPDATE student_notifications
@@ -1551,26 +1563,37 @@ def api_mark_notification_read(notification_id):
             """),
             {'notification_id': notification_id, 'student_id': user_id}
         )
+        # تحديث notifications مباشرة دائماً
+        db.session.execute(
+            db.text("""
+                UPDATE notifications
+                SET is_read = TRUE, read_at = NOW()
+                WHERE id = :notification_id
+            """),
+            {'notification_id': notification_id}
+        )
         db.session.commit()
 
-        # (اختياري) تحديث حالة الإشعار العامة في جدول notifications
-        if result.rowcount > 0:
-            db.session.execute(
-                db.text("""
-                    UPDATE notifications
-                    SET is_read = TRUE, read_at = NOW()
-                    WHERE id = :notification_id
-                """),
-                {'notification_id': notification_id}
-            )
-            db.session.commit()
-        
+        # إذا ما كان في student_notifications → أنشئ record وعلّمه مقروء
         if result.rowcount == 0:
-            print(f"❌ الإشعار غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الإشعار غير موجود'
-            }), 404
+            notif_exists = db.session.execute(
+                db.text("SELECT id FROM notifications WHERE id = :id"),
+                {'id': notification_id}
+            ).fetchone()
+            if notif_exists:
+                db.session.execute(
+                    db.text("""
+                        INSERT INTO student_notifications
+                            (notification_id, student_id, is_read, read_at, created_at)
+                        VALUES (:notif_id, :student_id, TRUE, NOW(), NOW())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {'notif_id': notification_id, 'student_id': user_id}
+                )
+                db.session.commit()
+            else:
+                print(f"❌ الإشعار {notification_id} غير موجود")
+                return jsonify({'success': False, 'error': 'الإشعار غير موجود'}), 404
         
         print(f"✅ تم تحديث حالة الإشعار إلى مقروء")
         print(f"========== End Mark Notification Read Request ==========\n")
@@ -2036,27 +2059,50 @@ def api_delete_notification(notification_id):
         # جلب الإشعار
         notification = Notification.query.get(notification_id)
         if not notification:
-            print(f"❌ الإشعار غير موجود")
-            return jsonify({
-                'success': False,
-                'error': 'الإشعار غير موجود'
-            }), 404
-        
-        # التحقق من أن الإشعار يخص الطالب
-        if student_id and notification.student_id != student_id:
-            print(f"❌ الإشعار لا يخص هذا الطالب")
-            return jsonify({
-                'success': False,
-                'error': 'الإشعار لا يخص هذا الطالب'
-            }), 403
-        
-        # حذف الإشعار
+            # قد يكون الإشعار محذوفاً من notifications لكن لا زال في student_notifications
+            # احذفه من student_notifications وأرجع نجاح حتى لا يتكرر الطلب
+            if student_id:
+                db.session.execute(
+                    db.text("""
+                        DELETE FROM student_notifications
+                        WHERE notification_id = :notif_id AND student_id = :student_id
+                    """),
+                    {'notif_id': notification_id, 'student_id': student_id}
+                )
+                db.session.commit()
+            print(f"⚠️ الإشعار {notification_id} غير موجود في notifications — تم تنظيف student_notifications")
+            return jsonify({'success': True, 'message': 'تم الحذف'}), 200
+
+        # التحقق من أن الإشعار يخص الطالب (notifications.student_id أو student_notifications)
+        if student_id and notification.student_id != int(student_id):
+            # تحقق إذا كان مربوطاً عبر student_notifications
+            linked = db.session.execute(
+                db.text("SELECT id FROM student_notifications WHERE notification_id = :nid AND student_id = :sid"),
+                {'nid': notification_id, 'sid': student_id}
+            ).fetchone()
+            if not linked:
+                print(f"❌ الإشعار لا يخص هذا الطالب")
+                return jsonify({'success': False, 'error': 'الإشعار لا يخص هذا الطالب'}), 403
+            # احذف رابط student_notifications فقط
+            db.session.execute(
+                db.text("DELETE FROM student_notifications WHERE notification_id = :nid AND student_id = :sid"),
+                {'nid': notification_id, 'sid': student_id}
+            )
+            db.session.commit()
+            print(f"✅ تم حذف رابط الإشعار من student_notifications")
+            return jsonify({'success': True, 'message': 'تم حذف الإشعار بنجاح'}), 200
+
+        # حذف من student_notifications أولاً ثم notifications
+        db.session.execute(
+            db.text("DELETE FROM student_notifications WHERE notification_id = :nid"),
+            {'nid': notification_id}
+        )
         db.session.delete(notification)
         db.session.commit()
-        
+
         print(f"✅ تم حذف الإشعار بنجاح")
         print(f"========== End Delete Notification Request ==========\n")
-        
+
         return jsonify({
             'success': True,
             'message': 'تم حذف الإشعار بنجاح'
