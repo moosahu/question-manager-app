@@ -3932,6 +3932,42 @@ def get_course_questions_count(course_id):
         }), 500
 
 
+# ===== رفع صورة للأسئلة من التطبيق =====
+@api_bp.route("/upload-image", methods=["POST"])
+@login_required
+def upload_image_api():
+    """
+    رفع صورة إلى Cloudinary وإرجاع الرابط
+    يُستخدم من التطبيق لرفع صور الأسئلة والخيارات
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'لم يتم إرسال صورة'}), 400
+
+        file = request.files['image']
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'الملف فارغ'}), 400
+
+        subfolder = request.form.get('subfolder', 'questions')
+
+        # استخدام دالة save_upload من question.py
+        try:
+            from src.routes.question import save_upload
+        except ImportError:
+            from routes.question import save_upload
+
+        image_url = save_upload(file, subfolder=subfolder)
+
+        if image_url:
+            return jsonify({'success': True, 'url': image_url}), 200
+        else:
+            return jsonify({'success': False, 'error': 'فشل رفع الصورة، تحقق من نوع الملف (png, jpg, jpeg, gif)'}), 400
+
+    except Exception as e:
+        logger.error(f"Error uploading image: {e}")
+        return jsonify({'success': False, 'error': f'خطأ: {str(e)}'}), 500
+
+
 # ===== إضافة سؤال جديد من التطبيق =====
 @api_bp.route("/questions", methods=["POST"])
 @login_required
