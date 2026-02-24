@@ -27,6 +27,7 @@ class User(db.Model, UserMixin):
     is_admin        = db.Column(db.Boolean, default=False)
     two_factor_auth = db.Column(db.Boolean, default=False, nullable=False)
     totp_secret     = db.Column(db.String(32), nullable=True)
+    phone_number    = db.Column(db.String(20), nullable=True)  # للتحقق عبر SMS
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

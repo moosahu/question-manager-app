@@ -231,6 +231,68 @@ def enable_2fa_notification():
         current_app.logger.error(f"Error in enable_2fa_notification: {e}")
         return jsonify({"success": False, "message": "حدث خطأ في إرسال الإشعار"})
 
+@auth_bp.route("/verify-firebase-phone", methods=["POST"])
+def verify_firebase_phone():
+    """التحقق من Firebase Phone Auth ID token وإتمام تسجيل الدخول"""
+    if 'pre_2fa_user_id' not in session:
+        return jsonify({'success': False, 'message': 'جلسة منتهية، أعد تسجيل الدخول'}), 400
+
+    data = request.get_json() or {}
+    id_token = data.get('id_token', '').strip()
+    phone_number = data.get('phone_number', '').strip()
+
+    if not id_token:
+        return jsonify({'success': False, 'message': 'الـ token مفقود'}), 400
+
+    user = User.query.get(session['pre_2fa_user_id'])
+    if not user or not user.is_admin:
+        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
+
+    try:
+        import firebase_admin
+        from firebase_admin import auth as firebase_auth
+
+        # التحقق من الـ ID token باستخدام Firebase Admin SDK
+        decoded = firebase_auth.verify_id_token(id_token)
+        verified_phone = decoded.get('phone_number', '')
+
+        if not verified_phone:
+            return jsonify({'success': False, 'message': 'لا يوجد رقم جوال في الـ token'}), 400
+
+        # ✅ إذا كان الأدمن سبق وحفظ رقمه — تحقق أنه نفسه
+        if user.phone_number and user.phone_number != verified_phone:
+            return jsonify({'success': False, 'message': 'رقم الجوال لا يطابق الحساب'}), 403
+
+        # ✅ حفظ الرقم إذا كان أول مرة
+        if not user.phone_number:
+            user.phone_number = verified_phone
+            db.session.commit()
+
+        # ✅ إتمام تسجيل الدخول
+        login_user(user, remember=session.pop('pre_2fa_remember', False))
+        session.pop('pre_2fa_user_id', None)
+
+        if notifications_available and UserNotifications:
+            try:
+                UserNotifications.notify_user_login_2fa(
+                    username=user.username,
+                    user_id=user.id
+                )
+            except Exception:
+                pass
+
+        current_app.logger.info(f"✅ Admin {user.username} logged in via Firebase Phone Auth")
+        return jsonify({'success': True, 'redirect': url_for('dashboard')})
+
+    except firebase_admin.auth.InvalidIdTokenError:
+        return jsonify({'success': False, 'message': 'كود غير صالح أو منتهي الصلاحية'}), 401
+    except firebase_admin.auth.ExpiredIdTokenError:
+        return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، أعد المحاولة'}), 401
+    except Exception as e:
+        current_app.logger.error(f"Firebase phone verify error: {e}")
+        return jsonify({'success': False, 'message': f'خطأ: {str(e)}'}), 500
+
+
 @auth_bp.route("/disable_2fa_notification", methods=["POST"])
 @login_required
 def disable_2fa_notification():

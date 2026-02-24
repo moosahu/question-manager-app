@@ -19,111 +19,228 @@
       <div class="mb-3">
         <div class="btn-group w-100" role="group">
           <input type="radio" class="btn-check" name="method" id="method_app" value="app"
-                 {{ 'checked' if not email_otp_sent else '' }} autocomplete="off">
+                 autocomplete="off" checked>
           <label class="btn btn-outline-primary" for="method_app">
             📱 تطبيق Authenticator
           </label>
-
-          <input type="radio" class="btn-check" name="method" id="method_email" value="email"
-                 {{ 'checked' if email_otp_sent else '' }} autocomplete="off">
-          <label class="btn btn-outline-primary" for="method_email">
-            📧 كود على الإيميل
+          <input type="radio" class="btn-check" name="method" id="method_sms" value="sms"
+                 autocomplete="off">
+          <label class="btn btn-outline-primary" for="method_sms">
+            💬 SMS على الجوال
           </label>
         </div>
       </div>
       {% endif %}
 
-      <!-- قسم: تطبيق Authenticator -->
-      <div id="section_app" {% if email_otp_sent %}style="display:none"{% endif %}>
+      <!-- ═══ قسم: Authenticator ═══ -->
+      <div id="section_app">
         <p class="text-muted" style="font-size:14px;">
-          افتح تطبيق Google Authenticator أو أي تطبيق TOTP وأدخل الكود الظاهر.
+          افتح تطبيق Google Authenticator وأدخل الكود الظاهر.
         </p>
-      </div>
-
-      <!-- قسم: إيميل OTP -->
-      <div id="section_email" {% if not email_otp_sent %}style="display:none"{% endif %}>
-        {% if email_otp_sent %}
-          <div class="alert alert-success py-2" style="font-size:13px;">
-            ✅ تم إرسال الكود إلى <strong>{{ admin_email_masked }}</strong>
+        <form method="post" id="form_totp">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.otp_code.label(class="form-label fw-bold") }}
+            {{ form.otp_code(class="form-control form-control-lg text-center",
+                             placeholder="• • • • • •",
+                             maxlength="6", inputmode="numeric",
+                             autocomplete="one-time-code",
+                             style="letter-spacing:8px; font-size:24px;") }}
           </div>
-        {% else %}
-          <p class="text-muted" style="font-size:14px;">
-            سنرسل كود التحقق إلى إيميل حسابك.
-          </p>
-          <button type="button" id="btn_send_otp"
-                  class="btn btn-outline-primary w-100 mb-3" onclick="sendEmailOtp()">
-            📤 إرسال الكود على الإيميل
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+            ✅ تأكيد الدخول
           </button>
-        {% endif %}
+        </form>
       </div>
 
-      <!-- نموذج الكود -->
-      <form method="post" class="mt-2">
-        {{ form.hidden_tag() }}
-        <div class="mb-3">
-          {{ form.otp_code.label(class="form-label fw-bold") }}
-          {{ form.otp_code(class="form-control form-control-lg text-center",
-                           placeholder="• • • • • •",
-                           maxlength="6",
-                           inputmode="numeric",
-                           autocomplete="one-time-code",
-                           style="letter-spacing:8px; font-size:24px;") }}
-        </div>
-        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
-          ✅ تأكيد الدخول
-        </button>
-      </form>
+      <!-- ═══ قسم: SMS (Firebase Phone Auth) ═══ -->
+      <div id="section_sms" style="display:none;">
 
+        <!-- الخطوة 1: إدخال رقم الجوال -->
+        <div id="step_phone">
+          <p class="text-muted" style="font-size:14px;">
+            أدخل رقم جوالك لاستلام كود SMS.
+          </p>
+          <div class="input-group mb-2">
+            <span class="input-group-text">+966</span>
+            <input type="tel" id="phone_input" class="form-control form-control-lg"
+                   placeholder="5XXXXXXXX" maxlength="9" inputmode="numeric">
+          </div>
+          <small class="text-muted">مثال: 501234567</small>
+          <br><br>
+          <!-- reCAPTCHA container (مطلوب من Firebase) -->
+          <div id="recaptcha-container" class="mb-3"></div>
+          <button type="button" id="btn_send_sms" class="btn btn-outline-primary w-100"
+                  onclick="sendSMS()">
+            📤 إرسال كود SMS
+          </button>
+        </div>
+
+        <!-- الخطوة 2: إدخال الكود -->
+        <div id="step_code" style="display:none;">
+          <div class="alert alert-success py-2" style="font-size:13px;" id="sms_sent_msg">
+            ✅ تم إرسال الكود
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">كود SMS</label>
+            <input type="text" id="sms_code_input" class="form-control form-control-lg text-center"
+                   placeholder="• • • • • •" maxlength="6" inputmode="numeric"
+                   style="letter-spacing:8px; font-size:24px;">
+          </div>
+          <button type="button" class="btn btn-primary w-100 py-2 fw-bold"
+                  onclick="verifySMSCode()">
+            ✅ تأكيد الدخول
+          </button>
+          <button type="button" class="btn btn-link w-100 mt-2" onclick="resetSMS()"
+                  style="font-size:13px;">
+            ← تغيير رقم الجوال
+          </button>
+        </div>
+
+        <div id="sms_error" class="alert alert-danger mt-2" style="display:none; font-size:13px;"></div>
+        <div id="sms_loading" class="text-center mt-2" style="display:none;">
+          <div class="spinner-border spinner-border-sm text-primary"></div>
+          <span class="ms-2" style="font-size:13px;">جارٍ المعالجة...</span>
+        </div>
+      </div>
+
+      <!-- رابط الرجوع -->
       <div class="text-center mt-3">
         <a href="{{ url_for('auth.login') }}" class="text-muted" style="font-size:13px;">
           ← العودة لصفحة تسجيل الدخول
         </a>
       </div>
-
     </div>
   </div>
 </div>
 
-<script>
-// تبديل القسم عند اختيار الطريقة
-document.querySelectorAll('input[name="method"]').forEach(radio => {
-  radio.addEventListener('change', function () {
-    document.getElementById('section_app').style.display =
-      this.value === 'app' ? 'block' : 'none';
-    document.getElementById('section_email').style.display =
-      this.value === 'email' ? 'block' : 'none';
+<!-- Firebase JS SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, RecaptchaVerifier, signInWithPhoneNumber }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDyn94bHLn1C4InJTd2aJsZ9lC1ido9SWQ",
+    authDomain: "chem-tahsili.firebaseapp.com",
+    projectId: "chem-tahsili",
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  let confirmationResult = null;
+  let recaptchaVerifier  = null;
+
+  function showError(msg) {
+    const el = document.getElementById('sms_error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('sms_error').style.display = 'none';
+  }
+  function setLoading(val) {
+    document.getElementById('sms_loading').style.display = val ? 'block' : 'none';
+  }
+
+  // ═══ تبديل الأقسام ═══
+  document.querySelectorAll('input[name="method"]').forEach(r => {
+    r.addEventListener('change', function () {
+      document.getElementById('section_app').style.display =
+        this.value === 'app' ? 'block' : 'none';
+      document.getElementById('section_sms').style.display =
+        this.value === 'sms' ? 'block' : 'none';
+    });
   });
-});
 
-// إرسال كود الإيميل
-function sendEmailOtp() {
-  const btn = document.getElementById('btn_send_otp');
-  btn.disabled = true;
-  btn.textContent = '⏳ جارٍ الإرسال...';
-
-  fetch("{{ url_for('auth.send_admin_otp') }}", {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || '' }
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      btn.closest('div').innerHTML =
-        `<div class="alert alert-success py-2" style="font-size:13px;">
-           ✅ ${data.message}
-         </div>`;
-    } else {
-      btn.disabled = false;
-      btn.textContent = '📤 إرسال الكود على الإيميل';
-      alert('❌ ' + data.message);
+  // ═══ إرسال SMS ═══
+  window.sendSMS = async function () {
+    hideError();
+    const raw = document.getElementById('phone_input').value.trim();
+    if (!/^\d{9}$/.test(raw)) {
+      showError('أدخل 9 أرقام (بدون الصفر ورمز الدولة)');
+      return;
     }
-  })
-  .catch(() => {
-    btn.disabled = false;
-    btn.textContent = '📤 إرسال الكود على الإيميل';
-    alert('حدث خطأ، حاول مرة أخرى.');
-  });
-}
+    const phone = '+966' + raw;
+    document.getElementById('btn_send_sms').disabled = true;
+    setLoading(true);
+
+    try {
+      if (!recaptchaVerifier) {
+        recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'normal',
+          callback: () => {},
+          'expired-callback': () => {
+            recaptchaVerifier.clear();
+            recaptchaVerifier = null;
+          }
+        });
+        await recaptchaVerifier.render();
+      }
+
+      confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+
+      document.getElementById('step_phone').style.display = 'none';
+      document.getElementById('step_code').style.display  = 'block';
+      document.getElementById('sms_sent_msg').textContent =
+        `✅ تم إرسال الكود إلى ${phone.replace('+966', '+966-')}`;
+    } catch (e) {
+      showError('خطأ: ' + (e.message || e.code));
+      document.getElementById('btn_send_sms').disabled = false;
+      if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ═══ التحقق من الكود ═══
+  window.verifySMSCode = async function () {
+    hideError();
+    const code = document.getElementById('sms_code_input').value.trim();
+    if (code.length !== 6) { showError('الكود 6 أرقام'); return; }
+    if (!confirmationResult)  { showError('أرسل الكود أولاً'); return; }
+
+    setLoading(true);
+    try {
+      const result = await confirmationResult.confirm(code);
+      const idToken = await result.user.getIdToken();
+      const phone   = result.user.phoneNumber;
+
+      // إرسال الـ token للـ backend
+      const res = await fetch("{{ url_for('auth.verify_firebase_phone') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken, phone_number: phone })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.href = data.redirect || '/';
+      } else {
+        showError(data.message || 'فشل التحقق');
+      }
+    } catch (e) {
+      if (e.code === 'auth/invalid-verification-code') {
+        showError('الكود غير صحيح، حاول مرة أخرى');
+      } else {
+        showError('خطأ: ' + (e.message || e.code));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ═══ إعادة تعيين ═══
+  window.resetSMS = function () {
+    confirmationResult = null;
+    if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
+    document.getElementById('step_phone').style.display = 'block';
+    document.getElementById('step_code').style.display  = 'none';
+    document.getElementById('btn_send_sms').disabled    = false;
+    document.getElementById('phone_input').value        = '';
+    document.getElementById('recaptcha-container').innerHTML = '';
+    hideError();
+  };
 </script>
 {% endblock %}
