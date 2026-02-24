@@ -2,16 +2,128 @@
 {% block title %}التحقق الثنائي{% endblock %}
 
 {% block content %}
-<div class="container mt-5" style="max-width: 400px;">
-  <h2 class="mb-4">التحقق بخطوتين</h2>
-  <p>أدخل رمز المصادقة (TOTP) من تطبيق المصادقة لديك:</p>
-  <form method="post">
-    {{ form.hidden_tag() }}
-    <div class="mb-3">
-      {{ form.otp_code.label(class="form-label") }}
-      {{ form.otp_code(class="form-control", placeholder="رمز مكوّن من 6 أرقام") }}
+<div class="container mt-5" style="max-width: 440px;">
+  <div class="card shadow-sm border-0" style="border-radius:16px; overflow:hidden;">
+
+    <!-- Header -->
+    <div class="card-header text-white text-center py-4"
+         style="background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);">
+      <h4 class="mb-1">🔐 التحقق بخطوتين</h4>
+      <p class="mb-0 opacity-75" style="font-size:14px;">أدخل كود التحقق لإتمام تسجيل الدخول</p>
     </div>
-    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-  </form>
+
+    <div class="card-body p-4">
+
+      <!-- اختيار الطريقة -->
+      {% if has_totp %}
+      <div class="mb-3">
+        <div class="btn-group w-100" role="group">
+          <input type="radio" class="btn-check" name="method" id="method_app" value="app"
+                 {{ 'checked' if not email_otp_sent else '' }} autocomplete="off">
+          <label class="btn btn-outline-primary" for="method_app">
+            📱 تطبيق Authenticator
+          </label>
+
+          <input type="radio" class="btn-check" name="method" id="method_email" value="email"
+                 {{ 'checked' if email_otp_sent else '' }} autocomplete="off">
+          <label class="btn btn-outline-primary" for="method_email">
+            📧 كود على الإيميل
+          </label>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- قسم: تطبيق Authenticator -->
+      <div id="section_app" {% if email_otp_sent %}style="display:none"{% endif %}>
+        <p class="text-muted" style="font-size:14px;">
+          افتح تطبيق Google Authenticator أو أي تطبيق TOTP وأدخل الكود الظاهر.
+        </p>
+      </div>
+
+      <!-- قسم: إيميل OTP -->
+      <div id="section_email" {% if not email_otp_sent %}style="display:none"{% endif %}>
+        {% if email_otp_sent %}
+          <div class="alert alert-success py-2" style="font-size:13px;">
+            ✅ تم إرسال الكود إلى <strong>{{ admin_email_masked }}</strong>
+          </div>
+        {% else %}
+          <p class="text-muted" style="font-size:14px;">
+            سنرسل كود التحقق إلى إيميل حسابك.
+          </p>
+          <button type="button" id="btn_send_otp"
+                  class="btn btn-outline-primary w-100 mb-3" onclick="sendEmailOtp()">
+            📤 إرسال الكود على الإيميل
+          </button>
+        {% endif %}
+      </div>
+
+      <!-- نموذج الكود -->
+      <form method="post" class="mt-2">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.otp_code.label(class="form-label fw-bold") }}
+          {{ form.otp_code(class="form-control form-control-lg text-center",
+                           placeholder="• • • • • •",
+                           maxlength="6",
+                           inputmode="numeric",
+                           autocomplete="one-time-code",
+                           style="letter-spacing:8px; font-size:24px;") }}
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+          ✅ تأكيد الدخول
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('auth.login') }}" class="text-muted" style="font-size:13px;">
+          ← العودة لصفحة تسجيل الدخول
+        </a>
+      </div>
+
+    </div>
+  </div>
 </div>
+
+<script>
+// تبديل القسم عند اختيار الطريقة
+document.querySelectorAll('input[name="method"]').forEach(radio => {
+  radio.addEventListener('change', function () {
+    document.getElementById('section_app').style.display =
+      this.value === 'app' ? 'block' : 'none';
+    document.getElementById('section_email').style.display =
+      this.value === 'email' ? 'block' : 'none';
+  });
+});
+
+// إرسال كود الإيميل
+function sendEmailOtp() {
+  const btn = document.getElementById('btn_send_otp');
+  btn.disabled = true;
+  btn.textContent = '⏳ جارٍ الإرسال...';
+
+  fetch("{{ url_for('auth.send_admin_otp') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || '' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      btn.closest('div').innerHTML =
+        `<div class="alert alert-success py-2" style="font-size:13px;">
+           ✅ ${data.message}
+         </div>`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '📤 إرسال الكود على الإيميل';
+      alert('❌ ' + data.message);
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = '📤 إرسال الكود على الإيميل';
+    alert('حدث خطأ، حاول مرة أخرى.');
+  });
+}
+</script>
 {% endblock %}

@@ -522,5 +522,55 @@ class EmailService:
             return False, f'خطأ غير متوقع: {str(e)}'
 
 
+    def send_admin_login_otp(self, to_email, code, admin_name):
+        """إرسال كود تسجيل دخول الأدمن عبر الإيميل"""
+        try:
+            subject = 'كود تسجيل الدخول - لوحة التحكم'
+            html_content = f'''
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head><meta charset="UTF-8">
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; direction:rtl; }}
+                .container {{ max-width:500px; margin:0 auto; background:white; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.1); }}
+                .header {{ background:linear-gradient(135deg,#1565c0 0%,#0d47a1 100%); color:white; padding:30px; text-align:center; }}
+                .header h1 {{ margin:0; font-size:22px; }}
+                .content {{ padding:30px; text-align:center; }}
+                .code-box {{ background:linear-gradient(135deg,#1565c0 0%,#0d47a1 100%); color:white; font-size:38px; font-weight:bold; letter-spacing:14px; padding:20px 30px; border-radius:12px; display:inline-block; margin:20px 0; }}
+                .note {{ color:#666; font-size:13px; margin-top:16px; }}
+                .warning {{ background:#fff3e0; color:#e65100; padding:12px; border-radius:8px; margin-top:16px; font-size:13px; border:1px solid #ffb74d; }}
+            </style></head>
+            <body>
+            <div class="container">
+              <div class="header"><h1>🔐 كيم تحصيلي — لوحة التحكم</h1></div>
+              <div class="content">
+                <p style="font-size:17px;color:#333;">مرحباً <strong>{admin_name}</strong></p>
+                <p style="color:#555;">كود تسجيل الدخول الخاص بك:</p>
+                <div class="code-box">{code}</div>
+                <p class="note">⏱️ صالح لمدة <strong>5 دقائق</strong> فقط</p>
+                <div class="warning">⚠️ لا تشارك هذا الكود مع أحد. إذا لم تطلبه، تجاهل هذا الإيميل.</div>
+              </div>
+            </div>
+            </body></html>'''
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = self.sender_email
+            msg['To'] = to_email
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+                server.sendmail(self.sender_email, to_email, msg.as_string())
+
+            print(f"✅ كود الأدمن أُرسل إلى: {to_email}")
+            return True, 'تم إرسال الكود'
+
+        except Exception as e:
+            print(f"❌ خطأ في إرسال كود الأدمن: {e}")
+            return False, str(e)
+
+
 # إنشاء instance عام
 email_service = EmailService()

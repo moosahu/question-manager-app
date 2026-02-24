@@ -4,6 +4,9 @@ from flask_login import login_user, logout_user, login_required, current_user
 from src.models.user import User, db
 from src.forms import LoginForm, TwoFactorForm  # تأكد من تعريف هذا النموذج
 import pyotp
+import random
+import string
+from datetime import datetime, timedelta
 
 # إضافة استيراد نظام الإشعارات
 try:
@@ -29,10 +32,20 @@ def login():
         password = form.password.data
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            # إذا كان 2FA مفعلًا، نفّذ خطوة التحقق قبل تسجيل الدخول
-            if user.two_factor_auth:
+            # ✅ الأدمن: يُجبر دائماً على التحقق الثنائي
+            if user.is_admin:
+                if not user.totp_secret:
+                    # الأدمن لم يُعدّ 2FA بعد — أجبره على الإعداد أولاً
+                    login_user(user)
+                    flash("يجب إعداد التحقق الثنائي قبل الدخول كمدير.", "warning")
+                    return redirect(url_for('settings.setup_2fa'))
                 session['pre_2fa_user_id'] = user.id
-                # تأكد من وجود حقل remember_me في النموذج
+                session['pre_2fa_remember'] = getattr(form, 'remember_me', False).data if hasattr(form, 'remember_me') else False
+                return redirect(url_for('auth.verify_2fa'))
+
+            # غير أدمن: تحقق من إعداد 2FA الاختياري
+            if user.two_factor_auth and user.totp_secret:
+                session['pre_2fa_user_id'] = user.id
                 session['pre_2fa_remember'] = getattr(form, 'remember_me', False).data if hasattr(form, 'remember_me') else False
                 return redirect(url_for('auth.verify_2fa'))
 
@@ -65,36 +78,104 @@ def login():
 
 @auth_bp.route("/verify-2fa", methods=["GET", "POST"])
 def verify_2fa():
-    # تأكد من وجود معرف المستخدم المؤقت في الجلسة
     if 'pre_2fa_user_id' not in session:
         return redirect(url_for('auth.login'))
 
+    user = User.query.get(session['pre_2fa_user_id'])
+    if not user:
+        session.pop('pre_2fa_user_id', None)
+        return redirect(url_for('auth.login'))
+
+    # ✅ تحديد طريقة التحقق المتاحة
+    has_totp = bool(user.totp_secret)
+    email_otp_sent = session.get('admin_otp_email') == user.email
+
     form = TwoFactorForm()
     if form.validate_on_submit():
-        user = User.query.get(session['pre_2fa_user_id'])
-        totp = pyotp.TOTP(user.totp_secret)
-        if totp.verify(form.otp_code.data):
-            # تسجيل الدخول النهائي
+        code = form.otp_code.data.strip()
+        verified = False
+
+        # ✅ التحقق من كود الإيميل أولاً (إذا أُرسل)
+        if email_otp_sent and session.get('admin_otp_code'):
+            otp_expires = session.get('admin_otp_expires')
+            if otp_expires and datetime.utcnow() < datetime.fromisoformat(otp_expires):
+                if session['admin_otp_code'] == code:
+                    verified = True
+                    # مسح كود الإيميل بعد الاستخدام
+                    session.pop('admin_otp_code', None)
+                    session.pop('admin_otp_expires', None)
+                    session.pop('admin_otp_email', None)
+
+        # ✅ أو التحقق من TOTP (تطبيق authenticator)
+        if not verified and has_totp:
+            totp = pyotp.TOTP(user.totp_secret)
+            if totp.verify(code):
+                verified = True
+
+        if verified:
             login_user(user, remember=session.pop('pre_2fa_remember', False))
             session.pop('pre_2fa_user_id', None)
-            
-            # === إضافة الإشعارات ===
+
             if notifications_available and UserNotifications:
                 try:
                     UserNotifications.notify_user_login_2fa(
                         username=user.username,
                         user_id=user.id
                     )
-                    current_app.logger.info(f"2FA login notification sent for user: {user.username}")
                 except Exception as e:
                     current_app.logger.error(f"Error sending 2FA login notification: {e}")
-            
+
             flash('تم التحقق وتسجيل الدخول بنجاح', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash('رمز التحقق غير صحيح', 'danger')
+            flash('رمز التحقق غير صحيح أو منتهي الصلاحية', 'danger')
 
-    return render_template('auth/verify_2fa.html', form=form)
+    return render_template(
+        'auth/verify_2fa.html',
+        form=form,
+        has_totp=has_totp,
+        email_otp_sent=email_otp_sent,
+        admin_email_masked=_mask_email(user.email) if user.email else None
+    )
+
+
+@auth_bp.route("/send-admin-otp", methods=["POST"])
+def send_admin_otp():
+    """إرسال كود OTP للأدمن عبر الإيميل"""
+    if 'pre_2fa_user_id' not in session:
+        return jsonify({'success': False, 'message': 'جلسة غير صالحة'}), 400
+
+    user = User.query.get(session['pre_2fa_user_id'])
+    if not user or not user.is_admin or not user.email:
+        return jsonify({'success': False, 'message': 'غير مصرح'}), 403
+
+    # توليد كود عشوائي 6 أرقام
+    code = ''.join(random.choices(string.digits, k=6))
+    expires = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
+
+    session['admin_otp_code'] = code
+    session['admin_otp_expires'] = expires
+    session['admin_otp_email'] = user.email
+
+    try:
+        from src.services.email_service import email_service
+        success, msg = email_service.send_admin_login_otp(user.email, code, user.username)
+        if success:
+            return jsonify({'success': True, 'message': f'تم إرسال الكود إلى {_mask_email(user.email)}'})
+        else:
+            return jsonify({'success': False, 'message': f'فشل الإرسال: {msg}'})
+    except Exception as e:
+        current_app.logger.error(f"Error sending admin OTP: {e}")
+        return jsonify({'success': False, 'message': 'خطأ في إرسال الكود'})
+
+
+def _mask_email(email):
+    """إخفاء جزء من الإيميل: a***@domain.com"""
+    if not email or '@' not in email:
+        return email
+    local, domain = email.split('@', 1)
+    masked = local[0] + '***' if len(local) > 1 else '***'
+    return f"{masked}@{domain}"
 
 @auth_bp.route("/logout")
 @login_required
