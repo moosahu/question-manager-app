@@ -1563,6 +1563,9 @@ def api_mark_notification_read(notification_id):
             """),
             {'notification_id': notification_id, 'student_id': user_id}
         )
+        # ✅ نحفظ rowcount قبل commit (يُفقد بعده في بعض الـ drivers)
+        rows_updated = result.rowcount
+
         # تحديث notifications مباشرة دائماً
         db.session.execute(
             db.text("""
@@ -1575,7 +1578,7 @@ def api_mark_notification_read(notification_id):
         db.session.commit()
 
         # إذا ما كان في student_notifications → أنشئ record وعلّمه مقروء
-        if result.rowcount == 0:
+        if rows_updated == 0:
             notif_exists = db.session.execute(
                 db.text("SELECT id FROM notifications WHERE id = :id"),
                 {'id': notification_id}
