@@ -182,8 +182,8 @@ def setup_2fa():
         # إنشاء QR code
         totp = pyotp.TOTP(secret)
         provisioning_uri = totp.provisioning_uri(
-            name=current_user.username,
-            issuer_name="نظام الكيمياء التحصيلي"
+            name=current_user.email or current_user.username,
+            issuer_name="الكيمياء التحصيلي"
         )
         
         # توليد QR code كصورة
