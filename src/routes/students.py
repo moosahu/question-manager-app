@@ -2046,7 +2046,7 @@ def api_mark_all_notifications_read(student_id):
 
 
 
-@students_bp.route('/api/notifications/delete/<int:notification_id>', methods=['DELETE', 'POST'])
+@students_bp.route('/api/notifications/<int:notification_id>/delete', methods=['DELETE', 'POST'])
 def api_delete_notification(notification_id):
     """حذف إشعار معين"""
     try:
