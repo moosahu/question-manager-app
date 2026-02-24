@@ -16,6 +16,11 @@ import logging
 import fcntl
 import os
 import atexit
+try:
+    import pytz
+    _RIYADH_TZ = pytz.timezone('Asia/Riyadh')
+except ImportError:
+    _RIYADH_TZ = None
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +87,12 @@ def _release_scheduler_lock():
 
 
 def is_within_working_hours(start_hour, end_hour):
-    """تحقق: هل الوقت الحالي ضمن ساعات العمل؟"""
-    current_hour = datetime.now().hour
+    """تحقق: هل الوقت الحالي ضمن ساعات العمل؟ (توقيت الرياض)"""
+    if _RIYADH_TZ:
+        current_hour = datetime.now(_RIYADH_TZ).hour
+    else:
+        # fallback: إضافة 3 ساعات لتحويل UTC → Riyadh
+        current_hour = (datetime.utcnow().hour + 3) % 24
     return start_hour <= current_hour < end_hour
 
 

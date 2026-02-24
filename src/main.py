@@ -2594,12 +2594,16 @@ def create_app():
 
 
     # ============================================
-    # بدء جدولة الرسائل التلقائية
-    # ملاحظة: في production، يتم بدء الـ Scheduler عبر gunicorn hooks
-    # هذا الكود للـ development mode فقط
+    # بدء جدولة الرسائل التلقائية التلقائية
+    # يعمل في development و production (مع قفل ملف لمنع تعدد الـ workers)
     # ============================================
-    print("🔥 DEBUG: تهيئة automation_scheduler (development mode)")
-    
+    try:
+        from src.automation_scheduler import start_automation_scheduler
+        start_automation_scheduler(app)
+        print("✅ Automation scheduler initialized from create_app()")
+    except Exception as e:
+        print(f"⚠️ تعذّر بدء automation_scheduler من create_app: {e}")
+
     return app
 
 if __name__ == "__main__":
