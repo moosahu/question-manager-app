@@ -3932,6 +3932,29 @@ def get_course_questions_count(course_id):
         }), 500
 
 
+# ===== جلب بيانات الأدمن (بديل عن admin_profile blueprint) =====
+@api_bp.route("/admin/profile", methods=["GET"])
+@login_required
+def get_admin_profile_api():
+    """جلب بيانات الأدمن الحالي"""
+    try:
+        if not current_user.is_admin:
+            return jsonify({'success': False, 'error': 'ليس لديك صلاحية'}), 403
+
+        return jsonify({
+            'success': True,
+            'admin': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'email': current_user.email,
+                'is_admin': current_user.is_admin,
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting admin profile: {e}")
+        return jsonify({'success': False, 'error': 'خطأ في جلب البيانات'}), 500
+
+
 # ===== رفع صورة للأسئلة من التطبيق =====
 @api_bp.route("/upload-image", methods=["POST"])
 @login_required
