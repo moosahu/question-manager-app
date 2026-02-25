@@ -356,12 +356,22 @@ def check_single_student_analysis_job():
 
             try:
                 from src.services.ai_assistant import ai_assistant
-                from src.models.ai_analysis import AISetting
+                from src.services.smart_notifications import smart_notifications
+                from src.models.ai_analysis import AISetting, AIAnalysis
 
                 analysis_result = ai_assistant.analyze_student(
                     student_id=student_id,
                     analysis_type='manual'
                 )
+
+                # إرسال إشعار بناءً على نتيجة التحليل
+                latest_analysis = AIAnalysis.query.filter_by(
+                    student_id=student_id
+                ).order_by(AIAnalysis.created_at.desc()).first()
+
+                if latest_analysis:
+                    action_taken = smart_notifications.process_analysis_result(latest_analysis)
+                    logger.info(f"📤 [Scheduler] إشعار للطالب {student_id}: action={action_taken}")
 
                 AISetting.set_setting('single_analysis_job_status', 'completed', 'string')
                 AISetting.set_setting('single_analysis_job_data', _json.dumps(
