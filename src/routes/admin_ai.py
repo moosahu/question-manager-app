@@ -291,18 +291,33 @@ def analyze_all():
         app = current_app._get_current_object()
 
         def run_analysis():
-            with app.app_context():
-                try:
+            print("🧵 [Thread] بداية الثريد...")
+            try:
+                with app.app_context():
+                    print("🧵 [Thread] App context جاهز")
+                    # تجاوز is_running لأننا نتحقق في DB
+                    student_analyzer.is_running = False
+                    print("🧵 [Thread] بدء analyze_all_students...")
                     result = student_analyzer.analyze_all_students()
+                    print(f"🧵 [Thread] ✅ اكتمل: {result.get('analyzed', 0)} analyzed, {result.get('failed', 0)} failed")
                     AISetting.set_setting('analysis_job_status', 'completed', 'string')
                     AISetting.set_setting('analysis_job_progress', json.dumps(result), 'json')
-                except Exception as e:
-                    AISetting.set_setting('analysis_job_status', 'failed', 'string')
-                    AISetting.set_setting('analysis_job_progress', json.dumps({
-                        'error': str(e)
-                    }), 'json')
+                    db.session.remove()
+            except Exception as e:
+                print(f"🧵 [Thread] ❌ خطأ: {e}")
+                import traceback
+                traceback.print_exc()
+                try:
+                    with app.app_context():
+                        AISetting.set_setting('analysis_job_status', 'failed', 'string')
+                        AISetting.set_setting('analysis_job_progress', json.dumps({
+                            'error': str(e)
+                        }), 'json')
+                        db.session.remove()
+                except Exception as e2:
+                    print(f"🧵 [Thread] ❌ خطأ في حفظ الفشل: {e2}")
 
-        thread = threading.Thread(target=run_analysis, daemon=True)
+        thread = threading.Thread(target=run_analysis)
         thread.start()
 
         return jsonify({
