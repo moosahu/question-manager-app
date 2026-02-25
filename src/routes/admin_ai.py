@@ -278,14 +278,14 @@ def analyze_all():
                 'message': 'التحليل يعمل بالفعل',
                 'data': {
                     'status': 'already_running',
-                    'progress': getattr(student_analyzer, 'progress', {})
+                    'progress': student_analyzer.progress
                 }
             })
 
         # عدد الطلاب
         total_students = Student.query.filter_by(is_active=True).count()
 
-        # تهيئة التتبع
+        # تهيئة التتبع في الملف المشترك
         student_analyzer.progress = {
             'status': 'running',
             'total': total_students,
@@ -303,11 +303,15 @@ def analyze_all():
                 try:
                     result = student_analyzer.analyze_all_students()
                     student_analyzer.last_result = result
-                    student_analyzer.progress['status'] = 'completed'
-                    student_analyzer.progress['result'] = result
+                    # التقدم يتحدث تلقائياً داخل analyze_all_students
                 except Exception as e:
-                    student_analyzer.progress['status'] = 'error'
-                    student_analyzer.progress['error'] = str(e)
+                    print(f"❌ خطأ في thread التحليل: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    student_analyzer.progress = {
+                        'status': 'error',
+                        'error': str(e)
+                    }
 
         thread = threading.Thread(target=run_analysis, daemon=True)
         thread.start()
@@ -331,12 +335,8 @@ def analyze_all():
 @admin_ai_bp.route('/analyze/all/status', methods=['GET'])
 @admin_required
 def analyze_all_status():
-    """حالة التحليل الجاري"""
-    progress = getattr(student_analyzer, 'progress', {'status': 'idle'})
-
-    if student_analyzer.is_running:
-        progress['status'] = 'running'
-
+    """حالة التحليل الجاري — يقرأ من ملف مشترك بين العمال"""
+    progress = student_analyzer.progress
     return jsonify({
         'success': True,
         'data': progress

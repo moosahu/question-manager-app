@@ -7,6 +7,9 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict
+import json
+import os
+import tempfile
 
 from src.models.student import Student
 from src.models.ai_analysis import AIAnalysis, AILog, AISetting
@@ -14,15 +17,61 @@ from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
 from src.extensions import db
 
+# ملف مشترك بين جميع الـ workers لتتبع التقدم
+PROGRESS_FILE = os.path.join(tempfile.gettempdir(), 'chem_analysis_progress.json')
+
+
+def _save_progress(data: Dict):
+    """حفظ التقدم في ملف مشترك"""
+    try:
+        with open(PROGRESS_FILE, 'w') as f:
+            json.dump(data, f, ensure_ascii=False, default=str)
+    except Exception as e:
+        print(f"⚠️ خطأ في حفظ التقدم: {e}")
+
+
+def _load_progress() -> Dict:
+    """قراءة التقدم من الملف المشترك"""
+    try:
+        if os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"⚠️ خطأ في قراءة التقدم: {e}")
+    return {'status': 'idle'}
+
 
 class StudentAnalyzer:
     """محلل الطلاب التلقائي"""
 
     def __init__(self):
         """تهيئة المحلل"""
-        self.is_running = False
-        self.progress = {'status': 'idle'}
         self.last_result = None
+
+    @property
+    def is_running(self):
+        """التحقق من حالة التشغيل من الملف المشترك"""
+        p = _load_progress()
+        return p.get('status') == 'running'
+
+    @is_running.setter
+    def is_running(self, value):
+        """تحديث حالة التشغيل"""
+        p = _load_progress()
+        if value:
+            p['status'] = 'running'
+        else:
+            if p.get('status') == 'running':
+                p['status'] = 'completed'
+        _save_progress(p)
+
+    @property
+    def progress(self):
+        return _load_progress()
+
+    @progress.setter
+    def progress(self, value):
+        _save_progress(value)
 
     def analyze_all_students(self) -> Dict:
         """
@@ -46,7 +95,7 @@ class StudentAnalyzer:
 
             if not students:
                 print("⚠️ لا يوجد طلاب نشطين")
-                self.is_running = False
+                _save_progress({'status': 'completed', 'total': 0, 'analyzed': 0, 'failed': 0})
                 return {
                     'status': 'no_students',
                     'total_students': 0
@@ -125,18 +174,32 @@ class StudentAnalyzer:
             print(f"   - 🟠 Orange: {results['by_severity']['orange']}")
             print(f"   - 🔴 Red: {results['by_severity']['red']}")
 
-            self.is_running = False
+            # حفظ النتيجة النهائية
+            _save_progress({
+                'status': 'completed',
+                'total': results['total'],
+                'analyzed': results['analyzed'],
+                'failed': results['failed'],
+                'actions_taken': results['actions_taken'],
+                'duration': duration,
+                'result': results,
+            })
             return results
 
         except Exception as e:
             print(f"❌ خطأ في analyze_all_students: {e}")
+            import traceback
+            traceback.print_exc()
             AILog.log_operation(
                 'scheduled_analysis_failed',
                 description='فشل التحليل التلقائي',
                 success=False,
                 error_message=str(e)
             )
-            self.is_running = False
+            _save_progress({
+                'status': 'error',
+                'error': str(e),
+            })
             return {
                 'status': 'error',
                 'error': str(e)
