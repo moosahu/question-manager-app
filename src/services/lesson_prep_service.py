@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import tempfile
+import time
 import requests
 from datetime import datetime
 
@@ -94,8 +95,22 @@ class LessonPrepService:
             content_parts.append(prompt)
 
             logger.info(f"إرسال {len(images)} صورة لـ Gemini للتحضير #{plan_id}")
-            response = self.model.generate_content(content_parts)
-            ai_text = response.text
+            ai_text = None
+            for attempt in range(3):
+                try:
+                    response = self.model.generate_content(content_parts)
+                    ai_text = response.text
+                    break
+                except Exception as api_err:
+                    err_str = str(api_err)
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
+                        wait = 30 * (attempt + 1)
+                        logger.warning(f"Rate limit (429) - محاولة {attempt+1}/3، انتظار {wait} ثانية...")
+                        time.sleep(wait)
+                    else:
+                        raise
+            if ai_text is None:
+                raise Exception("فشل الاتصال بـ Gemini بعد 3 محاولات (429 Rate Limit). جرب بعد دقائق.")
 
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
