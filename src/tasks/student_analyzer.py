@@ -66,8 +66,8 @@ class StudentAnalyzer:
                 'details': []
             }
 
-            # تحليل كل طالب
-            for student in students:
+            # تحليل كل طالب مع تحديث التقدم في DB
+            for i, student in enumerate(students):
                 try:
                     result = self._analyze_single_student(student)
 
@@ -90,6 +90,19 @@ class StudentAnalyzer:
                 except Exception as e:
                     print(f"❌ خطأ في تحليل الطالب {student.id}: {e}")
                     results['failed'] += 1
+
+                # تحديث التقدم في DB كل طالب
+                try:
+                    import json as _json
+                    AISetting.set_setting('analysis_job_progress', _json.dumps({
+                        'total': results['total'],
+                        'analyzed': results['analyzed'],
+                        'failed': results['failed'],
+                        'actions_taken': results['actions_taken'],
+                        'current': i + 1
+                    }), 'json')
+                except Exception:
+                    pass
 
             # حساب المدة
             duration = (datetime.utcnow() - start_time).total_seconds()

@@ -4,12 +4,13 @@ Admin AI Routes - واجهات API للأدمن للتحكم في نظام AI
 مع التحسينات: Validation, Export/Import, Testing, Presets, Analytics
 """
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_login import current_user
 from functools import wraps
 from datetime import datetime, timedelta
 import json
 import io
+import threading
 
 from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
@@ -268,16 +269,70 @@ def analyze_single_student(student_id):
 @admin_ai_bp.route('/analyze/all', methods=['POST'])
 @admin_required
 def analyze_all():
-    """تحليل جميع الطلاب"""
+    """تحليل جميع الطلاب - يبدأ بالخلفية ويرد فوراً"""
     try:
-        result = student_analyzer.analyze_all_students()
+        # تحقق إذا فيه تحليل شغال
+        current_status = AISetting.get_setting('analysis_job_status', 'idle')
+        if current_status == 'running':
+            return jsonify({
+                'success': True,
+                'message': 'التحليل يعمل بالفعل',
+                'data': {'status': 'already_running'}
+            })
+
+        # سجل بداية التحليل في DB
+        AISetting.set_setting('analysis_job_status', 'running', 'string')
+        AISetting.set_setting('analysis_job_progress', json.dumps({
+            'total': 0, 'analyzed': 0, 'failed': 0,
+            'actions_taken': 0, 'started_at': datetime.utcnow().isoformat()
+        }), 'json')
+
+        # شغل التحليل بثريد مع app context
+        app = current_app._get_current_object()
+
+        def run_analysis():
+            with app.app_context():
+                try:
+                    result = student_analyzer.analyze_all_students()
+                    AISetting.set_setting('analysis_job_status', 'completed', 'string')
+                    AISetting.set_setting('analysis_job_progress', json.dumps(result), 'json')
+                except Exception as e:
+                    AISetting.set_setting('analysis_job_status', 'failed', 'string')
+                    AISetting.set_setting('analysis_job_progress', json.dumps({
+                        'error': str(e)
+                    }), 'json')
+
+        thread = threading.Thread(target=run_analysis, daemon=True)
+        thread.start()
 
         return jsonify({
             'success': True,
-            'message': 'تم التحليل بنجاح',
-            'data': result
+            'message': 'بدأ التحليل',
+            'data': {'status': 'started'}
         })
 
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@admin_ai_bp.route('/analyze/all/status', methods=['GET'])
+@admin_required
+def analyze_all_status():
+    """التحقق من حالة التحليل"""
+    try:
+        status = AISetting.get_setting('analysis_job_status', 'idle')
+        progress = AISetting.get_setting('analysis_job_progress', {})
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'status': status,
+                'progress': progress
+            }
+        })
     except Exception as e:
         return jsonify({
             'success': False,
