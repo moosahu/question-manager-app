@@ -5,8 +5,9 @@ import multiprocessing
 import os
 
 # Worker settings
-workers = 2  # عدد الـ workers
-worker_class = 'sync'
+workers = 1  # worker واحد لتوفير الذاكرة (512MB Render)
+threads = 4  # 4 threads بدل 2 workers - أخف على الذاكرة
+worker_class = 'gthread'
 worker_connections = 1000
 timeout = 300  # زيادة timeout
 keepalive = 5
