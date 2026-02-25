@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تحضير درس: {{ lesson_info.get('title', lesson_name) }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 12mm 12mm 15mm 12mm;
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: Tahoma, Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+  }
+
+  * {
+    font-family: Tahoma, Arial, 'Traditional Arabic', sans-serif;
+    box-sizing: border-box;
+    margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  body {
+    background: #ffffff;
+    color: #1e293b;
+    direction: rtl;
+    text-align: right;
+    font-size: 10pt;
+    line-height: 1.7;
+  }
+
+  /* ─── ألوان الأقسام ─── */
+  :root {
+    --blue: #1e40af;
+    --blue-light: #dbeafe;
+    --blue-bg: #eff6ff;
+    --green: #166534;
+    --green-light: #dcfce7;
+    --green-bg: #f0fdf4;
+    --purple: #6b21a8;
+    --purple-light: #f3e8ff;
+    --purple-bg: #faf5ff;
+    --orange: #9a3412;
+    --orange-light: #ffedd5;
+    --orange-bg: #fff7ed;
+    --teal: #115e59;
+    --teal-light: #ccfbf1;
+    --teal-bg: #f0fdfa;
+    --rose: #9f1239;
+    --rose-light: #ffe4e6;
+    --rose-bg: #fff1f2;
+    --amber: #92400e;
+    --amber-light: #fef3c7;
+    --amber-bg: #fffbeb;
+    --indigo: #3730a3;
+    --indigo-light: #e0e7ff;
+    --indigo-bg: #eef2ff;
+    --cyan: #155e75;
+    --cyan-light: #cffafe;
+    --cyan-bg: #ecfeff;
+    --emerald: #065f46;
+    --emerald-light: #d1fae5;
+    --emerald-bg: #ecfdf5;
+    --slate: #334155;
+    --slate-light: #e2e8f0;
+    --slate-bg: #f8fafc;
+    --pink: #9d174d;
+    --pink-light: #fce7f3;
+    --pink-bg: #fdf2f8;
+    --sky: #0369a1;
+    --sky-light: #e0f2fe;
+    --sky-bg: #f0f9ff;
+  }
+
+  /* ─── العنوان الرئيسي ─── */
+  .main-header {
+    background: linear-gradient(135deg, #1e40af, #3b82f6) !important;
+    color: #ffffff !important;
+    padding: 18px 24px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .main-header h1 {
+    font-size: 18pt;
+    font-weight: 900;
+    color: #ffffff !important;
+    margin-bottom: 6px;
+  }
+  .main-header .subtitle {
+    font-size: 10pt;
+    color: #bfdbfe !important;
+  }
+
+  /* ─── عنوان القسم ─── */
+  .section {
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    font-size: 12pt;
+    font-weight: 900;
+    margin-bottom: 0;
+  }
+  .section-header .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3) !important;
+    font-size: 11pt;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .section-body {
+    padding: 12px 16px;
+    border: 1.5px solid;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+  }
+
+  /* ─── ألوان أقسام محددة ─── */
+  .sec-info .section-header    { background: var(--blue) !important; color: #fff !important; }
+  .sec-info .section-body      { border-color: var(--blue-light); background: var(--blue-bg) !important; }
+
+  .sec-obj .section-header     { background: var(--green) !important; color: #fff !important; }
+  .sec-obj .section-body       { border-color: var(--green-light); background: var(--green-bg) !important; }
+
+  .sec-behav .section-header   { background: var(--purple) !important; color: #fff !important; }
+  .sec-behav .section-body     { border-color: var(--purple-light); background: var(--purple-bg) !important; }
+
+  .sec-prep .section-header    { background: var(--orange) !important; color: #fff !important; }
+  .sec-prep .section-body      { border-color: var(--orange-light); background: var(--orange-bg) !important; }
+
+  .sec-strat .section-header   { background: var(--teal) !important; color: #fff !important; }
+  .sec-strat .section-body     { border-color: var(--teal-light); background: var(--teal-bg) !important; }
+
+  .sec-present .section-header { background: var(--indigo) !important; color: #fff !important; }
+  .sec-present .section-body   { border-color: var(--indigo-light); background: var(--indigo-bg) !important; }
+
+  .sec-values .section-header  { background: var(--rose) !important; color: #fff !important; }
+  .sec-values .section-body    { border-color: var(--rose-light); background: var(--rose-bg) !important; }
+
+  .sec-eval .section-header    { background: var(--emerald) !important; color: #fff !important; }
+  .sec-eval .section-body      { border-color: var(--emerald-light); background: var(--emerald-bg) !important; }
+
+  .sec-diff .section-header    { background: var(--cyan) !important; color: #fff !important; }
+  .sec-diff .section-body      { border-color: var(--cyan-light); background: var(--cyan-bg) !important; }
+
+  .sec-res .section-header     { background: var(--amber) !important; color: #fff !important; }
+  .sec-res .section-body       { border-color: var(--amber-light); background: var(--amber-bg) !important; }
+
+  .sec-hw .section-header      { background: var(--pink) !important; color: #fff !important; }
+  .sec-hw .section-body        { border-color: var(--pink-light); background: var(--pink-bg) !important; }
+
+  .sec-time .section-header    { background: var(--sky) !important; color: #fff !important; }
+  .sec-time .section-body      { border-color: var(--sky-light); background: var(--sky-bg) !important; }
+
+  .sec-refl .section-header    { background: var(--slate) !important; color: #fff !important; }
+  .sec-refl .section-body      { border-color: var(--slate-light); background: var(--slate-bg) !important; }
+
+  /* ─── جداول ─── */
+  table.info-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.info-table td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    font-size: 10pt;
+  }
+  table.info-table td.label {
+    font-weight: 900;
+    background: rgba(0,0,0,0.04) !important;
+    width: 22%;
+    color: var(--blue);
+  }
+
+  table.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  table.styled-table th {
+    padding: 7px 10px;
+    font-size: 9.5pt;
+    font-weight: 900;
+    color: #ffffff !important;
+    text-align: right;
+  }
+  table.styled-table td {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 9.5pt;
+  }
+  table.styled-table tr:nth-child(even) td {
+    background: rgba(0,0,0,0.02) !important;
+  }
+
+  /* ─── قوائم ─── */
+  ul.items {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0;
+  }
+  ul.items li {
+    padding: 3px 0;
+    padding-right: 18px;
+    position: relative;
+    font-size: 10pt;
+  }
+  ul.items li::before {
+    content: "●";
+    position: absolute;
+    right: 0;
+    color: #64748b;
+    font-size: 7pt;
+    top: 7px;
+  }
+
+  /* ─── أقسام فرعية ─── */
+  .sub-section {
+    margin-bottom: 10px;
+  }
+  .sub-title {
+    font-weight: 900;
+    font-size: 10pt;
+    margin-bottom: 4px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    display: inline-block;
+  }
+
+  /* ─── صناديق الإجابات ─── */
+  .answer-box {
+    background: #f0fdf4 !important;
+    border: 1.5px solid #86efac;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 4px 0 10px 0;
+    font-size: 9.5pt;
+  }
+  .answer-box::before {
+    content: "الإجابة: ";
+    font-weight: 900;
+    color: var(--green);
+  }
+
+  .question-box {
+    background: #eff6ff !important;
+    border: 1.5px solid #93c5fd;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 6px 0 4px 0;
+    font-size: 10pt;
+    font-weight: 700;
+  }
+  .question-box::before {
+    content: "س: ";
+    color: var(--blue);
+    font-weight: 900;
+  }
+
+  /* ─── معادلات كيميائية ─── */
+  .equation {
+    background: #fefce8 !important;
+    border: 1.5px solid #fde047;
+    border-radius: 6px;
+    padding: 8px 14px;
+    margin: 6px 0;
+    font-size: 11pt;
+    font-weight: 700;
+    text-align: center;
+    direction: ltr;
+    unicode-bidi: bidi-override;
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+  }
+
+  /* ─── بطاقات الاستراتيجيات ─── */
+  .strategy-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .strategy-card {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 200px;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1.5px solid;
+  }
+  .strategy-card .s-name {
+    font-weight: 900;
+    font-size: 10pt;
+    margin-bottom: 3px;
+  }
+  .strategy-card .s-app {
+    font-size: 9pt;
+    color: #475569;
+  }
+  .strategy-card .s-time {
+    font-size: 8pt;
+    font-weight: 700;
+    margin-top: 4px;
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+  }
+
+  /* ألوان بطاقات الاستراتيجيات بالتناوب */
+  .strategy-card:nth-child(4n+1) { background: var(--blue-bg) !important; border-color: #93c5fd; }
+  .strategy-card:nth-child(4n+1) .s-name { color: var(--blue); }
+  .strategy-card:nth-child(4n+1) .s-time { background: var(--blue-light) !important; color: var(--blue); }
+
+  .strategy-card:nth-child(4n+2) { background: var(--green-bg) !important; border-color: #86efac; }
+  .strategy-card:nth-child(4n+2) .s-name { color: var(--green); }
+  .strategy-card:nth-child(4n+2) .s-time { background: var(--green-light) !important; color: var(--green); }
+
+  .strategy-card:nth-child(4n+3) { background: var(--purple-bg) !important; border-color: #c4b5fd; }
+  .strategy-card:nth-child(4n+3) .s-name { color: var(--purple); }
+  .strategy-card:nth-child(4n+3) .s-time { background: var(--purple-light) !important; color: var(--purple); }
+
+  .strategy-card:nth-child(4n+4) { background: var(--orange-bg) !important; border-color: #fdba74; }
+  .strategy-card:nth-child(4n+4) .s-name { color: var(--orange); }
+  .strategy-card:nth-child(4n+4) .s-time { background: var(--orange-light) !important; color: var(--orange); }
+
+  /* ─── مفاهيم عرض الدرس ─── */
+  .concept-block {
+    border: 1.5px solid #c7d2fe;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .concept-header {
+    background: #e0e7ff !important;
+    padding: 7px 12px;
+    font-weight: 900;
+    font-size: 10.5pt;
+    color: var(--indigo);
+    border-bottom: 1px solid #c7d2fe;
+  }
+  .concept-body {
+    padding: 10px 14px;
+  }
+  .concept-body p {
+    margin-bottom: 5px;
+    font-size: 9.5pt;
+  }
+  .concept-body .field-label {
+    font-weight: 900;
+    color: #475569;
+    display: inline;
+  }
+
+  /* ─── عمودين ─── */
+  .two-cols {
+    display: flex;
+    gap: 10px;
+  }
+  .two-cols .col {
+    flex: 1;
+    border: 1.5px solid;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .col-header {
+    padding: 6px 12px;
+    font-weight: 900;
+    font-size: 10pt;
+    text-align: center;
+    color: #fff !important;
+  }
+  .col-body {
+    padding: 10px 12px;
+  }
+  .col-weak { border-color: #fca5a5; }
+  .col-weak .col-header { background: #dc2626 !important; }
+  .col-weak .col-body { background: #fef2f2 !important; }
+
+  .col-gifted { border-color: #86efac; }
+  .col-gifted .col-header { background: #16a34a !important; }
+  .col-gifted .col-body { background: #f0fdf4 !important; }
+
+  /* ─── قيم ─── */
+  .values-grid {
+    display: flex;
+    gap: 8px;
+  }
+  .value-card {
+    flex: 1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+    border: 1.5px solid;
+  }
+  .value-card .v-icon { font-size: 18pt; margin-bottom: 4px; }
+  .value-card .v-title { font-weight: 900; font-size: 9.5pt; margin-bottom: 4px; }
+  .value-card .v-text { font-size: 9pt; color: #475569; }
+
+  .val-religious { background: #ecfdf5 !important; border-color: #6ee7b7; }
+  .val-religious .v-title { color: var(--green); }
+
+  .val-national { background: var(--blue-bg) !important; border-color: #93c5fd; }
+  .val-national .v-title { color: var(--blue); }
+
+  .val-life { background: var(--amber-bg) !important; border-color: #fcd34d; }
+  .val-life .v-title { color: var(--amber); }
+
+  /* ─── التأمل الذاتي ─── */
+  .reflection-field {
+    border: 1.5px dashed #94a3b8;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    min-height: 45px;
+    background: #f8fafc !important;
+  }
+  .reflection-field .rf-label {
+    font-weight: 900;
+    font-size: 9.5pt;
+    color: var(--slate);
+    margin-bottom: 4px;
+  }
+  .reflection-field .rf-content {
+    font-size: 9.5pt;
+    color: #475569;
+    min-height: 20px;
+  }
+
+  /* ─── جدول زمني ─── */
+  .time-bar {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 900;
+    font-size: 9pt;
+  }
+
+  /* ─── جداول المقارنة ─── */
+  .comparison-section {
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ العنوان الرئيسي ═══ -->
+<div class="main-header">
+  <h1>تحضير درس: {{ lesson_info.get('title', lesson_name) }}</h1>
+  <div class="subtitle">
+    {{ course_name }} — {{ unit_name }}
+    {% if lesson_info.get('duration') %} | {{ lesson_info.duration }} {% endif %}
+  </div>
+</div>
+
+<!-- ═══ 1. المعلومات الأساسية ═══ -->
+<div class="section sec-info">
+  <div class="section-header"><span class="num">1</span> المعلومات الأساسية</div>
+  <div class="section-body">
+    <table class="info-table">
+      <tr>
+        <td class="label">المقرر</td>
+        <td>{{ lesson_info.get('course', course_name) }}</td>
+        <td class="label">الوحدة</td>
+        <td>{{ lesson_info.get('unit', unit_name) }}</td>
+      </tr>
+      <tr>
+        <td class="label">الدرس</td>
+        <td>{{ lesson_info.get('title', lesson_name) }}</td>
+        <td class="label">المدة</td>
+        <td>{{ lesson_info.get('duration', '45 دقيقة') }}</td>
+      </tr>
+      <tr>
+        <td class="label">التاريخ</td>
+        <td>{{ lesson_info.get('date', '') }}</td>
+        <td class="label">المتطلبات السابقة</td>
+        <td>
+          {% for req in lesson_info.get('prerequisites', []) %}
+            {{ req }}{% if not loop.last %}، {% endif %}
+          {% endfor %}
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ 2. الأهداف العامة ═══ -->
+{% set objectives = plan_data.get('objectives', {}) %}
+{% set all_objectives = objectives.get('cognitive', []) + objectives.get('skill', []) + objectives.get('emotional', []) %}
+{% if all_objectives %}
+<div class="section sec-obj">
+  <div class="section-header"><span class="num">2</span> الأهداف العامة</div>
+  <div class="section-body">
+    <ul class="items">
+      {% for obj in all_objectives %}
+      <li>{{ obj }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 3. الأهداف السلوكية ═══ -->
+{% if objectives %}
+<div class="section sec-behav">
+  <div class="section-header"><span class="num">3</span> الأهداف السلوكية</div>
+  <div class="section-body">
+    {% for type_key, type_label, color in [('cognitive', 'أهداف معرفية', '#7c3aed'), ('skill', 'أهداف مهارية', '#0891b2'), ('emotional', 'أهداف وجدانية', '#db2777')] %}
+    {% set items = objectives.get(type_key, []) %}
+    {% if items %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: {{ color }}20 !important; color: {{ color }};">{{ type_label }}</div>
+      <ul class="items">
+        {% for item in items %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 4. التهيئة ═══ -->
+{% set preparation = plan_data.get('preparation', {}) %}
+{% if preparation %}
+<div class="section sec-prep">
+  <div class="section-header"><span class="num">4</span> التهيئة والتمهيد</div>
+  <div class="section-body">
+    {% if preparation.get('introduction') %}
+    <div class="question-box">{{ preparation.introduction }}</div>
+    {% endif %}
+    {% if preparation.get('introduction_activity') %}
+    <div class="answer-box" style="border-color: #fdba74; background: #fff7ed !important;">
+      <span style="font-weight:900; color: var(--orange);">النشاط: </span>{{ preparation.introduction_activity }}
+    </div>
+    {% endif %}
+    {% if preparation.get('connection_to_previous') %}
+    <p style="margin-top:6px;"><span style="font-weight:900;">الربط بالدرس السابق: </span>{{ preparation.connection_to_previous }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 5. استراتيجيات التدريس ═══ -->
+{% set strategies = plan_data.get('teaching_strategies', []) %}
+{% if strategies %}
+<div class="section sec-strat">
+  <div class="section-header"><span class="num">5</span> استراتيجيات التدريس</div>
+  <div class="section-body">
+    <div class="strategy-grid">
+      {% for s in strategies %}
+      {% if s is mapping %}
+      <div class="strategy-card">
+        <div class="s-name">{{ s.get('strategy', '') }}</div>
+        <div class="s-app">{{ s.get('application', '') }}</div>
+        {% if s.get('duration_minutes') %}
+        <span class="s-time">{{ s.duration_minutes }} دقيقة</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 6. عرض الدرس ═══ -->
+{% set presentation = plan_data.get('presentation', {}) %}
+{% if presentation %}
+<div class="section sec-present">
+  <div class="section-header"><span class="num">6</span> عرض الدرس</div>
+  <div class="section-body">
+    <!-- المفاهيم الرئيسية -->
+    {% for concept in presentation.get('main_concepts', []) %}
+    {% if concept is mapping %}
+    <div class="concept-block">
+      <div class="concept-header">{{ concept.get('concept', '') }}</div>
+      <div class="concept-body">
+        {% if concept.get('explanation') %}
+        <p><span class="field-label">الشرح: </span>{{ concept.explanation }}</p>
+        {% endif %}
+        {% if concept.get('teaching_method') %}
+        <p><span class="field-label">الاستراتيجية: </span>{{ concept.teaching_method }}</p>
+        {% endif %}
+        {% if concept.get('student_activity') %}
+        <p><span class="field-label">نشاط الطلاب: </span>{{ concept.student_activity }}</p>
+        {% endif %}
+        {% if concept.get('examples') %}
+        <p style="font-weight:900; margin-top:5px;">الأمثلة:</p>
+        <ul class="items">
+          {% for ex in concept.examples %}
+          <li>{{ ex }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <!-- المعادلات الكيميائية -->
+    {% set equations = presentation.get('equations', []) %}
+    {% if equations %}
+    <div class="sub-section" style="margin-top:10px;">
+      <div class="sub-title" style="background: #fefce820 !important; color: #854d0e;">المعادلات الكيميائية</div>
+      {% for eq in equations %}
+      <div class="equation">{{ eq }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- الرسومات التوضيحية -->
+    {% set diagrams = presentation.get('diagrams_description', []) %}
+    {% if diagrams %}
+    <div class="sub-section" style="margin-top:8px;">
+      <div class="sub-title" style="background: #e0e7ff !important; color: var(--indigo);">الرسومات التوضيحية</div>
+      <ul class="items">
+        {% for d in diagrams %}
+        <li>{{ d }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 7. الربط بالقيم ═══ -->
+{% set values = plan_data.get('values_connection', {}) %}
+{% if values and values is mapping %}
+<div class="section sec-values">
+  <div class="section-header"><span class="num">7</span> الربط بالقيم</div>
+  <div class="section-body">
+    <div class="values-grid">
+      {% if values.get('religious') %}
+      <div class="value-card val-religious">
+        <div class="v-icon">🕌</div>
+        <div class="v-title">الربط الديني</div>
+        <div class="v-text">{{ values.religious }}</div>
+      </div>
+      {% endif %}
+      {% if values.get('national') %}
+      <div class="value-card val-national">
+        <div class="v-icon">🇸🇦</div>
+        <div class="v-title">الربط الوطني</div>
+        <div class="v-text">{{ values.national }}</div>
+      </div>
+      {% endif %}
+      {% if values.get('life') %}
+      <div class="value-card val-life">
+        <div class="v-icon">🔬</div>
+        <div class="v-title">الربط بالحياة</div>
+        <div class="v-text">{{ values.life }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 8. التقويم ═══ -->
+{% set evaluation = plan_data.get('evaluation', {}) %}
+{% if evaluation %}
+<div class="section sec-eval">
+  <div class="section-header"><span class="num">8</span> التقويم</div>
+  <div class="section-body">
+    <!-- التقويم التكويني -->
+    {% set formative = evaluation.get('formative', []) %}
+    {% if formative %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: var(--emerald-light) !important; color: var(--emerald);">التقويم التكويني</div>
+      {% for q in formative %}
+      {% if q is mapping %}
+      <div class="question-box">
+        {{ q.get('question', '') }}
+        {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
+        {% if q.get('bloom_level') %}<span style="font-size:8pt; color:#7c3aed;"> [{{ q.bloom_level }}]</span>{% endif %}
+      </div>
+      <div class="answer-box">{{ q.get('answer', '') }}</div>
+      {% elif q is string %}
+      <div class="question-box">{{ q }}</div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- التقويم الختامي -->
+    {% set summative = evaluation.get('summative', []) %}
+    {% if summative %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: var(--blue-light) !important; color: var(--blue);">التقويم الختامي</div>
+      <ul class="items">
+        {% for item in summative %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- إثرائي -->
+    {% set enrichment = evaluation.get('enrichment', []) %}
+    {% if enrichment %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: #faf5ff !important; color: var(--purple);">أنشطة إثرائية للمتفوقين</div>
+      <ul class="items">
+        {% for item in enrichment %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- علاجي -->
+    {% set remedial = evaluation.get('remedial', []) %}
+    {% if remedial %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: #fef2f2 !important; color: #dc2626;">أنشطة علاجية للضعاف</div>
+      <ul class="items">
+        {% for item in remedial %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 9. الفروق الفردية ═══ -->
+{% set ind_diff = plan_data.get('individual_differences', {}) %}
+{% if ind_diff %}
+<div class="section sec-diff">
+  <div class="section-header"><span class="num">9</span> مراعاة الفروق الفردية</div>
+  <div class="section-body">
+    <div class="two-cols">
+      <div class="col col-weak">
+        <div class="col-header">دعم الطلاب الضعاف</div>
+        <div class="col-body">
+          <ul class="items">
+            {% for item in ind_diff.get('weak_support', []) %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="col col-gifted">
+        <div class="col-header">أنشطة المتفوقين</div>
+        <div class="col-body">
+          <ul class="items">
+            {% for item in ind_diff.get('gifted_activities', []) %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% if ind_diff.get('average_activities') %}
+    <div style="margin-top:8px;">
+      <div class="sub-title" style="background: var(--cyan-light) !important; color: var(--cyan);">المستوى المتوسط</div>
+      <ul class="items">
+        {% for item in ind_diff.average_activities %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 10. الوسائل التعليمية ═══ -->
+{% set resources = plan_data.get('resources', []) %}
+{% if resources %}
+<div class="section sec-res">
+  <div class="section-header"><span class="num">10</span> الوسائل التعليمية</div>
+  <div class="section-body">
+    {% if resources[0] is mapping %}
+    <table class="styled-table">
+      <thead>
+        <tr style="background: var(--amber) !important;">
+          <th style="width:35%;">الوسيلة</th>
+          <th>الغرض</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resources %}
+        <tr>
+          <td style="font-weight:700;">{{ r.get('name', r.get('resource', '')) }}</td>
+          <td>{{ r.get('purpose', r.get('usage', '')) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <ul class="items">
+      {% for r in resources %}
+      <li>{{ r }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 11. الواجب المنزلي ═══ -->
+{% set homework = plan_data.get('homework', {}) %}
+{% if homework %}
+<div class="section sec-hw">
+  <div class="section-header"><span class="num">11</span> الواجب المنزلي</div>
+  <div class="section-body">
+    {% if homework.get('main') %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: var(--pink-light) !important; color: var(--pink);">الواجب الأساسي</div>
+      <ul class="items">
+        {% for item in homework.main %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if homework.get('optional') %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: #fdf2f830 !important; color: #be185d;">واجب إثرائي اختياري</div>
+      <ul class="items">
+        {% for item in homework.optional %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 12. التوزيع الزمني ═══ -->
+{% set time_dist = plan_data.get('time_distribution', []) %}
+{% if time_dist %}
+<div class="section sec-time">
+  <div class="section-header"><span class="num">12</span> التوزيع الزمني</div>
+  <div class="section-body">
+    <table class="styled-table">
+      <thead>
+        <tr style="background: var(--sky) !important;">
+          <th style="width:8%;">#</th>
+          <th style="width:35%;">النشاط</th>
+          <th style="width:15%;">المدة</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in time_dist %}
+        {% if t is mapping %}
+        <tr>
+          <td style="text-align:center; font-weight:900;">{{ loop.index }}</td>
+          <td>{{ t.get('activity', '') }}</td>
+          <td style="text-align:center;">
+            <span class="time-bar" style="background: var(--sky-light) !important; color: var(--sky);">
+              {{ t.get('duration_minutes', '') }} د
+            </span>
+          </td>
+          <td>{{ t.get('notes', '') }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 13. التأمل الذاتي ═══ -->
+{% set reflection = plan_data.get('reflection', {}) %}
+{% if reflection and reflection is mapping %}
+<div class="section sec-refl">
+  <div class="section-header"><span class="num">13</span> التأمل الذاتي</div>
+  <div class="section-body">
+    <div class="reflection-field">
+      <div class="rf-label">نقاط القوة</div>
+      <div class="rf-content">{{ reflection.get('strengths', '') }}</div>
+    </div>
+    <div class="reflection-field">
+      <div class="rf-label">نقاط التحسين</div>
+      <div class="rf-content">{{ reflection.get('improvements', '') }}</div>
+    </div>
+    <div class="reflection-field">
+      <div class="rf-label">ملاحظات إضافية</div>
+      <div class="rf-content">{{ reflection.get('notes', '') }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ جداول المقارنة (إن وجدت) ═══ -->
+{% set comparison_tables = plan_data.get('comparison_tables', []) %}
+{% if comparison_tables %}
+<div class="comparison-section">
+  {% for ct in comparison_tables %}
+  {% if ct is mapping %}
+  <div class="section sec-eval" style="margin-top:10px;">
+    <div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
+    <div class="section-body" style="border-color: #6ee7b7; background: #ecfdf5 !important;">
+      <table class="styled-table">
+        <thead>
+          <tr style="background: #10b981 !important;">
+            {% for h in ct.get('headers', []) %}
+            <th>{{ h }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ct.get('rows', []) %}
+          <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ═══ ملاحظات السلامة (إن وجدت) ═══ -->
+{% set safety = plan_data.get('safety_notes', []) %}
+{% if safety %}
+<div class="section" style="margin-top:10px;">
+  <div class="section-header" style="background: #dc2626 !important; color: #fff !important;">
+    <span class="num">⚠</span> ملاحظات السلامة
+  </div>
+  <div class="section-body" style="border-color: #fca5a5; background: #fef2f2 !important;">
+    <ul class="items">
+      {% for note in safety %}
+      <li style="font-weight:700; color: #dc2626;">{{ note }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+</body>
+</html>

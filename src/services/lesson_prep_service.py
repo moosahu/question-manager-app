@@ -291,6 +291,11 @@ class LessonPrepService:
     "improvements": "نقاط التحسين",
     "notes": "ملاحظات إضافية"
   }},
+  "values_connection": {{
+    "religious": "ربط ديني بآية أو حديث",
+    "national": "ربط وطني (رؤية 2030 أو إنجازات سعودية)",
+    "life": "ربط بالحياة اليومية"
+  }},
   "comparison_tables": [
     {{
       "title": "عنوان جدول المقارنة",
@@ -335,239 +340,25 @@ class LessonPrepService:
         return None
 
     def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name):
-        """توليد ملف PDF احترافي من بيانات التحضير"""
+        """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.units import cm
-            from reportlab.lib.colors import HexColor
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-            from reportlab.lib.styles import ParagraphStyle
-            from reportlab.lib.enums import TA_RIGHT, TA_CENTER
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.ttfonts import TTFont
+            from weasyprint import HTML
+            from flask import render_template
 
-            try:
-                import arabic_reshaper
-                from bidi.algorithm import get_display
-                has_arabic = True
-            except ImportError:
-                has_arabic = False
-
-            def reshape(text):
-                if not has_arabic or not text:
-                    return text
-                reshaped = arabic_reshaper.reshape(text)
-                return get_display(reshaped)
-
-            # تسجيل الخط العربي
-            font_name = 'Helvetica'
-            for font_path in [
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf',
-                '/System/Library/Fonts/Supplemental/Arial.ttf',
-            ]:
-                if os.path.exists(font_path):
-                    try:
-                        pdfmetrics.registerFont(TTFont('ArabicFont', font_path))
-                        font_name = 'ArabicFont'
-                        break
-                    except Exception:
-                        pass
-
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(
-                buffer, pagesize=A4,
-                rightMargin=1.5 * cm, leftMargin=1.5 * cm,
-                topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-            )
-
-            # الأنماط
-            title_style = ParagraphStyle(
-                'Title', fontName=font_name, fontSize=18,
-                alignment=TA_CENTER, spaceAfter=12,
-                textColor=HexColor('#1a365d'),
-            )
-            heading_style = ParagraphStyle(
-                'Heading', fontName=font_name, fontSize=14,
-                alignment=TA_RIGHT, spaceAfter=8, spaceBefore=12,
-                textColor=HexColor('#2563eb'),
-            )
-            body_style = ParagraphStyle(
-                'Body', fontName=font_name, fontSize=11,
-                alignment=TA_RIGHT, spaceAfter=4,
-                leading=16,
-            )
-            bullet_style = ParagraphStyle(
-                'Bullet', fontName=font_name, fontSize=11,
-                alignment=TA_RIGHT, spaceAfter=3,
-                leftIndent=20, leading=15,
-            )
-
-            elements = []
-
-            # العنوان
             lesson_info = plan_data.get('lesson_info', {})
-            title_text = lesson_info.get('title', lesson_name)
-            elements.append(Paragraph(reshape(f"تحضير درس: {title_text}"), title_style))
-            elements.append(Paragraph(reshape(f"{course_name} - {unit_name}"), body_style))
-            elements.append(Spacer(1, 12))
+            context = {
+                'plan_data': plan_data,
+                'lesson_info': lesson_info,
+                'lesson_name': lesson_name,
+                'unit_name': unit_name,
+                'course_name': course_name,
+            }
 
-            # الأهداف
-            objectives = plan_data.get('objectives', {})
-            if objectives:
-                elements.append(Paragraph(reshape("الأهداف"), heading_style))
-                for obj_type, label in [('cognitive', 'معرفية'), ('skill', 'مهارية'), ('emotional', 'وجدانية')]:
-                    items = objectives.get(obj_type, [])
-                    if items:
-                        elements.append(Paragraph(reshape(f"أهداف {label}:"), body_style))
-                        for item in items:
-                            elements.append(Paragraph(reshape(f"• {item}"), bullet_style))
+            html_string = render_template('lesson_prep/lesson_plan.html', **context)
+            pdf_bytes = HTML(string=html_string).write_pdf()
 
-            # التهيئة
-            prep = plan_data.get('preparation', {})
-            if prep:
-                elements.append(Paragraph(reshape("التهيئة والتمهيد"), heading_style))
-                if prep.get('introduction'):
-                    elements.append(Paragraph(reshape(prep['introduction']), body_style))
-                if prep.get('introduction_activity'):
-                    elements.append(Paragraph(reshape(f"النشاط: {prep['introduction_activity']}"), bullet_style))
-
-            # العرض
-            presentation = plan_data.get('presentation', {})
-            if presentation:
-                elements.append(Paragraph(reshape("عرض الدرس"), heading_style))
-                for concept in presentation.get('main_concepts', []):
-                    if isinstance(concept, dict):
-                        elements.append(Paragraph(reshape(f"▸ {concept.get('concept', '')}"), body_style))
-                        elements.append(Paragraph(reshape(concept.get('explanation', '')), bullet_style))
-                        for ex in concept.get('examples', []):
-                            elements.append(Paragraph(reshape(f"  مثال: {ex}"), bullet_style))
-
-                # المعادلات
-                for eq in presentation.get('equations', []):
-                    elements.append(Paragraph(reshape(f"⚗ {eq}"), bullet_style))
-
-            # استراتيجيات التدريس
-            strategies = plan_data.get('teaching_strategies', [])
-            if strategies:
-                elements.append(Paragraph(reshape("استراتيجيات التدريس"), heading_style))
-                for s in strategies:
-                    if isinstance(s, dict):
-                        elements.append(Paragraph(
-                            reshape(f"• {s.get('strategy', '')} ({s.get('duration_minutes', '')} د): {s.get('application', '')}"),
-                            bullet_style
-                        ))
-
-            # التقويم
-            evaluation = plan_data.get('evaluation', {})
-            if evaluation:
-                elements.append(Paragraph(reshape("التقويم"), heading_style))
-                for q in evaluation.get('formative', []):
-                    if isinstance(q, dict):
-                        elements.append(Paragraph(reshape(f"س: {q.get('question', '')}"), body_style))
-                        elements.append(Paragraph(reshape(f"ج: {q.get('answer', '')}"), bullet_style))
-
-                enrichment = evaluation.get('enrichment', [])
-                if enrichment:
-                    elements.append(Paragraph(reshape("إثرائي:"), body_style))
-                    for item in enrichment:
-                        elements.append(Paragraph(reshape(f"• {item}"), bullet_style))
-
-                remedial = evaluation.get('remedial', [])
-                if remedial:
-                    elements.append(Paragraph(reshape("علاجي:"), body_style))
-                    for item in remedial:
-                        elements.append(Paragraph(reshape(f"• {item}"), bullet_style))
-
-            # الفروق الفردية
-            ind_diff = plan_data.get('individual_differences', {})
-            if ind_diff:
-                elements.append(Paragraph(reshape("مراعاة الفروق الفردية"), heading_style))
-                for key, label in [('gifted_activities', 'للمتفوقين'), ('weak_support', 'للضعاف')]:
-                    items = ind_diff.get(key, [])
-                    if items:
-                        elements.append(Paragraph(reshape(f"{label}:"), body_style))
-                        for item in items:
-                            elements.append(Paragraph(reshape(f"• {item}"), bullet_style))
-
-            # الواجب
-            homework = plan_data.get('homework', {})
-            if homework:
-                elements.append(Paragraph(reshape("الواجب"), heading_style))
-                for item in homework.get('main', []):
-                    elements.append(Paragraph(reshape(f"• {item}"), bullet_style))
-
-            # التوزيع الزمني
-            time_dist = plan_data.get('time_distribution', [])
-            if time_dist:
-                elements.append(Paragraph(reshape("التوزيع الزمني"), heading_style))
-                table_data = [[reshape('النشاط'), reshape('المدة'), reshape('ملاحظات')]]
-                for t in time_dist:
-                    if isinstance(t, dict):
-                        table_data.append([
-                            reshape(t.get('activity', '')),
-                            reshape(f"{t.get('duration_minutes', '')} د"),
-                            reshape(t.get('notes', '')),
-                        ])
-                if len(table_data) > 1:
-                    table = Table(table_data, colWidths=[8 * cm, 3 * cm, 7 * cm])
-                    table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#2563eb')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#ffffff')),
-                        ('FONTNAME', (0, 0), (-1, -1), font_name),
-                        ('FONTSIZE', (0, 0), (-1, -1), 10),
-                        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                        ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#d1d5db')),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#f9fafb'), HexColor('#ffffff')]),
-                        ('TOPPADDING', (0, 0), (-1, -1), 6),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ]))
-                    elements.append(table)
-
-            # جداول المقارنة
-            comparison_tables = plan_data.get('comparison_tables', [])
-            for ct in comparison_tables:
-                if isinstance(ct, dict):
-                    elements.append(Paragraph(reshape(ct.get('title', 'جدول مقارنة')), heading_style))
-                    headers = ct.get('headers', [])
-                    rows = ct.get('rows', [])
-                    if headers and rows:
-                        table_data = [[reshape(h) for h in headers]]
-                        for row in rows:
-                            table_data.append([reshape(str(c)) for c in row])
-                        table = Table(table_data)
-                        table.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#10b981')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#ffffff')),
-                            ('FONTNAME', (0, 0), (-1, -1), font_name),
-                            ('FONTSIZE', (0, 0), (-1, -1), 10),
-                            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                            ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#d1d5db')),
-                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#f0fdf4'), HexColor('#ffffff')]),
-                            ('TOPPADDING', (0, 0), (-1, -1), 6),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                        ]))
-                        elements.append(table)
-
-            # الوسائل التعليمية
-            resources = plan_data.get('resources', [])
-            if resources:
-                elements.append(Paragraph(reshape("الوسائل التعليمية"), heading_style))
-                for r in resources:
-                    elements.append(Paragraph(reshape(f"• {r}"), bullet_style))
-
-            # التأمل
-            reflection = plan_data.get('reflection', {})
-            if reflection and isinstance(reflection, dict):
-                elements.append(Paragraph(reshape("التأمل الذاتي"), heading_style))
-                if reflection.get('strengths'):
-                    elements.append(Paragraph(reshape(f"نقاط القوة: {reflection['strengths']}"), body_style))
-                if reflection.get('improvements'):
-                    elements.append(Paragraph(reshape(f"نقاط التحسين: {reflection['improvements']}"), body_style))
-
-            doc.build(elements)
-            buffer.seek(0)
-            return buffer.read()
+            logger.info(f"تم توليد PDF بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+            return pdf_bytes
 
         except Exception as e:
             logger.error(f"خطأ في توليد PDF: {e}")
