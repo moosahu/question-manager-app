@@ -3955,6 +3955,94 @@ def get_admin_profile_api():
         return jsonify({'success': False, 'error': 'خطأ في جلب البيانات'}), 500
 
 
+# ===== جهاز موثوق — تجديد الجلسة بدون 2FA =====
+@api_bp.route("/auth/trusted-device", methods=["POST"])
+def trusted_device_auth():
+    """
+    تجديد جلسة الأدمن عبر device token بدون الحاجة لـ 2FA.
+    يُستدعى من التطبيق عند انتهاء الجلسة مع وجود device token محفوظ.
+    """
+    try:
+        from src.models.user import User
+        from flask_login import login_user
+
+        data = request.get_json() or {}
+        device_token = data.get('device_token', '').strip()
+        username = data.get('username', '').strip()
+
+        if not device_token or not username:
+            return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
+
+        user = User.query.filter_by(username=username).first()
+        if not user or not user.is_admin:
+            return jsonify({'success': False, 'error': 'مستخدم غير موجود'}), 404
+
+        # تحقق من التوكن وصلاحيته
+        if not user.trusted_device_token or user.trusted_device_token != device_token:
+            return jsonify({'success': False, 'error': 'توكن غير صالح'}), 401
+
+        if user.trusted_device_expires and datetime.utcnow() > user.trusted_device_expires:
+            # التوكن منتهي — امسحه
+            user.trusted_device_token = None
+            user.trusted_device_expires = None
+            db.session.commit()
+            return jsonify({'success': False, 'error': 'التوكن منتهي الصلاحية'}), 401
+
+        # ✅ التوكن صالح — سجل دخول بدون 2FA
+        login_user(user, remember=True)
+
+        # جدّد التوكن (token rotation)
+        import secrets
+        new_token = secrets.token_urlsafe(64)
+        user.trusted_device_token = new_token
+        user.trusted_device_expires = datetime.utcnow() + timedelta(days=30)
+        db.session.commit()
+
+        logger.info(f"✅ Trusted device login for {username}")
+        return jsonify({
+            'success': True,
+            'device_token': new_token,
+            'admin': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_admin': user.is_admin,
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Trusted device auth error: {e}")
+        return jsonify({'success': False, 'error': 'خطأ في التحقق'}), 500
+
+
+@api_bp.route("/auth/register-device", methods=["POST"])
+@login_required
+def register_trusted_device():
+    """
+    تسجيل الجهاز كجهاز موثوق — يُستدعى بعد تسجيل الدخول الناجح مع 2FA.
+    """
+    try:
+        import secrets
+
+        if not current_user.is_admin:
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
+        token = secrets.token_urlsafe(64)
+        current_user.trusted_device_token = token
+        current_user.trusted_device_expires = datetime.utcnow() + timedelta(days=30)
+        db.session.commit()
+
+        logger.info(f"✅ Registered trusted device for {current_user.username}")
+        return jsonify({
+            'success': True,
+            'device_token': token,
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Register trusted device error: {e}")
+        return jsonify({'success': False, 'error': 'خطأ في تسجيل الجهاز'}), 500
+
+
 # ===== رفع صورة للأسئلة من التطبيق =====
 @api_bp.route("/upload-image", methods=["POST"])
 @login_required

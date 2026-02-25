@@ -28,6 +28,8 @@ class User(db.Model, UserMixin):
     two_factor_auth = db.Column(db.Boolean, default=False, nullable=False)
     totp_secret     = db.Column(db.String(32), nullable=True)
     phone_number    = db.Column(db.String(20), nullable=True)  # للتحقق عبر SMS
+    trusted_device_token = db.Column(db.String(128), nullable=True)  # توكن الجهاز الموثوق
+    trusted_device_expires = db.Column(db.DateTime, nullable=True)   # تاريخ انتهاء التوكن
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
