@@ -4,13 +4,12 @@ Admin AI Routes - واجهات API للأدمن للتحكم في نظام AI
 مع التحسينات: Validation, Export/Import, Testing, Presets, Analytics
 """
 
-from flask import Blueprint, request, jsonify, send_file, current_app
+from flask import Blueprint, request, jsonify, send_file
 from flask_login import current_user
 from functools import wraps
 from datetime import datetime, timedelta
 import json
 import io
-import threading
 
 from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
@@ -295,45 +294,13 @@ def analyze_all():
                     'data': {'status': 'already_running'}
                 })
 
-        # سجل بداية التحليل في DB
+        # سجل طلب التحليل في DB - الـ Scheduler يلتقطه كل 10 ثواني
         AISetting.set_setting('analysis_job_status', 'running', 'string')
         AISetting.set_setting('analysis_job_progress', json.dumps({
             'total': 0, 'analyzed': 0, 'failed': 0,
             'actions_taken': 0, 'started_at': datetime.utcnow().isoformat()
         }), 'json')
-
-        # شغل التحليل بثريد مع app context
-        app = current_app._get_current_object()
-
-        def run_analysis():
-            print("🧵 [Thread] بداية الثريد...")
-            try:
-                with app.app_context():
-                    print("🧵 [Thread] App context جاهز")
-                    # تجاوز is_running لأننا نتحقق في DB
-                    student_analyzer.is_running = False
-                    print("🧵 [Thread] بدء analyze_all_students...")
-                    result = student_analyzer.analyze_all_students()
-                    print(f"🧵 [Thread] ✅ اكتمل: {result.get('analyzed', 0)} analyzed, {result.get('failed', 0)} failed")
-                    AISetting.set_setting('analysis_job_status', 'completed', 'string')
-                    AISetting.set_setting('analysis_job_progress', json.dumps(result), 'json')
-                    db.session.remove()
-            except Exception as e:
-                print(f"🧵 [Thread] ❌ خطأ: {e}")
-                import traceback
-                traceback.print_exc()
-                try:
-                    with app.app_context():
-                        AISetting.set_setting('analysis_job_status', 'failed', 'string')
-                        AISetting.set_setting('analysis_job_progress', json.dumps({
-                            'error': str(e)
-                        }), 'json')
-                        db.session.remove()
-                except Exception as e2:
-                    print(f"🧵 [Thread] ❌ خطأ في حفظ الفشل: {e2}")
-
-        thread = threading.Thread(target=run_analysis)
-        thread.start()
+        print(f"📋 [API] تم تسجيل طلب تحليل يدوي - ينتظر الـ Scheduler")
 
         return jsonify({
             'success': True,

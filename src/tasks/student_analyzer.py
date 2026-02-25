@@ -319,6 +319,16 @@ def init_scheduler(app):
         replace_existing=True
     )
 
+    # ✅ المهمة 5: التحقق من طلبات التحليل اليدوية (كل 10 ثواني)
+    scheduler.add_job(
+        func=check_manual_analysis_request,
+        trigger='interval',
+        seconds=10,
+        id='check_manual_analysis',
+        name='فحص طلبات التحليل',
+        replace_existing=True
+    )
+
     # بدء الـ Scheduler
     scheduler.start()
     print("✅ تم تفعيل APScheduler")
@@ -326,8 +336,46 @@ def init_scheduler(app):
     print(f"   - التقرير اليومي: الساعة {daily_report_time}")
     print(f"   - تحدي اليوم: الساعة 8:00 صباحاً")
     print(f"   - تذكير التحدي: الساعة 20:00 مساءً")
+    print(f"   - فحص طلبات التحليل: كل 10 ثواني")
 
     return scheduler
+
+
+def check_manual_analysis_request():
+    """فحص إذا فيه طلب تحليل يدوي من التطبيق"""
+    from src import create_app
+    import json as _json
+    app = create_app()
+    with app.app_context():
+        try:
+            status = AISetting.get_setting('analysis_job_status', 'idle')
+            if status != 'running':
+                return
+
+            # تحقق من التقدم
+            progress = AISetting.get_setting('analysis_job_progress', {})
+            total = progress.get('total', 0) if isinstance(progress, dict) else 0
+
+            # إذا total=0 يعني لسا ما بدأ التحليل الفعلي
+            if total == 0:
+                print("📋 [Scheduler] طلب تحليل يدوي - جاري التنفيذ...")
+
+                try:
+                    student_analyzer.is_running = False
+                    result = student_analyzer.analyze_all_students()
+
+                    AISetting.set_setting('analysis_job_status', 'completed', 'string')
+                    AISetting.set_setting('analysis_job_progress', _json.dumps(result), 'json')
+                    print(f"✅ [Scheduler] اكتمل التحليل اليدوي: {result.get('analyzed', 0)} طالب")
+                except Exception as e:
+                    print(f"❌ [Scheduler] فشل التحليل اليدوي: {e}")
+                    AISetting.set_setting('analysis_job_status', 'failed', 'string')
+                    AISetting.set_setting('analysis_job_progress', _json.dumps({
+                        'error': str(e)
+                    }), 'json')
+
+        except Exception as e:
+            print(f"❌ [Scheduler] خطأ في check_manual_analysis_request: {e}")
 
 
 def run_scheduled_analysis():
