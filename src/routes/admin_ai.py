@@ -1125,6 +1125,33 @@ def get_trends():
 
 
 # ============================================
+# Notification Effectiveness Routes
+# ============================================
+
+@admin_ai_bp.route('/notifications/effectiveness', methods=['GET'])
+@admin_required
+def get_notification_effectiveness():
+    """
+    فعالية الإشعارات - هل الطلاب يستجيبون بعد الإشعارات؟
+
+    GET /api/admin/ai/notifications/effectiveness
+    """
+    try:
+        result = student_analyzer.check_notification_effectiveness()
+
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================
 # Logs Routes
 # ============================================
 

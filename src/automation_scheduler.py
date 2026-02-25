@@ -391,6 +391,23 @@ def check_single_student_analysis_job():
         logger.error(f"❌ [Scheduler] خطأ في check_single_student_analysis_job: {e}")
 
 
+def check_notification_effectiveness_job():
+    """فحص فعالية الإشعارات يومياً"""
+    global _flask_app
+
+    if _flask_app is None:
+        return
+
+    try:
+        with _flask_app.app_context():
+            from src.tasks.student_analyzer import student_analyzer
+            logger.info("📊 [Scheduler] فحص فعالية الإشعارات...")
+            result = student_analyzer.check_notification_effectiveness()
+            logger.info(f"✅ [Scheduler] فعالية الإشعارات: {result.get('total_sent', 0)} إشعار")
+    except Exception as e:
+        logger.error(f"❌ [Scheduler] خطأ في فحص فعالية الإشعارات: {e}")
+
+
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
     global automation_scheduler, _flask_app, _has_lock
@@ -446,6 +463,15 @@ def start_automation_scheduler(app):
             trigger=IntervalTrigger(seconds=5),
             id='check_single_analysis',
             name='فحص تحليل طالب واحد',
+            replace_existing=True
+        )
+
+        # ✅ فحص فعالية الإشعارات يومياً (كل 24 ساعة)
+        automation_scheduler.add_job(
+            func=check_notification_effectiveness_job,
+            trigger=IntervalTrigger(hours=24),
+            id='check_notification_effectiveness',
+            name='فحص فعالية الإشعارات',
             replace_existing=True
         )
 

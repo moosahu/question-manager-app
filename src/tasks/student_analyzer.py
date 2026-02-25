@@ -179,6 +179,45 @@ class StudentAnalyzer:
             'action_taken': action_taken
         }
 
+    def _send_daily_report_fcm(self, report: Dict):
+        """إرسال ملخص التقرير اليومي كإشعار FCM للأدمن"""
+        try:
+            admin_fcm_token = AISetting.get_setting('admin_fcm_token')
+            if not admin_fcm_token:
+                print("⚠️ لا يوجد FCM token للأدمن - تخطي إرسال التقرير")
+                return
+
+            from src.services.notification_service import NotificationService
+
+            severity = report.get('severity_distribution', {})
+            critical = report.get('critical_count', 0)
+            analyzed = report.get('analyzed_today', 0)
+            total = report.get('total_students', 0)
+
+            title = f"📊 التقرير اليومي - {analyzed}/{total} طالب"
+
+            body_parts = [f"تم تحليل {analyzed} طالب من أصل {total}"]
+            if critical > 0:
+                body_parts.append(f"🔴 {critical} حالة حرجة تحتاج متابعة!")
+            attention = report.get('needs_attention_count', 0)
+            if attention > 0:
+                body_parts.append(f"🟠 {attention} يحتاج انتباه")
+            body_parts.append(
+                f"🟢{severity.get('green',0)} 🟡{severity.get('yellow',0)} "
+                f"🟠{severity.get('orange',0)} 🔴{severity.get('red',0)}"
+            )
+
+            body = '\n'.join(body_parts)
+
+            NotificationService.send_fcm_notification(
+                admin_fcm_token, title, body,
+                {'type': 'daily_report', 'date': report.get('date', '')}
+            )
+            print(f"✅ تم إرسال التقرير اليومي للأدمن عبر FCM")
+
+        except Exception as e:
+            print(f"⚠️ فشل إرسال التقرير اليومي للأدمن: {e}")
+
     def generate_daily_report(self) -> Dict:
         """
         توليد تقرير يومي عن أداء الطلاب
@@ -239,6 +278,9 @@ class StudentAnalyzer:
                 data=report
             )
 
+            # إرسال التقرير كإشعار FCM للأدمن
+            self._send_daily_report_fcm(report)
+
             print("✅ تم توليد التقرير اليومي")
             return report
 
@@ -254,6 +296,121 @@ class StudentAnalyzer:
                 'status': 'error',
                 'error': str(e)
             }
+
+
+    def check_notification_effectiveness(self) -> Dict:
+        """
+        تقييم فعالية الإشعارات المرسلة خلال آخر 7 أيام
+        لكل إشعار: هل فتح الطالب التطبيق؟ هل حل أسئلة خلال 48 ساعة؟
+        """
+        try:
+            from src.models.ai_analysis import AIAction
+            from src.models.student_result import StudentResult
+
+            print("📊 فحص فعالية الإشعارات...")
+
+            week_ago = datetime.utcnow() - timedelta(days=7)
+
+            # جلب الإشعارات المرسلة خلال 7 أيام
+            sent_actions = AIAction.query.filter(
+                AIAction.message_sent == True,
+                AIAction.message_sent_at >= week_ago,
+                AIAction.message_sent_at.isnot(None)
+            ).all()
+
+            if not sent_actions:
+                print("⚠️ لا توجد إشعارات مرسلة خلال 7 أيام")
+                return {'total_sent': 0, 'details': []}
+
+            total_sent = len(sent_actions)
+            opened_count = 0
+            solved_count = 0
+            total_response_hours = 0
+            response_count = 0
+            details = []
+
+            for action in sent_actions:
+                sent_at = action.message_sent_at
+                check_until = sent_at + timedelta(hours=48)
+                student = Student.query.get(action.student_id)
+
+                if not student:
+                    continue
+
+                # هل فتح التطبيق بعد الإشعار؟
+                opened_app = (
+                    student.last_login is not None
+                    and student.last_login > sent_at
+                    and student.last_login <= check_until
+                )
+
+                # هل حل أسئلة بعد الإشعار؟
+                results_after = StudentResult.query.filter(
+                    StudentResult.student_id == action.student_id,
+                    StudentResult.created_at > sent_at,
+                    StudentResult.created_at <= check_until
+                ).count()
+
+                # حساب وقت الاستجابة
+                response_hours = None
+                if opened_app and student.last_login:
+                    response_hours = (student.last_login - sent_at).total_seconds() / 3600
+
+                if opened_app:
+                    opened_count += 1
+                if results_after > 0:
+                    solved_count += 1
+                if response_hours is not None:
+                    total_response_hours += response_hours
+                    response_count += 1
+
+                # حفظ النتيجة في AIAction.result (حقل success/error_message)
+                effectiveness = {
+                    'opened_app': opened_app,
+                    'solved_questions': results_after,
+                    'response_time_hours': round(response_hours, 1) if response_hours else None
+                }
+
+                detail = {
+                    'action_id': action.id,
+                    'student_id': action.student_id,
+                    'student_name': student.name,
+                    'sent_at': sent_at.isoformat(),
+                    'opened_app': opened_app,
+                    'solved_questions': results_after,
+                    'response_time_hours': round(response_hours, 1) if response_hours else None
+                }
+                details.append(detail)
+
+            avg_response = round(total_response_hours / response_count, 1) if response_count > 0 else None
+
+            summary = {
+                'total_sent': total_sent,
+                'opened_count': opened_count,
+                'solved_count': solved_count,
+                'open_rate': round(opened_count / total_sent * 100, 1) if total_sent > 0 else 0,
+                'solve_rate': round(solved_count / total_sent * 100, 1) if total_sent > 0 else 0,
+                'avg_response_hours': avg_response,
+                'checked_at': datetime.utcnow().isoformat(),
+                'details': details
+            }
+
+            # حفظ الملخص في AILog
+            AILog.log_operation(
+                'notification_effectiveness',
+                description=f'فعالية الإشعارات: {opened_count}/{total_sent} فتح، {solved_count}/{total_sent} حل',
+                success=True,
+                data=summary
+            )
+
+            print(f"✅ فعالية الإشعارات: {opened_count}/{total_sent} فتح، {solved_count}/{total_sent} حل")
+            return summary
+
+        except Exception as e:
+            print(f"❌ خطأ في check_notification_effectiveness: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'status': 'error', 'error': str(e)}
 
 
 # إنشاء instance واحد
