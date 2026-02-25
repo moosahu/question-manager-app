@@ -274,11 +274,26 @@ def analyze_all():
         # تحقق إذا فيه تحليل شغال
         current_status = AISetting.get_setting('analysis_job_status', 'idle')
         if current_status == 'running':
-            return jsonify({
-                'success': True,
-                'message': 'التحليل يعمل بالفعل',
-                'data': {'status': 'already_running'}
-            })
+            # تحقق إذا عالق (أكثر من 3 دقائق بدون تقدم)
+            progress = AISetting.get_setting('analysis_job_progress', {})
+            started_at = progress.get('started_at', '') if isinstance(progress, dict) else ''
+            is_stale = False
+            if started_at:
+                try:
+                    start_time = datetime.fromisoformat(started_at)
+                    elapsed = (datetime.utcnow() - start_time).total_seconds()
+                    if elapsed > 180:  # أكثر من 3 دقائق
+                        is_stale = True
+                        print(f"⚠️ تحليل عالق منذ {elapsed:.0f} ثانية - إعادة تشغيل")
+                except Exception:
+                    is_stale = True
+
+            if not is_stale:
+                return jsonify({
+                    'success': True,
+                    'message': 'التحليل يعمل بالفعل',
+                    'data': {'status': 'already_running'}
+                })
 
         # سجل بداية التحليل في DB
         AISetting.set_setting('analysis_job_status', 'running', 'string')
