@@ -301,9 +301,9 @@ def analyze_all():
         def run_analysis():
             with app.app_context():
                 try:
-                    result = student_analyzer.analyze_all_students()
+                    # استدعاء مباشر بدون فحص is_running (الـ endpoint يتكفل بهذا)
+                    result = student_analyzer._run_analysis_internal()
                     student_analyzer.last_result = result
-                    # التقدم يتحدث تلقائياً داخل analyze_all_students
                 except Exception as e:
                     print(f"❌ خطأ في thread التحليل: {e}")
                     import traceback

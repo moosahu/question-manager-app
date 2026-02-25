@@ -93,16 +93,26 @@ class StudentAnalyzer:
 
     def analyze_all_students(self) -> Dict:
         """
-        تحليل جميع الطلاب النشطين
-
-        Returns:
-            تقرير بالنتائج
+        تحليل جميع الطلاب النشطين (مع فحص is_running)
+        يُستدعى من الـ Scheduler
         """
         if self.is_running:
             print("⚠️ التحليل يعمل بالفعل...")
             return {'status': 'already_running'}
 
-        self.is_running = True
+        self.progress = {
+            'status': 'running',
+            'total': 0,
+            'analyzed': 0,
+            'failed': 0,
+        }
+        return self._run_analysis_internal()
+
+    def _run_analysis_internal(self) -> Dict:
+        """
+        التحليل الفعلي — بدون فحص is_running
+        يُستدعى من الـ endpoint (اللي يتكفل بالفحص) ومن analyze_all_students
+        """
         start_time = datetime.utcnow()
 
         try:
