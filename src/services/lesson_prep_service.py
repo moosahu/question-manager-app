@@ -205,10 +205,10 @@ class LessonPrepService:
 - **الدرس**: {lesson_name}
 
 ## معلومات الفصل
-- **عدد الطالبات**: {student_count}
-- **مستوى الطالبات**: {student_level}
-- **عدد الطالبات الضعيفات**: {weak_count}
-- **عدد الطالبات المتفوقات**: {excellent_count}
+- **عدد الطلاب**: {student_count}
+- **مستوى الطلاب**: {student_level}
+- **عدد الطلاب الضعاف**: {weak_count}
+- **عدد الطلاب المتفوقين**: {excellent_count}
 - **التركيز المطلوب**: {focus}
 - **عدد الأمثلة**: {examples}
 
@@ -231,7 +231,7 @@ class LessonPrepService:
     "emotional": ["أهداف وجدانية"]
   }},
   "preparation": {{
-    "introduction": "التهيئة والتمهيد - سؤال أو موقف تحفيزي يشد انتباه الطالبات",
+    "introduction": "التهيئة والتمهيد - سؤال أو موقف تحفيزي يشد انتباه الطلاب",
     "introduction_activity": "نشاط تفاعلي للتهيئة",
     "connection_to_previous": "ربط بالدرس السابق"
   }},
@@ -242,7 +242,7 @@ class LessonPrepService:
         "explanation": "الشرح التفصيلي",
         "teaching_method": "استراتيجية التدريس المستخدمة",
         "examples": ["أمثلة توضيحية"],
-        "student_activity": "نشاط الطالبات"
+        "student_activity": "نشاط الطلاب"
       }}
     ],
     "equations": ["المعادلات الكيميائية إن وجدت"],
@@ -265,12 +265,12 @@ class LessonPrepService:
       }}
     ],
     "summative": ["أسئلة التقويم الختامي"],
-    "enrichment": ["أسئلة إثرائية للمتفوقات"],
-    "remedial": ["أنشطة علاجية للضعيفات"]
+    "enrichment": ["أسئلة إثرائية للمتفوقين"],
+    "remedial": ["أنشطة علاجية للضعاف"]
   }},
   "individual_differences": {{
-    "gifted_activities": ["أنشطة للمتفوقات"],
-    "weak_support": ["دعم الطالبات الضعيفات"],
+    "gifted_activities": ["أنشطة للمتفوقين"],
+    "weak_support": ["دعم الطلاب الضعاف"],
     "average_activities": ["أنشطة للمستوى المتوسط"]
   }},
   "homework": {{
@@ -307,7 +307,7 @@ class LessonPrepService:
 - استخدم مصطلحات كيميائية دقيقة
 - اجعل الأمثلة من واقع الحياة السعودية قدر الإمكان
 - عند وصف الرسومات، اذكر تفاصيل كافية لرسمها
-- ركّز على "{focus}" حسب طلب المعلمة
+- ركّز على "{focus}" حسب طلب المعلم
 - قدّم {examples} أمثلة على الأقل لكل مفهوم رئيسي
 - راعِ الفروق الفردية: {weak_count} ضعيفات و {excellent_count} متفوقات
 """
@@ -482,7 +482,7 @@ class LessonPrepService:
             ind_diff = plan_data.get('individual_differences', {})
             if ind_diff:
                 elements.append(Paragraph(reshape("مراعاة الفروق الفردية"), heading_style))
-                for key, label in [('gifted_activities', 'للمتفوقات'), ('weak_support', 'للضعيفات')]:
+                for key, label in [('gifted_activities', 'للمتفوقين'), ('weak_support', 'للضعاف')]:
                     items = ind_diff.get(key, [])
                     if items:
                         elements.append(Paragraph(reshape(f"{label}:"), body_style))
