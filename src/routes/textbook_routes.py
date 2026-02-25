@@ -47,34 +47,10 @@ def get_textbooks():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@textbook_bp.route('/cloudinary-config', methods=['GET'])
-@admin_required
-def get_cloudinary_config():
-    """إرجاع بيانات Cloudinary للرفع المباشر من التطبيق"""
-    try:
-        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
-        api_key = os.environ.get('CLOUDINARY_API_KEY', '')
-
-        if not cloud_name or not api_key:
-            return jsonify({'success': False, 'error': 'Cloudinary غير مضبوط'}), 500
-
-        return jsonify({
-            'success': True,
-            'data': {
-                'cloud_name': cloud_name,
-                'api_key': api_key,
-                'upload_preset': 'textbooks_unsigned',  # يجب إنشاءه في Cloudinary Dashboard
-                'folder': 'textbooks',
-            }
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
 @textbook_bp.route('/register', methods=['POST'])
 @admin_required
 def register_textbook():
-    """تسجيل كتاب بعد رفعه مباشرة على Cloudinary من التطبيق"""
+    """تسجيل كتاب برابط خارجي (Google Drive / أي رابط PDF)"""
     try:
         data = request.get_json()
         if not data:
