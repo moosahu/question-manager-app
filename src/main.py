@@ -559,10 +559,16 @@ def create_app():
                 db.session.execute(db.text(
                     'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)'
                 ))
+                db.session.execute(db.text(
+                    'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trusted_device_token VARCHAR(128)'
+                ))
+                db.session.execute(db.text(
+                    'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS trusted_device_expires TIMESTAMP'
+                ))
                 db.session.commit()
             except Exception as _col_err:
                 db.session.rollback()
-                print(f"⚠️ phone_number column: {_col_err}")
+                print(f"⚠️ column migration: {_col_err}")
 
             # Check if admin user exists
             admin_user = User.query.filter_by(username="admin").first()
