@@ -21,6 +21,8 @@ class StudentAnalyzer:
     def __init__(self):
         """تهيئة المحلل"""
         self.is_running = False
+        self.progress = {'status': 'idle'}
+        self.last_result = None
 
     def analyze_all_students(self) -> Dict:
         """
@@ -67,8 +69,18 @@ class StudentAnalyzer:
             }
 
             # تحليل كل طالب
-            for student in students:
+            for i, student in enumerate(students):
                 try:
+                    # تحديث التقدم
+                    self.progress = {
+                        'status': 'running',
+                        'total': len(students),
+                        'analyzed': results['analyzed'],
+                        'failed': results['failed'],
+                        'current_student': student.name,
+                        'current_index': i + 1,
+                    }
+
                     result = self._analyze_single_student(student)
 
                     if result:
