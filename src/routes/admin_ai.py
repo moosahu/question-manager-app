@@ -10,7 +10,6 @@ from functools import wraps
 from datetime import datetime, timedelta
 import json
 import io
-import threading
 
 from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
@@ -269,60 +268,14 @@ def analyze_single_student(student_id):
 @admin_ai_bp.route('/analyze/all', methods=['POST'])
 @admin_required
 def analyze_all():
-    """تحليل جميع الطلاب — يشتغل في الخلفية"""
+    """تحليل جميع الطلاب"""
     try:
-        # لو التحليل شغال بالفعل
-        if student_analyzer.is_running:
-            return jsonify({
-                'success': True,
-                'message': 'التحليل يعمل بالفعل',
-                'data': {
-                    'status': 'already_running',
-                    'progress': student_analyzer.progress
-                }
-            })
-
-        # عدد الطلاب
-        total_students = Student.query.filter_by(is_active=True).count()
-
-        # تهيئة التتبع في الملف المشترك
-        student_analyzer.progress = {
-            'status': 'running',
-            'total': total_students,
-            'analyzed': 0,
-            'failed': 0,
-            'started_at': datetime.utcnow().isoformat()
-        }
-
-        # تشغيل التحليل في thread منفصل
-        from flask import current_app
-        app = current_app._get_current_object()
-
-        def run_analysis():
-            with app.app_context():
-                try:
-                    # استدعاء مباشر بدون فحص is_running (الـ endpoint يتكفل بهذا)
-                    result = student_analyzer._run_analysis_internal()
-                    student_analyzer.last_result = result
-                except Exception as e:
-                    print(f"❌ خطأ في thread التحليل: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    student_analyzer.progress = {
-                        'status': 'error',
-                        'error': str(e)
-                    }
-
-        thread = threading.Thread(target=run_analysis, daemon=True)
-        thread.start()
+        result = student_analyzer.analyze_all_students()
 
         return jsonify({
             'success': True,
-            'message': 'بدأ التحليل في الخلفية',
-            'data': {
-                'status': 'started',
-                'total_students': total_students
-            }
+            'message': 'تم التحليل بنجاح',
+            'data': result
         })
 
     except Exception as e:
@@ -330,17 +283,6 @@ def analyze_all():
             'success': False,
             'error': str(e)
         }), 500
-
-
-@admin_ai_bp.route('/analyze/all/status', methods=['GET'])
-@admin_required
-def analyze_all_status():
-    """حالة التحليل الجاري — يقرأ من ملف مشترك بين العمال"""
-    progress = student_analyzer.progress
-    return jsonify({
-        'success': True,
-        'data': progress
-    })
 
 
 @admin_ai_bp.route('/analysis/latest/<int:student_id>', methods=['GET'])
