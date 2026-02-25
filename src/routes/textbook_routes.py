@@ -47,10 +47,80 @@ def get_textbooks():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@textbook_bp.route('/cloudinary-config', methods=['GET'])
+@admin_required
+def get_cloudinary_config():
+    """إرجاع بيانات Cloudinary للرفع المباشر من التطبيق"""
+    try:
+        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+        api_key = os.environ.get('CLOUDINARY_API_KEY', '')
+
+        if not cloud_name or not api_key:
+            return jsonify({'success': False, 'error': 'Cloudinary غير مضبوط'}), 500
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'cloud_name': cloud_name,
+                'api_key': api_key,
+                'upload_preset': 'textbooks_unsigned',  # يجب إنشاءه في Cloudinary Dashboard
+                'folder': 'textbooks',
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@textbook_bp.route('/register', methods=['POST'])
+@admin_required
+def register_textbook():
+    """تسجيل كتاب بعد رفعه مباشرة على Cloudinary من التطبيق"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'لا توجد بيانات'}), 400
+
+        course_id = data.get('course_id')
+        title = data.get('title', '').strip()
+        pdf_url = data.get('pdf_url', '').strip()
+        total_pages = data.get('total_pages', 0)
+        edition_year = data.get('edition_year', '').strip()
+
+        if not course_id or not title or not pdf_url:
+            return jsonify({'success': False, 'error': 'المقرر والعنوان ورابط PDF مطلوبة'}), 400
+
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({'success': False, 'error': 'المقرر غير موجود'}), 404
+
+        textbook = Textbook(
+            course_id=course_id,
+            title=title,
+            edition_year=edition_year,
+            pdf_url=pdf_url,
+            total_pages=total_pages,
+            uploaded_by=current_user.id if current_user.is_authenticated else None,
+        )
+        db.session.add(textbook)
+        db.session.commit()
+
+        logger.info(f"تم تسجيل كتاب: {title} (ID: {textbook.id}, صفحات: {total_pages})")
+        return jsonify({
+            'success': True,
+            'data': textbook.to_dict(),
+            'message': f'تم تسجيل الكتاب بنجاح ({total_pages} صفحة)'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"خطأ في تسجيل الكتاب: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @textbook_bp.route('/upload', methods=['POST'])
 @admin_required
 def upload_textbook():
-    """رفع كتاب PDF جديد"""
+    """رفع كتاب PDF عبر السيرفر (للملفات الصغيرة < 50MB)"""
     try:
         if 'pdf' not in request.files:
             return jsonify({'success': False, 'error': 'لم يتم إرفاق ملف PDF'}), 400
@@ -157,7 +227,6 @@ def set_lesson_pages(textbook_id):
 
         data = request.get_json()
         mappings = data.get('mappings', [])
-        # كل mapping: { lesson_id, start_page, end_page }
 
         if not mappings:
             return jsonify({'success': False, 'error': 'لا توجد بيانات ربط'}), 400
@@ -177,7 +246,6 @@ def set_lesson_pages(textbook_id):
             if end_page > textbook.total_pages and textbook.total_pages > 0:
                 continue
 
-            # تحديث أو إنشاء
             existing = LessonPages.query.filter_by(
                 lesson_id=lesson_id, textbook_id=textbook_id
             ).first()
