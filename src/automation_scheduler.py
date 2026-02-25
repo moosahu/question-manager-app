@@ -391,6 +391,66 @@ def check_single_student_analysis_job():
         logger.error(f"❌ [Scheduler] خطأ في check_single_student_analysis_job: {e}")
 
 
+def check_lesson_prep_job():
+    """فحص إذا فيه طلب تحضير درس بالـ AI"""
+    global _flask_app
+
+    if _flask_app is None:
+        return
+
+    try:
+        with _flask_app.app_context():
+            import json as _json
+
+            result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'lesson_prep_job_status'
+            """)).fetchone()
+
+            status = result[0] if result else 'idle'
+
+            if status != 'running':
+                return
+
+            data_result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'lesson_prep_job_data'
+            """)).fetchone()
+
+            data = _json.loads(data_result[0]) if data_result else {}
+            plan_id = data.get('plan_id')
+            plan_type = data.get('type', 'single_lesson')
+
+            if not plan_id:
+                return
+
+            logger.info(f"📝 [Scheduler] طلب تحضير درس #{plan_id} ({plan_type}) - جاري التنفيذ...")
+
+            try:
+                from src.services.lesson_prep_service import lesson_prep_service
+
+                if plan_type == 'unit_distribution':
+                    success = lesson_prep_service.generate_unit_distribution(plan_id)
+                else:
+                    success = lesson_prep_service.generate_lesson_plan(plan_id)
+
+                from src.models.ai_analysis import AISetting
+                AISetting.set_setting('lesson_prep_job_status', 'completed' if success else 'failed', 'string')
+                logger.info(f"{'✅' if success else '❌'} [Scheduler] تحضير #{plan_id}: {'نجح' if success else 'فشل'}")
+
+            except Exception as e:
+                logger.error(f"❌ [Scheduler] فشل تحضير #{plan_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                from src.models.ai_analysis import AISetting
+                AISetting.set_setting('lesson_prep_job_status', 'failed', 'string')
+
+    except Exception as e:
+        logger.error(f"❌ [Scheduler] خطأ في check_lesson_prep_job: {e}")
+
+
 def check_notification_effectiveness_job():
     """فحص فعالية الإشعارات يومياً"""
     global _flask_app
@@ -463,6 +523,15 @@ def start_automation_scheduler(app):
             trigger=IntervalTrigger(seconds=5),
             id='check_single_analysis',
             name='فحص تحليل طالب واحد',
+            replace_existing=True
+        )
+
+        # ✅ فحص طلبات تحضير الدروس (كل 5 ثواني)
+        automation_scheduler.add_job(
+            func=check_lesson_prep_job,
+            trigger=IntervalTrigger(seconds=5),
+            id='check_lesson_prep',
+            name='فحص طلبات تحضير الدروس',
             replace_existing=True
         )
 

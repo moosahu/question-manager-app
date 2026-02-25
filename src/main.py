@@ -570,6 +570,58 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ column migration: {_col_err}")
 
+            # ✅ إنشاء جداول الكتب والتحضير إن لم تكن موجودة
+            try:
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS textbooks (
+                        id SERIAL PRIMARY KEY,
+                        course_id INTEGER REFERENCES course(id),
+                        title VARCHAR(200) NOT NULL,
+                        edition_year VARCHAR(10),
+                        pdf_url TEXT NOT NULL,
+                        total_pages INTEGER DEFAULT 0,
+                        uploaded_by INTEGER,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """))
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS lesson_pages (
+                        id SERIAL PRIMARY KEY,
+                        lesson_id INTEGER REFERENCES lesson(id) ON DELETE CASCADE,
+                        textbook_id INTEGER REFERENCES textbooks(id) ON DELETE CASCADE,
+                        start_page INTEGER NOT NULL,
+                        end_page INTEGER NOT NULL,
+                        UNIQUE(lesson_id, textbook_id)
+                    )
+                """))
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS lesson_plans (
+                        id SERIAL PRIMARY KEY,
+                        lesson_id INTEGER REFERENCES lesson(id),
+                        teacher_id INTEGER REFERENCES teachers(id),
+                        plan_type VARCHAR(30) NOT NULL DEFAULT 'single_lesson',
+                        ai_provider VARCHAR(20) DEFAULT 'gemini',
+                        plan_data JSONB DEFAULT '{}',
+                        pdf_file_url TEXT,
+                        student_level VARCHAR(20),
+                        student_count INTEGER,
+                        weak_students_count INTEGER,
+                        excellent_students_count INTEGER,
+                        focus_area VARCHAR(30),
+                        examples_count INTEGER DEFAULT 5,
+                        status VARCHAR(20) DEFAULT 'pending',
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """))
+                db.session.commit()
+                print("✅ Textbook & lesson prep tables ensured")
+            except Exception as _tbl_err:
+                db.session.rollback()
+                print(f"⚠️ textbook tables: {_tbl_err}")
+
             # Check if admin user exists
             admin_user = User.query.filter_by(username="admin").first()
             if not admin_user:
@@ -846,6 +898,30 @@ def create_app():
         print(f"❌ Study Scheduler blueprint error: {e}")
         import traceback
         traceback.print_exc()
+
+    # ✅ تسجيل Textbook Blueprint — إدارة الكتب الدراسية
+    try:
+        from src.routes.textbook_routes import textbook_bp
+        csrf.exempt(textbook_bp)
+        app.register_blueprint(textbook_bp)
+        print("✅ Textbook blueprint registered successfully")
+        print("📖 Textbook endpoints available at: /api/admin/textbooks")
+    except ImportError as e:
+        print(f"⚠️ Textbook blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Textbook blueprint error: {e}")
+
+    # ✅ تسجيل Lesson Prep Blueprint — تحضير الدروس بالذكاء الاصطناعي
+    try:
+        from src.routes.lesson_prep_routes import lesson_prep_bp
+        csrf.exempt(lesson_prep_bp)
+        app.register_blueprint(lesson_prep_bp)
+        print("✅ Lesson Prep blueprint registered successfully")
+        print("📝 Lesson Prep endpoints available at: /api/lesson-prep")
+    except ImportError as e:
+        print(f"⚠️ Lesson Prep blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Lesson Prep blueprint error: {e}")
 
     @app.route("/", endpoint='index')
     def home():

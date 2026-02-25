@@ -46,10 +46,11 @@ pandas>=2.1.0
 numpy>=1.24.0
 openpyxl>=3.1.0
 
-# PDF Generation
+# PDF Generation & Processing
 reportlab>=4.0.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
+PyMuPDF>=1.24.0  # استخراج صفحات PDF كصور للتحضير بالـ AI
 
 # Security & Authentication
 cryptography>=41.0.0
