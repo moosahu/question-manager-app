@@ -21,9 +21,13 @@ from src.extensions import db
 PROGRESS_FILE = os.path.join(tempfile.gettempdir(), 'chem_analysis_progress.json')
 
 
+STALE_TIMEOUT_SECONDS = 300  # 5 دقائق — لو ما تحدث الملف خلالها يعتبر معلّق
+
+
 def _save_progress(data: Dict):
     """حفظ التقدم في ملف مشترك"""
     try:
+        data['_updated_at'] = datetime.utcnow().isoformat()
         with open(PROGRESS_FILE, 'w') as f:
             json.dump(data, f, ensure_ascii=False, default=str)
     except Exception as e:
@@ -31,11 +35,25 @@ def _save_progress(data: Dict):
 
 
 def _load_progress() -> Dict:
-    """قراءة التقدم من الملف المشترك"""
+    """قراءة التقدم من الملف المشترك مع كشف الحالة المعلّقة"""
     try:
         if os.path.exists(PROGRESS_FILE):
             with open(PROGRESS_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+
+            # كشف الحالة المعلّقة (stale)
+            if data.get('status') == 'running' and '_updated_at' in data:
+                try:
+                    updated = datetime.fromisoformat(data['_updated_at'])
+                    elapsed = (datetime.utcnow() - updated).total_seconds()
+                    if elapsed > STALE_TIMEOUT_SECONDS:
+                        print(f"⚠️ التحليل معلّق منذ {elapsed:.0f} ثانية — إعادة التهيئة")
+                        data['status'] = 'stale'
+                        _save_progress(data)
+                except Exception:
+                    pass
+
+            return data
     except Exception as e:
         print(f"⚠️ خطأ في قراءة التقدم: {e}")
     return {'status': 'idle'}
@@ -50,7 +68,7 @@ class StudentAnalyzer:
 
     @property
     def is_running(self):
-        """التحقق من حالة التشغيل من الملف المشترك"""
+        """التحقق من حالة التشغيل — يكشف الحالة المعلّقة"""
         p = _load_progress()
         return p.get('status') == 'running'
 
