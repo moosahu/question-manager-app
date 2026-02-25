@@ -253,38 +253,102 @@ def send_automatic_messages_job():
         traceback.print_exc()
 
 
+def check_manual_analysis_job():
+    """
+    فحص إذا فيه طلب تحليل يدوي من التطبيق
+    يشتغل كل 10 ثواني
+    """
+    global _flask_app
+
+    if _flask_app is None:
+        return
+
+    try:
+        with _flask_app.app_context():
+            import json as _json
+
+            # قراءة حالة التحليل من DB
+            result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'analysis_job_status'
+            """)).fetchone()
+
+            status = result[0] if result else 'idle'
+
+            if status != 'running':
+                return
+
+            # تحقق من التقدم
+            progress_result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'analysis_job_progress'
+            """)).fetchone()
+
+            progress = _json.loads(progress_result[0]) if progress_result else {}
+            total = progress.get('total', 0)
+
+            # إذا total=0 يعني لسا ما بدأ التحليل الفعلي
+            if total == 0:
+                logger.info("📋 [Scheduler] طلب تحليل يدوي - جاري التنفيذ...")
+
+                try:
+                    from src.tasks.student_analyzer import student_analyzer
+                    student_analyzer.is_running = False
+                    result = student_analyzer.analyze_all_students()
+
+                    # حفظ النتيجة
+                    from src.models.ai_analysis import AISetting
+                    AISetting.set_setting('analysis_job_status', 'completed', 'string')
+                    AISetting.set_setting('analysis_job_progress', _json.dumps(result), 'json')
+                    logger.info(f"✅ [Scheduler] اكتمل التحليل اليدوي: {result.get('analyzed', 0)} طالب")
+                except Exception as e:
+                    logger.error(f"❌ [Scheduler] فشل التحليل اليدوي: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    from src.models.ai_analysis import AISetting
+                    AISetting.set_setting('analysis_job_status', 'failed', 'string')
+                    AISetting.set_setting('analysis_job_progress', _json.dumps({
+                        'error': str(e)
+                    }), 'json')
+
+    except Exception as e:
+        logger.error(f"❌ [Scheduler] خطأ في check_manual_analysis_job: {e}")
+
+
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
     global automation_scheduler, _flask_app, _has_lock
-    
+
     # ⚠️ محاولة الحصول على القفل أولاً
     if not _acquire_scheduler_lock():
         logger.info(f"⏭️ Worker {os.getpid()} - تخطي تشغيل الـ Scheduler (يعمل في worker آخر)")
         return
-    
+
     if automation_scheduler is not None:
         logger.warning("⚠️ Scheduler يعمل بالفعل!")
         return
-    
+
     # حفظ reference للـ app (مهم جداً!)
     _flask_app = app
-    
+
     try:
         with app.app_context():
             # قراءة interval من DB (بالساعات، نحوله لدقائق)
             result = db.session.execute(text("""
-                SELECT setting_value 
-                FROM ai_settings 
+                SELECT setting_value
+                FROM ai_settings
                 WHERE setting_key = 'analysis_interval_hours'
             """)).fetchone()
-            
+
             interval_hours = int(result[0]) if result else 24
             interval_minutes = interval_hours * 60  # تحويل من ساعات لدقائق
-        
+
         # إنشاء scheduler
         automation_scheduler = BackgroundScheduler(daemon=True)
-        
-        # إضافة job
+
+        # إضافة job الرسائل التلقائية
         automation_scheduler.add_job(
             func=send_automatic_messages_job,
             trigger=IntervalTrigger(minutes=interval_minutes),
@@ -292,16 +356,26 @@ def start_automation_scheduler(app):
             name='إرسال الرسائل التلقائية الذكية',
             replace_existing=True
         )
-        
+
+        # ✅ إضافة job فحص طلبات التحليل اليدوية (كل 10 ثواني)
+        automation_scheduler.add_job(
+            func=check_manual_analysis_job,
+            trigger=IntervalTrigger(seconds=10),
+            id='check_manual_analysis',
+            name='فحص طلبات التحليل اليدوية',
+            replace_existing=True
+        )
+
         # بدء التشغيل
         automation_scheduler.start()
-        
+
         # تسجيل تحرير القفل عند إغلاق التطبيق
         atexit.register(_release_scheduler_lock)
         atexit.register(stop_automation_scheduler)
-        
+
         logger.info(f"✅ Worker {os.getpid()} - بدء جدولة الرسائل التلقائية: كل {interval_hours} ساعة ({interval_minutes} دقيقة)")
-        
+        logger.info(f"✅ فحص طلبات التحليل اليدوية: كل 10 ثواني")
+
     except Exception as e:
         logger.error(f"❌ فشل بدء Scheduler: {e}")
         _release_scheduler_lock()  # تحرير القفل في حالة الفشل
