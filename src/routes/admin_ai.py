@@ -229,8 +229,8 @@ def validate_business_rules(settings_dict):
 @admin_required
 def analyze_single_student(student_id):
     """
-    تحليل طالب واحد
-    
+    تحليل طالب واحد - يبدأ بالخلفية
+
     POST /api/admin/ai/analyze/student/1
     """
     try:
@@ -240,24 +240,42 @@ def analyze_single_student(student_id):
                 'success': False,
                 'error': 'الطالب غير موجود'
             }), 404
-        
-        result = ai_assistant.analyze_student(
-            student_id=student_id,
-            analysis_type='manual'
-        )
-        
-        if not result:
-            return jsonify({
-                'success': False,
-                'error': 'فشل التحليل'
-            }), 500
-        
+
+        # سجل طلب تحليل طالب واحد في DB
+        AISetting.set_setting('single_analysis_job_status', 'running', 'string')
+        AISetting.set_setting('single_analysis_job_data', json.dumps({
+            'student_id': student_id,
+            'started_at': datetime.utcnow().isoformat()
+        }), 'json')
+
         return jsonify({
             'success': True,
-            'message': 'تم التحليل بنجاح',
-            'data': result
+            'message': 'بدأ التحليل',
+            'data': {'status': 'started', 'student_id': student_id}
         })
-        
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@admin_ai_bp.route('/analyze/student/status', methods=['GET'])
+@admin_required
+def analyze_student_status():
+    """التحقق من حالة تحليل طالب واحد"""
+    try:
+        status = AISetting.get_setting('single_analysis_job_status', 'idle')
+        data = AISetting.get_setting('single_analysis_job_data', {})
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'status': status,
+                'result': data
+            }
+        })
     except Exception as e:
         return jsonify({
             'success': False,

@@ -317,6 +317,70 @@ def check_manual_analysis_job():
         logger.error(f"❌ [Scheduler] خطأ في check_manual_analysis_job: {e}")
 
 
+def check_single_student_analysis_job():
+    """فحص إذا فيه طلب تحليل طالب واحد"""
+    global _flask_app
+
+    if _flask_app is None:
+        return
+
+    try:
+        with _flask_app.app_context():
+            import json as _json
+
+            result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'single_analysis_job_status'
+            """)).fetchone()
+
+            status = result[0] if result else 'idle'
+
+            if status != 'running':
+                return
+
+            # جلب بيانات الطلب
+            data_result = db.session.execute(text("""
+                SELECT setting_value
+                FROM ai_settings
+                WHERE setting_key = 'single_analysis_job_data'
+            """)).fetchone()
+
+            data = _json.loads(data_result[0]) if data_result else {}
+            student_id = data.get('student_id')
+
+            if not student_id:
+                return
+
+            logger.info(f"📋 [Scheduler] طلب تحليل طالب {student_id} - جاري التنفيذ...")
+
+            try:
+                from src.services.ai_assistant import ai_assistant
+                from src.models.ai_analysis import AISetting
+
+                analysis_result = ai_assistant.analyze_student(
+                    student_id=student_id,
+                    analysis_type='manual'
+                )
+
+                AISetting.set_setting('single_analysis_job_status', 'completed', 'string')
+                AISetting.set_setting('single_analysis_job_data', _json.dumps(
+                    analysis_result if analysis_result else {'error': 'no result'}
+                ), 'json')
+                logger.info(f"✅ [Scheduler] اكتمل تحليل الطالب {student_id}")
+
+            except Exception as e:
+                logger.error(f"❌ [Scheduler] فشل تحليل الطالب {student_id}: {e}")
+                from src.models.ai_analysis import AISetting
+                AISetting.set_setting('single_analysis_job_status', 'failed', 'string')
+                AISetting.set_setting('single_analysis_job_data', _json.dumps({
+                    'error': str(e)
+                }), 'json')
+
+    except Exception as e:
+        logger.error(f"❌ [Scheduler] خطأ في check_single_student_analysis_job: {e}")
+
+
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
     global automation_scheduler, _flask_app, _has_lock
@@ -363,6 +427,15 @@ def start_automation_scheduler(app):
             trigger=IntervalTrigger(seconds=10),
             id='check_manual_analysis',
             name='فحص طلبات التحليل اليدوية',
+            replace_existing=True
+        )
+
+        # ✅ إضافة job فحص تحليل طالب واحد (كل 5 ثواني)
+        automation_scheduler.add_job(
+            func=check_single_student_analysis_job,
+            trigger=IntervalTrigger(seconds=5),
+            id='check_single_analysis',
+            name='فحص تحليل طالب واحد',
             replace_existing=True
         )
 
