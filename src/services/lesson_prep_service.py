@@ -814,18 +814,28 @@ class LessonPrepService:
             logger.info(f"original_pdf_url: {plan.original_pdf_url}")
             if plan.original_pdf_url:
                 pdf_source = plan.original_pdf_url
-                # إذا كان URL خارجي (Cloudinary)، جرب الملف المحلي أولاً لأنه أسرع وأضمن
-                if pdf_source.startswith('http'):
-                    # استخراج اسم الملف من URL والبحث عنه محلياً
+
+                # تحديد مسار الملف الفعلي
+                if pdf_source.startswith('/') and os.path.exists(pdf_source):
+                    # مسار محلي كامل - نستخدمه مباشرة
+                    logger.info(f"استخدام المسار المحلي: {pdf_source}")
+                elif pdf_source.startswith('/uploads/'):
+                    # مسار نسبي - نحوله لكامل
+                    local_path = os.path.join(os.getcwd(), pdf_source.lstrip('/'))
+                    if os.path.exists(local_path):
+                        pdf_source = local_path
+                        logger.info(f"استخدام المسار النسبي: {local_path}")
+                elif pdf_source.startswith('http'):
+                    # URL خارجي (Cloudinary) - نحاول نلقى الملف محلياً أولاً
                     import re
                     filename_match = re.search(r'semester_\d+_\d+_\d+', pdf_source)
                     if filename_match:
                         local_path = os.path.join(os.getcwd(), 'uploads', 'semester_pdfs', filename_match.group() + '.pdf')
                         if os.path.exists(local_path):
                             pdf_source = local_path
-                            logger.info(f"استخدام الملف المحلي: {local_path}")
+                            logger.info(f"استخدام الملف المحلي بدل Cloudinary: {local_path}")
+
                 try:
-                    # التوزيع الفصلي عادة صفحة أو صفحتين فقط - نستخرج أول 3 بدقة منخفضة لتوفير الذاكرة
                     images = self._extract_pages_as_images(pdf_source, 1, 3, scale=1.2)
                 except Exception as e:
                     logger.warning(f"فشل استخراج صور PDF: {e}")

@@ -336,7 +336,7 @@ def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
         if not course:
             return jsonify({'success': False, 'error': 'المقرر غير موجود'}), 404
 
-        # حفظ PDF المرفوع
+        # حفظ PDF المرفوع - نحفظ المسار المحلي دائماً لأن Cloudinary يرجع 401
         pdf_url = None
         if 'pdf' in request.files:
             pdf_file = request.files['pdf']
@@ -346,19 +346,8 @@ def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
                 filename = f"semester_{course_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                 filepath = os.path.join(upload_dir, filename)
                 pdf_file.save(filepath)
-                pdf_url = f"/uploads/semester_pdfs/{filename}"
-
-                # محاولة رفع على Cloudinary
-                try:
-                    import cloudinary.uploader
-                    result = cloudinary.uploader.upload(
-                        filepath, resource_type='raw',
-                        folder='semester_pdfs',
-                        public_id=filename.replace('.pdf', ''),
-                    )
-                    pdf_url = result.get('secure_url') or result.get('url') or pdf_url
-                except Exception:
-                    pass
+                # نستخدم المسار المحلي الكامل مباشرة - أضمن وأسرع من Cloudinary
+                pdf_url = filepath
 
         plan = LessonPlan(
             course_id=course_id,
