@@ -622,6 +622,55 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ textbook tables: {_tbl_err}")
 
+            # ✅ إضافة أعمدة وجداول الميزات الجديدة (توزيع فصلي، تقييم، مشاركة، تتبع)
+            try:
+                # أعمدة جديدة لـ lesson_plans
+                db.session.execute(db.text(
+                    'ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS course_id INTEGER REFERENCES course(id)'
+                ))
+                db.session.execute(db.text(
+                    'ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS original_pdf_url TEXT'
+                ))
+                db.session.execute(db.text(
+                    'ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS is_taught BOOLEAN DEFAULT FALSE'
+                ))
+                db.session.execute(db.text(
+                    'ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS taught_at TIMESTAMP'
+                ))
+
+                # جدول المشاركات
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS shared_plans (
+                        id SERIAL PRIMARY KEY,
+                        plan_id INTEGER REFERENCES lesson_plans(id) ON DELETE CASCADE NOT NULL,
+                        shared_by INTEGER REFERENCES teachers(id) NOT NULL,
+                        visibility VARCHAR(20) DEFAULT 'school',
+                        avg_rating FLOAT DEFAULT 0,
+                        use_count INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """))
+
+                # جدول التقييمات
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS plan_ratings (
+                        id SERIAL PRIMARY KEY,
+                        plan_id INTEGER REFERENCES lesson_plans(id) ON DELETE CASCADE NOT NULL,
+                        teacher_id INTEGER REFERENCES teachers(id) NOT NULL,
+                        overall_rating INTEGER NOT NULL,
+                        section_ratings JSONB DEFAULT '{}',
+                        notes TEXT,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        UNIQUE(plan_id, teacher_id)
+                    )
+                """))
+
+                db.session.commit()
+                print("✅ New feature tables & columns ensured (semester, rating, sharing, progress)")
+            except Exception as _feat_err:
+                db.session.rollback()
+                print(f"⚠️ feature tables migration: {_feat_err}")
+
             # Check if admin user exists
             admin_user = User.query.filter_by(username="admin").first()
             if not admin_user:
