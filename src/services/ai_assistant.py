@@ -1,7 +1,7 @@
 # src/services/ai_assistant.py
 """
 خدمة الذكاء الاصطناعي - المحرك الرئيسي
-يستخدم Google Gemini لتحليل أداء الطلاب
+يدعم Google Gemini و Anthropic Claude لتحليل أداء الطلاب
 """
 
 import os
@@ -17,49 +17,92 @@ except ImportError:
     GEMINI_AVAILABLE = False
     print("⚠️ google-generativeai غير مثبت!")
 
+try:
+    import anthropic
+    CLAUDE_AVAILABLE = True
+except ImportError:
+    CLAUDE_AVAILABLE = False
+
 from src.models.ai_analysis import AIAnalysis, AILog, AISetting
 from src.extensions import db
 
 
 class AIAssistant:
-    """مساعد AI الذكي - يحلل أداء الطلاب ويقدم توصيات"""
-    
+    """مساعد AI الذكي - يدعم Gemini و Claude"""
+
     def __init__(self):
-        """تهيئة أولية فارغة"""
-        self.model = None
+        self.gemini_model = None
+        self.claude_client = None
         self.is_configured = False
-        self.api_key = None
-        # ✅ تغيير الموديل إلى gemini-2.0-flash (مستقر)
-        self.model_name = 'gemini-2.0-flash'
-        self.provider = 'gemini'
+        self.active_provider = 'gemini-flash'
 
     def _ensure_configured(self):
-        """تهيئة Gemini عند الحاجة"""
-        if self.is_configured and self.model:
-            return True
-
+        """تهيئة الـ AI provider المختار"""
         try:
-            self.api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
-            
-            try:
-                self.model_name = 'gemini-2.0-flash'
-                self.provider = AISetting.get_setting('ai_provider', 'gemini')
-            except Exception as db_e:
-                print(f"⚠️ استخدام الإعدادات الافتراضية: {db_e}")
-                self.model_name = 'gemini-2.0-flash'
-                self.provider = 'gemini'
+            self.active_provider = AISetting.get_setting('ai_provider') or 'gemini-flash'
+        except Exception:
+            self.active_provider = 'gemini-flash'
 
-            if self.provider == 'gemini' and GEMINI_AVAILABLE and self.api_key:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel(self.model_name)
+        if 'claude' in self.active_provider:
+            return self._ensure_claude()
+        else:
+            return self._ensure_gemini()
+
+    def _ensure_gemini(self):
+        """تهيئة Gemini"""
+        if self.gemini_model:
+            return True
+        try:
+            api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
+            if api_key and GEMINI_AVAILABLE:
+                genai.configure(api_key=api_key)
+                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
                 self.is_configured = True
                 return True
-            else:
-                print("⚠️ AI غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
-                return False
-        except Exception as e:
-            print(f"❌ خطأ في تهيئة AI: {e}")
+            print("⚠️ Gemini غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
             return False
+        except Exception as e:
+            print(f"❌ خطأ في تهيئة Gemini: {e}")
+            return False
+
+    def _ensure_claude(self):
+        """تهيئة Claude"""
+        if self.claude_client:
+            return True
+        try:
+            api_key = current_app.config.get('CLAUDE_AI_API_KEY') or os.getenv('CLAUDE_AI_API_KEY')
+            if api_key and CLAUDE_AVAILABLE:
+                self.claude_client = anthropic.Anthropic(api_key=api_key)
+                self.is_configured = True
+                return True
+            # fallback لـ Gemini
+            print("⚠️ Claude غير متاح، استخدام Gemini")
+            self.active_provider = 'gemini-flash'
+            return self._ensure_gemini()
+        except Exception as e:
+            print(f"❌ خطأ في تهيئة Claude: {e}")
+            self.active_provider = 'gemini-flash'
+            return self._ensure_gemini()
+
+    def _generate(self, prompt: str) -> Optional[str]:
+        """استدعاء AI موحّد - Gemini أو Claude حسب الإعداد"""
+        try:
+            if 'claude' in self.active_provider and self.claude_client:
+                from src.services.lesson_prep_service import AI_PROVIDERS
+                model_id = AI_PROVIDERS.get(self.active_provider, {}).get('model', 'claude-haiku-4-5-20251001')
+                response = self.claude_client.messages.create(
+                    model=model_id,
+                    max_tokens=4096,
+                    messages=[{'role': 'user', 'content': prompt}],
+                )
+                return response.content[0].text
+            elif self.gemini_model:
+                response = self.gemini_model.generate_content(prompt)
+                return response.text
+            return None
+        except Exception as e:
+            print(f"❌ خطأ في _generate [{self.active_provider}]: {e}")
+            return None
     
     def analyze_student(self, student_id: int, analysis_type: str = 'on_demand') -> Optional[Dict]:
         """تحليل شامل لأداء طالب"""
@@ -212,13 +255,12 @@ class AIAssistant:
     
     def _call_ai_for_analysis(self, data: Dict) -> Optional[str]:
         """استدعاء AI"""
-        if not self.model:
+        if not self.is_configured:
             return None
-        
+
         try:
             prompt = self._build_analysis_prompt(data)
-            response = self.model.generate_content(prompt)
-            return response.text
+            return self._generate(prompt)
         except Exception as e:
             print(f"❌ خطأ في _call_ai_for_analysis: {e}")
             return None
@@ -400,8 +442,8 @@ class AIAssistant:
 السؤال: {message}
 الرد بالعربية، مختصر ومهني.
 """
-            response = self.model.generate_content(prompt)
-            return response.text
+            result = self._generate(prompt)
+            return result or "لم أتمكن من الرد"
         except Exception as e:
             print(f"❌ خطأ في chat_with_ai: {e}")
             return f"حدث خطأ: {str(e)}"
@@ -441,8 +483,9 @@ class AIAssistant:
             )
             
             # استدعاء AI
-            response = self.model.generate_content(prompt)
-            ai_text = response.text
+            ai_text = self._generate(prompt)
+            if not ai_text:
+                raise Exception("لم يتم الحصول على رد من AI")
             
             # استخراج JSON من الرد
             concept_map_data = self._extract_json_from_response(ai_text)
