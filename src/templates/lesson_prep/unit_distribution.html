@@ -205,6 +205,96 @@
   .tag-time { background: #e0f2fe !important; color: #0369a1; }
   .tag-homework { background: #fce7f3 !important; color: #9d174d; }
 
+  /* التهيئة */
+  .prep-box {
+    background: #fffbeb !important;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 9.5pt;
+  }
+
+  /* استراتيجيات التدريس */
+  .strategy-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 4px;
+    font-size: 9.5pt;
+  }
+  .strategy-time {
+    background: #e0e7ff !important;
+    color: #3730a3;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* الفروق الفردية */
+  .diff-grid {
+    display: flex;
+    gap: 10px;
+  }
+  .diff-col {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .diff-col-title {
+    padding: 4px 8px;
+    font-weight: 900;
+    font-size: 9pt;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .diff-col-body {
+    padding: 6px 8px;
+  }
+
+  /* التوزيع الزمني */
+  .time-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 3px;
+    font-size: 9.5pt;
+  }
+  .time-badge {
+    background: #e0e7ff !important;
+    color: #4338ca;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* الربط بالقيم */
+  .values-box {
+    background: #faf5ff !important;
+    border: 1px solid #d8b4fe;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    font-size: 9.5pt;
+  }
+  .values-label {
+    font-weight: 900;
+    color: #7c3aed;
+  }
+
+  /* الوسائل */
+  .resources-box {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+
   /* خطة التقويم */
   .assessment-section {
     border: 1.5px solid #fca5a5;
@@ -246,15 +336,40 @@
   <div class="period-body">
 
     <!-- الأهداف -->
-    {% set objectives = p.get('objectives', []) %}
+    {% set objectives = p.get('objectives', {}) %}
     {% if objectives %}
     <div class="p-section">
       <div class="p-section-title" style="background: #dbeafe !important; color: #1e40af;">الأهداف</div>
-      <ul class="items">
-        {% for obj in objectives %}
-        <li>{{ obj }}</li>
-        {% endfor %}
-      </ul>
+      {% if objectives is mapping %}
+        {% if objectives.get('cognitive') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:4px;">معرفية:</p>
+        <ul class="items">{% for obj in objectives.cognitive %}<li>{{ obj }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if objectives.get('skill') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:4px;">مهارية:</p>
+        <ul class="items">{% for obj in objectives.skill %}<li>{{ obj }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if objectives.get('emotional') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:4px;">وجدانية:</p>
+        <ul class="items">{% for obj in objectives.emotional %}<li>{{ obj }}</li>{% endfor %}</ul>
+        {% endif %}
+      {% else %}
+        <ul class="items">{% for obj in objectives %}<li>{{ obj }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- التهيئة -->
+    {% set prep = p.get('preparation', {}) %}
+    {% if prep and prep is mapping %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #fef3c7 !important; color: #92400e;">التهيئة والتمهيد</div>
+      {% if prep.get('introduction') %}
+      <div class="prep-box">{{ prep.introduction|chem }}</div>
+      {% endif %}
+      {% if prep.get('connection_to_previous') %}
+      <p style="font-size:9pt; color:#475569;"><strong>ربط بالسابق:</strong> {{ prep.connection_to_previous }}</p>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -269,12 +384,18 @@
         <div class="concept-name">{{ c.get('concept', '') }}</div>
         <div class="concept-content">
           <p>{{ c.get('explanation', '')|chem }}</p>
+          {% if c.get('teaching_method') %}
+          <p style="font-size:9pt; color:#6b21a8; margin-top:4px;"><strong>الاستراتيجية:</strong> {{ c.teaching_method }}</p>
+          {% endif %}
           {% if c.get('examples') %}
           <ul class="items" style="margin-top:4px;">
             {% for ex in c.examples %}
             <li>{{ ex|chem }}</li>
             {% endfor %}
           </ul>
+          {% endif %}
+          {% if c.get('student_activity') %}
+          <p style="font-size:9pt; color:#475569; margin-top:4px;"><strong>نشاط الطلاب:</strong> {{ c.student_activity }}</p>
           {% endif %}
         </div>
       </div>
@@ -295,6 +416,22 @@
     </div>
     {% endif %}
 
+    <!-- استراتيجيات التدريس -->
+    {% set strategies = p.get('teaching_strategies', []) %}
+    {% if strategies %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #ede9fe !important; color: #5b21b6;">استراتيجيات التدريس</div>
+      {% for s in strategies %}
+      {% if s is mapping %}
+      <div class="strategy-item">
+        {% if s.get('duration_minutes') %}<span class="strategy-time">{{ s.duration_minutes }} د</span>{% endif %}
+        <span><strong>{{ s.get('strategy', '') }}</strong>{% if s.get('application') %}: {{ s.application }}{% endif %}</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- التقويم -->
     {% set evaluation = p.get('evaluation', []) %}
     {% if evaluation %}
@@ -303,7 +440,7 @@
       {% for q in evaluation %}
       {% if q is mapping %}
       <div class="q-box">س: {{ q.get('question', '')|chem }}</div>
-      <div class="a-box">ج: {{ q.get('answer', '')|chem }}</div>
+      <div class="a-box">ج: {{ q.get('answer', '')|chem }}{% if q.get('bloom_level') %} <span style="color:#6b7280; font-size:8pt;">({{ q.bloom_level }})</span>{% endif %}</div>
       {% elif q is string %}
       <div class="q-box">{{ q|chem }}</div>
       {% endif %}
@@ -311,24 +448,98 @@
     </div>
     {% endif %}
 
-    <!-- معلومات إضافية -->
-    <div class="info-row">
-      {% if p.get('teaching_strategy') %}
-      <span class="info-tag tag-strategy">{{ p.teaching_strategy }}</span>
-      {% endif %}
-      {% if p.get('duration_minutes') %}
-      <span class="info-tag tag-time">{{ p.duration_minutes }} دقيقة</span>
-      {% endif %}
-      {% if p.get('homework') %}
-      <span class="info-tag tag-homework">الواجب: {{ p.homework }}</span>
+    <!-- الفروق الفردية -->
+    {% set ind_diff = p.get('individual_differences', {}) %}
+    {% if ind_diff and ind_diff is mapping and (ind_diff.get('gifted_activities') or ind_diff.get('weak_support')) %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #ccfbf1 !important; color: #115e59;">الفروق الفردية</div>
+      <div class="diff-grid">
+        {% if ind_diff.get('gifted_activities') %}
+        <div class="diff-col">
+          <div class="diff-col-title" style="background: #ecfdf5 !important; color: #065f46;">للمتفوقين</div>
+          <div class="diff-col-body">
+            <ul class="items">{% for a in ind_diff.gifted_activities %}<li>{{ a }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        {% endif %}
+        {% if ind_diff.get('weak_support') %}
+        <div class="diff-col">
+          <div class="diff-col-title" style="background: #fef2f2 !important; color: #991b1b;">للضعاف</div>
+          <div class="diff-col-body">
+            <ul class="items">{% for a in ind_diff.weak_support %}<li>{{ a }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- الواجب -->
+    {% set hw = p.get('homework', '') %}
+    {% if hw %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #ffedd5 !important; color: #9a3412;">الواجب</div>
+      {% if hw is mapping %}
+        {% if hw.get('main') %}
+        <p style="font-weight:700; font-size:9pt;">أساسي:</p>
+        <ul class="items">{% for h in hw.main %}<li>{{ h }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if hw.get('optional') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:4px;">اختياري:</p>
+        <ul class="items">{% for h in hw.optional %}<li>{{ h }}</li>{% endfor %}</ul>
+        {% endif %}
+      {% elif hw is string %}
+        <p style="font-size:9.5pt;">{{ hw }}</p>
       {% endif %}
     </div>
-
-    {% if p.get('student_activity') %}
-    <p style="font-size:9pt; color:#475569;"><strong>نشاط الطلاب:</strong> {{ p.student_activity }}</p>
     {% endif %}
+
+    <!-- التوزيع الزمني -->
+    {% set time_dist = p.get('time_distribution', []) %}
+    {% if time_dist %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #e0e7ff !important; color: #4338ca;">التوزيع الزمني</div>
+      {% for t in time_dist %}
+      {% if t is mapping %}
+      <div class="time-row">
+        <span class="time-badge">{{ t.get('duration_minutes', '') }} د</span>
+        <span>{{ t.get('activity', '') }}</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- الوسائل التعليمية -->
+    {% set resources = p.get('resources', []) %}
+    {% if resources %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #f1f5f9 !important; color: #475569;">الوسائل التعليمية</div>
+      <div class="resources-box">
+        <ul class="items">{% for r in resources %}<li>{{ r }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- الربط بالقيم -->
+    {% set values = p.get('values_connection', {}) %}
+    {% if values and values is mapping %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #f3e8ff !important; color: #7c3aed;">الربط بالقيم</div>
+      {% if values.get('religious') %}
+      <div class="values-box"><span class="values-label">ديني: </span>{{ values.religious }}</div>
+      {% endif %}
+      {% if values.get('national') %}
+      <div class="values-box"><span class="values-label">وطني: </span>{{ values.national }}</div>
+      {% endif %}
+      {% if values.get('life') %}
+      <div class="values-box"><span class="values-label">حياتي: </span>{{ values.life }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if p.get('notes') %}
-    <p style="font-size:9pt; color:#64748b; margin-top:4px;">📝 {{ p.notes }}</p>
+    <p style="font-size:9pt; color:#64748b; margin-top:4px;">ملاحظات: {{ p.notes }}</p>
     {% endif %}
 
   </div>

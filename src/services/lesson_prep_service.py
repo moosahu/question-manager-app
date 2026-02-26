@@ -477,7 +477,7 @@ class LessonPrepService:
 
 ## المطلوب
 أعد تحضيراً تفصيلياً كاملاً للوحدة موزعاً على {total_periods} حصة.
-لكل حصة اكتب تحضيراً يشمل: الأهداف والمفاهيم والأمثلة والتقويم والواجب.
+كل حصة يجب أن تكون تحضيراً كاملاً كأنها درس مستقل يشمل كل الأقسام التالية.
 
 أعد الرد بصيغة JSON:
 ```json
@@ -490,25 +490,59 @@ class LessonPrepService:
       "period_number": 1,
       "lesson_name": "اسم الدرس",
       "title": "عنوان الحصة (مثلاً: مقدمة في سرعة التفاعل)",
-      "objectives": ["أن يعرف الطالب...", "أن يفسر الطالب..."],
+      "objectives": {{
+        "cognitive": ["أهداف معرفية - أن يعرف الطالب..."],
+        "skill": ["أهداف مهارية"],
+        "emotional": ["أهداف وجدانية"]
+      }},
+      "preparation": {{
+        "introduction": "سؤال أو موقف تحفيزي للتهيئة",
+        "connection_to_previous": "ربط بالحصة السابقة"
+      }},
       "main_concepts": [
         {{
           "concept": "المفهوم الرئيسي",
           "explanation": "شرح مفصّل",
-          "examples": ["مثال 1", "مثال 2"]
+          "teaching_method": "استراتيجية التدريس المستخدمة",
+          "examples": ["مثال 1", "مثال 2"],
+          "student_activity": "نشاط الطلاب"
         }}
       ],
       "equations": ["المعادلات الكيميائية إن وجدت"],
-      "teaching_strategy": "استراتيجية التدريس",
-      "student_activity": "نشاط الطلاب",
+      "teaching_strategies": [
+        {{
+          "strategy": "اسم الاستراتيجية",
+          "application": "كيفية تطبيقها",
+          "duration_minutes": 10
+        }}
+      ],
       "evaluation": [
         {{
           "question": "سؤال تقويمي",
-          "answer": "الإجابة"
+          "answer": "الإجابة",
+          "bloom_level": "مستوى بلوم"
         }}
       ],
-      "homework": "الواجب المنزلي",
-      "duration_minutes": 45,
+      "individual_differences": {{
+        "gifted_activities": ["نشاط للمتفوقين"],
+        "weak_support": ["دعم الضعاف"]
+      }},
+      "homework": {{
+        "main": ["الواجب الأساسي"],
+        "optional": ["واجب اختياري"]
+      }},
+      "time_distribution": [
+        {{
+          "activity": "النشاط",
+          "duration_minutes": 5
+        }}
+      ],
+      "resources": ["الوسائل التعليمية"],
+      "values_connection": {{
+        "religious": "ربط ديني",
+        "national": "ربط وطني",
+        "life": "ربط بالحياة"
+      }},
       "notes": "ملاحظات للمعلم"
     }}
   ],
@@ -525,7 +559,8 @@ class LessonPrepService:
 - قدّم أمثلة من واقع الحياة السعودية
 - اجعل كل حصة مستقلة وكاملة يمكن للمعلم تنفيذها مباشرة
 - وزّع المحتوى بالتساوي على الحصص
-- خصص حصة أو أكثر للمراجعة والتقويم"""
+- خصص حصة أو أكثر للمراجعة والتقويم
+- كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
             ai_text = None
             for attempt in range(3):
