@@ -197,7 +197,10 @@ class LessonPrepService:
                 pdf_bytes = resp.content
             else:
                 # ملف محلي
-                filepath = os.path.join(os.getcwd(), pdf_url.lstrip('/'))
+                if os.path.isabs(pdf_url):
+                    filepath = pdf_url
+                else:
+                    filepath = os.path.join(os.getcwd(), pdf_url.lstrip('/'))
                 with open(filepath, 'rb') as f:
                     pdf_bytes = f.read()
 
@@ -814,15 +817,40 @@ class LessonPrepService:
             # استخراج صور PDF المرفوع
             images = []
             if plan.original_pdf_url:
+                pdf_source = plan.original_pdf_url
+                # إذا كان URL خارجي (Cloudinary)، جرب الملف المحلي أولاً لأنه أسرع وأضمن
+                if pdf_source.startswith('http'):
+                    # استخراج اسم الملف من URL والبحث عنه محلياً
+                    import re
+                    filename_match = re.search(r'semester_\d+_\d+_\d+', pdf_source)
+                    if filename_match:
+                        local_path = os.path.join(os.getcwd(), 'uploads', 'semester_pdfs', filename_match.group() + '.pdf')
+                        if os.path.exists(local_path):
+                            pdf_source = local_path
+                            logger.info(f"استخدام الملف المحلي: {local_path}")
                 try:
-                    images = self._extract_pages_as_images(plan.original_pdf_url, 1, 20)
+                    images = self._extract_pages_as_images(pdf_source, 1, 20)
                 except Exception as e:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
+
+            has_images = bool(images)
+            if has_images:
+                task_description = "حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON."
+                instructions = """1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
+2. استخرج أسابيع الفصل مع التواريخ
+3. حدد الإجازات والأسابيع بدون دراسة
+4. إذا لم تجد تطابق دقيق، اختر أقرب lesson_id"""
+            else:
+                task_description = "أنشئ توزيعاً فصلياً مقترحاً للدروس التالية على 17 أسبوع دراسي (الفصل الثاني 1447هـ، يبدأ 2026-02-08)."
+                instructions = """1. وزّع جميع الدروس على الأسابيع بالتساوي (2-3 حصص أسبوعياً)
+2. أضف إجازة منتصف الفصل في الأسبوع 9 تقريباً
+3. استخدم lesson_id الصحيح من القائمة
+4. رتّب الدروس حسب ترتيب الوحدات"""
 
             prompt = f"""أنت خبير تربوي متخصص في المناهج السعودية.
 
 ## المطلوب
-حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON.
+{task_description}
 
 ## المقرر: {course.name}
 
@@ -830,10 +858,7 @@ class LessonPrepService:
 {lessons_text}
 
 ## التعليمات
-1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
-2. استخرج أسابيع الفصل مع التواريخ
-3. حدد الإجازات والأسابيع بدون دراسة
-4. إذا لم تجد تطابق دقيق، اختر أقرب lesson_id
+{instructions}
 
 أعد الرد بصيغة JSON:
 ```json
