@@ -285,15 +285,22 @@ class AIAssistant:
         improvement_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('improvement_topics', [])])
         strong_text = ', '.join([f"{t} ({data['topic_averages'].get(t, 0):.0f}%)" for t in data.get('strong_topics', [])])
         
+        avg_score = data.get('average_score', 0)
+        recent_avg = data.get('recent_average', 0)
+        trend_pct = data.get('trend_percentage', 0)
+        days_inactive = data.get('days_since_last_quiz', 999)
+        is_new = data.get('is_new_student', False)
+
         return f"""
 أنت مساعد تعليمي ذكي في منصة "كيم تحصيلي" لمادة الكيمياء.
 
-بيانات الطالب: {data['student_name']}
-- الاختبارات: {data['total_quizzes']}
-- المعدل: {data['average_score']}%
-- المعدل الأخير: {data['recent_average']}%
-- الاتجاه: {data['trend_percentage']:+.1f}%
-- آخر نشاط: منذ {data['days_since_last_quiz']} يوم
+بيانات الطالب: {data.get('student_name', 'طالب')}
+- الاختبارات: {data.get('total_quizzes', 0)}
+- المعدل: {avg_score}%
+- المعدل الأخير: {recent_avg}%
+- الاتجاه: {trend_pct:+.1f}%
+- آخر نشاط: منذ {days_inactive} يوم
+- {'طالب جديد لم يحل أي اختبار بعد' if is_new else ''}
 
 المواضيع التي تحتاج تحسين (< 60%):
 {weak_text if weak_text else "لا يوجد"}
