@@ -101,7 +101,7 @@ class LessonPrepService:
 
             logger.info(f"إرسال {num_images} صورة لـ Gemini للتحضير #{plan_id}")
             ai_text = None
-            max_retries = 5
+            max_retries = 3
             for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(content_parts)
@@ -110,7 +110,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 60 * (attempt + 1)  # 60, 120, 180, 240, 300
+                        wait = 15 * (attempt + 1)  # 15, 30, 45
                         logger.warning(f"Rate limit (429) - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
@@ -184,8 +184,8 @@ class LessonPrepService:
             db.session.commit()
             return False
 
-    def _extract_pages_as_images(self, pdf_url, start_page, end_page):
-        """استخراج صفحات PDF كصور PNG"""
+    def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
+        """استخراج صفحات PDF كصور JPEG"""
         images = []
         try:
             import fitz  # PyMuPDF
@@ -205,21 +205,21 @@ class LessonPrepService:
                     pdf_bytes = f.read()
 
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            del pdf_bytes  # تحرير الذاكرة فوراً
 
             # تحويل من 1-based إلى 0-based
-            for page_num in range(start_page - 1, min(end_page, len(doc))):
+            actual_end = min(end_page, len(doc))
+            for page_num in range(start_page - 1, actual_end):
                 page = doc[page_num]
-                # رندر بـ 1.5x (بدل 2x) لتوفير الذاكرة مع وضوح كافي
-                mat = fitz.Matrix(1.5, 1.5)
+                mat = fitz.Matrix(scale, scale)
                 pix = page.get_pixmap(matrix=mat)
-                # استخدام JPEG بدل PNG لتقليل حجم الصورة ~70%
                 img_bytes = pix.tobytes("jpeg")
                 images.append(img_bytes)
                 del pix  # تحرير الذاكرة فوراً
 
             doc.close()
-            del pdf_bytes  # تحرير الذاكرة
-            logger.info(f"تم استخراج {len(images)} صفحة من PDF")
+            gc.collect()
+            logger.info(f"تم استخراج {len(images)} صفحة من PDF (scale={scale})")
 
         except Exception as e:
             logger.error(f"خطأ في استخراج صفحات PDF: {e}")
@@ -699,7 +699,7 @@ class LessonPrepService:
 - كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
             ai_text = None
-            max_retries = 5
+            max_retries = 3
             for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(prompt)
@@ -708,7 +708,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 60 * (attempt + 1)  # 60, 120, 180, 240, 300
+                        wait = 15 * (attempt + 1)  # 15, 30, 45
                         logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
@@ -830,7 +830,8 @@ class LessonPrepService:
                             pdf_source = local_path
                             logger.info(f"استخدام الملف المحلي: {local_path}")
                 try:
-                    images = self._extract_pages_as_images(pdf_source, 1, 20)
+                    # التوزيع الفصلي عادة صفحة أو صفحتين فقط - نستخرج أول 3 بدقة منخفضة لتوفير الذاكرة
+                    images = self._extract_pages_as_images(pdf_source, 1, 3, scale=1.2)
                 except Exception as e:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
 
@@ -917,7 +918,7 @@ class LessonPrepService:
             del images
 
             ai_text = None
-            max_retries = 5
+            max_retries = 3
             for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(content_parts)
@@ -926,7 +927,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 60 * (attempt + 1)
+                        wait = 15 * (attempt + 1)  # 15, 30, 45 ثانية فقط
                         logger.warning(f"Rate limit (429) semester - محاولة {attempt+1}/{max_retries}، انتظار {wait}s")
                         time.sleep(wait)
                     else:
@@ -1115,7 +1116,7 @@ class LessonPrepService:
 """
 
             ai_text = None
-            max_retries = 5
+            max_retries = 3
             for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(prompt)
@@ -1124,7 +1125,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower():
-                        wait = 60 * (attempt + 1)
+                        wait = 15 * (attempt + 1)  # 15, 30, 45
                         time.sleep(wait)
                     else:
                         raise
