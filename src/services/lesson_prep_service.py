@@ -96,21 +96,22 @@ class LessonPrepService:
 
             logger.info(f"إرسال {len(images)} صورة لـ Gemini للتحضير #{plan_id}")
             ai_text = None
-            for attempt in range(3):
+            max_retries = 5
+            for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(content_parts)
                     ai_text = response.text
                     break
                 except Exception as api_err:
                     err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
-                        wait = 30 * (attempt + 1)
-                        logger.warning(f"Rate limit (429) - محاولة {attempt+1}/3، انتظار {wait} ثانية...")
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
+                        wait = 60 * (attempt + 1)  # 60, 120, 180, 240, 300
+                        logger.warning(f"Rate limit (429) - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
                         raise
             if ai_text is None:
-                raise Exception("فشل الاتصال بـ Gemini بعد 3 محاولات (429 Rate Limit). جرب بعد دقائق.")
+                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات (429 Rate Limit). جرب بعد دقائق.")
 
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
@@ -335,22 +336,53 @@ class LessonPrepService:
         return prompt
 
     def _extract_json(self, text):
-        """استخراج JSON من رد الـ AI"""
-        try:
-            # محاولة 1: JSON block
-            import re
-            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(1))
+        """استخراج JSON من رد الـ AI مع إصلاح الأخطاء الشائعة"""
+        import re
 
-            # محاولة 2: أول { إلى آخر }
-            first = text.find('{')
-            last = text.rfind('}')
-            if first != -1 and last != -1:
-                return json.loads(text[first:last + 1])
+        def _try_parse(json_str):
+            """محاولة تحليل JSON مع إصلاح أخطاء شائعة"""
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
 
-        except json.JSONDecodeError as e:
-            logger.warning(f"فشل تحليل JSON: {e}")
+            # إصلاح 1: trailing commas قبل } أو ]
+            fixed = re.sub(r',\s*([}\]])', r'\1', json_str)
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+
+            # إصلاح 2: حذف تعليقات // ...
+            fixed = re.sub(r'//[^\n]*', '', fixed)
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+
+            # إصلاح 3: إصلاح quotes غير صحيحة
+            fixed = fixed.replace("'", '"')
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError as e:
+                logger.warning(f"فشل تحليل JSON: {e}")
+
+            return None
+
+        # محاولة 1: JSON block
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if json_match:
+            result = _try_parse(json_match.group(1))
+            if result:
+                return result
+
+        # محاولة 2: أول { إلى آخر }
+        first = text.find('{')
+        last = text.rfind('}')
+        if first != -1 and last != -1:
+            result = _try_parse(text[first:last + 1])
+            if result:
+                return result
 
         return None
 
@@ -563,21 +595,22 @@ class LessonPrepService:
 - كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
             ai_text = None
-            for attempt in range(3):
+            max_retries = 5
+            for attempt in range(max_retries):
                 try:
                     response = self.model.generate_content(prompt)
                     ai_text = response.text
                     break
                 except Exception as api_err:
                     err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
-                        wait = 30 * (attempt + 1)
-                        logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/3، انتظار {wait} ثانية...")
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
+                        wait = 60 * (attempt + 1)  # 60, 120, 180, 240, 300
+                        logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
                         raise
             if ai_text is None:
-                raise Exception("فشل الاتصال بـ Gemini بعد 3 محاولات (429 Rate Limit)")
+                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات (429 Rate Limit)")
 
             plan_data = self._extract_json(ai_text) or {'raw_text': ai_text}
 

@@ -852,7 +852,7 @@ def create_app():
     def inject_unread_count():
         from src.models.notification import Notification
         """حقن عدد الإشعارات غير المقروءة في جميع القوالب"""
-        if current_user.is_authenticated:
+        if current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
             try:
                 unread_count = Notification.query.filter_by(
                     user_id=current_user.id, 
