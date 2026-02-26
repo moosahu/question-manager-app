@@ -121,8 +121,11 @@ class LessonPrepService:
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
             if not plan_data:
-                # محاولة ثانية: نطلب من Gemini إصلاح الـ JSON
-                logger.warning(f"فشل JSON parsing للتحضير #{plan_id}، محاولة إصلاح...")
+                logger.warning(f"فشل JSON parsing للتحضير #{plan_id}، محاولة إصلاح محلي...")
+                plan_data = self._aggressive_json_fix(ai_text)
+            if not plan_data:
+                # محاولة أخيرة عبر Gemini
+                logger.warning(f"فشل الإصلاح المحلي للتحضير #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
                     fix_response = self.model.generate_content(fix_prompt)
@@ -383,7 +386,38 @@ class LessonPrepService:
             fixed = fixed.replace("'", '"')
             try:
                 return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+
+            # إصلاح 4: فاصلة مفقودة بين } و { أو } و " أو ] و { أو ] و "
+            fixed = re.sub(r'(\})\s*(\{)', r'\1,\2', fixed)
+            fixed = re.sub(r'(\})\s*(")', r'\1,\2', fixed)
+            fixed = re.sub(r'(\])\s*(\{)', r'\1,\2', fixed)
+            fixed = re.sub(r'(\])\s*(")', r'\1,\2', fixed)
+            fixed = re.sub(r'(")\s*(")', r'\1,\2', fixed)  # "value" "key" -> "value","key"
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+
+            # إصلاح 5: محاولة إصلاح سطر بسطر - نحاول نحذف السطر المشكل
+            try:
+                return json.loads(fixed)
             except json.JSONDecodeError as e:
+                # نحاول نحدد السطر المشكل ونصلحه
+                lines = fixed.split('\n')
+                if hasattr(e, 'lineno') and e.lineno and e.lineno <= len(lines):
+                    problem_line = e.lineno - 1
+                    line = lines[problem_line].rstrip()
+                    prev_line = lines[problem_line - 1].rstrip() if problem_line > 0 else ''
+                    # لو السطر السابق ما ينتهي بفاصلة وهذا سطر جديد
+                    if prev_line and not prev_line.endswith(',') and not prev_line.endswith('{') and not prev_line.endswith('[') and not prev_line.endswith(':'):
+                        lines[problem_line - 1] = prev_line + ','
+                    try:
+                        return json.loads('\n'.join(lines))
+                    except json.JSONDecodeError:
+                        pass
+
                 logger.warning(f"فشل تحليل JSON: {e}")
 
             return None
@@ -402,6 +436,54 @@ class LessonPrepService:
             result = _try_parse(text[first:last + 1])
             if result:
                 return result
+
+        return None
+
+    def _aggressive_json_fix(self, text):
+        """إصلاح JSON بطريقة أقوى - سطر بسطر"""
+        import re
+
+        # استخراج النص JSON
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if json_match:
+            raw = json_match.group(1)
+        else:
+            first = text.find('{')
+            last = text.rfind('}')
+            if first == -1 or last == -1:
+                return None
+            raw = text[first:last + 1]
+
+        # تنظيف شامل
+        # حذف تعليقات
+        raw = re.sub(r'//[^\n]*', '', raw)
+        # trailing commas
+        raw = re.sub(r',\s*([}\]])', r'\1', raw)
+
+        # إصلاح فاصلة مفقودة: "value"\n"key" أو }\n{ أو ]\n{ أو "value"\n{
+        raw = re.sub(r'("\s*)\n(\s*")', r'\1,\n\2', raw)
+        raw = re.sub(r'(\})\s*\n(\s*\{)', r'\1,\n\2', raw)
+        raw = re.sub(r'(\])\s*\n(\s*\{)', r'\1,\n\2', raw)
+        raw = re.sub(r'(\])\s*\n(\s*")', r'\1,\n\2', raw)
+        raw = re.sub(r'(\})\s*\n(\s*")', r'\1,\n\2', raw)
+        raw = re.sub(r'(true|false|null|\d)\s*\n(\s*")', r'\1,\n\2', raw)
+
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            logger.warning(f"إصلاح JSON العنيف - خطأ عند حرف {e.pos}: {e.msg}")
+
+            # محاولة إصلاح عند نقطة الخطأ
+            if e.pos and e.pos < len(raw):
+                # نبحث عن أقرب مكان ممكن نضيف فاصلة
+                for delta in range(0, min(20, e.pos)):
+                    pos = e.pos - delta
+                    if pos > 0 and raw[pos-1] in '"]}0123456789':
+                        fixed = raw[:pos] + ',' + raw[pos:]
+                        try:
+                            return json.loads(fixed)
+                        except json.JSONDecodeError:
+                            continue
 
         return None
 
@@ -633,13 +715,17 @@ class LessonPrepService:
 
             plan_data = self._extract_json(ai_text)
             if not plan_data:
-                logger.warning(f"فشل JSON parsing للوحدة #{plan_id}، محاولة إصلاح...")
+                logger.warning(f"فشل JSON parsing للوحدة #{plan_id}، محاولة إصلاح محلي...")
+                plan_data = self._aggressive_json_fix(ai_text)
+            if not plan_data:
+                # محاولة أخيرة عبر Gemini
+                logger.warning(f"فشل الإصلاح المحلي للوحدة #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
                     fix_response = self.model.generate_content(fix_prompt)
                     plan_data = self._extract_json(fix_response.text)
                 except Exception as fix_err:
-                    logger.warning(f"فشل إصلاح JSON الوحدة: {fix_err}")
+                    logger.warning(f"فشل إصلاح JSON الوحدة عبر Gemini: {fix_err}")
             if not plan_data:
                 plan_data = {'raw_text': ai_text}
                 logger.error(f"الوحدة #{plan_id}: حُفظ كـ raw_text")
