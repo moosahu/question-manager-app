@@ -11,6 +11,7 @@ import time
 import requests
 from datetime import datetime
 
+import gc
 import google.generativeai as genai
 from flask import current_app
 
@@ -89,10 +90,13 @@ class LessonPrepService:
             if images:
                 for img_bytes in images:
                     content_parts.append({
-                        'mime_type': 'image/png',
+                        'mime_type': 'image/jpeg',
                         'data': img_bytes,
                     })
             content_parts.append(prompt)
+
+            # تحرير ذاكرة الصور بعد بناء المحتوى
+            del images
 
             logger.info(f"إرسال {len(images)} صورة لـ Gemini للتحضير #{plan_id}")
             ai_text = None
@@ -116,8 +120,18 @@ class LessonPrepService:
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
             if not plan_data:
-                # إذا فشل الـ JSON، نحفظ النص كاملاً
+                # محاولة ثانية: نطلب من Gemini إصلاح الـ JSON
+                logger.warning(f"فشل JSON parsing للتحضير #{plan_id}، محاولة إصلاح...")
+                try:
+                    fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
+                    fix_response = self.model.generate_content(fix_prompt)
+                    plan_data = self._extract_json(fix_response.text)
+                except Exception as fix_err:
+                    logger.warning(f"فشل إصلاح JSON: {fix_err}")
+
+            if not plan_data:
                 plan_data = {'raw_text': ai_text}
+                logger.error(f"التحضير #{plan_id}: حُفظ كـ raw_text (JSON غير صالح)")
 
             # 5. توليد PDF
             pdf_url = None
@@ -153,6 +167,7 @@ class LessonPrepService:
             plan.status = 'completed'
             db.session.commit()
 
+            gc.collect()  # تحرير الذاكرة
             logger.info(f"اكتمل التحضير #{plan_id} بنجاح")
             return True
 
@@ -187,13 +202,16 @@ class LessonPrepService:
             # تحويل من 1-based إلى 0-based
             for page_num in range(start_page - 1, min(end_page, len(doc))):
                 page = doc[page_num]
-                # رندر بـ 2x للوضوح
-                mat = fitz.Matrix(2, 2)
+                # رندر بـ 1.5x (بدل 2x) لتوفير الذاكرة مع وضوح كافي
+                mat = fitz.Matrix(1.5, 1.5)
                 pix = page.get_pixmap(matrix=mat)
-                img_bytes = pix.tobytes("png")
+                # استخدام JPEG بدل PNG لتقليل حجم الصورة ~70%
+                img_bytes = pix.tobytes("jpeg")
                 images.append(img_bytes)
+                del pix  # تحرير الذاكرة فوراً
 
             doc.close()
+            del pdf_bytes  # تحرير الذاكرة
             logger.info(f"تم استخراج {len(images)} صفحة من PDF")
 
         except Exception as e:
@@ -612,7 +630,18 @@ class LessonPrepService:
             if ai_text is None:
                 raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات (429 Rate Limit)")
 
-            plan_data = self._extract_json(ai_text) or {'raw_text': ai_text}
+            plan_data = self._extract_json(ai_text)
+            if not plan_data:
+                logger.warning(f"فشل JSON parsing للوحدة #{plan_id}، محاولة إصلاح...")
+                try:
+                    fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
+                    fix_response = self.model.generate_content(fix_prompt)
+                    plan_data = self._extract_json(fix_response.text)
+                except Exception as fix_err:
+                    logger.warning(f"فشل إصلاح JSON الوحدة: {fix_err}")
+            if not plan_data:
+                plan_data = {'raw_text': ai_text}
+                logger.error(f"الوحدة #{plan_id}: حُفظ كـ raw_text")
 
             # توليد PDF للوحدة
             pdf_url = None
@@ -649,6 +678,7 @@ class LessonPrepService:
             plan.status = 'completed'
             db.session.commit()
 
+            gc.collect()  # تحرير الذاكرة
             logger.info(f"اكتمل توزيع الوحدة #{plan_id}")
             return True
 
