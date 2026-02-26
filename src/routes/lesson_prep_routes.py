@@ -238,12 +238,19 @@ def download_plan_pdf(plan_id):
             unit = Unit.query.get(lesson.unit_id) if lesson else None
             course = Course.query.get(unit.course_id) if unit else None
 
-            pdf_bytes = lesson_prep_service._generate_pdf(
-                plan.plan_data or {},
-                lesson.name if lesson else 'تحضير',
-                unit.name if unit else '',
-                course.name if course else '',
-            )
+            if plan.plan_type == 'unit_distribution':
+                pdf_bytes = lesson_prep_service._generate_unit_pdf(
+                    plan.plan_data or {},
+                    unit.name if unit else '',
+                    course.name if course else '',
+                )
+            else:
+                pdf_bytes = lesson_prep_service._generate_pdf(
+                    plan.plan_data or {},
+                    lesson.name if lesson else 'تحضير',
+                    unit.name if unit else '',
+                    course.name if course else '',
+                )
             if pdf_bytes:
                 return send_file(
                     io.BytesIO(pdf_bytes),
