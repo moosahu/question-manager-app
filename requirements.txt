@@ -28,10 +28,9 @@ google-api-python-client>=2.100.0
 google-auth-httplib2>=0.2.0
 googleapis-common-protos>=1.60.0
 
-# ✅ جديد: Google Gemini AI
+# ✅ AI Providers
 google-generativeai>=0.8.6
-# ⚠️ اختياري: OpenAI (إذا أردت استخدامه بدلاً من Gemini)
-# openai>=1.0.0
+anthropic>=0.42.0
 
 # Scheduling (موجود بالفعل)
 APScheduler>=3.10.0

@@ -911,6 +911,74 @@ def apply_preset(preset_name):
 
 
 # ============================================
+# AI Provider Selection (اختيار نظام الذكاء الاصطناعي)
+# ============================================
+
+@admin_ai_bp.route('/providers', methods=['GET'])
+@admin_required
+def get_ai_providers():
+    """جلب قائمة أنظمة الذكاء الاصطناعي المتاحة"""
+    try:
+        from src.services.lesson_prep_service import AI_PROVIDERS, DEFAULT_PROVIDER
+
+        current = AISetting.get_setting('ai_provider') or DEFAULT_PROVIDER
+        providers = []
+        for key, info in AI_PROVIDERS.items():
+            providers.append({
+                'id': key,
+                'name': info['name'],
+                'provider': info['provider'],
+                'cost': info['cost'],
+                'is_active': key == current,
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'current_provider': current,
+                'providers': providers,
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_ai_bp.route('/providers', methods=['PUT'])
+@admin_required
+def set_ai_provider():
+    """تغيير نظام الذكاء الاصطناعي"""
+    try:
+        from src.services.lesson_prep_service import AI_PROVIDERS
+
+        data = request.get_json()
+        provider = data.get('provider')
+
+        if not provider or provider not in AI_PROVIDERS:
+            return jsonify({
+                'success': False,
+                'error': f'نظام غير معروف. المتاح: {", ".join(AI_PROVIDERS.keys())}'
+            }), 400
+
+        AISetting.set_setting('ai_provider', provider, 'string')
+        info = AI_PROVIDERS[provider]
+
+        AILog.log_operation(
+            operation_type='change_ai_provider',
+            description=f'تغيير نظام AI إلى {info["name"]}',
+            success=True,
+            data={'provider': provider}
+        )
+
+        return jsonify({
+            'success': True,
+            'message': f'تم التغيير إلى {info["name"]}',
+            'data': {'provider': provider, 'name': info['name']}
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
 # Testing Mode Route (جديد)
 # ============================================
 

@@ -63,6 +63,10 @@ class Config:
     BACKUP_INTERVAL_HOURS = int(os.getenv('BACKUP_INTERVAL_HOURS', 24))
     BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 30))
     
+    # ==================== AI Providers ====================
+    GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY', '')
+    CLAUDE_AI_API_KEY = os.getenv('CLAUDE_AI_API_KEY', '')
+
     # ==================== API ====================
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = True

@@ -1,12 +1,15 @@
 """
 Lesson Prep Service - خدمة تحضير الدروس بالذكاء الاصطناعي
-يستخرج صفحات PDF كصور ويرسلها لـ Gemini Vision لتوليد تحضير احترافي
+يدعم Gemini (Google) و Claude (Anthropic)
+- المعلمين: Gemini دائماً (أسرع وأرخص)
+- الأدمن: يختار بين Gemini و Claude
 """
 import os
 import io
 import json
 import logging
 import tempfile
+import base64
 import requests
 from datetime import datetime
 
@@ -20,6 +23,16 @@ from src.models.curriculum import Lesson, Unit, Course
 
 logger = logging.getLogger(__name__)
 
+# النماذج المتاحة
+AI_PROVIDERS = {
+    'gemini-flash': {'name': 'Gemini 2.0 Flash', 'provider': 'gemini', 'model': 'gemini-2.0-flash', 'cost': 'منخفض'},
+    'claude-haiku': {'name': 'Claude Haiku 4.5', 'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض'},
+    'claude-sonnet': {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6', 'cost': 'متوسط'},
+    'claude-opus': {'name': 'Claude Opus 4.6', 'provider': 'claude', 'model': 'claude-opus-4-6', 'cost': 'مرتفع'},
+}
+
+DEFAULT_PROVIDER = 'gemini-flash'
+
 
 class RateLimitError(Exception):
     """خطأ تجاوز حد الطلبات - يُستخدم لإعادة المحاولة بدون حظر الـ scheduler"""
@@ -28,32 +41,121 @@ class RateLimitError(Exception):
 
 class LessonPrepService:
     def __init__(self):
-        self.model = None
-        self.is_configured = False
+        self.gemini_model = None
+        self.claude_client = None
+        self.gemini_configured = False
+        self.claude_configured = False
 
-    def _ensure_configured(self):
+    def _ensure_gemini(self):
         """تهيئة Gemini API"""
-        if self.is_configured and self.model:
+        if self.gemini_configured and self.gemini_model:
             return True
         api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
         if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY غير موجود")
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
-        self.is_configured = True
+        self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        self.gemini_configured = True
         return True
 
-    def _call_gemini(self, content, label=""):
-        """استدعاء Gemini مع كشف Rate Limit بدون انتظار (لا يعلّق الـ scheduler)"""
+    def _ensure_claude(self):
+        """تهيئة Claude API"""
+        if self.claude_configured and self.claude_client:
+            return True
+        api_key = current_app.config.get('CLAUDE_AI_API_KEY') or os.getenv('CLAUDE_AI_API_KEY')
+        if not api_key:
+            raise ValueError("CLAUDE_AI_API_KEY غير موجود")
+        import anthropic
+        self.claude_client = anthropic.Anthropic(api_key=api_key)
+        self.claude_configured = True
+        return True
+
+    def _ensure_configured(self, provider=None):
+        """تهيئة الـ AI provider المطلوب"""
+        provider = provider or DEFAULT_PROVIDER
+        info = AI_PROVIDERS.get(provider, AI_PROVIDERS[DEFAULT_PROVIDER])
+        if info['provider'] == 'claude':
+            self._ensure_claude()
+        else:
+            self._ensure_gemini()
+        return info
+
+    def _get_active_provider(self):
+        """جلب الـ provider المختار من إعدادات الأدمن"""
         try:
-            response = self.model.generate_content(content)
-            return response.text
+            from src.models.ai_analysis import AISetting
+            provider = AISetting.get_setting('ai_provider')
+            if provider and provider in AI_PROVIDERS:
+                return provider
+        except Exception:
+            pass
+        return DEFAULT_PROVIDER
+
+    def _call_ai(self, content, label="", images=None, provider=None):
+        """
+        استدعاء AI موحّد - يدعم Gemini و Claude
+        content: النص (prompt)
+        images: قائمة صور (bytes) اختياري
+        provider: اسم الـ provider (None = من إعدادات الأدمن أو الافتراضي)
+        """
+        if not provider:
+            provider = self._get_active_provider()
+        info = AI_PROVIDERS.get(provider, AI_PROVIDERS[DEFAULT_PROVIDER])
+
+        try:
+            if info['provider'] == 'claude':
+                return self._call_claude(content, images, info['model'], label)
+            else:
+                return self._call_gemini(content, images, label)
+        except RateLimitError:
+            raise
         except Exception as api_err:
             err_str = str(api_err)
-            if '429' in err_str or 'resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                logger.warning(f"⚠️ Rate limit (429) {label} - سيُعاد المحاولة تلقائياً بعد دقيقتين")
+            if '429' in err_str or 'resource exhausted' in err_str.lower() or 'quota' in err_str.lower() or 'rate' in err_str.lower():
+                logger.warning(f"⚠️ Rate limit (429) {label} [{provider}]")
                 raise RateLimitError(f"Rate limit 429 - {label}")
             raise
+
+    def _call_gemini(self, prompt, images=None, label=""):
+        """استدعاء Gemini"""
+        self._ensure_gemini()
+        content_parts = []
+        if images:
+            for img_bytes in images:
+                content_parts.append({
+                    'mime_type': 'image/jpeg',
+                    'data': img_bytes,
+                })
+        content_parts.append(prompt)
+        response = self.gemini_model.generate_content(content_parts)
+        logger.info(f"✅ Gemini [{label}] - {len(response.text)} حرف")
+        return response.text
+
+    def _call_claude(self, prompt, images=None, model='claude-haiku-4-5-20251001', label=""):
+        """استدعاء Claude"""
+        self._ensure_claude()
+        messages_content = []
+        if images:
+            for img_bytes in images:
+                b64 = base64.b64encode(img_bytes).decode('utf-8')
+                messages_content.append({
+                    'type': 'image',
+                    'source': {
+                        'type': 'base64',
+                        'media_type': 'image/jpeg',
+                        'data': b64,
+                    }
+                })
+        messages_content.append({'type': 'text', 'text': prompt})
+
+        response = self.claude_client.messages.create(
+            model=model,
+            max_tokens=8192,
+            messages=[{'role': 'user', 'content': messages_content}],
+        )
+        text = response.content[0].text
+        logger.info(f"✅ Claude [{model}] [{label}] - {len(text)} حرف")
+        return text
 
     def generate_lesson_plan(self, plan_id):
         """توليد تحضير درس كامل"""
@@ -102,22 +204,11 @@ class LessonPrepService:
                 },
             )
 
-            # 3. إرسال لـ Gemini
-            content_parts = []
-            if images:
-                for img_bytes in images:
-                    content_parts.append({
-                        'mime_type': 'image/jpeg',
-                        'data': img_bytes,
-                    })
-            content_parts.append(prompt)
-
-            # تحرير ذاكرة الصور بعد بناء المحتوى
+            # 3. إرسال للـ AI
             num_images = len(images) if images else 0
+            logger.info(f"إرسال {num_images} صورة للتحضير #{plan_id}")
+            ai_text = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images)
             del images
-
-            logger.info(f"إرسال {num_images} صورة لـ Gemini للتحضير #{plan_id}")
-            ai_text = self._call_gemini(content_parts, label=f"تحضير #{plan_id}")
 
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
@@ -129,8 +220,8 @@ class LessonPrepService:
                 logger.warning(f"فشل الإصلاح المحلي للتحضير #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
-                    fix_response = self.model.generate_content(fix_prompt)
-                    plan_data = self._extract_json(fix_response.text)
+                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    plan_data = self._extract_json(fix_response_text)
                 except Exception as fix_err:
                     logger.warning(f"فشل إصلاح JSON: {fix_err}")
 
@@ -709,7 +800,7 @@ class LessonPrepService:
 - خصص حصة أو أكثر للمراجعة والتقويم
 - كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
-            ai_text = self._call_gemini(prompt, label=f"توزيع وحدة #{plan_id}")
+            ai_text = self._call_ai(prompt, label=f"توزيع وحدة #{plan_id}")
 
             plan_data = self._extract_json(ai_text)
             if not plan_data:
@@ -720,8 +811,8 @@ class LessonPrepService:
                 logger.warning(f"فشل الإصلاح المحلي للوحدة #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
-                    fix_response = self.model.generate_content(fix_prompt)
-                    plan_data = self._extract_json(fix_response.text)
+                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    plan_data = self._extract_json(fix_response_text)
                 except Exception as fix_err:
                     logger.warning(f"فشل إصلاح JSON الوحدة عبر Gemini: {fix_err}")
             if not plan_data:
@@ -917,20 +1008,10 @@ class LessonPrepService:
 - الحصة الواحدة = periods: 1، إذا الدرس يحتاج حصتين ضع periods: 2
 """
 
-            content_parts = []
-            if images:
-                for img_bytes in images:
-                    content_parts.append({
-                        'mime_type': 'image/jpeg',
-                        'data': img_bytes,
-                    })
-            content_parts.append(prompt)
-
+            ai_text = self._call_ai(prompt, label=f"توزيع فصلي #{plan_id}", images=images)
             del images
 
-            ai_text = self._call_gemini(content_parts, label=f"توزيع فصلي #{plan_id}")
-
-            logger.info(f"رد Gemini للتوزيع (أول 500 حرف): {ai_text[:500]}")
+            logger.info(f"رد AI للتوزيع (أول 500 حرف): {ai_text[:500]}")
 
             plan_data = self._extract_json(ai_text)
             logger.info(f"نتيجة _extract_json: {type(plan_data)}, keys={list(plan_data.keys()) if isinstance(plan_data, dict) else 'None'}")
@@ -940,8 +1021,8 @@ class LessonPrepService:
             if not plan_data:
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط:\n\n{ai_text[:8000]}"
-                    fix_response = self.model.generate_content(fix_prompt)
-                    plan_data = self._extract_json(fix_response.text)
+                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    plan_data = self._extract_json(fix_response_text)
                 except Exception:
                     pass
             if not plan_data:
@@ -1115,7 +1196,7 @@ class LessonPrepService:
 - المسائل الحسابية تشمل خطوات الحل
 """
 
-            ai_text = self._call_gemini(prompt, label=f"ورقة عمل #{plan_id}")
+            ai_text = self._call_ai(prompt, label=f"ورقة عمل #{plan_id}")
 
             worksheet_data = self._extract_json(ai_text)
             if not worksheet_data:
@@ -1265,10 +1346,10 @@ class LessonPrepService:
 - أعد فقط JSON القسم (ليس التحضير كامل)
 """
 
-            response = self.model.generate_content(prompt)
-            new_section = self._extract_json(response.text)
+            response_text = self._call_ai(prompt, label=f"إعادة توليد {section_name}")
+            new_section = self._extract_json(response_text)
             if not new_section:
-                new_section = self._aggressive_json_fix(response.text)
+                new_section = self._aggressive_json_fix(response_text)
 
             return new_section
 
