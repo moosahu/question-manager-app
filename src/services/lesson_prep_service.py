@@ -96,9 +96,10 @@ class LessonPrepService:
             content_parts.append(prompt)
 
             # تحرير ذاكرة الصور بعد بناء المحتوى
+            num_images = len(images) if images else 0
             del images
 
-            logger.info(f"إرسال {len(images)} صورة لـ Gemini للتحضير #{plan_id}")
+            logger.info(f"إرسال {num_images} صورة لـ Gemini للتحضير #{plan_id}")
             ai_text = None
             max_retries = 5
             for attempt in range(max_retries):
