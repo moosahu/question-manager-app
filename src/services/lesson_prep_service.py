@@ -816,6 +816,7 @@ class LessonPrepService:
 
             # استخراج صور PDF المرفوع
             images = []
+            logger.info(f"original_pdf_url: {plan.original_pdf_url}")
             if plan.original_pdf_url:
                 pdf_source = plan.original_pdf_url
                 # إذا كان URL خارجي (Cloudinary)، جرب الملف المحلي أولاً لأنه أسرع وأضمن
@@ -834,6 +835,7 @@ class LessonPrepService:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
 
             has_images = bool(images)
+            logger.info(f"عدد صور PDF المستخرجة: {len(images)}, has_images={has_images}")
             if has_images:
                 task_description = "حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON."
                 instructions = """1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
@@ -924,9 +926,13 @@ class LessonPrepService:
             if ai_text is None:
                 raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات")
 
+            logger.info(f"رد Gemini للتوزيع (أول 500 حرف): {ai_text[:500]}")
+
             plan_data = self._extract_json(ai_text)
+            logger.info(f"نتيجة _extract_json: {type(plan_data)}, keys={list(plan_data.keys()) if isinstance(plan_data, dict) else 'None'}")
             if not plan_data:
                 plan_data = self._aggressive_json_fix(ai_text)
+                logger.info(f"نتيجة _aggressive_json_fix: {type(plan_data)}")
             if not plan_data:
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط:\n\n{ai_text[:8000]}"
@@ -936,6 +942,10 @@ class LessonPrepService:
                     pass
             if not plan_data:
                 plan_data = {'raw_text': ai_text}
+                logger.warning(f"فشل تحليل JSON - حفظ raw_text")
+
+            weeks_count = len(plan_data.get('weeks', [])) if isinstance(plan_data, dict) else 0
+            logger.info(f"التوزيع النهائي: {weeks_count} أسبوع, keys={list(plan_data.keys()) if isinstance(plan_data, dict) else 'N/A'}")
 
             # توليد PDF
             pdf_url = None
