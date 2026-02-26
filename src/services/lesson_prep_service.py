@@ -110,7 +110,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 15 * (attempt + 1)  # 15, 30, 45
+                        wait = 30 * (attempt + 1)  # 30, 60, 90
                         logger.warning(f"Rate limit (429) - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
@@ -708,7 +708,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 15 * (attempt + 1)  # 15, 30, 45
+                        wait = 30 * (attempt + 1)  # 30, 60, 90
                         logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
                         time.sleep(wait)
                     else:
@@ -927,7 +927,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 15 * (attempt + 1)  # 15, 30, 45 ثانية فقط
+                        wait = 30 * (attempt + 1)  # 30, 60, 90 ثانية فقط
                         logger.warning(f"Rate limit (429) semester - محاولة {attempt+1}/{max_retries}، انتظار {wait}s")
                         time.sleep(wait)
                     else:
@@ -1125,7 +1125,7 @@ class LessonPrepService:
                 except Exception as api_err:
                     err_str = str(api_err)
                     if '429' in err_str or 'Resource exhausted' in err_str.lower():
-                        wait = 15 * (attempt + 1)  # 15, 30, 45
+                        wait = 30 * (attempt + 1)  # 30, 60, 90
                         time.sleep(wait)
                     else:
                         raise
