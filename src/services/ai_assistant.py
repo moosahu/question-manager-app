@@ -39,9 +39,15 @@ class AIAssistant:
     def _ensure_configured(self):
         """تهيئة الـ AI provider المختار"""
         try:
-            self.active_provider = AISetting.get_setting('ai_provider') or 'gemini-flash'
+            new_provider = AISetting.get_setting('ai_provider') or 'gemini-flash'
         except Exception:
-            self.active_provider = 'gemini-flash'
+            new_provider = 'gemini-flash'
+
+        # إذا تغيّر الـ provider، نعيد التهيئة
+        if new_provider != self.active_provider:
+            print(f"🔄 تغيير AI provider: {self.active_provider} → {new_provider}")
+            self.active_provider = new_provider
+            self.is_configured = False
 
         if 'claude' in self.active_provider:
             return self._ensure_claude()
@@ -50,7 +56,7 @@ class AIAssistant:
 
     def _ensure_gemini(self):
         """تهيئة Gemini"""
-        if self.gemini_model:
+        if self.gemini_model and self.is_configured:
             return True
         try:
             api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
@@ -58,8 +64,12 @@ class AIAssistant:
                 genai.configure(api_key=api_key)
                 self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
                 self.is_configured = True
+                print(f"✅ تم تهيئة Gemini بنجاح")
                 return True
-            print("⚠️ Gemini غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
+            if not GEMINI_AVAILABLE:
+                print("⚠️ AI غير مفعّل - مكتبة google-generativeai غير مثبتة")
+            else:
+                print("⚠️ AI غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
             return False
         except Exception as e:
             print(f"❌ خطأ في تهيئة Gemini: {e}")
@@ -67,16 +77,20 @@ class AIAssistant:
 
     def _ensure_claude(self):
         """تهيئة Claude"""
-        if self.claude_client:
+        if self.claude_client and self.is_configured:
             return True
         try:
             api_key = current_app.config.get('CLAUDE_AI_API_KEY') or os.getenv('CLAUDE_AI_API_KEY')
             if api_key and CLAUDE_AVAILABLE:
                 self.claude_client = anthropic.Anthropic(api_key=api_key)
                 self.is_configured = True
+                print(f"✅ تم تهيئة Claude بنجاح")
                 return True
             # fallback لـ Gemini
-            print("⚠️ Claude غير متاح، استخدام Gemini")
+            if not CLAUDE_AVAILABLE:
+                print("⚠️ Claude غير متاح (مكتبة غير مثبتة)، استخدام Gemini")
+            else:
+                print("⚠️ Claude غير متاح (تحقق من CLAUDE_AI_API_KEY)، استخدام Gemini")
             self.active_provider = 'gemini-flash'
             return self._ensure_gemini()
         except Exception as e:

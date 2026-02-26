@@ -24,6 +24,63 @@ logger = logging.getLogger(__name__)
 lesson_prep_bp = Blueprint('lesson_prep', __name__, url_prefix='/api/lesson-prep')
 
 
+# ============================================================
+# حدود الاستخدام للمعلمين
+# ============================================================
+
+# الحدود الافتراضية يومياً
+DEFAULT_QUOTAS = {
+    'single_lesson': 5,
+    'unit_distribution': 2,
+    'semester_distribution': 2,
+    'worksheet': 3,
+}
+
+def _get_teacher_quota(teacher_id):
+    """حساب الحصة المتبقية للمعلم اليوم"""
+    from datetime import date
+    today_start = datetime.combine(date.today(), datetime.min.time())
+
+    # قراءة الحدود من الإعدادات (الأدمن يقدر يعدلها)
+    quotas = {}
+    for plan_type, default_limit in DEFAULT_QUOTAS.items():
+        setting_key = f'quota_{plan_type}'
+        saved = AISetting.get_setting(setting_key)
+        quotas[plan_type] = int(saved) if saved else default_limit
+
+    # حساب الاستخدام اليوم
+    usage = {}
+    for plan_type in DEFAULT_QUOTAS:
+        count = LessonPlan.query.filter(
+            LessonPlan.teacher_id == teacher_id,
+            LessonPlan.plan_type == plan_type,
+            LessonPlan.created_at >= today_start,
+            LessonPlan.status.notin_(['failed']),
+        ).count()
+        usage[plan_type] = count
+
+    result = {}
+    for plan_type in DEFAULT_QUOTAS:
+        limit = quotas[plan_type]
+        used = usage[plan_type]
+        result[plan_type] = {
+            'limit': limit,
+            'used': used,
+            'remaining': max(0, limit - used),
+        }
+    return result
+
+
+def _check_quota(teacher_id, plan_type):
+    """تحقق إذا المعلم عنده رصيد متبقي - يرجع (allowed, remaining, limit)"""
+    if not teacher_id:
+        return True, 999, 999  # أدمن بدون حدود
+
+    quota = _get_teacher_quota(teacher_id)
+    info = quota.get(plan_type, {'remaining': 0, 'limit': 0})
+    return info['remaining'] > 0, info['remaining'], info['limit']
+
+
 def _get_teacher_from_request():
     """استخراج المعلم من الطلب (JWT أو session)"""
     # 1. أدمن عبر جلسة الويب
@@ -63,11 +120,41 @@ def auth_required(f):
     return decorated_function
 
 
+@lesson_prep_bp.route('/quota', methods=['GET'])
+@auth_required
+def get_quota(teacher=None, user_id=None, is_admin=False):
+    """الحصة المتبقية للمعلم اليوم"""
+    try:
+        if not teacher:
+            # أدمن - بدون حدود
+            return jsonify({
+                'success': True,
+                'data': {t: {'limit': 999, 'used': 0, 'remaining': 999} for t in DEFAULT_QUOTAS},
+                'is_admin': True,
+            })
+
+        quota = _get_teacher_quota(teacher.id)
+        return jsonify({'success': True, 'data': quota, 'is_admin': False})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @lesson_prep_bp.route('/generate', methods=['POST'])
 @auth_required
 def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
     """بدء توليد تحضير درس (async)"""
     try:
+        # فحص الحصة
+        if teacher and not is_admin:
+            allowed, remaining, limit = _check_quota(teacher.id, 'single_lesson')
+            if not allowed:
+                return jsonify({
+                    'success': False,
+                    'error': f'تجاوزت الحد اليومي ({limit} تحضيرات). حاول غداً.',
+                    'quota_exceeded': True,
+                }), 429
+
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'error': 'لا توجد بيانات'}), 400
@@ -125,6 +212,16 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
 def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
     """توليد توزيع وحدة كاملة"""
     try:
+        # فحص الحصة
+        if teacher and not is_admin:
+            allowed, remaining, limit = _check_quota(teacher.id, 'unit_distribution')
+            if not allowed:
+                return jsonify({
+                    'success': False,
+                    'error': f'تجاوزت الحد اليومي ({limit} توزيعات). حاول غداً.',
+                    'quota_exceeded': True,
+                }), 429
+
         data = request.get_json()
         lesson_id = data.get('lesson_id')  # أي درس من الوحدة
         total_periods = data.get('total_periods', 12)
@@ -322,6 +419,16 @@ def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
 def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
     """رفع PDF توزيع فصلي + تحليل AI"""
     try:
+        # فحص الحصة
+        if teacher and not is_admin:
+            allowed, remaining, limit = _check_quota(teacher.id, 'semester_distribution')
+            if not allowed:
+                return jsonify({
+                    'success': False,
+                    'error': f'تجاوزت الحد اليومي ({limit} توزيعات فصلية). حاول غداً.',
+                    'quota_exceeded': True,
+                }), 429
+
         course_id = request.form.get('course_id', type=int)
         weekly_periods = request.form.get('weekly_periods', type=int) or 5
         if not course_id:
@@ -730,6 +837,16 @@ def get_plan_ratings(plan_id):
 def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
     """توليد ورقة عمل (async)"""
     try:
+        # فحص الحصة
+        if teacher and not is_admin:
+            allowed, remaining, limit = _check_quota(teacher.id, 'worksheet')
+            if not allowed:
+                return jsonify({
+                    'success': False,
+                    'error': f'تجاوزت الحد اليومي ({limit} أوراق عمل). حاول غداً.',
+                    'quota_exceeded': True,
+                }), 429
+
         plan = LessonPlan.query.get(plan_id)
         if not plan:
             return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
