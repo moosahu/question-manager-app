@@ -7,7 +7,6 @@ import io
 import json
 import logging
 import tempfile
-import time
 import requests
 from datetime import datetime
 
@@ -20,6 +19,11 @@ from src.models.textbook import Textbook, LessonPages, LessonPlan
 from src.models.curriculum import Lesson, Unit, Course
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimitError(Exception):
+    """خطأ تجاوز حد الطلبات - يُستخدم لإعادة المحاولة بدون حظر الـ scheduler"""
+    pass
 
 
 class LessonPrepService:
@@ -38,6 +42,18 @@ class LessonPrepService:
         self.model = genai.GenerativeModel('gemini-2.0-flash')
         self.is_configured = True
         return True
+
+    def _call_gemini(self, content, label=""):
+        """استدعاء Gemini مع كشف Rate Limit بدون انتظار (لا يعلّق الـ scheduler)"""
+        try:
+            response = self.model.generate_content(content)
+            return response.text
+        except Exception as api_err:
+            err_str = str(api_err)
+            if '429' in err_str or 'resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
+                logger.warning(f"⚠️ Rate limit (429) {label} - سيُعاد المحاولة تلقائياً بعد دقيقتين")
+                raise RateLimitError(f"Rate limit 429 - {label}")
+            raise
 
     def generate_lesson_plan(self, plan_id):
         """توليد تحضير درس كامل"""
@@ -100,23 +116,7 @@ class LessonPrepService:
             del images
 
             logger.info(f"إرسال {num_images} صورة لـ Gemini للتحضير #{plan_id}")
-            ai_text = None
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = self.model.generate_content(content_parts)
-                    ai_text = response.text
-                    break
-                except Exception as api_err:
-                    err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 30 * (attempt + 1)  # 30, 60, 90
-                        logger.warning(f"Rate limit (429) - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
-                        time.sleep(wait)
-                    else:
-                        raise
-            if ai_text is None:
-                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات (429 Rate Limit). جرب بعد دقائق.")
+            ai_text = self._call_gemini(content_parts, label=f"تحضير #{plan_id}")
 
             # 4. استخراج JSON من الرد
             plan_data = self._extract_json(ai_text)
@@ -698,23 +698,7 @@ class LessonPrepService:
 - خصص حصة أو أكثر للمراجعة والتقويم
 - كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
-            ai_text = None
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = self.model.generate_content(prompt)
-                    ai_text = response.text
-                    break
-                except Exception as api_err:
-                    err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 30 * (attempt + 1)  # 30, 60, 90
-                        logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/{max_retries}، انتظار {wait} ثانية...")
-                        time.sleep(wait)
-                    else:
-                        raise
-            if ai_text is None:
-                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات (429 Rate Limit)")
+            ai_text = self._call_gemini(prompt, label=f"توزيع وحدة #{plan_id}")
 
             plan_data = self._extract_json(ai_text)
             if not plan_data:
@@ -917,23 +901,7 @@ class LessonPrepService:
 
             del images
 
-            ai_text = None
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = self.model.generate_content(content_parts)
-                    ai_text = response.text
-                    break
-                except Exception as api_err:
-                    err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
-                        wait = 30 * (attempt + 1)  # 30, 60, 90 ثانية فقط
-                        logger.warning(f"Rate limit (429) semester - محاولة {attempt+1}/{max_retries}، انتظار {wait}s")
-                        time.sleep(wait)
-                    else:
-                        raise
-            if ai_text is None:
-                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات")
+            ai_text = self._call_gemini(content_parts, label=f"توزيع فصلي #{plan_id}")
 
             logger.info(f"رد Gemini للتوزيع (أول 500 حرف): {ai_text[:500]}")
 
@@ -1115,22 +1083,7 @@ class LessonPrepService:
 - المسائل الحسابية تشمل خطوات الحل
 """
 
-            ai_text = None
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = self.model.generate_content(prompt)
-                    ai_text = response.text
-                    break
-                except Exception as api_err:
-                    err_str = str(api_err)
-                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
-                        wait = 30 * (attempt + 1)  # 30, 60, 90
-                        time.sleep(wait)
-                    else:
-                        raise
-            if ai_text is None:
-                raise Exception("فشل Gemini بعد المحاولات")
+            ai_text = self._call_gemini(prompt, label=f"ورقة عمل #{plan_id}")
 
             worksheet_data = self._extract_json(ai_text)
             if not worksheet_data:

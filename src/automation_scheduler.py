@@ -392,7 +392,11 @@ def check_single_student_analysis_job():
 
 
 def check_lesson_prep_job():
-    """فحص إذا فيه طلب تحضير درس بالـ AI"""
+    """
+    فحص إذا فيه طلب تحضير درس بالـ AI
+    يدعم إعادة المحاولة التلقائية عند تجاوز حد الطلبات (429)
+    بدون حظر الـ scheduler - يؤجل المحاولة للدورة التالية
+    """
     global _flask_app
 
     if _flask_app is None:
@@ -410,7 +414,36 @@ def check_lesson_prep_job():
 
             status = result[0] if result else 'idle'
 
-            if status != 'running':
+            # التحقق من حالة إعادة المحاولة (rate_limited)
+            if status == 'rate_limited':
+                data_result = db.session.execute(text("""
+                    SELECT setting_value
+                    FROM ai_settings
+                    WHERE setting_key = 'lesson_prep_job_data'
+                """)).fetchone()
+                data = _json.loads(data_result[0]) if data_result else {}
+                retry_after = data.get('retry_after', 0)
+                retry_count = data.get('retry_count', 0)
+
+                now = datetime.utcnow().timestamp()
+                if now < retry_after:
+                    # لم يحن وقت إعادة المحاولة بعد - نتخطى بصمت
+                    return
+
+                if retry_count >= 5:
+                    # وصلنا الحد الأقصى للمحاولات
+                    logger.error(f"❌ [Scheduler] تحضير #{data.get('plan_id')}: وصل الحد الأقصى ({retry_count} محاولات)")
+                    from src.models.ai_analysis import AISetting
+                    AISetting.set_setting('lesson_prep_job_status', 'failed', 'string')
+                    return
+
+                # حان وقت إعادة المحاولة - نحوّل الحالة لـ running
+                logger.info(f"🔄 [Scheduler] إعادة محاولة تحضير #{data.get('plan_id')} (محاولة {retry_count + 1}/5)")
+                from src.models.ai_analysis import AISetting
+                AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
+                # نكمل للأسفل عشان ينفّذ
+
+            elif status != 'running':
                 return
 
             data_result = db.session.execute(text("""
@@ -422,6 +455,7 @@ def check_lesson_prep_job():
             data = _json.loads(data_result[0]) if data_result else {}
             plan_id = data.get('plan_id')
             plan_type = data.get('type', 'single_lesson')
+            retry_count = data.get('retry_count', 0)
 
             if not plan_id:
                 return
@@ -446,11 +480,24 @@ def check_lesson_prep_job():
                 logger.info(f"{'✅' if success else '❌'} [Scheduler] تحضير #{plan_id}: {'نجح' if success else 'فشل'}")
 
             except Exception as e:
-                logger.error(f"❌ [Scheduler] فشل تحضير #{plan_id}: {e}")
-                import traceback
-                traceback.print_exc()
-                from src.models.ai_analysis import AISetting
-                AISetting.set_setting('lesson_prep_job_status', 'failed', 'string')
+                # التحقق: هل هو خطأ Rate Limit؟
+                from src.services.lesson_prep_service import RateLimitError
+                if isinstance(e, RateLimitError):
+                    # تأجيل المحاولة - ننتظر دقيقتين ثم نعيد
+                    new_retry_count = retry_count + 1
+                    retry_after = datetime.utcnow().timestamp() + 120  # دقيقتين
+                    data['retry_count'] = new_retry_count
+                    data['retry_after'] = retry_after
+                    from src.models.ai_analysis import AISetting
+                    AISetting.set_setting('lesson_prep_job_status', 'rate_limited', 'string')
+                    AISetting.set_setting('lesson_prep_job_data', _json.dumps(data), 'json')
+                    logger.warning(f"⏳ [Scheduler] Rate limit لتحضير #{plan_id} - إعادة محاولة {new_retry_count}/5 بعد دقيقتين")
+                else:
+                    logger.error(f"❌ [Scheduler] فشل تحضير #{plan_id}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    from src.models.ai_analysis import AISetting
+                    AISetting.set_setting('lesson_prep_job_status', 'failed', 'string')
 
     except Exception as e:
         logger.error(f"❌ [Scheduler] خطأ في check_lesson_prep_job: {e}")
