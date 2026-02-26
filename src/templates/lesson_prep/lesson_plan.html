@@ -30,48 +30,10 @@
     line-height: 1.7;
   }
 
-  /* ─── ألوان الأقسام ─── */
-  :root {
-    --blue: #1e40af;
-    --blue-light: #dbeafe;
-    --blue-bg: #eff6ff;
-    --green: #166534;
-    --green-light: #dcfce7;
-    --green-bg: #f0fdf4;
-    --purple: #6b21a8;
-    --purple-light: #f3e8ff;
-    --purple-bg: #faf5ff;
-    --orange: #9a3412;
-    --orange-light: #ffedd5;
-    --orange-bg: #fff7ed;
-    --teal: #115e59;
-    --teal-light: #ccfbf1;
-    --teal-bg: #f0fdfa;
-    --rose: #9f1239;
-    --rose-light: #ffe4e6;
-    --rose-bg: #fff1f2;
-    --amber: #92400e;
-    --amber-light: #fef3c7;
-    --amber-bg: #fffbeb;
-    --indigo: #3730a3;
-    --indigo-light: #e0e7ff;
-    --indigo-bg: #eef2ff;
-    --cyan: #155e75;
-    --cyan-light: #cffafe;
-    --cyan-bg: #ecfeff;
-    --emerald: #065f46;
-    --emerald-light: #d1fae5;
-    --emerald-bg: #ecfdf5;
-    --slate: #334155;
-    --slate-light: #e2e8f0;
-    --slate-bg: #f8fafc;
-    --pink: #9d174d;
-    --pink-light: #fce7f3;
-    --pink-bg: #fdf2f8;
-    --sky: #0369a1;
-    --sky-light: #e0f2fe;
-    --sky-bg: #f0f9ff;
-  }
+  sup { font-size: 0.7em; vertical-align: super; }
+  sub { font-size: 0.7em; vertical-align: sub; }
+
+  /* ─── ألوان مباشرة بدون CSS variables لتوافق WeasyPrint ─── */
 
   /* ─── العنوان الرئيسي ─── */
   .main-header {
@@ -128,44 +90,44 @@
   }
 
   /* ─── ألوان أقسام محددة ─── */
-  .sec-info .section-header    { background: var(--blue) !important; color: #fff !important; }
-  .sec-info .section-body      { border-color: var(--blue-light); background: var(--blue-bg) !important; }
+  .sec-info .section-header    { background: #1e40af !important; color: #ffffff !important; }
+  .sec-info .section-body      { border-color: #dbeafe; background: #eff6ff !important; }
 
-  .sec-obj .section-header     { background: var(--green) !important; color: #fff !important; }
-  .sec-obj .section-body       { border-color: var(--green-light); background: var(--green-bg) !important; }
+  .sec-obj .section-header     { background: #166534 !important; color: #ffffff !important; }
+  .sec-obj .section-body       { border-color: #dcfce7; background: #f0fdf4 !important; }
 
-  .sec-behav .section-header   { background: var(--purple) !important; color: #fff !important; }
-  .sec-behav .section-body     { border-color: var(--purple-light); background: var(--purple-bg) !important; }
+  .sec-behav .section-header   { background: #6b21a8 !important; color: #ffffff !important; }
+  .sec-behav .section-body     { border-color: #f3e8ff; background: #faf5ff !important; }
 
-  .sec-prep .section-header    { background: var(--orange) !important; color: #fff !important; }
-  .sec-prep .section-body      { border-color: var(--orange-light); background: var(--orange-bg) !important; }
+  .sec-prep .section-header    { background: #9a3412 !important; color: #ffffff !important; }
+  .sec-prep .section-body      { border-color: #ffedd5; background: #fff7ed !important; }
 
-  .sec-strat .section-header   { background: var(--teal) !important; color: #fff !important; }
-  .sec-strat .section-body     { border-color: var(--teal-light); background: var(--teal-bg) !important; }
+  .sec-strat .section-header   { background: #115e59 !important; color: #ffffff !important; }
+  .sec-strat .section-body     { border-color: #ccfbf1; background: #f0fdfa !important; }
 
-  .sec-present .section-header { background: var(--indigo) !important; color: #fff !important; }
-  .sec-present .section-body   { border-color: var(--indigo-light); background: var(--indigo-bg) !important; }
+  .sec-present .section-header { background: #3730a3 !important; color: #ffffff !important; }
+  .sec-present .section-body   { border-color: #e0e7ff; background: #eef2ff !important; }
 
-  .sec-values .section-header  { background: var(--rose) !important; color: #fff !important; }
-  .sec-values .section-body    { border-color: var(--rose-light); background: var(--rose-bg) !important; }
+  .sec-values .section-header  { background: #9f1239 !important; color: #ffffff !important; }
+  .sec-values .section-body    { border-color: #ffe4e6; background: #fff1f2 !important; }
 
-  .sec-eval .section-header    { background: var(--emerald) !important; color: #fff !important; }
-  .sec-eval .section-body      { border-color: var(--emerald-light); background: var(--emerald-bg) !important; }
+  .sec-eval .section-header    { background: #065f46 !important; color: #ffffff !important; }
+  .sec-eval .section-body      { border-color: #d1fae5; background: #ecfdf5 !important; }
 
-  .sec-diff .section-header    { background: var(--cyan) !important; color: #fff !important; }
-  .sec-diff .section-body      { border-color: var(--cyan-light); background: var(--cyan-bg) !important; }
+  .sec-diff .section-header    { background: #155e75 !important; color: #ffffff !important; }
+  .sec-diff .section-body      { border-color: #cffafe; background: #ecfeff !important; }
 
-  .sec-res .section-header     { background: var(--amber) !important; color: #fff !important; }
-  .sec-res .section-body       { border-color: var(--amber-light); background: var(--amber-bg) !important; }
+  .sec-res .section-header     { background: #92400e !important; color: #ffffff !important; }
+  .sec-res .section-body       { border-color: #fef3c7; background: #fffbeb !important; }
 
-  .sec-hw .section-header      { background: var(--pink) !important; color: #fff !important; }
-  .sec-hw .section-body        { border-color: var(--pink-light); background: var(--pink-bg) !important; }
+  .sec-hw .section-header      { background: #9d174d !important; color: #ffffff !important; }
+  .sec-hw .section-body        { border-color: #fce7f3; background: #fdf2f8 !important; }
 
-  .sec-time .section-header    { background: var(--sky) !important; color: #fff !important; }
-  .sec-time .section-body      { border-color: var(--sky-light); background: var(--sky-bg) !important; }
+  .sec-time .section-header    { background: #0369a1 !important; color: #ffffff !important; }
+  .sec-time .section-body      { border-color: #e0f2fe; background: #f0f9ff !important; }
 
-  .sec-refl .section-header    { background: var(--slate) !important; color: #fff !important; }
-  .sec-refl .section-body      { border-color: var(--slate-light); background: var(--slate-bg) !important; }
+  .sec-refl .section-header    { background: #334155 !important; color: #ffffff !important; }
+  .sec-refl .section-body      { border-color: #e2e8f0; background: #f8fafc !important; }
 
   /* ─── جداول ─── */
   table.info-table {
@@ -181,7 +143,7 @@
     font-weight: 900;
     background: rgba(0,0,0,0.04) !important;
     width: 22%;
-    color: var(--blue);
+    color: #1e40af;
   }
 
   table.styled-table {
@@ -251,7 +213,7 @@
   .answer-box::before {
     content: "الإجابة: ";
     font-weight: 900;
-    color: var(--green);
+    color: #166534;
   }
 
   .question-box {
@@ -265,7 +227,7 @@
   }
   .question-box::before {
     content: "س: ";
-    color: var(--blue);
+    color: #1e40af;
     font-weight: 900;
   }
 
@@ -316,21 +278,21 @@
   }
 
   /* ألوان بطاقات الاستراتيجيات بالتناوب */
-  .strategy-card:nth-child(4n+1) { background: var(--blue-bg) !important; border-color: #93c5fd; }
-  .strategy-card:nth-child(4n+1) .s-name { color: var(--blue); }
-  .strategy-card:nth-child(4n+1) .s-time { background: var(--blue-light) !important; color: var(--blue); }
+  .strategy-card:nth-child(4n+1) { background: #eff6ff !important; border-color: #93c5fd; }
+  .strategy-card:nth-child(4n+1) .s-name { color: #1e40af; }
+  .strategy-card:nth-child(4n+1) .s-time { background: #dbeafe !important; color: #1e40af; }
 
-  .strategy-card:nth-child(4n+2) { background: var(--green-bg) !important; border-color: #86efac; }
-  .strategy-card:nth-child(4n+2) .s-name { color: var(--green); }
-  .strategy-card:nth-child(4n+2) .s-time { background: var(--green-light) !important; color: var(--green); }
+  .strategy-card:nth-child(4n+2) { background: #f0fdf4 !important; border-color: #86efac; }
+  .strategy-card:nth-child(4n+2) .s-name { color: #166534; }
+  .strategy-card:nth-child(4n+2) .s-time { background: #dcfce7 !important; color: #166534; }
 
-  .strategy-card:nth-child(4n+3) { background: var(--purple-bg) !important; border-color: #c4b5fd; }
-  .strategy-card:nth-child(4n+3) .s-name { color: var(--purple); }
-  .strategy-card:nth-child(4n+3) .s-time { background: var(--purple-light) !important; color: var(--purple); }
+  .strategy-card:nth-child(4n+3) { background: #faf5ff !important; border-color: #c4b5fd; }
+  .strategy-card:nth-child(4n+3) .s-name { color: #6b21a8; }
+  .strategy-card:nth-child(4n+3) .s-time { background: #f3e8ff !important; color: #6b21a8; }
 
-  .strategy-card:nth-child(4n+4) { background: var(--orange-bg) !important; border-color: #fdba74; }
-  .strategy-card:nth-child(4n+4) .s-name { color: var(--orange); }
-  .strategy-card:nth-child(4n+4) .s-time { background: var(--orange-light) !important; color: var(--orange); }
+  .strategy-card:nth-child(4n+4) { background: #fff7ed !important; border-color: #fdba74; }
+  .strategy-card:nth-child(4n+4) .s-name { color: #9a3412; }
+  .strategy-card:nth-child(4n+4) .s-time { background: #ffedd5 !important; color: #9a3412; }
 
   /* ─── مفاهيم عرض الدرس ─── */
   .concept-block {
@@ -345,7 +307,7 @@
     padding: 7px 12px;
     font-weight: 900;
     font-size: 10.5pt;
-    color: var(--indigo);
+    color: #3730a3;
     border-bottom: 1px solid #c7d2fe;
   }
   .concept-body {
@@ -407,13 +369,13 @@
   .value-card .v-text { font-size: 9pt; color: #475569; }
 
   .val-religious { background: #ecfdf5 !important; border-color: #6ee7b7; }
-  .val-religious .v-title { color: var(--green); }
+  .val-religious .v-title { color: #166534; }
 
-  .val-national { background: var(--blue-bg) !important; border-color: #93c5fd; }
-  .val-national .v-title { color: var(--blue); }
+  .val-national { background: #eff6ff !important; border-color: #93c5fd; }
+  .val-national .v-title { color: #1e40af; }
 
-  .val-life { background: var(--amber-bg) !important; border-color: #fcd34d; }
-  .val-life .v-title { color: var(--amber); }
+  .val-life { background: #fffbeb !important; border-color: #fcd34d; }
+  .val-life .v-title { color: #92400e; }
 
   /* ─── التأمل الذاتي ─── */
   .reflection-field {
@@ -427,7 +389,7 @@
   .reflection-field .rf-label {
     font-weight: 900;
     font-size: 9.5pt;
-    color: var(--slate);
+    color: #334155;
     margin-bottom: 4px;
   }
   .reflection-field .rf-content {
@@ -542,7 +504,7 @@
     {% endif %}
     {% if preparation.get('introduction_activity') %}
     <div class="answer-box" style="border-color: #fdba74; background: #fff7ed !important;">
-      <span style="font-weight:900; color: var(--orange);">النشاط: </span>{{ preparation.introduction_activity }}
+      <span style="font-weight:900; color: #9a3412;">النشاط: </span>{{ preparation.introduction_activity }}
     </div>
     {% endif %}
     {% if preparation.get('connection_to_previous') %}
@@ -588,7 +550,7 @@
       <div class="concept-header">{{ concept.get('concept', '') }}</div>
       <div class="concept-body">
         {% if concept.get('explanation') %}
-        <p><span class="field-label">الشرح: </span>{{ concept.explanation }}</p>
+        <p><span class="field-label">الشرح: </span>{{ concept.explanation|chem }}</p>
         {% endif %}
         {% if concept.get('teaching_method') %}
         <p><span class="field-label">الاستراتيجية: </span>{{ concept.teaching_method }}</p>
@@ -600,7 +562,7 @@
         <p style="font-weight:900; margin-top:5px;">الأمثلة:</p>
         <ul class="items">
           {% for ex in concept.examples %}
-          <li>{{ ex }}</li>
+          <li>{{ ex|chem }}</li>
           {% endfor %}
         </ul>
         {% endif %}
@@ -615,7 +577,7 @@
     <div class="sub-section" style="margin-top:10px;">
       <div class="sub-title" style="background: #fefce820 !important; color: #854d0e;">المعادلات الكيميائية</div>
       {% for eq in equations %}
-      <div class="equation">{{ eq }}</div>
+      <div class="equation">{{ eq|chem }}</div>
       {% endfor %}
     </div>
     {% endif %}
@@ -624,7 +586,7 @@
     {% set diagrams = presentation.get('diagrams_description', []) %}
     {% if diagrams %}
     <div class="sub-section" style="margin-top:8px;">
-      <div class="sub-title" style="background: #e0e7ff !important; color: var(--indigo);">الرسومات التوضيحية</div>
+      <div class="sub-title" style="background: #e0e7ff !important; color: #3730a3;">الرسومات التوضيحية</div>
       <ul class="items">
         {% for d in diagrams %}
         <li>{{ d }}</li>
@@ -679,15 +641,15 @@
     {% set formative = evaluation.get('formative', []) %}
     {% if formative %}
     <div class="sub-section">
-      <div class="sub-title" style="background: var(--emerald-light) !important; color: var(--emerald);">التقويم التكويني</div>
+      <div class="sub-title" style="background: #d1fae5 !important; color: #065f46;">التقويم التكويني</div>
       {% for q in formative %}
       {% if q is mapping %}
       <div class="question-box">
-        {{ q.get('question', '') }}
+        {{ q.get('question', '')|chem }}
         {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
         {% if q.get('bloom_level') %}<span style="font-size:8pt; color:#7c3aed;"> [{{ q.bloom_level }}]</span>{% endif %}
       </div>
-      <div class="answer-box">{{ q.get('answer', '') }}</div>
+      <div class="answer-box">{{ q.get('answer', '')|chem }}</div>
       {% elif q is string %}
       <div class="question-box">{{ q }}</div>
       {% endif %}
@@ -699,7 +661,7 @@
     {% set summative = evaluation.get('summative', []) %}
     {% if summative %}
     <div class="sub-section">
-      <div class="sub-title" style="background: var(--blue-light) !important; color: var(--blue);">التقويم الختامي</div>
+      <div class="sub-title" style="background: #dbeafe !important; color: #1e40af;">التقويم الختامي</div>
       <ul class="items">
         {% for item in summative %}
         <li>{{ item }}</li>
@@ -712,7 +674,7 @@
     {% set enrichment = evaluation.get('enrichment', []) %}
     {% if enrichment %}
     <div class="sub-section">
-      <div class="sub-title" style="background: #faf5ff !important; color: var(--purple);">أنشطة إثرائية للمتفوقين</div>
+      <div class="sub-title" style="background: #faf5ff !important; color: #6b21a8;">أنشطة إثرائية للمتفوقين</div>
       <ul class="items">
         {% for item in enrichment %}
         <li>{{ item }}</li>
@@ -767,7 +729,7 @@
     </div>
     {% if ind_diff.get('average_activities') %}
     <div style="margin-top:8px;">
-      <div class="sub-title" style="background: var(--cyan-light) !important; color: var(--cyan);">المستوى المتوسط</div>
+      <div class="sub-title" style="background: #cffafe !important; color: #155e75;">المستوى المتوسط</div>
       <ul class="items">
         {% for item in ind_diff.average_activities %}
         <li>{{ item }}</li>
@@ -788,7 +750,7 @@
     {% if resources[0] is mapping %}
     <table class="styled-table">
       <thead>
-        <tr style="background: var(--amber) !important;">
+        <tr style="background: #92400e !important;">
           <th style="width:35%;">الوسيلة</th>
           <th>الغرض</th>
         </tr>
@@ -821,7 +783,7 @@
   <div class="section-body">
     {% if homework.get('main') %}
     <div class="sub-section">
-      <div class="sub-title" style="background: var(--pink-light) !important; color: var(--pink);">الواجب الأساسي</div>
+      <div class="sub-title" style="background: #fce7f3 !important; color: #9d174d;">الواجب الأساسي</div>
       <ul class="items">
         {% for item in homework.main %}
         <li>{{ item }}</li>
@@ -851,7 +813,7 @@
   <div class="section-body">
     <table class="styled-table">
       <thead>
-        <tr style="background: var(--sky) !important;">
+        <tr style="background: #0369a1 !important;">
           <th style="width:8%;">#</th>
           <th style="width:35%;">النشاط</th>
           <th style="width:15%;">المدة</th>
@@ -865,7 +827,7 @@
           <td style="text-align:center; font-weight:900;">{{ loop.index }}</td>
           <td>{{ t.get('activity', '') }}</td>
           <td style="text-align:center;">
-            <span class="time-bar" style="background: var(--sky-light) !important; color: var(--sky);">
+            <span class="time-bar" style="background: #e0f2fe !important; color: #0369a1;">
               {{ t.get('duration_minutes', '') }} د
             </span>
           </td>

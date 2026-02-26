@@ -354,11 +354,37 @@ class LessonPrepService:
 
         return None
 
+    @staticmethod
+    def _chem_html(text):
+        """تحويل النص الكيميائي إلى HTML مع superscript/subscript"""
+        import re
+        if not text or not isinstance(text, str):
+            return text or ''
+        # السهم
+        text = text.replace('->', '→')
+        # Superscript: ^n, ^2, ^m, ^2+, ^1-
+        text = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', text)
+        # Subscript: رقم بعد حرف لاتيني أو ) أو ]
+        text = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', text)
+        return text
+
     def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name):
         """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
             from weasyprint import HTML
             from flask import render_template
+            from jinja2 import pass_eval_context
+            from markupsafe import Markup
+
+            # إضافة فلتر chem للقالب
+            app = current_app._get_current_object()
+            @pass_eval_context
+            def chem_filter(eval_ctx, value):
+                result = LessonPrepService._chem_html(str(value))
+                if eval_ctx.autoescape:
+                    return Markup(result)
+                return result
+            app.jinja_env.filters['chem'] = chem_filter
 
             lesson_info = plan_data.get('lesson_info', {})
             context = {
@@ -438,8 +464,24 @@ class LessonPrepService:
 }}
 ```"""
 
-            response = self.model.generate_content(prompt)
-            plan_data = self._extract_json(response.text) or {'raw_text': response.text}
+            ai_text = None
+            for attempt in range(3):
+                try:
+                    response = self.model.generate_content(prompt)
+                    ai_text = response.text
+                    break
+                except Exception as api_err:
+                    err_str = str(api_err)
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
+                        wait = 30 * (attempt + 1)
+                        logger.warning(f"Rate limit (429) توزيع وحدة - محاولة {attempt+1}/3، انتظار {wait} ثانية...")
+                        time.sleep(wait)
+                    else:
+                        raise
+            if ai_text is None:
+                raise Exception("فشل الاتصال بـ Gemini بعد 3 محاولات (429 Rate Limit)")
+
+            plan_data = self._extract_json(ai_text) or {'raw_text': ai_text}
 
             plan.plan_data = plan_data
             plan.status = 'completed'
