@@ -170,9 +170,12 @@ def get_plan_status(plan_id):
         if not plan:
             return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
 
+        # rate_limited تُعرض كـ generating للتطبيق (الـ scheduler سيعيد المحاولة تلقائياً)
+        display_status = 'generating' if plan.status == 'rate_limited' else plan.status
+
         result = {
             'plan_id': plan.id,
-            'status': plan.status,
+            'status': display_status,
         }
 
         if plan.status == 'completed':

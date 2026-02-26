@@ -175,6 +175,12 @@ class LessonPrepService:
             logger.info(f"اكتمل التحضير #{plan_id} بنجاح")
             return True
 
+        except RateLimitError:
+            # نرفع RateLimitError للـ scheduler بدون تغيير حالة الخطة
+            logger.warning(f"⏳ Rate limit للتحضير #{plan_id} - سيُعاد تلقائياً")
+            plan.status = 'generating'  # نخليها generating عشان الـ Flutter يستمر polling
+            db.session.commit()
+            raise
         except Exception as e:
             logger.error(f"فشل التحضير #{plan_id}: {e}")
             import traceback
@@ -756,6 +762,11 @@ class LessonPrepService:
             logger.info(f"اكتمل توزيع الوحدة #{plan_id}")
             return True
 
+        except RateLimitError:
+            logger.warning(f"⏳ Rate limit لتوزيع الوحدة #{plan_id} - سيُعاد تلقائياً")
+            plan.status = 'generating'
+            db.session.commit()
+            raise
         except Exception as e:
             logger.error(f"فشل توزيع الوحدة #{plan_id}: {e}")
             plan.status = 'failed'
@@ -959,6 +970,11 @@ class LessonPrepService:
             logger.info(f"اكتمل توزيع الفصل #{plan_id}")
             return True
 
+        except RateLimitError:
+            logger.warning(f"⏳ Rate limit لتوزيع الفصل #{plan_id} - سيُعاد تلقائياً")
+            plan.status = 'generating'
+            db.session.commit()
+            raise
         except Exception as e:
             logger.error(f"فشل توزيع الفصل #{plan_id}: {e}")
             import traceback
@@ -1146,6 +1162,9 @@ class LessonPrepService:
             logger.info(f"اكتملت ورقة العمل للتحضير #{plan_id}")
             return True
 
+        except RateLimitError:
+            logger.warning(f"⏳ Rate limit لورقة العمل #{plan_id} - سيُعاد تلقائياً")
+            raise
         except Exception as e:
             logger.error(f"فشل توليد ورقة العمل #{plan_id}: {e}")
             import traceback
