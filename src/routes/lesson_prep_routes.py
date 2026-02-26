@@ -124,6 +124,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
     try:
         data = request.get_json()
         lesson_id = data.get('lesson_id')  # أي درس من الوحدة
+        total_periods = data.get('total_periods', 12)
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
@@ -133,6 +134,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             teacher_id=teacher.id if teacher else None,
             plan_type='unit_distribution',
             status='pending',
+            student_count=total_periods,  # نستخدم هذا الحقل مؤقتاً لتخزين عدد الحصص
         )
         db.session.add(plan)
         db.session.commit()

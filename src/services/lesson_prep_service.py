@@ -426,6 +426,8 @@ class LessonPrepService:
             if not unit:
                 raise ValueError("الوحدة غير موجودة")
 
+            total_periods = plan.student_count or 12  # عدد الحصص المطلوب
+
             lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
 
@@ -436,8 +438,10 @@ class LessonPrepService:
 ## الدروس:
 {lessons_text}
 
+## عدد الحصص المطلوب: {total_periods} حصة
+
 ## المطلوب
-أعد توزيع الوحدة على الحصص مع مراعاة:
+أعد توزيع الوحدة على {total_periods} حصة مع مراعاة:
 - عدد الحصص المناسب لكل درس
 - حصص المراجعة والتقويم
 - التدرج في الصعوبة
