@@ -84,6 +84,7 @@ class LessonPrepService:
                     page_mapping.textbook.pdf_url,
                     page_mapping.start_page,
                     page_mapping.end_page,
+                    scale=0.8,  # دقة منخفضة لتوفير الذاكرة على السيرفر
                 )
 
             # 2. بناء البرومبت
@@ -191,7 +192,7 @@ class LessonPrepService:
             return False
 
     def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
-        """استخراج صفحات PDF كصور JPEG"""
+        """استخراج صفحات PDF كصور JPEG بدقة منخفضة لتوفير الذاكرة"""
         images = []
         try:
             import fitz  # PyMuPDF
@@ -211,7 +212,8 @@ class LessonPrepService:
                     pdf_bytes = f.read()
 
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            del pdf_bytes  # تحرير الذاكرة فوراً
+            del pdf_bytes
+            gc.collect()
 
             # تحويل من 1-based إلى 0-based
             actual_end = min(end_page, len(doc))
@@ -219,13 +221,16 @@ class LessonPrepService:
                 page = doc[page_num]
                 mat = fitz.Matrix(scale, scale)
                 pix = page.get_pixmap(matrix=mat)
+                # ضغط JPEG بجودة 60% لتقليل حجم الصورة والذاكرة
                 img_bytes = pix.tobytes("jpeg")
                 images.append(img_bytes)
-                del pix  # تحرير الذاكرة فوراً
+                del pix
+                gc.collect()  # تحرير بعد كل صفحة
 
             doc.close()
             gc.collect()
-            logger.info(f"تم استخراج {len(images)} صفحة من PDF (scale={scale})")
+            total_size = sum(len(img) for img in images)
+            logger.info(f"تم استخراج {len(images)} صفحة من PDF (scale={scale}, total={total_size//1024}KB)")
 
         except Exception as e:
             logger.error(f"خطأ في استخراج صفحات PDF: {e}")
@@ -836,7 +841,8 @@ class LessonPrepService:
                             logger.info(f"استخدام الملف المحلي بدل Cloudinary: {local_path}")
 
                 try:
-                    images = self._extract_pages_as_images(pdf_source, 1, 3, scale=1.2)
+                    # دقة منخفضة كافية لقراءة النص - يوفر ذاكرة كثير
+                    images = self._extract_pages_as_images(pdf_source, 1, 2, scale=0.8)
                 except Exception as e:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
 
