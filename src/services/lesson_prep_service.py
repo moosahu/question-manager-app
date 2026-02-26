@@ -780,7 +780,7 @@ class LessonPrepService:
             return False
 
 
-    def parse_semester_distribution(self, plan_id):
+    def parse_semester_distribution(self, plan_id, weekly_periods=5):
         """تحليل توزيع المنهج الفصلي من PDF مرفوع"""
         plan = LessonPlan.query.get(plan_id)
         if not plan:
@@ -835,19 +835,23 @@ class LessonPrepService:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
 
             has_images = bool(images)
-            logger.info(f"عدد صور PDF المستخرجة: {len(images)}, has_images={has_images}")
+            logger.info(f"عدد صور PDF المستخرجة: {len(images)}, has_images={has_images}, حصص أسبوعية={weekly_periods}")
             if has_images:
-                task_description = "حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON."
-                instructions = """1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
+                task_description = f"حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON. عدد الحصص الأسبوعية لهذا المقرر هو {weekly_periods} حصص."
+                instructions = f"""1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
 2. استخرج أسابيع الفصل مع التواريخ
 3. حدد الإجازات والأسابيع بدون دراسة
-4. إذا لم تجد تطابق دقيق، اختر أقرب lesson_id"""
+4. إذا لم تجد تطابق دقيق، اختر أقرب lesson_id
+5. كل أسبوع يجب أن يحتوي على دروس مجموع حصصها = {weekly_periods} حصص (إلا أسابيع الإجازات والمراجعة)
+6. إذا كان الدرس يحتاج أكثر من حصة واحدة، ضع periods بالعدد المناسب"""
             else:
-                task_description = "أنشئ توزيعاً فصلياً مقترحاً للدروس التالية على 17 أسبوع دراسي (الفصل الثاني 1447هـ، يبدأ 2026-02-08)."
-                instructions = """1. وزّع جميع الدروس على الأسابيع بالتساوي (2-3 حصص أسبوعياً)
-2. أضف إجازة منتصف الفصل في الأسبوع 9 تقريباً
+                task_description = f"أنشئ توزيعاً فصلياً مقترحاً للدروس التالية على 19 أسبوع دراسي (الفصل الثاني 1447هـ). عدد الحصص الأسبوعية = {weekly_periods} حصص."
+                instructions = f"""1. وزّع جميع الدروس على الأسابيع بحيث يكون مجموع حصص كل أسبوع = {weekly_periods} حصص
+2. أضف إجازة يوم التأسيس في الأسبوع المناسب
 3. استخدم lesson_id الصحيح من القائمة
-4. رتّب الدروس حسب ترتيب الوحدات"""
+4. رتّب الدروس حسب ترتيب الوحدات
+5. إذا كان الدرس يحتاج أكثر من حصة، ضع periods=2 أو أكثر
+6. الأسبوع الأخير للاختبارات النهائية"""
 
             prompt = f"""أنت خبير تربوي متخصص في المناهج السعودية.
 
@@ -855,6 +859,7 @@ class LessonPrepService:
 {task_description}
 
 ## المقرر: {course.name}
+## عدد الحصص الأسبوعية: {weekly_periods}
 
 ## دروس المقرر المسجلة في النظام:
 {lessons_text}
@@ -867,6 +872,7 @@ class LessonPrepService:
 {{
   "semester_name": "اسم الفصل (مثل: الفصل الثاني 1447هـ)",
   "course_name": "{course.name}",
+  "weekly_periods": {weekly_periods},
   "total_weeks": 19,
   "weeks": [
     {{
@@ -890,11 +896,13 @@ class LessonPrepService:
 }}
 ```
 
-## تنبيهات
+## تنبيهات مهمة جداً
 - التزم بتنسيق JSON بالضبط
 - استخدم lesson_id الصحيح من القائمة
 - حدد is_holiday=true للأسابيع التي فيها إجازة
 - التواريخ بتنسيق YYYY-MM-DD
+- مهم جداً: مجموع حصص كل أسبوع = {weekly_periods} حصص (لا أكثر ولا أقل، إلا في أسابيع الاختبارات والمراجعة)
+- الحصة الواحدة = periods: 1، إذا الدرس يحتاج حصتين ضع periods: 2
 """
 
             content_parts = []

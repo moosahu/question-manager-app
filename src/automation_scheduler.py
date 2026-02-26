@@ -432,7 +432,8 @@ def check_lesson_prep_job():
                 from src.services.lesson_prep_service import lesson_prep_service
 
                 if plan_type == 'semester_distribution':
-                    success = lesson_prep_service.parse_semester_distribution(plan_id)
+                    weekly_periods = data.get('weekly_periods', 5)
+                    success = lesson_prep_service.parse_semester_distribution(plan_id, weekly_periods=weekly_periods)
                 elif plan_type == 'unit_distribution':
                     success = lesson_prep_service.generate_unit_distribution(plan_id)
                 elif plan_type == 'worksheet':

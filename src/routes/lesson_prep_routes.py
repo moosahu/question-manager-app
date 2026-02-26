@@ -320,9 +320,11 @@ def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
     """رفع PDF توزيع فصلي + تحليل AI"""
     try:
         course_id = request.form.get('course_id', type=int)
+        weekly_periods = request.form.get('weekly_periods', type=int) or 5
         if not course_id:
             data = request.get_json(silent=True) or {}
             course_id = data.get('course_id')
+            weekly_periods = data.get('weekly_periods', 5)
 
         if not course_id:
             return jsonify({'success': False, 'error': 'معرف المقرر مطلوب'}), 400
@@ -369,6 +371,7 @@ def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
         AISetting.set_setting('lesson_prep_job_data', json.dumps({
             'plan_id': plan.id,
             'type': 'semester_distribution',
+            'weekly_periods': weekly_periods,
         }), 'json')
 
         return jsonify({
