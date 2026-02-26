@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 12mm 10mm;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Naskh Arabic', 'Arial', sans-serif;
+            font-size: 12px;
+            color: #1a1a2e;
+            direction: rtl;
+            line-height: 1.6;
+        }
+        .header {
+            border: 2px solid #1a5276;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 18px;
+            color: #1a5276;
+            margin-bottom: 4px;
+        }
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #34495e;
+            margin-top: 6px;
+        }
+        .student-name {
+            border-bottom: 1px dotted #7f8c8d;
+            display: inline-block;
+            width: 150px;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 14px;
+        }
+        .section-title {
+            background: #1a5276;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+        .question {
+            margin-bottom: 10px;
+            padding-right: 8px;
+        }
+        .q-num {
+            font-weight: bold;
+            color: #1a5276;
+            margin-left: 4px;
+        }
+        .q-text {
+            font-size: 12px;
+        }
+        .options {
+            margin-top: 4px;
+            padding-right: 20px;
+        }
+        .option {
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+        .option.correct {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .answer-box {
+            border: 1px dashed #bdc3c7;
+            border-radius: 4px;
+            min-height: 50px;
+            margin-top: 4px;
+            padding: 4px;
+        }
+        .answer-text {
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 11px;
+            margin-top: 4px;
+            padding: 4px 8px;
+            background: #eafaf1;
+            border-radius: 3px;
+        }
+        .steps {
+            margin-top: 4px;
+            padding-right: 16px;
+            font-size: 11px;
+        }
+        .step {
+            margin-bottom: 2px;
+            color: #2c3e50;
+        }
+        .badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            margin-right: 4px;
+        }
+        .badge.teacher {
+            background: #8e44ad;
+        }
+        .footer {
+            text-align: center;
+            font-size: 9px;
+            color: #95a5a6;
+            margin-top: 16px;
+            border-top: 1px solid #ecf0f1;
+            padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if show_answers %}<span class="badge teacher">نسخة المعلم</span>{% endif %}
+        <h1>{{ data.get('worksheet_title', 'ورقة عمل') }}</h1>
+        <div class="header-info">
+            <span>المقرر: {{ data.get('course_name', '') }}</span>
+            <span>الوحدة: {{ data.get('unit_name', '') }}</span>
+            <span>الدرس: {{ data.get('lesson_name', '') }}</span>
+        </div>
+        {% if not show_answers %}
+        <div style="margin-top:8px; text-align:right; font-size:11px;">
+            اسم الطالب: <span class="student-name">&nbsp;</span>
+            &nbsp;&nbsp;&nbsp;
+            الصف: <span class="student-name" style="width:80px">&nbsp;</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- أولاً: أسئلة الفراغات -->
+    {% if data.get('fill_blanks') %}
+    <div class="section">
+        <div class="section-title">السؤال الأول: أكمل الفراغات التالية</div>
+        {% for q in data.get('fill_blanks', []) %}
+        <div class="question">
+            <span class="q-num">{{ loop.index }}.</span>
+            <span class="q-text">{{ q.get('question', '') | chem }}</span>
+            {% if show_answers %}
+            <div class="answer-text">{{ q.get('answer', '') | chem }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ثانياً: أسئلة الاختيار -->
+    {% if data.get('multiple_choice') %}
+    <div class="section">
+        <div class="section-title">السؤال الثاني: اختر الإجابة الصحيحة</div>
+        {% for q in data.get('multiple_choice', []) %}
+        <div class="question">
+            <span class="q-num">{{ loop.index }}.</span>
+            <span class="q-text">{{ q.get('question', '') | chem }}</span>
+            <div class="options">
+                {% for opt in q.get('options', []) %}
+                <div class="option{% if show_answers and loop.index0 == q.get('correct_index', -1) %} correct{% endif %}">
+                    {{ opt | chem }}
+                    {% if show_answers and loop.index0 == q.get('correct_index', -1) %} ✓{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ثالثاً: المسائل الحسابية -->
+    {% if data.get('calculations') %}
+    <div class="section">
+        <div class="section-title">السؤال الثالث: حل المسائل التالية</div>
+        {% for q in data.get('calculations', []) %}
+        <div class="question">
+            <span class="q-num">{{ loop.index }}.</span>
+            <span class="q-text">{{ q.get('question', '') | chem }}</span>
+            {% if show_answers %}
+            <div class="steps">
+                {% for step in q.get('steps', []) %}
+                <div class="step">{{ step | chem }}</div>
+                {% endfor %}
+            </div>
+            <div class="answer-text">الإجابة: {{ q.get('answer', '') | chem }}</div>
+            {% else %}
+            <div class="answer-box"></div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- رابعاً: تحدي المتفوقين -->
+    {% if data.get('challenge') %}
+    <div class="section">
+        <div class="section-title"><span class="badge">تحدي</span> سؤال إضافي للمتفوقين</div>
+        {% for q in data.get('challenge', []) %}
+        <div class="question">
+            <span class="q-num">{{ loop.index }}.</span>
+            <span class="q-text">{{ q.get('question', '') | chem }}</span>
+            {% if show_answers %}
+            <div class="answer-text">{{ q.get('answer', '') | chem }}</div>
+            {% else %}
+            <div class="answer-box" style="min-height:70px"></div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">مع تمنياتي لكم بالتوفيق والنجاح</div>
+</body>
+</html>

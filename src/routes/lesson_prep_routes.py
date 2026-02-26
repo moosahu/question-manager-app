@@ -7,6 +7,7 @@ from functools import wraps
 from datetime import datetime
 import json
 import io
+import os
 import logging
 import requests
 
@@ -15,6 +16,8 @@ from src.models.textbook import LessonPlan, LessonPages
 from src.models.curriculum import Lesson, Unit, Course
 from src.models.teacher import Teacher
 from src.models.ai_analysis import AISetting
+from src.models.shared_plan import SharedPlan
+from src.models.plan_rating import PlanRating
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +241,13 @@ def download_plan_pdf(plan_id):
             unit = Unit.query.get(lesson.unit_id) if lesson else None
             course = Course.query.get(unit.course_id) if unit else None
 
-            if plan.plan_type == 'unit_distribution':
+            if plan.plan_type == 'semester_distribution':
+                course = Course.query.get(plan.course_id) if plan.course_id else None
+                pdf_bytes = lesson_prep_service._generate_semester_pdf(
+                    plan.plan_data or {},
+                    course.name if course else '',
+                )
+            elif plan.plan_type == 'unit_distribution':
                 pdf_bytes = lesson_prep_service._generate_unit_pdf(
                     plan.plan_data or {},
                     unit.name if unit else '',
@@ -298,4 +307,594 @@ def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
 
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 1: توزيع المنهج الفصلي
+# ============================================================
+
+@lesson_prep_bp.route('/semester-distribution/upload', methods=['POST'])
+@auth_required
+def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
+    """رفع PDF توزيع فصلي + تحليل AI"""
+    try:
+        course_id = request.form.get('course_id', type=int)
+        if not course_id:
+            data = request.get_json(silent=True) or {}
+            course_id = data.get('course_id')
+
+        if not course_id:
+            return jsonify({'success': False, 'error': 'معرف المقرر مطلوب'}), 400
+
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({'success': False, 'error': 'المقرر غير موجود'}), 404
+
+        # حفظ PDF المرفوع
+        pdf_url = None
+        if 'pdf' in request.files:
+            pdf_file = request.files['pdf']
+            if pdf_file.filename:
+                upload_dir = os.path.join(os.getcwd(), 'uploads', 'semester_pdfs')
+                os.makedirs(upload_dir, exist_ok=True)
+                filename = f"semester_{course_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                filepath = os.path.join(upload_dir, filename)
+                pdf_file.save(filepath)
+                pdf_url = f"/uploads/semester_pdfs/{filename}"
+
+                # محاولة رفع على Cloudinary
+                try:
+                    import cloudinary.uploader
+                    result = cloudinary.uploader.upload(
+                        filepath, resource_type='raw',
+                        folder='semester_pdfs',
+                        public_id=filename.replace('.pdf', ''),
+                    )
+                    pdf_url = result.get('secure_url') or result.get('url') or pdf_url
+                except Exception:
+                    pass
+
+        plan = LessonPlan(
+            course_id=course_id,
+            teacher_id=teacher.id if teacher else None,
+            plan_type='semester_distribution',
+            original_pdf_url=pdf_url,
+            status='pending',
+        )
+        db.session.add(plan)
+        db.session.commit()
+
+        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
+        AISetting.set_setting('lesson_prep_job_data', json.dumps({
+            'plan_id': plan.id,
+            'type': 'semester_distribution',
+        }), 'json')
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'plan_id': plan.id,
+                'status': 'pending',
+                'message': 'جاري تحليل التوزيع الفصلي...',
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"خطأ في رفع التوزيع الفصلي: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/semester-distribution/<int:plan_id>', methods=['PUT'])
+@auth_required
+def update_semester_distribution(plan_id, teacher=None, user_id=None, is_admin=False):
+    """حفظ تعديلات المعلم على التوزيع الفصلي"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التوزيع غير موجود'}), 404
+
+        if not is_admin and teacher and plan.teacher_id != teacher.id:
+            return jsonify({'success': False, 'error': 'غير مسموح'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'لا توجد بيانات'}), 400
+
+        plan.plan_data = data.get('plan_data', plan.plan_data)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم حفظ التعديلات'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 3: تعديل التحضير بعد التوليد
+# ============================================================
+
+@lesson_prep_bp.route('/<int:plan_id>/section', methods=['PUT'])
+@auth_required
+def update_section(plan_id, teacher=None, user_id=None, is_admin=False):
+    """تعديل قسم واحد من التحضير"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        if not is_admin and teacher and plan.teacher_id != teacher.id:
+            return jsonify({'success': False, 'error': 'غير مسموح'}), 403
+
+        data = request.get_json()
+        section_name = data.get('section_name')
+        section_data = data.get('section_data')
+
+        if not section_name or section_data is None:
+            return jsonify({'success': False, 'error': 'اسم القسم والبيانات مطلوبة'}), 400
+
+        updated = dict(plan.plan_data or {})
+        updated[section_name] = section_data
+        plan.plan_data = updated
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم تحديث القسم'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/<int:plan_id>/regenerate-section', methods=['POST'])
+@auth_required
+def regenerate_section(plan_id, teacher=None, user_id=None, is_admin=False):
+    """إعادة توليد قسم واحد بالذكاء الاصطناعي"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        data = request.get_json()
+        section_name = data.get('section_name')
+        if not section_name:
+            return jsonify({'success': False, 'error': 'اسم القسم مطلوب'}), 400
+
+        from src.services.lesson_prep_service import lesson_prep_service
+        new_section = lesson_prep_service.regenerate_section(plan_id, section_name)
+
+        if new_section:
+            updated = dict(plan.plan_data or {})
+            updated[section_name] = new_section
+            plan.plan_data = updated
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'data': {section_name: new_section},
+                'message': 'تم إعادة توليد القسم',
+            })
+        else:
+            return jsonify({'success': False, 'error': 'فشل إعادة التوليد'}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/<int:plan_id>/regenerate-pdf', methods=['POST'])
+@auth_required
+def regenerate_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
+    """إعادة توليد PDF بعد التعديلات"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        from src.services.lesson_prep_service import lesson_prep_service
+
+        lesson = Lesson.query.get(plan.lesson_id) if plan.lesson_id else None
+        unit = Unit.query.get(lesson.unit_id) if lesson else None
+        course = Course.query.get(unit.course_id) if unit else None
+
+        pdf_bytes = None
+        if plan.plan_type == 'unit_distribution':
+            pdf_bytes = lesson_prep_service._generate_unit_pdf(
+                plan.plan_data or {}, unit.name if unit else '', course.name if course else '')
+        elif plan.plan_type == 'semester_distribution':
+            pdf_bytes = lesson_prep_service._generate_semester_pdf(
+                plan.plan_data or {}, course.name if course else '')
+        else:
+            pdf_bytes = lesson_prep_service._generate_pdf(
+                plan.plan_data or {}, lesson.name if lesson else '',
+                unit.name if unit else '', course.name if course else '')
+
+        if pdf_bytes:
+            pdf_url = None
+            try:
+                import cloudinary.uploader
+                result = cloudinary.uploader.upload(
+                    io.BytesIO(pdf_bytes), resource_type='raw',
+                    folder='lesson_plans',
+                    public_id=f"plan_{plan_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                )
+                pdf_url = result.get('secure_url') or result.get('url')
+            except Exception:
+                upload_dir = os.path.join(os.getcwd(), 'uploads', 'lesson_plans')
+                os.makedirs(upload_dir, exist_ok=True)
+                filename = f"plan_{plan_id}.pdf"
+                with open(os.path.join(upload_dir, filename), 'wb') as f:
+                    f.write(pdf_bytes)
+                pdf_url = f"/uploads/lesson_plans/{filename}"
+
+            plan.pdf_file_url = pdf_url
+            db.session.commit()
+
+            return jsonify({'success': True, 'data': {'pdf_url': pdf_url}, 'message': 'تم تحديث PDF'})
+
+        return jsonify({'success': False, 'error': 'فشل توليد PDF'}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 7: مشاركة بين المعلمين
+# ============================================================
+
+@lesson_prep_bp.route('/<int:plan_id>/share', methods=['POST'])
+@auth_required
+def share_plan(plan_id, teacher=None, user_id=None, is_admin=False):
+    """مشاركة تحضير"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        if not teacher:
+            return jsonify({'success': False, 'error': 'يجب تسجيل الدخول كمعلم'}), 403
+
+        existing = SharedPlan.query.filter_by(plan_id=plan_id).first()
+        if existing:
+            return jsonify({'success': False, 'error': 'التحضير مشارك بالفعل'}), 400
+
+        data = request.get_json() or {}
+        shared = SharedPlan(
+            plan_id=plan_id,
+            shared_by=teacher.id,
+            visibility=data.get('visibility', 'school'),
+        )
+        db.session.add(shared)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تمت المشاركة بنجاح'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/shared', methods=['GET'])
+@auth_required
+def get_shared_plans(teacher=None, user_id=None, is_admin=False):
+    """المكتبة المشتركة"""
+    try:
+        query = SharedPlan.query
+
+        # فلتر بالمقرر
+        course_id = request.args.get('course_id', type=int)
+        if course_id:
+            query = query.join(LessonPlan).join(Lesson).join(Unit).filter(Unit.course_id == course_id)
+
+        # بحث نصي
+        search = request.args.get('q', '')
+        if search:
+            query = query.join(LessonPlan).filter(
+                LessonPlan.plan_data['lesson_info']['title'].astext.ilike(f'%{search}%')
+            )
+
+        shared = query.order_by(SharedPlan.created_at.desc()).limit(50).all()
+        return jsonify({
+            'success': True,
+            'data': [s.to_dict() for s in shared]
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/<int:plan_id>/clone', methods=['POST'])
+@auth_required
+def clone_plan(plan_id, teacher=None, user_id=None, is_admin=False):
+    """نسخ تحضير مشترك"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        if not teacher:
+            return jsonify({'success': False, 'error': 'يجب تسجيل الدخول كمعلم'}), 403
+
+        new_plan = LessonPlan(
+            lesson_id=plan.lesson_id,
+            teacher_id=teacher.id,
+            course_id=plan.course_id,
+            plan_type=plan.plan_type,
+            plan_data=dict(plan.plan_data or {}),
+            student_level=plan.student_level,
+            student_count=plan.student_count,
+            weak_students_count=plan.weak_students_count,
+            excellent_students_count=plan.excellent_students_count,
+            focus_area=plan.focus_area,
+            examples_count=plan.examples_count,
+            status='completed',
+        )
+        db.session.add(new_plan)
+
+        # تحديث عداد الاستخدام
+        shared = SharedPlan.query.filter_by(plan_id=plan_id).first()
+        if shared:
+            shared.use_count = (shared.use_count or 0) + 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'data': new_plan.to_dict(),
+            'message': 'تم نسخ التحضير بنجاح',
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 8: تقييم جودة التحضير
+# ============================================================
+
+@lesson_prep_bp.route('/<int:plan_id>/rate', methods=['POST'])
+@auth_required
+def rate_plan(plan_id, teacher=None, user_id=None, is_admin=False):
+    """تقييم تحضير"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        if not teacher:
+            return jsonify({'success': False, 'error': 'يجب تسجيل الدخول كمعلم'}), 403
+
+        data = request.get_json()
+        overall = data.get('overall_rating')
+        if not overall or not (1 <= overall <= 5):
+            return jsonify({'success': False, 'error': 'التقييم يجب أن يكون بين 1 و 5'}), 400
+
+        # تحديث أو إنشاء
+        rating = PlanRating.query.filter_by(plan_id=plan_id, teacher_id=teacher.id).first()
+        if rating:
+            rating.overall_rating = overall
+            rating.section_ratings = data.get('section_ratings', rating.section_ratings)
+            rating.notes = data.get('notes', rating.notes)
+        else:
+            rating = PlanRating(
+                plan_id=plan_id,
+                teacher_id=teacher.id,
+                overall_rating=overall,
+                section_ratings=data.get('section_ratings', {}),
+                notes=data.get('notes', ''),
+            )
+            db.session.add(rating)
+
+        db.session.commit()
+
+        # تحديث متوسط التقييم في SharedPlan
+        shared = SharedPlan.query.filter_by(plan_id=plan_id).first()
+        if shared:
+            from sqlalchemy import func
+            avg = db.session.query(func.avg(PlanRating.overall_rating)).filter_by(plan_id=plan_id).scalar()
+            shared.avg_rating = float(avg) if avg else 0
+            db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم حفظ التقييم'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/<int:plan_id>/ratings', methods=['GET'])
+def get_plan_ratings(plan_id):
+    """عرض تقييمات تحضير"""
+    try:
+        ratings = PlanRating.query.filter_by(plan_id=plan_id).order_by(PlanRating.created_at.desc()).all()
+        from sqlalchemy import func
+        avg = db.session.query(func.avg(PlanRating.overall_rating)).filter_by(plan_id=plan_id).scalar()
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'ratings': [r.to_dict() for r in ratings],
+                'avg_rating': float(avg) if avg else 0,
+                'count': len(ratings),
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 9: توليد أوراق عمل
+# ============================================================
+
+@lesson_prep_bp.route('/<int:plan_id>/worksheet', methods=['POST'])
+@auth_required
+def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
+    """توليد ورقة عمل (async)"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        if plan.status != 'completed':
+            return jsonify({'success': False, 'error': 'التحضير غير مكتمل'}), 400
+
+        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
+        AISetting.set_setting('lesson_prep_job_data', json.dumps({
+            'plan_id': plan.id,
+            'type': 'worksheet',
+        }), 'json')
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'plan_id': plan.id,
+                'status': 'generating',
+                'message': 'جاري توليد ورقة العمل...',
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/<int:plan_id>/worksheet/pdf', methods=['GET'])
+def download_worksheet_pdf(plan_id):
+    """تحميل PDF ورقة العمل"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        plan_data = plan.plan_data or {}
+        ws_type = request.args.get('type', 'student')  # student | teacher
+        key = f'worksheet_{ws_type}_pdf'
+        url = plan_data.get(key)
+
+        if not url:
+            return jsonify({'success': False, 'error': 'ورقة العمل غير موجودة'}), 404
+
+        if url.startswith('http'):
+            resp = requests.get(url, timeout=30)
+            return send_file(
+                io.BytesIO(resp.content),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"worksheet_{ws_type}_{plan_id}.pdf",
+            )
+
+        import os
+        filepath = os.path.join(os.getcwd(), url.lstrip('/'))
+        return send_file(filepath, as_attachment=True, download_name=f"worksheet_{ws_type}_{plan_id}.pdf")
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 12: تتبع تنفيذ المنهج
+# ============================================================
+
+@lesson_prep_bp.route('/<int:plan_id>/mark-taught', methods=['PUT'])
+@auth_required
+def mark_taught(plan_id, teacher=None, user_id=None, is_admin=False):
+    """تأشير "تم التدريس" """
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        data = request.get_json() or {}
+        is_taught = data.get('is_taught', True)
+
+        plan.is_taught = is_taught
+        plan.taught_at = datetime.utcnow() if is_taught else None
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم التحديث'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/progress', methods=['GET'])
+@auth_required
+def get_progress(teacher=None, user_id=None, is_admin=False):
+    """نسبة إنجاز المنهج"""
+    try:
+        course_id = request.args.get('course_id', type=int)
+        if not course_id:
+            return jsonify({'success': False, 'error': 'معرف المقرر مطلوب'}), 400
+
+        units = Unit.query.filter_by(course_id=course_id).order_by(Unit.order_num).all()
+
+        total_lessons = 0
+        taught_lessons = 0
+        prepared_lessons = 0
+        unit_progress = []
+
+        for unit in units:
+            lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
+            unit_total = len(lessons)
+            unit_taught = 0
+            unit_prepared = 0
+            lesson_details = []
+
+            for lesson in lessons:
+                total_lessons += 1
+                # أحدث تحضير مكتمل للمعلم
+                plan_query = LessonPlan.query.filter_by(
+                    lesson_id=lesson.id, status='completed'
+                )
+                if teacher and not is_admin:
+                    plan_query = plan_query.filter_by(teacher_id=teacher.id)
+
+                plan = plan_query.order_by(LessonPlan.created_at.desc()).first()
+
+                status = 'not_prepared'
+                if plan:
+                    unit_prepared += 1
+                    prepared_lessons += 1
+                    if plan.is_taught:
+                        unit_taught += 1
+                        taught_lessons += 1
+                        status = 'taught'
+                    else:
+                        status = 'prepared'
+
+                lesson_details.append({
+                    'lesson_id': lesson.id,
+                    'lesson_name': lesson.name,
+                    'status': status,
+                    'plan_id': plan.id if plan else None,
+                    'taught_at': plan.taught_at.isoformat() if plan and plan.taught_at else None,
+                })
+
+            unit_progress.append({
+                'unit_id': unit.id,
+                'unit_name': unit.name,
+                'total': unit_total,
+                'prepared': unit_prepared,
+                'taught': unit_taught,
+                'progress_percent': round(unit_taught / unit_total * 100) if unit_total > 0 else 0,
+                'lessons': lesson_details,
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'course_id': course_id,
+                'total_lessons': total_lessons,
+                'prepared_lessons': prepared_lessons,
+                'taught_lessons': taught_lessons,
+                'overall_progress': round(taught_lessons / total_lessons * 100) if total_lessons > 0 else 0,
+                'units': unit_progress,
+            }
+        })
+
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

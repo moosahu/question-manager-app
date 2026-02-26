@@ -777,5 +777,473 @@ class LessonPrepService:
             return False
 
 
+    def parse_semester_distribution(self, plan_id):
+        """تحليل توزيع المنهج الفصلي من PDF مرفوع"""
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return False
+
+        try:
+            plan.status = 'generating'
+            db.session.commit()
+
+            self._ensure_configured()
+
+            course = Course.query.get(plan.course_id) if plan.course_id else None
+            if not course:
+                raise ValueError("المقرر غير موجود")
+
+            # جلب دروس المقرر
+            units = Unit.query.filter_by(course_id=course.id).order_by(Unit.order_num).all()
+            lessons_info = []
+            for unit in units:
+                unit_lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
+                for lesson in unit_lessons:
+                    lessons_info.append({
+                        'lesson_id': lesson.id,
+                        'lesson_name': lesson.name,
+                        'unit_name': unit.name,
+                        'unit_id': unit.id,
+                    })
+
+            lessons_text = "\n".join([
+                f"- lesson_id: {l['lesson_id']}, الدرس: {l['lesson_name']}, الوحدة: {l['unit_name']}"
+                for l in lessons_info
+            ])
+
+            # استخراج صور PDF المرفوع
+            images = []
+            if plan.original_pdf_url:
+                try:
+                    images = self._extract_pages_as_images(plan.original_pdf_url, 1, 20)
+                except Exception as e:
+                    logger.warning(f"فشل استخراج صور PDF: {e}")
+
+            prompt = f"""أنت خبير تربوي متخصص في المناهج السعودية.
+
+## المطلوب
+حلّل توزيع المنهج الفصلي المرفق في الصور وأعد هيكلته بصيغة JSON.
+
+## المقرر: {course.name}
+
+## دروس المقرر المسجلة في النظام:
+{lessons_text}
+
+## التعليمات
+1. طابق كل درس في التوزيع مع lesson_id من القائمة أعلاه
+2. استخرج أسابيع الفصل مع التواريخ
+3. حدد الإجازات والأسابيع بدون دراسة
+4. إذا لم تجد تطابق دقيق، اختر أقرب lesson_id
+
+أعد الرد بصيغة JSON:
+```json
+{{
+  "semester_name": "اسم الفصل (مثل: الفصل الثاني 1447هـ)",
+  "course_name": "{course.name}",
+  "total_weeks": 19,
+  "weeks": [
+    {{
+      "week_number": 1,
+      "start_date": "2026-02-08",
+      "end_date": "2026-02-12",
+      "is_holiday": false,
+      "holiday_name": "",
+      "lessons": [
+        {{
+          "lesson_id": 42,
+          "lesson_name": "اسم الدرس",
+          "unit_name": "اسم الوحدة",
+          "periods": 2,
+          "notes": ""
+        }}
+      ],
+      "notes": ""
+    }}
+  ]
+}}
+```
+
+## تنبيهات
+- التزم بتنسيق JSON بالضبط
+- استخدم lesson_id الصحيح من القائمة
+- حدد is_holiday=true للأسابيع التي فيها إجازة
+- التواريخ بتنسيق YYYY-MM-DD
+"""
+
+            content_parts = []
+            if images:
+                for img_bytes in images:
+                    content_parts.append({
+                        'mime_type': 'image/jpeg',
+                        'data': img_bytes,
+                    })
+            content_parts.append(prompt)
+
+            del images
+
+            ai_text = None
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    response = self.model.generate_content(content_parts)
+                    ai_text = response.text
+                    break
+                except Exception as api_err:
+                    err_str = str(api_err)
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower() or 'quota' in err_str.lower():
+                        wait = 60 * (attempt + 1)
+                        logger.warning(f"Rate limit (429) semester - محاولة {attempt+1}/{max_retries}، انتظار {wait}s")
+                        time.sleep(wait)
+                    else:
+                        raise
+            if ai_text is None:
+                raise Exception(f"فشل الاتصال بـ Gemini بعد {max_retries} محاولات")
+
+            plan_data = self._extract_json(ai_text)
+            if not plan_data:
+                plan_data = self._aggressive_json_fix(ai_text)
+            if not plan_data:
+                try:
+                    fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط:\n\n{ai_text[:8000]}"
+                    fix_response = self.model.generate_content(fix_prompt)
+                    plan_data = self._extract_json(fix_response.text)
+                except Exception:
+                    pass
+            if not plan_data:
+                plan_data = {'raw_text': ai_text}
+
+            # توليد PDF
+            pdf_url = None
+            try:
+                pdf_bytes = self._generate_semester_pdf(plan_data, course.name)
+                if pdf_bytes:
+                    try:
+                        import cloudinary.uploader
+                        result = cloudinary.uploader.upload(
+                            io.BytesIO(pdf_bytes),
+                            resource_type='raw',
+                            folder='lesson_plans',
+                            public_id=f"semester_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                        )
+                        pdf_url = result.get('secure_url') or result.get('url')
+                    except Exception as e:
+                        logger.warning(f"فشل Cloudinary: {e}")
+                        upload_dir = os.path.join(os.getcwd(), 'uploads', 'lesson_plans')
+                        os.makedirs(upload_dir, exist_ok=True)
+                        filename = f"semester_{plan_id}.pdf"
+                        filepath = os.path.join(upload_dir, filename)
+                        with open(filepath, 'wb') as f:
+                            f.write(pdf_bytes)
+                        pdf_url = f"/uploads/lesson_plans/{filename}"
+            except Exception as e:
+                logger.warning(f"فشل توليد PDF الفصلي: {e}")
+
+            plan.plan_data = plan_data
+            plan.pdf_file_url = pdf_url
+            plan.status = 'completed'
+            db.session.commit()
+
+            gc.collect()
+            logger.info(f"اكتمل توزيع الفصل #{plan_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"فشل توزيع الفصل #{plan_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            plan.status = 'failed'
+            plan.error_message = str(e)
+            db.session.commit()
+            return False
+
+    def _generate_semester_pdf(self, plan_data, course_name):
+        """توليد PDF لتوزيع المنهج الفصلي"""
+        try:
+            from weasyprint import HTML
+            from flask import render_template
+            from jinja2 import pass_eval_context
+            from markupsafe import Markup
+
+            app = current_app._get_current_object()
+            @pass_eval_context
+            def chem_filter(eval_ctx, value):
+                result = LessonPrepService._chem_html(str(value))
+                if eval_ctx.autoescape:
+                    return Markup(result)
+                return result
+            app.jinja_env.filters['chem'] = chem_filter
+
+            context = {
+                'plan_data': plan_data,
+                'course_name': course_name,
+            }
+
+            html_string = render_template('lesson_prep/semester_distribution.html', **context)
+            pdf_bytes = HTML(string=html_string).write_pdf()
+
+            logger.info(f"تم توليد PDF الفصلي ({len(pdf_bytes)} bytes)")
+            return pdf_bytes
+
+        except Exception as e:
+            logger.error(f"خطأ في توليد PDF الفصلي: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def generate_worksheet(self, plan_id):
+        """توليد ورقة عمل تلقائية من تحضير مكتمل"""
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return False
+
+        try:
+            plan_data = plan.plan_data or {}
+            if not plan_data or 'raw_text' in plan_data:
+                raise ValueError("التحضير غير مكتمل أو غير صالح")
+
+            self._ensure_configured()
+
+            lesson_name = plan_data.get('lesson_info', {}).get('title', '')
+            if not lesson_name and plan.lesson:
+                lesson_name = plan.lesson.name
+
+            lesson = Lesson.query.get(plan.lesson_id) if plan.lesson_id else None
+            unit = Unit.query.get(lesson.unit_id) if lesson else None
+            course = Course.query.get(unit.course_id) if unit else None
+
+            prompt = f"""أنت معلم كيمياء خبير. أنشئ ورقة عمل شاملة بناءً على التحضير التالي.
+
+## معلومات الدرس
+- المقرر: {course.name if course else ''}
+- الوحدة: {unit.name if unit else ''}
+- الدرس: {lesson_name}
+
+## ملخص التحضير
+{json.dumps(plan_data, ensure_ascii=False)[:4000]}
+
+## المطلوب
+أنشئ ورقة عمل تحتوي على:
+1. أسئلة فراغات (5-8 أسئلة)
+2. أسئلة اختيار من متعدد (5-8 أسئلة، كل سؤال 4 خيارات)
+3. مسائل حسابية إن وجدت (3-5 مسائل)
+4. سؤال تحدي للمتفوقين (1-2)
+
+أعد الرد بصيغة JSON:
+```json
+{{
+  "worksheet_title": "ورقة عمل: {lesson_name}",
+  "course_name": "{course.name if course else ''}",
+  "unit_name": "{unit.name if unit else ''}",
+  "lesson_name": "{lesson_name}",
+  "fill_blanks": [
+    {{
+      "question": "نص السؤال مع ______ للفراغ",
+      "answer": "الإجابة"
+    }}
+  ],
+  "multiple_choice": [
+    {{
+      "question": "نص السؤال",
+      "options": ["أ) ...", "ب) ...", "ج) ...", "د) ..."],
+      "correct_answer": "أ",
+      "correct_index": 0
+    }}
+  ],
+  "calculations": [
+    {{
+      "question": "نص المسألة",
+      "steps": ["الخطوة 1", "الخطوة 2"],
+      "answer": "الإجابة النهائية"
+    }}
+  ],
+  "challenge": [
+    {{
+      "question": "سؤال التحدي",
+      "answer": "الإجابة"
+    }}
+  ]
+}}
+```
+
+## تنبيهات
+- اجعل الأسئلة متدرجة من السهل للصعب
+- استخدم مصطلحات كيميائية دقيقة
+- المسائل الحسابية تشمل خطوات الحل
+"""
+
+            ai_text = None
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    response = self.model.generate_content(prompt)
+                    ai_text = response.text
+                    break
+                except Exception as api_err:
+                    err_str = str(api_err)
+                    if '429' in err_str or 'Resource exhausted' in err_str.lower():
+                        wait = 60 * (attempt + 1)
+                        time.sleep(wait)
+                    else:
+                        raise
+            if ai_text is None:
+                raise Exception("فشل Gemini بعد المحاولات")
+
+            worksheet_data = self._extract_json(ai_text)
+            if not worksheet_data:
+                worksheet_data = self._aggressive_json_fix(ai_text)
+            if not worksheet_data:
+                raise Exception("فشل تحليل JSON لورقة العمل")
+
+            # توليد PDF (نسخة طالب + معلم)
+            student_pdf = self._generate_worksheet_pdf(worksheet_data, show_answers=False)
+            teacher_pdf = self._generate_worksheet_pdf(worksheet_data, show_answers=True)
+
+            # حفظ
+            student_url = None
+            teacher_url = None
+
+            upload_dir = os.path.join(os.getcwd(), 'uploads', 'worksheets')
+            os.makedirs(upload_dir, exist_ok=True)
+
+            if student_pdf:
+                try:
+                    import cloudinary.uploader
+                    result = cloudinary.uploader.upload(
+                        io.BytesIO(student_pdf), resource_type='raw',
+                        folder='worksheets',
+                        public_id=f"ws_student_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                    )
+                    student_url = result.get('secure_url') or result.get('url')
+                except Exception:
+                    filename = f"ws_student_{plan_id}.pdf"
+                    filepath = os.path.join(upload_dir, filename)
+                    with open(filepath, 'wb') as f:
+                        f.write(student_pdf)
+                    student_url = f"/uploads/worksheets/{filename}"
+
+            if teacher_pdf:
+                try:
+                    import cloudinary.uploader
+                    result = cloudinary.uploader.upload(
+                        io.BytesIO(teacher_pdf), resource_type='raw',
+                        folder='worksheets',
+                        public_id=f"ws_teacher_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                    )
+                    teacher_url = result.get('secure_url') or result.get('url')
+                except Exception:
+                    filename = f"ws_teacher_{plan_id}.pdf"
+                    filepath = os.path.join(upload_dir, filename)
+                    with open(filepath, 'wb') as f:
+                        f.write(teacher_pdf)
+                    teacher_url = f"/uploads/worksheets/{filename}"
+
+            # تخزين بيانات ورقة العمل في plan_data
+            updated_data = dict(plan.plan_data or {})
+            updated_data['worksheet'] = worksheet_data
+            updated_data['worksheet_student_pdf'] = student_url
+            updated_data['worksheet_teacher_pdf'] = teacher_url
+            plan.plan_data = updated_data
+            db.session.commit()
+
+            gc.collect()
+            logger.info(f"اكتملت ورقة العمل للتحضير #{plan_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"فشل توليد ورقة العمل #{plan_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def _generate_worksheet_pdf(self, worksheet_data, show_answers=False):
+        """توليد PDF لورقة العمل"""
+        try:
+            from weasyprint import HTML
+            from flask import render_template
+            from jinja2 import pass_eval_context
+            from markupsafe import Markup
+
+            app = current_app._get_current_object()
+            @pass_eval_context
+            def chem_filter(eval_ctx, value):
+                result = LessonPrepService._chem_html(str(value))
+                if eval_ctx.autoescape:
+                    return Markup(result)
+                return result
+            app.jinja_env.filters['chem'] = chem_filter
+
+            context = {
+                'data': worksheet_data,
+                'show_answers': show_answers,
+            }
+
+            html_string = render_template('lesson_prep/worksheet.html', **context)
+            pdf_bytes = HTML(string=html_string).write_pdf()
+            return pdf_bytes
+
+        except Exception as e:
+            logger.error(f"خطأ في توليد PDF ورقة العمل: {e}")
+            return None
+
+    def regenerate_section(self, plan_id, section_name):
+        """إعادة توليد قسم واحد من التحضير بالذكاء الاصطناعي"""
+        plan = LessonPlan.query.get(plan_id)
+        if not plan or not plan.plan_data:
+            return None
+
+        try:
+            self._ensure_configured()
+
+            lesson = Lesson.query.get(plan.lesson_id) if plan.lesson_id else None
+            unit = Unit.query.get(lesson.unit_id) if lesson else None
+            course = Course.query.get(unit.course_id) if unit else None
+
+            current_section = plan.plan_data.get(section_name, {})
+
+            section_labels = {
+                'objectives': 'الأهداف',
+                'preparation': 'التهيئة والتمهيد',
+                'presentation': 'عرض الدرس',
+                'teaching_strategies': 'استراتيجيات التدريس',
+                'evaluation': 'التقويم',
+                'individual_differences': 'مراعاة الفروق الفردية',
+                'homework': 'الواجبات',
+                'time_distribution': 'توزيع الوقت',
+                'resources': 'الوسائل التعليمية',
+                'reflection': 'التأمل والانعكاس',
+                'values_connection': 'ربط القيم',
+            }
+
+            label = section_labels.get(section_name, section_name)
+
+            prompt = f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء.
+
+## المطلوب
+أعد كتابة قسم "{label}" فقط من تحضير الدرس التالي:
+- المقرر: {course.name if course else ''}
+- الوحدة: {unit.name if unit else ''}
+- الدرس: {lesson.name if lesson else ''}
+
+## القسم الحالي:
+{json.dumps(current_section, ensure_ascii=False)[:2000]}
+
+## التعليمات
+- حسّن المحتوى واجعله أكثر تفصيلاً وعملية
+- التزم بنفس هيكل JSON تماماً
+- أعد فقط JSON القسم (ليس التحضير كامل)
+"""
+
+            response = self.model.generate_content(prompt)
+            new_section = self._extract_json(response.text)
+            if not new_section:
+                new_section = self._aggressive_json_fix(response.text)
+
+            return new_section
+
+        except Exception as e:
+            logger.error(f"فشل إعادة توليد القسم {section_name}: {e}")
+            return None
+
+
 # Singleton
 lesson_prep_service = LessonPrepService()

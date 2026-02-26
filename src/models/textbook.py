@@ -75,10 +75,12 @@ class LessonPlan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=True)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
     plan_type = db.Column(db.String(30), nullable=False, default='single_lesson')
     ai_provider = db.Column(db.String(20), default='gemini')
     plan_data = db.Column(JSONB, default={})
     pdf_file_url = db.Column(db.Text, nullable=True)
+    original_pdf_url = db.Column(db.Text, nullable=True)
     student_level = db.Column(db.String(20), nullable=True)
     student_count = db.Column(db.Integer, nullable=True)
     weak_students_count = db.Column(db.Integer, nullable=True)
@@ -87,10 +89,13 @@ class LessonPlan(db.Model):
     examples_count = db.Column(db.Integer, default=5)
     status = db.Column(db.String(20), default='pending')  # pending, generating, completed, failed
     error_message = db.Column(db.Text, nullable=True)
+    is_taught = db.Column(db.Boolean, default=False)
+    taught_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     lesson = db.relationship('Lesson', backref=db.backref('lesson_plans', lazy=True))
     teacher = db.relationship('Teacher', backref=db.backref('lesson_plans', lazy=True))
+    course = db.relationship('Course', backref=db.backref('semester_distributions', lazy=True))
 
     def to_dict(self):
         return {
@@ -99,10 +104,12 @@ class LessonPlan(db.Model):
             'lesson_name': self.lesson.name if self.lesson else None,
             'teacher_id': self.teacher_id,
             'teacher_name': self.teacher.name if self.teacher else None,
+            'course_id': self.course_id,
             'plan_type': self.plan_type,
             'ai_provider': self.ai_provider,
             'plan_data': self.plan_data,
             'pdf_file_url': self.pdf_file_url,
+            'original_pdf_url': self.original_pdf_url,
             'student_level': self.student_level,
             'student_count': self.student_count,
             'weak_students_count': self.weak_students_count,
@@ -111,5 +118,7 @@ class LessonPlan(db.Model):
             'examples_count': self.examples_count,
             'status': self.status,
             'error_message': self.error_message,
+            'is_taught': self.is_taught,
+            'taught_at': self.taught_at.isoformat() if self.taught_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }

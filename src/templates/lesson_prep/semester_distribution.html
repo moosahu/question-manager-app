@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 10mm 8mm;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Naskh Arabic', 'Arial', sans-serif;
+            font-size: 10px;
+            color: #1a1a2e;
+            direction: rtl;
+            line-height: 1.4;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #1a5276;
+            padding-bottom: 6px;
+        }
+        .header h1 {
+            font-size: 16px;
+            color: #1a5276;
+            margin-bottom: 2px;
+        }
+        .header .subtitle {
+            font-size: 12px;
+            color: #2c3e50;
+        }
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 10px;
+            color: #34495e;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        th, td {
+            border: 1px solid #7f8c8d;
+            padding: 4px 6px;
+            text-align: center;
+            font-size: 9px;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #1a5276;
+            color: white;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        .holiday-row {
+            background-color: #fdebd0;
+            color: #a04000;
+            font-weight: bold;
+        }
+        .week-num {
+            background-color: #eaf2f8;
+            font-weight: bold;
+            width: 40px;
+        }
+        .dates {
+            font-size: 8px;
+            color: #5d6d7e;
+            width: 80px;
+        }
+        .lessons-cell {
+            text-align: right;
+            padding: 3px 6px;
+        }
+        .lesson-item {
+            margin-bottom: 2px;
+        }
+        .lesson-name {
+            font-weight: bold;
+            color: #1a5276;
+        }
+        .unit-name {
+            font-size: 8px;
+            color: #7f8c8d;
+        }
+        .periods-badge {
+            display: inline-block;
+            background: #2ecc71;
+            color: white;
+            border-radius: 3px;
+            padding: 0 4px;
+            font-size: 8px;
+            margin-right: 4px;
+        }
+        .notes-cell {
+            font-size: 8px;
+            color: #7f8c8d;
+            width: 80px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 8px;
+            color: #95a5a6;
+            margin-top: 6px;
+            border-top: 1px solid #bdc3c7;
+            padding-top: 4px;
+        }
+        .ministry-badge {
+            display: inline-block;
+            background: #1a5276;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="ministry-badge">المملكة العربية السعودية - وزارة التعليم</span>
+        <h1>توزيع منهج {{ plan_data.get('course_name', course_name) }}</h1>
+        <div class="subtitle">{{ plan_data.get('semester_name', '') }} — عدد الأسابيع: {{ plan_data.get('total_weeks', '') }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:40px">الأسبوع</th>
+                <th style="width:80px">التاريخ</th>
+                <th>الدروس والموضوعات</th>
+                <th style="width:50px">الحصص</th>
+                <th style="width:80px">ملاحظات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in plan_data.get('weeks', []) %}
+            <tr{% if week.get('is_holiday') %} class="holiday-row"{% endif %}>
+                <td class="week-num">{{ week.get('week_number', '') }}</td>
+                <td class="dates">
+                    {{ week.get('start_date', '') }}<br>
+                    {{ week.get('end_date', '') }}
+                </td>
+                <td class="lessons-cell">
+                    {% if week.get('is_holiday') %}
+                        <strong>{{ week.get('holiday_name', 'إجازة') }}</strong>
+                    {% else %}
+                        {% for lesson in week.get('lessons', []) %}
+                        <div class="lesson-item">
+                            <span class="lesson-name">{{ lesson.get('lesson_name', '') }}</span>
+                            <span class="unit-name">({{ lesson.get('unit_name', '') }})</span>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not week.get('is_holiday') %}
+                        {% set total = week.get('lessons', [])|sum(attribute='periods') if week.get('lessons') else 0 %}
+                        {{ total if total else '' }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="notes-cell">{{ week.get('notes', '') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <div>معلم المادة: _________________ &nbsp;&nbsp;&nbsp; مدير المدرسة: _________________ &nbsp;&nbsp;&nbsp; المشرف التربوي: _________________</div>
+    </div>
+</body>
+</html>
