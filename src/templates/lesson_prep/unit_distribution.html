@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>توزيع وحدة: {{ unit_name }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 12mm 12mm 15mm 12mm;
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: Tahoma, Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+  }
+
+  * {
+    font-family: Tahoma, Arial, 'Traditional Arabic', sans-serif;
+    box-sizing: border-box;
+    margin: 0; padding: 0;
+  }
+
+  body {
+    background: #ffffff;
+    color: #1e293b;
+    direction: rtl;
+    text-align: right;
+    font-size: 10pt;
+    line-height: 1.7;
+  }
+
+  sup { font-size: 0.7em; vertical-align: super; }
+  sub { font-size: 0.7em; vertical-align: sub; }
+
+  .main-header {
+    background: linear-gradient(135deg, #1e40af, #3b82f6) !important;
+    color: #ffffff !important;
+    padding: 18px 24px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .main-header h1 { font-size: 18pt; font-weight: 900; color: #ffffff !important; margin-bottom: 4px; }
+  .main-header .subtitle { font-size: 10pt; color: #bfdbfe !important; }
+
+  /* ─── بطاقة الحصة ─── */
+  .period-card {
+    border: 1.5px solid #c7d2fe;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+
+  .period-header {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff !important;
+  }
+  .period-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25) !important;
+    font-weight: 900;
+    font-size: 12pt;
+    flex-shrink: 0;
+  }
+  .period-title { font-weight: 900; font-size: 11pt; }
+  .period-lesson { font-size: 9pt; opacity: 0.85; margin-right: auto; }
+
+  .period-body {
+    padding: 14px 16px;
+  }
+
+  /* ألوان الحصص بالتناوب */
+  .period-card:nth-child(6n+1) .period-header { background: #1e40af !important; }
+  .period-card:nth-child(6n+1) { border-color: #93c5fd; }
+  .period-card:nth-child(6n+1) .period-body { background: #eff6ff !important; }
+
+  .period-card:nth-child(6n+2) .period-header { background: #166534 !important; }
+  .period-card:nth-child(6n+2) { border-color: #86efac; }
+  .period-card:nth-child(6n+2) .period-body { background: #f0fdf4 !important; }
+
+  .period-card:nth-child(6n+3) .period-header { background: #6b21a8 !important; }
+  .period-card:nth-child(6n+3) { border-color: #c4b5fd; }
+  .period-card:nth-child(6n+3) .period-body { background: #faf5ff !important; }
+
+  .period-card:nth-child(6n+4) .period-header { background: #9a3412 !important; }
+  .period-card:nth-child(6n+4) { border-color: #fdba74; }
+  .period-card:nth-child(6n+4) .period-body { background: #fff7ed !important; }
+
+  .period-card:nth-child(6n+5) .period-header { background: #115e59 !important; }
+  .period-card:nth-child(6n+5) { border-color: #5eead4; }
+  .period-card:nth-child(6n+5) .period-body { background: #f0fdfa !important; }
+
+  .period-card:nth-child(6n+6) .period-header { background: #9f1239 !important; }
+  .period-card:nth-child(6n+6) { border-color: #fda4af; }
+  .period-card:nth-child(6n+6) .period-body { background: #fff1f2 !important; }
+
+  /* ─── أقسام داخل الحصة ─── */
+  .p-section {
+    margin-bottom: 10px;
+  }
+  .p-section-title {
+    font-weight: 900;
+    font-size: 10pt;
+    padding: 4px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+
+  ul.items {
+    list-style: none;
+    padding: 0;
+    margin: 2px 0;
+  }
+  ul.items li {
+    padding: 2px 0;
+    padding-right: 16px;
+    position: relative;
+    font-size: 9.5pt;
+  }
+  ul.items li::before {
+    content: "●";
+    position: absolute;
+    right: 0;
+    color: #64748b;
+    font-size: 6pt;
+    top: 6px;
+  }
+
+  /* المفاهيم */
+  .concept-block {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .concept-name {
+    background: rgba(0,0,0,0.04) !important;
+    padding: 5px 10px;
+    font-weight: 900;
+    font-size: 10pt;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .concept-content {
+    padding: 8px 10px;
+    font-size: 9.5pt;
+  }
+
+  /* المعادلات */
+  .equation {
+    background: #fefce8 !important;
+    border: 1px solid #fde047;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin: 4px 0;
+    font-size: 10pt;
+    font-weight: 700;
+    text-align: center;
+    direction: ltr;
+  }
+
+  /* التقويم */
+  .q-box {
+    background: #eff6ff !important;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 4px 0;
+    font-size: 9.5pt;
+    font-weight: 700;
+  }
+  .a-box {
+    background: #f0fdf4 !important;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 2px 0 8px 0;
+    font-size: 9.5pt;
+  }
+
+  /* معلومات إضافية */
+  .info-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .info-tag {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .tag-strategy { background: #e0e7ff !important; color: #3730a3; }
+  .tag-time { background: #e0f2fe !important; color: #0369a1; }
+  .tag-homework { background: #fce7f3 !important; color: #9d174d; }
+
+  /* خطة التقويم */
+  .assessment-section {
+    border: 1.5px solid #fca5a5;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 14px;
+  }
+  .assessment-header {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    padding: 8px 14px;
+    font-weight: 900;
+    font-size: 11pt;
+  }
+  .assessment-body {
+    padding: 12px 16px;
+    background: #fef2f2 !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="main-header">
+  <h1>توزيع وحدة: {{ plan_data.get('unit_name', unit_name) }}</h1>
+  <div class="subtitle">
+    {{ course_name }} — {{ plan_data.get('total_periods', '') }} حصة
+  </div>
+</div>
+
+{% set periods = plan_data.get('periods', []) %}
+{% for p in periods %}
+{% if p is mapping %}
+<div class="period-card">
+  <div class="period-header">
+    <span class="period-num">{{ p.get('period_number', loop.index) }}</span>
+    <span class="period-title">{{ p.get('title', '') }}</span>
+    <span class="period-lesson">{{ p.get('lesson_name', '') }}</span>
+  </div>
+  <div class="period-body">
+
+    <!-- الأهداف -->
+    {% set objectives = p.get('objectives', []) %}
+    {% if objectives %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #dbeafe !important; color: #1e40af;">الأهداف</div>
+      <ul class="items">
+        {% for obj in objectives %}
+        <li>{{ obj }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- المفاهيم -->
+    {% set concepts = p.get('main_concepts', []) %}
+    {% if concepts %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #e0e7ff !important; color: #3730a3;">المفاهيم الرئيسية</div>
+      {% for c in concepts %}
+      {% if c is mapping %}
+      <div class="concept-block">
+        <div class="concept-name">{{ c.get('concept', '') }}</div>
+        <div class="concept-content">
+          <p>{{ c.get('explanation', '')|chem }}</p>
+          {% if c.get('examples') %}
+          <ul class="items" style="margin-top:4px;">
+            {% for ex in c.examples %}
+            <li>{{ ex|chem }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+      {% elif c is string %}
+      <p style="font-size:9.5pt; margin-bottom:4px;">{{ c|chem }}</p>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- المعادلات -->
+    {% set equations = p.get('equations', []) %}
+    {% if equations %}
+    <div class="p-section">
+      {% for eq in equations %}
+      {% if eq %}<div class="equation">{{ eq|chem }}</div>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- التقويم -->
+    {% set evaluation = p.get('evaluation', []) %}
+    {% if evaluation %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #d1fae5 !important; color: #065f46;">التقويم</div>
+      {% for q in evaluation %}
+      {% if q is mapping %}
+      <div class="q-box">س: {{ q.get('question', '')|chem }}</div>
+      <div class="a-box">ج: {{ q.get('answer', '')|chem }}</div>
+      {% elif q is string %}
+      <div class="q-box">{{ q|chem }}</div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- معلومات إضافية -->
+    <div class="info-row">
+      {% if p.get('teaching_strategy') %}
+      <span class="info-tag tag-strategy">{{ p.teaching_strategy }}</span>
+      {% endif %}
+      {% if p.get('duration_minutes') %}
+      <span class="info-tag tag-time">{{ p.duration_minutes }} دقيقة</span>
+      {% endif %}
+      {% if p.get('homework') %}
+      <span class="info-tag tag-homework">الواجب: {{ p.homework }}</span>
+      {% endif %}
+    </div>
+
+    {% if p.get('student_activity') %}
+    <p style="font-size:9pt; color:#475569;"><strong>نشاط الطلاب:</strong> {{ p.student_activity }}</p>
+    {% endif %}
+    {% if p.get('notes') %}
+    <p style="font-size:9pt; color:#64748b; margin-top:4px;">📝 {{ p.notes }}</p>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- خطة التقويم -->
+{% set assessment = plan_data.get('assessment_plan', {}) %}
+{% if assessment and assessment is mapping %}
+<div class="assessment-section">
+  <div class="assessment-header">خطة التقويم للوحدة</div>
+  <div class="assessment-body">
+    {% if assessment.get('formative') %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #fef3c7 !important; color: #92400e;">تقويم تكويني</div>
+      <ul class="items">
+        {% for item in assessment.formative %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if assessment.get('summative') %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #fca5a5 !important; color: #991b1b;">تقويم ختامي</div>
+      <p style="font-size:10pt;">{{ assessment.summative }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+</body>
+</html>

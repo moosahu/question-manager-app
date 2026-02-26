@@ -407,6 +407,41 @@ class LessonPrepService:
             traceback.print_exc()
             return None
 
+    def _generate_unit_pdf(self, plan_data, unit_name, course_name):
+        """توليد PDF لتوزيع الوحدة"""
+        try:
+            from weasyprint import HTML
+            from flask import render_template
+            from jinja2 import pass_eval_context
+            from markupsafe import Markup
+
+            app = current_app._get_current_object()
+            @pass_eval_context
+            def chem_filter(eval_ctx, value):
+                result = LessonPrepService._chem_html(str(value))
+                if eval_ctx.autoescape:
+                    return Markup(result)
+                return result
+            app.jinja_env.filters['chem'] = chem_filter
+
+            context = {
+                'plan_data': plan_data,
+                'unit_name': unit_name,
+                'course_name': course_name,
+            }
+
+            html_string = render_template('lesson_prep/unit_distribution.html', **context)
+            pdf_bytes = HTML(string=html_string).write_pdf()
+
+            logger.info(f"تم توليد PDF الوحدة بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+            return pdf_bytes
+
+        except Exception as e:
+            logger.error(f"خطأ في توليد PDF الوحدة: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def generate_unit_distribution(self, plan_id):
         """توليد توزيع وحدة كاملة"""
         plan = LessonPlan.query.get(plan_id)
@@ -431,7 +466,7 @@ class LessonPrepService:
             lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
 
-            prompt = f"""أنت خبير تربوي. أعد توزيع منهج وحدة كيمياء كاملة.
+            prompt = f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في السعودية.
 
 ## المقرر: {course.name if course else ''}
 ## الوحدة: {unit.name}
@@ -441,32 +476,56 @@ class LessonPrepService:
 ## عدد الحصص المطلوب: {total_periods} حصة
 
 ## المطلوب
-أعد توزيع الوحدة على {total_periods} حصة مع مراعاة:
-- عدد الحصص المناسب لكل درس
-- حصص المراجعة والتقويم
-- التدرج في الصعوبة
+أعد تحضيراً تفصيلياً كاملاً للوحدة موزعاً على {total_periods} حصة.
+لكل حصة اكتب تحضيراً يشمل: الأهداف والمفاهيم والأمثلة والتقويم والواجب.
 
 أعد الرد بصيغة JSON:
 ```json
 {{
   "unit_name": "اسم الوحدة",
-  "total_periods": 0,
-  "distribution": [
+  "course_name": "{course.name if course else ''}",
+  "total_periods": {total_periods},
+  "periods": [
     {{
-      "week": 1,
-      "period": 1,
-      "lesson": "اسم الدرس",
-      "topics": ["المواضيع"],
-      "activities": ["الأنشطة"],
-      "homework": "الواجب"
+      "period_number": 1,
+      "lesson_name": "اسم الدرس",
+      "title": "عنوان الحصة (مثلاً: مقدمة في سرعة التفاعل)",
+      "objectives": ["أن يعرف الطالب...", "أن يفسر الطالب..."],
+      "main_concepts": [
+        {{
+          "concept": "المفهوم الرئيسي",
+          "explanation": "شرح مفصّل",
+          "examples": ["مثال 1", "مثال 2"]
+        }}
+      ],
+      "equations": ["المعادلات الكيميائية إن وجدت"],
+      "teaching_strategy": "استراتيجية التدريس",
+      "student_activity": "نشاط الطلاب",
+      "evaluation": [
+        {{
+          "question": "سؤال تقويمي",
+          "answer": "الإجابة"
+        }}
+      ],
+      "homework": "الواجب المنزلي",
+      "duration_minutes": 45,
+      "notes": "ملاحظات للمعلم"
     }}
   ],
   "assessment_plan": {{
-    "formative": ["تقويم تكويني"],
-    "summative": "تقويم ختامي"
+    "formative": ["أساليب تقويم تكويني"],
+    "summative": "وصف التقويم الختامي"
   }}
 }}
-```"""
+```
+
+## تنبيهات
+- التزم بتنسيق JSON بالضبط
+- اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
+- قدّم أمثلة من واقع الحياة السعودية
+- اجعل كل حصة مستقلة وكاملة يمكن للمعلم تنفيذها مباشرة
+- وزّع المحتوى بالتساوي على الحصص
+- خصص حصة أو أكثر للمراجعة والتقويم"""
 
             ai_text = None
             for attempt in range(3):
@@ -487,7 +546,38 @@ class LessonPrepService:
 
             plan_data = self._extract_json(ai_text) or {'raw_text': ai_text}
 
+            # توليد PDF للوحدة
+            pdf_url = None
+            try:
+                pdf_bytes = self._generate_unit_pdf(
+                    plan_data,
+                    unit.name,
+                    course.name if course else '',
+                )
+                if pdf_bytes:
+                    try:
+                        import cloudinary.uploader
+                        result = cloudinary.uploader.upload(
+                            io.BytesIO(pdf_bytes),
+                            resource_type='raw',
+                            folder='lesson_plans',
+                            public_id=f"unit_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                        )
+                        pdf_url = result.get('secure_url') or result.get('url')
+                    except Exception as e:
+                        logger.warning(f"فشل Cloudinary للـ PDF: {e}")
+                        upload_dir = os.path.join(os.getcwd(), 'uploads', 'lesson_plans')
+                        os.makedirs(upload_dir, exist_ok=True)
+                        filename = f"unit_{plan_id}.pdf"
+                        filepath = os.path.join(upload_dir, filename)
+                        with open(filepath, 'wb') as f:
+                            f.write(pdf_bytes)
+                        pdf_url = f"/uploads/lesson_plans/{filename}"
+            except Exception as e:
+                logger.warning(f"فشل توليد PDF للوحدة: {e}")
+
             plan.plan_data = plan_data
+            plan.pdf_file_url = pdf_url
             plan.status = 'completed'
             db.session.commit()
 
