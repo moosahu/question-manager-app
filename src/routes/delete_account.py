@@ -30,17 +30,10 @@ def notify_admin_delete(title, message):
         admin_user = User.query.filter_by(is_admin=True).first()
         if admin_user:
             admin_email = admin_user.email
+            if admin_user.fcm_token:
+                admin_fcm = admin_user.fcm_token
     except Exception as e:
         print(f"⚠️ فشل جلب الأدمن: {e}")
-
-    try:
-        if admin_email:
-            from src.models.teacher import Teacher
-            admin_teacher = Teacher.query.filter_by(email=admin_email).first()
-            if admin_teacher and admin_teacher.fcm_token:
-                admin_fcm = admin_teacher.fcm_token
-    except:
-        pass
 
     if admin_email:
         try:

@@ -30,6 +30,7 @@ class User(db.Model, UserMixin):
     phone_number    = db.Column(db.String(20), nullable=True)  # للتحقق عبر SMS
     trusted_device_token = db.Column(db.String(128), nullable=True)  # توكن الجهاز الموثوق
     trusted_device_expires = db.Column(db.DateTime, nullable=True)   # تاريخ انتهاء التوكن
+    fcm_token = db.Column(db.String(500), nullable=True)  # FCM token للإشعارات في التطبيق
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

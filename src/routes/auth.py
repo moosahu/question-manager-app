@@ -349,6 +349,39 @@ def verify_firebase_phone():
         return jsonify({'success': False, 'message': f'خطأ: {str(e)}'}), 500
 
 
+@auth_bp.route("/api/admin/fcm-token", methods=["POST"])
+def save_admin_fcm_token():
+    """حفظ FCM Token للأدمن (من التطبيق)"""
+    try:
+        data = request.get_json() or request.form
+        fcm_token = data.get('fcm_token', '').strip()
+        username = data.get('username', '').strip()
+
+        if not fcm_token:
+            return jsonify({'success': False, 'error': 'FCM token مطلوب'}), 400
+
+        # البحث عن الأدمن
+        admin_user = None
+        if username:
+            admin_user = User.query.filter_by(username=username, is_admin=True).first()
+        if not admin_user:
+            admin_user = User.query.filter_by(is_admin=True).first()
+
+        if not admin_user:
+            return jsonify({'success': False, 'error': 'الأدمن غير موجود'}), 404
+
+        admin_user.fcm_token = fcm_token
+        db.session.commit()
+        print(f"✅ تم حفظ FCM Token للأدمن: {admin_user.username}")
+
+        return jsonify({'success': True, 'message': 'تم حفظ FCM Token بنجاح'})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في حفظ FCM Token للأدمن: {e}")
+        return jsonify({'success': False, 'error': 'حدث خطأ'}), 500
+
+
 @auth_bp.route("/disable_2fa_notification", methods=["POST"])
 @login_required
 def disable_2fa_notification():

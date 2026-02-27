@@ -23,23 +23,14 @@ def notify_admin(title, message):
     admin_fcm = None
 
     try:
-        # جلب إيميل الأدمن من جدول user
         from src.models.user import User
         admin_user = User.query.filter_by(is_admin=True).first()
         if admin_user:
             admin_email = admin_user.email
+            if admin_user.fcm_token:
+                admin_fcm = admin_user.fcm_token
     except Exception as e:
         print(f"⚠️ فشل جلب الأدمن من user: {e}")
-
-    try:
-        # لو الأدمن مسجّل كمعلم بنفس الإيميل → يمكن عنده fcm_token
-        if admin_email:
-            from src.models.teacher import Teacher
-            admin_teacher = Teacher.query.filter_by(email=admin_email).first()
-            if admin_teacher and admin_teacher.fcm_token:
-                admin_fcm = admin_teacher.fcm_token
-    except:
-        pass
 
     # 1. إرسال إيميل
     if admin_email:
@@ -48,7 +39,7 @@ def notify_admin(title, message):
         except Exception as e:
             print(f"⚠️ فشل إرسال إيميل الأدمن: {e}")
 
-    # 2. إرسال push notification (لو عنده تطبيق)
+    # 2. إرسال push notification
     if admin_fcm:
         try:
             from src.services.notification_service import NotificationService
