@@ -133,7 +133,7 @@ def index():
                     # إذا لم يكن الحقل موجود، إنشاؤه ديناميكياً
                     setattr(current_user, 'api_key', new_api_key)
                 
-                print(f"✅ تم تحديث مفتاح API: {new_api_key}")
+                print(f"✅ تم تحديث مفتاح API")
                 flash('تم توليد مفتاح API جديد بنجاح', 'success')
                 
             db.session.commit()

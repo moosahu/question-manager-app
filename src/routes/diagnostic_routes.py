@@ -1582,18 +1582,11 @@ def get_student_assigned_tests():
             try:
                 if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
                     student_id = current_user.id
-                    print(f"📱 Got student_id from current_user: {student_id}")
+                    pass  # student_id from current_user
             except:
                 pass
         
-        print(f"📱 Getting assigned tests - Methods tried:")
-        print(f"  - Query param: {request.args.get('student_id')}")
-        print(f"  - Body: {request.get_json() if request.method == 'POST' else 'N/A'}")
-        print(f"  - Header X-Student-ID: {request.headers.get('X-Student-ID')}")
-        print(f"  - Header Student-ID: {request.headers.get('Student-ID')}")
-        print(f"  - Cookie student_id: {request.cookies.get('student_id')}")
-        print(f"  - All cookies: {list(request.cookies.keys())}")
-        print(f"  - Final student_id: {student_id}")
+        # Debug info removed for security
         
         if not student_id:
             return jsonify({

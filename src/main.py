@@ -690,8 +690,7 @@ def create_app():
                 if not admin_password:
                     import secrets as _secrets
                     admin_password = _secrets.token_urlsafe(16)
-                    print(f"⚠️  ADMIN_PASSWORD not set — generated random password: {admin_password}")
-                    print("⚠️  Set ADMIN_PASSWORD environment variable to use a fixed password.")
+                    print("⚠️  ADMIN_PASSWORD not set — generated random password. Set ADMIN_PASSWORD env var.")
                 hashed_password = generate_password_hash(admin_password)
                 new_admin = User(username="admin", password_hash=hashed_password, is_admin=True)
                 db.session.add(new_admin)

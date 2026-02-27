@@ -1310,48 +1310,33 @@ def api_save_fcm_token():
         student_id = data.get('student_id')
         username = data.get('username')
         
-        print(f"\n🔍 ========== FCM Token Request ==========")
-        print(f"student_id: {student_id}")
-        print(f"username: {username}")
-        print(f"token_length: {len(fcm_token)}")
-        print(f"token_preview: {fcm_token[:50]}...")
-        
         if not fcm_token:
-            print(f"❌ FCM token مفقود")
             return jsonify({
                 'success': False,
                 'error': 'FCM token مطلوب'
             }), 400
-        
+
         # البحث عن الطالب
         student = None
         if student_id:
             student = Student.query.get(student_id)
-            print(f"🔍 بحث بالمعرف: student_id={student_id}, found={student is not None}")
         elif username:
             student = Student.query.filter_by(username=username).first()
-            print(f"🔍 بحث بالاسم: username={username}, found={student is not None}")
         else:
-            print(f"❌ لم يتم إرسال student_id أو username")
             return jsonify({
                 'success': False,
                 'error': 'معرف الطالب أو اسم المستخدم مطلوب'
             }), 400
-        
+
         if not student:
-            print(f"❌ الطالب غير موجود")
             return jsonify({
                 'success': False,
                 'error': 'الطالب غير موجود'
             }), 404
-        
+
         # تحديث FCM Token
-        print(f"🔍 قبل التحديث: student.fcm_token = {student.fcm_token[:50] if student.fcm_token else 'None'}...")
         student.fcm_token = fcm_token
         db.session.commit()
-        print(f"🔍 بعد التحديث: student.fcm_token = {student.fcm_token[:50]}...")
-        print(f"✅ تم حفظ FCM Token بنجاح")
-        print(f"========== End FCM Token Request ==========\n")
         
         return jsonify({
             'success': True,

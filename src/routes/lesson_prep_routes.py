@@ -356,7 +356,8 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
 
 
 @lesson_prep_bp.route('/status/<int:plan_id>', methods=['GET'])
-def get_plan_status(plan_id):
+@auth_required
+def get_plan_status(plan_id, teacher=None, user_id=None, is_admin=False):
     """حالة التوليد (polling)"""
     try:
         plan = LessonPlan.query.get(plan_id)
@@ -407,7 +408,8 @@ def get_history(teacher=None, user_id=None, is_admin=False):
 
 
 @lesson_prep_bp.route('/<int:plan_id>', methods=['GET'])
-def get_plan(plan_id):
+@auth_required
+def get_plan(plan_id, teacher=None, user_id=None, is_admin=False):
     """عرض التحضير كـ JSON"""
     try:
         plan = LessonPlan.query.get(plan_id)
@@ -421,7 +423,8 @@ def get_plan(plan_id):
 
 
 @lesson_prep_bp.route('/<int:plan_id>/pdf', methods=['GET'])
-def download_plan_pdf(plan_id):
+@auth_required
+def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
     """تحميل ملف PDF"""
     try:
         plan = LessonPlan.query.get(plan_id)
@@ -905,7 +908,8 @@ def rate_plan(plan_id, teacher=None, user_id=None, is_admin=False):
 
 
 @lesson_prep_bp.route('/<int:plan_id>/ratings', methods=['GET'])
-def get_plan_ratings(plan_id):
+@auth_required
+def get_plan_ratings(plan_id, teacher=None, user_id=None, is_admin=False):
     """عرض تقييمات تحضير"""
     try:
         ratings = PlanRating.query.filter_by(plan_id=plan_id).order_by(PlanRating.created_at.desc()).all()
@@ -971,7 +975,8 @@ def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
 
 
 @lesson_prep_bp.route('/<int:plan_id>/worksheet/pdf', methods=['GET'])
-def download_worksheet_pdf(plan_id):
+@auth_required
+def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
     """تحميل PDF ورقة العمل"""
     try:
         plan = LessonPlan.query.get(plan_id)
