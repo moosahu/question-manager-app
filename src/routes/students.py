@@ -221,18 +221,44 @@ def edit_student(student_id):
 @login_required
 @admin_required
 def delete_student(student_id):
-    """حذف طالب"""
+    """حذف طالب مع جميع بياناته المرتبطة"""
     student = Student.query.get_or_404(student_id)
     name = student.name
-    
+
     try:
+        # حذف البيانات المرتبطة أولاً
+        related_tables = [
+            'ai_actions', 'ai_analysis', 'ai_logs',
+            'challenge_completions', 'diagnostic_comparisons', 'diagnostic_results',
+            'notifications', 'password_resets', 'point_transactions',
+            'student_achievements', 'student_challenges', 'student_notifications',
+            'student_points', 'student_results',
+        ]
+        for table in related_tables:
+            try:
+                db.session.execute(
+                    db.text(f"DELETE FROM {table} WHERE student_id = :id"),
+                    {'id': student_id}
+                )
+            except Exception:
+                pass
+
+        # حذف login_attempts
+        try:
+            db.session.execute(
+                db.text("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'"),
+                {'id': student_id}
+            )
+        except Exception:
+            pass
+
         db.session.delete(student)
         db.session.commit()
         flash(f'تم حذف الطالب "{name}" بنجاح', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'خطأ في حذف الطالب: {str(e)}', 'danger')
-    
+
     return redirect(url_for('students.list_students'))
 
 
@@ -2432,10 +2458,36 @@ def api_mobile_edit_student(student_id):
 @login_required
 @admin_required
 def api_mobile_delete_student(student_id):
-    """حذف طالب"""
+    """حذف طالب مع جميع بياناته المرتبطة"""
     student = Student.query.get_or_404(student_id)
     name = student.name
     try:
+        # حذف البيانات المرتبطة أولاً
+        related_tables = [
+            'ai_actions', 'ai_analysis', 'ai_logs',
+            'challenge_completions', 'diagnostic_comparisons', 'diagnostic_results',
+            'notifications', 'password_resets', 'point_transactions',
+            'student_achievements', 'student_challenges', 'student_notifications',
+            'student_points', 'student_results',
+        ]
+        for table in related_tables:
+            try:
+                db.session.execute(
+                    db.text(f"DELETE FROM {table} WHERE student_id = :id"),
+                    {'id': student_id}
+                )
+            except Exception:
+                pass
+
+        # حذف login_attempts
+        try:
+            db.session.execute(
+                db.text("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'"),
+                {'id': student_id}
+            )
+        except Exception:
+            pass
+
         db.session.delete(student)
         db.session.commit()
         try:
