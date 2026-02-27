@@ -479,7 +479,7 @@ def check_lesson_prep_job():
                 AISetting.set_setting('lesson_prep_job_status', 'completed' if success else 'failed', 'string')
                 logger.info(f"{'✅' if success else '❌'} [Scheduler] تحضير #{plan_id}: {'نجح' if success else 'فشل'}")
 
-                # إرسال تحديث WebSocket
+                # إرسال تحديث WebSocket (لو مفعّل)
                 try:
                     from src.routes.lesson_prep_routes import emit_plan_status
                     if success:

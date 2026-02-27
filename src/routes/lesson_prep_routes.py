@@ -1242,7 +1242,6 @@ def on_subscribe(data):
     if plan_id:
         join_room(f'plan_{plan_id}')
         logger.info(f"🔌 WebSocket: اشتراك في plan_{plan_id}")
-        # إرسال الحالة الحالية فوراً
         plan = LessonPlan.query.get(plan_id)
         if plan:
             display_status = 'generating' if plan.status == 'rate_limited' else plan.status
