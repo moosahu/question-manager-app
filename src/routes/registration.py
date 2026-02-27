@@ -13,6 +13,31 @@ from src.middleware.auth_middleware import create_student_token, create_teacher_
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
+import re
+
+def validate_arabic_name(name):
+    """التحقق من صحة الاسم - يرجع None لو صحيح، أو رسالة الخطأ"""
+    name_parts = name.split()
+    if len(name_parts) < 3:
+        return 'يجب كتابة الاسم الثلاثي على الأقل (مثال: أحمد محمد علي)'
+    if not re.match(r'^[\u0600-\u06FFa-zA-Z\s]+$', name):
+        return 'الاسم يجب أن يحتوي على حروف فقط'
+    # منع خلط العربي والإنجليزي
+    has_arabic = bool(re.search(r'[\u0600-\u06FF]', name))
+    has_english = bool(re.search(r'[a-zA-Z]', name))
+    if has_arabic and has_english:
+        return 'يرجى كتابة الاسم بلغة واحدة (عربي أو إنجليزي)'
+    if name_parts[0] == name_parts[1]:
+        return 'الاسم الأول والثاني لا يمكن أن يكونا متطابقين'
+    if name_parts[0] in ['ابو', 'أبو', 'ام', 'أم']:
+        return 'يرجى كتابة الاسم الحقيقي بدون ألقاب (ابو/ام)'
+    if any(len(part) < 2 for part in name_parts):
+        return 'كل جزء من الاسم يجب أن يكون حرفين على الأقل'
+    # منع الأحرف المكررة (ااااا أو hhhhh)
+    if re.search(r'(.)\1{3,}', name):
+        return 'الرجاء إدخال اسم صحيح'
+    return None
+
 
 # ==================== التحقق من حالة التسجيل ====================
 @registration_bp.route('/status', methods=['GET'])
@@ -77,20 +102,29 @@ def register_student():
                 'success': False,
                 'error': 'الاسم واسم المستخدم والإيميل وكلمة المرور مطلوبة'
             }), 400
-        
-        # التحقق من طول كلمة المرور
+
+        # التحقق من صحة الاسم
+        name_error = validate_arabic_name(name)
+        if name_error:
+            return jsonify({'success': False, 'error': name_error}), 400
+
+        # التحقق من اسم المستخدم
+        if len(username) < 4 or len(username) > 20:
+            return jsonify({'success': False, 'error': 'اسم المستخدم يجب أن يكون بين 4 و 20 حرف'}), 400
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', username):
+            return jsonify({'success': False, 'error': 'اسم المستخدم: حروف إنجليزية وأرقام فقط، يبدأ بحرف'}), 400
+
+        # التحقق من كلمة المرور
         if len(password) < 8:
-            return jsonify({
-                'success': False,
-                'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
-            }), 400
-        
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'}), 400
+        if not re.search(r'[a-zA-Z]', password):
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على حرف واحد على الأقل'}), 400
+        if not re.search(r'[0-9]', password):
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل'}), 400
+
         # التحقق من صيغة الإيميل
-        if '@' not in email or '.' not in email:
-            return jsonify({
-                'success': False,
-                'error': 'صيغة الإيميل غير صحيحة'
-            }), 400
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            return jsonify({'success': False, 'error': 'صيغة الإيميل غير صحيحة'}), 400
         
         # التحقق من الحقول الإضافية المطلوبة
         if settings.require_phone and not phone:
@@ -196,20 +230,29 @@ def register_teacher():
                 'success': False,
                 'error': 'الاسم واسم المستخدم والإيميل وكلمة المرور مطلوبة'
             }), 400
-        
-        # التحقق من طول كلمة المرور
+
+        # التحقق من صحة الاسم
+        name_error = validate_arabic_name(name)
+        if name_error:
+            return jsonify({'success': False, 'error': name_error}), 400
+
+        # التحقق من اسم المستخدم
+        if len(username) < 4 or len(username) > 20:
+            return jsonify({'success': False, 'error': 'اسم المستخدم يجب أن يكون بين 4 و 20 حرف'}), 400
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]+$', username):
+            return jsonify({'success': False, 'error': 'اسم المستخدم: حروف إنجليزية وأرقام فقط، يبدأ بحرف'}), 400
+
+        # التحقق من كلمة المرور
         if len(password) < 8:
-            return jsonify({
-                'success': False,
-                'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'
-            }), 400
-        
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'}), 400
+        if not re.search(r'[a-zA-Z]', password):
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على حرف واحد على الأقل'}), 400
+        if not re.search(r'[0-9]', password):
+            return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل'}), 400
+
         # التحقق من صيغة الإيميل
-        if '@' not in email or '.' not in email:
-            return jsonify({
-                'success': False,
-                'error': 'صيغة الإيميل غير صحيحة'
-            }), 400
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            return jsonify({'success': False, 'error': 'صيغة الإيميل غير صحيحة'}), 400
         
         # التحقق من الحقول الإضافية المطلوبة
         if settings.teacher_require_phone and not phone:
