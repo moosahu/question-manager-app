@@ -15,8 +15,27 @@ registration_bp = Blueprint('registration', __name__, url_prefix='/api/registrat
 
 import re
 
+BLOCKED_EMAIL_DOMAINS = [
+    'tempmail.org', 'guerrillamail.com', 'yopmail.com', 'throwaway.email',
+    'temp-mail.org', 'fakeinbox.com', 'mailinator.com', 'trashmail.com',
+    'dispostable.com', 'sharklasers.com', 'guerrillamailblock.com', 'grr.la',
+    'tempail.com', 'mohmal.com', 'emailondeck.com', 'tempr.email',
+    '10minutemail.com', 'minutemail.com', 'maildrop.cc', 'harakirimail.com',
+]
+
+WEAK_PASSWORDS = [
+    '12345678', '123456789', '1234567890', 'password1', 'password123',
+    'qwerty123', 'abcd1234', 'abcdef12', '11111111', '12341234',
+    'iloveyou1', 'admin123', 'welcome1', 'monkey123', 'dragon123',
+    'letmein1', 'football1', 'baseball1', 'abc12345', 'trustno1',
+    'sunshine1', 'princess1', 'charlie1', 'password12',
+]
+
+
 def validate_arabic_name(name):
     """التحقق من صحة الاسم - يرجع None لو صحيح، أو رسالة الخطأ"""
+    if len(name) > 40:
+        return 'الاسم يجب أن يكون 40 حرف كحد أقصى'
     name_parts = name.split()
     if len(name_parts) < 3:
         return 'يجب كتابة الاسم الثلاثي على الأقل (مثال: أحمد محمد علي)'
@@ -121,10 +140,16 @@ def register_student():
             return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على حرف واحد على الأقل'}), 400
         if not re.search(r'[0-9]', password):
             return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل'}), 400
+        if password.lower() in WEAK_PASSWORDS:
+            return jsonify({'success': False, 'error': 'كلمة المرور ضعيفة جداً، اختر كلمة مرور أقوى'}), 400
 
         # التحقق من صيغة الإيميل
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
             return jsonify({'success': False, 'error': 'صيغة الإيميل غير صحيحة'}), 400
+        # منع الإيميلات المؤقتة
+        email_domain = email.split('@')[-1]
+        if email_domain in BLOCKED_EMAIL_DOMAINS:
+            return jsonify({'success': False, 'error': 'هذا النوع من الإيميلات غير مسموح، استخدم إيميل حقيقي'}), 400
         
         # التحقق من الحقول الإضافية المطلوبة
         if settings.require_phone and not phone:
@@ -249,10 +274,16 @@ def register_teacher():
             return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على حرف واحد على الأقل'}), 400
         if not re.search(r'[0-9]', password):
             return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل'}), 400
+        if password.lower() in WEAK_PASSWORDS:
+            return jsonify({'success': False, 'error': 'كلمة المرور ضعيفة جداً، اختر كلمة مرور أقوى'}), 400
 
         # التحقق من صيغة الإيميل
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
             return jsonify({'success': False, 'error': 'صيغة الإيميل غير صحيحة'}), 400
+        # منع الإيميلات المؤقتة
+        email_domain = email.split('@')[-1]
+        if email_domain in BLOCKED_EMAIL_DOMAINS:
+            return jsonify({'success': False, 'error': 'هذا النوع من الإيميلات غير مسموح، استخدم إيميل حقيقي'}), 400
         
         # التحقق من الحقول الإضافية المطلوبة
         if settings.teacher_require_phone and not phone:
