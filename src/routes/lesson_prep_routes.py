@@ -4,7 +4,7 @@ Lesson Prep Routes - واجهات API لتحضير الدروس بالذكاء �
 from flask import Blueprint, request, jsonify, send_file
 from flask_login import current_user
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
 import io
 import os
@@ -38,8 +38,11 @@ DEFAULT_QUOTAS = {
 
 def _get_teacher_quota(teacher_id):
     """حساب الحصة المتبقية للمعلم اليوم"""
-    from datetime import date
-    today_start = datetime.combine(date.today(), datetime.min.time())
+    # حساب بداية اليوم بتوقيت السعودية (UTC+3) ثم تحويل لـ UTC للمقارنة مع created_at
+    sa_tz = timezone(timedelta(hours=3))
+    sa_now = datetime.now(sa_tz)
+    sa_today_start = sa_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = sa_today_start.astimezone(timezone.utc).replace(tzinfo=None)
 
     # قراءة الحدود من الإعدادات (الأدمن يقدر يعدلها)
     quotas = {}
