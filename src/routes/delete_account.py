@@ -21,7 +21,7 @@ delete_account_bp = Blueprint('delete_account', __name__)
 from src.models.notification import Notification
 
 def notify_admin_delete(title, message):
-    """إرسال إشعار للأدمن عند حذف حساب (قاعدة بيانات + إيميل)"""
+    """إرسال إشعار للأدمن عند حذف حساب (قاعدة بيانات + إيميل + push)"""
     try:
         notif = Notification(
             title=title,
@@ -40,10 +40,16 @@ def notify_admin_delete(title, message):
     try:
         from src.models.teacher import Teacher
         admin = Teacher.query.filter_by(is_admin=True).first()
-        if admin and admin.email:
-            email_service.send_admin_notification(admin.email, title, message)
+        if admin:
+            if admin.email:
+                email_service.send_admin_notification(admin.email, title, message)
+            if admin.fcm_token:
+                from src.services.notification_service import NotificationService
+                NotificationService.send_fcm_notification(
+                    admin.fcm_token, title, message.replace('\n', ' - ')
+                )
     except Exception as e:
-        print(f"⚠️ فشل إرسال إيميل الأدمن: {e}")
+        print(f"⚠️ فشل إرسال إشعار الأدمن: {e}")
 
 
 # ============================================================

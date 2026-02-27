@@ -18,7 +18,7 @@ from src.models.notification import Notification
 
 
 def notify_admin(title, message):
-    """إرسال إشعار للأدمن (قاعدة بيانات + إيميل)"""
+    """إرسال إشعار للأدمن (قاعدة بيانات + إيميل + push notification)"""
     try:
         # 1. حفظ في قاعدة البيانات
         notif = Notification(
@@ -36,13 +36,21 @@ def notify_admin(title, message):
         print(f"⚠️ فشل حفظ إشعار الأدمن: {e}")
 
     try:
-        # 2. إرسال إيميل للأدمن
+        # 2. جلب الأدمن
         from src.models.teacher import Teacher
         admin = Teacher.query.filter_by(is_admin=True).first()
-        if admin and admin.email:
-            email_service.send_admin_notification(admin.email, title, message)
+        if admin:
+            # إرسال إيميل
+            if admin.email:
+                email_service.send_admin_notification(admin.email, title, message)
+            # إرسال push notification
+            if admin.fcm_token:
+                from src.services.notification_service import NotificationService
+                NotificationService.send_fcm_notification(
+                    admin.fcm_token, title, message.replace('\n', ' - ')
+                )
     except Exception as e:
-        print(f"⚠️ فشل إرسال إيميل الأدمن: {e}")
+        print(f"⚠️ فشل إرسال إشعار الأدمن: {e}")
 
 BLOCKED_EMAIL_DOMAINS = [
     'tempmail.org', 'guerrillamail.com', 'yopmail.com', 'throwaway.email',
