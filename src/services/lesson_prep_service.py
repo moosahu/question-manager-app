@@ -450,6 +450,8 @@ class LessonPrepService:
 ```
 
 ## تنبيهات مهمة
+- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, objectives, preparation, presentation, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
+- ⚠️ استخدم نفس أسماء المفاتيح بالضبط كما هي مكتوبة - لا تغيرها (مثلاً: evaluation وليس assessment)
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى
 - استخدم مصطلحات كيميائية دقيقة
