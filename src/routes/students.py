@@ -252,7 +252,30 @@ def delete_student(student_id):
         except Exception:
             pass
 
-        db.session.delete(student)
+        # حذف delete_account_otps
+        try:
+            db.session.execute(
+                db.text("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'"),
+                {'id': student_id}
+            )
+        except Exception:
+            pass
+
+        # حذف email_verifications
+        try:
+            db.session.execute(
+                db.text("DELETE FROM email_verifications WHERE email = :email"),
+                {'email': student.email}
+            )
+        except Exception:
+            pass
+
+        # ✅ حذف الطالب بـ raw SQL (تجنب ORM cascade اللي يسوي UPDATE SET NULL)
+        db.session.expunge(student)
+        db.session.execute(
+            db.text("DELETE FROM students WHERE id = :id"),
+            {'id': student_id}
+        )
         db.session.commit()
         flash(f'تم حذف الطالب "{name}" بنجاح', 'success')
     except Exception as e:
@@ -2488,7 +2511,30 @@ def api_mobile_delete_student(student_id):
         except Exception:
             pass
 
-        db.session.delete(student)
+        # حذف delete_account_otps
+        try:
+            db.session.execute(
+                db.text("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'"),
+                {'id': student_id}
+            )
+        except Exception:
+            pass
+
+        # حذف email_verifications
+        try:
+            db.session.execute(
+                db.text("DELETE FROM email_verifications WHERE email = :email"),
+                {'email': student.email}
+            )
+        except Exception:
+            pass
+
+        # ✅ حذف الطالب بـ raw SQL (تجنب ORM cascade اللي يسوي UPDATE SET NULL)
+        db.session.expunge(student)
+        db.session.execute(
+            db.text("DELETE FROM students WHERE id = :id"),
+            {'id': student_id}
+        )
         db.session.commit()
         try:
             from src.models.audit_log import AuditLog
