@@ -404,7 +404,8 @@ def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
         if not is_admin and teacher and plan.teacher_id != teacher.id:
             return jsonify({'success': False, 'error': 'لا يمكنك حذف تحضير معلم آخر'}), 403
 
-        db.session.delete(plan)
+        # حذف ناعم - يختفي من العرض لكن يبقى محسوب في العداد (التكلفة راحت)
+        plan.status = 'deleted'
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم حذف التحضير'})
 
