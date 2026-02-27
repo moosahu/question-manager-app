@@ -224,9 +224,13 @@ def delete_student(student_id):
     """حذف طالب مع جميع بياناته المرتبطة"""
     student = Student.query.get_or_404(student_id)
     name = student.name
+    email = student.email
 
     try:
-        # حذف البيانات المرتبطة أولاً
+        # إزالة الطالب من ORM session أولاً لتجنب cascade
+        db.session.expunge(student)
+
+        # حذف البيانات المرتبطة (كل واحد في savepoint مستقل)
         related_tables = [
             'ai_actions', 'ai_analysis', 'ai_logs',
             'challenge_completions', 'diagnostic_comparisons', 'diagnostic_results',
@@ -236,42 +240,26 @@ def delete_student(student_id):
         ]
         for table in related_tables:
             try:
-                db.session.execute(
-                    db.text(f"DELETE FROM {table} WHERE student_id = :id"),
-                    {'id': student_id}
-                )
+                with db.session.begin_nested():
+                    db.session.execute(
+                        db.text(f"DELETE FROM {table} WHERE student_id = :id"),
+                        {'id': student_id}
+                    )
             except Exception:
                 pass
 
-        # حذف login_attempts
-        try:
-            db.session.execute(
-                db.text("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'"),
-                {'id': student_id}
-            )
-        except Exception:
-            pass
+        for stmt, params in [
+            ("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'", {'id': student_id}),
+            ("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'", {'id': student_id}),
+            ("DELETE FROM email_verifications WHERE email = :email", {'email': email}),
+        ]:
+            try:
+                with db.session.begin_nested():
+                    db.session.execute(db.text(stmt), params)
+            except Exception:
+                pass
 
-        # حذف delete_account_otps
-        try:
-            db.session.execute(
-                db.text("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'"),
-                {'id': student_id}
-            )
-        except Exception:
-            pass
-
-        # حذف email_verifications
-        try:
-            db.session.execute(
-                db.text("DELETE FROM email_verifications WHERE email = :email"),
-                {'email': student.email}
-            )
-        except Exception:
-            pass
-
-        # ✅ حذف الطالب بـ raw SQL (تجنب ORM cascade اللي يسوي UPDATE SET NULL)
-        db.session.expunge(student)
+        # حذف الطالب نفسه
         db.session.execute(
             db.text("DELETE FROM students WHERE id = :id"),
             {'id': student_id}
@@ -2484,8 +2472,12 @@ def api_mobile_delete_student(student_id):
     """حذف طالب مع جميع بياناته المرتبطة"""
     student = Student.query.get_or_404(student_id)
     name = student.name
+    email = student.email
     try:
-        # حذف البيانات المرتبطة أولاً
+        # إزالة من ORM session أولاً
+        db.session.expunge(student)
+
+        # حذف البيانات المرتبطة (كل واحد في savepoint مستقل)
         related_tables = [
             'ai_actions', 'ai_analysis', 'ai_logs',
             'challenge_completions', 'diagnostic_comparisons', 'diagnostic_results',
@@ -2495,42 +2487,26 @@ def api_mobile_delete_student(student_id):
         ]
         for table in related_tables:
             try:
-                db.session.execute(
-                    db.text(f"DELETE FROM {table} WHERE student_id = :id"),
-                    {'id': student_id}
-                )
+                with db.session.begin_nested():
+                    db.session.execute(
+                        db.text(f"DELETE FROM {table} WHERE student_id = :id"),
+                        {'id': student_id}
+                    )
             except Exception:
                 pass
 
-        # حذف login_attempts
-        try:
-            db.session.execute(
-                db.text("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'"),
-                {'id': student_id}
-            )
-        except Exception:
-            pass
+        for stmt, params in [
+            ("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'student'", {'id': student_id}),
+            ("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'", {'id': student_id}),
+            ("DELETE FROM email_verifications WHERE email = :email", {'email': email}),
+        ]:
+            try:
+                with db.session.begin_nested():
+                    db.session.execute(db.text(stmt), params)
+            except Exception:
+                pass
 
-        # حذف delete_account_otps
-        try:
-            db.session.execute(
-                db.text("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'student'"),
-                {'id': student_id}
-            )
-        except Exception:
-            pass
-
-        # حذف email_verifications
-        try:
-            db.session.execute(
-                db.text("DELETE FROM email_verifications WHERE email = :email"),
-                {'email': student.email}
-            )
-        except Exception:
-            pass
-
-        # ✅ حذف الطالب بـ raw SQL (تجنب ORM cascade اللي يسوي UPDATE SET NULL)
-        db.session.expunge(student)
+        # حذف الطالب نفسه
         db.session.execute(
             db.text("DELETE FROM students WHERE id = :id"),
             {'id': student_id}
