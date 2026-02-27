@@ -18,39 +18,45 @@ from src.models.notification import Notification
 
 
 def notify_admin(title, message):
-    """إرسال إشعار للأدمن (قاعدة بيانات + إيميل + push notification)"""
-    try:
-        # 1. حفظ في قاعدة البيانات
-        notif = Notification(
-            title=title,
-            message=message,
-            body=message,
-            type='info',
-            notification_type='admin_alert',
-            user_id=1,
-            is_read=False,
-        )
-        db.session.add(notif)
-        db.session.commit()
-    except Exception as e:
-        print(f"⚠️ فشل حفظ إشعار الأدمن: {e}")
+    """إرسال إشعار للأدمن (إيميل + push لو عنده تطبيق)"""
+    admin_email = None
+    admin_fcm = None
 
     try:
-        # 2. جلب الأدمن
-        from src.models.teacher import Teacher
-        admin = Teacher.query.filter_by(is_admin=True).first()
-        if admin:
-            # إرسال إيميل
-            if admin.email:
-                email_service.send_admin_notification(admin.email, title, message)
-            # إرسال push notification
-            if admin.fcm_token:
-                from src.services.notification_service import NotificationService
-                NotificationService.send_fcm_notification(
-                    admin.fcm_token, title, message.replace('\n', ' - ')
-                )
+        # جلب إيميل الأدمن من جدول user
+        from src.models.user import User
+        admin_user = User.query.filter_by(is_admin=True).first()
+        if admin_user:
+            admin_email = admin_user.email
     except Exception as e:
-        print(f"⚠️ فشل إرسال إشعار الأدمن: {e}")
+        print(f"⚠️ فشل جلب الأدمن من user: {e}")
+
+    try:
+        # لو الأدمن مسجّل كمعلم بنفس الإيميل → يمكن عنده fcm_token
+        if admin_email:
+            from src.models.teacher import Teacher
+            admin_teacher = Teacher.query.filter_by(email=admin_email).first()
+            if admin_teacher and admin_teacher.fcm_token:
+                admin_fcm = admin_teacher.fcm_token
+    except:
+        pass
+
+    # 1. إرسال إيميل
+    if admin_email:
+        try:
+            email_service.send_admin_notification(admin_email, title, message)
+        except Exception as e:
+            print(f"⚠️ فشل إرسال إيميل الأدمن: {e}")
+
+    # 2. إرسال push notification (لو عنده تطبيق)
+    if admin_fcm:
+        try:
+            from src.services.notification_service import NotificationService
+            NotificationService.send_fcm_notification(
+                admin_fcm, title, message.replace('\n', ' - ')
+            )
+        except Exception as e:
+            print(f"⚠️ فشل push notification: {e}")
 
 BLOCKED_EMAIL_DOMAINS = [
     'tempmail.org', 'guerrillamail.com', 'yopmail.com', 'throwaway.email',
