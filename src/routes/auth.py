@@ -382,6 +382,97 @@ def save_admin_fcm_token():
         return jsonify({'success': False, 'error': 'حدث خطأ'}), 500
 
 
+## ==================== إشعارات صندوق وارد الأدمن ====================
+
+@auth_bp.route("/api/admin/notifications", methods=["GET"])
+def get_admin_notifications():
+    """جلب إشعارات الأدمن (الأحدث أول)"""
+    try:
+        from src.models.notification import Notification
+        from src.models.user import User
+
+        # التحقق من الأدمن عبر username في query params
+        username = request.args.get('username', '')
+        admin_user = User.query.filter_by(username=username, is_admin=True).first()
+        if not admin_user:
+            admin_user = User.query.filter_by(is_admin=True).first()
+
+        if not admin_user:
+            return jsonify({'success': False, 'error': 'الأدمن غير موجود'}), 404
+
+        notifications = Notification.query.filter_by(
+            user_id=admin_user.id,
+            type='admin_event'
+        ).order_by(Notification.created_at.desc()).limit(100).all()
+
+        unread_count = sum(1 for n in notifications if not n.is_read)
+
+        return jsonify({
+            'success': True,
+            'notifications': [n.to_dict() for n in notifications],
+            'unread_count': unread_count,
+        })
+
+    except Exception as e:
+        print(f"❌ خطأ في جلب إشعارات الأدمن: {e}")
+        return jsonify({'success': False, 'error': 'حدث خطأ'}), 500
+
+
+@auth_bp.route("/api/admin/notifications/<int:notification_id>/read", methods=["POST"])
+def mark_admin_notification_read(notification_id):
+    """تعليم إشعار كمقروء"""
+    try:
+        from src.models.notification import Notification
+
+        notif = Notification.query.get(notification_id)
+        if not notif:
+            return jsonify({'success': False, 'error': 'الإشعار غير موجود'}), 404
+
+        notif.mark_as_read()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"❌ خطأ في تعليم الإشعار كمقروء: {e}")
+        return jsonify({'success': False, 'error': 'حدث خطأ'}), 500
+
+
+@auth_bp.route("/api/admin/notifications/mark-all-read", methods=["POST"])
+def mark_all_admin_notifications_read():
+    """تعليم كل إشعارات الأدمن كمقروءة"""
+    try:
+        from src.models.notification import Notification
+        from src.models.user import User
+
+        data = request.get_json() or {}
+        username = data.get('username', '')
+        admin_user = User.query.filter_by(username=username, is_admin=True).first()
+        if not admin_user:
+            admin_user = User.query.filter_by(is_admin=True).first()
+
+        if not admin_user:
+            return jsonify({'success': False, 'error': 'الأدمن غير موجود'}), 404
+
+        updated = Notification.query.filter_by(
+            user_id=admin_user.id,
+            type='admin_event',
+            is_read=False
+        ).update({
+            'is_read': True,
+            'read_at': datetime.utcnow()
+        })
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'updated_count': updated,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في تعليم الكل كمقروء: {e}")
+        return jsonify({'success': False, 'error': 'حدث خطأ'}), 500
+
+
 @auth_bp.route("/disable_2fa_notification", methods=["POST"])
 @login_required
 def disable_2fa_notification():
