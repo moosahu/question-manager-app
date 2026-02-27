@@ -502,9 +502,14 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
 
-    # ✅ تهيئة WebSocket
-    from src.extensions import socketio
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+    # ✅ WebSocket (معطّل مؤقتاً - gunicorn gthread لا يدعمه مع 512MB RAM)
+    # socketio يتهيأ لكن بدون transport websocket - يستخدم polling فقط
+    try:
+        from src.extensions import socketio
+        socketio.init_app(app, cors_allowed_origins="*", async_mode='threading',
+                          allow_upgrades=False)  # منع ترقية لـ WebSocket
+    except Exception as e:
+        print(f"⚠️ WebSocket init skipped: {e}")
 
     csrf = CSRFProtect(app)  # تهيئة حماية CSRF
     
