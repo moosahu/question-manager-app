@@ -17,9 +17,19 @@ import gc
 import google.generativeai as genai
 from flask import current_app
 
+import time as _time
+
 from src.extensions import db
-from src.models.textbook import Textbook, LessonPages, LessonPlan
+from src.models.textbook import Textbook, LessonPages, LessonPlan, AIUsageLog
 from src.models.curriculum import Lesson, Unit, Course
+
+# تسعيرة كل provider (بالدولار لكل مليون token)
+AI_PRICING = {
+    'gemini-flash': {'input': 0.075, 'output': 0.30},
+    'claude-haiku': {'input': 0.80, 'output': 4.0},
+    'claude-sonnet': {'input': 3.0, 'output': 15.0},
+    'claude-opus': {'input': 15.0, 'output': 75.0},
+}
 
 logger = logging.getLogger(__name__)
 
@@ -91,22 +101,30 @@ class LessonPrepService:
             pass
         return DEFAULT_PROVIDER
 
-    def _call_ai(self, content, label="", images=None, provider=None):
+    def _call_ai(self, content, label="", images=None, provider=None, plan_id=None, teacher_id=None, operation_type='lesson_prep'):
         """
         استدعاء AI موحّد - يدعم Gemini و Claude
-        content: النص (prompt)
-        images: قائمة صور (bytes) اختياري
-        provider: اسم الـ provider (None = من إعدادات الأدمن أو الافتراضي)
+        يُرجع (text, usage_info)
         """
         if not provider:
             provider = self._get_active_provider()
         info = AI_PROVIDERS.get(provider, AI_PROVIDERS[DEFAULT_PROVIDER])
 
+        start_time = _time.time()
         try:
             if info['provider'] == 'claude':
-                return self._call_claude(content, images, info['model'], label)
+                text, usage = self._call_claude(content, images, info['model'], label)
             else:
-                return self._call_gemini(content, images, label)
+                text, usage = self._call_gemini(content, images, label)
+
+            duration = _time.time() - start_time
+            usage['provider'] = provider
+            usage['duration'] = duration
+
+            # تسجيل التكلفة
+            self._log_usage(provider, usage, plan_id, teacher_id, operation_type, duration)
+
+            return text, usage
         except RateLimitError:
             raise
         except Exception as api_err:
@@ -116,8 +134,32 @@ class LessonPrepService:
                 raise RateLimitError(f"Rate limit 429 - {label}")
             raise
 
+    def _log_usage(self, provider, usage, plan_id, teacher_id, operation_type, duration):
+        """تسجيل استخدام AI في قاعدة البيانات"""
+        try:
+            pricing = AI_PRICING.get(provider, {'input': 0, 'output': 0})
+            input_tokens = usage.get('input_tokens', 0)
+            output_tokens = usage.get('output_tokens', 0)
+            cost = (input_tokens * pricing['input'] + output_tokens * pricing['output']) / 1_000_000
+
+            log_entry = AIUsageLog(
+                teacher_id=teacher_id,
+                ai_provider=provider,
+                operation_type=operation_type,
+                plan_id=plan_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost,
+                duration_seconds=duration,
+            )
+            db.session.add(log_entry)
+            db.session.commit()
+            logger.info(f"💰 تكلفة [{provider}] [{operation_type}]: ${cost:.6f} ({input_tokens}→{output_tokens} tokens)")
+        except Exception as e:
+            logger.warning(f"⚠️ فشل تسجيل التكلفة: {e}")
+
     def _call_gemini(self, prompt, images=None, label=""):
-        """استدعاء Gemini"""
+        """استدعاء Gemini - يُرجع (text, usage_info)"""
         self._ensure_gemini()
         content_parts = []
         if images:
@@ -128,11 +170,22 @@ class LessonPrepService:
                 })
         content_parts.append(prompt)
         response = self.gemini_model.generate_content(content_parts)
-        logger.info(f"✅ Gemini [{label}] - {len(response.text)} حرف")
-        return response.text
+
+        # استخراج tokens من usage_metadata
+        usage = {'input_tokens': 0, 'output_tokens': 0}
+        try:
+            if hasattr(response, 'usage_metadata'):
+                um = response.usage_metadata
+                usage['input_tokens'] = getattr(um, 'prompt_token_count', 0) or 0
+                usage['output_tokens'] = getattr(um, 'candidates_token_count', 0) or 0
+        except Exception:
+            pass
+
+        logger.info(f"✅ Gemini [{label}] - {len(response.text)} حرف ({usage['input_tokens']}→{usage['output_tokens']} tokens)")
+        return response.text, usage
 
     def _call_claude(self, prompt, images=None, model='claude-haiku-4-5-20251001', label=""):
-        """استدعاء Claude"""
+        """استدعاء Claude - يُرجع (text, usage_info)"""
         self._ensure_claude()
         messages_content = []
         if images:
@@ -154,8 +207,18 @@ class LessonPrepService:
             messages=[{'role': 'user', 'content': messages_content}],
         )
         text = response.content[0].text
-        logger.info(f"✅ Claude [{model}] [{label}] - {len(text)} حرف")
-        return text
+
+        # استخراج tokens من response.usage
+        usage = {'input_tokens': 0, 'output_tokens': 0}
+        try:
+            if hasattr(response, 'usage'):
+                usage['input_tokens'] = getattr(response.usage, 'input_tokens', 0) or 0
+                usage['output_tokens'] = getattr(response.usage, 'output_tokens', 0) or 0
+        except Exception:
+            pass
+
+        logger.info(f"✅ Claude [{model}] [{label}] - {len(text)} حرف ({usage['input_tokens']}→{usage['output_tokens']} tokens)")
+        return text, usage
 
     def generate_lesson_plan(self, plan_id):
         """توليد تحضير درس كامل"""
@@ -207,7 +270,8 @@ class LessonPrepService:
             # 3. إرسال للـ AI
             num_images = len(images) if images else 0
             logger.info(f"إرسال {num_images} صورة للتحضير #{plan_id}")
-            ai_text = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images)
+            ai_text, _ = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images,
+                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='lesson_prep')
             del images
 
             # 4. استخراج JSON من الرد
@@ -220,7 +284,7 @@ class LessonPrepService:
                 logger.warning(f"فشل الإصلاح المحلي للتحضير #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
-                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    fix_response_text, _ = self._call_ai(fix_prompt, label="إصلاح JSON")
                     plan_data = self._extract_json(fix_response_text)
                 except Exception as fix_err:
                     logger.warning(f"فشل إصلاح JSON: {fix_err}")
@@ -802,7 +866,8 @@ class LessonPrepService:
 - خصص حصة أو أكثر للمراجعة والتقويم
 - كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
 
-            ai_text = self._call_ai(prompt, label=f"توزيع وحدة #{plan_id}")
+            ai_text, _ = self._call_ai(prompt, label=f"توزيع وحدة #{plan_id}",
+                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')
 
             plan_data = self._extract_json(ai_text)
             if not plan_data:
@@ -813,7 +878,7 @@ class LessonPrepService:
                 logger.warning(f"فشل الإصلاح المحلي للوحدة #{plan_id}، محاولة Gemini...")
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
-                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    fix_response_text, _ = self._call_ai(fix_prompt, label="إصلاح JSON")
                     plan_data = self._extract_json(fix_response_text)
                 except Exception as fix_err:
                     logger.warning(f"فشل إصلاح JSON الوحدة عبر Gemini: {fix_err}")
@@ -1010,7 +1075,8 @@ class LessonPrepService:
 - الحصة الواحدة = periods: 1، إذا الدرس يحتاج حصتين ضع periods: 2
 """
 
-            ai_text = self._call_ai(prompt, label=f"توزيع فصلي #{plan_id}", images=images)
+            ai_text, _ = self._call_ai(prompt, label=f"توزيع فصلي #{plan_id}", images=images,
+                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='semester_dist')
             del images
 
             logger.info(f"رد AI للتوزيع (أول 500 حرف): {ai_text[:500]}")
@@ -1023,7 +1089,7 @@ class LessonPrepService:
             if not plan_data:
                 try:
                     fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط:\n\n{ai_text[:8000]}"
-                    fix_response_text = self._call_ai(fix_prompt, label="إصلاح JSON")
+                    fix_response_text, _ = self._call_ai(fix_prompt, label="إصلاح JSON")
                     plan_data = self._extract_json(fix_response_text)
                 except Exception:
                     pass
@@ -1198,7 +1264,8 @@ class LessonPrepService:
 - المسائل الحسابية تشمل خطوات الحل
 """
 
-            ai_text = self._call_ai(prompt, label=f"ورقة عمل #{plan_id}")
+            ai_text, _ = self._call_ai(prompt, label=f"ورقة عمل #{plan_id}",
+                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='worksheet')
 
             worksheet_data = self._extract_json(ai_text)
             if not worksheet_data:
@@ -1348,7 +1415,8 @@ class LessonPrepService:
 - أعد فقط JSON القسم (ليس التحضير كامل)
 """
 
-            response_text = self._call_ai(prompt, label=f"إعادة توليد {section_name}")
+            response_text, _ = self._call_ai(prompt, label=f"إعادة توليد {section_name}",
+                                            plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='regenerate')
             new_section = self._extract_json(response_text)
             if not new_section:
                 new_section = self._aggressive_json_fix(response_text)

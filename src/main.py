@@ -501,6 +501,11 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
+
+    # ✅ تهيئة WebSocket
+    from src.extensions import socketio
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+
     csrf = CSRFProtect(app)  # تهيئة حماية CSRF
     
     # إعفاء API من CSRF (آمن لأن API محمي بـ login_required + session)

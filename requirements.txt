@@ -86,3 +86,7 @@ wheel>=0.40.0
 tenacity>=8.2.0  # لإعادة المحاولة عند فشل API calls
 
 apscheduler==3.10.4
+
+# ✅ WebSocket للتحديثات الفورية
+flask-socketio>=5.3.0
+simple-websocket>=0.10.0

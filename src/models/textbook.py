@@ -122,3 +122,36 @@ class LessonPlan(db.Model):
             'taught_at': self.taught_at.isoformat() if self.taught_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class AIUsageLog(db.Model):
+    """تسجيل استخدام وتكلفة الذكاء الاصطناعي"""
+    __tablename__ = 'ai_usage_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True)
+    ai_provider = db.Column(db.String(30))  # gemini-flash, claude-haiku, etc.
+    operation_type = db.Column(db.String(30))  # lesson_prep, unit_dist, worksheet, analysis
+    plan_id = db.Column(db.Integer, nullable=True)
+    input_tokens = db.Column(db.Integer, default=0)
+    output_tokens = db.Column(db.Integer, default=0)
+    cost_usd = db.Column(db.Float, default=0.0)
+    duration_seconds = db.Column(db.Float, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    teacher = db.relationship('Teacher', backref=db.backref('ai_usage_logs', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'teacher_id': self.teacher_id,
+            'teacher_name': self.teacher.name if self.teacher else 'أدمن',
+            'ai_provider': self.ai_provider,
+            'operation_type': self.operation_type,
+            'plan_id': self.plan_id,
+            'input_tokens': self.input_tokens,
+            'output_tokens': self.output_tokens,
+            'cost_usd': self.cost_usd,
+            'duration_seconds': self.duration_seconds,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

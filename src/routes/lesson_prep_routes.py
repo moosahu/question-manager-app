@@ -11,8 +11,11 @@ import os
 import logging
 import requests
 
-from src.extensions import db
-from src.models.textbook import LessonPlan, LessonPages
+from sqlalchemy import func
+
+from src.extensions import db, socketio
+from flask_socketio import join_room, leave_room
+from src.models.textbook import LessonPlan, LessonPages, AIUsageLog
 from src.models.curriculum import Lesson, Unit, Course
 from src.models.teacher import Teacher
 from src.models.ai_analysis import AISetting
@@ -170,6 +173,58 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
         if not lesson:
             return jsonify({'success': False, 'error': 'الدرس غير موجود'}), 404
 
+        # Cache: بحث عن تحضير مكتمل بنفس المعايير (للمعلمين فقط)
+        if teacher and not is_admin:
+            student_level = data.get('student_level', 'متفاوت')
+            student_count = data.get('student_count', 30)
+            weak_count = data.get('weak_students_count', 5)
+            excellent_count = data.get('excellent_students_count', 5)
+            focus_area = data.get('focus_area', 'شامل')
+            examples_count = data.get('examples_count', 5)
+
+            cached = LessonPlan.query.filter_by(
+                lesson_id=lesson_id,
+                plan_type='single_lesson',
+                student_level=student_level,
+                student_count=student_count,
+                weak_students_count=weak_count,
+                excellent_students_count=excellent_count,
+                focus_area=focus_area,
+                examples_count=examples_count,
+                status='completed',
+            ).filter(
+                LessonPlan.plan_data.isnot(None),
+            ).first()
+
+            if cached and cached.plan_data:
+                new_plan = LessonPlan(
+                    lesson_id=lesson_id,
+                    teacher_id=teacher.id,
+                    plan_type='single_lesson',
+                    ai_provider=cached.ai_provider,
+                    plan_data=dict(cached.plan_data),
+                    pdf_file_url=cached.pdf_file_url,
+                    student_level=student_level,
+                    student_count=student_count,
+                    weak_students_count=weak_count,
+                    excellent_students_count=excellent_count,
+                    focus_area=focus_area,
+                    examples_count=examples_count,
+                    status='completed',
+                )
+                db.session.add(new_plan)
+                db.session.commit()
+                logger.info(f"📦 Cache hit! تحضير #{cached.id} → نسخة #{new_plan.id} للمعلم {teacher.id}")
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'plan_id': new_plan.id,
+                        'status': 'completed',
+                        'cached': True,
+                        'data': new_plan.to_dict(),
+                    }
+                })
+
         # إنشاء طلب تحضير
         plan = LessonPlan(
             lesson_id=lesson_id,
@@ -231,6 +286,44 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
+
+        # Cache: بحث عن توزيع وحدة مكتمل بنفس الدرس وعدد الحصص (للمعلمين فقط)
+        if teacher and not is_admin:
+            # نبحث عن أي درس من نفس الوحدة
+            lesson_obj = Lesson.query.get(lesson_id)
+            if lesson_obj:
+                unit_lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=lesson_obj.unit_id).all()]
+                cached = LessonPlan.query.filter(
+                    LessonPlan.lesson_id.in_(unit_lesson_ids),
+                    LessonPlan.plan_type == 'unit_distribution',
+                    LessonPlan.student_count == total_periods,
+                    LessonPlan.status == 'completed',
+                    LessonPlan.plan_data.isnot(None),
+                ).first()
+
+                if cached and cached.plan_data:
+                    new_plan = LessonPlan(
+                        lesson_id=lesson_id,
+                        teacher_id=teacher.id,
+                        plan_type='unit_distribution',
+                        ai_provider=cached.ai_provider,
+                        plan_data=dict(cached.plan_data),
+                        pdf_file_url=cached.pdf_file_url,
+                        student_count=total_periods,
+                        status='completed',
+                    )
+                    db.session.add(new_plan)
+                    db.session.commit()
+                    logger.info(f"📦 Cache hit (unit)! #{cached.id} → #{new_plan.id} للمعلم {teacher.id}")
+                    return jsonify({
+                        'success': True,
+                        'data': {
+                            'plan_id': new_plan.id,
+                            'status': 'completed',
+                            'cached': True,
+                            'data': new_plan.to_dict(),
+                        }
+                    })
 
         plan = LessonPlan(
             lesson_id=lesson_id,
@@ -1014,3 +1107,167 @@ def get_progress(teacher=None, user_id=None, is_admin=False):
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 9: مراقبة تكلفة الذكاء الاصطناعي
+# ============================================================
+
+@lesson_prep_bp.route('/costs/summary', methods=['GET'])
+@auth_required
+def get_cost_summary(teacher=None, user_id=None, is_admin=False):
+    """ملخص التكلفة (اليوم/الأسبوع/الشهر)"""
+    try:
+        sa_tz = timezone(timedelta(hours=3))
+        sa_now = datetime.now(sa_tz)
+
+        today_start = sa_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+        week_start = (sa_now - timedelta(days=sa_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+        month_start = sa_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+
+        def _calc_period(start):
+            q = db.session.query(
+                func.coalesce(func.sum(AIUsageLog.cost_usd), 0),
+                func.coalesce(func.sum(AIUsageLog.input_tokens), 0),
+                func.coalesce(func.sum(AIUsageLog.output_tokens), 0),
+                func.count(AIUsageLog.id),
+            ).filter(AIUsageLog.created_at >= start)
+            if teacher and not is_admin:
+                q = q.filter(AIUsageLog.teacher_id == teacher.id)
+            row = q.first()
+            return {
+                'cost_usd': round(float(row[0]), 6),
+                'input_tokens': int(row[1]),
+                'output_tokens': int(row[2]),
+                'requests': int(row[3]),
+            }
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'today': _calc_period(today_start),
+                'week': _calc_period(week_start),
+                'month': _calc_period(month_start),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"خطأ في ملخص التكلفة: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/costs/by-teacher', methods=['GET'])
+@auth_required
+def get_cost_by_teacher(teacher=None, user_id=None, is_admin=False):
+    """تكلفة كل معلم (للأدمن فقط)"""
+    try:
+        if not is_admin:
+            return jsonify({'success': False, 'error': 'للأدمن فقط'}), 403
+
+        sa_tz = timezone(timedelta(hours=3))
+        sa_now = datetime.now(sa_tz)
+        month_start = sa_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+
+        from src.models.teacher import Teacher as T
+        rows = db.session.query(
+            AIUsageLog.teacher_id,
+            T.name,
+            func.coalesce(func.sum(AIUsageLog.cost_usd), 0),
+            func.count(AIUsageLog.id),
+        ).outerjoin(T, AIUsageLog.teacher_id == T.id).filter(
+            AIUsageLog.created_at >= month_start,
+        ).group_by(AIUsageLog.teacher_id, T.name).order_by(
+            func.sum(AIUsageLog.cost_usd).desc()
+        ).all()
+
+        teachers_data = [{
+            'teacher_id': row[0],
+            'teacher_name': row[1] or 'أدمن',
+            'cost_usd': round(float(row[2]), 6),
+            'requests': int(row[3]),
+        } for row in rows]
+
+        return jsonify({'success': True, 'data': teachers_data})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@lesson_prep_bp.route('/costs/by-provider', methods=['GET'])
+@auth_required
+def get_cost_by_provider(teacher=None, user_id=None, is_admin=False):
+    """تكلفة كل provider"""
+    try:
+        sa_tz = timezone(timedelta(hours=3))
+        sa_now = datetime.now(sa_tz)
+        month_start = sa_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+
+        q = db.session.query(
+            AIUsageLog.ai_provider,
+            func.coalesce(func.sum(AIUsageLog.cost_usd), 0),
+            func.coalesce(func.sum(AIUsageLog.input_tokens), 0),
+            func.coalesce(func.sum(AIUsageLog.output_tokens), 0),
+            func.count(AIUsageLog.id),
+        ).filter(AIUsageLog.created_at >= month_start)
+
+        if teacher and not is_admin:
+            q = q.filter(AIUsageLog.teacher_id == teacher.id)
+
+        rows = q.group_by(AIUsageLog.ai_provider).order_by(
+            func.sum(AIUsageLog.cost_usd).desc()
+        ).all()
+
+        providers_data = [{
+            'provider': row[0],
+            'cost_usd': round(float(row[1]), 6),
+            'input_tokens': int(row[2]),
+            'output_tokens': int(row[3]),
+            'requests': int(row[4]),
+        } for row in rows]
+
+        return jsonify({'success': True, 'data': providers_data})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ميزة 11: WebSocket للتحديثات الفورية
+# ============================================================
+
+@socketio.on('subscribe')
+def on_subscribe(data):
+    """اشتراك في تحديثات تحضير معين"""
+    plan_id = data.get('plan_id')
+    if plan_id:
+        join_room(f'plan_{plan_id}')
+        logger.info(f"🔌 WebSocket: اشتراك في plan_{plan_id}")
+        # إرسال الحالة الحالية فوراً
+        plan = LessonPlan.query.get(plan_id)
+        if plan:
+            display_status = 'generating' if plan.status == 'rate_limited' else plan.status
+            result = {'plan_id': plan.id, 'status': display_status}
+            if plan.status == 'completed':
+                result['data'] = plan.to_dict()
+            elif plan.status == 'failed':
+                result['error'] = plan.error_message
+            socketio.emit('plan_status', result, room=f'plan_{plan_id}')
+
+
+@socketio.on('unsubscribe')
+def on_unsubscribe(data):
+    """إلغاء اشتراك"""
+    plan_id = data.get('plan_id')
+    if plan_id:
+        leave_room(f'plan_{plan_id}')
+        logger.info(f"🔌 WebSocket: إلغاء اشتراك plan_{plan_id}")
+
+
+def emit_plan_status(plan_id, status, data=None, error=None):
+    """إرسال تحديث حالة التحضير عبر WebSocket"""
+    result = {'plan_id': plan_id, 'status': status}
+    if data:
+        result['data'] = data
+    if error:
+        result['error'] = error
+    socketio.emit('plan_status', result, room=f'plan_{plan_id}')

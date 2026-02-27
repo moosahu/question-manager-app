@@ -479,6 +479,18 @@ def check_lesson_prep_job():
                 AISetting.set_setting('lesson_prep_job_status', 'completed' if success else 'failed', 'string')
                 logger.info(f"{'✅' if success else '❌'} [Scheduler] تحضير #{plan_id}: {'نجح' if success else 'فشل'}")
 
+                # إرسال تحديث WebSocket
+                try:
+                    from src.routes.lesson_prep_routes import emit_plan_status
+                    if success:
+                        from src.models.textbook import LessonPlan
+                        plan_obj = LessonPlan.query.get(plan_id)
+                        emit_plan_status(plan_id, 'completed', data=plan_obj.to_dict() if plan_obj else None)
+                    else:
+                        emit_plan_status(plan_id, 'failed', error='فشل التوليد')
+                except Exception as ws_err:
+                    logger.warning(f"⚠️ WebSocket emit فشل: {ws_err}")
+
             except Exception as e:
                 # التحقق: هل هو خطأ Rate Limit؟
                 from src.services.lesson_prep_service import RateLimitError
