@@ -7,6 +7,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+from datetime import datetime
 
 
 class EmailService:
@@ -569,6 +570,56 @@ class EmailService:
 
         except Exception as e:
             print(f"❌ خطأ في إرسال كود الأدمن: {e}")
+            return False, str(e)
+
+
+    def send_admin_notification(self, to_email, title, message):
+        """إرسال إشعار للأدمن (تسجيل جديد / حذف حساب)"""
+        try:
+            subject = f'{title} - كيم تحصيلي'
+            # تحويل الرسالة لسطور HTML
+            message_html = message.replace('\n', '<br>')
+
+            html_content = f'''
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head><meta charset="UTF-8">
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; direction:rtl; }}
+                .container {{ max-width:500px; margin:0 auto; background:white; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.1); }}
+                .header {{ background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:25px; text-align:center; }}
+                .header h1 {{ margin:0; font-size:20px; }}
+                .content {{ padding:25px; text-align:right; }}
+                .info {{ background:#f0f4ff; padding:15px; border-radius:10px; font-size:15px; color:#333; line-height:1.8; }}
+                .footer {{ background:#f8f9fa; padding:15px; text-align:center; color:#999; font-size:12px; }}
+            </style></head>
+            <body>
+            <div class="container">
+              <div class="header"><h1>{title}</h1></div>
+              <div class="content">
+                <div class="info">{message_html}</div>
+              </div>
+              <div class="footer">كيم تحصيلي &copy; {datetime.utcnow().year}</div>
+            </div>
+            </body></html>'''
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = self.sender_email
+            msg['To'] = to_email
+            msg.attach(MIMEText(message_html, 'plain', 'utf-8'))
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+                server.sendmail(self.sender_email, to_email, msg.as_string())
+
+            print(f"✅ إشعار أدمن أُرسل إلى: {to_email} [{title}]")
+            return True, 'تم الإرسال'
+
+        except Exception as e:
+            print(f"❌ خطأ في إرسال إشعار الأدمن: {e}")
             return False, str(e)
 
 
