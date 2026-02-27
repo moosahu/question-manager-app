@@ -146,18 +146,54 @@ def edit_teacher(teacher_id):
 @login_required
 @admin_required
 def delete_teacher(teacher_id):
-    """حذف معلم"""
+    """حذف معلم مع بياناته المرتبطة"""
     teacher = Teacher.query.get_or_404(teacher_id)
     name = teacher.name
-    
+    email = teacher.email
+
     try:
-        db.session.delete(teacher)
+        db.session.expunge(teacher)
+
+        # حذف البيانات المرتبطة
+        for stmt, params in [
+            ("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'teacher'", {'id': teacher_id}),
+            ("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'teacher'", {'id': teacher_id}),
+        ]:
+            try:
+                with db.session.begin_nested():
+                    db.session.execute(db.text(stmt), params)
+            except Exception:
+                pass
+
+        db.session.execute(
+            db.text("DELETE FROM teachers WHERE id = :id"),
+            {'id': teacher_id}
+        )
         db.session.commit()
+
+        # إشعار في صندوق الوارد
+        try:
+            from src.models.notification import Notification
+            from src.models.user import User
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                notif = Notification(
+                    title='🗑️ تم حذف معلم بواسطة الأدمن',
+                    message=f'الاسم: {name}\nالإيميل: {email}',
+                    type='admin_event',
+                    user_id=admin_user.id,
+                    is_read=False,
+                )
+                db.session.add(notif)
+                db.session.commit()
+        except Exception:
+            pass
+
         flash(f'تم حذف المعلم "{name}" بنجاح', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'خطأ في حذف المعلم: {str(e)}', 'danger')
-    
+
     return redirect(url_for('teachers.list_teachers'))
 
 
@@ -315,13 +351,48 @@ def api_mobile_edit_teacher(teacher_id):
 @login_required
 @admin_required
 def api_mobile_delete_teacher(teacher_id):
-    """حذف معلم"""
+    """حذف معلم مع بياناته المرتبطة"""
     from src.models.teacher import Teacher
     teacher = Teacher.query.get_or_404(teacher_id)
     name = teacher.name
+    email = teacher.email
     try:
-        db.session.delete(teacher)
+        db.session.expunge(teacher)
+
+        for stmt, params in [
+            ("DELETE FROM login_attempts WHERE user_id = :id AND user_type = 'teacher'", {'id': teacher_id}),
+            ("DELETE FROM delete_account_otps WHERE user_id = :id AND user_type = 'teacher'", {'id': teacher_id}),
+        ]:
+            try:
+                with db.session.begin_nested():
+                    db.session.execute(db.text(stmt), params)
+            except Exception:
+                pass
+
+        db.session.execute(
+            db.text("DELETE FROM teachers WHERE id = :id"),
+            {'id': teacher_id}
+        )
         db.session.commit()
+
+        # إشعار في صندوق الوارد
+        try:
+            from src.models.notification import Notification
+            from src.models.user import User
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                notif = Notification(
+                    title='🗑️ تم حذف معلم بواسطة الأدمن',
+                    message=f'الاسم: {name}\nالإيميل: {email}',
+                    type='admin_event',
+                    user_id=admin_user.id,
+                    is_read=False,
+                )
+                db.session.add(notif)
+                db.session.commit()
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'message': f'تم حذف المعلم "{name}"'})
     except Exception as e:
         db.session.rollback()

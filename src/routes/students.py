@@ -265,6 +265,25 @@ def delete_student(student_id):
             {'id': student_id}
         )
         db.session.commit()
+
+        # إشعار في صندوق الوارد
+        try:
+            from src.models.notification import Notification
+            from src.models.user import User
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                notif = Notification(
+                    title='🗑️ تم حذف طالب بواسطة الأدمن',
+                    message=f'الاسم: {name}\nالإيميل: {email}',
+                    type='admin_event',
+                    user_id=admin_user.id,
+                    is_read=False,
+                )
+                db.session.add(notif)
+                db.session.commit()
+        except Exception:
+            pass
+
         flash(f'تم حذف الطالب "{name}" بنجاح', 'success')
     except Exception as e:
         db.session.rollback()
@@ -2512,6 +2531,25 @@ def api_mobile_delete_student(student_id):
             {'id': student_id}
         )
         db.session.commit()
+
+        # إشعار في صندوق الوارد
+        try:
+            from src.models.notification import Notification
+            from src.models.user import User
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                notif = Notification(
+                    title='🗑️ تم حذف طالب بواسطة الأدمن',
+                    message=f'الاسم: {name}\nالإيميل: {email}',
+                    type='admin_event',
+                    user_id=admin_user.id,
+                    is_read=False,
+                )
+                db.session.add(notif)
+                db.session.commit()
+        except Exception:
+            pass
+
         try:
             from src.models.audit_log import AuditLog
             from flask_login import current_user
