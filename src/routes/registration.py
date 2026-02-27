@@ -14,6 +14,25 @@ from src.middleware.auth_middleware import create_student_token, create_teacher_
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
 import re
+from src.models.notification import Notification
+
+
+def notify_admin(title, message):
+    """إرسال إشعار للأدمن"""
+    try:
+        notif = Notification(
+            title=title,
+            message=message,
+            body=message,
+            type='info',
+            notification_type='admin_alert',
+            user_id=1,  # الأدمن
+            is_read=False,
+        )
+        db.session.add(notif)
+        db.session.commit()
+    except Exception as e:
+        print(f"⚠️ فشل إرسال إشعار الأدمن: {e}")
 
 BLOCKED_EMAIL_DOMAINS = [
     'tempmail.org', 'guerrillamail.com', 'yopmail.com', 'throwaway.email',
@@ -535,6 +554,12 @@ def verify_code():
                 username=teacher.username
             )
             
+            # إشعار الأدمن
+            notify_admin(
+                '👨‍🏫 معلم جديد سجّل',
+                f'الاسم: {teacher.name}\nالإيميل: {teacher.email}\nالمدرسة: {teacher.school or "غير محدد"}'
+            )
+
             return jsonify({
                 'success': True,
                 'message': 'تم إنشاء حساب المعلم بنجاح',
@@ -591,6 +616,12 @@ def verify_code():
                 username=student.username
             )
             
+            # إشعار الأدمن
+            notify_admin(
+                '🎓 طالب جديد سجّل',
+                f'الاسم: {student.name}\nالإيميل: {student.email}\nالمدرسة: {student.school or "غير محدد"}'
+            )
+
             return jsonify({
                 'success': True,
                 'message': 'تم إنشاء الحساب بنجاح',

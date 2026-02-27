@@ -18,6 +18,25 @@ from src.services.email_service import email_service
 
 delete_account_bp = Blueprint('delete_account', __name__)
 
+from src.models.notification import Notification
+
+def notify_admin_delete(title, message):
+    """إرسال إشعار للأدمن عند حذف حساب"""
+    try:
+        notif = Notification(
+            title=title,
+            message=message,
+            body=message,
+            type='warning',
+            notification_type='admin_alert',
+            user_id=1,
+            is_read=False,
+        )
+        db.session.add(notif)
+        db.session.commit()
+    except Exception as e:
+        print(f"⚠️ فشل إرسال إشعار الأدمن: {e}")
+
 
 # ============================================================
 # Model: جدول رموز حذف الحساب
@@ -194,6 +213,25 @@ def confirm_delete():
         if otp.is_expired():
             return jsonify({'error': 'انتهت صلاحية رمز الحذف، أعد المحاولة'}), 400
 
+        # حفظ اسم المستخدم قبل الحذف للإشعار
+        deleted_name = ''
+        deleted_email = ''
+        try:
+            if user_type == 'student':
+                from src.models.student import Student
+                s = Student.query.get(user_id)
+                if s:
+                    deleted_name = s.name
+                    deleted_email = s.email
+            elif user_type == 'teacher':
+                from src.models.teacher import Teacher
+                t = Teacher.query.get(user_id)
+                if t:
+                    deleted_name = t.name
+                    deleted_email = t.email
+        except:
+            pass
+
         # ✅ حذف جميع البيانات (حسب الجداول الفعلية في قاعدة البيانات)
         try:
             if user_type == 'student':
@@ -269,6 +307,14 @@ def confirm_delete():
             db.session.commit()
 
             print(f"✅ تم حذف حساب {user_type} ID={user_id}")
+
+            # إشعار الأدمن
+            type_label = 'طالب' if user_type == 'student' else 'معلم'
+            notify_admin_delete(
+                f'🗑️ {type_label} حذف حسابه',
+                f'الاسم: {deleted_name}\nالإيميل: {deleted_email}'
+            )
+
             return jsonify({
                 'success': True,
                 'message': 'تم حذف حسابك وجميع بياناتك بنجاح'
