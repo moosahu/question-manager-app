@@ -202,8 +202,7 @@
                         {% for t in teachers %}
                         <div class="teacher-item"
                              data-id="{{ t.id }}"
-                             data-name="{{ t.name }}"
-                             onclick="selectTeacher({{ t.id }}, '{{ t.name }}')">
+                             data-name="{{ t.name | e }}">
                             <div>
                                 <div class="teacher-name">{{ t.name }}</div>
                                 <div class="teacher-meta">@{{ t.username }}</div>
@@ -309,6 +308,14 @@ async function setGlobal(featureKey, value) {
 }
 
 // ── Teacher list ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#teacher-list .teacher-item').forEach(el => {
+        el.addEventListener('click', () => {
+            selectTeacher(parseInt(el.dataset.id), el.dataset.name);
+        });
+    });
+});
+
 function filterTeachers(q) {
     q = q.toLowerCase();
     document.querySelectorAll('#teacher-list .teacher-item').forEach(el => {
