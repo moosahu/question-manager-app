@@ -104,6 +104,22 @@
     }
     .reset-btn:hover { background: rgba(239,68,68,.2); }
 
+    /* Feature state pills */
+    .state-pills { display: flex; gap: 6px; }
+    .state-pill {
+        padding: 5px 11px; border-radius: 20px; font-size: .78rem; cursor: pointer;
+        border: 1px solid transparent; transition: all .2s; white-space: nowrap;
+    }
+    .state-pill-global  { border-color: rgba(100,116,139,.4); color: #94a3b8; background: rgba(100,116,139,.1); }
+    .state-pill-global.active  { background: rgba(100,116,139,.3); border-color: #94a3b8; color: #e2e8f0; }
+    .state-pill-disable { border-color: rgba(239,68,68,.4); color: #f87171; background: rgba(239,68,68,.08); }
+    .state-pill-disable.active { background: rgba(239,68,68,.25); border-color: #f87171; }
+    .state-pill-custom  { border-color: rgba(167,139,250,.4); color: #a78bfa; background: rgba(167,139,250,.08); }
+    .state-pill-custom.active  { background: rgba(167,139,250,.25); border-color: #a78bfa; }
+    /* Custom value controls */
+    .custom-ctrl { display: none; align-items: center; gap: 8px; margin-top: 8px; }
+    .custom-ctrl.show { display: flex; }
+
     /* Toast */
     .toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -224,6 +240,7 @@
                 </div>
 
                 <div id="selected-panel" class="card selected-panel">
+                    <!-- Header -->
                     <div class="selected-header">
                         <span class="selected-title" id="selected-name">-</span>
                         <button class="reset-btn" onclick="resetAllOverrides()">
@@ -232,34 +249,52 @@
                     </div>
 
                     <!-- Bool features -->
-                    <h3 style="color:#a78bfa; margin:0 0 12px;">تشغيل / إيقاف</h3>
+                    <h3 style="color:#a78bfa; margin:0 0 12px;">المميزات</h3>
                     {% for key, label, _ in bool_features %}
-                    <div class="feature-row">
+                    <div class="feature-row" style="flex-wrap:wrap; gap:8px;">
+                        <div class="feature-label" style="min-width:150px;">{{ label }}</div>
                         <div>
-                            <div class="feature-label">{{ label }}</div>
-                            <div class="feature-source" id="src-{{ key }}">عام</div>
+                            <div class="state-pills">
+                                <button class="state-pill state-pill-global"
+                                        id="pill-global-{{ key }}"
+                                        onclick="applyState('{{ key }}','bool','global')">🌍 عام</button>
+                                <button class="state-pill state-pill-disable"
+                                        id="pill-disable-{{ key }}"
+                                        onclick="applyState('{{ key }}','bool','disable')">🔴 تعطيل</button>
+                                <button class="state-pill state-pill-custom"
+                                        id="pill-custom-{{ key }}"
+                                        onclick="applyState('{{ key }}','bool','custom')">✅ تفعيل</button>
+                            </div>
                         </div>
-                        <label class="toggle">
-                            <input type="checkbox"
-                                   id="tf-{{ key }}"
-                                   onchange="setTeacherFeature('{{ key }}', this.checked ? 'true' : 'false')">
-                            <span class="toggle-slider"></span>
-                        </label>
                     </div>
                     {% endfor %}
 
                     <!-- Quota features -->
-                    <h3 style="color:#a78bfa; margin:16px 0 12px;">الحدود اليومية</h3>
+                    <h3 style="color:#a78bfa; margin:20px 0 12px;">الحدود اليومية</h3>
                     {% for key, label in quota_features %}
-                    <div class="feature-row">
+                    <div class="feature-row" style="flex-wrap:wrap; gap:8px;">
+                        <div class="feature-label" style="min-width:150px;">{{ label }}</div>
                         <div>
-                            <div class="feature-label">{{ label }}</div>
-                            <div class="feature-source" id="src-{{ key }}">عام</div>
+                            <div class="state-pills">
+                                <button class="state-pill state-pill-global"
+                                        id="pill-global-{{ key }}"
+                                        onclick="applyState('{{ key }}','quota','global')">🌍 عام</button>
+                                <button class="state-pill state-pill-disable"
+                                        id="pill-disable-{{ key }}"
+                                        onclick="applyState('{{ key }}','quota','disable')">🔴 تعطيل (0)</button>
+                                <button class="state-pill state-pill-custom"
+                                        id="pill-custom-{{ key }}"
+                                        onclick="applyState('{{ key }}','quota','custom')">⚙️ تخصيص</button>
+                            </div>
+                            <div class="custom-ctrl" id="ctrl-{{ key }}">
+                                <input type="number" min="1" max="999"
+                                       id="tf-{{ key }}"
+                                       class="quota-input" value="5"
+                                       style="width:80px;">
+                                <button class="state-pill state-pill-custom active"
+                                        onclick="saveQuota('{{ key }}')">حفظ</button>
+                            </div>
                         </div>
-                        <input type="number" min="0" max="999"
-                               id="tf-{{ key }}"
-                               class="quota-input"
-                               onchange="setTeacherFeature('{{ key }}', this.value)">
                     </div>
                     {% endfor %}
                 </div>
@@ -342,24 +377,83 @@ async function loadTeacherFeatures(id) {
         if (!d.success) return showToast(d.error, true);
 
         for (const [key, info] of Object.entries(d.features)) {
-            const el = document.getElementById(`tf-${key}`);
-            const srcEl = document.getElementById(`src-${key}`);
-            if (!el) continue;
-            if (el.type === 'checkbox') {
-                el.checked = info.value === 'true';
+            if (info.source === 'override') {
+                // تحديد الـ type (bool vs quota)
+                const isQuota = key.startsWith('quota_');
+                if (isQuota) {
+                    // quota override
+                    if (info.value === '0') {
+                        _highlightPill(key, 'disable');
+                    } else {
+                        _highlightPill(key, 'custom');
+                        const input = document.getElementById(`tf-${key}`);
+                        if (input) input.value = info.value;
+                        const ctrl = document.getElementById(`ctrl-${key}`);
+                        if (ctrl) ctrl.classList.add('show');
+                    }
+                } else {
+                    // bool override
+                    _highlightPill(key, info.value === 'true' ? 'custom' : 'disable');
+                }
             } else {
-                el.value = info.value;
-            }
-            if (srcEl) {
-                srcEl.textContent = info.source === 'override' ? '✏️ مخصص' : '🌍 عام';
-                srcEl.style.color = info.source === 'override' ? '#a78bfa' : '#6b7280';
+                _highlightPill(key, 'global');
             }
         }
     } catch (e) { showToast('خطأ في تحميل البيانات', true); }
 }
 
-async function setTeacherFeature(featureKey, value) {
+function _highlightPill(key, state) {
+    ['global','disable','custom'].forEach(s => {
+        const btn = document.getElementById(`pill-${s}-${key}`);
+        if (btn) btn.classList.toggle('active', s === state);
+    });
+}
+
+// state = 'global' | 'disable' | 'custom'
+async function applyState(key, type, state) {
     if (!currentTeacherId) return;
+    // إخفاء custom ctrl أولاً
+    const ctrl = document.getElementById(`ctrl-${key}`);
+
+    if (state === 'global') {
+        // حذف override → يرجع للعام
+        await fetch(`${API_BASE}/${currentTeacherId}/${key}`, {
+            method: 'DELETE', headers: {'X-CSRFToken': getCsrf()}
+        });
+        if (ctrl) ctrl.classList.remove('show');
+        _highlightPill(key, 'global');
+        showToast('تم الرجوع للإعداد العام');
+        return;
+    }
+
+    if (state === 'disable') {
+        const val = type === 'quota' ? '0' : 'false';
+        await _saveFeature(key, val);
+        if (ctrl) ctrl.classList.remove('show');
+        _highlightPill(key, 'disable');
+        return;
+    }
+
+    if (state === 'custom') {
+        if (type === 'bool') {
+            await _saveFeature(key, 'true');
+            _highlightPill(key, 'custom');
+        } else {
+            // أظهر input
+            if (ctrl) ctrl.classList.add('show');
+            _highlightPill(key, 'custom');
+        }
+    }
+}
+
+async function saveQuota(key) {
+    const input = document.getElementById(`tf-${key}`);
+    if (!input || !currentTeacherId) return;
+    await _saveFeature(key, input.value);
+    _highlightPill(key, 'custom');
+}
+
+async function _saveFeature(featureKey, value) {
     try {
         const r = await fetch(`${API_BASE}/${currentTeacherId}`, {
             method: 'POST',
@@ -367,17 +461,7 @@ async function setTeacherFeature(featureKey, value) {
             body: JSON.stringify({feature_key: featureKey, value})
         });
         const d = await r.json();
-        if (d.success) {
-            showToast(d.message);
-            // Update source label
-            const srcEl = document.getElementById(`src-${featureKey}`);
-            if (srcEl) {
-                srcEl.textContent = '✏️ مخصص';
-                srcEl.style.color = '#a78bfa';
-            }
-        } else {
-            showToast(d.error, true);
-        }
+        d.success ? showToast(d.message) : showToast(d.error, true);
     } catch (e) { showToast('خطأ في الاتصال', true); }
 }
 
