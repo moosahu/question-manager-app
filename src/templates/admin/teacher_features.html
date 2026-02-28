@@ -272,7 +272,7 @@
 <div id="toast" class="toast"></div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script>
 const API_BASE = '/api/admin/teacher-features';
 let currentTeacherId = null;
@@ -410,4 +410,4 @@ function getCsrf() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 </script>
-{% endblock %}
+{% endblock scripts %}
