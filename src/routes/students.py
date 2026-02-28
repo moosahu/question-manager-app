@@ -416,11 +416,22 @@ def api_student_login():
         
         if not student.is_active:
             print(f"❌ حساب الطالب معطل: {username}")
+            # إذا لديه جوال → معطّل بسبب التحقق من الجوال
+            if student.phone:
+                return jsonify({
+                    'success': False,
+                    'error': 'يجب إكمال التحقق من رقم الجوال لتفعيل الحساب',
+                    'error_code': 'PHONE_VERIFICATION_REQUIRED',
+                    'email': student.email,
+                    'phone': student.phone,
+                    'account_type': 'student',
+                    'name': student.name,
+                }), 403
             return jsonify({
                 'success': False,
                 'error': 'حسابك معطل. تواصل مع الإدارة'
             }), 403
-        
+
         # ==================== ✅ التحقق من الجهاز ====================
         if device_id:
             # إذا كان الطالب مسجل من جهاز آخر
@@ -536,11 +547,21 @@ def api_teacher_login():
         
         if not teacher.is_active:
             print(f"❌ حساب المعلم معطل: {username}")
+            if teacher.phone:
+                return jsonify({
+                    'success': False,
+                    'error': 'يجب إكمال التحقق من رقم الجوال لتفعيل الحساب',
+                    'error_code': 'PHONE_VERIFICATION_REQUIRED',
+                    'email': teacher.email,
+                    'phone': teacher.phone,
+                    'account_type': 'teacher',
+                    'name': teacher.name,
+                }), 403
             return jsonify({
                 'success': False,
                 'error': 'حسابك معطل. تواصل مع الإدارة'
             }), 403
-        
+
         # ==================== التحقق من الجهاز ====================
         if device_id:
             # إذا كان المعلم مسجل من جهاز آخر
