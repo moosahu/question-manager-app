@@ -113,14 +113,21 @@ def get_all_teachers_features():
         teachers = Teacher.query.order_by(Teacher.name).all()
         result = []
         for t in teachers:
-            overrides = TeacherFeatureOverride.query.filter_by(teacher_id=t.id).all()
+            # نحمي من حالة الجدول غير موجود بعد
+            try:
+                overrides = TeacherFeatureOverride.query.filter_by(teacher_id=t.id).all()
+                overrides_count = len(overrides)
+                overrides_list = [o.to_dict() for o in overrides]
+            except Exception:
+                overrides_count = 0
+                overrides_list = []
             result.append({
                 'id': t.id,
                 'name': t.name,
                 'username': t.username,
                 'is_active': t.is_active,
-                'overrides_count': len(overrides),
-                'overrides': [o.to_dict() for o in overrides],
+                'overrides_count': overrides_count,
+                'overrides': overrides_list,
             })
         return jsonify({'success': True, 'teachers': result})
     except Exception as e:
