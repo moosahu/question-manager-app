@@ -21,6 +21,7 @@ from src.models.teacher import Teacher
 from src.models.ai_analysis import AISetting
 from src.models.shared_plan import SharedPlan
 from src.models.plan_rating import PlanRating
+from src.models.teacher_feature import TeacherFeatureOverride, FEATURE_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,25 @@ DEFAULT_QUOTAS = {
     'worksheet': 3,
 }
 
+def _is_feature_enabled(teacher_id, feature_key):
+    """
+    هل الميزة مفعّلة لهذا المعلم؟
+    1) تحقق من override خاص بالمعلم
+    2) رجوع للإعداد العام (AISetting)
+    3) رجوع للقيمة الافتراضية
+    """
+    override = TeacherFeatureOverride.query.filter_by(
+        teacher_id=teacher_id, feature_key=feature_key
+    ).first()
+    if override:
+        return override.value.lower() == 'true'
+    global_val = AISetting.get_setting(feature_key)
+    if global_val is not None:
+        return str(global_val).lower() == 'true'
+    default = FEATURE_DEFAULTS.get(feature_key, 'true')
+    return default.lower() == 'true'
+
+
 def _get_teacher_quota(teacher_id):
     """حساب الحصة المتبقية للمعلم اليوم"""
     # حساب بداية اليوم بتوقيت السعودية (UTC+3) ثم تحويل لـ UTC للمقارنة مع created_at
@@ -47,11 +67,19 @@ def _get_teacher_quota(teacher_id):
     sa_today_start = sa_now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_start = sa_today_start.astimezone(timezone.utc).replace(tzinfo=None)
 
-    # قراءة الحدود من الإعدادات (الأدمن يقدر يعدلها)
+    # قراءة الحدود — per-teacher override أولاً ثم global ثم default
     quotas = {}
     for plan_type, default_limit in DEFAULT_QUOTAS.items():
-        setting_key = f'quota_{plan_type}'
-        saved = AISetting.get_setting(setting_key)
+        feature_key = f'quota_{plan_type}'
+        # 1. per-teacher override
+        override = TeacherFeatureOverride.query.filter_by(
+            teacher_id=teacher_id, feature_key=feature_key
+        ).first()
+        if override:
+            quotas[plan_type] = int(override.value)
+            continue
+        # 2. global setting
+        saved = AISetting.get_setting(feature_key)
         quotas[plan_type] = int(saved) if saved else default_limit
 
     # حساب الاستخدام اليوم
@@ -151,8 +179,15 @@ def get_quota(teacher=None, user_id=None, is_admin=False):
 def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
     """بدء توليد تحضير درس (async)"""
     try:
-        # فحص الحصة
+        # فحص تفعيل الميزة + الحصة
         if teacher and not is_admin:
+            if not _is_feature_enabled(teacher.id, 'lesson_prep_enabled'):
+                return jsonify({
+                    'success': False,
+                    'error': 'ميزة تحضير الدروس غير مفعّلة لحسابك. تواصل مع المشرف.',
+                    'feature_disabled': True,
+                }), 403
+
             allowed, remaining, limit = _check_quota(teacher.id, 'single_lesson')
             if not allowed:
                 return jsonify({
@@ -270,8 +305,15 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
 def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
     """توليد توزيع وحدة كاملة"""
     try:
-        # فحص الحصة
+        # فحص تفعيل الميزة + الحصة
         if teacher and not is_admin:
+            if not _is_feature_enabled(teacher.id, 'unit_distribution_enabled'):
+                return jsonify({
+                    'success': False,
+                    'error': 'ميزة توزيع الوحدة غير مفعّلة لحسابك. تواصل مع المشرف.',
+                    'feature_disabled': True,
+                }), 403
+
             allowed, remaining, limit = _check_quota(teacher.id, 'unit_distribution')
             if not allowed:
                 return jsonify({
@@ -519,8 +561,15 @@ def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
 def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
     """رفع PDF توزيع فصلي + تحليل AI"""
     try:
-        # فحص الحصة
+        # فحص تفعيل الميزة + الحصة
         if teacher and not is_admin:
+            if not _is_feature_enabled(teacher.id, 'semester_distribution_enabled'):
+                return jsonify({
+                    'success': False,
+                    'error': 'ميزة التوزيع الفصلي غير مفعّلة لحسابك. تواصل مع المشرف.',
+                    'feature_disabled': True,
+                }), 403
+
             allowed, remaining, limit = _check_quota(teacher.id, 'semester_distribution')
             if not allowed:
                 return jsonify({
@@ -938,8 +987,15 @@ def get_plan_ratings(plan_id, teacher=None, user_id=None, is_admin=False):
 def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
     """توليد ورقة عمل (async)"""
     try:
-        # فحص الحصة
+        # فحص تفعيل الميزة + الحصة
         if teacher and not is_admin:
+            if not _is_feature_enabled(teacher.id, 'worksheet_enabled'):
+                return jsonify({
+                    'success': False,
+                    'error': 'ميزة أوراق العمل غير مفعّلة لحسابك. تواصل مع المشرف.',
+                    'feature_disabled': True,
+                }), 403
+
             allowed, remaining, limit = _check_quota(teacher.id, 'worksheet')
             if not allowed:
                 return jsonify({

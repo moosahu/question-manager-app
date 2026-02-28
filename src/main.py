@@ -983,6 +983,18 @@ def create_app():
     except Exception as e:
         print(f"❌ Lesson Prep blueprint error: {e}")
 
+    # ✅ تسجيل Teacher Features Blueprint — التحكم بمميزات المعلمين
+    try:
+        from src.routes.teacher_features_routes import teacher_features_bp
+        csrf.exempt(teacher_features_bp)
+        app.register_blueprint(teacher_features_bp)
+        print("✅ Teacher Features blueprint registered successfully")
+        print("🎛️  Teacher Features endpoints available at: /api/admin/teacher-features")
+    except ImportError as e:
+        print(f"⚠️ Teacher Features blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Teacher Features blueprint error: {e}")
+
     @app.route("/", endpoint='index')
     def home():
         # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم

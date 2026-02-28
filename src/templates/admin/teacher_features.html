@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+
+{% block title %}التحكم بمميزات المعلمين{% endblock %}
+
+{% block extra_css %}
+<style>
+    * { direction: rtl; text-align: right; }
+    .tf-container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+    .tf-header { text-align: center !important; margin-bottom: 32px; }
+    .tf-header h1 { font-size: 2rem; color: #4ecdc4; font-weight: 700; }
+    .tf-header p  { color: #c0c4d0; font-size: 1rem; }
+
+    .tabs { display: flex; gap: 10px; margin-bottom: 24px; }
+    .tab-btn {
+        flex: 1; padding: 12px; border: 2px solid rgba(78,205,196,.3);
+        border-radius: 10px; background: rgba(20,25,45,.7);
+        color: #c0c4d0; cursor: pointer; font-size: 1rem;
+        transition: all .2s;
+    }
+    .tab-btn.active { border-color: #4ecdc4; color: #4ecdc4; background: rgba(78,205,196,.1); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .card {
+        background: rgba(20,25,45,.85);
+        border: 1px solid rgba(78,205,196,.2);
+        border-radius: 14px; padding: 24px; margin-bottom: 20px;
+    }
+    .card h3 { color: #4ecdc4; margin: 0 0 18px; font-size: 1.1rem; }
+
+    .feature-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .feature-row:last-child { border-bottom: none; }
+    .feature-label { color: #e2e8f0; font-size: .95rem; }
+    .feature-source { font-size: .75rem; color: #6b7280; margin-top: 2px; }
+
+    /* Toggle */
+    .toggle { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute; inset: 0; background: #374151;
+        border-radius: 28px; cursor: pointer; transition: .3s;
+    }
+    .toggle-slider:before {
+        content: ''; position: absolute;
+        width: 20px; height: 20px; left: 4px; top: 4px;
+        background: white; border-radius: 50%; transition: .3s;
+    }
+    .toggle input:checked + .toggle-slider { background: #4ecdc4; }
+    .toggle input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+    /* Quota input */
+    .quota-input {
+        width: 70px; padding: 6px 10px; border: 1px solid rgba(78,205,196,.4);
+        border-radius: 8px; background: rgba(10,15,30,.6); color: #e2e8f0;
+        font-size: .95rem; text-align: center;
+    }
+
+    /* Search */
+    .search-box {
+        width: 100%; padding: 12px 16px; margin-bottom: 16px;
+        background: rgba(10,15,30,.6); border: 1px solid rgba(78,205,196,.3);
+        border-radius: 10px; color: #e2e8f0; font-size: 1rem;
+        box-sizing: border-box;
+    }
+    .search-box::placeholder { color: #6b7280; }
+
+    /* Teacher list */
+    .teacher-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 16px; border-radius: 10px; cursor: pointer;
+        border: 1px solid rgba(78,205,196,.1); margin-bottom: 8px;
+        transition: all .2s; background: rgba(10,15,30,.4);
+    }
+    .teacher-item:hover, .teacher-item.selected {
+        border-color: #4ecdc4; background: rgba(78,205,196,.08);
+    }
+    .teacher-name { color: #e2e8f0; font-size: .95rem; }
+    .teacher-meta { color: #6b7280; font-size: .8rem; }
+    .badge {
+        font-size: .75rem; padding: 2px 8px; border-radius: 20px;
+        background: rgba(78,205,196,.15); color: #4ecdc4;
+    }
+    .badge-inactive {
+        background: rgba(239,68,68,.15); color: #f87171;
+    }
+
+    /* Selected teacher panel */
+    .selected-panel { display: none; }
+    .selected-panel.active { display: block; }
+    .selected-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .selected-title { color: #4ecdc4; font-size: 1.1rem; font-weight: 600; }
+
+    .reset-btn {
+        padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(239,68,68,.4);
+        background: rgba(239,68,68,.1); color: #f87171; cursor: pointer;
+        font-size: .85rem; transition: all .2s;
+    }
+    .reset-btn:hover { background: rgba(239,68,68,.2); }
+
+    /* Toast */
+    .toast {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #1e293b; color: #e2e8f0; padding: 12px 24px;
+        border-radius: 10px; font-size: .9rem; z-index: 9999;
+        box-shadow: 0 4px 20px rgba(0,0,0,.4); display: none;
+        border-left: 4px solid #4ecdc4;
+    }
+    .toast.error { border-left-color: #f87171; }
+    .toast.show { display: block; animation: fadeInUp .3s ease; }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tf-container">
+    <div class="tf-header">
+        <h1>🎛️ التحكم بمميزات المعلمين</h1>
+        <p>تفعيل / تعطيل المميزات وضبط الحدود اليومية لكل معلم أو للجميع دفعة واحدة</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('global')">🌍 إعدادات الكل</button>
+        <button class="tab-btn" onclick="switchTab('teacher')">👤 معلم محدد</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         Tab: Global
+    ═══════════════════════════════════════════════════════ -->
+    <div id="tab-global" class="tab-panel active">
+        <div class="card">
+            <h3>تشغيل / إيقاف المميزات (للجميع)</h3>
+            {% set bool_features = [
+                ('lesson_prep_enabled',           'تحضير الدروس',          'lesson_prep_enabled'),
+                ('unit_distribution_enabled',     'توزيع الوحدة',           'unit_distribution_enabled'),
+                ('semester_distribution_enabled', 'التوزيع الفصلي',         'semester_distribution_enabled'),
+                ('worksheet_enabled',             'أوراق العمل',            'worksheet_enabled'),
+                ('ai_analysis_enabled',           'تحليل الذكاء الاصطناعي','ai_analysis_enabled'),
+                ('shared_library_enabled',        'المكتبة المشتركة',       'shared_library_enabled'),
+            ] %}
+            {% for key, label, _ in bool_features %}
+            {% set f = global_features.get(key) %}
+            <div class="feature-row">
+                <div>
+                    <div class="feature-label">{{ label }}</div>
+                    <div class="feature-source">إعداد عام</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox"
+                           data-feature="{{ key }}"
+                           data-scope="global"
+                           {% if f and f.value == 'true' %}checked{% endif %}
+                           onchange="setGlobal('{{ key }}', this.checked ? 'true' : 'false')">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <h3>الحدود اليومية (للجميع)</h3>
+            {% set quota_features = [
+                ('quota_single_lesson',        'تحضير درس واحد'),
+                ('quota_unit_distribution',    'توزيع وحدة'),
+                ('quota_semester_distribution','توزيع فصلي'),
+                ('quota_worksheet',            'ورقة عمل'),
+            ] %}
+            {% for key, label in quota_features %}
+            {% set f = global_features.get(key) %}
+            <div class="feature-row">
+                <div class="feature-label">{{ label }} (يومياً)</div>
+                <input type="number" min="0" max="999"
+                       class="quota-input"
+                       value="{{ f.value if f else '5' }}"
+                       onchange="setGlobal('{{ key }}', this.value)">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         Tab: Per-Teacher
+    ═══════════════════════════════════════════════════════ -->
+    <div id="tab-teacher" class="tab-panel">
+        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <!-- قائمة المعلمين -->
+            <div style="flex:1; min-width:260px;">
+                <div class="card" style="padding:16px;">
+                    <input type="text" class="search-box" placeholder="🔍 ابحث عن معلم..."
+                           oninput="filterTeachers(this.value)">
+                    <div id="teacher-list">
+                        {% for t in teachers %}
+                        <div class="teacher-item"
+                             data-id="{{ t.id }}"
+                             data-name="{{ t.name }}"
+                             onclick="selectTeacher({{ t.id }}, '{{ t.name }}')">
+                            <div>
+                                <div class="teacher-name">{{ t.name }}</div>
+                                <div class="teacher-meta">@{{ t.username }}</div>
+                            </div>
+                            <span class="badge {% if not t.is_active %}badge-inactive{% endif %}">
+                                {{ 'نشط' if t.is_active else 'موقوف' }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- لوحة المعلم المختار -->
+            <div style="flex:2; min-width:300px;">
+                <div id="no-selection" class="card" style="text-align:center; color:#6b7280; padding:48px;">
+                    <div style="font-size:3rem; margin-bottom:12px;">👆</div>
+                    <p>اختر معلماً من القائمة لعرض مميزاته</p>
+                </div>
+
+                <div id="selected-panel" class="card selected-panel">
+                    <div class="selected-header">
+                        <span class="selected-title" id="selected-name">-</span>
+                        <button class="reset-btn" onclick="resetAllOverrides()">
+                            🔄 إزالة كل التخصيصات
+                        </button>
+                    </div>
+
+                    <!-- Bool features -->
+                    <h3 style="color:#a78bfa; margin:0 0 12px;">تشغيل / إيقاف</h3>
+                    {% for key, label, _ in bool_features %}
+                    <div class="feature-row">
+                        <div>
+                            <div class="feature-label">{{ label }}</div>
+                            <div class="feature-source" id="src-{{ key }}">عام</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox"
+                                   id="tf-{{ key }}"
+                                   onchange="setTeacherFeature('{{ key }}', this.checked ? 'true' : 'false')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Quota features -->
+                    <h3 style="color:#a78bfa; margin:16px 0 12px;">الحدود اليومية</h3>
+                    {% for key, label in quota_features %}
+                    <div class="feature-row">
+                        <div>
+                            <div class="feature-label">{{ label }}</div>
+                            <div class="feature-source" id="src-{{ key }}">عام</div>
+                        </div>
+                        <input type="number" min="0" max="999"
+                               id="tf-{{ key }}"
+                               class="quota-input"
+                               onchange="setTeacherFeature('{{ key }}', this.value)">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const API_BASE = '/api/admin/teacher-features';
+let currentTeacherId = null;
+
+// ── Tabs ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (i === 0) === (tab === 'global'));
+    });
+    document.getElementById('tab-global').classList.toggle('active', tab === 'global');
+    document.getElementById('tab-teacher').classList.toggle('active', tab === 'teacher');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Global settings ───────────────────────────────────────────────
+async function setGlobal(featureKey, value) {
+    try {
+        const r = await fetch(`${API_BASE}/global`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+            body: JSON.stringify({feature_key: featureKey, value})
+        });
+        const d = await r.json();
+        d.success ? showToast(d.message) : showToast(d.error, true);
+    } catch (e) { showToast('خطأ في الاتصال', true); }
+}
+
+// ── Teacher list ──────────────────────────────────────────────────
+function filterTeachers(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#teacher-list .teacher-item').forEach(el => {
+        const name = el.dataset.name.toLowerCase();
+        el.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+}
+
+async function selectTeacher(id, name) {
+    currentTeacherId = id;
+    document.querySelectorAll('.teacher-item').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.id) === id);
+    });
+    document.getElementById('selected-name').textContent = name;
+    document.getElementById('no-selection').style.display = 'none';
+    document.getElementById('selected-panel').classList.add('active');
+    await loadTeacherFeatures(id);
+}
+
+async function loadTeacherFeatures(id) {
+    try {
+        const r = await fetch(`${API_BASE}/${id}`);
+        const d = await r.json();
+        if (!d.success) return showToast(d.error, true);
+
+        for (const [key, info] of Object.entries(d.features)) {
+            const el = document.getElementById(`tf-${key}`);
+            const srcEl = document.getElementById(`src-${key}`);
+            if (!el) continue;
+            if (el.type === 'checkbox') {
+                el.checked = info.value === 'true';
+            } else {
+                el.value = info.value;
+            }
+            if (srcEl) {
+                srcEl.textContent = info.source === 'override' ? '✏️ مخصص' : '🌍 عام';
+                srcEl.style.color = info.source === 'override' ? '#a78bfa' : '#6b7280';
+            }
+        }
+    } catch (e) { showToast('خطأ في تحميل البيانات', true); }
+}
+
+async function setTeacherFeature(featureKey, value) {
+    if (!currentTeacherId) return;
+    try {
+        const r = await fetch(`${API_BASE}/${currentTeacherId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+            body: JSON.stringify({feature_key: featureKey, value})
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast(d.message);
+            // Update source label
+            const srcEl = document.getElementById(`src-${featureKey}`);
+            if (srcEl) {
+                srcEl.textContent = '✏️ مخصص';
+                srcEl.style.color = '#a78bfa';
+            }
+        } else {
+            showToast(d.error, true);
+        }
+    } catch (e) { showToast('خطأ في الاتصال', true); }
+}
+
+async function resetAllOverrides() {
+    if (!currentTeacherId) return;
+    if (!confirm('هل تريد إزالة كل التخصيصات لهذا المعلم؟ سيرجع لإعدادات الكل.')) return;
+
+    // جلب المميزات الحالية لمعرفة ما يحتاج حذف
+    try {
+        const r = await fetch(`${API_BASE}/${currentTeacherId}`);
+        const d = await r.json();
+        if (!d.success) return showToast(d.error, true);
+
+        const overrideKeys = Object.entries(d.features)
+            .filter(([, v]) => v.source === 'override')
+            .map(([k]) => k);
+
+        for (const key of overrideKeys) {
+            await fetch(`${API_BASE}/${currentTeacherId}/${key}`, {
+                method: 'DELETE',
+                headers: {'X-CSRFToken': getCsrf()}
+            });
+        }
+        showToast('تم إزالة كل التخصيصات');
+        await loadTeacherFeatures(currentTeacherId);
+    } catch (e) { showToast('خطأ', true); }
+}
+
+function getCsrf() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+</script>
+{% endblock %}
