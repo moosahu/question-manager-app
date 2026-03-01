@@ -414,6 +414,35 @@
   .comparison-section {
     margin-top: 10px;
   }
+
+  /* ─── منع تقطيع العناصر بين الصفحات ─── */
+  .example-item {
+    background: #f8fafc !important;
+    border-right: 3px solid #0891b2;
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .hw-example-item {
+    background: #f0fdf4 !important;
+    border-right: 3px solid #16a34a;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 4px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .qa-pair {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 6px;
+  }
+  .concept-header {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
 </style>
 </head>
 <body>
@@ -510,6 +539,7 @@
   <div class="section-body">
     {% for q in diag_q %}
     {% if q is mapping %}
+    <div class="qa-pair">
     <div class="question-box" style="border-color:#7c3aed;">
       {{ q.get('question', '') }}
       {% if q.get('purpose') %}<span style="font-size:8pt; color:#7c3aed;"> — {{ q.purpose }}</span>{% endif %}
@@ -519,6 +549,7 @@
     {% elif not show_answers %}
     <div style="height:24px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
     {% endif %}
+    </div>
     {% endif %}
     {% endfor %}
   </div>
@@ -626,9 +657,9 @@
         <p style="font-weight:900; margin-top:5px;">الأمثلة:</p>
         {% for ex in concept.examples %}
         {% if ex is mapping %}
-        <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:8px; margin:4px 0; border-radius:4px;">
+        <div class="example-item">
           {% if ex.get('problem') %}
-          <p style="font-weight:900;">📝#128221; {{ ex.problem|chem }}</p>
+          <p style="font-weight:900;">&#128221; {{ ex.problem|chem }}</p>
           {% endif %}
           {% if show_answers %}
             {% if ex.get('steps') %}
@@ -644,7 +675,7 @@
           {% endif %}
         </div>
         {% else %}
-        <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:6px 10px; margin:3px 0;">{{ ex|chem }}</div>
+        <div class="example-item" style="border-right-color:#0891b2;">{{ ex|chem }}</div>
         {% endif %}
         {% endfor %}
         {% endif %}
@@ -739,6 +770,7 @@
       <div class="sub-title" style="background: #d1fae5 !important; color: #065f46;">التقويم التكويني</div>
       {% for q in formative %}
       {% if q is mapping %}
+      <div class="qa-pair">
       <div class="question-box">
         {{ q.get('question', '')|chem }}
         {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
@@ -749,6 +781,7 @@
       {% else %}
       <div style="height:24px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
       {% endif %}
+      </div>
       {% elif q is string %}
       <div class="question-box">{{ q }}</div>
       {% endif %}
@@ -763,6 +796,7 @@
       <div class="sub-title" style="background: #dbeafe !important; color: #1e40af;">التقويم الختامي</div>
       {% for q in summative %}
       {% if q is mapping %}
+      <div class="qa-pair">
       <div class="question-box" style="border-color:#1e40af;">
         {{ q.get('question', '')|chem }}
         {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
@@ -777,6 +811,7 @@
       {% else %}
       <div style="height:28px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
       {% endif %}
+      </div>
       {% elif q is string %}
       <div class="question-box">{{ q|chem }}</div>
       {% if not show_answers %}
@@ -926,13 +961,13 @@
       <div class="sub-title" style="background: #dcfce7 !important; color: #15803d;">أمثلة محلولة (نسخة المعلم)</div>
       {% for ex in homework.solved_examples %}
       {% if ex is mapping %}
-      <div style="background:#f0fdf4; border-right:3px solid #16a34a; padding:8px; margin:5px 0; border-radius:4px;">
-        {% if ex.get('question') %}<p style="font-weight:900;">📝#128221; {{ ex.question|chem }}</p>{% endif %}
+      <div class="hw-example-item">
+        {% if ex.get('question') %}<p style="font-weight:900;">&#128221; {{ ex.question|chem }}</p>{% endif %}
         {% if ex.get('solution') %}
         <p style="margin-top:4px; color:#374151;">{{ ex.solution|chem }}</p>
         {% endif %}
         {% if ex.get('answer') %}
-        <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅#10003; {{ ex.answer|chem }}</p>
+        <p style="color:#16a34a; font-weight:900; margin-top:4px;">&#10003; {{ ex.answer|chem }}</p>
         {% endif %}
       </div>
       {% endif %}
