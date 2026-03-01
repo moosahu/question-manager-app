@@ -59,6 +59,12 @@
   .section {
     margin-bottom: 14px;
   }
+  /* wrapper block - WeasyPrint يحترم page-break-after على display:block أفضل من flex */
+  .sh-wrap {
+    display: block;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
   .section-header {
     display: flex;
     align-items: center;
@@ -68,8 +74,6 @@
     font-size: 12pt;
     font-weight: 900;
     margin-bottom: 0;
-    page-break-after: avoid;
-    break-after: avoid;
   }
   .section-header .num {
     display: inline-flex;
@@ -88,6 +92,8 @@
     border: 1.5px solid;
     border-top: none;
     border-radius: 0 0 8px 8px;
+    page-break-before: avoid;
+    break-before: avoid;
   }
 
   /* ─── ألوان أقسام محددة ─── */
@@ -300,7 +306,6 @@
     border: 1.5px solid #c7d2fe;
     border-radius: 8px;
     margin-bottom: 10px;
-    overflow: hidden;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -442,7 +447,7 @@
 <!-- ═══ المعلومات الأساسية ═══ -->
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-info">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> المعلومات الأساسية</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> المعلومات الأساسية</div></div>
   <div class="section-body">
     <table class="info-table">
       <tr>
@@ -476,7 +481,7 @@
 {% if vocabulary %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-info">
-  <div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ ns.n }}</span> المفردات الجديدة</div>
+  <div class="sh-wrap"><div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ ns.n }}</span> المفردات الجديدة</div></div>
   <div class="section-body">
     <table class="styled-table">
       <thead>
@@ -505,7 +510,7 @@
 {% if diag_q %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-prep">
-  <div class="section-header" style="background: #7c3aed !important;"><span class="num">{{ ns.n }}</span> التقويم التشخيصي (قبل الدرس)</div>
+  <div class="sh-wrap"><div class="section-header" style="background: #7c3aed !important;"><span class="num">{{ ns.n }}</span> التقويم التشخيصي (قبل الدرس)</div></div>
   <div class="section-body">
     {% for q in diag_q %}
     {% if q is mapping %}
@@ -529,7 +534,7 @@
 {% if objectives %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-behav">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> الأهداف السلوكية</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الأهداف السلوكية</div></div>
   <div class="section-body">
     {% for type_key, type_label, color in [('cognitive', 'أهداف معرفية', '#7c3aed'), ('skill', 'أهداف مهارية', '#0891b2'), ('emotional', 'أهداف وجدانية', '#db2777')] %}
     {% set items = objectives.get(type_key, []) %}
@@ -553,7 +558,7 @@
 {% if preparation %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-prep">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> التهيئة والتمهيد</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> التهيئة والتمهيد</div></div>
   <div class="section-body">
     {% if preparation.get('introduction') %}
     <div class="question-box">{{ preparation.introduction }}</div>
@@ -580,7 +585,7 @@
 {% if strategies %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-strat">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> استراتيجيات التدريس</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> استراتيجيات التدريس</div></div>
   <div class="section-body">
     <div class="strategy-grid">
       {% for s in strategies %}
@@ -604,7 +609,7 @@
 {% if presentation %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-present">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> عرض الدرس</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> عرض الدرس</div></div>
   <div class="section-body">
     <!-- المفاهيم الرئيسية -->
     {% for concept in presentation.get('main_concepts', []) %}
@@ -684,7 +689,7 @@
 {% if values and values is mapping %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-values">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> الربط بالقيم</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الربط بالقيم</div></div>
   <div class="section-body">
     <div class="values-grid">
       {% if values.get('religious') %}
@@ -718,7 +723,7 @@
 {% if evaluation %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-eval">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> التقويم</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> التقويم</div></div>
   <div class="section-body">
     <!-- التقويم التكويني -->
     {% set formative = evaluation.get('formative', []) %}
@@ -809,7 +814,7 @@
 {% if ind_diff %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-diff">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> مراعاة الفروق الفردية</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> مراعاة الفروق الفردية</div></div>
   <div class="section-body">
     <div class="two-cols">
       <div class="col col-weak">
@@ -852,7 +857,7 @@
 {% if resources %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-res">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> الوسائل التعليمية</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الوسائل التعليمية</div></div>
   <div class="section-body">
     {% if resources[0] is mapping %}
     <table class="styled-table">
@@ -887,7 +892,7 @@
 {% if homework %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-hw">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> الواجب المنزلي</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الواجب المنزلي</div></div>
   <div class="section-body">
     {% if homework.get('main') %}
     <div class="sub-section">
@@ -936,7 +941,7 @@
 {% if time_dist %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-time">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> التوزيع الزمني</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> التوزيع الزمني</div></div>
   <div class="section-body">
     <table class="styled-table">
       <thead>
@@ -973,7 +978,7 @@
 {% if reflection and reflection is mapping %}
 {% set ns.n = ns.n + 1 %}
 <div class="section sec-refl">
-  <div class="section-header"><span class="num">{{ ns.n }}</span> التأمل الذاتي</div>
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> التأمل الذاتي</div></div>
   <div class="section-body">
     <div class="reflection-field">
       <div class="rf-label">نقاط القوة</div>
@@ -998,7 +1003,7 @@
   {% for ct in comparison_tables %}
   {% if ct is mapping %}
   <div class="section sec-eval" style="margin-top:10px;">
-    <div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
+    <div class="sh-wrap"><div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
     <div class="section-body" style="border-color: #6ee7b7; background: #ecfdf5 !important;">
       <table class="styled-table">
         <thead>
@@ -1029,7 +1034,7 @@
 {% set safety = plan_data.get('safety_notes', []) %}
 {% if safety %}
 <div class="section" style="margin-top:10px;">
-  <div class="section-header" style="background: #dc2626 !important; color: #fff !important;">
+  <div class="sh-wrap"><div class="section-header" style="background: #dc2626 !important; color: #fff !important;">
     <span class="num">⚠</span> ملاحظات السلامة
   </div>
   <div class="section-body" style="border-color: #fca5a5; background: #fef2f2 !important;">
