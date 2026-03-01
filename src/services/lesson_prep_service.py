@@ -842,8 +842,23 @@ class LessonPrepService:
         "skill": ["أهداف مهارية"],
         "emotional": ["أهداف وجدانية"]
       }},
+      "vocabulary": [
+        {{
+          "term": "المصطلح الجديد",
+          "definition": "تعريف المصطلح بأسلوب واضح ومبسط"
+        }}
+      ],
+      "diagnostic_questions": [
+        {{
+          "question": "سؤال للتحقق من المتطلبات القبلية",
+          "answer": "الإجابة النموذجية",
+          "purpose": "الهدف من السؤال"
+        }}
+      ],
       "preparation": {{
         "introduction": "سؤال أو موقف تحفيزي للتهيئة",
+        "introduction_answer": "الإجابة المتوقعة من الطالب على سؤال التهيئة",
+        "introduction_activity": "نشاط تفاعلي للتهيئة",
         "connection_to_previous": "ربط بالحصة السابقة"
       }},
       "main_concepts": [
@@ -851,7 +866,13 @@ class LessonPrepService:
           "concept": "المفهوم الرئيسي",
           "explanation": "شرح مفصّل",
           "teaching_method": "استراتيجية التدريس المستخدمة",
-          "examples": ["مثال 1", "مثال 2"],
+          "examples": [
+            {{
+              "problem": "نص المثال أو المسألة",
+              "steps": ["الخطوة الأولى", "الخطوة الثانية"],
+              "answer": "الإجابة النهائية مع التفسير"
+            }}
+          ],
           "student_activity": "نشاط الطلاب"
         }}
       ],
@@ -863,51 +884,79 @@ class LessonPrepService:
           "duration_minutes": 10
         }}
       ],
-      "evaluation": [
-        {{
-          "question": "سؤال تقويمي",
-          "answer": "الإجابة",
-          "bloom_level": "مستوى بلوم"
-        }}
-      ],
+      "evaluation": {{
+        "formative": [
+          {{
+            "question": "سؤال تقويمي",
+            "answer": "الإجابة",
+            "type": "نوع السؤال (اختياري/مقالي/صح وخطأ)",
+            "bloom_level": "مستوى بلوم"
+          }}
+        ],
+        "summative": [
+          {{
+            "question": "سؤال التقويم الختامي",
+            "type": "نوع السؤال (اختياري/مقالي/صح وخطأ/إكمال)",
+            "answer": "الإجابة النموذجية الكاملة",
+            "explanation": "توضيح إضافي أو سبب صحة الإجابة"
+          }}
+        ],
+        "enrichment": ["أسئلة إثرائية للمتفوقين"],
+        "remedial": ["أنشطة علاجية للضعاف"]
+      }},
       "individual_differences": {{
         "gifted_activities": ["نشاط للمتفوقين"],
-        "weak_support": ["دعم الضعاف"]
+        "weak_support": ["دعم الضعاف"],
+        "average_activities": ["أنشطة للمستوى المتوسط"]
       }},
       "homework": {{
         "main": ["الواجب الأساسي"],
-        "optional": ["واجب اختياري"]
+        "optional": ["واجب اختياري إثرائي"],
+        "solved_examples": [
+          {{
+            "question": "مسألة من محتوى الحصة",
+            "solution": "الحل التفصيلي خطوة بخطوة",
+            "answer": "الإجابة النهائية"
+          }}
+        ]
       }},
       "time_distribution": [
         {{
           "activity": "النشاط",
-          "duration_minutes": 5
+          "duration_minutes": 5,
+          "notes": "ملاحظات"
         }}
       ],
       "resources": ["الوسائل التعليمية"],
+      "safety_notes": ["ملاحظات السلامة إن وجدت تجارب"],
       "values_connection": {{
-        "religious": "ربط ديني",
-        "national": "ربط وطني",
-        "life": "ربط بالحياة"
+        "religious": "ربط ديني بآية أو حديث",
+        "national": "ربط وطني (رؤية 2030)",
+        "life": "ربط بالحياة اليومية"
       }},
-      "notes": "ملاحظات للمعلم"
+      "reflection": {{
+        "strengths": "نقاط القوة المتوقعة",
+        "improvements": "نقاط التحسين",
+        "notes": "ملاحظات إضافية"
+      }}
     }}
-  ],
-  "assessment_plan": {{
-    "formative": ["أساليب تقويم تكويني"],
-    "summative": "وصف التقويم الختامي"
-  }}
+  ]
 }}
 ```
 
 ## تنبيهات
+- ⚠️ كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء (vocabulary, diagnostic_questions, objectives, preparation, main_concepts, equations, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, values_connection, reflection)
+- ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
+- ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
 - قدّم أمثلة من واقع الحياة السعودية
 - اجعل كل حصة مستقلة وكاملة يمكن للمعلم تنفيذها مباشرة
 - وزّع المحتوى بالتساوي على الحصص
 - خصص حصة أو أكثر للمراجعة والتقويم
-- كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء"""
+- في vocabulary: استخرج المصطلحات الجديدة من محتوى الحصة
+- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية
+- في homework.solved_examples: قدّم أمثلة محلولة من محتوى الحصة"""
 
             ai_text, _ = self._call_ai(prompt, label=f"توزيع وحدة #{plan_id}",
                                         plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')

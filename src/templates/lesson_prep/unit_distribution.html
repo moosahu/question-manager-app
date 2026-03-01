@@ -348,6 +348,43 @@
   </div></div>
   <div class="period-body">
 
+    <!-- المصطلحات -->
+    {% set vocab = p.get('vocabulary', []) %}
+    {% if vocab %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #ede9fe !important; color: #5b21b6;">المصطلحات العلمية</div>
+      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
+        {% for v in vocab %}
+        {% if v is mapping %}
+        <div style="background:#f5f3ff; border:1px solid #c4b5fd; border-radius:6px; padding:4px 10px; font-size:9pt;">
+          <strong style="color:#5b21b6;">{{ v.get('term','') }}:</strong> {{ v.get('definition','') }}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- أسئلة التشخيص -->
+    {% set diag = p.get('diagnostic_questions', []) %}
+    {% if diag %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #dbeafe !important; color: #1e3a8a;">أسئلة التشخيص القبلي</div>
+      {% for dq in diag %}
+      {% if dq is mapping %}
+      <div class="q-box" style="background:#eff6ff !important; border-color:#93c5fd;">س: {{ dq.get('question','')|chem }}</div>
+      {% if show_answers %}
+      <div class="a-box">ج: {{ dq.get('answer','')|chem }}
+        {% if dq.get('purpose') %}<span style="color:#6b7280; font-size:8pt;"> ({{ dq.purpose }})</span>{% endif %}
+      </div>
+      {% else %}
+      <div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- الأهداف -->
     {% set objectives = p.get('objectives', {}) %}
     {% if objectives %}
@@ -469,22 +506,46 @@
     {% endif %}
 
     <!-- التقويم -->
-    {% set evaluation = p.get('evaluation', []) %}
+    {% set evaluation = p.get('evaluation', {}) %}
     {% if evaluation %}
     <div class="p-section">
       <div class="p-section-title" style="background: #d1fae5 !important; color: #065f46;">التقويم</div>
-      {% for q in evaluation %}
-      {% if q is mapping %}
-      <div class="q-box">س: {{ q.get('question', '')|chem }}</div>
-      {% if show_answers %}
-      <div class="a-box">ج: {{ q.get('answer', '')|chem }}{% if q.get('bloom_level') %} <span style="color:#6b7280; font-size:8pt;">({{ q.bloom_level }})</span>{% endif %}</div>
+      {% if evaluation is mapping %}
+        {% if evaluation.get('formative') %}
+        <p style="font-weight:700; font-size:9pt; margin-bottom:3px;">تكويني:</p>
+        {% for q in evaluation.formative %}
+        {% if q is mapping %}
+        <div class="q-box">س: {{ q.get('question','')|chem }}{% if q.get('bloom_level') %} <span style="color:#6b7280; font-size:8pt;">({{ q.bloom_level }})</span>{% endif %}</div>
+        {% if show_answers %}<div class="a-box">ج: {{ q.get('answer','')|chem }}</div>
+        {% else %}<div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>{% endif %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% if evaluation.get('summative') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:6px; margin-bottom:3px;">ختامي:</p>
+        {% for q in evaluation.summative %}
+        {% if q is mapping %}
+        <div class="q-box" style="background:#fef9c3 !important; border-color:#fde047;">س: {{ q.get('question','')|chem }}</div>
+        {% if show_answers %}
+        <div class="a-box">ج: {{ q.get('answer','')|chem }}
+          {% if q.get('explanation') %}<br><span style="color:#6b7280; font-size:8.5pt;">{{ q.explanation }}</span>{% endif %}
+        </div>
+        {% else %}<div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>{% endif %}
+        {% elif q is string %}
+        <div class="q-box" style="background:#fef9c3 !important; border-color:#fde047;">{{ q|chem }}</div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
       {% else %}
-      <div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>
+        {% for q in evaluation %}
+        {% if q is mapping %}
+        <div class="q-box">س: {{ q.get('question','')|chem }}</div>
+        {% if show_answers %}<div class="a-box">ج: {{ q.get('answer','')|chem }}</div>
+        {% else %}<div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>{% endif %}
+        {% elif q is string %}<div class="q-box">{{ q|chem }}</div>
+        {% endif %}
+        {% endfor %}
       {% endif %}
-      {% elif q is string %}
-      <div class="q-box">{{ q|chem }}</div>
-      {% endif %}
-      {% endfor %}
     </div>
     {% endif %}
 
@@ -527,6 +588,26 @@
         {% if hw.get('optional') %}
         <p style="font-weight:700; font-size:9pt; margin-top:4px;">اختياري:</p>
         <ul class="items">{% for h in hw.optional %}<li>{{ h }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if hw.get('solved_examples') %}
+        <p style="font-weight:700; font-size:9pt; margin-top:6px;">أمثلة محلولة:</p>
+        {% for se in hw.solved_examples %}
+        {% if se is mapping %}
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; margin:4px 0; font-size:9pt;">
+          <p style="font-weight:900; color:#0f172a;">📝 {{ se.get('question','')|chem }}</p>
+          {% if show_answers %}
+            {% if se.get('solution') %}
+            <div style="margin-top:4px; color:#1e40af;">{{ se.solution|chem }}</div>
+            {% endif %}
+            {% if se.get('answer') %}
+            <p style="color:#16a34a; font-weight:900; margin-top:3px;">✅ {{ se.answer|chem }}</p>
+            {% endif %}
+          {% else %}
+          <div style="height:30px; border-bottom:1px dashed #cbd5e1; margin-top:4px;"></div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
         {% endif %}
       {% elif hw is string %}
         <p style="font-size:9.5pt;">{{ hw }}</p>
@@ -575,6 +656,26 @@
       {% if values.get('life') %}
       <div class="values-box"><span class="values-label">حياتي: </span>{{ values.life }}</div>
       {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ملاحظات السلامة -->
+    {% set safety = p.get('safety_notes', []) %}
+    {% if safety %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #fef9c3 !important; color: #713f12;">ملاحظات السلامة</div>
+      <ul class="items">{% for s in safety %}<li>{{ s }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <!-- التأمل الذاتي -->
+    {% set reflection = p.get('reflection', {}) %}
+    {% if reflection and reflection is mapping and show_answers %}
+    <div class="p-section">
+      <div class="p-section-title" style="background: #ecfdf5 !important; color: #065f46;">التأمل الذاتي للمعلم</div>
+      {% if reflection.get('strengths') %}<p style="font-size:9pt;"><strong>نقاط القوة:</strong> {{ reflection.strengths }}</p>{% endif %}
+      {% if reflection.get('improvements') %}<p style="font-size:9pt;"><strong>نقاط التحسين:</strong> {{ reflection.improvements }}</p>{% endif %}
+      {% if reflection.get('notes') %}<p style="font-size:9pt;"><strong>ملاحظات:</strong> {{ reflection.notes }}</p>{% endif %}
     </div>
     {% endif %}
 
