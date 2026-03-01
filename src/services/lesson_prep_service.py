@@ -789,8 +789,143 @@ class LessonPrepService:
             traceback.print_exc()
             return None
 
+    def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
+                                     course_name, unit_name, all_lessons_text):
+        """بناء برومت لحصة واحدة فقط"""
+        return f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في السعودية.
+
+## المقرر: {course_name}
+## الوحدة: {unit_name}
+## دروس الوحدة: {all_lessons_text}
+## الحصة رقم: {period_num} من {total_periods}
+## الدرس: {lesson_name}
+## عنوان الحصة: {title}
+
+## المطلوب
+أعد تحضيراً تفصيلياً كاملاً لهذه الحصة الواحدة فقط.
+
+أعد الرد بصيغة JSON لحصة واحدة فقط:
+```json
+{{
+  "period_number": {period_num},
+  "lesson_name": "{lesson_name}",
+  "title": "{title}",
+  "objectives": {{
+    "cognitive": ["أهداف معرفية - أن يعرف الطالب..."],
+    "skill": ["أهداف مهارية"],
+    "emotional": ["أهداف وجدانية"]
+  }},
+  "vocabulary": [
+    {{
+      "term": "المصطلح الجديد",
+      "definition": "تعريف المصطلح بأسلوب واضح ومبسط"
+    }}
+  ],
+  "diagnostic_questions": [
+    {{
+      "question": "سؤال للتحقق من المتطلبات القبلية",
+      "answer": "الإجابة النموذجية",
+      "purpose": "الهدف من السؤال"
+    }}
+  ],
+  "preparation": {{
+    "introduction": "سؤال أو موقف تحفيزي للتهيئة",
+    "introduction_answer": "الإجابة المتوقعة من الطالب على سؤال التهيئة",
+    "introduction_activity": "نشاط تفاعلي للتهيئة",
+    "connection_to_previous": "ربط بالحصة السابقة"
+  }},
+  "main_concepts": [
+    {{
+      "concept": "المفهوم الرئيسي",
+      "explanation": "شرح مفصّل",
+      "teaching_method": "استراتيجية التدريس المستخدمة",
+      "examples": [
+        {{
+          "problem": "نص المثال أو المسألة",
+          "steps": ["الخطوة الأولى", "الخطوة الثانية"],
+          "answer": "الإجابة النهائية مع التفسير"
+        }}
+      ],
+      "student_activity": "نشاط الطلاب"
+    }}
+  ],
+  "equations": ["المعادلات الكيميائية إن وجدت"],
+  "teaching_strategies": [
+    {{
+      "strategy": "اسم الاستراتيجية",
+      "application": "كيفية تطبيقها",
+      "duration_minutes": 10
+    }}
+  ],
+  "evaluation": {{
+    "formative": [
+      {{
+        "question": "سؤال تقويمي",
+        "answer": "الإجابة",
+        "type": "نوع السؤال (اختياري/مقالي/صح وخطأ)",
+        "bloom_level": "مستوى بلوم"
+      }}
+    ],
+    "summative": [
+      {{
+        "question": "سؤال التقويم الختامي",
+        "type": "نوع السؤال (اختياري/مقالي/صح وخطأ/إكمال)",
+        "answer": "الإجابة النموذجية الكاملة",
+        "explanation": "توضيح إضافي أو سبب صحة الإجابة"
+      }}
+    ],
+    "enrichment": ["أسئلة إثرائية للمتفوقين"],
+    "remedial": ["أنشطة علاجية للضعاف"]
+  }},
+  "individual_differences": {{
+    "gifted_activities": ["نشاط للمتفوقين"],
+    "weak_support": ["دعم الضعاف"],
+    "average_activities": ["أنشطة للمستوى المتوسط"]
+  }},
+  "homework": {{
+    "main": ["الواجب الأساسي"],
+    "optional": ["واجب اختياري إثرائي"],
+    "solved_examples": [
+      {{
+        "question": "مسألة من محتوى الحصة",
+        "solution": "الحل التفصيلي خطوة بخطوة",
+        "answer": "الإجابة النهائية"
+      }}
+    ]
+  }},
+  "time_distribution": [
+    {{
+      "activity": "النشاط",
+      "duration_minutes": 5,
+      "notes": "ملاحظات"
+    }}
+  ],
+  "resources": ["الوسائل التعليمية"],
+  "safety_notes": ["ملاحظات السلامة إن وجدت تجارب"],
+  "values_connection": {{
+    "religious": "ربط ديني بآية أو حديث",
+    "national": "ربط وطني (رؤية 2030)",
+    "life": "ربط بالحياة اليومية"
+  }},
+  "reflection": {{
+    "strengths": "نقاط القوة المتوقعة",
+    "improvements": "نقاط التحسين",
+    "notes": "ملاحظات إضافية"
+  }}
+}}
+```
+
+## تنبيهات
+- ⚠️ الرد يجب أن يكون JSON لحصة واحدة فقط (ليس قائمة)
+- ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
+- ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation)
+- التزم بتنسيق JSON بالضبط
+- اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
+- في vocabulary: استخرج المصطلحات الجديدة من محتوى هذه الحصة تحديداً
+- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية لهذه الحصة"""
+
     def generate_unit_distribution(self, plan_id):
-        """توليد توزيع وحدة كاملة"""
+        """توليد توزيع وحدة كاملة - حصة حصة لتجنب حد الـ tokens"""
         plan = LessonPlan.query.get(plan_id)
         if not plan:
             return False
@@ -808,175 +943,108 @@ class LessonPrepService:
             if not unit:
                 raise ValueError("الوحدة غير موجودة")
 
-            total_periods = plan.student_count or 12  # عدد الحصص المطلوب
-
+            total_periods = plan.student_count or 12
             lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
+            course_name = course.name if course else ''
 
-            prompt = f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في السعودية.
+            # ── الخطوة 1: توليد خطة الحصص (عناوين وتوزيع فقط) ──
+            plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
 
-## المقرر: {course.name if course else ''}
+## المقرر: {course_name}
 ## الوحدة: {unit.name}
 ## الدروس:
 {lessons_text}
 
-## عدد الحصص المطلوب: {total_periods} حصة
-
-## المطلوب
-أعد تحضيراً تفصيلياً كاملاً للوحدة موزعاً على {total_periods} حصة.
-كل حصة يجب أن تكون تحضيراً كاملاً كأنها درس مستقل يشمل كل الأقسام التالية.
-
-أعد الرد بصيغة JSON:
+أعد JSON بسيطاً فقط يحدد عنوان كل حصة والدرس المرتبط بها:
 ```json
 {{
-  "unit_name": "اسم الوحدة",
-  "course_name": "{course.name if course else ''}",
-  "total_periods": {total_periods},
-  "periods": [
-    {{
-      "period_number": 1,
-      "lesson_name": "اسم الدرس",
-      "title": "عنوان الحصة (مثلاً: مقدمة في سرعة التفاعل)",
-      "objectives": {{
-        "cognitive": ["أهداف معرفية - أن يعرف الطالب..."],
-        "skill": ["أهداف مهارية"],
-        "emotional": ["أهداف وجدانية"]
-      }},
-      "vocabulary": [
-        {{
-          "term": "المصطلح الجديد",
-          "definition": "تعريف المصطلح بأسلوب واضح ومبسط"
-        }}
-      ],
-      "diagnostic_questions": [
-        {{
-          "question": "سؤال للتحقق من المتطلبات القبلية",
-          "answer": "الإجابة النموذجية",
-          "purpose": "الهدف من السؤال"
-        }}
-      ],
-      "preparation": {{
-        "introduction": "سؤال أو موقف تحفيزي للتهيئة",
-        "introduction_answer": "الإجابة المتوقعة من الطالب على سؤال التهيئة",
-        "introduction_activity": "نشاط تفاعلي للتهيئة",
-        "connection_to_previous": "ربط بالحصة السابقة"
-      }},
-      "main_concepts": [
-        {{
-          "concept": "المفهوم الرئيسي",
-          "explanation": "شرح مفصّل",
-          "teaching_method": "استراتيجية التدريس المستخدمة",
-          "examples": [
-            {{
-              "problem": "نص المثال أو المسألة",
-              "steps": ["الخطوة الأولى", "الخطوة الثانية"],
-              "answer": "الإجابة النهائية مع التفسير"
-            }}
-          ],
-          "student_activity": "نشاط الطلاب"
-        }}
-      ],
-      "equations": ["المعادلات الكيميائية إن وجدت"],
-      "teaching_strategies": [
-        {{
-          "strategy": "اسم الاستراتيجية",
-          "application": "كيفية تطبيقها",
-          "duration_minutes": 10
-        }}
-      ],
-      "evaluation": {{
-        "formative": [
-          {{
-            "question": "سؤال تقويمي",
-            "answer": "الإجابة",
-            "type": "نوع السؤال (اختياري/مقالي/صح وخطأ)",
-            "bloom_level": "مستوى بلوم"
-          }}
-        ],
-        "summative": [
-          {{
-            "question": "سؤال التقويم الختامي",
-            "type": "نوع السؤال (اختياري/مقالي/صح وخطأ/إكمال)",
-            "answer": "الإجابة النموذجية الكاملة",
-            "explanation": "توضيح إضافي أو سبب صحة الإجابة"
-          }}
-        ],
-        "enrichment": ["أسئلة إثرائية للمتفوقين"],
-        "remedial": ["أنشطة علاجية للضعاف"]
-      }},
-      "individual_differences": {{
-        "gifted_activities": ["نشاط للمتفوقين"],
-        "weak_support": ["دعم الضعاف"],
-        "average_activities": ["أنشطة للمستوى المتوسط"]
-      }},
-      "homework": {{
-        "main": ["الواجب الأساسي"],
-        "optional": ["واجب اختياري إثرائي"],
-        "solved_examples": [
-          {{
-            "question": "مسألة من محتوى الحصة",
-            "solution": "الحل التفصيلي خطوة بخطوة",
-            "answer": "الإجابة النهائية"
-          }}
-        ]
-      }},
-      "time_distribution": [
-        {{
-          "activity": "النشاط",
-          "duration_minutes": 5,
-          "notes": "ملاحظات"
-        }}
-      ],
-      "resources": ["الوسائل التعليمية"],
-      "safety_notes": ["ملاحظات السلامة إن وجدت تجارب"],
-      "values_connection": {{
-        "religious": "ربط ديني بآية أو حديث",
-        "national": "ربط وطني (رؤية 2030)",
-        "life": "ربط بالحياة اليومية"
-      }},
-      "reflection": {{
-        "strengths": "نقاط القوة المتوقعة",
-        "improvements": "نقاط التحسين",
-        "notes": "ملاحظات إضافية"
-      }}
-    }}
+  "periods_plan": [
+    {{"period_number": 1, "lesson_name": "اسم الدرس", "title": "عنوان الحصة"}},
+    {{"period_number": 2, "lesson_name": "اسم الدرس", "title": "عنوان الحصة"}}
   ]
 }}
 ```
+- خصص حصة أخيرة للمراجعة والتقويم
+- وزّع الدروس بالتساوي"""
 
-## تنبيهات
-- ⚠️ كل حصة يجب أن تحتوي على كل الأقسام المذكورة أعلاه بدون استثناء (vocabulary, diagnostic_questions, objectives, preparation, main_concepts, equations, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, values_connection, reflection)
-- ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
-- ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
-- التزم بتنسيق JSON بالضبط
-- اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
-- قدّم أمثلة من واقع الحياة السعودية
-- اجعل كل حصة مستقلة وكاملة يمكن للمعلم تنفيذها مباشرة
-- وزّع المحتوى بالتساوي على الحصص
-- خصص حصة أو أكثر للمراجعة والتقويم
-- في vocabulary: استخرج المصطلحات الجديدة من محتوى الحصة
-- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية
-- في homework.solved_examples: قدّم أمثلة محلولة من محتوى الحصة"""
+            logger.info(f"الوحدة #{plan_id}: توليد خطة الحصص...")
+            plan_text, _ = self._call_ai(plan_prompt, label=f"خطة وحدة #{plan_id}",
+                                          plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')
+            periods_plan_data = self._extract_json(plan_text)
+            if not periods_plan_data:
+                periods_plan_data = self._aggressive_json_fix(plan_text)
 
-            ai_text, _ = self._call_ai(prompt, label=f"توزيع وحدة #{plan_id}",
-                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')
+            # بناء قائمة الحصص من الخطة أو توليد افتراضي
+            if periods_plan_data and 'periods_plan' in periods_plan_data:
+                periods_plan = periods_plan_data['periods_plan']
+            else:
+                # خطة افتراضية إذا فشل التوليد
+                lessons_cycle = lessons if lessons else [type('L', (), {'name': unit.name})()]
+                periods_plan = []
+                for i in range(total_periods):
+                    l = lessons_cycle[i % len(lessons_cycle)]
+                    periods_plan.append({
+                        'period_number': i + 1,
+                        'lesson_name': l.name,
+                        'title': f"الحصة {i + 1}: {l.name}",
+                    })
 
-            plan_data = self._extract_json(ai_text)
-            if not plan_data:
-                logger.warning(f"فشل JSON parsing للوحدة #{plan_id}، محاولة إصلاح محلي...")
-                plan_data = self._aggressive_json_fix(ai_text)
-            if not plan_data:
-                # محاولة أخيرة عبر Gemini
-                logger.warning(f"فشل الإصلاح المحلي للوحدة #{plan_id}، محاولة Gemini...")
+            # ── الخطوة 2: توليد كل حصة بشكل منفصل ──
+            generated_periods = []
+            for p_info in periods_plan:
+                period_num  = p_info.get('period_number', len(generated_periods) + 1)
+                lesson_name = p_info.get('lesson_name', '')
+                title       = p_info.get('title', f"الحصة {period_num}")
+
+                logger.info(f"الوحدة #{plan_id}: توليد الحصة {period_num}/{total_periods} - {title}")
+
+                period_prompt = self._build_single_period_prompt(
+                    period_num, total_periods, lesson_name, title,
+                    course_name, unit.name, lessons_text
+                )
+
                 try:
-                    fix_prompt = f"النص التالي يحتوي على JSON لكنه غير صالح. أعد كتابته كـ JSON صالح فقط بدون أي نص إضافي:\n\n{ai_text[:8000]}"
-                    fix_response_text, _ = self._call_ai(fix_prompt, label="إصلاح JSON")
-                    plan_data = self._extract_json(fix_response_text)
-                except Exception as fix_err:
-                    logger.warning(f"فشل إصلاح JSON الوحدة عبر Gemini: {fix_err}")
-            if not plan_data:
-                plan_data = {'raw_text': ai_text}
-                logger.error(f"الوحدة #{plan_id}: حُفظ كـ raw_text")
+                    period_text, _ = self._call_ai(
+                        period_prompt,
+                        label=f"وحدة #{plan_id} حصة {period_num}",
+                        plan_id=plan_id,
+                        teacher_id=plan.teacher_id,
+                        operation_type='unit_dist'
+                    )
+                    period_data = self._extract_json(period_text)
+                    if not period_data:
+                        period_data = self._aggressive_json_fix(period_text)
+                    if period_data:
+                        # تأكد من وجود period_number
+                        period_data['period_number'] = period_num
+                        if 'lesson_name' not in period_data:
+                            period_data['lesson_name'] = lesson_name
+                        generated_periods.append(period_data)
+                    else:
+                        # حفظ نص خام للحصة الفاشلة
+                        generated_periods.append({
+                            'period_number': period_num,
+                            'lesson_name': lesson_name,
+                            'title': title,
+                            'raw_text': period_text[:1000],
+                        })
+                        logger.warning(f"الوحدة #{plan_id}: فشل تحليل الحصة {period_num}")
+                except Exception as pe:
+                    logger.warning(f"الوحدة #{plan_id}: خطأ في الحصة {period_num}: {pe}")
+                    generated_periods.append({
+                        'period_number': period_num,
+                        'lesson_name': lesson_name,
+                        'title': title,
+                        'error': str(pe),
+                    })
+
+            plan_data = {
+                'unit_name': unit.name,
+                'course_name': course_name,
+                'total_periods': total_periods,
+                'periods': generated_periods,
+            }
 
             # توليد PDF للوحدة
             pdf_url = None
