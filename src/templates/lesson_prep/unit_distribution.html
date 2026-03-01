@@ -317,9 +317,19 @@
 <body>
 
 <div class="main-header">
-  <h1>توزيع وحدة: {{ plan_data.get('unit_name', unit_name) }}</h1>
-  <div class="subtitle">
-    {{ course_name }} — {{ plan_data.get('total_periods', '') }} حصة
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <img src="images/logo.png" style="height:55px; width:auto;" alt="وزارة التعليم">
+    <div style="flex:1; text-align:center;">
+      <h1>توزيع وحدة: {{ plan_data.get('unit_name', unit_name) }}</h1>
+      <div class="subtitle">{{ course_name }} — {{ plan_data.get('total_periods', '') }} حصة</div>
+    </div>
+    <div style="width:80px; text-align:left;">
+      {% if show_answers %}
+      <span style="background:#16a34a; color:#fff; padding:4px 10px; border-radius:20px; font-size:8pt; font-weight:900;">👨‍🏫 نسخة المعلم</span>
+      {% else %}
+      <span style="background:#2563eb; color:#fff; padding:4px 10px; border-radius:20px; font-size:8pt; font-weight:900;">👨‍🎓 نسخة الطالب</span>
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -439,7 +449,11 @@
       {% for q in evaluation %}
       {% if q is mapping %}
       <div class="q-box">س: {{ q.get('question', '')|chem }}</div>
+      {% if show_answers %}
       <div class="a-box">ج: {{ q.get('answer', '')|chem }}{% if q.get('bloom_level') %} <span style="color:#6b7280; font-size:8pt;">({{ q.bloom_level }})</span>{% endif %}</div>
+      {% else %}
+      <div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>
+      {% endif %}
       {% elif q is string %}
       <div class="q-box">{{ q|chem }}</div>
       {% endif %}

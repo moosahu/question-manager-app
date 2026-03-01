@@ -432,11 +432,24 @@ class LessonPrepService:
     "date": "",
     "prerequisites": ["المتطلبات السابقة"]
   }},
+  "vocabulary": [
+    {{
+      "term": "المصطلح الجديد",
+      "definition": "تعريف المصطلح بأسلوب واضح ومبسط"
+    }}
+  ],
   "objectives": {{
     "cognitive": ["أهداف معرفية - يتوقع من الطالب أن..."],
     "skill": ["أهداف مهارية"],
     "emotional": ["أهداف وجدانية"]
   }},
+  "diagnostic_questions": [
+    {{
+      "question": "سؤال للتحقق من المتطلبات القبلية قبل بدء الدرس",
+      "answer": "الإجابة النموذجية",
+      "purpose": "الهدف من السؤال (مثل: التحقق من فهم مفهوم معين)"
+    }}
+  ],
   "preparation": {{
     "introduction": "التهيئة والتمهيد - سؤال أو موقف تحفيزي يشد انتباه الطلاب",
     "introduction_activity": "نشاط تفاعلي للتهيئة",
@@ -448,11 +461,17 @@ class LessonPrepService:
         "concept": "المفهوم",
         "explanation": "الشرح التفصيلي",
         "teaching_method": "استراتيجية التدريس المستخدمة",
-        "examples": ["أمثلة توضيحية"],
+        "examples": [
+          {{
+            "problem": "نص المثال أو المسألة",
+            "steps": ["الخطوة الأولى", "الخطوة الثانية", "الخطوة الثالثة"],
+            "answer": "الإجابة النهائية مع التفسير"
+          }}
+        ],
         "student_activity": "نشاط الطلاب"
       }}
     ],
-    "equations": ["المعادلات الكيميائية إن وجدت"],
+    "equations": ["المعادلات إن وجدت"],
     "diagrams_description": ["وصف الرسومات والمخططات التوضيحية المطلوبة"]
   }},
   "teaching_strategies": [
@@ -471,7 +490,14 @@ class LessonPrepService:
         "bloom_level": "مستوى بلوم"
       }}
     ],
-    "summative": ["أسئلة التقويم الختامي"],
+    "summative": [
+      {{
+        "question": "سؤال التقويم الختامي",
+        "type": "نوع السؤال (اختياري/مقالي/صح وخطأ/إكمال)",
+        "answer": "الإجابة النموذجية الكاملة",
+        "explanation": "توضيح إضافي أو سبب صحة الإجابة"
+      }}
+    ],
     "enrichment": ["أسئلة إثرائية للمتفوقين"],
     "remedial": ["أنشطة علاجية للضعاف"]
   }},
@@ -482,7 +508,14 @@ class LessonPrepService:
   }},
   "homework": {{
     "main": ["الواجب الأساسي"],
-    "optional": ["واجب اختياري إثرائي"]
+    "optional": ["واجب اختياري إثرائي"],
+    "solved_examples": [
+      {{
+        "question": "مسألة أو سؤال من محتوى الكتاب المرفق أو مشابه له",
+        "solution": "الحل التفصيلي خطوة بخطوة",
+        "answer": "الإجابة النهائية"
+      }}
+    ]
   }},
   "time_distribution": [
     {{
@@ -514,17 +547,22 @@ class LessonPrepService:
 ```
 
 ## تنبيهات مهمة
-- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, objectives, preparation, presentation, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
+- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, presentation, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
 - ⚠️ استخدم نفس أسماء المفاتيح بالضبط كما هي مكتوبة - لا تغيرها (مثلاً: evaluation وليس assessment)
+- ⚠️ الأمثلة في presentation يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
+- ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى
-- استخدم مصطلحات كيميائية دقيقة
+- استخدم مصطلحات علمية دقيقة مناسبة للمادة
 - اجعل الأمثلة من واقع الحياة السعودية قدر الإمكان
 - عند وصف الرسومات، اذكر تفاصيل كافية لرسمها
 - ركّز على "{focus}" حسب طلب المعلم
-- قدّم {examples} أمثلة على الأقل لكل مفهوم رئيسي
+- قدّم {examples} أمثلة محلولة بخطوات واضحة لكل مفهوم رئيسي
 - راعِ الفروق الفردية: {weak_count} ضعاف و {excellent_count} متفوقين
 - استخدم صيغة المذكر دائماً (الطلاب، الطالب، المعلم) وليس المؤنث
+- في vocabulary: استخرج المصطلحات الجديدة من محتوى الدرس نفسه
+- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية المذكورة في lesson_info
+- في homework.solved_examples: قدّم أمثلة محلولة من محتوى الصفحات المرفقة أو مشابهة لها
 """
         return prompt
 
@@ -672,7 +710,7 @@ class LessonPrepService:
         text = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', text)
         return text
 
-    def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name):
+    def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name, show_answers=True):
         """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
             from weasyprint import HTML
@@ -697,10 +735,12 @@ class LessonPrepService:
                 'lesson_name': lesson_name,
                 'unit_name': unit_name,
                 'course_name': course_name,
+                'show_answers': show_answers,
             }
 
             html_string = render_template('lesson_prep/lesson_plan.html', **context)
-            pdf_bytes = HTML(string=html_string).write_pdf()
+            base_url = os.path.join(os.getcwd(), 'src', 'static')
+            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
             logger.info(f"تم توليد PDF بـ WeasyPrint ({len(pdf_bytes)} bytes)")
             return pdf_bytes
@@ -711,7 +751,7 @@ class LessonPrepService:
             traceback.print_exc()
             return None
 
-    def _generate_unit_pdf(self, plan_data, unit_name, course_name):
+    def _generate_unit_pdf(self, plan_data, unit_name, course_name, show_answers=True):
         """توليد PDF لتوزيع الوحدة"""
         try:
             from weasyprint import HTML
@@ -732,10 +772,12 @@ class LessonPrepService:
                 'plan_data': plan_data,
                 'unit_name': unit_name,
                 'course_name': course_name,
+                'show_answers': show_answers,
             }
 
             html_string = render_template('lesson_prep/unit_distribution.html', **context)
-            pdf_bytes = HTML(string=html_string).write_pdf()
+            base_url = os.path.join(os.getcwd(), 'src', 'static')
+            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
             logger.info(f"تم توليد PDF الوحدة بـ WeasyPrint ({len(pdf_bytes)} bytes)")
             return pdf_bytes

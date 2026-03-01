@@ -417,10 +417,22 @@
 
 <!-- ═══ العنوان الرئيسي ═══ -->
 <div class="main-header">
-  <h1>تحضير درس: {{ lesson_info.get('title', lesson_name) }}</h1>
-  <div class="subtitle">
-    {{ course_name }} — {{ unit_name }}
-    {% if lesson_info.get('duration') %} | {{ lesson_info.duration }} {% endif %}
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <img src="images/logo.png" style="height:60px; width:auto;" alt="وزارة التعليم">
+    <div style="flex:1; text-align:center;">
+      <h1>تحضير درس: {{ lesson_info.get('title', lesson_name) }}</h1>
+      <div class="subtitle">
+        {{ course_name }} — {{ unit_name }}
+        {% if lesson_info.get('duration') %} | {{ lesson_info.duration }} {% endif %}
+      </div>
+    </div>
+    <div style="width:80px; text-align:left;">
+      {% if show_answers %}
+      <span style="background:#16a34a; color:#fff; padding:4px 10px; border-radius:20px; font-size:8pt; font-weight:900;">👨‍🏫 نسخة المعلم</span>
+      {% else %}
+      <span style="background:#2563eb; color:#fff; padding:4px 10px; border-radius:20px; font-size:8pt; font-weight:900;">👨‍🎓 نسخة الطالب</span>
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -455,7 +467,59 @@
   </div>
 </div>
 
-<!-- ═══ 2. الأهداف العامة ═══ -->
+<!-- ═══ 2. المفردات الجديدة ═══ -->
+{% set vocabulary = plan_data.get('vocabulary', []) %}
+{% if vocabulary %}
+<div class="section sec-info">
+  <div class="section-header" style="background: #0891b2 !important;"><span class="num">2</span> المفردات الجديدة</div>
+  <div class="section-body">
+    <table class="styled-table">
+      <thead>
+        <tr style="background: #0891b2 !important;">
+          <th style="width:35%;">المصطلح</th>
+          <th>التعريف</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vocabulary %}
+        {% if v is mapping %}
+        <tr>
+          <td style="font-weight:900; color:#0e7490;">{{ v.get('term', '') }}</td>
+          <td>{{ v.get('definition', '') }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ 3. الأسئلة التشخيصية ═══ -->
+{% set diag_q = plan_data.get('diagnostic_questions', []) %}
+{% if diag_q %}
+<div class="section sec-prep">
+  <div class="section-header" style="background: #7c3aed !important;"><span class="num">3</span> التقويم التشخيصي (قبل الدرس)</div>
+  <div class="section-body">
+    {% for q in diag_q %}
+    {% if q is mapping %}
+    <div class="question-box" style="border-color:#7c3aed;">
+      {{ q.get('question', '') }}
+      {% if q.get('purpose') %}<span style="font-size:8pt; color:#7c3aed;"> — {{ q.purpose }}</span>{% endif %}
+    </div>
+    {% if show_answers and q.get('answer') %}
+    <div class="answer-box" style="border-color:#7c3aed;">{{ q.answer }}</div>
+    {% elif not show_answers %}
+    <div style="height:24px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ (الأهداف - الرقم يتغير) ═══ -->
+<!-- ═══ الأهداف العامة ═══ -->
 {% set objectives = plan_data.get('objectives', {}) %}
 {% set all_objectives = objectives.get('cognitive', []) + objectives.get('skill', []) + objectives.get('emotional', []) %}
 {% if all_objectives %}
@@ -560,11 +624,29 @@
         {% endif %}
         {% if concept.get('examples') %}
         <p style="font-weight:900; margin-top:5px;">الأمثلة:</p>
-        <ul class="items">
-          {% for ex in concept.examples %}
-          <li>{{ ex|chem }}</li>
-          {% endfor %}
-        </ul>
+        {% for ex in concept.examples %}
+        {% if ex is mapping %}
+        <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:8px; margin:4px 0; border-radius:4px;">
+          {% if ex.get('problem') %}
+          <p style="font-weight:900;">📝 {{ ex.problem|chem }}</p>
+          {% endif %}
+          {% if show_answers %}
+            {% if ex.get('steps') %}
+            <ol style="margin-right:16px; margin-top:4px;">
+              {% for step in ex.steps %}<li>{{ step|chem }}</li>{% endfor %}
+            </ol>
+            {% endif %}
+            {% if ex.get('answer') %}
+            <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅ {{ ex.answer|chem }}</p>
+            {% endif %}
+          {% else %}
+          <div style="height:30px; border-bottom:1px dashed #cbd5e1; margin-top:4px;"></div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:6px 10px; margin:3px 0;">{{ ex|chem }}</div>
+        {% endif %}
+        {% endfor %}
         {% endif %}
       </div>
     </div>
@@ -649,7 +731,11 @@
         {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
         {% if q.get('bloom_level') %}<span style="font-size:8pt; color:#7c3aed;"> [{{ q.bloom_level }}]</span>{% endif %}
       </div>
+      {% if show_answers %}
       <div class="answer-box">{{ q.get('answer', '')|chem }}</div>
+      {% else %}
+      <div style="height:24px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
+      {% endif %}
       {% elif q is string %}
       <div class="question-box">{{ q }}</div>
       {% endif %}
@@ -662,11 +748,29 @@
     {% if summative %}
     <div class="sub-section">
       <div class="sub-title" style="background: #dbeafe !important; color: #1e40af;">التقويم الختامي</div>
-      <ul class="items">
-        {% for item in summative %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
+      {% for q in summative %}
+      {% if q is mapping %}
+      <div class="question-box" style="border-color:#1e40af;">
+        {{ q.get('question', '')|chem }}
+        {% if q.get('type') %}<span style="font-size:8pt; color:#64748b;"> ({{ q.type }})</span>{% endif %}
+      </div>
+      {% if show_answers %}
+        {% if q.get('answer') %}
+        <div class="answer-box" style="border-color:#1e40af;">
+          <strong>الإجابة:</strong> {{ q.answer|chem }}
+          {% if q.get('explanation') %}<br><span style="color:#64748b; font-size:9pt;">{{ q.explanation }}</span>{% endif %}
+        </div>
+        {% endif %}
+      {% else %}
+      <div style="height:28px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
+      {% endif %}
+      {% elif q is string %}
+      <div class="question-box">{{ q|chem }}</div>
+      {% if not show_answers %}
+      <div style="height:28px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
+      {% endif %}
+      {% endif %}
+      {% endfor %}
     </div>
     {% endif %}
 
@@ -799,6 +903,24 @@
         <li>{{ item }}</li>
         {% endfor %}
       </ul>
+    </div>
+    {% endif %}
+    {% if show_answers and homework.get('solved_examples') %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: #dcfce7 !important; color: #15803d;">أمثلة محلولة (نسخة المعلم)</div>
+      {% for ex in homework.solved_examples %}
+      {% if ex is mapping %}
+      <div style="background:#f0fdf4; border-right:3px solid #16a34a; padding:8px; margin:5px 0; border-radius:4px;">
+        {% if ex.get('question') %}<p style="font-weight:900;">📝 {{ ex.question|chem }}</p>{% endif %}
+        {% if ex.get('solution') %}
+        <p style="margin-top:4px; color:#374151;">{{ ex.solution|chem }}</p>
+        {% endif %}
+        {% if ex.get('answer') %}
+        <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅ {{ ex.answer|chem }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
     </div>
     {% endif %}
   </div>

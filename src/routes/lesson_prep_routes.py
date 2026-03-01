@@ -482,6 +482,8 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
             unit = Unit.query.get(lesson.unit_id) if lesson else None
             course = Course.query.get(unit.course_id) if unit else None
 
+            show_answers = request.args.get('show_answers', '1') != '0'
+
             if plan.plan_type == 'semester_distribution':
                 course = Course.query.get(plan.course_id) if plan.course_id else None
                 pdf_bytes = lesson_prep_service._generate_semester_pdf(
@@ -493,6 +495,7 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                     plan.plan_data or {},
                     unit.name if unit else '',
                     course.name if course else '',
+                    show_answers=show_answers,
                 )
             else:
                 pdf_bytes = lesson_prep_service._generate_pdf(
@@ -500,6 +503,7 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                     lesson.name if lesson else 'تحضير',
                     unit.name if unit else '',
                     course.name if course else '',
+                    show_answers=show_answers,
                 )
             if pdf_bytes:
                 return send_file(
