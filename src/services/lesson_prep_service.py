@@ -759,10 +759,12 @@ class LessonPrepService:
         px0, px1 = 30, 280
         py0, py1 = 15, 140
         eq_x     = 180
-        mid_y    = (py0 + py1) // 2
+        # تراكيز الاتزان مختلفة: المتفاعل يبقى أعلى، الناتج أقل
+        r_eq_y   = py0 + int((py1 - py0) * 0.50)   # المتفاعل يستقر عند منتصف المحور
+        p_eq_y   = py0 + int((py1 - py0) * 0.28)   # الناتج يستقر أقل منه
 
-        r_path = (f"M {px0},{py0+12} C {eq_x-45},{py0+12} {eq_x-12},{mid_y} {px1},{mid_y}")
-        p_path = (f"M {px0},{py1-12} C {eq_x-45},{py1-12} {eq_x-12},{mid_y} {px1},{mid_y}")
+        r_path = (f"M {px0},{py0+10} C {eq_x-45},{py0+10} {eq_x-12},{r_eq_y} {px1},{r_eq_y}")
+        p_path = (f"M {px0},{py1-10} C {eq_x-45},{py1-10} {eq_x-12},{p_eq_y} {px1},{p_eq_y}")
 
         svg_body = (
             f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
@@ -800,7 +802,7 @@ class LessonPrepService:
         r_y      = py0 + 45 if is_exo else py0 + 65
         p_y      = (py0 + 65) if is_exo else (py0 + 45)
         dh_color = '#16a34a' if is_exo else '#dc2626'
-        dh_text  = 'DH < 0 (exo)' if is_exo else 'DH > 0 (endo)'
+        dh_text  = '\u0394H &lt; 0' if is_exo else '\u0394H &gt; 0'
 
         curve = (f"M {px0},{r_y} "
                  f"C {px0+50},{r_y} {peak_x-35},{peak_y} {peak_x},{peak_y} "

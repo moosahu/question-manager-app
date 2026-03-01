@@ -669,13 +669,19 @@
     </div>
     {% endif %}
 
-    <!-- الرسومات التوضيحية -->
+    <!-- الرسومات التوضيحية - نخفيها إذا كانت تحتوي على أنواع إنجليزية فقط -->
     {% set diagrams = presentation.get('diagrams_description', []) %}
-    {% if diagrams %}
+    {% set clean_diagrams = [] %}
+    {% for d in diagrams %}
+      {% if d and 'concentration_time' not in d and 'energy_diagram' not in d and 'rate_time' not in d %}
+        {% set _ = clean_diagrams.append(d) %}
+      {% endif %}
+    {% endfor %}
+    {% if clean_diagrams %}
     <div class="sub-section" style="margin-top:8px;">
       <div class="sub-title" style="background: #e0e7ff !important; color: #3730a3;">الرسومات التوضيحية</div>
       <ul class="items">
-        {% for d in diagrams %}
+        {% for d in clean_diagrams %}
         <li>{{ d }}</li>
         {% endfor %}
       </ul>
