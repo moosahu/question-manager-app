@@ -729,122 +729,142 @@ class LessonPrepService:
     # ─────────────────────────────────────────────────────────────
 
     @staticmethod
+    def _diagram_wrap(title, svg_body, legend_items, note=''):
+        """غلاف HTML للرسم: عنوان + SVG + أسطورة - الكل بدون عربي داخل SVG"""
+        legend_html = ''.join(
+            f'<span style="display:inline-flex;align-items:center;margin-left:12px;">'
+            f'<span style="display:inline-block;width:18px;height:3px;background:{color};margin-left:5px;border-radius:2px;"></span>'
+            f'{label}</span>'
+            for label, color in legend_items
+        )
+        note_html = f'<div style="font-size:8pt;color:#64748b;margin-top:3px;">{note}</div>' if note else ''
+        return (
+            f'<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;'
+            f'background:#f8fafc;margin:8px auto;max-width:340px;text-align:center;">'
+            f'<div style="font-size:9.5pt;font-weight:bold;color:#1e293b;margin-bottom:4px;">{title}</div>'
+            f'{svg_body}'
+            f'<div style="font-size:8.5pt;color:#374151;margin-top:5px;direction:rtl;">{legend_html}</div>'
+            f'{note_html}'
+            f'</div>'
+        )
+
+    @staticmethod
     def _svg_concentration_time(data):
         """رسم تغير التراكيز مع الزمن حتى الاتزان"""
-        title       = data.get('title', 'تغير التراكيز مع الزمن حتى الاتزان')
-        r_label     = data.get('reactant_label', 'مادة متفاعلة')
-        p_label     = data.get('product_label', 'مادة ناتجة')
-        note        = data.get('note', '')
-        W, H        = 320, 190
-        px0, px1    = 45, 290
-        py0, py1    = 20, 158
-        eq_x        = 190
-        mid_y       = (py0 + py1) // 2
+        title    = data.get('title', 'تغير التراكيز مع الزمن حتى الاتزان')
+        r_label  = data.get('reactant_label', 'مادة متفاعلة')
+        p_label  = data.get('product_label', 'مادة ناتجة')
+        note     = data.get('note', '')
+        W, H     = 300, 160
+        px0, px1 = 30, 280
+        py0, py1 = 15, 140
+        eq_x     = 180
+        mid_y    = (py0 + py1) // 2
 
-        r_path = (f"M {px0},{py0+18} "
-                  f"C {eq_x-50},{py0+18} {eq_x-15},{mid_y} {px1},{mid_y}")
-        p_path = (f"M {px0},{py1-18} "
-                  f"C {eq_x-50},{py1-18} {eq_x-15},{mid_y} {px1},{mid_y}")
-        note_el = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
-                   f'font-size="7" fill="#64748b">{note}</text>') if note else ''
-        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
-  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
-  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
-  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
-        transform="rotate(-90,13,{(py0+py1)//2})">التركيز</text>
-  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">الزمن</text>
-  <line x1="{eq_x}" y1="{py0}" x2="{eq_x}" y2="{py1}"
-        stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="{eq_x+3}" y="{py0+9}" font-size="7" fill="#94a3b8">اتزان</text>
-  <path d="{r_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>
-  <text x="{px0+5}" y="{py0+32}" font-size="8" fill="#dc2626" font-weight="bold">{r_label}</text>
-  <path d="{p_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>
-  <text x="{px0+5}" y="{py1-20}" font-size="8" fill="#2563eb" font-weight="bold">{p_label}</text>
-  {note_el}
-</svg>"""
+        r_path = (f"M {px0},{py0+12} C {eq_x-45},{py0+12} {eq_x-12},{mid_y} {px1},{mid_y}")
+        p_path = (f"M {px0},{py1-12} C {eq_x-45},{py1-12} {eq_x-12},{mid_y} {px1},{mid_y}")
+
+        svg_body = (
+            f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+            f'style="width:100%;max-width:{W}px;">'
+            f'<rect width="{W}" height="{H}" fill="#f8fafc" rx="4" stroke="#e2e8f0" stroke-width="1"/>'
+            f'<line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<text x="{px0-6}" y="{py0+4}" text-anchor="end" font-size="8" fill="#64748b">[C]</text>'
+            f'<text x="{px1}" y="{py1+12}" text-anchor="middle" font-size="8" fill="#64748b">t</text>'
+            f'<line x1="{eq_x}" y1="{py0}" x2="{eq_x}" y2="{py1}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>'
+            f'<text x="{eq_x+3}" y="{py0+9}" font-size="7" fill="#94a3b8" font-style="italic">eq</text>'
+            f'<path d="{r_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>'
+            f'<path d="{p_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>'
+            f'</svg>'
+        )
+        return LessonPrepService._diagram_wrap(
+            title, svg_body,
+            [(r_label, '#dc2626'), (p_label, '#2563eb')],
+            note
+        )
 
     @staticmethod
     def _svg_energy_diagram(data):
         """مخطط الطاقة - طاردة أو ماصة"""
-        title        = data.get('title', 'مخطط الطاقة للتفاعل')
-        r_label      = data.get('reactant_label', 'متفاعلات')
-        p_label      = data.get('product_label', 'نواتج')
-        is_exo       = data.get('is_exothermic', True)
-        note         = data.get('note', '')
-        W, H         = 320, 190
-        px0, px1     = 45, 290
-        py0, py1     = 20, 158
-        peak_x       = (px0 + px1) // 2
-        peak_y       = py0 + 12
-        r_y          = py0 + 55 if is_exo else py0 + 75
-        p_y          = (py0 + 75) if is_exo else (py0 + 55)
-        dh_color     = '#16a34a' if is_exo else '#dc2626'
-        dh_text      = 'ΔH < 0' if is_exo else 'ΔH > 0'
-        dh_label     = '(طارد)' if is_exo else '(ماص)'
+        title    = data.get('title', 'مخطط الطاقة للتفاعل')
+        r_label  = data.get('reactant_label', 'متفاعلات')
+        p_label  = data.get('product_label', 'نواتج')
+        is_exo   = data.get('is_exothermic', True)
+        note     = data.get('note', '')
+        W, H     = 300, 160
+        px0, px1 = 30, 280
+        py0, py1 = 15, 140
+        peak_x   = (px0 + px1) // 2
+        peak_y   = py0 + 10
+        r_y      = py0 + 45 if is_exo else py0 + 65
+        p_y      = (py0 + 65) if is_exo else (py0 + 45)
+        dh_color = '#16a34a' if is_exo else '#dc2626'
+        dh_text  = 'DH < 0 (exo)' if is_exo else 'DH > 0 (endo)'
 
         curve = (f"M {px0},{r_y} "
-                 f"C {px0+55},{r_y} {peak_x-40},{peak_y} {peak_x},{peak_y} "
-                 f"C {peak_x+40},{peak_y} {px1-55},{p_y} {px1},{p_y}")
-        note_el = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
-                   f'font-size="7" fill="#64748b">{note}</text>') if note else ''
-        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
-  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
-  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
-  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
-        transform="rotate(-90,13,{(py0+py1)//2})">الطاقة</text>
-  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">مسار التفاعل</text>
-  <line x1="{px0}" y1="{r_y}" x2="{px0+60}" y2="{r_y}" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>
-  <text x="{px0+4}" y="{r_y-3}" font-size="7.5" fill="#dc2626">{r_label}</text>
-  <line x1="{px1-60}" y1="{p_y}" x2="{px1}" y2="{p_y}" stroke="#2563eb" stroke-width="1" stroke-dasharray="3,2"/>
-  <text x="{px1-4}" y="{p_y-3}" text-anchor="end" font-size="7.5" fill="#2563eb">{p_label}</text>
-  <path d="{curve}" fill="none" stroke="#7c3aed" stroke-width="2.5"/>
-  <text x="{peak_x}" y="{peak_y-4}" text-anchor="middle" font-size="8" fill="#7c3aed" font-weight="bold">Ea</text>
-  <text x="{px1-8}" y="{(r_y+p_y)//2-2}" text-anchor="end" font-size="8.5" fill="{dh_color}" font-weight="bold">{dh_text}</text>
-  <text x="{px1-8}" y="{(r_y+p_y)//2+10}" text-anchor="end" font-size="7.5" fill="{dh_color}">{dh_label}</text>
-  {note_el}
-</svg>"""
+                 f"C {px0+50},{r_y} {peak_x-35},{peak_y} {peak_x},{peak_y} "
+                 f"C {peak_x+35},{peak_y} {px1-50},{p_y} {px1},{p_y}")
+
+        svg_body = (
+            f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+            f'style="width:100%;max-width:{W}px;">'
+            f'<rect width="{W}" height="{H}" fill="#f8fafc" rx="4" stroke="#e2e8f0" stroke-width="1"/>'
+            f'<line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<text x="{px0-6}" y="{py0+4}" text-anchor="end" font-size="8" fill="#64748b">E</text>'
+            f'<text x="{px1}" y="{py1+12}" text-anchor="middle" font-size="8" fill="#64748b">rxn</text>'
+            f'<line x1="{px0}" y1="{r_y}" x2="{px0+55}" y2="{r_y}" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>'
+            f'<line x1="{px1-55}" y1="{p_y}" x2="{px1}" y2="{p_y}" stroke="#2563eb" stroke-width="1" stroke-dasharray="3,2"/>'
+            f'<line x1="{px1-4}" y1="{min(r_y,p_y)}" x2="{px1-4}" y2="{max(r_y,p_y)}" stroke="{dh_color}" stroke-width="1" stroke-dasharray="2,2"/>'
+            f'<path d="{curve}" fill="none" stroke="#7c3aed" stroke-width="2.5"/>'
+            f'<text x="{peak_x}" y="{peak_y-4}" text-anchor="middle" font-size="8" fill="#7c3aed" font-weight="bold">Ea</text>'
+            f'<text x="{px1-8}" y="{(r_y+p_y)//2+4}" text-anchor="end" font-size="8" fill="{dh_color}" font-weight="bold">{dh_text}</text>'
+            f'</svg>'
+        )
+        return LessonPrepService._diagram_wrap(
+            title, svg_body,
+            [(r_label, '#dc2626'), (p_label, '#2563eb')],
+            note
+        )
 
     @staticmethod
     def _svg_rate_time(data):
         """رسم تغير معدل التفاعل مع الزمن حتى الاتزان"""
         title    = data.get('title', 'تغير معدل التفاعل مع الزمن')
+        r_label  = data.get('reactant_label', 'معدل التفاعل الأمامي')
+        p_label  = data.get('product_label', 'معدل التفاعل العكسي')
         note     = data.get('note', '')
-        W, H     = 320, 190
-        px0, px1 = 45, 290
-        py0, py1 = 20, 158
-        eq_x     = 190
+        W, H     = 300, 160
+        px0, px1 = 30, 280
+        py0, py1 = 15, 140
+        eq_x     = 185
         eq_y     = (py0 + py1) // 2
 
-        fwd_path = (f"M {px0},{py0+15} "
-                    f"C {eq_x-60},{py0+15} {eq_x-15},{eq_y} {px1},{eq_y}")
-        rev_path = (f"M {px0},{py1-15} "
-                    f"C {eq_x-60},{py1-15} {eq_x-15},{eq_y} {px1},{eq_y}")
-        note_el  = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
-                    f'font-size="7" fill="#64748b">{note}</text>') if note else ''
-        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
-  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
-  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
-  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
-  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
-        transform="rotate(-90,13,{(py0+py1)//2})">المعدل</text>
-  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">الزمن</text>
-  <line x1="{px0}" y1="{eq_y}" x2="{px1}" y2="{eq_y}"
-        stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="{px1+2}" y="{eq_y+3}" font-size="7" fill="#94a3b8">اتزان</text>
-  <path d="{fwd_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>
-  <text x="{px0+5}" y="{py0+30}" font-size="8" fill="#dc2626" font-weight="bold">معدل أمامي →</text>
-  <path d="{rev_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>
-  <text x="{px0+5}" y="{py1-18}" font-size="8" fill="#2563eb" font-weight="bold">← معدل عكسي</text>
-  {note_el}
-</svg>"""
+        fwd_path = (f"M {px0},{py0+12} C {eq_x-55},{py0+12} {eq_x-12},{eq_y} {px1},{eq_y}")
+        rev_path = (f"M {px0},{py1-12} C {eq_x-55},{py1-12} {eq_x-12},{eq_y} {px1},{eq_y}")
+
+        svg_body = (
+            f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+            f'style="width:100%;max-width:{W}px;">'
+            f'<rect width="{W}" height="{H}" fill="#f8fafc" rx="4" stroke="#e2e8f0" stroke-width="1"/>'
+            f'<line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#94a3b8" stroke-width="1.5"/>'
+            f'<text x="{px0-6}" y="{py0+4}" text-anchor="end" font-size="8" fill="#64748b">r</text>'
+            f'<text x="{px1}" y="{py1+12}" text-anchor="middle" font-size="8" fill="#64748b">t</text>'
+            f'<line x1="{eq_x}" y1="{py0}" x2="{eq_x}" y2="{py1}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>'
+            f'<text x="{eq_x+3}" y="{py0+9}" font-size="7" fill="#94a3b8" font-style="italic">eq</text>'
+            f'<path d="{fwd_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>'
+            f'<text x="{px0+5}" y="{py0+26}" font-size="8" fill="#dc2626">r1</text>'
+            f'<path d="{rev_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>'
+            f'<text x="{px0+5}" y="{py1-14}" font-size="8" fill="#2563eb">r2</text>'
+            f'</svg>'
+        )
+        return LessonPrepService._diagram_wrap(
+            title, svg_body,
+            [(r_label, '#dc2626'), (p_label, '#2563eb')],
+            note
+        )
 
     @staticmethod
     def _generate_diagram_svg(diagram):
