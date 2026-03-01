@@ -58,7 +58,6 @@
   /* ─── عنوان القسم ─── */
   .section {
     margin-bottom: 14px;
-    page-break-inside: avoid;
   }
   .section-header {
     display: flex;
@@ -69,6 +68,8 @@
     font-size: 12pt;
     font-weight: 900;
     margin-bottom: 0;
+    page-break-after: avoid;
+    break-after: avoid;
   }
   .section-header .num {
     display: inline-flex;
@@ -301,6 +302,7 @@
     margin-bottom: 10px;
     overflow: hidden;
     page-break-inside: avoid;
+    break-inside: avoid;
   }
   .concept-header {
     background: #e0e7ff !important;
@@ -414,6 +416,7 @@
 </style>
 </head>
 <body>
+{% set ns = namespace(n=0) %}
 
 <!-- ═══ العنوان الرئيسي ═══ -->
 <div class="main-header">
@@ -436,9 +439,10 @@
   </div>
 </div>
 
-<!-- ═══ 1. المعلومات الأساسية ═══ -->
+<!-- ═══ المعلومات الأساسية ═══ -->
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-info">
-  <div class="section-header"><span class="num">1</span> المعلومات الأساسية</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> المعلومات الأساسية</div>
   <div class="section-body">
     <table class="info-table">
       <tr>
@@ -467,11 +471,12 @@
   </div>
 </div>
 
-<!-- ═══ 2. المفردات الجديدة ═══ -->
+<!-- ═══ المفردات الجديدة ═══ -->
 {% set vocabulary = plan_data.get('vocabulary', []) %}
 {% if vocabulary %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-info">
-  <div class="section-header" style="background: #0891b2 !important;"><span class="num">2</span> المفردات الجديدة</div>
+  <div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ ns.n }}</span> المفردات الجديدة</div>
   <div class="section-body">
     <table class="styled-table">
       <thead>
@@ -495,11 +500,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 3. الأسئلة التشخيصية ═══ -->
+<!-- ═══ الأسئلة التشخيصية ═══ -->
 {% set diag_q = plan_data.get('diagnostic_questions', []) %}
 {% if diag_q %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-prep">
-  <div class="section-header" style="background: #7c3aed !important;"><span class="num">3</span> التقويم التشخيصي (قبل الدرس)</div>
+  <div class="section-header" style="background: #7c3aed !important;"><span class="num">{{ ns.n }}</span> التقويم التشخيصي (قبل الدرس)</div>
   <div class="section-body">
     {% for q in diag_q %}
     {% if q is mapping %}
@@ -518,27 +524,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ (الأهداف - الرقم يتغير) ═══ -->
-<!-- ═══ الأهداف العامة ═══ -->
+<!-- ═══ الأهداف ═══ -->
 {% set objectives = plan_data.get('objectives', {}) %}
-{% set all_objectives = objectives.get('cognitive', []) + objectives.get('skill', []) + objectives.get('emotional', []) %}
-{% if all_objectives %}
-<div class="section sec-obj">
-  <div class="section-header"><span class="num">2</span> الأهداف العامة</div>
-  <div class="section-body">
-    <ul class="items">
-      {% for obj in all_objectives %}
-      <li>{{ obj }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
-{% endif %}
-
-<!-- ═══ 3. الأهداف السلوكية ═══ -->
 {% if objectives %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-behav">
-  <div class="section-header"><span class="num">3</span> الأهداف السلوكية</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> الأهداف السلوكية</div>
   <div class="section-body">
     {% for type_key, type_label, color in [('cognitive', 'أهداف معرفية', '#7c3aed'), ('skill', 'أهداف مهارية', '#0891b2'), ('emotional', 'أهداف وجدانية', '#db2777')] %}
     {% set items = objectives.get(type_key, []) %}
@@ -557,17 +548,23 @@
 </div>
 {% endif %}
 
-<!-- ═══ 4. التهيئة ═══ -->
+<!-- ═══ التهيئة ═══ -->
 {% set preparation = plan_data.get('preparation', {}) %}
 {% if preparation %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-prep">
-  <div class="section-header"><span class="num">4</span> التهيئة والتمهيد</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> التهيئة والتمهيد</div>
   <div class="section-body">
     {% if preparation.get('introduction') %}
     <div class="question-box">{{ preparation.introduction }}</div>
     {% endif %}
+    {% if show_answers and preparation.get('introduction_answer') %}
+    <div class="answer-box" style="margin-top:6px;">
+      <span style="font-weight:900;">الإجابة المتوقعة: </span>{{ preparation.introduction_answer }}
+    </div>
+    {% endif %}
     {% if preparation.get('introduction_activity') %}
-    <div class="answer-box" style="border-color: #fdba74; background: #fff7ed !important;">
+    <div class="answer-box" style="border-color: #fdba74; background: #fff7ed !important; margin-top:6px;">
       <span style="font-weight:900; color: #9a3412;">النشاط: </span>{{ preparation.introduction_activity }}
     </div>
     {% endif %}
@@ -578,11 +575,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 5. استراتيجيات التدريس ═══ -->
+<!-- ═══ استراتيجيات التدريس ═══ -->
 {% set strategies = plan_data.get('teaching_strategies', []) %}
 {% if strategies %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-strat">
-  <div class="section-header"><span class="num">5</span> استراتيجيات التدريس</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> استراتيجيات التدريس</div>
   <div class="section-body">
     <div class="strategy-grid">
       {% for s in strategies %}
@@ -601,11 +599,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 6. عرض الدرس ═══ -->
+<!-- ═══ عرض الدرس ═══ -->
 {% set presentation = plan_data.get('presentation', {}) %}
 {% if presentation %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-present">
-  <div class="section-header"><span class="num">6</span> عرض الدرس</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> عرض الدرس</div>
   <div class="section-body">
     <!-- المفاهيم الرئيسية -->
     {% for concept in presentation.get('main_concepts', []) %}
@@ -680,11 +679,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 7. الربط بالقيم ═══ -->
+<!-- ═══ الربط بالقيم ═══ -->
 {% set values = plan_data.get('values_connection', {}) %}
 {% if values and values is mapping %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-values">
-  <div class="section-header"><span class="num">7</span> الربط بالقيم</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> الربط بالقيم</div>
   <div class="section-body">
     <div class="values-grid">
       {% if values.get('religious') %}
@@ -713,11 +713,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 8. التقويم ═══ -->
+<!-- ═══ التقويم ═══ -->
 {% set evaluation = plan_data.get('evaluation', {}) %}
 {% if evaluation %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-eval">
-  <div class="section-header"><span class="num">8</span> التقويم</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> التقويم</div>
   <div class="section-body">
     <!-- التقويم التكويني -->
     {% set formative = evaluation.get('formative', []) %}
@@ -803,11 +804,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 9. الفروق الفردية ═══ -->
+<!-- ═══ الفروق الفردية ═══ -->
 {% set ind_diff = plan_data.get('individual_differences', {}) %}
 {% if ind_diff %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-diff">
-  <div class="section-header"><span class="num">9</span> مراعاة الفروق الفردية</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> مراعاة الفروق الفردية</div>
   <div class="section-body">
     <div class="two-cols">
       <div class="col col-weak">
@@ -845,11 +847,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 10. الوسائل التعليمية ═══ -->
+<!-- ═══ الوسائل التعليمية ═══ -->
 {% set resources = plan_data.get('resources', []) %}
 {% if resources %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-res">
-  <div class="section-header"><span class="num">10</span> الوسائل التعليمية</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> الوسائل التعليمية</div>
   <div class="section-body">
     {% if resources[0] is mapping %}
     <table class="styled-table">
@@ -879,11 +882,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 11. الواجب المنزلي ═══ -->
+<!-- ═══ الواجب المنزلي ═══ -->
 {% set homework = plan_data.get('homework', {}) %}
 {% if homework %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-hw">
-  <div class="section-header"><span class="num">11</span> الواجب المنزلي</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> الواجب المنزلي</div>
   <div class="section-body">
     {% if homework.get('main') %}
     <div class="sub-section">
@@ -927,11 +931,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 12. التوزيع الزمني ═══ -->
+<!-- ═══ التوزيع الزمني ═══ -->
 {% set time_dist = plan_data.get('time_distribution', []) %}
 {% if time_dist %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-time">
-  <div class="section-header"><span class="num">12</span> التوزيع الزمني</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> التوزيع الزمني</div>
   <div class="section-body">
     <table class="styled-table">
       <thead>
@@ -963,11 +968,12 @@
 </div>
 {% endif %}
 
-<!-- ═══ 13. التأمل الذاتي ═══ -->
+<!-- ═══ التأمل الذاتي ═══ -->
 {% set reflection = plan_data.get('reflection', {}) %}
 {% if reflection and reflection is mapping %}
+{% set ns.n = ns.n + 1 %}
 <div class="section sec-refl">
-  <div class="section-header"><span class="num">13</span> التأمل الذاتي</div>
+  <div class="section-header"><span class="num">{{ ns.n }}</span> التأمل الذاتي</div>
   <div class="section-body">
     <div class="reflection-field">
       <div class="rf-label">نقاط القوة</div>

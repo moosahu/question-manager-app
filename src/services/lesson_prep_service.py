@@ -452,6 +452,7 @@ class LessonPrepService:
   ],
   "preparation": {{
     "introduction": "التهيئة والتمهيد - سؤال أو موقف تحفيزي يشد انتباه الطلاب",
+    "introduction_answer": "الإجابة المتوقعة أو المثالية من الطالب على سؤال التهيئة",
     "introduction_activity": "نشاط تفاعلي للتهيئة",
     "connection_to_previous": "ربط بالدرس السابق"
   }},
