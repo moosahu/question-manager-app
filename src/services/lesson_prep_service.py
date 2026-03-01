@@ -294,6 +294,10 @@ class LessonPrepService:
                 logger.error(f"التحضير #{plan_id}: حُفظ كـ raw_text (JSON غير صالح)")
 
             # 5. توليد PDF
+            # حقن الرسوم البيانية SVG
+            if isinstance(plan_data, dict) and 'raw_text' not in plan_data:
+                plan_data = LessonPrepService._inject_diagrams(plan_data)
+
             pdf_url = None
             try:
                 pdf_bytes = self._generate_pdf(plan_data, lesson.name, unit.name if unit else '', course.name if course else '')
@@ -469,7 +473,15 @@ class LessonPrepService:
             "answer": "الإجابة النهائية مع التفسير"
           }}
         ],
-        "student_activity": "نشاط الطلاب"
+        "student_activity": "نشاط الطلاب",
+        "diagram": {{
+          "type": "concentration_time أو energy_diagram أو rate_time أو none",
+          "title": "عنوان الرسم البياني",
+          "reactant_label": "اسم المتفاعل (للـ concentration_time و rate_time)",
+          "product_label": "اسم الناتج (للـ concentration_time)",
+          "is_exothermic": true,
+          "note": "ملاحظة أسفل الرسم (اختيارية)"
+        }}
       }}
     ],
     "equations": ["المعادلات إن وجدت"],
@@ -557,6 +569,7 @@ class LessonPrepService:
 - استخدم مصطلحات علمية دقيقة مناسبة للمادة
 - اجعل الأمثلة من واقع الحياة السعودية قدر الإمكان
 - عند وصف الرسومات، اذكر تفاصيل كافية لرسمها
+- في diagram داخل كل concept: اختر type المناسب فقط (concentration_time إذا يعرض تغير التراكيز حتى الاتزان، energy_diagram إذا يعرض مخطط الطاقة، rate_time إذا يعرض تغير معدل التفاعل، none إذا لم يكن المفهوم بحاجة لرسم بياني)
 - ركّز على "{focus}" حسب طلب المعلم
 - قدّم {examples} أمثلة محلولة بخطوات واضحة لكل مفهوم رئيسي
 - راعِ الفروق الفردية: {weak_count} ضعاف و {excellent_count} متفوقين
@@ -711,6 +724,174 @@ class LessonPrepService:
         text = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', text)
         return text
 
+    # ─────────────────────────────────────────────────────────────
+    # مولّد الرسوم البيانية SVG
+    # ─────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _svg_concentration_time(data):
+        """رسم تغير التراكيز مع الزمن حتى الاتزان"""
+        title       = data.get('title', 'تغير التراكيز مع الزمن حتى الاتزان')
+        r_label     = data.get('reactant_label', 'مادة متفاعلة')
+        p_label     = data.get('product_label', 'مادة ناتجة')
+        note        = data.get('note', '')
+        W, H        = 320, 190
+        px0, px1    = 45, 290
+        py0, py1    = 20, 158
+        eq_x        = 190
+        mid_y       = (py0 + py1) // 2
+
+        r_path = (f"M {px0},{py0+18} "
+                  f"C {eq_x-50},{py0+18} {eq_x-15},{mid_y} {px1},{mid_y}")
+        p_path = (f"M {px0},{py1-18} "
+                  f"C {eq_x-50},{py1-18} {eq_x-15},{mid_y} {px1},{mid_y}")
+        note_el = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
+                   f'font-size="7" fill="#64748b">{note}</text>') if note else ''
+        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
+  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
+  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
+  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
+        transform="rotate(-90,13,{(py0+py1)//2})">التركيز</text>
+  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">الزمن</text>
+  <line x1="{eq_x}" y1="{py0}" x2="{eq_x}" y2="{py1}"
+        stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="{eq_x+3}" y="{py0+9}" font-size="7" fill="#94a3b8">اتزان</text>
+  <path d="{r_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>
+  <text x="{px0+5}" y="{py0+32}" font-size="8" fill="#dc2626" font-weight="bold">{r_label}</text>
+  <path d="{p_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+  <text x="{px0+5}" y="{py1-20}" font-size="8" fill="#2563eb" font-weight="bold">{p_label}</text>
+  {note_el}
+</svg>"""
+
+    @staticmethod
+    def _svg_energy_diagram(data):
+        """مخطط الطاقة - طاردة أو ماصة"""
+        title        = data.get('title', 'مخطط الطاقة للتفاعل')
+        r_label      = data.get('reactant_label', 'متفاعلات')
+        p_label      = data.get('product_label', 'نواتج')
+        is_exo       = data.get('is_exothermic', True)
+        note         = data.get('note', '')
+        W, H         = 320, 190
+        px0, px1     = 45, 290
+        py0, py1     = 20, 158
+        peak_x       = (px0 + px1) // 2
+        peak_y       = py0 + 12
+        r_y          = py0 + 55 if is_exo else py0 + 75
+        p_y          = (py0 + 75) if is_exo else (py0 + 55)
+        dh_color     = '#16a34a' if is_exo else '#dc2626'
+        dh_text      = 'ΔH < 0' if is_exo else 'ΔH > 0'
+        dh_label     = '(طارد)' if is_exo else '(ماص)'
+
+        curve = (f"M {px0},{r_y} "
+                 f"C {px0+55},{r_y} {peak_x-40},{peak_y} {peak_x},{peak_y} "
+                 f"C {peak_x+40},{peak_y} {px1-55},{p_y} {px1},{p_y}")
+        note_el = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
+                   f'font-size="7" fill="#64748b">{note}</text>') if note else ''
+        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
+  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
+  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
+  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
+        transform="rotate(-90,13,{(py0+py1)//2})">الطاقة</text>
+  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">مسار التفاعل</text>
+  <line x1="{px0}" y1="{r_y}" x2="{px0+60}" y2="{r_y}" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="{px0+4}" y="{r_y-3}" font-size="7.5" fill="#dc2626">{r_label}</text>
+  <line x1="{px1-60}" y1="{p_y}" x2="{px1}" y2="{p_y}" stroke="#2563eb" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="{px1-4}" y="{p_y-3}" text-anchor="end" font-size="7.5" fill="#2563eb">{p_label}</text>
+  <path d="{curve}" fill="none" stroke="#7c3aed" stroke-width="2.5"/>
+  <text x="{peak_x}" y="{peak_y-4}" text-anchor="middle" font-size="8" fill="#7c3aed" font-weight="bold">Ea</text>
+  <text x="{px1-8}" y="{(r_y+p_y)//2-2}" text-anchor="end" font-size="8.5" fill="{dh_color}" font-weight="bold">{dh_text}</text>
+  <text x="{px1-8}" y="{(r_y+p_y)//2+10}" text-anchor="end" font-size="7.5" fill="{dh_color}">{dh_label}</text>
+  {note_el}
+</svg>"""
+
+    @staticmethod
+    def _svg_rate_time(data):
+        """رسم تغير معدل التفاعل مع الزمن حتى الاتزان"""
+        title    = data.get('title', 'تغير معدل التفاعل مع الزمن')
+        note     = data.get('note', '')
+        W, H     = 320, 190
+        px0, px1 = 45, 290
+        py0, py1 = 20, 158
+        eq_x     = 190
+        eq_y     = (py0 + py1) // 2
+
+        fwd_path = (f"M {px0},{py0+15} "
+                    f"C {eq_x-60},{py0+15} {eq_x-15},{eq_y} {px1},{eq_y}")
+        rev_path = (f"M {px0},{py1-15} "
+                    f"C {eq_x-60},{py1-15} {eq_x-15},{eq_y} {px1},{eq_y}")
+        note_el  = (f'<text x="{W//2}" y="{H-2}" text-anchor="middle" '
+                    f'font-size="7" fill="#64748b">{note}</text>') if note else ''
+        return f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
+  style="width:100%;max-width:{W}px;font-family:Tahoma,Arial,sans-serif;direction:rtl;">
+  <rect width="{W}" height="{H}" fill="#f8fafc" rx="6" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="{W//2}" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e293b">{title}</text>
+  <line x1="{px0}" y1="{py0}" x2="{px0}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <line x1="{px0}" y1="{py1}" x2="{px1}" y2="{py1}" stroke="#64748b" stroke-width="1.5"/>
+  <text x="13" y="{(py0+py1)//2+4}" text-anchor="middle" font-size="8" fill="#64748b"
+        transform="rotate(-90,13,{(py0+py1)//2})">المعدل</text>
+  <text x="{(px0+px1)//2}" y="{H-3}" text-anchor="middle" font-size="8" fill="#64748b">الزمن</text>
+  <line x1="{px0}" y1="{eq_y}" x2="{px1}" y2="{eq_y}"
+        stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="{px1+2}" y="{eq_y+3}" font-size="7" fill="#94a3b8">اتزان</text>
+  <path d="{fwd_path}" fill="none" stroke="#dc2626" stroke-width="2.2"/>
+  <text x="{px0+5}" y="{py0+30}" font-size="8" fill="#dc2626" font-weight="bold">معدل أمامي →</text>
+  <path d="{rev_path}" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+  <text x="{px0+5}" y="{py1-18}" font-size="8" fill="#2563eb" font-weight="bold">← معدل عكسي</text>
+  {note_el}
+</svg>"""
+
+    @staticmethod
+    def _generate_diagram_svg(diagram):
+        """توليد SVG للرسم البياني بحسب النوع"""
+        if not diagram or not isinstance(diagram, dict):
+            return None
+        dtype = diagram.get('type', 'none')
+        if dtype == 'concentration_time':
+            return LessonPrepService._svg_concentration_time(diagram)
+        elif dtype == 'energy_diagram':
+            return LessonPrepService._svg_energy_diagram(diagram)
+        elif dtype == 'rate_time':
+            return LessonPrepService._svg_rate_time(diagram)
+        return None
+
+    @staticmethod
+    def _inject_diagrams(plan_data):
+        """معالجة plan_data وإضافة SVG لكل diagram موجود"""
+        # درس واحد
+        if 'diagram' in plan_data:
+            svg = LessonPrepService._generate_diagram_svg(plan_data['diagram'])
+            if svg:
+                plan_data['diagram']['svg'] = svg
+
+        # presentation → main_concepts (درس واحد)
+        pres = plan_data.get('presentation', {})
+        for c in pres.get('main_concepts', []):
+            if isinstance(c, dict) and 'diagram' in c:
+                svg = LessonPrepService._generate_diagram_svg(c['diagram'])
+                if svg:
+                    c['diagram']['svg'] = svg
+
+        # توزيع الوحدة (per period)
+        for p in plan_data.get('periods', []):
+            if not isinstance(p, dict):
+                continue
+            if 'diagram' in p:
+                svg = LessonPrepService._generate_diagram_svg(p['diagram'])
+                if svg:
+                    p['diagram']['svg'] = svg
+            for c in p.get('main_concepts', []):
+                if isinstance(c, dict) and 'diagram' in c:
+                    svg = LessonPrepService._generate_diagram_svg(c['diagram'])
+                    if svg:
+                        c['diagram']['svg'] = svg
+        return plan_data
+
     def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name, show_answers=True):
         """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
@@ -846,7 +1027,15 @@ class LessonPrepService:
           "answer": "الإجابة النهائية مع التفسير"
         }}
       ],
-      "student_activity": "نشاط الطلاب"
+      "student_activity": "نشاط الطلاب",
+      "diagram": {{
+        "type": "concentration_time أو energy_diagram أو rate_time أو none",
+        "title": "عنوان الرسم البياني",
+        "reactant_label": "اسم المتفاعل",
+        "product_label": "اسم الناتج",
+        "is_exothermic": true,
+        "note": "ملاحظة أسفل الرسم"
+      }}
     }}
   ],
   "equations": ["المعادلات الكيميائية إن وجدت"],
@@ -922,7 +1111,8 @@ class LessonPrepService:
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
 - في vocabulary: استخرج المصطلحات الجديدة من محتوى هذه الحصة تحديداً
-- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية لهذه الحصة"""
+- في diagnostic_questions: اطرح أسئلة تتحقق من المتطلبات القبلية لهذه الحصة
+- في diagram داخل كل concept: اختر type المناسب (concentration_time أو energy_diagram أو rate_time أو none)"""
 
     def generate_unit_distribution(self, plan_id):
         """توليد توزيع وحدة كاملة - حصة حصة لتجنب حد الـ tokens"""
@@ -1045,6 +1235,9 @@ class LessonPrepService:
                 'total_periods': total_periods,
                 'periods': generated_periods,
             }
+
+            # حقن الرسوم البيانية SVG
+            plan_data = LessonPrepService._inject_diagrams(plan_data)
 
             # توليد PDF للوحدة
             pdf_url = None

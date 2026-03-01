@@ -447,7 +447,7 @@
             {% for ex in c.examples %}
             {% if ex is mapping %}
             <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:6px 8px; margin:4px 0; border-radius:4px; font-size:9pt;">
-              {% if ex.get('problem') %}<p style="font-weight:900;">📝 {{ ex.problem|chem }}</p>{% endif %}
+              {% if ex.get('problem') %}<p style="font-weight:900;">📝#128221; {{ ex.problem|chem }}</p>{% endif %}
               {% if show_answers %}
                 {% if ex.get('steps') %}
                 <ol style="margin-right:14px; margin-top:3px;">
@@ -455,7 +455,7 @@
                 </ol>
                 {% endif %}
                 {% if ex.get('answer') %}
-                <p style="color:#16a34a; font-weight:900; margin-top:3px; font-size:9pt;">✅ {{ ex.answer|chem }}</p>
+                <p style="color:#16a34a; font-weight:900; margin-top:3px; font-size:9pt;">&#10003; {{ ex.answer|chem }}</p>
                 {% endif %}
               {% else %}
               <div style="height:20px; border-bottom:1px dashed #cbd5e1; margin-top:3px;"></div>
@@ -469,6 +469,11 @@
           {% endif %}
           {% if c.get('student_activity') %}
           <p style="font-size:9pt; color:#475569; margin-top:4px;"><strong>نشاط الطلاب:</strong> {{ c.student_activity }}</p>
+          {% endif %}
+          {% if c.get('diagram') and c.diagram.get('svg') %}
+          <div style="margin-top:8px; text-align:center;">
+            {{ c.diagram.svg|safe }}
+          </div>
           {% endif %}
         </div>
       </div>
@@ -594,13 +599,13 @@
         {% for se in hw.solved_examples %}
         {% if se is mapping %}
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; margin:4px 0; font-size:9pt;">
-          <p style="font-weight:900; color:#0f172a;">📝 {{ se.get('question','')|chem }}</p>
+          <p style="font-weight:900; color:#0f172a;">📝#128221; {{ se.get('question','')|chem }}</p>
           {% if show_answers %}
             {% if se.get('solution') %}
             <div style="margin-top:4px; color:#1e40af;">{{ se.solution|chem }}</div>
             {% endif %}
             {% if se.get('answer') %}
-            <p style="color:#16a34a; font-weight:900; margin-top:3px;">✅ {{ se.answer|chem }}</p>
+            <p style="color:#16a34a; font-weight:900; margin-top:3px;">✅#10003; {{ se.answer|chem }}</p>
             {% endif %}
           {% else %}
           <div style="height:30px; border-bottom:1px dashed #cbd5e1; margin-top:4px;"></div>

@@ -628,7 +628,7 @@
         {% if ex is mapping %}
         <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:8px; margin:4px 0; border-radius:4px;">
           {% if ex.get('problem') %}
-          <p style="font-weight:900;">📝 {{ ex.problem|chem }}</p>
+          <p style="font-weight:900;">📝#128221; {{ ex.problem|chem }}</p>
           {% endif %}
           {% if show_answers %}
             {% if ex.get('steps') %}
@@ -637,7 +637,7 @@
             </ol>
             {% endif %}
             {% if ex.get('answer') %}
-            <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅ {{ ex.answer|chem }}</p>
+            <p style="color:#16a34a; font-weight:900; margin-top:4px;">&#10003; {{ ex.answer|chem }}</p>
             {% endif %}
           {% else %}
           <div style="height:30px; border-bottom:1px dashed #cbd5e1; margin-top:4px;"></div>
@@ -647,6 +647,11 @@
         <div style="background:#f8fafc; border-right:3px solid #0891b2; padding:6px 10px; margin:3px 0;">{{ ex|chem }}</div>
         {% endif %}
         {% endfor %}
+        {% endif %}
+        {% if concept.get('diagram') and concept.diagram.get('svg') %}
+        <div style="margin-top:10px; text-align:center;">
+          {{ concept.diagram.svg|safe }}
+        </div>
         {% endif %}
       </div>
     </div>
@@ -916,12 +921,12 @@
       {% for ex in homework.solved_examples %}
       {% if ex is mapping %}
       <div style="background:#f0fdf4; border-right:3px solid #16a34a; padding:8px; margin:5px 0; border-radius:4px;">
-        {% if ex.get('question') %}<p style="font-weight:900;">📝 {{ ex.question|chem }}</p>{% endif %}
+        {% if ex.get('question') %}<p style="font-weight:900;">📝#128221; {{ ex.question|chem }}</p>{% endif %}
         {% if ex.get('solution') %}
         <p style="margin-top:4px; color:#374151;">{{ ex.solution|chem }}</p>
         {% endif %}
         {% if ex.get('answer') %}
-        <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅ {{ ex.answer|chem }}</p>
+        <p style="color:#16a34a; font-weight:900; margin-top:4px;">✅#10003; {{ ex.answer|chem }}</p>
         {% endif %}
       </div>
       {% endif %}
