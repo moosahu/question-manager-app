@@ -25,20 +25,24 @@ from src.models.curriculum import Lesson, Unit, Course
 
 # تسعيرة كل provider (بالدولار لكل مليون token)
 AI_PRICING = {
-    'gemini-flash': {'input': 0.075, 'output': 0.30},
-    'claude-haiku': {'input': 0.80, 'output': 4.0},
-    'claude-sonnet': {'input': 3.0, 'output': 15.0},
-    'claude-opus': {'input': 15.0, 'output': 75.0},
+    'gemini-flash':   {'input': 0.075, 'output': 0.30},
+    'gemini-1.5-pro': {'input': 1.25,  'output': 5.0},
+    'gemini-2.5-pro': {'input': 1.25,  'output': 10.0},
+    'claude-haiku':   {'input': 0.80,  'output': 4.0},
+    'claude-sonnet':  {'input': 3.0,   'output': 15.0},
+    'claude-opus':    {'input': 15.0,  'output': 75.0},
 }
 
 logger = logging.getLogger(__name__)
 
 # النماذج المتاحة
 AI_PROVIDERS = {
-    'gemini-flash': {'name': 'Gemini 2.0 Flash', 'provider': 'gemini', 'model': 'gemini-2.0-flash', 'cost': 'منخفض'},
-    'claude-haiku': {'name': 'Claude Haiku 4.5', 'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض'},
-    'claude-sonnet': {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6', 'cost': 'متوسط'},
-    'claude-opus': {'name': 'Claude Opus 4.6', 'provider': 'claude', 'model': 'claude-opus-4-6', 'cost': 'مرتفع'},
+    'gemini-flash':   {'name': 'Gemini 2.0 Flash',  'provider': 'gemini', 'model': 'gemini-2.0-flash',       'cost': 'منخفض',  'output_limit': 8192},
+    'gemini-1.5-pro': {'name': 'Gemini 1.5 Pro',    'provider': 'gemini', 'model': 'gemini-1.5-pro',         'cost': 'متوسط',  'output_limit': 8192},
+    'gemini-2.5-pro': {'name': 'Gemini 2.5 Pro',    'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25', 'cost': 'متوسط',  'output_limit': 65536},
+    'claude-haiku':   {'name': 'Claude Haiku 4.5',  'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض', 'output_limit': 8096},
+    'claude-sonnet':  {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6',       'cost': 'متوسط',  'output_limit': 8096},
+    'claude-opus':    {'name': 'Claude Opus 4.6',   'provider': 'claude', 'model': 'claude-opus-4-6',         'cost': 'مرتفع',  'output_limit': 8096},
 }
 
 DEFAULT_PROVIDER = 'gemini-flash'
@@ -55,17 +59,19 @@ class LessonPrepService:
         self.claude_client = None
         self.gemini_configured = False
         self.claude_configured = False
+        self._current_gemini_model_id = None
 
-    def _ensure_gemini(self):
-        """تهيئة Gemini API"""
-        if self.gemini_configured and self.gemini_model:
+    def _ensure_gemini(self, model_id='gemini-2.0-flash'):
+        """تهيئة Gemini API - يدعم تغيير النموذج ديناميكياً"""
+        if self.gemini_configured and self.gemini_model and self._current_gemini_model_id == model_id:
             return True
         api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
         if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY غير موجود")
         genai.configure(api_key=api_key)
-        self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        self.gemini_model = genai.GenerativeModel(model_id)
         self.gemini_configured = True
+        self._current_gemini_model_id = model_id
         return True
 
     def _ensure_claude(self):
@@ -87,7 +93,7 @@ class LessonPrepService:
         if info['provider'] == 'claude':
             self._ensure_claude()
         else:
-            self._ensure_gemini()
+            self._ensure_gemini(info['model'])
         return info
 
     def _get_active_provider(self):
@@ -115,7 +121,7 @@ class LessonPrepService:
             if info['provider'] == 'claude':
                 text, usage = self._call_claude(content, images, info['model'], label)
             else:
-                text, usage = self._call_gemini(content, images, label)
+                text, usage = self._call_gemini(content, images, label, info['model'])
 
             duration = _time.time() - start_time
             usage['provider'] = provider
@@ -158,9 +164,9 @@ class LessonPrepService:
         except Exception as e:
             logger.warning(f"⚠️ فشل تسجيل التكلفة: {e}")
 
-    def _call_gemini(self, prompt, images=None, label=""):
+    def _call_gemini(self, prompt, images=None, label="", model_id='gemini-2.0-flash'):
         """استدعاء Gemini - يُرجع (text, usage_info)"""
-        self._ensure_gemini()
+        self._ensure_gemini(model_id)
         content_parts = []
         if images:
             for img_bytes in images:

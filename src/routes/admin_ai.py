@@ -929,6 +929,7 @@ def get_ai_providers():
                 'name': info['name'],
                 'provider': info['provider'],
                 'cost': info['cost'],
+                'output_limit': info.get('output_limit', 8192),
                 'is_active': key == current,
             })
 
