@@ -203,7 +203,7 @@ class LessonPrepService:
 
         response = self.claude_client.messages.create(
             model=model,
-            max_tokens=16384,
+            max_tokens=32000,
             messages=[{'role': 'user', 'content': messages_content}],
         )
         text = response.content[0].text
