@@ -40,9 +40,9 @@ AI_PROVIDERS = {
     'gemini-flash':   {'name': 'Gemini 2.0 Flash',  'provider': 'gemini', 'model': 'gemini-2.0-flash',       'cost': 'منخفض',  'output_limit': 24576},
     'gemini-1.5-pro': {'name': 'Gemini 1.5 Pro',    'provider': 'gemini', 'model': 'gemini-1.5-pro',         'cost': 'متوسط',  'output_limit': 24576},
     'gemini-2.5-pro': {'name': 'Gemini 2.5 Pro',    'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25', 'cost': 'متوسط',  'output_limit': 65536},
-    'claude-haiku':   {'name': 'Claude Haiku 4.5',  'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض', 'output_limit': 8096},
-    'claude-sonnet':  {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6',       'cost': 'متوسط',  'output_limit': 8096},
-    'claude-opus':    {'name': 'Claude Opus 4.6',   'provider': 'claude', 'model': 'claude-opus-4-6',         'cost': 'مرتفع',  'output_limit': 8096},
+    'claude-haiku':   {'name': 'Claude Haiku 4.5',  'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض', 'output_limit': 8192},
+    'claude-sonnet':  {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6',       'cost': 'متوسط',  'output_limit': 16000},
+    'claude-opus':    {'name': 'Claude Opus 4.6',   'provider': 'claude', 'model': 'claude-opus-4-6',         'cost': 'مرتفع',  'output_limit': 32000},
 }
 
 DEFAULT_PROVIDER = 'gemini-flash'
@@ -199,6 +199,9 @@ class LessonPrepService:
     def _call_claude(self, prompt, images=None, model='claude-haiku-4-5-20251001', label=""):
         """استدعاء Claude - يُرجع (text, usage_info)"""
         self._ensure_claude()
+        # جلب الحد الأقصى للإخراج من AI_PROVIDERS
+        provider_info = next((v for v in AI_PROVIDERS.values() if v['model'] == model), None)
+        max_tokens = provider_info['output_limit'] if provider_info else 8192
         messages_content = []
         if images:
             for img_bytes in images:
@@ -215,7 +218,7 @@ class LessonPrepService:
 
         with self.claude_client.messages.stream(
             model=model,
-            max_tokens=32000,
+            max_tokens=max_tokens,
             messages=[{'role': 'user', 'content': messages_content}],
         ) as stream:
             response = stream.get_final_message()
