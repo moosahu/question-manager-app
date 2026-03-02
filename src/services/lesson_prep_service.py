@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 # النماذج المتاحة
 AI_PROVIDERS = {
-    'gemini-flash':   {'name': 'Gemini 2.0 Flash',  'provider': 'gemini', 'model': 'gemini-2.0-flash',       'cost': 'منخفض',  'output_limit': 8192},
-    'gemini-1.5-pro': {'name': 'Gemini 1.5 Pro',    'provider': 'gemini', 'model': 'gemini-1.5-pro',         'cost': 'متوسط',  'output_limit': 8192},
+    'gemini-flash':   {'name': 'Gemini 2.0 Flash',  'provider': 'gemini', 'model': 'gemini-2.0-flash',       'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-1.5-pro': {'name': 'Gemini 1.5 Pro',    'provider': 'gemini', 'model': 'gemini-1.5-pro',         'cost': 'متوسط',  'output_limit': 24576},
     'gemini-2.5-pro': {'name': 'Gemini 2.5 Pro',    'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25', 'cost': 'متوسط',  'output_limit': 65536},
     'claude-haiku':   {'name': 'Claude Haiku 4.5',  'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض', 'output_limit': 8096},
     'claude-sonnet':  {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6',       'cost': 'متوسط',  'output_limit': 8096},
@@ -69,7 +69,13 @@ class LessonPrepService:
         if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY غير موجود")
         genai.configure(api_key=api_key)
-        self.gemini_model = genai.GenerativeModel(model_id)
+        # جلب الحد الأقصى للإخراج من AI_PROVIDERS
+        provider_info = next((v for v in AI_PROVIDERS.values() if v['model'] == model_id), None)
+        max_tokens = provider_info['output_limit'] if provider_info else 8192
+        self.gemini_model = genai.GenerativeModel(
+            model_id,
+            generation_config=genai.types.GenerationConfig(max_output_tokens=max_tokens)
+        )
         self.gemini_configured = True
         self._current_gemini_model_id = model_id
         return True
