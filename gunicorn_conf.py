@@ -5,11 +5,11 @@ import multiprocessing
 import os
 
 # Worker settings
-workers = 1  # worker واحد لتوفير الذاكرة (512MB Render)
-threads = 4  # 4 threads بدل 2 workers - أخف على الذاكرة
+workers = 2  # 2 workers - Render Standard 2GB RAM
+threads = 4
 worker_class = 'gthread'
 worker_connections = 1000
-timeout = 300  # زيادة timeout
+timeout = 600  # 10 دقائق - يكفي لأطول عملية AI + WebSocket
 keepalive = 5
 
 # Logging
