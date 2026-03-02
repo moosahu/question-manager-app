@@ -1358,9 +1358,17 @@ class LessonPrepService:
             raise
         except Exception as e:
             logger.error(f"فشل توزيع الوحدة #{plan_id}: {e}")
-            plan.status = 'failed'
-            plan.error_message = str(e)
-            db.session.commit()
+            try:
+                db.session.rollback()
+                plan.status = 'failed'
+                plan.error_message = str(e)[:500]
+                db.session.commit()
+            except Exception as db_err:
+                logger.error(f"فشل تحديث حالة الخطأ #{plan_id}: {db_err}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
             return False
 
 
