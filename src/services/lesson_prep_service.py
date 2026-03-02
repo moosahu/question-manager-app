@@ -1212,6 +1212,28 @@ class LessonPrepService:
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
             course_name = course.name if course else ''
 
+            # ── تحميل صور الكتاب لكل درس (مرة واحدة لتوفير الذاكرة) ──
+            lesson_images_map = {}  # lesson.name → list of image bytes
+            for lesson in lessons:
+                page_mapping = LessonPages.query.filter_by(lesson_id=lesson.id).first()
+                if page_mapping and page_mapping.textbook and page_mapping.textbook.pdf_url:
+                    try:
+                        imgs = self._extract_pages_as_images(
+                            page_mapping.textbook.pdf_url,
+                            page_mapping.start_page,
+                            page_mapping.end_page,
+                            scale=0.7,  # جودة متوسطة لتوفير الذاكرة
+                        )
+                        if imgs:
+                            lesson_images_map[lesson.name] = imgs
+                            logger.info(f"الوحدة #{plan_id}: ✅ {len(imgs)} صفحة لدرس '{lesson.name}'")
+                    except Exception as img_err:
+                        logger.warning(f"الوحدة #{plan_id}: فشل صور درس '{lesson.name}': {img_err}")
+            if lesson_images_map:
+                logger.info(f"الوحدة #{plan_id}: تم تحميل صور {len(lesson_images_map)}/{len(lessons)} درس من الكتاب")
+            else:
+                logger.info(f"الوحدة #{plan_id}: لا توجد صور للكتاب - سيتم التوليد بالأسماء فقط")
+
             # ── الخطوة 1: توليد خطة الحصص (عناوين وتوزيع فقط) ──
             plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
 
@@ -1268,9 +1290,20 @@ class LessonPrepService:
                     course_name, unit.name, lessons_text
                 )
 
+                # البحث عن صور الدرس في الخريطة (exact match أولاً ثم partial)
+                period_images = lesson_images_map.get(lesson_name)
+                if not period_images and lesson_name:
+                    for name, imgs in lesson_images_map.items():
+                        if lesson_name in name or name in lesson_name:
+                            period_images = imgs
+                            break
+                if period_images:
+                    logger.info(f"الوحدة #{plan_id}: الحصة {period_num} - ترسل {len(period_images)} صورة من الكتاب")
+
                 try:
                     period_text, _ = self._call_ai(
                         period_prompt,
+                        images=period_images,
                         label=f"وحدة #{plan_id} حصة {period_num}",
                         plan_id=plan_id,
                         teacher_id=plan.teacher_id,
@@ -1342,6 +1375,8 @@ class LessonPrepService:
                         pdf_url = f"/uploads/lesson_plans/{filename}"
             except Exception as e:
                 logger.warning(f"فشل توليد PDF للوحدة: {e}")
+
+            del lesson_images_map  # تحرير صور الكتاب من الذاكرة
 
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
