@@ -289,7 +289,7 @@ class LessonPrepService:
             # 3. إرسال للـ AI
             num_images = len(images) if images else 0
             logger.info(f"إرسال {num_images} صورة للتحضير #{plan_id}")
-            ai_text, _ = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images,
+            ai_text, ai_usage = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images,
                                         plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='lesson_prep')
             del images
 
@@ -347,11 +347,12 @@ class LessonPrepService:
             # 6. حفظ النتيجة
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
+            plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
             plan.status = 'completed'
             db.session.commit()
 
             gc.collect()  # تحرير الذاكرة
-            logger.info(f"اكتمل التحضير #{plan_id} بنجاح")
+            logger.info(f"اكتمل التحضير #{plan_id} بنجاح [{plan.ai_provider}]")
             return True
 
         except RateLimitError:
@@ -1232,7 +1233,7 @@ class LessonPrepService:
 - وزّع الدروس بالتساوي"""
 
             logger.info(f"الوحدة #{plan_id}: توليد خطة الحصص...")
-            plan_text, _ = self._call_ai(plan_prompt, label=f"خطة وحدة #{plan_id}",
+            plan_text, ai_usage = self._call_ai(plan_prompt, label=f"خطة وحدة #{plan_id}",
                                           plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')
             periods_plan_data = self._extract_json(plan_text)
             if not periods_plan_data:
@@ -1344,11 +1345,12 @@ class LessonPrepService:
 
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
+            plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
             plan.status = 'completed'
             db.session.commit()
 
             gc.collect()  # تحرير الذاكرة
-            logger.info(f"اكتمل توزيع الوحدة #{plan_id}")
+            logger.info(f"اكتمل توزيع الوحدة #{plan_id} [{plan.ai_provider}]")
             return True
 
         except RateLimitError:
@@ -1509,7 +1511,7 @@ class LessonPrepService:
 - الحصة الواحدة = periods: 1، إذا الدرس يحتاج حصتين ضع periods: 2
 """
 
-            ai_text, _ = self._call_ai(prompt, label=f"توزيع فصلي #{plan_id}", images=images,
+            ai_text, ai_usage = self._call_ai(prompt, label=f"توزيع فصلي #{plan_id}", images=images,
                                         plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='semester_dist')
             del images
 
@@ -1562,11 +1564,12 @@ class LessonPrepService:
 
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
+            plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
             plan.status = 'completed'
             db.session.commit()
 
             gc.collect()
-            logger.info(f"اكتمل توزيع الفصل #{plan_id}")
+            logger.info(f"اكتمل توزيع الفصل #{plan_id} [{plan.ai_provider}]")
             return True
 
         except RateLimitError:
