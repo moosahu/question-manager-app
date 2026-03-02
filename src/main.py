@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import os
 import logging
@@ -506,7 +509,7 @@ def create_app():
     if os.getenv('ENABLE_WEBSOCKET', 'false').lower() == 'true':
         try:
             from src.extensions import socketio
-            socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+            socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
             print("✅ WebSocket مفعّل")
         except Exception as e:
             print(f"⚠️ WebSocket init skipped: {e}")
