@@ -201,11 +201,12 @@ class LessonPrepService:
                 })
         messages_content.append({'type': 'text', 'text': prompt})
 
-        response = self.claude_client.messages.create(
+        with self.claude_client.messages.stream(
             model=model,
             max_tokens=32000,
             messages=[{'role': 'user', 'content': messages_content}],
-        )
+        ) as stream:
+            response = stream.get_final_message()
         text = response.content[0].text
 
         # استخراج tokens من response.usage
