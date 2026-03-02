@@ -463,7 +463,7 @@ class LessonPrepService:
     "title": "عنوان الدرس",
     "course": "اسم المقرر",
     "unit": "اسم الوحدة",
-    "duration": "مدة الحصة",
+    "duration": "45 دقيقة",
     "date": "",
     "prerequisites": ["المتطلبات السابقة"]
   }},
@@ -591,6 +591,7 @@ class LessonPrepService:
 ```
 
 ## تنبيهات مهمة
+- ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
 - ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, presentation, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
 - ⚠️ استخدم نفس أسماء المفاتيح بالضبط كما هي مكتوبة - لا تغيرها (مثلاً: evaluation وليس assessment)
 - ⚠️ الأمثلة في presentation يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
@@ -1158,6 +1159,7 @@ class LessonPrepService:
 ```
 
 ## تنبيهات
+- ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
 - ⚠️ الرد يجب أن يكون JSON لحصة واحدة فقط (ليس قائمة)
 - ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation)
