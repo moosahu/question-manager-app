@@ -514,7 +514,6 @@ def check_lesson_prep_job():
     except Exception as e:
         logger.error(f"❌ [Scheduler] خطأ في check_lesson_prep_job: {e}")
         try:
-            from src.extensions import db
             db.session.rollback()
         except Exception:
             pass
