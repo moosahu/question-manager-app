@@ -265,7 +265,7 @@ class LessonPrepService:
                     page_mapping.textbook.pdf_url,
                     page_mapping.start_page,
                     page_mapping.end_page,
-                    scale=0.8,  # دقة منخفضة لتوفير الذاكرة على السيرفر
+                    scale=0.5,  # دقة مخفضة لتوفير الذاكرة على السيرفر (512MB RAM)
                 )
 
             # 2. بناء البرومبت
@@ -1423,7 +1423,7 @@ class LessonPrepService:
 
                 try:
                     # دقة منخفضة كافية لقراءة النص - يوفر ذاكرة كثير
-                    images = self._extract_pages_as_images(pdf_source, 1, 2, scale=0.8)
+                    images = self._extract_pages_as_images(pdf_source, 1, 2, scale=0.5)
                 except Exception as e:
                     logger.warning(f"فشل استخراج صور PDF: {e}")
 

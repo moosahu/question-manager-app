@@ -495,15 +495,15 @@ def check_lesson_prep_job():
                 # التحقق: هل هو خطأ Rate Limit؟
                 from src.services.lesson_prep_service import RateLimitError
                 if isinstance(e, RateLimitError):
-                    # تأجيل المحاولة - ننتظر دقيقتين ثم نعيد
+                    # تأجيل المحاولة - ننتظر 5 دقائق ثم نعيد
                     new_retry_count = retry_count + 1
-                    retry_after = datetime.utcnow().timestamp() + 120  # دقيقتين
+                    retry_after = datetime.utcnow().timestamp() + 300  # 5 دقائق
                     data['retry_count'] = new_retry_count
                     data['retry_after'] = retry_after
                     from src.models.ai_analysis import AISetting
                     AISetting.set_setting('lesson_prep_job_status', 'rate_limited', 'string')
                     AISetting.set_setting('lesson_prep_job_data', _json.dumps(data), 'json')
-                    logger.warning(f"⏳ [Scheduler] Rate limit لتحضير #{plan_id} - إعادة محاولة {new_retry_count}/5 بعد دقيقتين")
+                    logger.warning(f"⏳ [Scheduler] Rate limit لتحضير #{plan_id} - إعادة محاولة {new_retry_count}/5 بعد 5 دقائق")
                 else:
                     logger.error(f"❌ [Scheduler] فشل تحضير #{plan_id}: {e}")
                     import traceback
