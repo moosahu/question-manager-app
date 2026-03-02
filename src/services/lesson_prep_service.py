@@ -358,7 +358,7 @@ class LessonPrepService:
             import re
             if 'drive.google.com' in pdf_url:
                 match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url)
-            if match:
+                if match:
                 file_id = match.group(1)
                 pdf_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                 logger.info(f"✅ تحويل Drive URL → {pdf_url}")
