@@ -1786,7 +1786,8 @@ class LessonPrepService:
             }
 
             html_string = render_template('lesson_prep/worksheet.html', **context)
-            pdf_bytes = HTML(string=html_string).write_pdf()
+            base_url = os.path.join(os.getcwd(), 'src', 'static')
+            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
             return pdf_bytes
 
         except Exception as e:
