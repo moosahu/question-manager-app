@@ -6,7 +6,8 @@ import os
 
 # Worker settings
 workers = 2  # 2 workers - Render Standard 2GB RAM
-worker_class = 'eventlet'  # ✅ يدعم WebSocket بدون SIGKILL (بدل gthread)
+threads = 4
+worker_class = 'gthread'
 worker_connections = 1000
 timeout = 600  # 10 دقائق - يكفي لأطول عملية AI
 keepalive = 5
