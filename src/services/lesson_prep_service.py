@@ -359,19 +359,38 @@ class LessonPrepService:
             # تحميل PDF
             if pdf_url.startswith('http'):
                 if 'drive.google.com' in pdf_url:
+                    import re as _re
                     if '/file/d/' in pdf_url:
-                        file_id = __import__('re').search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                        file_id = _re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
                     else:
-                        file_id = __import__('re').search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
-                    pdf_url = f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}"
-                    logger.info(f"✅ Drive URL → {pdf_url}")
-                resp = requests.get(pdf_url, timeout=60)
-                resp.raise_for_status()
-                # تحقق إن المحتوى فعلاً PDF
-                if b'%PDF' not in resp.content[:10]:
-                    logger.error(f"❌ المحتوى ليس PDF! (size={len(resp.content)}, start={resp.content[:50]})")
-                    return []
-                pdf_bytes = resp.content
+                        file_id = _re.search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                    
+                    # تحميل Google Drive مع معالجة صفحة تحذير الفيروسات
+                    session = requests.Session()
+                    download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                    resp = session.get(download_url, timeout=120)
+                    
+                    # إذا رجع HTML (صفحة تحذير) — استخرج confirm token
+                    if b'%PDF' not in resp.content[:10]:
+                        confirm = _re.search(r'confirm=([0-9A-Za-z_]+)', resp.text)
+                        uuid = _re.search(r'uuid=([0-9A-Za-z_-]+)', resp.text)
+                        if confirm and uuid:
+                            download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm={confirm.group(1)}&uuid={uuid.group(1)}"
+                        else:
+                            download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+                        logger.info(f"✅ Drive confirm URL → {download_url}")
+                        resp = session.get(download_url, timeout=120)
+                    
+                    resp.raise_for_status()
+                    if b'%PDF' not in resp.content[:10]:
+                        logger.error(f"❌ فشل تحميل PDF من Drive! (size={len(resp.content)})")
+                        return []
+                    pdf_bytes = resp.content
+                    logger.info(f"✅ تم تحميل PDF من Drive ({len(pdf_bytes)//1024}KB)")
+                else:
+                    resp = requests.get(pdf_url, timeout=120)
+                    resp.raise_for_status()
+                    pdf_bytes = resp.content
             else:
                 # ملف محلي
                 if os.path.isabs(pdf_url):
