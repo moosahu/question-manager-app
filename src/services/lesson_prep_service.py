@@ -358,11 +358,19 @@ class LessonPrepService:
 
             # تحميل PDF
             if pdf_url.startswith('http'):
-                if 'drive.google.com' in pdf_url and '/file/d/' in pdf_url:
-                    pdf_url = f"https://drive.google.com/uc?export=download&id={__import__('re').search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)}"
-                    logger.info(f"✅ تحويل Drive URL → {pdf_url}")
+                if 'drive.google.com' in pdf_url:
+                    if '/file/d/' in pdf_url:
+                        file_id = __import__('re').search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                    else:
+                        file_id = __import__('re').search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                    pdf_url = f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}"
+                    logger.info(f"✅ Drive URL → {pdf_url}")
                 resp = requests.get(pdf_url, timeout=60)
                 resp.raise_for_status()
+                # تحقق إن المحتوى فعلاً PDF
+                if b'%PDF' not in resp.content[:10]:
+                    logger.error(f"❌ المحتوى ليس PDF! (size={len(resp.content)}, start={resp.content[:50]})")
+                    return []
                 pdf_bytes = resp.content
             else:
                 # ملف محلي
