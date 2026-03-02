@@ -355,8 +355,8 @@ class LessonPrepService:
         images = []
         try:
         # google Drive تحويل رابط 
-        import re
-        if 'drive.google.com' in pdf_url:
+            import re
+            if 'drive.google.com' in pdf_url:
             match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url)
             if match:
                 file_id = match.group(1)
