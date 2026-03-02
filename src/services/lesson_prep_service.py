@@ -354,7 +354,7 @@ class LessonPrepService:
         """استخراج صفحات PDF كصور JPEG بدقة منخفضة لتوفير الذاكرة"""
         images = []
         try:
-        # ✅ تحويل رابط Google Drive
+        # google Drive تحويل رابط 
         import re
         if 'drive.google.com' in pdf_url:
             match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url)
