@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 from flask import current_app
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -37,7 +37,7 @@ class QuestionClassifier:
     """خدمة تصنيف الأسئلة بالذكاء الاصطناعي"""
     
     def __init__(self):
-        self.model = None
+        self.client = None
         self.is_configured = False
         self.api_key = None
         self.model_name = 'gemini-2.0-flash'
@@ -48,30 +48,29 @@ class QuestionClassifier:
     
     def _ensure_configured(self) -> bool:
         """تهيئة Gemini"""
-        if self.is_configured and self.model:
+        if self.is_configured and self.client:
             return True
-        
+
         try:
             self.api_key = (
-                current_app.config.get('GOOGLE_AI_API_KEY') or 
+                current_app.config.get('GOOGLE_AI_API_KEY') or
                 os.getenv('GOOGLE_AI_API_KEY') or
                 os.getenv('GEMINI_API_KEY')
             )
-            
+
             if not self.api_key:
                 logger.error("❌ GOOGLE_AI_API_KEY غير موجود")
                 return False
-            
+
             if not GEMINI_AVAILABLE:
-                logger.error("❌ google-generativeai غير مثبت")
+                logger.error("❌ google-genai غير مثبت")
                 return False
-            
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.model_name)
+
+            self.client = genai.Client(api_key=self.api_key)
             self.is_configured = True
             logger.info(f"✅ تم تهيئة Gemini: {self.model_name}")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ خطأ في تهيئة Gemini: {e}")
             return False
@@ -89,7 +88,7 @@ class QuestionClassifier:
         for attempt in range(max_retries):
             try:
                 self._wait_for_rate_limit()
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(model=self.model_name, contents=prompt)
                 self.consecutive_errors = 0  # إعادة تعيين عداد الأخطاء
                 return response.text
                 

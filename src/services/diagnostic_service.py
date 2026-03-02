@@ -16,7 +16,8 @@ from flask import current_app
 
 # AI
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -48,31 +49,28 @@ class DiagnosticService:
     """خدمة الاختبارات التشخيصية"""
     
     def __init__(self):
-        self.model = None
+        self.client = None
+        self.search_enabled = False
         self.is_configured = False
-    
+
     def _configure_ai(self):
         """تهيئة AI مع دعم البحث في الإنترنت"""
         if self.is_configured:
             return True
-        
+
         try:
             api_key = os.getenv('GOOGLE_AI_API_KEY')
             if GEMINI_AVAILABLE and api_key:
-                genai.configure(api_key=api_key)
-                # استخدام gemini-2.0-flash مع أدوات البحث
-                self.model = genai.GenerativeModel(
-                    'gemini-2.0-flash',
-                    tools=[{"google_search": {}}]  # تفعيل البحث في الإنترنت
-                )
+                self.client = genai.Client(api_key=api_key)
+                self.search_enabled = True
                 self.is_configured = True
                 print("✅ AI configured with Google Search enabled")
                 return True
         except Exception as e:
             print(f"❌ AI Error: {e}")
-            # محاولة بدون أدوات البحث
             try:
-                self.model = genai.GenerativeModel('gemini-2.0-flash')
+                self.client = genai.Client(api_key=api_key)
+                self.search_enabled = False
                 self.is_configured = True
                 print("⚠️ AI configured without search (fallback)")
                 return True
@@ -384,7 +382,7 @@ class DiagnosticService:
 ]
 """
             print(f"🤖 Generating questions for: {context.get('name', 'Unknown')}")
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
             
             import re
             import json
@@ -592,7 +590,7 @@ class DiagnosticService:
 
 اكتب الرد بالعربية، مختصر ومفيد (أقل من 200 كلمة)، بأسلوب تشجيعي وإيجابي.
 """
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
             
             return {
                 'analysis': response.text,
@@ -677,7 +675,7 @@ class DiagnosticService:
 
 اكتب بأسلوب إيجابي ومشجع، أقل من 150 كلمة.
 """
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
                 analysis = response.text
                 
             except Exception as e:

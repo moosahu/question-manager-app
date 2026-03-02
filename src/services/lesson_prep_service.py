@@ -14,7 +14,8 @@ import requests
 from datetime import datetime
 
 import gc
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from flask import current_app
 
 import time as _time
@@ -59,27 +60,24 @@ class RateLimitError(Exception):
 
 class LessonPrepService:
     def __init__(self):
-        self.gemini_model = None
+        self.gemini_client = None
         self.claude_client = None
         self.gemini_configured = False
         self.claude_configured = False
         self._current_gemini_model_id = None
+        self._current_max_tokens = 8192
 
     def _ensure_gemini(self, model_id='gemini-2.0-flash'):
         """تهيئة Gemini API - يدعم تغيير النموذج ديناميكياً"""
-        if self.gemini_configured and self.gemini_model and self._current_gemini_model_id == model_id:
+        if self.gemini_configured and self.gemini_client and self._current_gemini_model_id == model_id:
             return True
         api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
         if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY غير موجود")
-        genai.configure(api_key=api_key)
         # جلب الحد الأقصى للإخراج من AI_PROVIDERS
         provider_info = next((v for v in AI_PROVIDERS.values() if v['model'] == model_id), None)
-        max_tokens = provider_info['output_limit'] if provider_info else 8192
-        self.gemini_model = genai.GenerativeModel(
-            model_id,
-            generation_config=genai.types.GenerationConfig(max_output_tokens=max_tokens)
-        )
+        self._current_max_tokens = provider_info['output_limit'] if provider_info else 8192
+        self.gemini_client = genai.Client(api_key=api_key)
         self.gemini_configured = True
         self._current_gemini_model_id = model_id
         return True
@@ -180,12 +178,13 @@ class LessonPrepService:
         content_parts = []
         if images:
             for img_bytes in images:
-                content_parts.append({
-                    'mime_type': 'image/jpeg',
-                    'data': img_bytes,
-                })
+                content_parts.append(types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'))
         content_parts.append(prompt)
-        response = self.gemini_model.generate_content(content_parts)
+        response = self.gemini_client.models.generate_content(
+            model=model_id,
+            contents=content_parts,
+            config=types.GenerateContentConfig(max_output_tokens=self._current_max_tokens),
+        )
 
         # استخراج tokens من usage_metadata
         usage = {'input_tokens': 0, 'output_tokens': 0}

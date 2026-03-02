@@ -11,11 +11,11 @@ from typing import Dict, List, Optional, Any
 from flask import current_app
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    print("⚠️ google-generativeai غير مثبت!")
+    print("⚠️ google-genai غير مثبت!")
 
 try:
     import anthropic
@@ -31,7 +31,7 @@ class AIAssistant:
     """مساعد AI الذكي - يدعم Gemini و Claude"""
 
     def __init__(self):
-        self.gemini_model = None
+        self.gemini_client = None
         self.claude_client = None
         self.is_configured = False
         self.active_provider = 'gemini-flash'
@@ -56,18 +56,17 @@ class AIAssistant:
 
     def _ensure_gemini(self):
         """تهيئة Gemini"""
-        if self.gemini_model and self.is_configured:
+        if self.gemini_client and self.is_configured:
             return True
         try:
             api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
             if api_key and GEMINI_AVAILABLE:
-                genai.configure(api_key=api_key)
-                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+                self.gemini_client = genai.Client(api_key=api_key)
                 self.is_configured = True
                 print(f"✅ تم تهيئة Gemini بنجاح")
                 return True
             if not GEMINI_AVAILABLE:
-                print("⚠️ AI غير مفعّل - مكتبة google-generativeai غير مثبتة")
+                print("⚠️ AI غير مفعّل - مكتبة google-genai غير مثبتة")
             else:
                 print("⚠️ AI غير مفعّل - تحقق من GOOGLE_AI_API_KEY")
             return False
@@ -110,8 +109,11 @@ class AIAssistant:
                     messages=[{'role': 'user', 'content': prompt}],
                 )
                 return response.content[0].text
-            elif self.gemini_model:
-                response = self.gemini_model.generate_content(prompt)
+            elif self.gemini_client:
+                response = self.gemini_client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=prompt,
+                )
                 return response.text
             return None
         except Exception as e:
