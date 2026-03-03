@@ -1378,114 +1378,6 @@ class LessonPrepService:
 
             del lesson_images_map  # تحرير صور الكتاب من الذاكرة
 
-            # ── توليد ورقة عمل شاملة للوحدة ──
-            try:
-                # بناء ملخص الوحدة من الحصص المولّدة
-                lessons_summary = ""
-                for period in generated_periods:
-                    if 'error' not in period and 'raw_text' not in period:
-                        p_title = period.get('title', period.get('lesson_name', ''))
-                        objectives = period.get('objectives', {})
-                        if isinstance(objectives, dict):
-                            cog = objectives.get('cognitive', [])
-                        elif isinstance(objectives, list):
-                            cog = objectives
-                        else:
-                            cog = []
-                        obj_text = '\n'.join(f"  - {o}" for o in cog[:2])
-                        equations = period.get('equations', [])
-                        eq_text = ', '.join(equations[:3]) if equations else ''
-                        lessons_summary += f"\n### {p_title}\n{obj_text}"
-                        if eq_text:
-                            lessons_summary += f"\n  المعادلات: {eq_text}"
-                        lessons_summary += "\n"
-
-                if lessons_summary:
-                    ws_prompt = f"""أنت معلم كيمياء خبير. أنشئ ورقة عمل شاملة لوحدة كاملة.
-
-## المقرر: {course_name}
-## الوحدة: {unit.name}
-## موضوعات الوحدة:
-{lessons_summary}
-
-أنشئ ورقة عمل شاملة تغطي كل دروس الوحدة:
-- أسئلة فراغات (8-10 أسئلة)
-- أسئلة اختيار من متعدد (8-10 أسئلة، 4 خيارات)
-- مسائل حسابية إن وجدت (3-5 مسائل)
-- سؤال تحدي للمتفوقين (1-2)
-
-أعد JSON فقط:
-```json
-{{
-  "worksheet_title": "ورقة عمل: {unit.name}",
-  "course_name": "{course_name}",
-  "unit_name": "{unit.name}",
-  "fill_blanks": [{{"question": "نص السؤال مع ______ للفراغ", "answer": "الإجابة"}}],
-  "multiple_choice": [{{"question": "السؤال", "options": ["أ) ...", "ب) ...", "ج) ...", "د) ..."], "correct_answer": "أ", "correct_index": 0}}],
-  "calculations": [{{"question": "المسألة", "steps": ["خطوة 1"], "answer": "الإجابة"}}],
-  "challenge": [{{"question": "سؤال التحدي", "answer": "الإجابة"}}]
-}}
-```
-- الأسئلة متدرجة من السهل للصعب
-- استخدم مصطلحات كيميائية دقيقة"""
-
-                    logger.info(f"الوحدة #{plan_id}: توليد ورقة العمل الشاملة...")
-                    ws_text, _ = self._call_ai(
-                        ws_prompt, label=f"ورقة عمل وحدة #{plan_id}",
-                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='worksheet'
-                    )
-                    ws_data = self._extract_json(ws_text)
-                    if not ws_data:
-                        ws_data = self._aggressive_json_fix(ws_text)
-
-                    if ws_data:
-                        student_pdf = self._generate_worksheet_pdf(ws_data, show_answers=False)
-                        teacher_pdf = self._generate_worksheet_pdf(ws_data, show_answers=True)
-
-                        ws_student_url = None
-                        ws_teacher_url = None
-                        upload_dir_ws = os.path.join(os.getcwd(), 'uploads', 'worksheets')
-                        os.makedirs(upload_dir_ws, exist_ok=True)
-
-                        if student_pdf:
-                            try:
-                                import cloudinary.uploader
-                                result = cloudinary.uploader.upload(
-                                    io.BytesIO(student_pdf), resource_type='raw',
-                                    folder='worksheets',
-                                    public_id=f"ws_unit_student_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
-                                )
-                                ws_student_url = result.get('secure_url') or result.get('url')
-                            except Exception:
-                                fname = f"ws_unit_student_{plan_id}.pdf"
-                                with open(os.path.join(upload_dir_ws, fname), 'wb') as f:
-                                    f.write(student_pdf)
-                                ws_student_url = f"/uploads/worksheets/{fname}"
-
-                        if teacher_pdf:
-                            try:
-                                import cloudinary.uploader
-                                result = cloudinary.uploader.upload(
-                                    io.BytesIO(teacher_pdf), resource_type='raw',
-                                    folder='worksheets',
-                                    public_id=f"ws_unit_teacher_{plan_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
-                                )
-                                ws_teacher_url = result.get('secure_url') or result.get('url')
-                            except Exception:
-                                fname = f"ws_unit_teacher_{plan_id}.pdf"
-                                with open(os.path.join(upload_dir_ws, fname), 'wb') as f:
-                                    f.write(teacher_pdf)
-                                ws_teacher_url = f"/uploads/worksheets/{fname}"
-
-                        plan_data['worksheet'] = ws_data
-                        plan_data['worksheet_student_pdf'] = ws_student_url
-                        plan_data['worksheet_teacher_pdf'] = ws_teacher_url
-                        logger.info(f"الوحدة #{plan_id}: ✅ ورقة عمل شاملة ({len(ws_data.get('multiple_choice', []))} MCQ, {len(ws_data.get('fill_blanks', []))} فراغات)")
-                    else:
-                        logger.warning(f"الوحدة #{plan_id}: فشل تحليل JSON لورقة العمل")
-            except Exception as ws_err:
-                logger.warning(f"الوحدة #{plan_id}: خطأ في ورقة العمل (غير حرج): {ws_err}")
-
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
             plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
@@ -1776,23 +1668,76 @@ class LessonPrepService:
 
             self._ensure_configured()
 
-            lesson_name = plan_data.get('lesson_info', {}).get('title', '')
-            if not lesson_name and plan.lesson:
-                lesson_name = plan.lesson.name
-
             lesson = Lesson.query.get(plan.lesson_id) if plan.lesson_id else None
             unit = Unit.query.get(lesson.unit_id) if lesson else None
             course = Course.query.get(unit.course_id) if unit else None
 
-            prompt = f"""أنت معلم كيمياء خبير. أنشئ ورقة عمل شاملة بناءً على التحضير التالي.
+            is_unit = plan.plan_type == 'unit_distribution'
+
+            # ── تحميل صور الكتاب للاستخدام في الورقة ──
+            ws_images = []
+            if is_unit:
+                # وحدة: صور كل الدروس
+                unit_name = plan_data.get('unit_name', unit.name if unit else '')
+                course_name = plan_data.get('course_name', course.name if course else '')
+                lesson_name = f"وحدة: {unit_name}"
+                lessons_in_unit = Lesson.query.filter_by(unit_id=unit.id).all() if unit else []
+                for l in lessons_in_unit:
+                    pm = LessonPages.query.filter_by(lesson_id=l.id).first()
+                    if pm and pm.textbook and pm.textbook.pdf_url:
+                        try:
+                            imgs = self._extract_pages_as_images(pm.textbook.pdf_url, pm.start_page, pm.end_page, scale=0.7)
+                            ws_images.extend(imgs or [])
+                        except Exception:
+                            pass
+                periods = plan_data.get('periods', [])
+                summary_parts = []
+                for p in periods:
+                    if isinstance(p, dict) and 'error' not in p:
+                        title = p.get('title', p.get('lesson_name', ''))
+                        objs = p.get('objectives', {})
+                        cog = objs.get('cognitive', []) if isinstance(objs, dict) else (objs if isinstance(objs, list) else [])
+                        eqs = p.get('equations', [])
+                        part = f"- {title}"
+                        if cog:
+                            part += f": {'; '.join(str(o) for o in cog[:2])}"
+                        if eqs:
+                            part += f" | معادلات: {', '.join(str(e) for e in eqs[:2])}"
+                        summary_parts.append(part)
+                content_context = '\n'.join(summary_parts)
+                prompt_intro = f"""أنت معلم كيمياء خبير. أنشئ ورقة عمل شاملة لوحدة كاملة.
+
+## المقرر: {course_name}
+## الوحدة: {unit_name}
+## موضوعات الوحدة:
+{content_context}"""
+            else:
+                # درس واحد: صور الدرس
+                lesson_name = plan_data.get('lesson_info', {}).get('title', '')
+                if not lesson_name and lesson:
+                    lesson_name = lesson.name
+                course_name = course.name if course else ''
+                if lesson:
+                    pm = LessonPages.query.filter_by(lesson_id=lesson.id).first()
+                    if pm and pm.textbook and pm.textbook.pdf_url:
+                        try:
+                            ws_images = self._extract_pages_as_images(pm.textbook.pdf_url, pm.start_page, pm.end_page, scale=0.7) or []
+                        except Exception:
+                            pass
+                prompt_intro = f"""أنت معلم كيمياء خبير. أنشئ ورقة عمل شاملة بناءً على التحضير التالي.
 
 ## معلومات الدرس
-- المقرر: {course.name if course else ''}
+- المقرر: {course_name}
 - الوحدة: {unit.name if unit else ''}
 - الدرس: {lesson_name}
 
 ## ملخص التحضير
-{json.dumps(plan_data, ensure_ascii=False)[:4000]}
+{json.dumps(plan_data, ensure_ascii=False)[:3000]}"""
+
+            if ws_images:
+                logger.info(f"ورقة عمل #{plan_id}: إرسال {len(ws_images)} صورة من الكتاب")
+
+            prompt = prompt_intro + f"""
 
 ## المطلوب
 أنشئ ورقة عمل تحتوي على:
@@ -1805,47 +1750,27 @@ class LessonPrepService:
 ```json
 {{
   "worksheet_title": "ورقة عمل: {lesson_name}",
-  "course_name": "{course.name if course else ''}",
+  "course_name": "{course_name}",
   "unit_name": "{unit.name if unit else ''}",
   "lesson_name": "{lesson_name}",
-  "fill_blanks": [
-    {{
-      "question": "نص السؤال مع ______ للفراغ",
-      "answer": "الإجابة"
-    }}
-  ],
-  "multiple_choice": [
-    {{
-      "question": "نص السؤال",
-      "options": ["أ) ...", "ب) ...", "ج) ...", "د) ..."],
-      "correct_answer": "أ",
-      "correct_index": 0
-    }}
-  ],
-  "calculations": [
-    {{
-      "question": "نص المسألة",
-      "steps": ["الخطوة 1", "الخطوة 2"],
-      "answer": "الإجابة النهائية"
-    }}
-  ],
-  "challenge": [
-    {{
-      "question": "سؤال التحدي",
-      "answer": "الإجابة"
-    }}
-  ]
+  "fill_blanks": [{{"question": "نص السؤال مع ______ للفراغ", "answer": "الإجابة"}}],
+  "multiple_choice": [{{"question": "نص السؤال", "options": ["أ) ...", "ب) ...", "ج) ...", "د) ..."], "correct_answer": "أ", "correct_index": 0}}],
+  "calculations": [{{"question": "نص المسألة", "steps": ["الخطوة 1"], "answer": "الإجابة النهائية"}}],
+  "challenge": [{{"question": "سؤال التحدي", "answer": "الإجابة"}}]
 }}
 ```
-
-## تنبيهات
-- اجعل الأسئلة متدرجة من السهل للصعب
+- الأسئلة متدرجة من السهل للصعب
 - استخدم مصطلحات كيميائية دقيقة
 - المسائل الحسابية تشمل خطوات الحل
 """
 
-            ai_text, _ = self._call_ai(prompt, label=f"ورقة عمل #{plan_id}",
-                                        plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='worksheet')
+            ai_text, _ = self._call_ai(
+                prompt,
+                images=ws_images if ws_images else None,
+                label=f"ورقة عمل #{plan_id}",
+                plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='worksheet'
+            )
+            del ws_images
 
             worksheet_data = self._extract_json(ai_text)
             if not worksheet_data:
