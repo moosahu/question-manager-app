@@ -573,37 +573,13 @@ def start_automation_scheduler(app):
     _flask_app = app
 
     try:
-        with app.app_context():
-            # ✅ تنظيف أي حالة 'running' أو 'processing' عالقة من deploy سابق
-            try:
-                db.session.execute(text("""
-                    UPDATE ai_settings
-                    SET setting_value = 'idle'
-                    WHERE setting_key = 'lesson_prep_job_status'
-                      AND setting_value IN ('running', 'processing')
-                """))
-                db.session.commit()
-                logger.info("🧹 [Scheduler] تم تنظيف أي حالة lesson_prep عالقة من deploy سابق")
-            except Exception:
-                db.session.rollback()
-
-            # قراءة interval من DB (بالساعات، نحوله لدقائق)
-            result = db.session.execute(text("""
-                SELECT setting_value
-                FROM ai_settings
-                WHERE setting_key = 'analysis_interval_hours'
-            """)).fetchone()
-
-            interval_hours = int(result[0]) if result else 24
-            interval_minutes = interval_hours * 60  # تحويل من ساعات لدقائق
-
-        # إنشاء scheduler
+        # ✅ إنشاء scheduler فوراً بدون انتظار DB (لمنع تعليق create_app)
         automation_scheduler = BackgroundScheduler(daemon=True)
 
-        # إضافة job الرسائل التلقائية
+        # إضافة job الرسائل التلقائية (24 ساعة افتراضي، يُحدَّث من DB بعد الـ startup)
         automation_scheduler.add_job(
             func=send_automatic_messages_job,
-            trigger=IntervalTrigger(minutes=interval_minutes),
+            trigger=IntervalTrigger(hours=24),
             id='automation_messages',
             name='إرسال الرسائل التلقائية الذكية',
             replace_existing=True
@@ -654,8 +630,48 @@ def start_automation_scheduler(app):
         atexit.register(_release_scheduler_lock)
         atexit.register(stop_automation_scheduler)
 
-        logger.info(f"✅ Worker {os.getpid()} - بدء جدولة الرسائل التلقائية: كل {interval_hours} ساعة ({interval_minutes} دقيقة)")
-        logger.info(f"✅ فحص طلبات التحليل اليدوية: كل 10 ثواني")
+        logger.info(f"✅ Worker {os.getpid()} - بدأ الـ Scheduler (interval يُقرأ من DB بعد ثانيتين)")
+
+        # ✅ DB init في background thread بعد ثانيتين - لا يعلّق startup
+        def _deferred_db_init():
+            import time as _time
+            _time.sleep(2)
+            try:
+                with app.app_context():
+                    # تنظيف حالة عالقة
+                    try:
+                        db.session.execute(text("""
+                            UPDATE ai_settings SET setting_value = 'idle'
+                            WHERE setting_key = 'lesson_prep_job_status'
+                              AND setting_value IN ('running', 'processing')
+                        """))
+                        db.session.commit()
+                        logger.info("🧹 [Scheduler] تنظيف حالة lesson_prep عالقة")
+                    except Exception:
+                        try: db.session.rollback()
+                        except Exception: pass
+
+                    # قراءة interval الحقيقي وتحديث الـ job
+                    try:
+                        result = db.session.execute(text("""
+                            SELECT setting_value FROM ai_settings
+                            WHERE setting_key = 'analysis_interval_hours'
+                        """)).fetchone()
+                        interval_hours = int(result[0]) if result else 24
+                        interval_minutes = interval_hours * 60
+                        if automation_scheduler and automation_scheduler.running:
+                            automation_scheduler.reschedule_job(
+                                'automation_messages',
+                                trigger=IntervalTrigger(minutes=interval_minutes)
+                            )
+                            logger.info(f"🔄 [Scheduler] interval محدَّث: كل {interval_hours} ساعة")
+                    except Exception as e:
+                        logger.warning(f"⚠️ [Scheduler] فشل قراءة interval من DB: {e}")
+            except Exception as e:
+                logger.error(f"❌ [Scheduler] خطأ في deferred DB init: {e}")
+
+        t = _threading.Thread(target=_deferred_db_init, daemon=True)
+        t.start()
 
     except Exception as e:
         logger.error(f"❌ فشل بدء Scheduler: {e}")
