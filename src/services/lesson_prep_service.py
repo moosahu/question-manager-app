@@ -53,6 +53,19 @@ AI_PROVIDERS = {
 DEFAULT_PROVIDER = 'gemini-flash'
 
 
+def _update_progress(plan_id, message):
+    """تحديث رسالة التقدم في DB بدون كسر التوليد"""
+    try:
+        from src.extensions import db as _db
+        from src.models.textbook import LessonPlan as _LP
+        plan = _LP.query.get(plan_id)
+        if plan:
+            plan.progress_message = message
+            _db.session.commit()
+    except Exception:
+        pass
+
+
 class RateLimitError(Exception):
     """خطأ تجاوز حد الطلبات - يُستخدم لإعادة المحاولة بدون حظر الـ scheduler"""
     pass
@@ -260,6 +273,7 @@ class LessonPrepService:
             course = Course.query.get(unit.course_id) if unit else None
 
             # 1. جلب صفحات الدرس
+            _update_progress(plan_id, "جاري تحليل الكتاب المدرسي...")
             page_mapping = LessonPages.query.filter_by(lesson_id=lesson.id).first()
 
             images = []
@@ -287,6 +301,7 @@ class LessonPrepService:
             )
 
             # 3. إرسال للـ AI
+            _update_progress(plan_id, "جاري توليد التحضير بالذكاء الاصطناعي...")
             num_images = len(images) if images else 0
             logger.info(f"إرسال {num_images} صورة للتحضير #{plan_id}")
             ai_text, ai_usage = self._call_ai(prompt, label=f"تحضير #{plan_id}", images=images,
@@ -310,9 +325,11 @@ class LessonPrepService:
 
             if not plan_data:
                 plan_data = {'raw_text': ai_text}
+                plan.needs_review = True
                 logger.error(f"التحضير #{plan_id}: حُفظ كـ raw_text (JSON غير صالح)")
 
             # 5. توليد PDF
+            _update_progress(plan_id, "جاري إنشاء ملف PDF...")
             # حقن الرسوم البيانية SVG
             if isinstance(plan_data, dict) and 'raw_text' not in plan_data:
                 plan_data = LessonPrepService._inject_diagrams(plan_data)
@@ -1213,6 +1230,7 @@ class LessonPrepService:
             course_name = course.name if course else ''
 
             # ── تحميل صور الكتاب لكل درس (مرة واحدة لتوفير الذاكرة) ──
+            _update_progress(plan_id, "جاري تحليل الكتاب المدرسي...")
             lesson_images_map = {}  # lesson.name → list of image bytes
             for lesson in lessons:
                 page_mapping = LessonPages.query.filter_by(lesson_id=lesson.id).first()
@@ -1254,6 +1272,7 @@ class LessonPrepService:
 - خصص حصة أخيرة للمراجعة والتقويم
 - وزّع الدروس بالتساوي"""
 
+            _update_progress(plan_id, "جاري بناء خطة توزيع الحصص...")
             logger.info(f"الوحدة #{plan_id}: توليد خطة الحصص...")
             plan_text, ai_usage = self._call_ai(plan_prompt, label=f"خطة وحدة #{plan_id}",
                                           plan_id=plan_id, teacher_id=plan.teacher_id, operation_type='unit_dist')
@@ -1283,6 +1302,7 @@ class LessonPrepService:
                 lesson_name = p_info.get('lesson_name', '')
                 title       = p_info.get('title', f"الحصة {period_num}")
 
+                _update_progress(plan_id, f"جاري توليد الحصة {period_num} من {total_periods}...")
                 logger.info(f"الوحدة #{plan_id}: توليد الحصة {period_num}/{total_periods} - {title}")
 
                 period_prompt = self._build_single_period_prompt(

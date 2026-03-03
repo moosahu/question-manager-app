@@ -89,6 +89,8 @@ class LessonPlan(db.Model):
     examples_count = db.Column(db.Integer, default=5)
     status = db.Column(db.String(20), default='pending')  # pending, generating, completed, failed
     error_message = db.Column(db.Text, nullable=True)
+    progress_message = db.Column(db.Text, nullable=True)
+    needs_review = db.Column(db.Boolean, default=False)
     is_taught = db.Column(db.Boolean, default=False)
     taught_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -118,6 +120,8 @@ class LessonPlan(db.Model):
             'examples_count': self.examples_count,
             'status': self.status,
             'error_message': self.error_message,
+            'progress_message': self.progress_message,
+            'needs_review': self.needs_review,
             'is_taught': self.is_taught,
             'taught_at': self.taught_at.isoformat() if self.taught_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

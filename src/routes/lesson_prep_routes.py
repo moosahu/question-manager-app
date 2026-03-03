@@ -401,6 +401,8 @@ def get_plan_status(plan_id, teacher=None, user_id=None, is_admin=False):
         result = {
             'plan_id': plan.id,
             'status': display_status,
+            'progress_message': plan.progress_message,
+            'needs_review': plan.needs_review,
         }
 
         if plan.status == 'pending':
