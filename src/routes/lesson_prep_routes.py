@@ -403,6 +403,19 @@ def get_plan_status(plan_id, teacher=None, user_id=None, is_admin=False):
             'status': display_status,
         }
 
+        if plan.status == 'pending':
+            ahead = LessonPlan.query.filter(
+                LessonPlan.status == 'pending',
+                LessonPlan.id < plan.id
+            ).count()
+            generating = LessonPlan.query.filter_by(status='generating').count()
+            result['queue_position'] = ahead + generating + 1
+            result['queue_total'] = LessonPlan.query.filter(
+                LessonPlan.status.in_(['pending', 'generating'])
+            ).count()
+        elif plan.status == 'generating' or plan.status == 'rate_limited':
+            result['queue_position'] = 0
+
         if plan.status == 'completed':
             result['data'] = plan.to_dict()
         elif plan.status == 'failed':
