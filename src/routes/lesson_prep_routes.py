@@ -427,6 +427,40 @@ def get_plan_status(plan_id, teacher=None, user_id=None, is_admin=False):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@lesson_prep_bp.route('/queue', methods=['GET'])
+@auth_required
+def get_queue(teacher=None, user_id=None, is_admin=False):
+    """الطابور الحالي - generating + pending"""
+    try:
+        generating = LessonPlan.query.filter(
+            LessonPlan.status.in_(['generating', 'rate_limited'])
+        ).order_by(LessonPlan.id).all()
+        pending = LessonPlan.query.filter_by(status='pending').order_by(LessonPlan.id).all()
+        all_active = generating + pending
+
+        result = []
+        for i, plan in enumerate(all_active):
+            if not is_admin and teacher and plan.teacher_id != teacher.id:
+                continue
+            lesson_name = (plan.lesson.name if plan.lesson
+                           else (plan.course.name if plan.course else 'تحضير'))
+            result.append({
+                'id': plan.id,
+                'plan_type': plan.plan_type,
+                'status': 'generating' if plan.status in ('generating', 'rate_limited') else 'pending',
+                'queue_position': i + 1,
+                'queue_total': len(all_active),
+                'lesson_name': lesson_name,
+                'ai_provider': plan.ai_provider,
+                'created_at': plan.created_at.isoformat() if plan.created_at else None,
+                'teacher_name': plan.teacher.name if plan.teacher else None,
+            })
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        logger.error(f'خطأ في جلب الطابور: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @lesson_prep_bp.route('/history', methods=['GET'])
 @auth_required
 def get_history(teacher=None, user_id=None, is_admin=False):
