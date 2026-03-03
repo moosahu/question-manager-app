@@ -460,6 +460,12 @@ def check_lesson_prep_job():
             if not plan_id:
                 return
 
+            # ورقة العمل تشتغل في thread مستقل من الـroute - تجاهلها هنا
+            if plan_type == 'worksheet':
+                from src.models.ai_analysis import AISetting
+                AISetting.set_setting('lesson_prep_job_status', 'idle', 'string')
+                return
+
             logger.info(f"📝 [Scheduler] طلب تحضير درس #{plan_id} ({plan_type}) - جاري التنفيذ...")
 
             try:
@@ -552,6 +558,19 @@ def start_automation_scheduler(app):
 
     try:
         with app.app_context():
+            # ✅ تنظيف أي حالة 'running' عالقة من deploy سابق
+            try:
+                db.session.execute(text("""
+                    UPDATE ai_settings
+                    SET setting_value = 'idle'
+                    WHERE setting_key = 'lesson_prep_job_status'
+                      AND setting_value = 'running'
+                """))
+                db.session.commit()
+                logger.info("🧹 [Scheduler] تم تنظيف أي حالة lesson_prep عالقة من deploy سابق")
+            except Exception:
+                db.session.rollback()
+
             # قراءة interval من DB (بالساعات، نحوله لدقائق)
             result = db.session.execute(text("""
                 SELECT setting_value
