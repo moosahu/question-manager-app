@@ -411,14 +411,20 @@ def check_lesson_prep_job():
     try:
         import json as _json
         with _flask_app.app_context():
+            from src.models.textbook import LessonPlan
 
+            plan_id = None
+            plan_type = None
+            weekly_periods = 5
+            retry_count = 0
+
+            # ── فحص rate_limited أولاً (مهمة سابقة تعيد المحاولة) ──
             result = db.session.execute(text("""
                 SELECT setting_value FROM ai_settings
                 WHERE setting_key = 'lesson_prep_job_status'
             """)).fetchone()
             status = result[0] if result else 'idle'
 
-            # معالجة rate_limited
             if status == 'rate_limited':
                 data_result = db.session.execute(text("""
                     SELECT setting_value FROM ai_settings
@@ -433,39 +439,37 @@ def check_lesson_prep_job():
                 if retry_count >= 5:
                     logger.error(f"❌ [Scheduler] وصل الحد الأقصى للمحاولات")
                     db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
+                    plan_id_fail = data.get('plan_id')
+                    if plan_id_fail:
+                        fail_plan = LessonPlan.query.get(plan_id_fail)
+                        if fail_plan and fail_plan.status == 'generating':
+                            fail_plan.status = 'failed'
                     db.session.commit()
                     return
                 logger.info(f"🔄 [Scheduler] إعادة محاولة (محاولة {retry_count + 1}/5)")
-                db.session.execute(text("UPDATE ai_settings SET setting_value='running' WHERE setting_key='lesson_prep_job_status'"))
+                db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
                 db.session.commit()
+                plan_id = data.get('plan_id')
+                plan_type = data.get('type', 'single_lesson')
+                weekly_periods = data.get('weekly_periods', 5)
 
-            elif status != 'running':
-                return
-
-            # قراءة بيانات المهمة
-            data_result = db.session.execute(text("""
-                SELECT setting_value FROM ai_settings
-                WHERE setting_key = 'lesson_prep_job_data'
-            """)).fetchone()
-            data = _json.loads(data_result[0]) if data_result else {}
-            plan_id = data.get('plan_id')
-            plan_type = data.get('type', 'single_lesson')
-            retry_count = data.get('retry_count', 0)
-            weekly_periods = data.get('weekly_periods', 5)
+            else:
+                # ── الطابور: أقدم خطة بحالة pending ──
+                plan = LessonPlan.query.filter_by(status='pending').order_by(LessonPlan.id).first()
+                if not plan:
+                    return
+                plan_id = plan.id
+                plan_type = plan.plan_type
+                weekly_periods = plan.student_count or 5
 
             if not plan_id:
-                db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
-                db.session.commit()
                 return
 
-            # ورقة العمل تشتغل في thread الـroute - تجاهلها
-            if plan_type == 'worksheet':
-                db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
-                db.session.commit()
+            # تحديث الحالة فوراً لمنع الـ scheduler من اختيارها مرة ثانية
+            plan_obj = LessonPlan.query.get(plan_id)
+            if not plan_obj:
                 return
-
-            # تحديد الحالة لـ 'processing' فوراً (منع الـscheduler من إعادة تشغيلها)
-            db.session.execute(text("UPDATE ai_settings SET setting_value='processing' WHERE setting_key='lesson_prep_job_status'"))
+            plan_obj.status = 'generating'
             db.session.commit()
 
         # ✅ تشغيل المهمة في thread منفصل - الـscheduler يرجع فوراً
@@ -478,7 +482,6 @@ def check_lesson_prep_job():
             try:
                 with app.app_context():
                     from src.services.lesson_prep_service import lesson_prep_service
-                    import json as _j
 
                     if plan_type == 'semester_distribution':
                         success = lesson_prep_service.parse_semester_distribution(plan_id, weekly_periods=weekly_periods)
@@ -487,9 +490,6 @@ def check_lesson_prep_job():
                     else:
                         success = lesson_prep_service.generate_lesson_plan(plan_id)
 
-                    final_status = 'completed' if success else 'failed'
-                    db.session.execute(text(f"UPDATE ai_settings SET setting_value='{final_status}' WHERE setting_key='lesson_prep_job_status'"))
-                    db.session.commit()
                     logger.info(f"{'✅' if success else '❌'} [Scheduler] تحضير #{plan_id}: {'نجح' if success else 'فشل'}")
 
                     # WebSocket
@@ -511,16 +511,19 @@ def check_lesson_prep_job():
                         if isinstance(e, RateLimitError):
                             new_retry = retry_count + 1
                             retry_after_ts = datetime.utcnow().timestamp() + 300
-                            data['retry_count'] = new_retry
-                            data['retry_after'] = retry_after_ts
                             import json as _j
+                            retry_data = {
+                                'plan_id': plan_id,
+                                'type': plan_type,
+                                'weekly_periods': weekly_periods,
+                                'retry_count': new_retry,
+                                'retry_after': retry_after_ts,
+                            }
                             db.session.execute(text("UPDATE ai_settings SET setting_value='rate_limited' WHERE setting_key='lesson_prep_job_status'"))
-                            db.session.execute(text(f"UPDATE ai_settings SET setting_value=:v WHERE setting_key='lesson_prep_job_data'"), {'v': _j.dumps(data)})
+                            db.session.execute(text("UPDATE ai_settings SET setting_value=:v WHERE setting_key='lesson_prep_job_data'"), {'v': _j.dumps(retry_data)})
                             db.session.commit()
                             logger.warning(f"⏳ Rate limit لتحضير #{plan_id} - إعادة بعد 5 دقائق")
                         else:
-                            db.session.execute(text("UPDATE ai_settings SET setting_value='failed' WHERE setting_key='lesson_prep_job_status'"))
-                            db.session.commit()
                             logger.error(f"❌ فشل تحضير #{plan_id}: {e}")
                 except Exception:
                     pass
@@ -645,6 +648,16 @@ def start_automation_scheduler(app):
                             WHERE setting_key = 'lesson_prep_job_status'
                               AND setting_value IN ('running', 'processing')
                         """))
+                        # إعادة الخطط العالقة لـ pending (إذا ما كان فيه rate_limited)
+                        rate_check = db.session.execute(text("""
+                            SELECT setting_value FROM ai_settings
+                            WHERE setting_key = 'lesson_prep_job_status'
+                        """)).fetchone()
+                        if not rate_check or rate_check[0] != 'rate_limited':
+                            db.session.execute(text("""
+                                UPDATE lesson_plans SET status = 'pending'
+                                WHERE status = 'generating'
+                            """))
                         db.session.commit()
                         logger.info("🧹 [Scheduler] تنظيف حالة lesson_prep عالقة")
                     except Exception:

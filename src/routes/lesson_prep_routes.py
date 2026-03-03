@@ -277,13 +277,6 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
         db.session.add(plan)
         db.session.commit()
 
-        # حفظ طلب التوليد في ai_settings للـ scheduler
-        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
-        AISetting.set_setting('lesson_prep_job_data', json.dumps({
-            'plan_id': plan.id,
-            'type': 'single_lesson',
-        }), 'json')
-
         logger.info(f"طلب تحضير جديد #{plan.id} للدرس {lesson_id} من المستخدم {user_id}")
 
         return jsonify({
@@ -378,11 +371,6 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
         db.session.add(plan)
         db.session.commit()
 
-        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
-        AISetting.set_setting('lesson_prep_job_data', json.dumps({
-            'plan_id': plan.id,
-            'type': 'unit_distribution',
-        }), 'json')
 
         return jsonify({
             'success': True,
@@ -616,16 +604,10 @@ def upload_semester_distribution(teacher=None, user_id=None, is_admin=False):
             plan_type='semester_distribution',
             original_pdf_url=pdf_url,
             status='pending',
+            student_count=weekly_periods,
         )
         db.session.add(plan)
         db.session.commit()
-
-        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
-        AISetting.set_setting('lesson_prep_job_data', json.dumps({
-            'plan_id': plan.id,
-            'type': 'semester_distribution',
-            'weekly_periods': weekly_periods,
-        }), 'json')
 
         return jsonify({
             'success': True,
