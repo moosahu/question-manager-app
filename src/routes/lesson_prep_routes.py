@@ -1,7 +1,8 @@
 """
 Lesson Prep Routes - واجهات API لتحضير الدروس بالذكاء الاصطناعي
 """
-from flask import Blueprint, request, jsonify, send_file
+import threading
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_login import current_user
 from functools import wraps
 from datetime import datetime, timezone, timedelta
@@ -1015,11 +1016,19 @@ def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
         if plan.status != 'completed':
             return jsonify({'success': False, 'error': 'التحضير غير مكتمل'}), 400
 
-        AISetting.set_setting('lesson_prep_job_status', 'running', 'string')
-        AISetting.set_setting('lesson_prep_job_data', json.dumps({
-            'plan_id': plan.id,
-            'type': 'worksheet',
-        }), 'json')
+        # تشغيل ورقة العمل في thread مستقل (لا يحجب الـscheduler)
+        from src.services.lesson_prep_service import lesson_prep_service
+        app = current_app._get_current_object()
+
+        def _run_worksheet(app_ctx, pid):
+            with app_ctx.app_context():
+                try:
+                    lesson_prep_service.generate_worksheet(pid)
+                except Exception as ex:
+                    logger.error(f"❌ خطأ في worksheet thread #{pid}: {ex}")
+
+        t = threading.Thread(target=_run_worksheet, args=(app, plan.id), daemon=True)
+        t.start()
 
         return jsonify({
             'success': True,
