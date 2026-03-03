@@ -1682,11 +1682,16 @@ class LessonPrepService:
                 course_name = plan_data.get('course_name', course.name if course else '')
                 lesson_name = f"وحدة: {unit_name}"
                 lessons_in_unit = Lesson.query.filter_by(unit_id=unit.id).all() if unit else []
+                _MAX_UNIT_WS_IMAGES = 6  # حد أقصى لصور ورقة عمل الوحدة (منع OOM على Render)
                 for l in lessons_in_unit:
+                    if len(ws_images) >= _MAX_UNIT_WS_IMAGES:
+                        break
                     pm = LessonPages.query.filter_by(lesson_id=l.id).first()
                     if pm and pm.textbook and pm.textbook.pdf_url:
                         try:
-                            imgs = self._extract_pages_as_images(pm.textbook.pdf_url, pm.start_page, pm.end_page, scale=0.7)
+                            remaining = _MAX_UNIT_WS_IMAGES - len(ws_images)
+                            end = min(pm.end_page, pm.start_page + remaining - 1)
+                            imgs = self._extract_pages_as_images(pm.textbook.pdf_url, pm.start_page, end, scale=0.5)
                             ws_images.extend(imgs or [])
                         except Exception:
                             pass

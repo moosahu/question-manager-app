@@ -574,13 +574,13 @@ def start_automation_scheduler(app):
 
     try:
         with app.app_context():
-            # ✅ تنظيف أي حالة 'running' عالقة من deploy سابق
+            # ✅ تنظيف أي حالة 'running' أو 'processing' عالقة من deploy سابق
             try:
                 db.session.execute(text("""
                     UPDATE ai_settings
                     SET setting_value = 'idle'
                     WHERE setting_key = 'lesson_prep_job_status'
-                      AND setting_value = 'running'
+                      AND setting_value IN ('running', 'processing')
                 """))
                 db.session.commit()
                 logger.info("🧹 [Scheduler] تم تنظيف أي حالة lesson_prep عالقة من deploy سابق")
@@ -627,13 +627,15 @@ def start_automation_scheduler(app):
             replace_existing=True
         )
 
-        # ✅ فحص طلبات تحضير الدروس (كل 5 ثواني)
+        # ✅ فحص طلبات تحضير الدروس (كل 10 ثواني)
         automation_scheduler.add_job(
             func=check_lesson_prep_job,
-            trigger=IntervalTrigger(seconds=5),
+            trigger=IntervalTrigger(seconds=10),
             id='check_lesson_prep',
             name='فحص طلبات تحضير الدروس',
-            replace_existing=True
+            replace_existing=True,
+            max_instances=2,
+            misfire_grace_time=30,
         )
 
         # ✅ فحص فعالية الإشعارات يومياً (كل 24 ساعة)
