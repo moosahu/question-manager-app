@@ -1046,7 +1046,7 @@ def generate_worksheet(plan_id, teacher=None, user_id=None, is_admin=False):
 @lesson_prep_bp.route('/<int:plan_id>/worksheet/pdf', methods=['GET'])
 @auth_required
 def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
-    """تحميل PDF ورقة العمل"""
+    """تحميل PDF ورقة العمل - يدعم ?period=N للوحدات"""
     try:
         plan = LessonPlan.query.get(plan_id)
         if not plan:
@@ -1054,8 +1054,27 @@ def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
 
         plan_data = plan.plan_data or {}
         ws_type = request.args.get('type', 'student')  # student | teacher
-        key = f'worksheet_{ws_type}_pdf'
-        url = plan_data.get(key)
+        period_str = request.args.get('period')  # اختياري - للوحدات
+
+        # وحدة: أوراق عمل متعددة (period_worksheets)
+        if period_str is not None:
+            try:
+                period_idx = int(period_str)
+            except ValueError:
+                return jsonify({'success': False, 'error': 'رقم الحصة غير صالح'}), 400
+
+            period_worksheets = plan_data.get('period_worksheets', [])
+            entry = next((p for p in period_worksheets if p.get('period_index') == period_idx), None)
+            if not entry:
+                return jsonify({'success': False, 'error': f'ورقة عمل الحصة {period_idx} غير موجودة'}), 404
+
+            url = entry.get(f'{ws_type}_pdf_url')
+            filename = f"worksheet_{ws_type}_p{period_idx}_{plan_id}.pdf"
+        else:
+            # درس واحد: المسار القديم
+            key = f'worksheet_{ws_type}_pdf'
+            url = plan_data.get(key)
+            filename = f"worksheet_{ws_type}_{plan_id}.pdf"
 
         if not url:
             return jsonify({'success': False, 'error': 'ورقة العمل غير موجودة'}), 404
@@ -1066,12 +1085,12 @@ def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                 io.BytesIO(resp.content),
                 mimetype='application/pdf',
                 as_attachment=True,
-                download_name=f"worksheet_{ws_type}_{plan_id}.pdf",
+                download_name=filename,
             )
 
         import os
         filepath = os.path.join(os.getcwd(), url.lstrip('/'))
-        return send_file(filepath, as_attachment=True, download_name=f"worksheet_{ws_type}_{plan_id}.pdf")
+        return send_file(filepath, as_attachment=True, download_name=filename)
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
