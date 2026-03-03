@@ -24,6 +24,12 @@ class Config:
         'pool_size': 10,
         'pool_recycle': 3600,
         'pool_pre_ping': True,
+        'connect_args': {
+            'connect_timeout': 10,
+            # lock_timeout: لو جدول مقفول من process قديم، يفشل بعد 15 ثانية بدل ما يعلّق
+            # statement_timeout: أي query تعلّق تنهي بعد 60 ثانية
+            'options': '-c lock_timeout=15000 -c statement_timeout=60000',
+        },
     }
     
     # ==================== Session ====================
