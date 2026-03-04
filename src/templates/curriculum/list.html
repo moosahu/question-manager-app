@@ -83,6 +83,13 @@
                                             </div>
                                             <div class="unit-actions">
                                                 <span class="order-badge">{{ loop.index }}</span>
+                                                <!-- زر تبديل حالة الوحدة في البوت -->
+                                                <button class="bot-toggle-btn {% if unit.show_in_bot %}active{% else %}inactive{% endif %}"
+                                                        onclick="event.stopPropagation(); toggleUnitBotVisibility({{ unit.id }}, this);"
+                                                        title="{% if unit.show_in_bot %}إيقاف ظهور الوحدة في البوت{% else %}تفعيل ظهور الوحدة في البوت{% endif %}">
+                                                    <i class="fas fa-robot"></i>
+                                                    {% if unit.show_in_bot %}<i class="fas fa-eye"></i>{% else %}<i class="fas fa-eye-slash"></i>{% endif %}
+                                                </button>
                                                 <button class="btn-action btn-move" onclick="moveItem('unit', {{ unit.id }}, 'up', event)">
                                                     <i class="fas fa-arrow-up"></i>
                                                 </button>
@@ -117,6 +124,13 @@
                                                                 </div>
                                                                 <div class="lesson-actions">
                                                                     <span class="order-badge">{{ loop.index }}</span>
+                                                                    <!-- زر تبديل حالة الدرس في البوت -->
+                                                                    <button class="bot-toggle-btn {% if lesson.show_in_bot %}active{% else %}inactive{% endif %}"
+                                                                            onclick="event.stopPropagation(); toggleLessonBotVisibility({{ lesson.id }}, this);"
+                                                                            title="{% if lesson.show_in_bot %}إيقاف ظهور الدرس في البوت{% else %}تفعيل ظهور الدرس في البوت{% endif %}">
+                                                                        <i class="fas fa-robot"></i>
+                                                                        {% if lesson.show_in_bot %}<i class="fas fa-eye"></i>{% else %}<i class="fas fa-eye-slash"></i>{% endif %}
+                                                                    </button>
                                                                     <button class="btn-action btn-move" onclick="moveItem('lesson', {{ lesson.id }}, 'up', event)">
                                                                         <i class="fas fa-arrow-up"></i>
                                                                     </button>
@@ -647,6 +661,78 @@
                     errorMsg = xhr.responseJSON.error;
                 }
                 showCurriculumToast(errorMsg, 'danger');
+            }
+        });
+    }
+
+    // تبديل حالة ظهور الوحدة في البوت
+    function toggleUnitBotVisibility(unitId, button) {
+        const url = `/api/units/${unitId}/toggle-bot-visibility`;
+        const csrfToken = $('input[name="csrf_token"]').val();
+        $.ajax({
+            url: url,
+            method: 'POST',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            },
+            data: { csrf_token: csrfToken },
+            success: function(response) {
+                if (response.success) {
+                    if (response.show_in_bot) {
+                        button.classList.remove('inactive');
+                        button.classList.add('active');
+                        button.title = 'إيقاف ظهور الوحدة في البوت';
+                        button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye"></i>';
+                    } else {
+                        button.classList.remove('active');
+                        button.classList.add('inactive');
+                        button.title = 'تفعيل ظهور الوحدة في البوت';
+                        button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye-slash"></i>';
+                    }
+                    showCurriculumToast(response.message, 'success');
+                } else {
+                    showCurriculumToast('فشل في تغيير الحالة: ' + response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                showCurriculumToast('خطأ في الاتصال بالخادم', 'danger');
+            }
+        });
+    }
+
+    // تبديل حالة ظهور الدرس في البوت
+    function toggleLessonBotVisibility(lessonId, button) {
+        const url = `/api/lessons/${lessonId}/toggle-bot-visibility`;
+        const csrfToken = $('input[name="csrf_token"]').val();
+        $.ajax({
+            url: url,
+            method: 'POST',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            },
+            data: { csrf_token: csrfToken },
+            success: function(response) {
+                if (response.success) {
+                    if (response.show_in_bot) {
+                        button.classList.remove('inactive');
+                        button.classList.add('active');
+                        button.title = 'إيقاف ظهور الدرس في البوت';
+                        button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye"></i>';
+                    } else {
+                        button.classList.remove('active');
+                        button.classList.add('inactive');
+                        button.title = 'تفعيل ظهور الدرس في البوت';
+                        button.innerHTML = '<i class="fas fa-robot"></i><i class="fas fa-eye-slash"></i>';
+                    }
+                    showCurriculumToast(response.message, 'success');
+                } else {
+                    showCurriculumToast('فشل في تغيير الحالة: ' + response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                showCurriculumToast('خطأ في الاتصال بالخادم', 'danger');
             }
         });
     }

@@ -27,6 +27,7 @@ class Unit(db.Model):
     name = db.Column(db.String(100), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     order_num = db.Column(db.Integer, default=0)
+    show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
     
     # العلاقات
     lessons = db.relationship('Lesson', backref='unit', lazy=True,
@@ -42,6 +43,7 @@ class Lesson(db.Model):
     name = db.Column(db.String(100), nullable=False)
     unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=False)
     order_num = db.Column(db.Integer, default=0)
+    show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
     
     # العلاقات
     questions = db.relationship("Question", back_populates="lesson", lazy=True)

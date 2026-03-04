@@ -258,7 +258,9 @@ def api_get_all_lessons():
     try:
         # جلب الدروس فقط من المناهج المفعلة للطلاب
         lessons = Lesson.query.join(Unit).join(Course).filter(
-            Course.show_in_bot == True  # ✅ فقط المناهج المفعلة
+            Course.show_in_bot == True,   # ✅ فقط المناهج المفعلة
+            Unit.show_in_bot == True,     # ✅ فقط الوحدات المفعلة
+            Lesson.show_in_bot == True    # ✅ فقط الدروس المفعلة
         ).order_by(
             Course.order_num,  # ✅ الترتيب حسب order_num
             Unit.order_num, 

@@ -529,29 +529,6 @@ def toggle_course_bot_visibility(course_id):
         
         # تبديل الحالة
         course.show_in_bot = not course.show_in_bot
-        
-        # إذا تم إخفاء المنهج، إخفاء جميع الأسئلة التابعة له
-        if not course.show_in_bot:
-            # الحصول على جميع الوحدات التابعة للمنهج
-            units = Unit.query.filter_by(course_id=course_id).all()
-            for unit in units:
-                # الحصول على جميع الدروس التابعة للوحدة
-                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
-                for lesson in lessons:
-                    # إخفاء جميع الأسئلة في الدرس
-                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
-                    for question in questions:
-                        question.show_in_bot = False
-        else:
-            # إذا تم تفعيل المنهج، تفعيل جميع الأسئلة التابعة له
-            units = Unit.query.filter_by(course_id=course_id).all()
-            for unit in units:
-                lessons = Lesson.query.filter_by(unit_id=unit.id).all()
-                for lesson in lessons:
-                    questions = Question.query.filter_by(lesson_id=lesson.id).all()
-                    for question in questions:
-                        question.show_in_bot = True
-        
         db.session.commit()
         
         status_text = "مفعل" if course.show_in_bot else "معطل"
@@ -565,6 +542,44 @@ def toggle_course_bot_visibility(course_id):
         logger.exception(f"Error toggling course bot visibility: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# --- API Endpoint for Toggle Unit Bot Visibility --- #
+@api_bp.route("/units/<int:unit_id>/toggle-bot-visibility", methods=["PUT", "POST"])
+@csrf_exempt
+@login_required
+def toggle_unit_bot_visibility(unit_id):
+    """Toggle the show_in_bot status of a unit."""
+    try:
+        unit = Unit.query.get(unit_id)
+        if not unit:
+            return jsonify({"success": False, "error": "الوحدة غير موجودة"}), 404
+        unit.show_in_bot = not unit.show_in_bot
+        db.session.commit()
+        status_text = "مفعل" if unit.show_in_bot else "معطل"
+        return jsonify({"success": True, "message": f"تم تغيير حالة الوحدة في البوت إلى: {status_text}", "show_in_bot": unit.show_in_bot})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error toggling unit bot visibility: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# --- API Endpoint for Toggle Lesson Bot Visibility --- #
+@api_bp.route("/lessons/<int:lesson_id>/toggle-bot-visibility", methods=["PUT", "POST"])
+@csrf_exempt
+@login_required
+def toggle_lesson_bot_visibility(lesson_id):
+    """Toggle the show_in_bot status of a lesson."""
+    try:
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({"success": False, "error": "الدرس غير موجود"}), 404
+        lesson.show_in_bot = not lesson.show_in_bot
+        db.session.commit()
+        status_text = "مفعل" if lesson.show_in_bot else "معطل"
+        return jsonify({"success": True, "message": f"تم تغيير حالة الدرس في البوت إلى: {status_text}", "show_in_bot": lesson.show_in_bot})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error toggling lesson bot visibility: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # --- API Endpoint for Units by Course --- #
 @api_bp.route("/courses/<int:course_id>/units", methods=["GET"])
 def get_course_units(course_id):
@@ -576,12 +591,11 @@ def get_course_units(course_id):
             logger.warning(f"Course with id {course_id} not found.")
             return jsonify({"error": "Course not found"}), 404
 
-        units = (
-            Unit.query
-            .filter(Unit.course_id == course_id)
-            .order_by(Unit.order_num.asc(), Unit.id)
-            .all()
-        )
+        show_all = request.args.get('show_all', 'false').lower() == 'true'
+        query = Unit.query.filter(Unit.course_id == course_id)
+        if not show_all:
+            query = query.filter(Unit.show_in_bot == True)
+        units = query.order_by(Unit.order_num.asc(), Unit.id).all()
         logger.info(f"Found {len(units)} units for course_id: {course_id}")
         formatted_units = [{"id": u.id, "name": u.name, "order_num": u.order_num} for u in units]
         return jsonify(formatted_units)
@@ -604,12 +618,11 @@ def get_unit_lessons(unit_id):
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
 
-        lessons = (
-            Lesson.query
-            .filter(Lesson.unit_id == unit_id)
-            .order_by(Lesson.order_num.asc(), Lesson.id)
-            .all()
-        )
+        show_all = request.args.get('show_all', 'false').lower() == 'true'
+        query = Lesson.query.filter(Lesson.unit_id == unit_id)
+        if not show_all:
+            query = query.filter(Lesson.show_in_bot == True)
+        lessons = query.order_by(Lesson.order_num.asc(), Lesson.id).all()
         logger.info(f"Found {len(lessons)} lessons for unit_id: {unit_id}")
         formatted_lessons = [{"id": l.id, "name": l.name, "order_num": l.order_num} for l in lessons]
         return jsonify(formatted_lessons)

@@ -1451,10 +1451,19 @@ class LessonPrepService:
 
             del lesson_images_map  # تحرير صور الكتاب من الذاكرة
 
+            # خطة دعم الطلاب الضعاف (اختيارية)
+            if getattr(plan, 'include_support_plan', False):
+                _update_progress(plan_id, "جاري إنشاء خطة دعم الطلاب الضعاف...")
+                support = self._generate_support_plan(plan_id, unit.name, plan_data)
+                if support:
+                    plan_data = dict(plan_data)
+                    plan_data['support_plan'] = support
+
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
             plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
             plan.status = 'completed'
+            plan.progress_message = None
             db.session.commit()
 
             gc.collect()  # تحرير الذاكرة

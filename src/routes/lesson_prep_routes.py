@@ -320,6 +320,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
         data = request.get_json()
         lesson_id = data.get('lesson_id')  # أي درس من الوحدة
         total_periods = data.get('total_periods', 12)
+        include_support_plan = data.get('include_support_plan', False)
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
@@ -368,6 +369,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             plan_type='unit_distribution',
             status='pending',
             student_count=total_periods,  # نستخدم هذا الحقل مؤقتاً لتخزين عدد الحصص
+            include_support_plan=include_support_plan,
         )
         db.session.add(plan)
         db.session.commit()
