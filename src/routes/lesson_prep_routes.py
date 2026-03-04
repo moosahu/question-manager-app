@@ -209,6 +209,25 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
         if not lesson:
             return jsonify({'success': False, 'error': 'الدرس غير موجود'}), 404
 
+        # منع التكرار: إذا في طلب نشط لنفس الدرس ونفس المعلم، أرجع الموجود
+        teacher_id_val = teacher.id if teacher else None
+        existing_active = LessonPlan.query.filter(
+            LessonPlan.lesson_id == lesson_id,
+            LessonPlan.teacher_id == teacher_id_val,
+            LessonPlan.plan_type == 'single_lesson',
+            LessonPlan.status.in_(['pending', 'generating', 'rate_limited']),
+        ).order_by(LessonPlan.id.desc()).first()
+        if existing_active:
+            logger.info(f"⚠️ طلب مكرر - إرجاع plan #{existing_active.id} النشط للمعلم {teacher_id_val}")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'plan_id': existing_active.id,
+                    'status': existing_active.status,
+                    'duplicate': True,
+                }
+            })
+
         # Cache: بحث عن تحضير مكتمل بنفس المعايير (للمعلمين فقط)
         if teacher and not is_admin:
             student_level = data.get('student_level', 'متفاوت')
@@ -324,6 +343,25 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
+
+        # منع التكرار: إذا في طلب نشط لنفس الوحدة ونفس المعلم
+        teacher_id_val = teacher.id if teacher else None
+        existing_active_unit = LessonPlan.query.filter(
+            LessonPlan.lesson_id == lesson_id,
+            LessonPlan.teacher_id == teacher_id_val,
+            LessonPlan.plan_type == 'unit_distribution',
+            LessonPlan.status.in_(['pending', 'generating', 'rate_limited']),
+        ).order_by(LessonPlan.id.desc()).first()
+        if existing_active_unit:
+            logger.info(f"⚠️ طلب وحدة مكرر - إرجاع plan #{existing_active_unit.id} النشط")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'plan_id': existing_active_unit.id,
+                    'status': existing_active_unit.status,
+                    'duplicate': True,
+                }
+            })
 
         # Cache: بحث عن توزيع وحدة مكتمل بنفس الدرس وعدد الحصص (للمعلمين فقط)
         if teacher and not is_admin:
