@@ -378,10 +378,18 @@ class LessonPrepService:
             # 6. خطة دعم الطلاب الضعاف (اختيارية)
             if getattr(plan, 'include_support_plan', False):
                 _update_progress(plan_id, "جاري إنشاء خطة دعم الطلاب الضعاف...")
-                support = self._generate_support_plan(plan_id, lesson.name, plan_data)
-                if support:
-                    plan_data = dict(plan_data)
-                    plan_data['support_plan'] = support
+                try:
+                    support = self._generate_support_plan(plan_id, lesson.name, plan_data)
+                    if support:
+                        plan_data = dict(plan_data)
+                        plan_data['support_plan'] = support
+                except RateLimitError:
+                    # فشل خطة الدعم بسبب الضغط - نحفظ التحضير الأساسي ونضع needs_review
+                    logger.warning(f"⚠️ فشل خطة الدعم #{plan_id} بسبب الضغط - حفظ التحضير الأساسي")
+                    plan.needs_review = True
+                except Exception as e:
+                    logger.warning(f"⚠️ فشل خطة الدعم #{plan_id}: {e} - حفظ التحضير الأساسي")
+                    plan.needs_review = True
 
             # 7. حفظ النتيجة
             plan.plan_data = plan_data
@@ -1468,10 +1476,17 @@ class LessonPrepService:
             # خطة دعم الطلاب الضعاف (اختيارية)
             if getattr(plan, 'include_support_plan', False):
                 _update_progress(plan_id, "جاري إنشاء خطة دعم الطلاب الضعاف...")
-                support = self._generate_support_plan(plan_id, unit.name, plan_data)
-                if support:
-                    plan_data = dict(plan_data)
-                    plan_data['support_plan'] = support
+                try:
+                    support = self._generate_support_plan(plan_id, unit.name, plan_data)
+                    if support:
+                        plan_data = dict(plan_data)
+                        plan_data['support_plan'] = support
+                except RateLimitError:
+                    logger.warning(f"⚠️ فشل خطة الدعم للوحدة #{plan_id} بسبب الضغط - حفظ التوزيع الأساسي")
+                    plan.needs_review = True
+                except Exception as e:
+                    logger.warning(f"⚠️ فشل خطة الدعم للوحدة #{plan_id}: {e} - حفظ التوزيع الأساسي")
+                    plan.needs_review = True
 
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
