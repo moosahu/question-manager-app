@@ -16,8 +16,10 @@ depends_on = None
 def upgrade():
     op.add_column('lesson_plans', sa.Column('progress_message', sa.Text(), nullable=True))
     op.add_column('lesson_plans', sa.Column('needs_review', sa.Boolean(), server_default='false'))
+    op.add_column('lesson_plans', sa.Column('include_support_plan', sa.Boolean(), server_default='false'))
 
 
 def downgrade():
+    op.drop_column('lesson_plans', 'include_support_plan')
     op.drop_column('lesson_plans', 'needs_review')
     op.drop_column('lesson_plans', 'progress_message')

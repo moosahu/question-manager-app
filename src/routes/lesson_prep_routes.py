@@ -272,6 +272,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
             excellent_students_count=data.get('excellent_students_count', 5),
             focus_area=data.get('focus_area', 'شامل'),
             examples_count=data.get('examples_count', 5),
+            include_support_plan=bool(data.get('include_support_plan', False)),
             status='pending',
         )
         db.session.add(plan)
@@ -1001,10 +1002,17 @@ def get_plan_ratings(plan_id, teacher=None, user_id=None, is_admin=False):
         from sqlalchemy import func
         avg = db.session.query(func.avg(PlanRating.overall_rating)).filter_by(plan_id=plan_id).scalar()
 
+        my_teacher_id = teacher.id if teacher else None
+        ratings_list = []
+        for r in ratings:
+            d = r.to_dict()
+            d['is_mine'] = (my_teacher_id is not None and r.teacher_id == my_teacher_id)
+            ratings_list.append(d)
+
         return jsonify({
             'success': True,
             'data': {
-                'ratings': [r.to_dict() for r in ratings],
+                'ratings': ratings_list,
                 'avg_rating': float(avg) if avg else 0,
                 'count': len(ratings),
             }

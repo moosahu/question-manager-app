@@ -361,11 +361,20 @@ class LessonPrepService:
             except Exception as e:
                 logger.warning(f"فشل توليد PDF: {e}")
 
-            # 6. حفظ النتيجة
+            # 6. خطة دعم الطلاب الضعاف (اختيارية)
+            if getattr(plan, 'include_support_plan', False):
+                _update_progress(plan_id, "جاري إنشاء خطة دعم الطلاب الضعاف...")
+                support = self._generate_support_plan(plan_id, lesson.name, plan_data)
+                if support:
+                    plan_data = dict(plan_data)
+                    plan_data['support_plan'] = support
+
+            # 7. حفظ النتيجة
             plan.plan_data = plan_data
             plan.pdf_file_url = pdf_url
             plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
             plan.status = 'completed'
+            plan.progress_message = None
             db.session.commit()
 
             gc.collect()  # تحرير الذاكرة
@@ -386,6 +395,50 @@ class LessonPrepService:
             plan.error_message = str(e)
             db.session.commit()
             return False
+
+    def _generate_support_plan(self, plan_id, lesson_name, main_plan_data):
+        """توليد خطة دعم للطلاب الضعاف بناءً على التحضير الأساسي"""
+        try:
+            # استخراج المفاهيم الأساسية من التحضير
+            concepts = []
+            if isinstance(main_plan_data, dict):
+                presentation = main_plan_data.get('presentation', {})
+                if isinstance(presentation, dict):
+                    main_concepts = presentation.get('main_concepts', [])
+                    for c in main_concepts[:3]:  # أول 3 مفاهيم فقط
+                        if isinstance(c, dict):
+                            concepts.append(c.get('concept', ''))
+
+            concepts_text = '\n'.join(f'- {c}' for c in concepts if c) or f'مفاهيم درس {lesson_name}'
+
+            prompt = f"""أنت معلم متخصص في دعم الطلاب الضعاف.
+بناءً على درس "{lesson_name}"، أنشئ خطة دعم مبسطة.
+
+المفاهيم الأساسية في الدرس:
+{concepts_text}
+
+أعد JSON بهذا الشكل فقط:
+{{
+  "simplified_explanation": "شرح مبسط جداً للدرس بلغة سهلة (3-4 جمل)",
+  "gradual_examples": [
+    {{"level": "سهل", "problem": "مثال بسيط", "steps": ["خطوة 1", "خطوة 2"], "answer": "الجواب"}},
+    {{"level": "متوسط", "problem": "مثال أصعب قليلاً", "steps": ["خطوة 1", "خطوة 2", "خطوة 3"], "answer": "الجواب"}}
+  ],
+  "review_questions": ["سؤال سهل 1", "سؤال سهل 2", "سؤال سهل 3"],
+  "teacher_tips": ["نصيحة عملية 1 للمعلم", "نصيحة عملية 2 للمعلم"]
+}}"""
+
+            text, _ = self._call_ai(prompt, label=f"خطة دعم #{plan_id}",
+                                    plan_id=plan_id, operation_type='lesson_prep')
+            support_data = self._extract_json(text)
+            if not support_data:
+                support_data = self._aggressive_json_fix(text)
+            if support_data:
+                logger.info(f"✅ خطة الدعم للتحضير #{plan_id} اكتملت")
+                return support_data
+        except Exception as e:
+            logger.warning(f"فشل توليد خطة الدعم #{plan_id}: {e}")
+        return None
 
     def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
         """استخراج صفحات PDF كصور JPEG بدقة منخفضة لتوفير الذاكرة"""
