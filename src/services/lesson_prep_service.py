@@ -450,16 +450,28 @@ class LessonPrepService:
   "teacher_tips": ["نصيحة عملية 1 للمعلم", "نصيحة عملية 2 للمعلم"]
 }}"""
 
-            text, _ = self._call_ai(prompt, label=f"خطة دعم #{plan_id}",
-                                    plan_id=plan_id, operation_type='lesson_prep')
+            text = None
+            try:
+                text, _ = self._call_ai(prompt, label=f"خطة دعم #{plan_id}",
+                                        plan_id=plan_id, operation_type='lesson_prep')
+            except RateLimitError:
+                # fallback: gemini-flash أسرع وأقل ضغطاً من النماذج الجديدة
+                logger.info(f"⚡ [Support Plan] #{plan_id} - النموذج الأساسي مشغول, تجربة gemini-flash...")
+                try:
+                    text, _ = self._call_gemini(prompt, label=f"خطة دعم #{plan_id} [flash]",
+                                                model_id='gemini-2.0-flash')
+                except Exception as fb_err:
+                    logger.warning(f"⚠️ فشل خطة الدعم #{plan_id} حتى مع fallback: {fb_err}")
+                    return None
+
+            if not text:
+                return None
             support_data = self._extract_json(text)
             if not support_data:
                 support_data = self._aggressive_json_fix(text)
             if support_data:
                 logger.info(f"✅ خطة الدعم للتحضير #{plan_id} اكتملت")
                 return support_data
-        except RateLimitError:
-            raise  # يرتفع للـ caller (generate_lesson_plan) الذي يعالجه ويحفظ التحضير الأساسي
         except Exception as e:
             logger.warning(f"فشل توليد خطة الدعم #{plan_id}: {e}")
         return None
