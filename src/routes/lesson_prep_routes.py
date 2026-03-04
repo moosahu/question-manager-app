@@ -246,6 +246,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
                 excellent_students_count=excellent_count,
                 focus_area=focus_area,
                 examples_count=examples_count,
+                include_support_plan=bool(data.get('include_support_plan', False)),
                 status='completed',
             ).filter(
                 LessonPlan.plan_data.isnot(None),
@@ -373,6 +374,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                     LessonPlan.lesson_id.in_(unit_lesson_ids),
                     LessonPlan.plan_type == 'unit_distribution',
                     LessonPlan.student_count == total_periods,
+                    LessonPlan.include_support_plan == bool(include_support_plan),
                     LessonPlan.status == 'completed',
                     LessonPlan.plan_data.isnot(None),
                 ).first()
