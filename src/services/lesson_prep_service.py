@@ -193,11 +193,18 @@ class LessonPrepService:
             for img_bytes in images:
                 content_parts.append(types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'))
         content_parts.append(prompt)
-        response = self.gemini_client.models.generate_content(
-            model=model_id,
-            contents=content_parts,
-            config=types.GenerateContentConfig(max_output_tokens=self._current_max_tokens),
-        )
+        try:
+            response = self.gemini_client.models.generate_content(
+                model=model_id,
+                contents=content_parts,
+                config=types.GenerateContentConfig(max_output_tokens=self._current_max_tokens),
+            )
+        except Exception as e:
+            err_str = str(e).lower()
+            if '503' in err_str or 'unavailable' in err_str or 'high demand' in err_str or '429' in err_str or 'resource_exhausted' in err_str:
+                logger.warning(f"⏳ Gemini [{label}] خطأ مؤقت ({type(e).__name__}): {e}")
+                raise RateLimitError(str(e))
+            raise
 
         # استخراج tokens من usage_metadata
         usage = {'input_tokens': 0, 'output_tokens': 0}
@@ -232,12 +239,19 @@ class LessonPrepService:
                 })
         messages_content.append({'type': 'text', 'text': prompt})
 
-        with self.claude_client.messages.stream(
-            model=model,
-            max_tokens=max_tokens,
-            messages=[{'role': 'user', 'content': messages_content}],
-        ) as stream:
-            response = stream.get_final_message()
+        try:
+            with self.claude_client.messages.stream(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{'role': 'user', 'content': messages_content}],
+            ) as stream:
+                response = stream.get_final_message()
+        except Exception as e:
+            err_str = str(e).lower()
+            if '529' in err_str or '503' in err_str or 'overloaded' in err_str or '429' in err_str or 'rate' in err_str:
+                logger.warning(f"⏳ Claude [{model}] خطأ مؤقت: {e}")
+                raise RateLimitError(str(e))
+            raise
         text = response.content[0].text
 
         # استخراج tokens من response.usage
