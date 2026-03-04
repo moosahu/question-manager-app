@@ -458,6 +458,8 @@ class LessonPrepService:
             if support_data:
                 logger.info(f"✅ خطة الدعم للتحضير #{plan_id} اكتملت")
                 return support_data
+        except RateLimitError:
+            raise  # يرتفع للـ caller (generate_lesson_plan) الذي يعالجه ويحفظ التحضير الأساسي
         except Exception as e:
             logger.warning(f"فشل توليد خطة الدعم #{plan_id}: {e}")
         return None

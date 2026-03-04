@@ -468,7 +468,15 @@ def check_lesson_prep_job():
             # تحديث الحالة فوراً لمنع الـ scheduler من اختيارها مرة ثانية
             plan_obj = LessonPlan.query.get(plan_id)
             if not plan_obj:
+                logger.warning(f"⚠️ [Scheduler] خطة #{plan_id} غير موجودة - تخطي")
+                db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
+                db.session.commit()
                 return
+            if plan_obj.status == 'deleted':
+                logger.info(f"⚠️ [Scheduler] خطة #{plan_id} محذوفة - إلغاء الـ retry والانتقال للتالي")
+                db.session.execute(text("UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"))
+                db.session.commit()
+                return  # الـ scheduler سيلتقط الـ pending plan في الدورة التالية
             plan_obj.status = 'generating'
             db.session.commit()
 
