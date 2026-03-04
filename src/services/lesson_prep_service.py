@@ -450,22 +450,8 @@ class LessonPrepService:
   "teacher_tips": ["نصيحة عملية 1 للمعلم", "نصيحة عملية 2 للمعلم"]
 }}"""
 
-            text = None
-            try:
-                text, _ = self._call_ai(prompt, label=f"خطة دعم #{plan_id}",
-                                        plan_id=plan_id, operation_type='lesson_prep')
-            except RateLimitError:
-                # fallback: gemini-flash أسرع وأقل ضغطاً من النماذج الجديدة
-                logger.info(f"⚡ [Support Plan] #{plan_id} - النموذج الأساسي مشغول, تجربة gemini-flash...")
-                try:
-                    text, _ = self._call_gemini(prompt, label=f"خطة دعم #{plan_id} [flash]",
-                                                model_id='gemini-2.0-flash')
-                except Exception as fb_err:
-                    logger.warning(f"⚠️ فشل خطة الدعم #{plan_id} حتى مع fallback: {fb_err}")
-                    return None
-
-            if not text:
-                return None
+            text, _ = self._call_ai(prompt, label=f"خطة دعم #{plan_id}",
+                                    plan_id=plan_id, operation_type='lesson_prep')
             support_data = self._extract_json(text)
             if not support_data:
                 support_data = self._aggressive_json_fix(text)
@@ -473,7 +459,7 @@ class LessonPrepService:
                 logger.info(f"✅ خطة الدعم للتحضير #{plan_id} اكتملت")
                 return support_data
         except Exception as e:
-            logger.warning(f"فشل توليد خطة الدعم #{plan_id}: {e}")
+            logger.warning(f"⚠️ فشل توليد خطة الدعم #{plan_id}: {type(e).__name__} - سيُكمل بدون خطة الدعم")
         return None
 
     def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
