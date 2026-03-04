@@ -1029,15 +1029,19 @@ def api_get_courses():
         
         result = []
         for c in courses:
-            # حساب عدد الوحدات
-            units_count = Unit.query.filter_by(course_id=c.id).count()
-            
-            # حساب عدد الأسئلة بـ query واحد
+            # حساب عدد الوحدات الظاهرة فقط
+            units_count = Unit.query.filter_by(course_id=c.id, show_in_bot=True).count()
+
+            # حساب عدد الأسئلة من الوحدات والدروس الظاهرة فقط
             questions_count = db.session.query(func.count(Question.question_id)).join(
                 Lesson, Question.lesson_id == Lesson.id
             ).join(
                 Unit, Lesson.unit_id == Unit.id
-            ).filter(Unit.course_id == c.id).scalar() or 0
+            ).filter(
+                Unit.course_id == c.id,
+                Unit.show_in_bot == True,
+                Lesson.show_in_bot == True
+            ).scalar() or 0
             
             result.append({
                 'id': c.id,
@@ -1065,17 +1069,17 @@ def api_get_units(course_id):
         from src.models.question import Question
         from sqlalchemy import func
         
-        units = Unit.query.filter_by(course_id=course_id).all()
-        
+        units = Unit.query.filter_by(course_id=course_id, show_in_bot=True).all()
+
         result = []
         for u in units:
-            # حساب عدد الدروس
-            lessons_count = Lesson.query.filter_by(unit_id=u.id).count()
-            
-            # حساب عدد الأسئلة بـ query واحد
+            # حساب عدد الدروس الظاهرة فقط
+            lessons_count = Lesson.query.filter_by(unit_id=u.id, show_in_bot=True).count()
+
+            # حساب عدد الأسئلة من الدروس الظاهرة فقط
             questions_count = db.session.query(func.count(Question.question_id)).join(
                 Lesson, Question.lesson_id == Lesson.id
-            ).filter(Lesson.unit_id == u.id).scalar() or 0
+            ).filter(Lesson.unit_id == u.id, Lesson.show_in_bot == True).scalar() or 0
             
             result.append({
                 'id': u.id,
@@ -1101,8 +1105,8 @@ def api_get_lessons(unit_id):
     try:
         from src.models.curriculum import Lesson
         from src.models.question import Question
-        
-        lessons = Lesson.query.filter_by(unit_id=unit_id).all()
+
+        lessons = Lesson.query.filter_by(unit_id=unit_id, show_in_bot=True).all()
         
         result = []
         for l in lessons:
