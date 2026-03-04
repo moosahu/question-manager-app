@@ -396,6 +396,12 @@ class LessonPrepService:
                     plan.needs_review = True
 
             # 7. حفظ النتيجة
+            # تحقق أولاً إذا الخطة محذوفت أثناء التوليد
+            db.session.refresh(plan)
+            if plan.status == 'deleted':
+                logger.info(f"⚠️ التحضير #{plan_id} محذوف أثناء التوليد - تخطي الحفظ")
+                return False
+
             needs_review_val = getattr(plan, 'needs_review', False)
             try:
                 plan.plan_data = plan_data
@@ -1510,6 +1516,12 @@ class LessonPrepService:
                 except Exception as e:
                     logger.warning(f"⚠️ فشل خطة الدعم للوحدة #{plan_id}: {e} - حفظ التوزيع الأساسي")
                     plan.needs_review = True
+
+            # تحقق إذا الخطة محذوفت أثناء التوليد
+            db.session.refresh(plan)
+            if plan.status == 'deleted':
+                logger.info(f"⚠️ توزيع الوحدة #{plan_id} محذوف أثناء التوليد - تخطي الحفظ")
+                return False
 
             # حفظ النتيجة مع retry بعد rollback إذا كانت الـ session فاسدة
             needs_review_val = getattr(plan, 'needs_review', False)

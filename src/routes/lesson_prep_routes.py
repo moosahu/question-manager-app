@@ -630,6 +630,26 @@ def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
         # حذف ناعم - يختفي من العرض لكن يبقى محسوب في العداد (التكلفة راحت)
         plan.status = 'deleted'
         db.session.commit()
+
+        # لو هذه الخطة كانت في rate_limited → أعد الـ scheduler لـ idle فوراً
+        # بدل ما ينتظر 5 دقائق قبل ما يلتقط طلبات جديدة
+        try:
+            import json as _j
+            from sqlalchemy import text as _text
+            rate_data_row = db.session.execute(_text(
+                "SELECT setting_value FROM ai_settings WHERE setting_key='lesson_prep_job_data'"
+            )).fetchone()
+            if rate_data_row:
+                rate_data = _j.loads(rate_data_row[0])
+                if rate_data.get('plan_id') == plan_id:
+                    db.session.execute(_text(
+                        "UPDATE ai_settings SET setting_value='idle' WHERE setting_key='lesson_prep_job_status'"
+                    ))
+                    db.session.commit()
+                    logger.info(f"🧹 [Delete] أعدنا الـ scheduler لـ idle بعد حذف الخطة #{plan_id} المعلّقة")
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'message': 'تم حذف التحضير'})
 
     except Exception as e:
