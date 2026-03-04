@@ -1511,12 +1511,31 @@ class LessonPrepService:
                     logger.warning(f"⚠️ فشل خطة الدعم للوحدة #{plan_id}: {e} - حفظ التوزيع الأساسي")
                     plan.needs_review = True
 
-            plan.plan_data = plan_data
-            plan.pdf_file_url = pdf_url
-            plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
-            plan.status = 'completed'
-            plan.progress_message = None
-            db.session.commit()
+            # حفظ النتيجة مع retry بعد rollback إذا كانت الـ session فاسدة
+            needs_review_val = getattr(plan, 'needs_review', False)
+            try:
+                plan.plan_data = plan_data
+                plan.pdf_file_url = pdf_url
+                plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
+                plan.status = 'completed'
+                plan.progress_message = None
+                db.session.commit()
+            except Exception as commit_err:
+                logger.warning(f"⚠️ خطأ في الحفظ (وحدة) #{plan_id}: {commit_err} - إعادة محاولة بعد rollback")
+                try:
+                    db.session.rollback()
+                    plan = LessonPlan.query.get(plan_id)
+                    plan.plan_data = plan_data
+                    plan.pdf_file_url = pdf_url
+                    plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
+                    plan.status = 'completed'
+                    plan.progress_message = None
+                    plan.needs_review = needs_review_val
+                    db.session.commit()
+                    logger.info(f"✅ تم الحفظ بعد rollback لتوزيع الوحدة #{plan_id}")
+                except Exception as retry_err:
+                    logger.error(f"❌ فشل نهائي لحفظ توزيع الوحدة #{plan_id}: {retry_err}")
+                    raise
 
             gc.collect()  # تحرير الذاكرة
             logger.info(f"اكتمل توزيع الوحدة #{plan_id} [{plan.ai_provider}]")
