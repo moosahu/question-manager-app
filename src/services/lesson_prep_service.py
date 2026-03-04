@@ -184,6 +184,10 @@ class LessonPrepService:
             logger.info(f"💰 تكلفة [{provider}] [{operation_type}]: ${cost:.6f} ({input_tokens}→{output_tokens} tokens)")
         except Exception as e:
             logger.warning(f"⚠️ فشل تسجيل التكلفة: {e}")
+            try:
+                db.session.rollback()  # تنظيف الـ session من أي حالة فاشلة
+            except Exception:
+                pass
 
     def _call_gemini(self, prompt, images=None, label="", model_id='gemini-2.0-flash'):
         """استدعاء Gemini - يُرجع (text, usage_info)"""
@@ -392,12 +396,31 @@ class LessonPrepService:
                     plan.needs_review = True
 
             # 7. حفظ النتيجة
-            plan.plan_data = plan_data
-            plan.pdf_file_url = pdf_url
-            plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
-            plan.status = 'completed'
-            plan.progress_message = None
-            db.session.commit()
+            needs_review_val = getattr(plan, 'needs_review', False)
+            try:
+                plan.plan_data = plan_data
+                plan.pdf_file_url = pdf_url
+                plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
+                plan.status = 'completed'
+                plan.progress_message = None
+                db.session.commit()
+            except Exception as commit_err:
+                # session في حالة فاشلة (InFailedSqlTransaction) - نظّف وأعد المحاولة
+                logger.warning(f"⚠️ خطأ في الحفظ #{plan_id}: {commit_err} - إعادة محاولة بعد rollback")
+                try:
+                    db.session.rollback()
+                    plan = LessonPlan.query.get(plan_id)
+                    plan.plan_data = plan_data
+                    plan.pdf_file_url = pdf_url
+                    plan.ai_provider = ai_usage.get('provider', DEFAULT_PROVIDER)
+                    plan.status = 'completed'
+                    plan.progress_message = None
+                    plan.needs_review = needs_review_val  # استعادة قيمة needs_review
+                    db.session.commit()
+                    logger.info(f"✅ تم الحفظ بعد rollback للتحضير #{plan_id}")
+                except Exception as retry_err:
+                    logger.error(f"❌ فشل نهائي لحفظ #{plan_id}: {retry_err}")
+                    raise
 
             gc.collect()  # تحرير الذاكرة
             logger.info(f"اكتمل التحضير #{plan_id} بنجاح [{plan.ai_provider}]")
