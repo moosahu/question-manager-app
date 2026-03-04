@@ -667,7 +667,7 @@
 
     // تبديل حالة ظهور الوحدة في البوت
     function toggleUnitBotVisibility(unitId, button) {
-        const url = `/api/units/${unitId}/toggle-bot-visibility`;
+        const url = `/api/v1/units/${unitId}/toggle-bot-visibility`;
         const csrfToken = $('input[name="csrf_token"]').val();
         $.ajax({
             url: url,
@@ -703,7 +703,7 @@
 
     // تبديل حالة ظهور الدرس في البوت
     function toggleLessonBotVisibility(lessonId, button) {
-        const url = `/api/lessons/${lessonId}/toggle-bot-visibility`;
+        const url = `/api/v1/lessons/${lessonId}/toggle-bot-visibility`;
         const csrfToken = $('input[name="csrf_token"]').val();
         $.ajax({
             url: url,
