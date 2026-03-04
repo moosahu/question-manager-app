@@ -634,6 +634,20 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ textbook tables: {_tbl_err}")
 
+            # ✅ إضافة show_in_bot لـ unit و lesson
+            try:
+                db.session.execute(db.text(
+                    'ALTER TABLE unit ADD COLUMN IF NOT EXISTS show_in_bot BOOLEAN DEFAULT TRUE NOT NULL'
+                ))
+                db.session.execute(db.text(
+                    'ALTER TABLE lesson ADD COLUMN IF NOT EXISTS show_in_bot BOOLEAN DEFAULT TRUE NOT NULL'
+                ))
+                db.session.commit()
+                print("✅ show_in_bot columns ensured for unit and lesson")
+            except Exception as _sib_err:
+                db.session.rollback()
+                print(f"⚠️ show_in_bot migration: {_sib_err}")
+
             # ✅ إضافة أعمدة وجداول الميزات الجديدة (توزيع فصلي، تقييم، مشاركة، تتبع)
             try:
                 # أعمدة جديدة لـ lesson_plans
