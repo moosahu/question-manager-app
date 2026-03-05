@@ -108,6 +108,10 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
     SECRET_KEY = 'test-secret-key'
     JWT_SECRET_KEY = 'test-jwt-secret-key'
+    # SQLite لا يدعم خيارات PostgreSQL — نلغيها في الاختبارات
+    SQLALCHEMY_ENGINE_OPTIONS = {}
+    # منع إرسال إيميلات حقيقية
+    MAIL_SUPPRESS_SEND = True
 
 
 # اختر الإعدادات حسب البيئة
