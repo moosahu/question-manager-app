@@ -13,6 +13,8 @@ omit =
     src/routes/notifications.py
     # Seeding script - not testable
     src/utils/seed_gamification.py
+    # Backup files (Arabic-named old versions)
+    src/tasks/student_analyzer-قبل.py
     # Exam generator - used only as utility
     src/routes/exam_generator.py
 
