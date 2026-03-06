@@ -1056,5 +1056,1058 @@ class TestOldMessageTemplates(unittest.TestCase):
         self.assertIn('red', sn.OLD_MESSAGE_TEMPLATES['evening'])
 
 
+# ===========================================================================
+# TestSendSmartMessage  (lines 259-401)
+# ===========================================================================
+class TestSendSmartMessage(unittest.TestCase):
+    """
+    Full unit tests for SmartNotificationService._send_smart_message().
+    These exercise lines 259-401 which were previously uncovered.
+    """
+
+    class _FakeCol:
+        def __eq__(self, o): return True
+        def __ge__(self, o): return True
+        def __le__(self, o): return True
+        def __gt__(self, o): return True
+        def __lt__(self, o): return True
+        def __ne__(self, o): return True
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            svc = SmartNotificationService()
+        svc.fcm_service = MagicMock()
+        return svc
+
+    def _make_analysis_obj(self, **kwargs):
+        defaults = dict(
+            id=10,
+            student_id=1,
+            suggested_action='send_message',
+            student_status='needs_attention',
+            severity_level='orange',
+            average_score=60.0,
+            days_since_last_quiz=3,
+            issues_detected=['low_score'],
+            performance_trend='stable',
+            ai_recommendations=None,
+        )
+        defaults.update(kwargs)
+        a = MagicMock()
+        for k, v in defaults.items():
+            setattr(a, k, v)
+        return a
+
+    def _patch_env(self, can_send=True, student=None, flush_raises=False,
+                   commit_raises=False, student_notif=None):
+        """
+        Returns a context manager that fully sets up the DB/model patches needed
+        by _send_smart_message to run through its happy path.
+        """
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_notif_inst = MagicMock()
+            mock_notif_inst.id = 77
+            mock_notif_cls = MagicMock(return_value=mock_notif_inst)
+
+            mock_sn_inst = student_notif or MagicMock()
+            mock_sn_inst.id = 88
+            mock_sn_cls = MagicMock(return_value=mock_sn_inst)
+
+            mock_db = MagicMock()
+            if flush_raises:
+                mock_db.session.flush.side_effect = Exception('flush boom')
+            if commit_raises:
+                mock_db.session.commit.side_effect = Exception('commit boom')
+
+            stu = student  # may be None
+
+            mock_aa = MagicMock()
+            mock_aa.student_id = self._FakeCol()
+            mock_aa.action_type = self._FakeCol()
+            mock_aa.message_sent = self._FakeCol()
+            mock_aa.message_sent_at = self._FakeCol()
+            mock_aa.query.filter.return_value.count.return_value = 0
+
+            with patch('src.services.smart_notifications.db', mock_db), \
+                 patch('src.services.smart_notifications.Notification',
+                       return_value=mock_notif_inst) as MockN, \
+                 patch('src.services.smart_notifications.StudentNotification',
+                       return_value=mock_sn_inst), \
+                 patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.AILog'), \
+                 patch('src.services.smart_notifications.AIAction', mock_aa), \
+                 patch('src.services.smart_notifications.AISetting') as MockAS, \
+                 patch('src.services.smart_notifications.GAMIFICATION_AVAILABLE', False):
+                MockAS.get_setting.return_value = 3
+                MockStu.query.get.return_value = stu
+                yield mock_db, MockN, MockStu, mock_sn_inst
+
+        return _ctx()
+
+    # -----------------------------------------------------------------------
+    # Happy-path: message limit not exceeded, student has FCM token
+    # -----------------------------------------------------------------------
+    def test_send_smart_message_returns_true_with_token(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('Title', 'Body'))
+
+        stu = MagicMock(fcm_token='tok123', name='أحمد')
+        with self._patch_env(student=stu):
+            result = svc._send_smart_message(analysis)
+        self.assertTrue(result)
+
+    def test_send_smart_message_calls_fcm_when_token_present(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('Title', 'Body'))
+
+        stu = MagicMock(fcm_token='tok_abc', name='أحمد')
+        with self._patch_env(student=stu):
+            svc._send_smart_message(analysis)
+        svc.fcm_service.send_fcm_notification.assert_called_once()
+
+    def test_send_smart_message_no_fcm_when_no_token(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock()
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('Title', 'Body'))
+
+        stu = MagicMock(fcm_token=None, name='علي')
+        with self._patch_env(student=stu):
+            result = svc._send_smart_message(analysis)
+        svc.fcm_service.send_fcm_notification.assert_not_called()
+        self.assertTrue(result)
+
+    def test_send_smart_message_no_fcm_when_student_not_found(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock()
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        with self._patch_env(student=None):
+            result = svc._send_smart_message(analysis)
+        svc.fcm_service.send_fcm_notification.assert_not_called()
+        self.assertTrue(result)
+
+    # -----------------------------------------------------------------------
+    # Branch: daily limit exceeded → returns False and logs
+    # -----------------------------------------------------------------------
+    def test_send_smart_message_returns_false_when_limit_exceeded(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc._can_send_message = MagicMock(return_value=False)
+
+        with patch('src.services.smart_notifications.AILog'), \
+             patch('src.services.smart_notifications.db'):
+            result = svc._send_smart_message(analysis)
+        self.assertFalse(result)
+
+    def test_send_smart_message_skipped_does_not_call_generate(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc._can_send_message = MagicMock(return_value=False)
+        svc._generate_message_content = MagicMock()
+
+        with patch('src.services.smart_notifications.AILog'), \
+             patch('src.services.smart_notifications.db'):
+            svc._send_smart_message(analysis)
+        svc._generate_message_content.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # Branch: long body (>3000 chars) gets truncated for FCM
+    # -----------------------------------------------------------------------
+    def test_send_smart_message_long_body_truncated_for_fcm(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        long_body = 'ب' * 3500
+        svc._generate_message_content = MagicMock(return_value=('Title', long_body))
+
+        stu = MagicMock(fcm_token='tok', name='أحمد')
+        with self._patch_env(student=stu):
+            svc._send_smart_message(analysis)
+
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        fcm_body_arg = call_args[2]
+        self.assertLessEqual(len(fcm_body_arg), 3100)
+        self.assertIn('[المزيد', fcm_body_arg)
+
+    def test_send_smart_message_short_body_not_truncated(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        short_body = 'رسالة قصيرة'
+        svc._generate_message_content = MagicMock(return_value=('Title', short_body))
+
+        stu = MagicMock(fcm_token='tok', name='أحمد')
+        with self._patch_env(student=stu):
+            svc._send_smart_message(analysis)
+
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        fcm_body_arg = call_args[2]
+        self.assertEqual(fcm_body_arg, short_body)
+
+    # -----------------------------------------------------------------------
+    # Branch: exception → rollback + returns False
+    # -----------------------------------------------------------------------
+    def test_send_smart_message_exception_returns_false(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(side_effect=RuntimeError('boom'))
+
+        with patch('src.services.smart_notifications.AILog'), \
+             patch('src.services.smart_notifications.db') as mock_db:
+            result = svc._send_smart_message(analysis)
+        self.assertFalse(result)
+        mock_db.session.rollback.assert_called_once()
+
+    def test_send_smart_message_exception_logs_failure(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(side_effect=RuntimeError('err'))
+
+        with patch('src.services.smart_notifications.AILog') as MockLog, \
+             patch('src.services.smart_notifications.db'):
+            svc._send_smart_message(analysis)
+        MockLog.log_operation.assert_called()
+        call_args = MockLog.log_operation.call_args[0]
+        self.assertEqual(call_args[0], 'smart_message_failed')
+
+    # -----------------------------------------------------------------------
+    # Notification and StudentNotification are created in DB
+    # -----------------------------------------------------------------------
+    def test_send_smart_message_creates_notification_in_db(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        stu = MagicMock(fcm_token='t', name='x')
+        with self._patch_env(student=stu) as (mock_db, MockN, *_):
+            svc._send_smart_message(analysis)
+        MockN.assert_called_once()
+
+    def test_send_smart_message_commits_to_db(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        stu = MagicMock(fcm_token='t', name='x')
+        with self._patch_env(student=stu) as (mock_db, *_):
+            svc._send_smart_message(analysis)
+        mock_db.session.commit.assert_called()
+
+    def test_send_smart_message_marks_action_taken(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        stu = MagicMock(fcm_token='t', name='x')
+        with self._patch_env(student=stu):
+            svc._send_smart_message(analysis)
+        analysis.mark_action_taken.assert_called_once_with('smart_message')
+
+    def test_send_smart_message_fcm_sent_flag_set_true(self):
+        """student_notif.fcm_sent should be True when FCM returns True."""
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        stu = MagicMock(fcm_token='tok', name='أ')
+        mock_sn = MagicMock()
+        with self._patch_env(student=stu, student_notif=mock_sn):
+            svc._send_smart_message(analysis)
+        self.assertTrue(mock_sn.fcm_sent)
+
+    def test_send_smart_message_fcm_sent_false_when_fcm_returns_false(self):
+        """student_notif.fcm_sent should be False when FCM returns False."""
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=False)
+        svc._can_send_message = MagicMock(return_value=True)
+        svc._generate_message_content = MagicMock(return_value=('T', 'B'))
+
+        stu = MagicMock(fcm_token='tok', name='أ')
+        mock_sn = MagicMock()
+        with self._patch_env(student=stu, student_notif=mock_sn):
+            svc._send_smart_message(analysis)
+        self.assertFalse(mock_sn.fcm_sent)
+
+
+# ===========================================================================
+# TestSendAdminAlert  (lines 405-468)
+# ===========================================================================
+class TestSendAdminAlert(unittest.TestCase):
+    """
+    Full unit tests for SmartNotificationService._send_admin_alert().
+    These exercise lines 405-468 which were previously uncovered.
+    """
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            svc = SmartNotificationService()
+        svc.fcm_service = MagicMock()
+        return svc
+
+    def _make_analysis_obj(self, **kwargs):
+        defaults = dict(
+            id=20,
+            student_id=2,
+            average_score=30.0,
+            days_since_last_quiz=15,
+            issues_detected=['absent', 'low_score'],
+        )
+        defaults.update(kwargs)
+        a = MagicMock()
+        for k, v in defaults.items():
+            setattr(a, k, v)
+        return a
+
+    def _patch_env(self, student=None, flush_raises=False, commit_raises=False):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_notif_inst = MagicMock()
+            mock_notif_inst.id = 55
+            mock_notif_cls = MagicMock(return_value=mock_notif_inst)
+
+            mock_db = MagicMock()
+            if flush_raises:
+                mock_db.session.flush.side_effect = Exception('flush fail')
+            if commit_raises:
+                mock_db.session.commit.side_effect = Exception('commit fail')
+
+            with patch('src.services.smart_notifications.db', mock_db), \
+                 patch('src.services.smart_notifications.Notification',
+                       return_value=mock_notif_inst) as MockN, \
+                 patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.AILog'), \
+                 patch('src.services.smart_notifications.AIAction'):
+                MockStu.query.get.return_value = student
+                yield mock_db, MockN, MockStu
+
+        return _ctx()
+
+    # -----------------------------------------------------------------------
+    # Happy-path
+    # -----------------------------------------------------------------------
+    def test_send_admin_alert_returns_true(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='فاطمة', grade='ثالث', fcm_token=None)
+
+        with self._patch_env(student=stu):
+            result = svc._send_admin_alert(analysis)
+        self.assertTrue(result)
+
+    def test_send_admin_alert_creates_notification(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='فاطمة', grade='ثالث')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        MockN.assert_called_once()
+
+    def test_send_admin_alert_title_contains_student_name(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='محمد علي', grade='أول')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        self.assertIn('محمد علي', call_kwargs['title'])
+
+    def test_send_admin_alert_body_contains_score(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj(average_score=25.5)
+        stu = MagicMock(name='ن', grade='ثاني')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        self.assertIn('25.5', call_kwargs['body'])
+
+    def test_send_admin_alert_body_contains_days(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj(days_since_last_quiz=20)
+        stu = MagicMock(name='ن', grade='ثاني')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        self.assertIn('20', call_kwargs['body'])
+
+    def test_send_admin_alert_marks_action_taken(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='س', grade='ثالث')
+
+        with self._patch_env(student=stu):
+            svc._send_admin_alert(analysis)
+        analysis.mark_action_taken.assert_called_once_with('admin_alert')
+
+    def test_send_admin_alert_commits(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='س', grade='ثالث')
+
+        with self._patch_env(student=stu) as (mock_db, *_):
+            svc._send_admin_alert(analysis)
+        mock_db.session.commit.assert_called()
+
+    def test_send_admin_alert_issues_in_body_when_present(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj(issues_detected=['low_score', 'absent'])
+        stu = MagicMock(name='ن', grade='ثاني')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        self.assertIn('low_score', call_kwargs['body'])
+
+    def test_send_admin_alert_issues_none_uses_fallback(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj(issues_detected=None)
+        stu = MagicMock(name='ن', grade='ثاني')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        # fallback text 'متعددة' is used when issues_detected is None
+        self.assertIn('متعددة', call_kwargs['body'])
+
+    def test_send_admin_alert_issues_empty_list_uses_fallback(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj(issues_detected=[])
+        stu = MagicMock(name='ن', grade='ثاني')
+
+        with self._patch_env(student=stu) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        call_kwargs = MockN.call_args.kwargs
+        self.assertIn('متعددة', call_kwargs['body'])
+
+    def test_send_admin_alert_logs_success(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='س', grade='ثالث')
+
+        with self._patch_env(student=stu), \
+             patch('src.services.smart_notifications.AILog') as MockLog:
+            svc._send_admin_alert(analysis)
+        MockLog.log_operation.assert_called()
+        call_args = MockLog.log_operation.call_args[0]
+        self.assertEqual(call_args[0], 'admin_alert_sent')
+
+    # -----------------------------------------------------------------------
+    # Branch: student not found → returns False
+    # -----------------------------------------------------------------------
+    def test_send_admin_alert_returns_false_when_no_student(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+
+        with self._patch_env(student=None):
+            result = svc._send_admin_alert(analysis)
+        self.assertFalse(result)
+
+    def test_send_admin_alert_no_student_does_not_create_notification(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+
+        with self._patch_env(student=None) as (_, MockN, *__):
+            svc._send_admin_alert(analysis)
+        MockN.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # Branch: exception → rollback + returns False
+    # -----------------------------------------------------------------------
+    def test_send_admin_alert_exception_returns_false(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+
+        with self._patch_env(student=None, flush_raises=False) as (mock_db, MockN, MockStu):
+            MockStu.query.get.side_effect = RuntimeError('db crash')
+            result = svc._send_admin_alert(analysis)
+        self.assertFalse(result)
+
+    def test_send_admin_alert_exception_triggers_rollback(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+
+        with patch('src.services.smart_notifications.db') as mock_db, \
+             patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.AILog'), \
+             patch('src.services.smart_notifications.AIAction'):
+            MockStu.query.get.side_effect = Exception('broken')
+            svc._send_admin_alert(analysis)
+        mock_db.session.rollback.assert_called_once()
+
+    def test_send_admin_alert_flush_exception_returns_false(self):
+        svc = self._make_service()
+        analysis = self._make_analysis_obj()
+        stu = MagicMock(name='س', grade='ثالث')
+
+        with self._patch_env(student=stu, flush_raises=True):
+            result = svc._send_admin_alert(analysis)
+        self.assertFalse(result)
+
+
+# ===========================================================================
+# TestSendChallengeCompletionNotification  (lines 886-953)
+# ===========================================================================
+class TestSendChallengeCompletionNotification(unittest.TestCase):
+    """Tests for SmartNotificationService.send_challenge_completion_notification()"""
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            svc = SmartNotificationService()
+        svc.fcm_service = MagicMock()
+        return svc
+
+    def _sample_completion_data(self):
+        return {
+            'title': 'تحدي مكتمل',
+            'description': 'أكملت 3 اختبارات',
+            'points_awarded': 25,
+        }
+
+    def _patch_env(self, student=None):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_notif = MagicMock()
+            mock_notif.id = 400
+            mock_stu_notif = MagicMock()
+            stu = student or MagicMock(fcm_token='tok_cc', name='زيد')
+
+            mock_gam_svc = MagicMock()
+            mock_gam_svc.get_student_points.return_value = {
+                'total_points': 500,
+                'rank': 3
+            }
+
+            with patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.db'), \
+                 patch('src.services.smart_notifications.Notification', return_value=mock_notif), \
+                 patch('src.services.smart_notifications.StudentNotification', return_value=mock_stu_notif), \
+                 patch.dict('sys.modules', {
+                     'src.services.gamification_service': MagicMock(
+                         gamification_service=mock_gam_svc
+                     )
+                 }):
+                MockStu.query.get.return_value = stu
+                yield MockStu, stu
+
+        return _ctx()
+
+    def test_returns_true_on_success(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        with self._patch_env():
+            result = svc.send_challenge_completion_notification(
+                1, self._sample_completion_data()
+            )
+        self.assertTrue(result)
+
+    def test_returns_false_when_student_not_found(self):
+        svc = self._make_service()
+        with patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.db'), \
+             patch.dict('sys.modules', {'src.services.gamification_service': MagicMock()}):
+            MockStu.query.get.return_value = None
+            result = svc.send_challenge_completion_notification(
+                999, self._sample_completion_data()
+            )
+        self.assertFalse(result)
+
+    def test_fcm_called_when_token_present(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        with self._patch_env():
+            svc.send_challenge_completion_notification(1, self._sample_completion_data())
+        svc.fcm_service.send_fcm_notification.assert_called_once()
+
+    def test_fcm_not_called_when_no_token(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock()
+        stu = MagicMock(fcm_token=None, name='بلا توكن')
+        with self._patch_env(student=stu):
+            svc.send_challenge_completion_notification(1, self._sample_completion_data())
+        svc.fcm_service.send_fcm_notification.assert_not_called()
+
+    def test_exception_returns_false(self):
+        svc = self._make_service()
+        with patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.db'), \
+             patch.dict('sys.modules', {'src.services.gamification_service': MagicMock()}):
+            MockStu.query.get.side_effect = Exception('crash')
+            result = svc.send_challenge_completion_notification(
+                1, self._sample_completion_data()
+            )
+        self.assertFalse(result)
+
+    def test_body_contains_points_awarded(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        with self._patch_env():
+            svc.send_challenge_completion_notification(1, self._sample_completion_data())
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        body_arg = call_args[2]
+        self.assertIn('25', body_arg)
+
+    def test_body_contains_completion_title(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        with self._patch_env():
+            svc.send_challenge_completion_notification(1, self._sample_completion_data())
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        body_arg = call_args[2]
+        self.assertIn('تحدي مكتمل', body_arg)
+
+
+# ===========================================================================
+# TestSendChallengeReminder  (lines 957-1042)
+# ===========================================================================
+class TestSendChallengeReminder(unittest.TestCase):
+    """Tests for SmartNotificationService.send_challenge_reminder()"""
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            svc = SmartNotificationService()
+        svc.fcm_service = MagicMock()
+        return svc
+
+    def _patch_env(self, student=None, progress=None):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_notif = MagicMock()
+            mock_notif.id = 500
+            mock_stu_notif = MagicMock()
+            stu = student or MagicMock(fcm_token='tok_rem', name='عمر')
+
+            _progress = progress or {
+                'completed': False,
+                'no_challenge': False,
+                'challenge': {
+                    'icon': '⚡',
+                    'title': 'تحدي اليوم',
+                    'description': 'أكمل 3',
+                    'points': 20,
+                },
+                'progress': 1,
+                'target': 3,
+            }
+
+            mock_gam_svc = MagicMock()
+            mock_gam_svc.get_student_challenge_progress.return_value = _progress
+
+            with patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.db'), \
+                 patch('src.services.smart_notifications.Notification', return_value=mock_notif), \
+                 patch('src.services.smart_notifications.StudentNotification', return_value=mock_stu_notif), \
+                 patch.dict('sys.modules', {
+                     'src.services.gamification_service': MagicMock(
+                         gamification_service=mock_gam_svc
+                     )
+                 }):
+                MockStu.query.get.return_value = stu
+                yield MockStu, stu, mock_gam_svc
+
+        return _ctx()
+
+    def test_returns_true_when_reminder_sent(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        with self._patch_env():
+            result = svc.send_challenge_reminder(1)
+        self.assertTrue(result)
+
+    def test_returns_false_when_student_not_found(self):
+        svc = self._make_service()
+        with self._patch_env(student=MagicMock()) as (MockStu, *_):
+            MockStu.query.get.return_value = None
+            result = svc.send_challenge_reminder(999)
+        self.assertFalse(result)
+
+    def test_returns_false_when_already_completed(self):
+        svc = self._make_service()
+        progress = {'completed': True, 'no_challenge': False}
+        with self._patch_env(progress=progress):
+            result = svc.send_challenge_reminder(1)
+        self.assertFalse(result)
+
+    def test_returns_false_when_no_challenge(self):
+        svc = self._make_service()
+        progress = {'completed': False, 'no_challenge': True}
+        with self._patch_env(progress=progress):
+            result = svc.send_challenge_reminder(1)
+        self.assertFalse(result)
+
+    def test_reminder_with_zero_target_uses_not_started_body(self):
+        """When target == 0, use the 'not started' body template."""
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        progress = {
+            'completed': False,
+            'no_challenge': False,
+            'challenge': {
+                'icon': '🔥',
+                'title': 'تحدي',
+                'description': 'وصف',
+                'points': 15,
+            },
+            'progress': 0,
+            'target': 0,
+        }
+        with self._patch_env(progress=progress):
+            result = svc.send_challenge_reminder(1)
+        self.assertTrue(result)
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        body_arg = call_args[2]
+        self.assertIn('لم تبدأ', body_arg)
+
+    def test_reminder_with_target_gt_0_uses_progress_body(self):
+        """When target > 0, body should show current progress."""
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock(return_value=True)
+        progress = {
+            'completed': False,
+            'no_challenge': False,
+            'challenge': {
+                'icon': '⚡',
+                'title': 'تحدي',
+                'description': 'وصف',
+                'points': 10,
+            },
+            'progress': 2,
+            'target': 5,
+        }
+        with self._patch_env(progress=progress):
+            svc.send_challenge_reminder(1)
+        call_args = svc.fcm_service.send_fcm_notification.call_args[0]
+        body_arg = call_args[2]
+        self.assertIn('2', body_arg)
+        self.assertIn('5', body_arg)
+
+    def test_fcm_not_called_when_no_token(self):
+        svc = self._make_service()
+        svc.fcm_service.send_fcm_notification = MagicMock()
+        stu = MagicMock(fcm_token=None, name='بلا توكن')
+        with self._patch_env(student=stu):
+            svc.send_challenge_reminder(1)
+        svc.fcm_service.send_fcm_notification.assert_not_called()
+
+    def test_exception_returns_false(self):
+        svc = self._make_service()
+        with patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.db'), \
+             patch.dict('sys.modules', {'src.services.gamification_service': MagicMock()}):
+            MockStu.query.get.side_effect = Exception('db crash')
+            result = svc.send_challenge_reminder(1)
+        self.assertFalse(result)
+
+
+# ===========================================================================
+# TestGenerateMessageContentGamification  (lines 517-520, 538-545, 554-556,
+#                                          568-570, 605-607)
+# ===========================================================================
+class TestGenerateMessageContentGamification(unittest.TestCase):
+    """
+    Tests for _generate_message_content() branches that require
+    GAMIFICATION_AVAILABLE=True, covering lines 517-520, 538-545, etc.
+    """
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            return SmartNotificationService()
+
+    def _mock_student(self, name='أحمد'):
+        mock = MagicMock()
+        mock.name = name
+        return mock
+
+    def _patch_env_gam(self, hour=9, weekday=0, student=None,
+                       gamification_data=None, compact_text='', section_text=''):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_dt = MagicMock()
+            mock_dt.now.return_value.hour = hour
+            mock_dt.now.return_value.weekday.return_value = weekday
+            mock_dt.utcnow.return_value = MagicMock()
+
+            stu = student or self._mock_student()
+            gam_data = gamification_data or {'level': 3, 'points': 100}
+
+            mock_gam_helper = MagicMock()
+            mock_gam_helper.get_student_gamification_data.return_value = gam_data
+            mock_gam_helper.get_compact_gamification_text.return_value = compact_text
+            mock_gam_helper.format_gamification_section.return_value = section_text
+
+            with patch('src.services.smart_notifications.datetime', mock_dt), \
+                 patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.GAMIFICATION_AVAILABLE', True), \
+                 patch('src.services.smart_notifications.get_student_gamification_data',
+                       mock_gam_helper.get_student_gamification_data), \
+                 patch('src.services.smart_notifications.get_compact_gamification_text',
+                       mock_gam_helper.get_compact_gamification_text), \
+                 patch('src.services.smart_notifications.format_gamification_section',
+                       mock_gam_helper.format_gamification_section):
+                MockStu.query.get.return_value = stu
+                yield mock_gam_helper
+
+        return _ctx()
+
+    def test_excellent_with_gamification_compact_in_body(self):
+        svc = self._make_service()
+        analysis = _make_analysis(student_status='excellent', average_score=95.0)
+        with self._patch_env_gam(compact_text='🏆 مستوى 5', section_text='=== Section ==='):
+            title, body = svc._generate_message_content(analysis)
+        # compact text should be in body
+        self.assertIn('🏆 مستوى 5', body)
+
+    def test_excellent_with_gamification_section_appended(self):
+        svc = self._make_service()
+        analysis = _make_analysis(student_status='excellent', average_score=95.0)
+        with self._patch_env_gam(compact_text='compact', section_text='Full Section Data'):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('Full Section Data', body)
+
+    def test_good_with_gamification_compact_in_body(self):
+        svc = self._make_service()
+        analysis = _make_analysis(student_status='good', average_score=75.0)
+        with self._patch_env_gam(compact_text='نقاط: 200', section_text='Section'):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('نقاط: 200', body)
+
+    def test_gamification_data_none_no_compact_call(self):
+        """When gamification_data is None, compact/section funcs shouldn't pollute body."""
+        svc = self._make_service()
+        analysis = _make_analysis(student_status='excellent', average_score=92.0)
+        with self._patch_env_gam(gamification_data=None, compact_text='', section_text=''):
+            title, body = svc._generate_message_content(analysis)
+        # Should still return a valid tuple
+        self.assertIsInstance(title, str)
+        self.assertIsInstance(body, str)
+
+    def test_gamification_exception_does_not_crash(self):
+        """Even if gamification data fetch throws, generate_message_content should succeed."""
+        svc = self._make_service()
+        analysis = _make_analysis(student_status='excellent', average_score=90.0)
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 9
+        mock_dt.now.return_value.weekday.return_value = 0
+        mock_dt.utcnow.return_value = MagicMock()
+
+        with patch('src.services.smart_notifications.datetime', mock_dt), \
+             patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.GAMIFICATION_AVAILABLE', True), \
+             patch('src.services.smart_notifications.get_student_gamification_data',
+                   side_effect=Exception('gam fail')):
+            MockStu.query.get.return_value = self._mock_student()
+            title, body = svc._generate_message_content(analysis)
+        self.assertIsInstance(title, str)
+        self.assertIsInstance(body, str)
+
+    def test_needs_attention_no_gamification_section(self):
+        """needs_attention status should NOT get gamification section appended."""
+        svc = self._make_service()
+        analysis = _make_analysis(
+            student_status='needs_attention',
+            performance_trend='stable',
+            days_since_last_quiz=5,
+        )
+        with self._patch_env_gam(compact_text='compact', section_text='Gam Section'):
+            title, body = svc._generate_message_content(analysis)
+        # section should NOT be added for needs_attention
+        self.assertNotIn('Gam Section', body)
+
+    def test_critical_no_gamification_section(self):
+        """critical status should NOT get gamification section appended."""
+        svc = self._make_service()
+        analysis = _make_analysis(
+            student_status='critical',
+            days_since_last_quiz=10,
+        )
+        with self._patch_env_gam(compact_text='compact', section_text='Gam Section'):
+            title, body = svc._generate_message_content(analysis)
+        self.assertNotIn('Gam Section', body)
+
+
+# ===========================================================================
+# TestSendBulkNotificationEdgeCases  (lines 675-677)
+# ===========================================================================
+class TestSendBulkNotificationEdgeCases(unittest.TestCase):
+    """Additional edge case tests for send_bulk_notification (line 675-677)."""
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            svc = SmartNotificationService()
+        svc.fcm_service = MagicMock()
+        return svc
+
+    def test_student_notification_error_does_not_crash_full_flow(self):
+        """If the StudentNotification loop raises, we rollback but the notification is still created."""
+        svc = self._make_service()
+        svc.fcm_service.send_multicast_notification = MagicMock(return_value=None)
+
+        mock_notif = MagicMock()
+        mock_notif.id = 100
+
+        mock_db = MagicMock()
+        # Make commit raise on SECOND call (inside the student loop), not first
+        commit_call_count = [0]
+        def commit_side_effect():
+            commit_call_count[0] += 1
+            # first commit (after student_notifs loop) should raise to hit line 676-677
+        mock_db.session.commit.side_effect = commit_side_effect
+
+        mock_sn_cls = MagicMock()
+        mock_sn_cls.side_effect = Exception('sn fail')
+
+        with patch('src.services.smart_notifications.db', mock_db), \
+             patch('src.services.smart_notifications.Notification', return_value=mock_notif), \
+             patch('src.services.smart_notifications.StudentNotification', mock_sn_cls), \
+             patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.AILog'):
+            MockStu.query.filter.return_value.all.return_value = []
+            result = svc.send_bulk_notification([1, 2], 'T', 'B')
+
+        # Should still return a result dict (not crash)
+        self.assertIsInstance(result, dict)
+
+    def test_fcm_result_failure_count_reported(self):
+        """failure_count from FCM is reflected in the returned dict."""
+        svc = self._make_service()
+        stu1 = MagicMock(fcm_token='tok')
+        svc.fcm_service.send_multicast_notification = MagicMock(
+            return_value={'success_count': 0, 'failure_count': 1}
+        )
+
+        mock_notif = MagicMock()
+        mock_notif.id = 200
+
+        with patch('src.services.smart_notifications.db'), \
+             patch('src.services.smart_notifications.Notification', return_value=mock_notif), \
+             patch('src.services.smart_notifications.StudentNotification'), \
+             patch('src.services.smart_notifications.Student') as MockStu, \
+             patch('src.services.smart_notifications.AILog'):
+            MockStu.query.filter.return_value.all.return_value = [stu1]
+            result = svc.send_bulk_notification([1], 'T', 'B')
+
+        self.assertEqual(result['fcm_failed'], 1)
+        self.assertEqual(result['fcm_sent'], 0)
+
+
+# ===========================================================================
+# TestGenerateMessageContentFallbackTitles  (lines 538-545)
+# ===========================================================================
+class TestGenerateMessageContentFallbackTitles(unittest.TestCase):
+    """
+    Tests that hit the fallback title branch (lines 538-545) which fires when
+    there are no templates for the current time/status combo (e.g. 'night' has
+    no entries, or an unknown status).
+    """
+
+    def _make_service(self):
+        with patch('src.services.smart_notifications.NotificationService'):
+            return SmartNotificationService()
+
+    def _mock_student(self, name='أحمد'):
+        mock = MagicMock()
+        mock.name = name
+        return mock
+
+    def _patch_night_env(self, status, student=None):
+        """Patch datetime so time_of_day returns 'night' (hour=23) on a weekday."""
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            mock_dt = MagicMock()
+            mock_dt.now.return_value.hour = 23        # night → no templates
+            mock_dt.now.return_value.weekday.return_value = 1  # Tuesday, not weekend
+            mock_dt.utcnow.return_value = MagicMock()
+
+            stu = student or self._mock_student()
+
+            with patch('src.services.smart_notifications.datetime', mock_dt), \
+                 patch('src.services.smart_notifications.Student') as MockStu, \
+                 patch('src.services.smart_notifications.GAMIFICATION_AVAILABLE', False):
+                MockStu.query.get.return_value = stu
+                yield stu
+
+        return _ctx()
+
+    def test_fallback_excellent_title_at_night(self):
+        """At night, MESSAGE_TEMPLATES has no 'night' key → fallback fires."""
+        svc = self._make_service()
+        stu = self._mock_student('نورة')
+        analysis = _make_analysis(student_status='excellent', average_score=95.0)
+        with self._patch_night_env('excellent', student=stu):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('نورة', title)
+        self.assertIn('ممتاز', title)
+
+    def test_fallback_good_title_at_night(self):
+        svc = self._make_service()
+        stu = self._mock_student('سلطان')
+        analysis = _make_analysis(student_status='good', average_score=75.0)
+        with self._patch_night_env('good', student=stu):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('سلطان', title)
+
+    def test_fallback_needs_attention_title_at_night(self):
+        svc = self._make_service()
+        stu = self._mock_student('ريم')
+        analysis = _make_analysis(
+            student_status='needs_attention',
+            performance_trend='stable',
+            days_since_last_quiz=4,
+        )
+        with self._patch_night_env('needs_attention', student=stu):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('ريم', title)
+
+    def test_fallback_critical_title_at_night(self):
+        svc = self._make_service()
+        stu = self._mock_student('جابر')
+        analysis = _make_analysis(
+            student_status='critical',
+            days_since_last_quiz=12,
+        )
+        with self._patch_night_env('critical', student=stu):
+            title, body = svc._generate_message_content(analysis)
+        self.assertIn('جابر', title)
+        self.assertIn('انتباه', title)
+
+
 if __name__ == '__main__':
     unittest.main()

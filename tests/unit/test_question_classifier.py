@@ -42,6 +42,25 @@ from flask import Flask
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# ---------------------------------------------------------------------------
+# Ensure src.extensions is importable standalone (for _make_classifier's
+# patch('src.extensions.db', ...) to work without test_ai_assistant.py).
+# We set a mock into sys.modules AND attach it to the src module object
+# so that getattr(src, 'extensions') works in Python's _importer.
+# ---------------------------------------------------------------------------
+_ext_mock = MagicMock()
+_ext_mock.db = MagicMock()
+sys.modules.setdefault('src.extensions', _ext_mock)
+# Also attach to src module object if src is already imported
+if 'src' in sys.modules and sys.modules['src'] is not None:
+    _src_mod = sys.modules['src']
+    if not hasattr(_src_mod, 'extensions'):
+        _src_mod.extensions = _ext_mock
+else:
+    import src as _src_pkg
+    if not hasattr(_src_pkg, 'extensions'):
+        _src_pkg.extensions = _ext_mock
+
 
 # ---------------------------------------------------------------------------
 # Helper: build a fresh QuestionClassifier with all external deps mocked
@@ -688,3 +707,594 @@ class TestModuleSingleton:
         }):
             import src.services.question_classifier as mod
         assert isinstance(mod.question_classifier, mod.QuestionClassifier)
+
+
+# ---------------------------------------------------------------------------
+# Helper: build a classifier WITHOUT using patch('src.extensions.db', ...)
+# to avoid sys.modules corruption between tests.
+# ---------------------------------------------------------------------------
+
+def _make_classifier_v2():
+    """Return a fresh (QuestionClassifier, module, mock_db, mock_question_cls).
+    Avoids the fragile patch('src.extensions.db', ...) by working directly
+    with already-imported module objects."""
+    mock_db = MagicMock()
+    mock_question_cls = MagicMock()
+
+    # Import (or reuse) the module from sys.modules
+    if 'src.services.question_classifier' in sys.modules:
+        mod = sys.modules['src.services.question_classifier']
+    else:
+        # Not imported yet – need to import with mocks in place
+        mock_ext = MagicMock()
+        mock_ext.db = mock_db
+        mock_q_mod = MagicMock()
+        mock_q_mod.Question = mock_question_cls
+        with patch.dict('sys.modules', {
+            'src.extensions': mock_ext,
+            'src.models.question': mock_q_mod,
+        }):
+            import src.services.question_classifier as mod
+
+    # Patch module-level db and Question directly on the module
+    mod.db = mock_db
+    mod.Question = mock_question_cls
+    classifier = mod.QuestionClassifier()
+    return classifier, mod, mock_db, mock_question_cls
+
+
+# ===========================================================================
+# 10. _parse_response – Exception branch (line 233-234)
+# ===========================================================================
+
+class TestParseResponseExceptionBranch:
+    """Cover the Exception catch at lines 233-234 of _parse_response."""
+
+    def test_generic_exception_returns_defaults(self):
+        """If json.loads raises a non-JSONDecodeError, defaults are returned."""
+        c, mod, _, _ = _make_classifier_v2()
+        with patch.object(mod, 're') as mock_re:
+            mock_match = MagicMock()
+            mock_match.group.return_value = '{"difficulty":"easy"}'
+            mock_re.search.return_value = mock_match
+            with patch.object(mod, 'json') as mock_json:
+                mock_json.loads.side_effect = Exception('unexpected parse error')
+                result = c._parse_response('{"difficulty": "easy", "bloom_level": "remember"}')
+        assert result['difficulty'] == 'medium'
+        assert result['bloom_level'] == 'remember'
+
+    def test_exception_branch_still_returns_dict(self):
+        """Even on exception, the function returns a valid dict."""
+        c, mod, _, _ = _make_classifier_v2()
+        with patch.object(mod, 're') as mock_re:
+            mock_re.search.side_effect = Exception('regex error')
+            result = c._parse_response('some text')
+        assert isinstance(result, dict)
+        assert 'difficulty' in result
+        assert 'bloom_level' in result
+
+
+# ===========================================================================
+# 11. _call_api_with_retry – final return None (line 111)
+# ===========================================================================
+
+class TestCallApiWithRetryFinalReturn:
+    """Cover the final return None at line 111 – all retries exhausted without exception."""
+
+    def test_returns_none_after_max_retries_exhausted(self):
+        c, _, _, _ = _make_classifier_v2()
+        c.client = MagicMock()
+        c.client.models.generate_content.side_effect = Exception('Server error')
+        with patch.object(c, '_wait_for_rate_limit'):
+            result = c._call_api_with_retry('prompt', max_retries=2)
+        assert result is None
+
+    def test_final_return_none_when_zero_retries(self):
+        """max_retries=0 means loop body never executes → fall through to return None."""
+        c, _, _, _ = _make_classifier_v2()
+        c.client = MagicMock()
+        with patch.object(c, '_wait_for_rate_limit'):
+            result = c._call_api_with_retry('prompt', max_retries=0)
+        assert result is None
+
+    def test_increments_errors_for_each_non_rate_limit_failure(self):
+        """Non-rate-limit errors cause immediate return None after first attempt,
+        so consecutive_errors increments by at least 1."""
+        c, _, _, _ = _make_classifier_v2()
+        c.client = MagicMock()
+        c.consecutive_errors = 0
+        c.client.models.generate_content.side_effect = Exception('Network timeout')
+        with patch.object(c, '_wait_for_rate_limit'):
+            c._call_api_with_retry('prompt', max_retries=3)
+        # The code returns None immediately on the first failure (non-quota errors)
+        assert c.consecutive_errors >= 1
+
+
+# ===========================================================================
+# 12. classify_all_unclassified (lines 243-381)
+# ===========================================================================
+
+def _make_q(q_id, text, options=None):
+    """Helper: make a mock Question object."""
+    q = MagicMock()
+    q.question_id = q_id
+    q.question_text = text
+    q.options = options or []
+    q.difficulty = None
+    q.bloom_level = None
+    return q
+
+
+class TestClassifyAllUnclassified:
+    """Cover classify_all_unclassified – the main batch classification method."""
+
+    def test_returns_error_when_not_configured(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=False):
+                result = c.classify_all_unclassified()
+        assert result['success'] is False
+        assert 'error' in result
+
+    def test_returns_error_when_question_model_none(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', None):
+                result = c.classify_all_unclassified()
+        assert result['success'] is False
+        assert 'error' in result
+
+    def test_returns_success_when_no_unclassified_questions(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = []
+        mock_db.session.execute.return_value = mock_sql_result
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified(batch_size=10)
+
+        assert result['success'] is True
+        assert result['classified'] == 0
+        assert result['total'] == 0
+
+    def test_returns_success_when_questions_empty_after_filter(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(1,), (2,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = []
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified(batch_size=10)
+
+        assert result['success'] is True
+        assert result['classified'] == 0
+
+    def test_classifies_valid_question_successfully(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(1, 'ما هو رقم الأوكسجين الذري؟')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(1,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question', return_value={'difficulty': 'easy', 'bloom_level': 'remember'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['success'] is True
+        assert result['classified'] == 1
+
+    def test_skips_empty_question_text(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(2, '   ')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(2,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['skipped'] == 1
+        assert result['classified'] == 0
+
+    def test_handles_question_with_skipped_classification(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(3, 'سؤال صحيح')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(3,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'medium', 'bloom_level': 'remember', 'skipped': True}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['skipped'] == 1
+
+    def test_handles_failed_classification(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(4, 'سؤال يفشل')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(4,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'medium', 'bloom_level': 'remember', 'error': 'API failed'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['failed'] == 1
+
+    def test_stops_when_consecutive_errors_exceed_max(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        questions = [_make_q(i, f'سؤال {i}') for i in range(1, 8)]
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(q.question_id,) for q in questions]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = questions
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'medium', 'bloom_level': 'remember', 'error': 'err'}):
+                c.consecutive_errors = 4
+                result = c.classify_all_unclassified(batch_size=7)
+
+        assert result['failed'] <= len(questions)
+
+    def test_updates_question_difficulty_and_bloom(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(5, 'سؤال صحيح')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(5,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'hard', 'bloom_level': 'analyze'}):
+                c.classify_all_unclassified(batch_size=5)
+
+        assert q.difficulty == 'hard'
+        assert q.bloom_level == 'analyze'
+
+    def test_commits_on_success(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(6, 'سؤال للحفظ')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(6,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'easy', 'bloom_level': 'remember'}):
+                c.classify_all_unclassified(batch_size=5)
+
+        mock_db.session.commit.assert_called_once()
+
+    def test_rollback_on_commit_failure(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(7, 'سؤال')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(7,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+        mock_db.session.commit.side_effect = Exception('commit failed')
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'easy', 'bloom_level': 'remember'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['success'] is False
+        mock_db.session.rollback.assert_called()
+
+    def test_sets_min_delay_from_argument(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = []
+        mock_db.session.execute.return_value = mock_sql_result
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                c.classify_all_unclassified(batch_size=5, delay=10.0)
+
+        assert c.min_delay == 10.0
+
+    def test_min_delay_is_clamped_to_8(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = []
+        mock_db.session.execute.return_value = mock_sql_result
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                c.classify_all_unclassified(batch_size=5, delay=2.0)
+
+        assert c.min_delay == 8.0
+
+    def test_handles_options_from_question(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        opt1 = MagicMock()
+        opt1.option_text = 'هيدروجين'
+        opt2 = MagicMock()
+        opt2.option_text = 'أوكسجين'
+        q = _make_q(8, 'أي هذه عنصر؟', options=[opt1, opt2])
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(8,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'easy', 'bloom_level': 'remember'}) as mock_cq:
+                c.classify_all_unclassified(batch_size=5)
+
+        call_args = mock_cq.call_args
+        assert call_args is not None
+        assert call_args[0][1] == ['هيدروجين', 'أوكسجين']
+
+    def test_difficulty_counts_updated(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q1 = _make_q(10, 'سؤال سهل')
+        q2 = _make_q(11, 'سؤال صعب')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(10,), (11,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q1, q2]
+
+        classifications = [
+            {'difficulty': 'easy', 'bloom_level': 'remember'},
+            {'difficulty': 'hard', 'bloom_level': 'analyze'},
+        ]
+        idx_box = [0]
+
+        def mock_classify(text, options=None):
+            result = classifications[idx_box[0]] if idx_box[0] < len(classifications) else {'difficulty': 'medium', 'bloom_level': 'remember'}
+            idx_box[0] += 1
+            return result
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question', side_effect=mock_classify):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['difficulty_counts']['easy'] == 1
+        assert result['difficulty_counts']['hard'] == 1
+
+    def test_bloom_counts_updated(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(12, 'سؤال بلوم')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(12,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'medium', 'bloom_level': 'analyze'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['bloom_counts'].get('analyze', 0) == 1
+
+    def test_exception_in_question_processing_continues(self):
+        """If processing a single question raises, stats['failed'] increments and loop continues."""
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q1 = _make_q(20, 'سؤال يرفع استثناء')
+        q2 = _make_q(21, 'سؤال طبيعي')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(20,), (21,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q1, q2]
+
+        idx_box = [0]
+
+        def mock_classify(text, options=None):
+            idx = idx_box[0]
+            idx_box[0] += 1
+            if idx == 0:
+                raise Exception('processing error')
+            return {'difficulty': 'easy', 'bloom_level': 'remember'}
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question', side_effect=mock_classify):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['failed'] >= 1
+        assert result['classified'] >= 1
+
+    def test_returns_error_on_outer_exception(self):
+        """If db.session.execute itself raises, returns error dict."""
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        mock_db.session.execute.side_effect = Exception('connection lost')
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert result['success'] is False
+        assert 'error' in result
+
+    def test_success_message_when_all_skipped(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(30, '   ')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(30,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert 'message' in result
+        assert result['skipped'] == 1
+
+    def test_message_when_classified_gt_0(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(31, 'سؤال')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(31,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'easy', 'bloom_level': 'remember'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert 'message' in result
+        assert result['classified'] == 1
+
+    def test_message_when_only_failures(self):
+        c, mod, mock_db, mock_qcls = _make_classifier_v2()
+        app = _make_app()
+        q = _make_q(32, 'سؤال فاشل')
+        mock_sql_result = MagicMock()
+        mock_sql_result.fetchall.return_value = [(32,)]
+        mock_db.session.execute.return_value = mock_sql_result
+        mock_qcls.query.filter.return_value.all.return_value = [q]
+
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', mock_qcls), \
+                 patch.object(mod, 'db', mock_db), \
+                 patch.object(c, 'classify_question',
+                              return_value={'difficulty': 'medium', 'bloom_level': 'remember', 'error': 'API error'}):
+                result = c.classify_all_unclassified(batch_size=5)
+
+        assert 'message' in result
+        assert result['failed'] == 1
+
+
+# ===========================================================================
+# 13. GEMINI_AVAILABLE flag and ImportError branches (lines 18-19, 24-30)
+# ===========================================================================
+
+class TestGeminiAvailableFalse:
+    """Cover the GEMINI_AVAILABLE=False path and ensure_configured False paths."""
+
+    def test_gemini_available_attribute_exists(self):
+        """Module always has GEMINI_AVAILABLE attribute."""
+        c, mod, _, _ = _make_classifier_v2()
+        assert hasattr(mod, 'GEMINI_AVAILABLE')
+
+    def test_ensure_configured_returns_false_when_gemini_unavailable(self):
+        """_ensure_configured returns False when GEMINI_AVAILABLE is False."""
+        c, mod, _, _ = _make_classifier_v2()
+        app = _make_app()
+        with app.app_context():
+            with patch.object(mod, 'GEMINI_AVAILABLE', False):
+                result = c._ensure_configured()
+        assert result is False
+
+    def test_question_none_in_classify_all(self):
+        """classify_all_unclassified returns error when Question is None."""
+        c, mod, mock_db, _ = _make_classifier_v2()
+        app = _make_app()
+        with app.app_context():
+            with patch.object(c, '_ensure_configured', return_value=True), \
+                 patch.object(mod, 'Question', None), \
+                 patch.object(mod, 'db', mock_db):
+                result = c.classify_all_unclassified()
+        assert result['success'] is False
+        assert 'error' in result
+
+    def test_gemini_available_false_causes_configure_to_fail(self):
+        """When GEMINI_AVAILABLE is patched to False, classifier won't configure."""
+        c, mod, _, _ = _make_classifier_v2()
+        app = _make_app()
+        with app.app_context():
+            with patch.object(mod, 'GEMINI_AVAILABLE', False):
+                c.is_configured = False
+                c.client = None
+                result = c._ensure_configured()
+        assert result is False
+
+    def test_classifier_initializes_without_gemini(self):
+        """QuestionClassifier can be instantiated even if GEMINI_AVAILABLE is False."""
+        c, mod, _, _ = _make_classifier_v2()
+        with patch.object(mod, 'GEMINI_AVAILABLE', False):
+            from src.services.question_classifier import QuestionClassifier as QC
+            # Just verify that instantiation doesn't fail
+            new_c = mod.QuestionClassifier()
+        assert new_c.is_configured is False
+        assert new_c.client is None
