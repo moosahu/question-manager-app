@@ -29,7 +29,7 @@ import cloudinary.api
 
 try:
     from src.extensions import db
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from extensions import db
     except ImportError:
@@ -44,7 +44,7 @@ try:
     from src.models.question import Question, Option
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.activity import Activity  # استيراد نموذج النشاط
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from models.question import Question, Option
         from models.curriculum import Lesson, Unit, Course
@@ -132,7 +132,7 @@ class SavedExam(db.Model):
 try:
     from src.utils.notification_system import QuestionNotifications, SystemNotifications
     notifications_available = True
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from utils.notification_system import QuestionNotifications, SystemNotifications
         notifications_available = True
@@ -148,6 +148,7 @@ question_bp = Blueprint("question", __name__, template_folder="../templates/ques
 
 def notify_question_operation(operation_type, lesson_name=None, question_text=None, count=1):
     """
+    دالة مساعدة موحدة لإرسال إشعارات عمليات الأسئلة
     دالة مساعدة موحدة لإرسال إشعارات عمليات الأسئلة
     """
     if not notifications_available or not QuestionNotifications:

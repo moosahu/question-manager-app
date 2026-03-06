@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from src.extensions import db
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from extensions import db
     except ImportError:
@@ -41,7 +41,7 @@ try:
         except ImportError:
             print("Warning: Could not import Activity model. Activity tracking will be disabled.")
             activity_available = False
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from models.question import Question, Option
         from models.curriculum import Lesson, Unit, Course
@@ -68,7 +68,7 @@ from datetime import datetime
 try:
     from src.backup_scheduler_fixed import BackupScheduler
     backup_scheduler_available = True
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from backup_scheduler_fixed import BackupScheduler
         backup_scheduler_available = True
@@ -80,7 +80,7 @@ except ImportError:
 try:
     from src.backup_logic import perform_backup_for_user, create_backup
     backup_logic_available = True
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from backup_logic import perform_backup_for_user, create_backup
         backup_logic_available = True
@@ -100,7 +100,7 @@ try:
     from src.services.question_classifier import question_classifier
     question_classifier_available = True
     print("✅ Question Classifier imported successfully")
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from services.question_classifier import question_classifier
         question_classifier_available = True

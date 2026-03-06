@@ -20,7 +20,7 @@ try:
     from src.services.diagnostic_service import diagnostic_service
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.student import Student
-except ImportError:
+except ImportError:  # pragma: no cover
     from extensions import db
     from models.diagnostic_test import DiagnosticTest, DiagnosticResult, DiagnosticComparison
     from services.diagnostic_service import diagnostic_service
@@ -30,7 +30,7 @@ except ImportError:
 # ✅ استيراد موديل الإشعارات لحفظها في قاعدة البيانات
 try:
     from src.models.notification import Notification
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from models.notification import Notification
     except:
@@ -40,7 +40,7 @@ except ImportError:
 # ✅ استيراد StudentNotification (جدول الربط بين الطالب والإشعار)
 try:
     from src.models.student_notification import StudentNotification
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from models.student_notification import StudentNotification
     except:
@@ -56,7 +56,7 @@ except ImportError:
 # ✅ خدمة الإشعارات
 try:
     from src.services.notification_service import NotificationService
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from services.notification_service import NotificationService
     except:

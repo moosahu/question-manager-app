@@ -18,7 +18,7 @@ try:
         from src.models.google_drive import GoogleDriveToken
     except ImportError:
         from models.google_drive import GoogleDriveToken
-except ImportError:
+except ImportError:  # pragma: no cover
     try:
         from src.extensions import db
         from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
@@ -384,9 +384,9 @@ def google_drive_connect():
             # تحديث token موجود
             existing_token.access_token = data['access_token']
             existing_token.refresh_token = data.get('refresh_token')
-            existing_token.expires_in = data.get('expires_in')
-            existing_token.scope = data.get('scope')
-            existing_token.token_type = data.get('token_type', 'Bearer')
+            # Map to actual model fields (scopes=text, expiry=datetime)
+            existing_token.scopes = data.get('scope')
+            existing_token.updated_at = datetime.utcnow()
             existing_token.updated_at = datetime.utcnow()
         else:
             # إنشاء token جديد
@@ -394,9 +394,7 @@ def google_drive_connect():
                 user_id=current_user.id,
                 access_token=data['access_token'],
                 refresh_token=data.get('refresh_token'),
-                expires_in=data.get('expires_in'),
-                scope=data.get('scope'),
-                token_type=data.get('token_type', 'Bearer')
+                scopes=data.get('scope'),
             )
             db.session.add(new_token)
         
@@ -492,7 +490,7 @@ def google_drive_status():
                 'success': True,
                 'connected': True,
                 'last_sync': token.updated_at.isoformat() if token.updated_at else None,
-                'scope': token.scope
+                'scope': token.scopes
             })
         else:
             return jsonify({
