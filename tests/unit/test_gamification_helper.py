@@ -486,6 +486,20 @@ class TestGetStudentGamificationData:
 class TestCalculateStreak:
     """Mock StudentResult DB queries to verify streak logic."""
 
+    def setup_method(self):
+        """Ensure src.models.student_result is mocked to prevent import failures
+        when src.extensions is replaced by another test file's module-level mock."""
+        self._prev_sr = sys.modules.get('src.models.student_result')
+        mock_sr_mod = MagicMock()
+        mock_sr_mod.StudentResult = MagicMock()
+        sys.modules['src.models.student_result'] = mock_sr_mod
+
+    def teardown_method(self):
+        if self._prev_sr is None:
+            sys.modules.pop('src.models.student_result', None)
+        else:
+            sys.modules['src.models.student_result'] = self._prev_sr
+
     def _make_date_result(self, d):
         """Create a mock query result row with a .date attribute."""
         r = MagicMock()
