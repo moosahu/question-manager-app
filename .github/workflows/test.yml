@@ -58,6 +58,16 @@ jobs:
                tests/unit/test_question_classifier.py \
                -v --tb=short
 
+    - name: Run unit tests (group 4 - Gamification Service & Email)
+      env:
+        FLASK_ENV: testing
+        SECRET_KEY: test-secret-key
+        JWT_SECRET_KEY: test-jwt-secret-key
+      run: |
+        pytest tests/unit/test_gamification_service.py \
+               tests/unit/test_email_service.py \
+               -v --tb=short
+
     # ── Integration tests ────────────────────────────────────────────────────
     - name: Run integration tests
       env:
@@ -93,6 +103,11 @@ jobs:
         pytest tests/unit/test_gamification_helper.py \
                tests/unit/test_student_analyzer.py \
                tests/unit/test_question_classifier.py \
+               --cov=src --cov-append --cov-config=.coveragerc --tb=no -q || true
+
+        # Unit tests - group 4
+        pytest tests/unit/test_gamification_service.py \
+               tests/unit/test_email_service.py \
                --cov=src --cov-append --cov-config=.coveragerc --tb=no -q || true
 
         # Integration tests
