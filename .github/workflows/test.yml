@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # تشغيل يدوي
+  workflow_dispatch:
 
 jobs:
   test:
@@ -25,15 +25,79 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-test.txt
 
-    - name: Run tests
+    # ── Unit tests (3 groups - avoid sys.modules conflicts) ──────────────────
+    - name: Run unit tests (group 1 - AI services)
       env:
         FLASK_ENV: testing
         SECRET_KEY: test-secret-key
         JWT_SECRET_KEY: test-jwt-secret-key
       run: |
-        pytest tests/ -v --tb=short
+        pytest tests/unit/test_ai_assistant.py \
+               tests/unit/test_lesson_prep_service.py \
+               tests/unit/test_smart_notifications.py \
+               -v --tb=short
 
-    - name: Upload coverage report
-      if: always()
+    - name: Run unit tests (group 2 - FCM & Diagnostic)
+      env:
+        FLASK_ENV: testing
+        SECRET_KEY: test-secret-key
+        JWT_SECRET_KEY: test-jwt-secret-key
       run: |
-        pytest tests/ --cov=src --cov-report=term-missing --tb=short || true
+        pytest tests/unit/test_diagnostic_service.py \
+               tests/unit/test_fcm_notification_services.py \
+               -v --tb=short
+
+    - name: Run unit tests (group 3 - Gamification & Classifiers)
+      env:
+        FLASK_ENV: testing
+        SECRET_KEY: test-secret-key
+        JWT_SECRET_KEY: test-jwt-secret-key
+      run: |
+        pytest tests/unit/test_gamification_helper.py \
+               tests/unit/test_student_analyzer.py \
+               tests/unit/test_question_classifier.py \
+               -v --tb=short
+
+    # ── Integration tests ────────────────────────────────────────────────────
+    - name: Run integration tests
+      env:
+        FLASK_ENV: testing
+        SECRET_KEY: test-secret-key
+        JWT_SECRET_KEY: test-jwt-secret-key
+      run: |
+        pytest tests/integration/ -v --tb=short \
+          --ignore=tests/integration/test_students_api.py \
+          --ignore=tests/integration/test_api_comprehensive.py \
+          --ignore=tests/integration/test_api_extended.py
+
+    # ── Coverage (combined) ──────────────────────────────────────────────────
+    - name: Generate coverage report
+      if: always()
+      env:
+        FLASK_ENV: testing
+        SECRET_KEY: test-secret-key
+        JWT_SECRET_KEY: test-jwt-secret-key
+      run: |
+        # Unit tests - group 1
+        pytest tests/unit/test_ai_assistant.py \
+               tests/unit/test_lesson_prep_service.py \
+               tests/unit/test_smart_notifications.py \
+               --cov=src --cov-config=.coveragerc --tb=no -q || true
+
+        # Unit tests - group 2
+        pytest tests/unit/test_diagnostic_service.py \
+               tests/unit/test_fcm_notification_services.py \
+               --cov=src --cov-append --cov-config=.coveragerc --tb=no -q || true
+
+        # Unit tests - group 3
+        pytest tests/unit/test_gamification_helper.py \
+               tests/unit/test_student_analyzer.py \
+               tests/unit/test_question_classifier.py \
+               --cov=src --cov-append --cov-config=.coveragerc --tb=no -q || true
+
+        # Integration tests
+        pytest tests/integration/ \
+               --ignore=tests/integration/test_students_api.py \
+               --ignore=tests/integration/test_api_comprehensive.py \
+               --ignore=tests/integration/test_api_extended.py \
+               --cov=src --cov-append --cov-report=term-missing --cov-config=.coveragerc --tb=no -q || true
