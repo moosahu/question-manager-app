@@ -13,8 +13,9 @@ from datetime import datetime, timedelta
 # Bootstrap: mock heavy third-party modules BEFORE any imports
 # ---------------------------------------------------------------------------
 _google_mock = MagicMock()
-sys.modules.setdefault('google', _google_mock)
+sys.modules['google'] = _google_mock
 sys.modules['google.genai'] = MagicMock()
+sys.modules['google.genai.types'] = MagicMock()
 
 for _mod in ('firebase_admin', 'firebase_admin.credentials',
              'firebase_admin.messaging', 'firebase_admin.auth'):

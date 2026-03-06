@@ -16,8 +16,9 @@ for _mod in ('firebase_admin', 'firebase_admin.credentials', 'firebase_admin.mes
     sys.modules.setdefault(_mod, MagicMock())
 
 _google_mock = MagicMock()
-sys.modules.setdefault('google', _google_mock)
+sys.modules['google'] = _google_mock
 sys.modules['google.genai'] = MagicMock()
+sys.modules['google.genai.types'] = MagicMock()
 
 # flask_socketio shim
 sys.modules.setdefault('flask_socketio', MagicMock())
