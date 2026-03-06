@@ -297,60 +297,60 @@ class TestEnsureConfigured:
         assert result is False
 
     def test_returns_false_when_gemini_not_available(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', False):
+            with patch.object(mod, 'GEMINI_AVAILABLE', False):
                 result = c._ensure_configured()
         assert result is False
 
     def test_sets_client_on_success(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         mock_client = MagicMock()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', True), \
-                 patch('src.services.question_classifier.genai') as mock_genai:
+            with patch.object(mod, 'GEMINI_AVAILABLE', True), \
+                 patch.object(mod, 'genai') as mock_genai:
                 mock_genai.Client.return_value = mock_client
                 c._ensure_configured()
         assert c.client is mock_client
 
     def test_sets_is_configured_true_on_success(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', True), \
-                 patch('src.services.question_classifier.genai') as mock_genai:
+            with patch.object(mod, 'GEMINI_AVAILABLE', True), \
+                 patch.object(mod, 'genai') as mock_genai:
                 mock_genai.Client.return_value = MagicMock()
                 c._ensure_configured()
         assert c.is_configured is True
 
     def test_returns_false_on_exception(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', True), \
-                 patch('src.services.question_classifier.genai') as mock_genai:
+            with patch.object(mod, 'GEMINI_AVAILABLE', True), \
+                 patch.object(mod, 'genai') as mock_genai:
                 mock_genai.Client.side_effect = Exception('Connection refused')
                 result = c._ensure_configured()
         assert result is False
 
     def test_stores_api_key_from_config(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', True), \
-                 patch('src.services.question_classifier.genai') as mock_genai:
+            with patch.object(mod, 'GEMINI_AVAILABLE', True), \
+                 patch.object(mod, 'genai') as mock_genai:
                 mock_genai.Client.return_value = MagicMock()
                 c._ensure_configured()
         assert c.api_key == 'test-key-abc123'
 
     def test_returns_true_on_success(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         app = _make_app()
         with app.app_context():
-            with patch('src.services.question_classifier.GEMINI_AVAILABLE', True), \
-                 patch('src.services.question_classifier.genai') as mock_genai:
+            with patch.object(mod, 'GEMINI_AVAILABLE', True), \
+                 patch.object(mod, 'genai') as mock_genai:
                 mock_genai.Client.return_value = MagicMock()
                 result = c._ensure_configured()
         assert result is True
@@ -363,29 +363,29 @@ class TestEnsureConfigured:
 class TestWaitForRateLimit:
 
     def test_sleeps_when_request_too_soon(self):
-        c, _, _, _ = _make_classifier()
-        c.last_request_time = time.time()  # Just now
+        c, mod, _, _ = _make_classifier()
+        c.last_request_time = 1000.0  # Fixed value, not time.time()
         c.min_delay = 6.0
-        with patch('src.services.question_classifier.time') as mock_time:
-            mock_time.time.return_value = c.last_request_time + 2.0  # 2 seconds elapsed
+        with patch.object(mod, 'time') as mock_time:
+            mock_time.time.return_value = 1002.0  # 2 seconds elapsed
             c._wait_for_rate_limit()
             mock_time.sleep.assert_called_once()
             sleep_arg = mock_time.sleep.call_args[0][0]
             assert abs(sleep_arg - 4.0) < 0.1
 
     def test_does_not_sleep_when_enough_time_passed(self):
-        c, _, _, _ = _make_classifier()
-        c.last_request_time = time.time() - 10.0  # 10 seconds ago
+        c, mod, _, _ = _make_classifier()
+        c.last_request_time = 1000.0
         c.min_delay = 6.0
-        with patch('src.services.question_classifier.time') as mock_time:
-            mock_time.time.return_value = c.last_request_time + 10.0
+        with patch.object(mod, 'time') as mock_time:
+            mock_time.time.return_value = 1010.0  # 10 seconds elapsed
             c._wait_for_rate_limit()
             mock_time.sleep.assert_not_called()
 
     def test_updates_last_request_time(self):
-        c, _, _, _ = _make_classifier()
+        c, mod, _, _ = _make_classifier()
         c.last_request_time = 0
-        with patch('src.services.question_classifier.time') as mock_time:
+        with patch.object(mod, 'time') as mock_time:
             mock_time.time.return_value = 12345.0
             c._wait_for_rate_limit()
         assert c.last_request_time == 12345.0
