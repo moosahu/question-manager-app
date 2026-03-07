@@ -286,7 +286,7 @@ def create_immediate_backup():
         elif BACKUP_LOGIC_AVAILABLE:
             # تنفيذ النسخ الاحتياطي مباشرة
             try:
-                perform_backup_for_user(user_id)
+                perform_backup_for_user(user_id, force=True)
                 return jsonify({
                     'success': True,
                     'message': 'تم إنشاء النسخة الاحتياطية بنجاح'

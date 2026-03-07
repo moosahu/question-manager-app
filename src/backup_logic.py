@@ -88,7 +88,7 @@ def create_backup(user_id):
             "error": str(e)
         }
 
-def perform_backup_for_user(user_id):
+def perform_backup_for_user(user_id, force=False):
     """
     تنفيذ النسخ الاحتياطي لمستخدم محدد
     
@@ -111,7 +111,7 @@ def perform_backup_for_user(user_id):
             logger.warning(f"لا توجد إعدادات نسخ احتياطي للمستخدم {user_id}")
             return {"success": False, "error": "لا توجد إعدادات نسخ احتياطي"}
         
-        if not settings.auto_backup_enabled:
+        if not settings.auto_backup_enabled and not force:
             logger.info(f"النسخ التلقائي غير مفعل للمستخدم {user_id}")
             return {"success": False, "error": "النسخ التلقائي غير مفعل"}
         
