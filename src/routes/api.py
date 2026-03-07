@@ -2831,10 +2831,11 @@ def create_immediate_backup():
                 backup_settings = BackupSettings.query.filter_by(user_id=user_id).first()
                 if backup_settings:
                     backup_settings.last_backup_time = datetime.utcnow()
-                    if backup_settings.backup_count is None:
-                        backup_settings.backup_count = 1
-                    else:
-                        backup_settings.backup_count += 1
+                    if hasattr(backup_settings, 'backup_count'):
+                        if backup_settings.backup_count is None:
+                            backup_settings.backup_count = 1
+                        else:
+                            backup_settings.backup_count += 1
                     db.session.commit()
             except Exception as e:
                 logger.warning(f"Could not update backup settings: {e}")
