@@ -424,7 +424,7 @@ class GoogleDriveManager:
             # إنشاء رابط التفويض
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
-                include_granted_scopes='true',
+                prompt='consent',
                 state=str(user_id)  # تمرير user_id في state
             )
             
