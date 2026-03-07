@@ -357,7 +357,7 @@ class GoogleDriveManager:
         # فحص توفر credentials
         self.client_id = os.environ.get('GOOGLE_CLIENT_ID')
         self.client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-        self.redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/auth/google/callback')
+        self.redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'https://chem-tahsili.com/auth/google/callback')
         
         # تحديد ما إذا كانت credentials متوفرة
         self.credentials_available = bool(self.client_id and self.client_secret)
