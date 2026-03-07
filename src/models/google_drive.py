@@ -20,7 +20,6 @@ GOOGLE_OAUTH_CONFIG = {
     'redirect_uri': 'https://chem-tahsili.com/auth/google/callback',
     'scopes': [
         'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/drive.metadata.readonly'
     ],
     'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
     'token_uri': 'https://oauth2.googleapis.com/token'
@@ -382,7 +381,6 @@ class GoogleDriveManager:
         
         self.scopes = [
             'https://www.googleapis.com/auth/drive.file',
-            'https://www.googleapis.com/auth/drive.metadata'
         ]
         
         self.backup_folder_name = "نسخ احتياطية - نظام الأسئلة الكيميائية"
