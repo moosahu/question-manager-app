@@ -65,7 +65,7 @@ def create_backup(user_id):
         logger.info(f"بدء إنشاء نسخة احتياطية فورية للمستخدم {user_id}")
         
         # استخدام دالة النسخ الاحتياطي الموجودة
-        result = perform_backup_for_user(user_id)
+        result = perform_backup_for_user(user_id, force=True)
         
         if result.get("success"):
             logger.info(f"تم إنشاء النسخة الاحتياطية بنجاح للمستخدم {user_id}")

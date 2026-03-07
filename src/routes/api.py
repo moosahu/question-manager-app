@@ -2479,6 +2479,7 @@ def get_backup_jobs():
 def backup_settings_api():
     """إدارة إعدادات النسخ الاحتياطي"""
     try:
+        backup_settings_manager = BackupSettings
         if not backup_settings_manager:
             return jsonify({
                 'success': False,
@@ -2645,7 +2646,7 @@ def backup_health_check():
     try:
         health_status = {
             'scheduler_available': backup_scheduler is not None,
-            'settings_available': backup_settings_manager is not None,
+            'settings_available': BackupSettings is not None,
             'logic_available': backup_logic is not None,
             'scheduler_running': False,
             'google_drive_connected': False,
