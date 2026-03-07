@@ -878,11 +878,8 @@ let googleDriveConnected = false;
 let lastSyncTime = null;
 let connectionCheckInterval = null;
 
-// ===== إعدادات Google Drive =====
+// ===== إعدادات Google Drive (Authorization Code Flow - لا تحتاج CLIENT_ID هنا) =====
 const GOOGLE_DRIVE_CONFIG = {
-    CLIENT_ID: '855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com',
-    API_KEY: 'AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc',
-    DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
     SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly'
 };
 
@@ -921,49 +918,33 @@ function gisLoaded() {
     }
 }
 
-// ===== دالة الاتصال بـ Google Drive =====
+// ===== دالة الاتصال بـ Google Drive (Authorization Code Flow - يعطي refresh_token) =====
 function connectToGoogleDrive() {
-    console.log('🚀 محاولة ربط Google Drive...');
-    
-    if (!gapi_loaded || !gis_loaded) {
-        console.error('❌ Google APIs غير محملة');
-        showNotification('خطأ: Google APIs غير محملة. يرجى إعادة تحميل الصفحة.', 'error');
+    console.log('🚀 محاولة ربط Google Drive عبر Authorization Code Flow...');
+    showNotification('جاري فتح نافذة المصادقة...', 'info');
+
+    const popup = window.open(
+        '/api/v1/google-drive/start-oauth',
+        'googleOAuth',
+        'width=520,height=620,left=' + Math.round((screen.width - 520) / 2) + ',top=' + Math.round((screen.height - 620) / 2)
+    );
+
+    if (!popup || popup.closed) {
+        showNotification('تم حظر النافذة المنبثقة. يرجى السماح بها في المتصفح.', 'error');
         return;
     }
-    
-    if (!tokenClient) {
-        console.error('❌ Google APIs غير مهيأة');
-        showNotification('خطأ: Google APIs غير مهيأة. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
-    
-    console.log('✅ بدء عملية OAuth...');
-    showNotification('جاري الاتصال بـ Google Drive...', 'info');
-    
-    // تعيين callback
-    tokenClient.callback = async (resp) => {
-        if (resp.error !== undefined) {
-            console.error('❌ خطأ في المصادقة:', resp.error);
-            showNotification('فشل في تسجيل الدخول إلى Google Drive: ' + resp.error, 'error');
-            return;
+
+    function onMessage(event) {
+        if (event.data && event.data.type === 'google-auth-success') {
+            window.removeEventListener('message', onMessage);
+            showNotification('تم ربط Google Drive بنجاح ✅', 'success');
+            setTimeout(() => checkGoogleDriveConnection(), 1000);
+        } else if (event.data && event.data.type === 'google-auth-error') {
+            window.removeEventListener('message', onMessage);
+            showNotification('فشل الربط: ' + (event.data.error || 'خطأ غير معروف'), 'error');
         }
-        
-        try {
-            console.log('✅ تم الحصول على token بنجاح');
-            await handleGoogleDriveConnection(resp);
-        } catch (error) {
-            console.error('❌ خطأ في معالجة الاتصال:', error);
-            showNotification('خطأ في معالجة الاتصال: ' + error.message, 'error');
-        }
-    };
-    
-    try {
-        // طلب المصادقة
-        tokenClient.requestAccessToken({prompt: 'consent'});
-    } catch (error) {
-        console.error('❌ خطأ في طلب المصادقة:', error);
-        showNotification('خطأ في بدء عملية المصادقة', 'error');
     }
+    window.addEventListener('message', onMessage);
 }
 
 // ===== دالة معالجة الاتصال =====

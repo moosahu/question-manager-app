@@ -1511,13 +1511,13 @@ def google_drive_connect():
             logger.warning(f"Could not parse request data: {e}")
             data = {}
         
-        # إنشاء credentials حقيقية
+        # إنشاء credentials
         real_credentials = {
-            "token": data.get("access_token", f"mock_access_token_{current_user.id}_{int(time.time())}"),
-            "refresh_token": data.get("refresh_token", f"mock_refresh_token_{current_user.id}"),
+            "token": data.get("access_token", ""),
+            "refresh_token": data.get("refresh_token", ""),
             "token_uri": "https://oauth2.googleapis.com/token",
-            "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
-            "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
+            "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
+            "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
             "scopes": GOOGLE_DRIVE_SCOPES
         }
         

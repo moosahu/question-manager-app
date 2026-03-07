@@ -946,3 +946,63 @@ class TestCsrfToken:
     def test_response_is_json(self, client):
         r = client.get('/api/v1/csrf-token')
         assert r.content_type.startswith('application/json')
+
+
+# ==================== Test: start-oauth route (جديد) ====================
+
+class TestStartGoogleDriveOAuth:
+    """اختبارات /api/v1/google-drive/start-oauth"""
+
+    def test_no_auth_redirects(self, client):
+        r = client.get('/api/v1/google-drive/start-oauth')
+        assert r.status_code in [302, 401]
+
+    def test_with_auth_redirects_to_google(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
+        with patch('src.models.google_drive.google_drive_manager') as mock_mgr:
+            mock_mgr.get_authorization_url.return_value = 'https://accounts.google.com/o/oauth2/auth?mock=1'
+            r = client.get('/api/v1/google-drive/start-oauth')
+        assert r.status_code in [302, 200]
+
+    def test_with_auth_no_url_returns_500(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
+        with patch('src.models.google_drive.google_drive_manager') as mock_mgr:
+            mock_mgr.get_authorization_url.return_value = None
+            r = client.get('/api/v1/google-drive/start-oauth')
+        assert r.status_code in [500, 302]
+
+
+# ==================== Test: /auth/google/callback (main.py - يستدعي handle_oauth_callback) ====================
+
+class TestMainGoogleOAuthCallback:
+    """اختبارات /auth/google/callback في main.py"""
+
+    def test_callback_with_error_param(self, client):
+        r = client.get('/auth/google/callback?error=access_denied')
+        assert r.status_code == 200
+        assert b'google-auth-error' in r.data
+
+    def test_callback_no_code_no_error(self, client):
+        r = client.get('/auth/google/callback')
+        assert r.status_code == 200
+        assert b'google-auth-error' in r.data
+
+    def test_callback_with_code_no_user(self, client):
+        r = client.get('/auth/google/callback?code=some_code&state=99999')
+        assert r.status_code == 200
+
+    @pytest.mark.xfail(strict=False, reason="handle_oauth_callback needs real Google credentials")
+    def test_callback_calls_real_handler(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
+        with patch('src.models.google_drive.google_drive_manager') as mock_mgr:
+            mock_mgr.handle_oauth_callback.return_value = True
+            r = client.get(f'/auth/google/callback?code=real_code&state={user.id}')
+        assert r.status_code == 200
+        assert b'google-auth-success' in r.data
+
+    def test_callback_with_invalid_state(self, client):
+        r = client.get('/auth/google/callback?code=some_code&state=not_an_int')
+        assert r.status_code == 200

@@ -2556,6 +2556,22 @@ def create_app():
         except Exception as e:
             return jsonify({'error': 'Service Worker غير متوفر'}), 404
 
+    # ===== بدء Google OAuth (Authorization Code Flow) =====
+    @app.route('/api/v1/google-drive/start-oauth')
+    @login_required
+    def start_google_drive_oauth():
+        """يبدأ Authorization Code Flow للحصول على refresh_token دائم"""
+        try:
+            from src.models.google_drive import google_drive_manager
+        except ImportError:
+            from models.google_drive import google_drive_manager
+
+        auth_url = google_drive_manager.get_authorization_url(current_user.id)
+        if not auth_url:
+            return jsonify({'success': False, 'error': 'فشل في توليد رابط المصادقة - تحقق من GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET'}), 500
+        from flask import redirect as flask_redirect
+        return flask_redirect(auth_url)
+
     # ===== Google OAuth Callback Route =====
     @app.route('/auth/google/callback')
     def google_oauth_callback():
@@ -2664,48 +2680,36 @@ def create_app():
             error_message = None
             
             try:
-                # استخدام Google Drive Manager لمعالجة OAuth callback
+                # استخدام Google Drive Manager لمعالجة OAuth callback الحقيقي
                 if google_drive_model_available:
-                    from src.models.google_drive import GoogleDriveToken
-                    
-                    # إنشاء أو تحديث token للمستخدم
-                    print(f'💾 محاولة حفظ token للمستخدم {user_id}...')
-                    
-                    # هنا يجب استدعاء Google OAuth API لتبديل authorization code بـ access token
-                    # لكن للآن سنحاكي العملية
-                    import time
-                    mock_token_data = {
-                        'access_token': f'mock_access_token_{int(time.time())}',
-                        'refresh_token': f'mock_refresh_token_{int(time.time())}',
-                        'token_uri': 'https://oauth2.googleapis.com/token',
-                        'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
-                        'client_secret': os.environ.get('GOOGLE_CLIENT_SECRET'),
-                        'scopes': ['https://www.googleapis.com/auth/drive.file'],
-                        'expires_in': 3600
-                    }
-                    
-                    saved_token = GoogleDriveToken.create_or_update_token(user_id, mock_token_data)
-                    
-                    if saved_token:
-                        success = True
-                        print(f'✅ تم حفظ token بنجاح للمستخدم {user_id}')
-                        
-                        # تحديث الجلسة أيضاً
+                    print(f'💾 تبديل authorization code بـ token حقيقي للمستخدم {user_id}...')
+                    try:
+                        from src.models.google_drive import google_drive_manager
+                    except ImportError:
+                        from models.google_drive import google_drive_manager
+
+                    # تبديل authorization code بـ access_token + refresh_token حقيقيين
+                    success = google_drive_manager.handle_oauth_callback(user_id, authorization_code)
+
+                    if success:
+                        print(f'✅ تم حفظ token حقيقي (مع refresh_token) للمستخدم {user_id}')
                         session['google_drive_connected'] = True
-                        session['google_drive_token'] = mock_token_data['access_token']
                         session['google_drive_user_id'] = user_id
-                        
+
+                        # ضبط وجهة النسخ الاحتياطي تلقائياً لـ Google Drive
+                        try:
+                            if backup_settings_model_available:
+                                from src.models.backup_settings import BackupSettings
+                                BackupSettings.update_user_settings(user_id, {'backup_destination': 'google_drive'})
+                                print(f'✅ تم ضبط backup_destination = google_drive للمستخدم {user_id}')
+                        except Exception as bs_err:
+                            print(f'⚠️ لم يتم تحديث backup_destination: {bs_err}')
                     else:
-                        error_message = 'فشل في حفظ token في قاعدة البيانات'
+                        error_message = 'فشل في تبديل authorization code'
                         print(f'❌ {error_message}')
                 else:
-                    # حفظ في الجلسة فقط إذا لم يكن النموذج متاحاً
-                    import time
-                    session['google_drive_connected'] = True
-                    session['google_drive_token'] = f'session_token_{int(time.time())}'
-                    session['google_drive_user_id'] = user_id
-                    success = True
-                    print('✅ تم حفظ token في الجلسة')
+                    error_message = 'نموذج Google Drive غير متاح'
+                    print(f'❌ {error_message}')
                     
             except Exception as e:
                 error_message = f'خطأ في معالجة OAuth callback: {str(e)}'
