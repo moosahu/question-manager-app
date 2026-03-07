@@ -2126,7 +2126,7 @@ def list_backups():
                 "courses_count": 0,
                 "units_count": 0,
                 "lessons_count": 0,
-                "google_drive_file_id": null
+                "google_drive_file_id": None
             }
         ]
         
