@@ -594,9 +594,11 @@ class GoogleDriveManager:
 
         except Exception as e:
             import traceback
+            tb = traceback.format_exc()
             logger.error(f"Error handling OAuth callback for user {user_id}: {e}")
-            logger.error(traceback.format_exc())
-            return False
+            logger.error(tb)
+            # raise لكي يستطيع المتصفح رؤية الخطأ الحقيقي
+            raise
     
     def disconnect_user(self, user_id: int) -> bool:
         """قطع اتصال المستخدم مع app context صحيح - الإصلاح النهائي"""

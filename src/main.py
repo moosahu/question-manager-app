@@ -2719,7 +2719,14 @@ def create_app():
                         from models.google_drive import google_drive_manager
 
                     # تبديل authorization code بـ access_token + refresh_token حقيقيين
-                    success = google_drive_manager.handle_oauth_callback(user_id, authorization_code)
+                    try:
+                        success = google_drive_manager.handle_oauth_callback(user_id, authorization_code)
+                    except Exception as oauth_err:
+                        import traceback
+                        success = False
+                        error_message = f'OAuth error: {str(oauth_err)}'
+                        print(f'❌ {error_message}')
+                        print(traceback.format_exc())
 
                     if success:
                         print(f'✅ تم حفظ token حقيقي (مع refresh_token) للمستخدم {user_id}')
@@ -2734,8 +2741,8 @@ def create_app():
                                 print(f'✅ تم ضبط backup_destination = google_drive للمستخدم {user_id}')
                         except Exception as bs_err:
                             print(f'⚠️ لم يتم تحديث backup_destination: {bs_err}')
-                    else:
-                        error_message = 'فشل في تبديل authorization code'
+                    elif not error_message:
+                        error_message = 'فشل في تبديل authorization code - credentials_available=False'
                         print(f'❌ {error_message}')
                 else:
                     error_message = 'نموذج Google Drive غير متاح'
