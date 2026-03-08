@@ -5412,7 +5412,10 @@
             
             // الحصول على وجهة النسخ المختارة مع debugging مفصل
             console.log('🔍 البحث عن وجهة النسخ المختارة...');
-            const selectedDestination = document.querySelector('input[name="backup_destination"]:checked');
+            // البحث داخل الـ modal فقط لتجنب التعارض مع مجموعات radio أخرى في الصفحة
+            const autoBackupModal = document.getElementById('auto-backup-settings-modal');
+            const searchScope = autoBackupModal || document;
+            const selectedDestination = searchScope.querySelector('input[name="backup_destination"]:checked');
             console.log('🎯 العنصر المختار:', selectedDestination);
             
             let destination = 'local'; // القيمة الافتراضية
