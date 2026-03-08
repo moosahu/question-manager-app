@@ -1,7 +1,7 @@
 # src/gunicorn.conf.py
 
-workers = 2
-threads = 4
+workers = 1
+threads = 8
 worker_class = 'gthread'
 timeout = 600
 keepalive = 5
