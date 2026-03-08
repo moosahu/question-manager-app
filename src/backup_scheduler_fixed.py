@@ -52,14 +52,13 @@ class BackupScheduler:
         Args:
             app: تطبيق Flask (اختياري)
         """
-        self.scheduler = None
         self.app = app
         self.is_running = False
         self.backup_jobs = {}  # تتبع المهام المجدولة
         self._lock = threading.Lock()  # حماية من التداخل
-        
-        if app:
-            self.init_app(app)
+
+        # تهيئة APScheduler دائماً (بغض النظر عن وجود app)
+        self.init_app(app)
     
     def init_app(self, app):
         """

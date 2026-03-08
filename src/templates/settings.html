@@ -1786,7 +1786,7 @@ if (!document.getElementById('notification-styles')) {
                         </div>
                         <div class="stat-item">
                             <label>وجهة النسخ:</label>
-                            <span id="backup-destination">جاري التحميل...</span>
+                            <span id="backup-destination-display">جاري التحميل...</span>
                         </div>
                         <div class="stat-item">
                             <label>عدد النسخ:</label>
@@ -1802,7 +1802,7 @@ if (!document.getElementById('notification-styles')) {
                         </div>
                         <div class="stat-item">
                             <label>تكرار النسخ:</label>
-                            <span id="backup-frequency">جاري التحميل...</span>
+                            <span id="stat-backup-frequency">جاري التحميل...</span>
                         </div>
                         <div class="stat-item">
                             <label>حالة Google Drive:</label>
@@ -1880,6 +1880,14 @@ if (!document.getElementById('notification-styles')) {
                             </small>
                         </div>
 
+                        <div class="form-group">
+                            <label for="backup-time" class="form-label">وقت النسخ الاحتياطي التلقائي</label>
+                            <input type="time" id="backup-time" name="backup_time" class="form-control" value="02:00">
+                            <small class="form-text text-muted">
+                                الوقت الذي يتم فيه تنفيذ النسخ الاحتياطي التلقائي يومياً
+                            </small>
+                        </div>
+
                         <!-- خيارات النسخ المتقدمة -->
                         <div class="advanced-backup-options">
                             <h5><i class="fas fa-sliders-h"></i> خيارات متقدمة</h5>
@@ -1916,11 +1924,8 @@ if (!document.getElementById('notification-styles')) {
                         </div>
                         
                         <div class="backup-actions">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="button" id="save-backup-settings" class="btn btn-primary">
                                 <i class="fas fa-save"></i> حفظ إعدادات النسخ الاحتياطي
-                            </button>
-                            <button type="button" id="save-backup-settings" class="btn btn-success">
-                                <i class="fas fa-check"></i> تطبيق وتفعيل الآن
                             </button>
                         </div>
                     </form>
@@ -2382,9 +2387,12 @@ async function saveBackupSettings() {
         const formData = {
             auto_backup_enabled: document.getElementById('auto-backup-enabled')?.checked || false,
             backup_frequency: document.getElementById('backup-frequency')?.value || 'daily',
-            include_images: document.getElementById('include-images')?.checked || false,
+            backup_destination: document.getElementById('backup-destination')?.value || 'local',
+            backup_time: document.getElementById('backup-time')?.value || '02:00',
             max_backups: parseInt(document.getElementById('max-backups')?.value) || 5,
-            backup_destination: document.getElementById('backup-destination')?.value || 'google_drive'
+            include_images: document.getElementById('include-images')?.checked !== false,
+            compress_backup: document.getElementById('compress-backup')?.checked !== false,
+            encrypt_backup: document.getElementById('encrypt-backup')?.checked || false
         };
         
         console.log('📋 بيانات النموذج:', formData);

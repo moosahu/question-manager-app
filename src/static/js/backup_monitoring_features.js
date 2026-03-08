@@ -725,8 +725,8 @@ class BackupMonitor {
             nextBackupElement.textContent = 'غير محدد';
         }
         
-        // تحديث تكرار النسخ
-        const frequencyElement = document.getElementById('backup-frequency');
+        // تحديث تكرار النسخ (stat-backup-frequency لتجنب التعارض مع select النموذج)
+        const frequencyElement = document.getElementById('stat-backup-frequency');
         if (frequencyElement) {
             const settings = status.settings || {};
             const frequency = settings.backup_frequency || 'daily';
@@ -737,27 +737,29 @@ class BackupMonitor {
             };
             frequencyElement.textContent = frequencyText[frequency] || frequency;
         }
-        
-        // تحديث عدد النسخ المحفوظة (من إعدادات الحد الأقصى)
+
+        // تحديث عدد النسخ المحفوظة
         const countElement = document.getElementById('backup-count');
         if (countElement && status.settings) {
-            countElement.textContent = `الحد الأقصى: ${status.settings.max_backups || 5}`;
+            const backupCount = status.settings.backup_count || 0;
+            const maxBackups = status.settings.max_backups || 5;
+            countElement.textContent = `${backupCount} / ${maxBackups}`;
         }
-        
-        // تحديث آخر نسخة احتياطية (من Google Drive أو إعدادات)
+
+        // تحديث آخر نسخة احتياطية
         const lastBackupElement = document.getElementById('last-backup-time');
         if (lastBackupElement) {
             let lastBackupTime = null;
-            
-            // البحث عن آخر نسخة من Google Drive
-            if (status.google_drive && status.google_drive.last_backup) {
+
+            // أولاً: وقت النسخة الأخيرة الفعلية من settings
+            if (status.settings && status.settings.last_backup_time) {
+                lastBackupTime = status.settings.last_backup_time;
+            }
+            // ثانياً: من Google Drive
+            else if (status.google_drive && status.google_drive.last_backup) {
                 lastBackupTime = status.google_drive.last_backup;
             }
-            // أو من إعدادات النظام
-            else if (status.settings && status.settings.updated_at) {
-                lastBackupTime = status.settings.updated_at;
-            }
-            
+
             if (lastBackupTime) {
                 const lastDate = new Date(lastBackupTime);
                 lastBackupElement.textContent = this.formatDate(lastDate);
@@ -765,9 +767,9 @@ class BackupMonitor {
                 lastBackupElement.textContent = 'لم يتم إنشاء نسخة بعد';
             }
         }
-        
-        // تحديث وجهة النسخ
-        const destinationElement = document.getElementById('backup-destination');
+
+        // تحديث وجهة النسخ (backup-destination-display لتجنب التعارض مع select النموذج)
+        const destinationElement = document.getElementById('backup-destination-display');
         if (destinationElement && status.settings) {
             destinationElement.textContent = status.settings.backup_destination === 'google_drive' ? 'Google Drive' : 'محلي';
         }
@@ -911,10 +913,16 @@ class BackupMonitor {
         
         try {
             console.log('🔄 بدء اختبار النسخ الاحتياطي...');
-            
-            // التحقق من اتصال Google Drive أولاً
-            if (!this.googleDriveConnected) {
+
+            // التحقق من الوجهة - إذا google_drive يجب الاتصال أولاً
+            const destSelect = document.getElementById('backup-destination');
+            const destination = destSelect ? destSelect.value : 'local';
+            if (destination === 'google_drive' && !this.googleDriveConnected) {
                 this.showError('يجب ربط Google Drive أولاً قبل إنشاء نسخة احتياطية');
+                if (testBtn) {
+                    testBtn.disabled = false;
+                    testBtn.innerHTML = '<i class="fas fa-play"></i> اختبار النسخ الآن';
+                }
                 return;
             }
             

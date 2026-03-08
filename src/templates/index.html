@@ -5472,13 +5472,36 @@
             }
         }
         
-        function loadAutoBackupSettings() {
-            // تحميل الإعدادات من localStorage
-            const savedSettings = localStorage.getItem('backupSettings');
-            if (savedSettings) {
-                backupSystem.settings = JSON.parse(savedSettings);
+        async function loadAutoBackupSettings() {
+            // تحميل الإعدادات من API أولاً (نفس مصدر صفحة الإعدادات)
+            try {
+                const response = await fetch('/api/v1/backup-settings/load', {
+                    credentials: 'same-origin'
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.settings) {
+                        const s = result.settings;
+                        // توحيد أسماء الحقول مع backupSystem.settings
+                        backupSystem.settings = {
+                            enabled: s.auto_backup_enabled,
+                            frequency: s.backup_frequency,
+                            time: s.backup_time,
+                            maxBackups: s.max_backups,
+                            destination: s.backup_destination
+                        };
+                        // حفظ في localStorage للاستخدام المحلي
+                        localStorage.setItem('backupSettings', JSON.stringify(backupSystem.settings));
+                    }
+                }
+            } catch (err) {
+                // fallback للـ localStorage
+                const savedSettings = localStorage.getItem('backupSettings');
+                if (savedSettings) {
+                    try { backupSystem.settings = JSON.parse(savedSettings); } catch(e) {}
+                }
             }
-            
+
             // تطبيق الإعدادات على النموذج
             const modal = document.getElementById('auto-backup-settings-modal');
             if (modal) {
@@ -5486,22 +5509,14 @@
                 const frequencySelect = modal.querySelector('select[name="backup_frequency"]');
                 const timeInput = modal.querySelector('input[name="backup_time"]');
                 const maxBackupsInput = modal.querySelector('input[name="max_backups"]');
-                
-                if (enabledCheckbox) {
-                    enabledCheckbox.checked = backupSystem.settings.enabled || false;
-                }
-                if (frequencySelect) {
-                    frequencySelect.value = backupSystem.settings.frequency || 'daily';
-                }
-                if (timeInput) {
-                    timeInput.value = backupSystem.settings.time || '02:00';
-                }
-                if (maxBackupsInput) {
-                    maxBackupsInput.value = backupSystem.settings.maxBackups || 10;
-                }
+
+                if (enabledCheckbox) enabledCheckbox.checked = backupSystem.settings.enabled || false;
+                if (frequencySelect) frequencySelect.value = backupSystem.settings.frequency || 'daily';
+                if (timeInput) timeInput.value = backupSystem.settings.time || '02:00';
+                if (maxBackupsInput) maxBackupsInput.value = backupSystem.settings.maxBackups || 10;
             }
-            
-            // تحديث إحصائيات النسخ لضمان عرض الحالة الصحيحة
+
+            // تحديث إحصائيات النسخ
             updateBackupStats();
         }
     </script>
@@ -5661,17 +5676,11 @@
             const response = await fetch('/api/v1/google-drive/connection-status');
             const result = await response.json();
             
-            if (result.success && result.status.connected && result.token) {
-                // يوجد token محفوظ ونشط
+            if (result.success && result.status && result.status.connected) {
+                // يوجد token محفوظ ونشط (Authorization Code Flow)
                 console.log('تم العثور على Google Drive token محفوظ');
-                
-                // تعيين token في gapi
-                gapi.client.setToken({
-                    access_token: result.token.access_token,
-                    token_type: result.token.token_type || 'Bearer'
-                });
-                
-                // تحديث حالة الاتصال
+
+                // تحديث حالة الاتصال مباشرة (بدون gapi)
                 googleDriveConnected = true;
                 updateGoogleDriveConnectionStatus(true);
                 
@@ -5802,8 +5811,8 @@
             maybeEnableButtons();
             console.log('تم تحميل Google Identity Services بنجاح');
         } catch (error) {
-            console.error('خطأ في تهيئة Google Identity Services:', error);
-            showGoogleDriveNotification('خطأ في تهيئة خدمات Google. يرجى إعادة تحميل الصفحة.', 'error');
+            // GIS غير مطلوب - نستخدم Authorization Code Flow عبر الخادم
+            console.warn('تحذير: لم يتم تهيئة GIS (غير مطلوب):', error.message);
         }
     }
 
@@ -5833,130 +5842,77 @@
 
     /**
      * التعامل مع تسجيل الدخول إلى Google Drive
+     * يستخدم Authorization Code Flow عبر الخادم (يعطي refresh_token)
      */
     function handleAuthClick() {
-        // التحقق من جاهزية الخدمات
-        if (!gisInited || !tokenClient) {
-            showGoogleDriveNotification('خدمات Google غير جاهزة. يرجى إعادة تحميل الصفحة.', 'error');
+        console.log('🚀 فتح نافذة ربط Google Drive...');
+        showGoogleDriveNotification('جاري فتح نافذة المصادقة...', 'info');
+
+        const popup = window.open(
+            '/api/v1/google-drive/start-oauth',
+            'googleOAuth',
+            'width=520,height=620,left=' + Math.round((screen.width - 520) / 2) + ',top=' + Math.round((screen.height - 620) / 2)
+        );
+
+        if (!popup || popup.closed) {
+            showGoogleDriveNotification('تم حظر النافذة المنبثقة. يرجى السماح بها في المتصفح.', 'error');
             return;
         }
-        
-        tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) {
-                console.error('خطأ في المصادقة:', resp.error);
-                let errorMessage = 'فشل في تسجيل الدخول إلى Google Drive';
-                
-                // معالجة أنواع مختلفة من الأخطاء
-                if (resp.error === 'popup_closed_by_user') {
-                    errorMessage = 'تم إلغاء تسجيل الدخول من قبل المستخدم';
-                } else if (resp.error === 'access_denied') {
-                    errorMessage = 'تم رفض الوصول إلى Google Drive';
-                } else if (resp.error === 'popup_blocked') {
-                    errorMessage = 'تم حظر النافذة المنبثقة. يرجى السماح بالنوافذ المنبثقة';
-                }
-                
-                showGoogleDriveNotification(errorMessage, 'error');
-                return;
-            }
-            
-            try {
-                // حفظ الـ token في قاعدة البيانات
-                const tokenData = {
-                    access_token: resp.access_token,
-                    expires_in: resp.expires_in,
-                    scope: resp.scope,
-                    token_type: resp.token_type || 'Bearer'
-                };
-                
-                const saveResponse = await fetch('/api/v1/google-drive/connect', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-                    },
-                    body: JSON.stringify(tokenData)
-                });
-                
-                if (!saveResponse.ok) {
-                    throw new Error('فشل في حفظ token في قاعدة البيانات');
-                }
-                
-                const saveResult = await saveResponse.json();
-                console.log('تم حفظ Google Drive token في قاعدة البيانات:', saveResult);
-                
-                // تحديث واجهة المستخدم
-                const signoutBtn = document.getElementById('google-signout-btn');
-                const authBtn = document.getElementById('google-auth-btn');
-                
-                if (signoutBtn) signoutBtn.style.display = 'block';
-                if (authBtn) authBtn.innerText = 'تحديث الاتصال';
-                
-                // تحديث حالة الاتصال
+
+        function onMessage(event) {
+            if (event.data && event.data.type === 'google-auth-success') {
+                window.removeEventListener('message', onMessage);
                 googleDriveConnected = true;
                 updateGoogleDriveConnectionStatus(true);
-                
-                // عرض معلومات المستخدم
-                await displayUserInfo();
-                
-                showGoogleDriveNotification('تم تسجيل الدخول إلى Google Drive بنجاح وحفظ الاتصال', 'success');
-                
-            } catch (error) {
-                console.error('خطأ في حفظ Google Drive token:', error);
-                showGoogleDriveNotification('تم تسجيل الدخول لكن فشل في حفظ الاتصال', 'warning');
+                const signoutBtn = document.getElementById('google-signout-btn');
+                const authBtn = document.getElementById('google-auth-btn');
+                if (signoutBtn) signoutBtn.style.display = 'block';
+                if (authBtn) authBtn.innerText = 'تحديث الاتصال';
+                showGoogleDriveNotification('تم ربط Google Drive بنجاح ✅', 'success');
+                setTimeout(() => checkSavedGoogleDriveToken(), 1000);
+            } else if (event.data && event.data.type === 'google-auth-error') {
+                window.removeEventListener('message', onMessage);
+                showGoogleDriveNotification('فشل الربط: ' + (event.data.error || 'خطأ غير معروف'), 'error');
             }
-        };
-
-        if (gapi.client.getToken() === null) {
-            // طلب موافقة جديدة
-            tokenClient.requestAccessToken({prompt: 'consent'});
-        } else {
-            // تحديث الرمز المميز الموجود
-            tokenClient.requestAccessToken({prompt: ''});
         }
+        window.addEventListener('message', onMessage);
     }
 
     /**
      * التعامل مع تسجيل الخروج من Google Drive
      */
     function handleSignoutClick() {
-        const token = gapi.client.getToken();
-        if (token !== null) {
-            // إلغاء تفعيل token في Google
-            google.accounts.oauth2.revoke(token.access_token);
-            gapi.client.setToken('');
-            
-            // حذف token من قاعدة البيانات
-            fetch('/api/v1/google-drive/disconnect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-                },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(result => {
-                console.log('تم حذف Google Drive token من قاعدة البيانات:', result);
-            })
-            .catch(error => {
-                console.error('خطأ في حذف Google Drive token:', error);
-            });
-            
-            // تحديث واجهة المستخدم
-            const authBtn = document.getElementById('google-auth-btn');
-            const signoutBtn = document.getElementById('google-signout-btn');
-            const userInfo = document.getElementById('google-user-info');
-            
-            if (authBtn) authBtn.innerText = 'تسجيل الدخول إلى Google Drive';
-            if (signoutBtn) signoutBtn.style.display = 'none';
-            if (userInfo) userInfo.style.display = 'none';
-            
-            // تحديث حالة الاتصال
-            googleDriveConnected = false;
-            updateGoogleDriveConnectionStatus(false);
-            
-            showGoogleDriveNotification('تم تسجيل الخروج من Google Drive وحذف الاتصال', 'info');
-        }
+        // حذف token من قاعدة البيانات عبر الخادم
+        fetch('/api/v1/google-drive/disconnect', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('تم قطع اتصال Google Drive:', result);
+        })
+        .catch(error => {
+            console.error('خطأ في قطع اتصال Google Drive:', error);
+        });
+
+        // تحديث واجهة المستخدم
+        const authBtn = document.getElementById('google-auth-btn');
+        const signoutBtn = document.getElementById('google-signout-btn');
+        const userInfo = document.getElementById('google-user-info');
+
+        if (authBtn) authBtn.innerText = 'تسجيل الدخول إلى Google Drive';
+        if (signoutBtn) signoutBtn.style.display = 'none';
+        if (userInfo) userInfo.style.display = 'none';
+
+        // تحديث حالة الاتصال
+        googleDriveConnected = false;
+        updateGoogleDriveConnectionStatus(false);
+
+        showGoogleDriveNotification('تم قطع اتصال Google Drive', 'info');
     }
 
     /**
@@ -6220,33 +6176,8 @@
      * التحقق من حالة الاتصال مع Google Drive
      */
     function isGoogleDriveConnected() {
-        try {
-            // التحقق من تحميل وتهيئة gapi
-            if (typeof gapi === 'undefined' || !gapiInited) {
-                console.log('❌ gapi غير محمل أو غير مهيأ');
-                return false;
-            }
-            
-            // التحقق من وجود token صالح
-            const token = gapi.client.getToken();
-            if (!token || !token.access_token) {
-                console.log('❌ لا يوجد access token صالح');
-                return false;
-            }
-            
-            // التحقق من انتهاء صلاحية token (إذا كان متوفراً)
-            if (token.expires_at && Date.now() >= token.expires_at * 1000) {
-                console.log('❌ انتهت صلاحية access token');
-                return false;
-            }
-            
-            console.log('✅ Google Drive متصل مع token صالح');
-            return true;
-            
-        } catch (error) {
-            console.error('❌ خطأ في فحص اتصال Google Drive:', error);
-            return false;
-        }
+        // نعتمد على googleDriveConnected المحدّث من checkSavedGoogleDriveToken
+        return googleDriveConnected === true;
     }
 
     /**

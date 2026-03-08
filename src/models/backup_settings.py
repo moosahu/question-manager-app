@@ -31,6 +31,10 @@ class BackupSettings(db.Model):
     max_backups = db.Column(db.Integer, default=10, nullable=False)
     backup_destination = db.Column(db.String(20), default='local', nullable=False)  # local, google_drive
     
+    # معلومات النسخ الاحتياطي
+    last_backup_time = db.Column(db.DateTime, nullable=True)
+    backup_count = db.Column(db.Integer, default=0, nullable=False)
+
     # معلومات إضافية
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -49,6 +53,8 @@ class BackupSettings(db.Model):
             'backup_time': self.backup_time,
             'max_backups': self.max_backups,
             'backup_destination': self.backup_destination,
+            'last_backup_time': self.last_backup_time.isoformat() if self.last_backup_time else None,
+            'backup_count': self.backup_count or 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

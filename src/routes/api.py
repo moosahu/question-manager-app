@@ -2782,6 +2782,8 @@ def get_backup_status():
                 'backup_destination': backup_settings.backup_destination if backup_settings else 'local',
                 'max_backups': backup_settings.max_backups if backup_settings else 5,
                 'backup_time': backup_settings.backup_time if backup_settings else '02:00',
+                'last_backup_time': backup_settings.last_backup_time.isoformat() if backup_settings and getattr(backup_settings, 'last_backup_time', None) else None,
+                'backup_count': getattr(backup_settings, 'backup_count', 0) or 0,
                 'created_at': backup_settings.created_at.isoformat() if backup_settings and backup_settings.created_at else None,
                 'updated_at': backup_settings.updated_at.isoformat() if backup_settings and backup_settings.updated_at else None
             }
@@ -2941,6 +2943,8 @@ def load_backup_settings():
                 'backup_destination': backup_settings.backup_destination,
                 'max_backups': backup_settings.max_backups,
                 'backup_time': backup_settings.backup_time,
+                'last_backup_time': getattr(backup_settings, 'last_backup_time', None) and backup_settings.last_backup_time.isoformat(),
+                'backup_count': getattr(backup_settings, 'backup_count', 0) or 0,
                 'include_images': getattr(backup_settings, 'include_images', True),
                 'compress_backup': getattr(backup_settings, 'compress_backup', True),
                 'encrypt_backup': getattr(backup_settings, 'encrypt_backup', False),
@@ -2955,6 +2959,8 @@ def load_backup_settings():
                 'backup_destination': 'local',
                 'max_backups': 5,
                 'backup_time': '02:00',
+                'last_backup_time': None,
+                'backup_count': 0,
                 'include_images': True,
                 'compress_backup': True,
                 'encrypt_backup': False,
@@ -3007,14 +3013,36 @@ def save_backup_settings():
             backup_settings.encrypt_backup = data.get('encrypt_backup', False)
         
         backup_settings.updated_at = datetime.utcnow()
-        
+
         db.session.commit()
-        
+
+        # تشغيل/إيقاف الجدولة حسب الإعداد
+        try:
+            if backup_scheduler:
+                # تمرير Flask app للـ scheduler إذا لم يكن موجوداً
+                if not backup_scheduler.app:
+                    from flask import current_app
+                    backup_scheduler.app = current_app._get_current_object()
+                # تشغيل scheduler إذا لم يكن يعمل
+                if not backup_scheduler.is_running:
+                    backup_scheduler.start()
+                if backup_settings.auto_backup_enabled:
+                    backup_scheduler.schedule_user_backup(user_id, {
+                        'auto_backup_enabled': True,
+                        'backup_frequency': backup_settings.backup_frequency,
+                        'backup_time': backup_settings.backup_time,
+                        'backup_destination': backup_settings.backup_destination
+                    })
+                else:
+                    backup_scheduler.remove_user_backup(user_id)
+        except Exception as sch_err:
+            logger.warning(f"Could not update backup schedule: {sch_err}")
+
         return jsonify({
             'success': True,
             'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح'
         })
-        
+
     except Exception as e:
         db.session.rollback()
         logger.exception(f"Error saving backup settings: {e}")
