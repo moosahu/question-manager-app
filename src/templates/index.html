@@ -5514,6 +5514,18 @@
                 if (frequencySelect) frequencySelect.value = backupSystem.settings.frequency || 'daily';
                 if (timeInput) timeInput.value = backupSystem.settings.time || '02:00';
                 if (maxBackupsInput) maxBackupsInput.value = backupSystem.settings.maxBackups || 10;
+
+                // ✅ تطبيق وجهة النسخ على radio buttons (كان مفقوداً)
+                const destination = backupSystem.settings.destination || 'local';
+                const destinationRadios = modal.querySelectorAll('input[name="backup_destination"]');
+                destinationRadios.forEach(radio => {
+                    radio.checked = (radio.value === destination);
+                });
+
+                // تحديث عنصر "مكان الحفظ" dropdown إن وُجد
+                const destinationSelect = modal.querySelector('select[name="backup_destination"]') ||
+                                          document.getElementById('backup-destination-select');
+                if (destinationSelect) destinationSelect.value = destination;
             }
 
             // تحديث إحصائيات النسخ
