@@ -1839,7 +1839,20 @@ def create_app():
                     print(f"💾 محاولة حفظ الإعدادات: {settings_data}")
                     result = BackupSettings.update_user_settings(current_user.id, settings_data)
                     print(f"✅ تم حفظ الإعدادات بنجاح: {result}")
-                    
+
+                    # تفعيل/إلغاء الجدولة بناءً على الإعدادات المحفوظة
+                    if backup_scheduler_available and hasattr(app, 'backup_scheduler'):
+                        try:
+                            scheduler = app.backup_scheduler
+                            if settings_data.get('auto_backup_enabled'):
+                                scheduler.schedule_user_backup(current_user.id, settings_data)
+                                print(f"✅ تم جدولة النسخ للمستخدم {current_user.id}: {settings_data}")
+                            else:
+                                scheduler.remove_user_backup(current_user.id)
+                                print(f"✅ تم إلغاء جدولة النسخ للمستخدم {current_user.id}")
+                        except Exception as sched_err:
+                            print(f"⚠️ خطأ في الجدولة (تم حفظ الإعدادات): {sched_err}")
+
                     return jsonify({
                         'success': True,
                         'message': 'تم حفظ إعدادات النسخ الاحتياطي بنجاح',
