@@ -2754,21 +2754,26 @@ def get_backup_status():
             try:
                 # حالة التشغيل
                 scheduler_status['running'] = getattr(app_sched, 'is_running', False)
+                logger.info(f"[STATUS DEBUG] app_sched type={type(app_sched).__name__} id={id(app_sched)} is_running={scheduler_status['running']}")
 
                 # البحث عن مهمة المستخدم من APScheduler jobs
                 user_job = None
                 if hasattr(app_sched, 'get_scheduled_jobs'):
                     jobs = app_sched.get_scheduled_jobs()
+                    logger.info(f"[STATUS DEBUG] get_scheduled_jobs() returned {len(jobs)} jobs: {jobs}")
                     user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
                 elif hasattr(app_sched, 'get_jobs'):
                     jobs = app_sched.get_jobs()
+                    logger.info(f"[STATUS DEBUG] get_jobs() returned {len(jobs)} jobs")
                     user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
 
                 # fallback: backup_jobs dict
                 if not user_job:
                     bj = getattr(app_sched, 'backup_jobs', {})
+                    logger.info(f"[STATUS DEBUG] backup_jobs dict={bj}, looking for user_id={user_id} (type={type(user_id).__name__})")
                     user_job = bj.get(user_id) or bj.get(str(user_id))
 
+                logger.info(f"[STATUS DEBUG] user_job={user_job}")
                 if user_job:
                     scheduler_status['user_scheduled'] = True
                     scheduler_status['next_backup'] = user_job.get('next_run') or user_job.get('next_run_time')
