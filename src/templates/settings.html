@@ -923,6 +923,9 @@ function connectToGoogleDrive() {
     console.log('🚀 محاولة ربط Google Drive عبر Authorization Code Flow...');
     showNotification('جاري فتح نافذة المصادقة...', 'info');
 
+    // مسح أي نتيجة قديمة
+    try { localStorage.removeItem('google_auth_result'); } catch(e) {}
+
     const popup = window.open(
         '/api/v1/google-drive/start-oauth',
         'googleOAuth',
@@ -934,17 +937,43 @@ function connectToGoogleDrive() {
         return;
     }
 
-    function onMessage(event) {
-        if (event.data && event.data.type === 'google-auth-success') {
-            window.removeEventListener('message', onMessage);
+    function handleAuthResult(result) {
+        cleanup();
+        if (result.type === 'google-auth-success') {
             showNotification('تم ربط Google Drive بنجاح ✅', 'success');
-            setTimeout(() => checkGoogleDriveConnection(), 1000);
-        } else if (event.data && event.data.type === 'google-auth-error') {
-            window.removeEventListener('message', onMessage);
-            showNotification('فشل الربط: ' + (event.data.error || 'خطأ غير معروف'), 'error');
+            googleDriveConnected = true;
+            updateGoogleDriveUI();
+            setTimeout(() => checkGoogleDriveConnectionStatus(), 1000);
+        } else {
+            showNotification('فشل الربط: ' + (result.error || result.message || 'خطأ غير معروف'), 'error');
         }
     }
+
+    function cleanup() {
+        window.removeEventListener('message', onMessage);
+        window.removeEventListener('storage', onStorage);
+        try { localStorage.removeItem('google_auth_result'); } catch(e) {}
+    }
+
+    function onMessage(event) {
+        if (event.data && (event.data.type === 'google-auth-success' || event.data.type === 'google-auth-error')) {
+            handleAuthResult(event.data);
+        }
+    }
+
+    function onStorage(event) {
+        if (event.key === 'google_auth_result' && event.newValue) {
+            try {
+                const result = JSON.parse(event.newValue);
+                if (result.type === 'google-auth-success' || result.type === 'google-auth-error') {
+                    handleAuthResult(result);
+                }
+            } catch(e) {}
+        }
+    }
+
     window.addEventListener('message', onMessage);
+    window.addEventListener('storage', onStorage);
 }
 
 // ===== دالة معالجة الاتصال =====

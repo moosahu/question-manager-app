@@ -1884,20 +1884,9 @@ class BackupMonitor {
     }
     
     handleDestinationChange(destination) {
-        const googleDriveWarning = document.getElementById('google-drive-warning');
-        
-        if (destination === 'google_drive') {
-            // التحقق من حالة الاتصال بـ Google Drive
-            this.checkGoogleDriveConnection().then(() => {
-                if (!this.googleDriveConnected) {
-                    this.showNotification('يجب ربط Google Drive أولاً لاستخدام هذه الوجهة', 'warning');
-                    // إعادة تعيين الخيار إلى محلي
-                    const destinationSelect = document.getElementById('backup-destination');
-                    if (destinationSelect) {
-                        destinationSelect.value = 'local';
-                    }
-                }
-            });
+        if (destination === 'google_drive' && !this.googleDriveConnected) {
+            // فقط تحذير - لا نعيد للمحلي تلقائياً
+            this.showNotification('تنبيه: يجب ربط Google Drive أولاً لتفعيل هذه الوجهة', 'warning');
         }
     }
     

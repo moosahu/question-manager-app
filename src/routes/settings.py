@@ -668,34 +668,33 @@ def google_oauth_callback():
             print(f"✅ تم ربط Google Drive بنجاح للمستخدم {user_id}")
             return """
             <script>
-                window.opener.postMessage({
-                    type: 'google-auth-success',
-                    message: 'تم ربط Google Drive بنجاح'
-                }, '*');
-                window.close();
+                var r = {type: 'google-auth-success', message: 'تم ربط Google Drive بنجاح'};
+                try { localStorage.setItem('google_auth_result', JSON.stringify(r)); } catch(e) {}
+                try { if (window.opener && !window.opener.closed) window.opener.postMessage(r, '*'); } catch(e) {}
+                setTimeout(() => window.close(), 800);
             </script>
             """
         else:
             print(f"❌ فشل في ربط Google Drive للمستخدم {user_id}")
             return """
             <script>
-                window.opener.postMessage({
-                    type: 'google-auth-error',
-                    error: 'فشل في ربط Google Drive'
-                }, '*');
+                var r = {type: 'google-auth-error', error: 'فشل في ربط Google Drive'};
+                try { localStorage.setItem('google_auth_result', JSON.stringify(r)); } catch(e) {}
+                try { if (window.opener && !window.opener.closed) window.opener.postMessage(r, '*'); } catch(e) {}
+                setTimeout(() => window.close(), 800);
                 window.close();
             </script>
             """
             
     except Exception as e:
         print(f"❌ خطأ في معالجة OAuth callback: {str(e)}")
+        safe_e = str(e).replace("'", "\\'")
         return f"""
         <script>
-            window.opener.postMessage({{
-                type: 'google-auth-error',
-                error: 'خطأ في النظام: {str(e)}'
-            }}, '*');
-            window.close();
+            var r = {{type: 'google-auth-error', error: 'خطأ في النظام: {safe_e}'}};
+            try {{ localStorage.setItem('google_auth_result', JSON.stringify(r)); }} catch(ex) {{}}
+            try {{ if (window.opener && !window.opener.closed) window.opener.postMessage(r, '*'); }} catch(ex) {{}}
+            setTimeout(() => window.close(), 800);
         </script>
         """
 

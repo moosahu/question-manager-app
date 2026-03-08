@@ -2741,18 +2741,16 @@ def create_app():
                 </head>
                 <body>
                     <script>
+                        var result = {type: 'google-auth-success', message: 'تم ربط Google Drive بنجاح'};
+                        // الطريقة الأولى: localStorage (تعمل حتى مع COOP)
+                        try { localStorage.setItem('google_auth_result', JSON.stringify(result)); } catch(e) {}
+                        // الطريقة الثانية: postMessage (احتياطي)
                         try {
                             if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage({
-                                    type: 'google-auth-success',
-                                    message: 'تم ربط Google Drive بنجاح'
-                                }, '*');
+                                window.opener.postMessage(result, '*');
                             }
-                        } catch (e) {
-                            console.error('خطأ في إرسال الرسالة:', e);
-                        } finally {
-                            setTimeout(() => window.close(), 1000);
-                        }
+                        } catch (e) {}
+                        setTimeout(() => window.close(), 800);
                     </script>
                     <div style="text-align: center; padding: 50px; font-family: Arial;">
                         <h2 style="color: green;">✅ تم ربط Google Drive بنجاح!</h2>
@@ -2769,25 +2767,10 @@ def create_app():
                 <head><title>فشل الربط</title><meta charset="utf-8"></head>
                 <body>
                     <script>
-                        try {{
-                            if (window.opener && !window.opener.closed) {{
-                                window.opener.postMessage({{
-                                    type: 'google-auth-error',
-                                    error: 'callback_processing_failed',
-                                    message: '{safe_error_msg}'
-                                }}, '*');
-                            }} else {{
-                                localStorage.setItem('google_auth_result', JSON.stringify({{
-                                    type: 'google-auth-error',
-                                    error: 'callback_processing_failed',
-                                    message: '{safe_error_msg}'
-                                }}));
-                            }}
-                        }} catch (e) {{
-                            console.error('خطأ في إرسال الرسالة:', e);
-                        }} finally {{
-                            setTimeout(() => window.close(), 500);
-                        }}
+                        var result = {{type: 'google-auth-error', error: 'callback_processing_failed', message: '{safe_error_msg}'}};
+                        try {{ localStorage.setItem('google_auth_result', JSON.stringify(result)); }} catch(e) {{}}
+                        try {{ if (window.opener && !window.opener.closed) window.opener.postMessage(result, '*'); }} catch(e) {{}}
+                        setTimeout(() => window.close(), 800);
                     </script>
                     <div style="text-align:center;padding:50px;font-family:Arial;">
                         <h2 style="color:red;">❌ فشل الربط</h2>
@@ -2808,25 +2791,10 @@ def create_app():
             <head><title>خطأ</title><meta charset="utf-8"></head>
             <body>
                 <script>
-                    try {{
-                        if (window.opener && !window.opener.closed) {{
-                            window.opener.postMessage({{
-                                type: 'google-auth-error',
-                                error: 'server_error',
-                                message: 'خطأ في الخادم: {safe_err}'
-                            }}, '*');
-                        }} else {{
-                            localStorage.setItem('google_auth_result', JSON.stringify({{
-                                type: 'google-auth-error',
-                                error: 'server_error',
-                                message: 'خطأ في الخادم: {safe_err}'
-                            }}));
-                        }}
-                    }} catch (postErr) {{
-                        console.error('خطأ في إرسال الرسالة:', postErr);
-                    }} finally {{
-                        setTimeout(() => window.close(), 500);
-                    }}
+                    var result = {{type: 'google-auth-error', error: 'server_error', message: 'خطأ في الخادم: {safe_err}'}};
+                    try {{ localStorage.setItem('google_auth_result', JSON.stringify(result)); }} catch(e) {{}}
+                    try {{ if (window.opener && !window.opener.closed) window.opener.postMessage(result, '*'); }} catch(e) {{}}
+                    setTimeout(() => window.close(), 800);
                 </script>
             </body>
             </html>

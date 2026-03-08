@@ -5848,6 +5848,9 @@
         console.log('🚀 فتح نافذة ربط Google Drive...');
         showGoogleDriveNotification('جاري فتح نافذة المصادقة...', 'info');
 
+        // مسح أي نتيجة قديمة من localStorage
+        try { localStorage.removeItem('google_auth_result'); } catch(e) {}
+
         const popup = window.open(
             '/api/v1/google-drive/start-oauth',
             'googleOAuth',
@@ -5859,9 +5862,9 @@
             return;
         }
 
-        function onMessage(event) {
-            if (event.data && event.data.type === 'google-auth-success') {
-                window.removeEventListener('message', onMessage);
+        function handleAuthResult(result) {
+            cleanup();
+            if (result.type === 'google-auth-success') {
                 googleDriveConnected = true;
                 updateGoogleDriveConnectionStatus(true);
                 const signoutBtn = document.getElementById('google-signout-btn');
@@ -5870,12 +5873,38 @@
                 if (authBtn) authBtn.innerText = 'تحديث الاتصال';
                 showGoogleDriveNotification('تم ربط Google Drive بنجاح ✅', 'success');
                 setTimeout(() => checkSavedGoogleDriveToken(), 1000);
-            } else if (event.data && event.data.type === 'google-auth-error') {
-                window.removeEventListener('message', onMessage);
-                showGoogleDriveNotification('فشل الربط: ' + (event.data.error || 'خطأ غير معروف'), 'error');
+            } else {
+                showGoogleDriveNotification('فشل الربط: ' + (result.error || result.message || 'خطأ غير معروف'), 'error');
             }
         }
+
+        function cleanup() {
+            window.removeEventListener('message', onMessage);
+            window.removeEventListener('storage', onStorage);
+            try { localStorage.removeItem('google_auth_result'); } catch(e) {}
+        }
+
+        // الطريقة 1: postMessage (تعمل بدون COOP)
+        function onMessage(event) {
+            if (event.data && (event.data.type === 'google-auth-success' || event.data.type === 'google-auth-error')) {
+                handleAuthResult(event.data);
+            }
+        }
+
+        // الطريقة 2: localStorage storage event (تعمل مع COOP)
+        function onStorage(event) {
+            if (event.key === 'google_auth_result' && event.newValue) {
+                try {
+                    const result = JSON.parse(event.newValue);
+                    if (result.type === 'google-auth-success' || result.type === 'google-auth-error') {
+                        handleAuthResult(result);
+                    }
+                } catch(e) {}
+            }
+        }
+
         window.addEventListener('message', onMessage);
+        window.addEventListener('storage', onStorage);
     }
 
     /**
