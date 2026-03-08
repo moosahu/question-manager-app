@@ -439,72 +439,6 @@ class GoogleDriveManager:
             logger.error(f"Error generating authorization URL for user {user_id}: {e}")
             return None
     
-    def handle_oauth_callback(self, user_id: int, authorization_code: str) -> bool:
-        """معالجة callback OAuth"""
-        try:
-            if not GOOGLE_APIS_AVAILABLE:
-                logger.info(f"Mock OAuth callback for user {user_id}")
-                # محاكاة حفظ token ناجح
-                mock_token_data = {
-                    'access_token': f'mock_access_token_{user_id}',
-                    'refresh_token': f'mock_refresh_token_{user_id}',
-                    'expires_in': 3600,
-                    'client_id': 'mock_client_id',
-                    'client_secret': 'mock_client_secret',
-                    'scopes': GOOGLE_OAUTH_CONFIG['scopes']
-                }
-                return GoogleDriveToken.create_or_update_token(user_id, mock_token_data) is not None
-            
-            if not GOOGLE_OAUTH_CONFIG['client_id'] or not GOOGLE_OAUTH_CONFIG['client_secret']:
-                logger.error("Google OAuth credentials not configured")
-                return False
-            
-            # إنشاء Flow للتفويض
-            flow = Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": GOOGLE_OAUTH_CONFIG['client_id'],
-                        "client_secret": GOOGLE_OAUTH_CONFIG['client_secret'],
-                        "auth_uri": GOOGLE_OAUTH_CONFIG['auth_uri'],
-                        "token_uri": GOOGLE_OAUTH_CONFIG['token_uri'],
-                        "redirect_uris": [GOOGLE_OAUTH_CONFIG['redirect_uri']]
-                    }
-                },
-                scopes=GOOGLE_OAUTH_CONFIG['scopes']
-            )
-            
-            flow.redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
-            
-            # تبديل authorization code بـ access token
-            flow.fetch_token(code=authorization_code)
-            
-            # حفظ credentials في قاعدة البيانات
-            credentials = flow.credentials
-            token_data = {
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token,
-                'expires_in': 3600,  # افتراضي
-                'client_id': GOOGLE_OAUTH_CONFIG['client_id'],
-                'client_secret': GOOGLE_OAUTH_CONFIG['client_secret'],
-                'scopes': GOOGLE_OAUTH_CONFIG['scopes']
-            }
-            
-            if credentials.expiry:
-                token_data['expiry'] = credentials.expiry
-            
-            result = GoogleDriveToken.create_or_update_token(user_id, token_data)
-            
-            if result:
-                logger.info(f"OAuth callback processed successfully for user {user_id}")
-                return True
-            else:
-                logger.error(f"Failed to save token for user {user_id}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error processing OAuth callback for user {user_id}: {e}")
-            return False
-    
     def disconnect_user(self, user_id: int) -> bool:
         """قطع اتصال المستخدم من Google Drive"""
         try:
@@ -589,7 +523,6 @@ class GoogleDriveManager:
         try:
             if not GOOGLE_APIS_AVAILABLE:
                 logger.info(f"Mock OAuth callback for user {user_id}")
-                # محاكاة نجح التفويض
                 mock_token_data = {
                     'access_token': f'mock_access_token_{user_id}',
                     'refresh_token': f'mock_refresh_token_{user_id}',
@@ -599,42 +532,54 @@ class GoogleDriveManager:
                     'scopes': json.dumps(self.scopes),
                     'expiry': datetime.utcnow() + timedelta(hours=1)
                 }
-                
                 GoogleDriveToken.create_or_update_token(user_id, mock_token_data)
                 return True
-            
+
+            if not self.credentials_available:
+                logger.error("Google OAuth credentials not configured - cannot process callback")
+                return False
+
+            # إنشاء Flow بدون state (state validation تمت في بداية OAuth)
             flow = Flow.from_client_config(
                 self.client_config,
-                scopes=self.scopes,
-                state=str(user_id)
+                scopes=self.scopes
             )
-            
             flow.redirect_uri = self.client_config["web"]["redirect_uris"][0]
+
+            logger.info(f"Exchanging authorization code for tokens for user {user_id}...")
             flow.fetch_token(code=authorization_code)
-            
+
             credentials = flow.credentials
-            
-            # حفظ الرمز المميز
+            logger.info(f"Tokens received - has refresh_token: {bool(credentials.refresh_token)}")
+
             token_data = {
                 'access_token': credentials.token,
                 'refresh_token': credentials.refresh_token,
                 'token_uri': credentials.token_uri,
                 'client_id': credentials.client_id,
                 'client_secret': credentials.client_secret,
-                'scopes': json.dumps(credentials.scopes),
+                'scopes': json.dumps(list(credentials.scopes)) if credentials.scopes else json.dumps(self.scopes),
                 'expiry': credentials.expiry
             }
-            
-            GoogleDriveToken.create_or_update_token(user_id, token_data)
-            
+
+            result = GoogleDriveToken.create_or_update_token(user_id, token_data)
+            if not result:
+                logger.error(f"Failed to save token to DB for user {user_id}")
+                return False
+
             # إنشاء مجلد النسخ الاحتياطي
-            self._create_backup_folder(user_id)
-            
+            try:
+                self._create_backup_folder(user_id)
+            except Exception as folder_err:
+                logger.warning(f"Could not create backup folder (non-fatal): {folder_err}")
+
             logger.info(f"OAuth callback handled successfully for user {user_id}")
             return True
-            
+
         except Exception as e:
-            logger.error(f"Error handling OAuth callback: {e}")
+            import traceback
+            logger.error(f"Error handling OAuth callback for user {user_id}: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def disconnect_user(self, user_id: int) -> bool:

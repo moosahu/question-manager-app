@@ -2665,14 +2665,27 @@ def create_app():
             if not user_id:
                 print('❌ لا يمكن تحديد user_id')
                 return """
-                <script>
-                    window.opener.postMessage({
-                        type: 'google-auth-error',
-                        error: 'no_user_id',
-                        message: 'لا يمكن تحديد المستخدم. يرجى تسجيل الدخول أولاً'
-                    }, '*');
-                    window.close();
-                </script>
+                <!DOCTYPE html>
+                <html>
+                <head><title>خطأ</title><meta charset="utf-8"></head>
+                <body>
+                    <script>
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({
+                                    type: 'google-auth-error',
+                                    error: 'no_user_id',
+                                    message: 'لا يمكن تحديد المستخدم. يرجى تسجيل الدخول أولاً'
+                                }, '*');
+                            }
+                        } catch (e) {
+                            console.error('خطأ:', e);
+                        } finally {
+                            setTimeout(() => window.close(), 500);
+                        }
+                    </script>
+                </body>
+                </html>
                 """
             
             # معالجة authorization code وحفظ token
@@ -2749,30 +2762,74 @@ def create_app():
                 </html>
                 """
             else:
+                safe_error_msg = (error_message or "فشل في معالجة callback").replace("'", "\\'")
                 return f"""
-                <script>
-                    window.opener.postMessage({{
-                        type: 'google-auth-error',
-                        error: 'callback_processing_failed',
-                        message: '{error_message or "فشل في معالجة callback"}'
-                    }}, '*');
-                    window.close();
-                </script>
+                <!DOCTYPE html>
+                <html>
+                <head><title>فشل الربط</title><meta charset="utf-8"></head>
+                <body>
+                    <script>
+                        try {{
+                            if (window.opener && !window.opener.closed) {{
+                                window.opener.postMessage({{
+                                    type: 'google-auth-error',
+                                    error: 'callback_processing_failed',
+                                    message: '{safe_error_msg}'
+                                }}, '*');
+                            }} else {{
+                                localStorage.setItem('google_auth_result', JSON.stringify({{
+                                    type: 'google-auth-error',
+                                    error: 'callback_processing_failed',
+                                    message: '{safe_error_msg}'
+                                }}));
+                            }}
+                        }} catch (e) {{
+                            console.error('خطأ في إرسال الرسالة:', e);
+                        }} finally {{
+                            setTimeout(() => window.close(), 500);
+                        }}
+                    </script>
+                    <div style="text-align:center;padding:50px;font-family:Arial;">
+                        <h2 style="color:red;">❌ فشل الربط</h2>
+                        <p>{safe_error_msg}</p>
+                    </div>
+                </body>
+                </html>
                 """
-                
+
         except Exception as e:
             print(f'❌ خطأ عام في Google OAuth callback: {e}')
             import traceback
             traceback.print_exc()
+            safe_err = str(e).replace("'", "\\'")
             return f"""
-            <script>
-                window.opener.postMessage({{
-                    type: 'google-auth-error',
-                    error: 'server_error',
-                    message: 'خطأ في الخادم: {str(e)}'
-                }}, '*');
-                window.close();
-            </script>
+            <!DOCTYPE html>
+            <html>
+            <head><title>خطأ</title><meta charset="utf-8"></head>
+            <body>
+                <script>
+                    try {{
+                        if (window.opener && !window.opener.closed) {{
+                            window.opener.postMessage({{
+                                type: 'google-auth-error',
+                                error: 'server_error',
+                                message: 'خطأ في الخادم: {safe_err}'
+                            }}, '*');
+                        }} else {{
+                            localStorage.setItem('google_auth_result', JSON.stringify({{
+                                type: 'google-auth-error',
+                                error: 'server_error',
+                                message: 'خطأ في الخادم: {safe_err}'
+                            }}));
+                        }}
+                    }} catch (postErr) {{
+                        console.error('خطأ في إرسال الرسالة:', postErr);
+                    }} finally {{
+                        setTimeout(() => window.close(), 500);
+                    }}
+                </script>
+            </body>
+            </html>
             """
 
 
