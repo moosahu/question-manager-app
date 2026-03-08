@@ -129,11 +129,31 @@ def perform_backup_for_user(user_id, force=False):
             update_backup_settings(settings, result)
         
         logger.info(f"انتهى النسخ الاحتياطي للمستخدم {user_id}: {result.get('success', False)}")
+
+        # حفظ السجل في قاعدة البيانات
+        try:
+            try:
+                from src.models.backup_log import BackupLog
+            except ImportError:
+                from models.backup_log import BackupLog
+            BackupLog.log(user_id, result)
+        except Exception as log_err:
+            logger.warning(f"لم يتم حفظ سجل النسخ: {log_err}")
+
         return result
-        
+
     except Exception as e:
         logger.error(f"خطأ في النسخ الاحتياطي للمستخدم {user_id}: {e}")
-        return {"success": False, "error": str(e)}
+        error_result = {"success": False, "error": str(e)}
+        try:
+            try:
+                from src.models.backup_log import BackupLog
+            except ImportError:
+                from models.backup_log import BackupLog
+            BackupLog.log(user_id, error_result)
+        except Exception:
+            pass
+        return error_result
 
 def collect_backup_data(user_id, settings):
     """

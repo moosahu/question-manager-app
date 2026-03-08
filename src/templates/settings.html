@@ -1858,6 +1858,27 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                 </div>
                 
+                <!-- سجل النسخ الاحتياطي -->
+                <div class="backup-section">
+                    <h4><i class="fas fa-clipboard-list"></i> سجل النسخ الاحتياطي</h4>
+                    <div id="backup-logs-container">
+                        <table id="backup-logs-table" style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                            <thead>
+                                <tr style="background:#e9ecef; text-align:right;">
+                                    <th style="padding:8px 10px;">الوقت</th>
+                                    <th style="padding:8px 10px;">الحالة</th>
+                                    <th style="padding:8px 10px;">الوجهة</th>
+                                    <th style="padding:8px 10px;">الحجم</th>
+                                    <th style="padding:8px 10px;">ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backup-logs-body">
+                                <tr><td colspan="5" style="padding:10px; text-align:center; color:#888;">جاري التحميل...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- إعدادات النسخ الاحتياطي المحسنة -->
                 <div class="backup-section">
                     <h4><i class="fas fa-cogs"></i> إعدادات النسخ الاحتياطي</h4>
@@ -2557,6 +2578,52 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ===== سجل النسخ الاحتياطي =====
+async function loadBackupLogs() {
+    const tbody = document.getElementById('backup-logs-body');
+    if (!tbody) return;
+    try {
+        const res = await fetch('/api/v1/backup/logs?limit=20');
+        const json = await res.json();
+        if (!json.success || !json.data || json.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; text-align:center; color:#888;">لا توجد سجلات بعد</td></tr>';
+            return;
+        }
+        const destLabel = { google_drive: 'Google Drive', local: 'محلي' };
+        tbody.innerHTML = json.data.map(log => {
+            const dt = log.created_at ? new Date(log.created_at).toLocaleString('ar-SA') : '-';
+            const statusBadge = log.status === 'success'
+                ? '<span style="color:#28a745; font-weight:bold;">✔ نجاح</span>'
+                : '<span style="color:#dc3545; font-weight:bold;">✘ فشل</span>';
+            const dest = destLabel[log.destination] || log.destination || '-';
+            const size = log.file_size ? (log.file_size / 1024).toFixed(1) + ' KB' : '-';
+            const note = log.status === 'success'
+                ? (log.questions_count != null ? `${log.questions_count} سؤال` : '-')
+                : (log.error_msg || '-');
+            return `<tr style="border-bottom:1px solid #dee2e6;">
+                <td style="padding:7px 10px; white-space:nowrap;">${dt}</td>
+                <td style="padding:7px 10px;">${statusBadge}</td>
+                <td style="padding:7px 10px;">${dest}</td>
+                <td style="padding:7px 10px;">${size}</td>
+                <td style="padding:7px 10px; color:#555;">${note}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; text-align:center; color:#dc3545;">تعذّر تحميل السجلات</td></tr>';
+    }
+}
+
+// تحميل السجل عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    loadBackupLogs();
+    // إعادة تحميل بعد كل نسخة تجريبية
+    const testBtn = document.getElementById('test-backup-btn');
+    if (testBtn) {
+        testBtn.addEventListener('click', function() {
+            setTimeout(loadBackupLogs, 5000);
+        });
+    }
+});
 // ===== نهاية دوال النسخ الاحتياطي =====
 </script>
 

@@ -29,6 +29,7 @@ try:
     from src.models.question import Question, Option
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.backup_settings import BackupSettings
+    from src.models.backup_log import BackupLog
     from src.models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
     # محاولة استيراد نموذج Activity
     try:
@@ -46,6 +47,7 @@ except ImportError:  # pragma: no cover
         from models.question import Question, Option
         from models.curriculum import Lesson, Unit, Course
         from models.backup_settings import BackupSettings
+        from models.backup_log import BackupLog
         from models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
         # محاولة استيراد نموذج Activity
         try:
@@ -2555,54 +2557,17 @@ def test_google_drive_connection():
         }), 500
 
 @api_bp.route("/backup/logs", methods=["GET"])
+@login_required
 def get_backup_logs():
-    """الحصول على سجلات النسخ الاحتياطي"""
+    """الحصول على سجل عمليات النسخ الاحتياطي من قاعدة البيانات"""
     try:
-        lines = request.args.get('lines', 100, type=int)
-        level = request.args.get('level', 'all')
-        
-        logs_file = os.path.join('logs', 'backup.log')
-        
-        if not os.path.exists(logs_file):
-            return jsonify({
-                'success': True,
-                'message': 'لا توجد سجلات متاحة',
-                'data': []
-            })
-        
-        logs = []
-        with open(logs_file, 'r', encoding='utf-8') as f:
-            all_lines = f.readlines()
-            recent_lines = all_lines[-lines:] if lines > 0 else all_lines
-            
-            for line in recent_lines:
-                line = line.strip()
-                if line:
-                    # تحليل مستوى السجل
-                    log_level = 'INFO'
-                    if 'ERROR' in line:
-                        log_level = 'ERROR'
-                    elif 'WARNING' in line:
-                        log_level = 'WARNING'
-                    elif 'SUCCESS' in line:
-                        log_level = 'SUCCESS'
-                    
-                    # تصفية حسب المستوى
-                    if level != 'all' and log_level.lower() != level.lower():
-                        continue
-                    
-                    logs.append({
-                        'timestamp': datetime.now().isoformat(),
-                        'level': log_level,
-                        'message': line
-                    })
-        
+        limit = request.args.get('limit', 50, type=int)
+        logs = BackupLog.get_user_logs(current_user.id, limit=limit)
         return jsonify({
             'success': True,
             'message': f'تم الحصول على {len(logs)} سجل',
-            'data': logs
+            'data': [log.to_dict() for log in logs]
         })
-        
     except Exception as e:
         logger.error(f"خطأ في قراءة سجلات النسخ الاحتياطي: {e}")
         return jsonify({

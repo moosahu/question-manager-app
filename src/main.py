@@ -415,11 +415,13 @@ try:
     backup_settings_model_available = False
     try:
         from src.models.backup_settings import BackupSettings
+        from src.models.backup_log import BackupLog
         backup_settings_model_available = True
         logger.info("✅ Database models imported successfully")
     except ImportError:
         try:
             from models.backup_settings import BackupSettings
+            from models.backup_log import BackupLog
             backup_settings_model_available = True
         except ImportError:
             try:
