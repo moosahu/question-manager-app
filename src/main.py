@@ -2556,6 +2556,23 @@ def create_app():
         except Exception as e:
             return jsonify({'error': 'Service Worker غير متوفر'}), 404
 
+    # ===== تشخيص Google OAuth (مؤقت) =====
+    @app.route('/api/v1/google-drive/debug-config')
+    @login_required
+    def debug_google_config():
+        """تشخيص إعدادات Google OAuth"""
+        import os
+        client_id = os.environ.get('GOOGLE_CLIENT_ID', '')
+        client_secret = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+        redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'https://chem-tahsili.com/auth/google/callback')
+        return jsonify({
+            'client_id_set': bool(client_id),
+            'client_id_prefix': client_id[:20] if client_id else 'MISSING',
+            'client_secret_set': bool(client_secret),
+            'redirect_uri': redirect_uri,
+            'GOOGLE_OAUTH_CONFIG_redirect': 'https://chem-tahsili.com/auth/google/callback'
+        })
+
     # ===== بدء Google OAuth (Authorization Code Flow) =====
     @app.route('/api/v1/google-drive/start-oauth')
     @login_required

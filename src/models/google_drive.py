@@ -539,12 +539,28 @@ class GoogleDriveManager:
                 logger.error("Google OAuth credentials not configured - cannot process callback")
                 return False
 
-            # إنشاء Flow بدون state (state validation تمت في بداية OAuth)
+            # استخدام نفس redirect_uri المستخدم في get_authorization_url (GOOGLE_OAUTH_CONFIG)
+            redirect_uri = GOOGLE_OAUTH_CONFIG['redirect_uri']
+            client_id = GOOGLE_OAUTH_CONFIG['client_id'] or self.client_id
+            client_secret = GOOGLE_OAUTH_CONFIG['client_secret'] or self.client_secret
+
+            logger.info(f"Using redirect_uri: {redirect_uri}")
+            logger.info(f"Using client_id: {client_id[:20] if client_id else 'MISSING'}...")
+
+            # إنشاء Flow بدون state
             flow = Flow.from_client_config(
-                self.client_config,
+                {
+                    "web": {
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "redirect_uris": [redirect_uri]
+                    }
+                },
                 scopes=self.scopes
             )
-            flow.redirect_uri = self.client_config["web"]["redirect_uris"][0]
+            flow.redirect_uri = redirect_uri
 
             logger.info(f"Exchanging authorization code for tokens for user {user_id}...")
             flow.fetch_token(code=authorization_code)
