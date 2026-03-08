@@ -661,8 +661,12 @@ def google_oauth_callback():
                 </script>
                 """
         
+        # استرداد code_verifier من session (PKCE)
+        from flask import session as flask_session
+        code_verifier = flask_session.pop('google_oauth_code_verifier', None)
+
         # معالجة OAuth callback
-        success = google_drive_manager.handle_oauth_callback(user_id, code)
+        success = google_drive_manager.handle_oauth_callback(user_id, code, code_verifier=code_verifier)
         
         if success:
             print(f"✅ تم ربط Google Drive بنجاح للمستخدم {user_id}")

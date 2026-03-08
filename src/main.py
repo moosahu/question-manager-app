@@ -2577,17 +2577,57 @@ def create_app():
     @app.route('/api/v1/google-drive/start-oauth')
     @login_required
     def start_google_drive_oauth():
-        """يبدأ Authorization Code Flow للحصول على refresh_token دائم"""
-        try:
-            from src.models.google_drive import google_drive_manager
-        except ImportError:
-            from models.google_drive import google_drive_manager
-
-        auth_url = google_drive_manager.get_authorization_url(current_user.id)
-        if not auth_url:
-            return jsonify({'success': False, 'error': 'فشل في توليد رابط المصادقة - تحقق من GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET'}), 500
+        """يبدأ Authorization Code Flow مع PKCE للحصول على refresh_token دائم"""
+        import os, secrets, hashlib, base64
         from flask import redirect as flask_redirect
-        return flask_redirect(auth_url)
+
+        client_id = os.environ.get('GOOGLE_CLIENT_ID', '')
+        client_secret = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+        redirect_uri = 'https://chem-tahsili.com/auth/google/callback'
+        scopes = [
+            'https://www.googleapis.com/auth/drive.file',
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+        ]
+
+        if not client_id or not client_secret:
+            return jsonify({'success': False, 'error': 'Google credentials not configured'}), 500
+
+        try:
+            from google_auth_oauthlib.flow import Flow
+
+            # توليد PKCE code_verifier و code_challenge
+            code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b'=').decode()
+            code_challenge = base64.urlsafe_b64encode(
+                hashlib.sha256(code_verifier.encode()).digest()
+            ).rstrip(b'=').decode()
+
+            flow = Flow.from_client_config(
+                {"web": {"client_id": client_id, "client_secret": client_secret,
+                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                         "token_uri": "https://oauth2.googleapis.com/token",
+                         "redirect_uris": [redirect_uri]}},
+                scopes=scopes
+            )
+            flow.redirect_uri = redirect_uri
+
+            auth_url, state = flow.authorization_url(
+                access_type='offline',
+                prompt='consent',
+                state=str(current_user.id),
+                code_challenge=code_challenge,
+                code_challenge_method='S256'
+            )
+
+            # حفظ code_verifier في session لاستخدامه في token exchange
+            session['google_oauth_code_verifier'] = code_verifier
+
+            print(f'✅ Generated PKCE auth URL for user {current_user.id}')
+            return flask_redirect(auth_url)
+
+        except Exception as e:
+            print(f'❌ Error generating OAuth URL: {e}')
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     # ===== Google OAuth Callback Route =====
     @app.route('/auth/google/callback')
@@ -2718,9 +2758,13 @@ def create_app():
                     except ImportError:
                         from models.google_drive import google_drive_manager
 
+                    # استرداد code_verifier من session (PKCE)
+                    code_verifier = session.pop('google_oauth_code_verifier', None)
+                    print(f'🔑 code_verifier present: {bool(code_verifier)}')
+
                     # تبديل authorization code بـ access_token + refresh_token حقيقيين
                     try:
-                        success = google_drive_manager.handle_oauth_callback(user_id, authorization_code)
+                        success = google_drive_manager.handle_oauth_callback(user_id, authorization_code, code_verifier=code_verifier)
                     except Exception as oauth_err:
                         import traceback
                         success = False

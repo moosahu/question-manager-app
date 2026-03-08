@@ -518,8 +518,8 @@ class GoogleDriveManager:
         
         return execute_with_app_context(_get_status)
     
-    def handle_oauth_callback(self, user_id: int, authorization_code: str) -> bool:
-        """معالجة callback OAuth"""
+    def handle_oauth_callback(self, user_id: int, authorization_code: str, code_verifier: str = None) -> bool:
+        """معالجة callback OAuth مع دعم PKCE"""
         try:
             if not GOOGLE_APIS_AVAILABLE:
                 logger.info(f"Mock OAuth callback for user {user_id}")
@@ -562,8 +562,11 @@ class GoogleDriveManager:
             )
             flow.redirect_uri = redirect_uri
 
-            logger.info(f"Exchanging authorization code for tokens for user {user_id}...")
-            flow.fetch_token(code=authorization_code)
+            logger.info(f"Exchanging authorization code for tokens for user {user_id}... (PKCE: {bool(code_verifier)})")
+            if code_verifier:
+                flow.fetch_token(code=authorization_code, code_verifier=code_verifier)
+            else:
+                flow.fetch_token(code=authorization_code)
 
             credentials = flow.credentials
             logger.info(f"Tokens received - has refresh_token: {bool(credentials.refresh_token)}")
