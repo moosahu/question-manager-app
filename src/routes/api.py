@@ -2741,29 +2741,38 @@ def get_backup_status():
         except Exception as e:
             logger.warning(f"Error checking Google Drive status: {e}")
         
-        # الحصول على حالة الجدولة
+        # الحصول على حالة الجدولة - نستخدم app.backup_scheduler دائماً
+        app_sched = getattr(current_app, 'backup_scheduler', None) or backup_scheduler
         scheduler_status = {
-            'available': backup_scheduler is not None,
+            'available': app_sched is not None,
             'running': False,
             'user_scheduled': False,
             'next_backup': None
         }
-        
-        if backup_scheduler:
+
+        if app_sched:
             try:
-                if hasattr(backup_scheduler, 'get_status'):
-                    status = backup_scheduler.get_status()
-                    scheduler_status['running'] = status.get('scheduler_running', False)
-                
-                # البحث عن مهمة المستخدم
-                if hasattr(backup_scheduler, 'get_jobs'):
-                    jobs = backup_scheduler.get_jobs()
+                # حالة التشغيل
+                scheduler_status['running'] = getattr(app_sched, 'is_running', False)
+
+                # البحث عن مهمة المستخدم من APScheduler jobs
+                user_job = None
+                if hasattr(app_sched, 'get_scheduled_jobs'):
+                    jobs = app_sched.get_scheduled_jobs()
                     user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
-                    
-                    if user_job:
-                        scheduler_status['user_scheduled'] = True
-                        scheduler_status['next_backup'] = user_job.get('next_run')
-                    
+                elif hasattr(app_sched, 'get_jobs'):
+                    jobs = app_sched.get_jobs()
+                    user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
+
+                # fallback: backup_jobs dict
+                if not user_job:
+                    bj = getattr(app_sched, 'backup_jobs', {})
+                    user_job = bj.get(user_id) or bj.get(str(user_id))
+
+                if user_job:
+                    scheduler_status['user_scheduled'] = True
+                    scheduler_status['next_backup'] = user_job.get('next_run') or user_job.get('next_run_time')
+
             except Exception as e:
                 logger.warning(f"Error getting scheduler status: {e}")
         
