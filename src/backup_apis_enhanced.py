@@ -101,32 +101,47 @@ def get_backup_status():
             }
         }
         
-        # حالة الجدولة مع معالجة أخطاء محسنة
-        if SCHEDULER_AVAILABLE:
+        # حالة الجدولة - نستخدم app.backup_scheduler المباشر لتجنب مشكلة تعدد المسارات
+        app_scheduler = None
+        try:
+            app_scheduler = current_app.backup_scheduler
+        except AttributeError:
+            pass
+
+        if app_scheduler is not None:
             try:
-                scheduler_status = get_scheduler_status()
-                status['scheduler']['running'] = scheduler_status.get('is_running', False)
-                status['scheduler']['jobs_count'] = scheduler_status.get('jobs_count', 0)
-                
-                # البحث عن مهمة المستخدم الحالي
-                jobs = get_scheduled_backup_jobs()
+                status['scheduler']['running'] = getattr(app_scheduler, 'is_running', False)
+                jobs = app_scheduler.get_scheduled_jobs() if hasattr(app_scheduler, 'get_scheduled_jobs') else []
+                status['scheduler']['jobs_count'] = len(jobs)
+
+                # البحث عن مهمة المستخدم
                 user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
 
-                # fallback: البحث في backup_jobs مباشرة
+                # fallback: backup_jobs dict مباشرة
                 if not user_job:
-                    try:
-                        from src.backup_scheduler_fixed import backup_scheduler as _sched
-                    except ImportError:
-                        from backup_scheduler_fixed import backup_scheduler as _sched
-                    bj = getattr(_sched, 'backup_jobs', {})
+                    bj = getattr(app_scheduler, 'backup_jobs', {})
                     user_job = bj.get(user_id) or bj.get(str(user_id))
 
                 if user_job:
                     status['scheduler']['user_scheduled'] = True
                     status['scheduler']['next_backup'] = user_job.get('next_run') or user_job.get('next_run_time')
-                    
+
             except Exception as e:
                 logger.error(f"Error getting scheduler status: {e}")
+                status['scheduler']['error'] = str(e)
+        elif SCHEDULER_AVAILABLE:
+            # fallback إذا لم يكن app.backup_scheduler موجوداً
+            try:
+                scheduler_status = get_scheduler_status()
+                status['scheduler']['running'] = scheduler_status.get('is_running', False)
+                status['scheduler']['jobs_count'] = scheduler_status.get('jobs_count', 0)
+                jobs = get_scheduled_backup_jobs()
+                user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
+                if user_job:
+                    status['scheduler']['user_scheduled'] = True
+                    status['scheduler']['next_backup'] = user_job.get('next_run') or user_job.get('next_run_time')
+            except Exception as e:
+                logger.error(f"Error getting scheduler status (fallback): {e}")
                 status['scheduler']['error'] = str(e)
         
         # حالة Google Drive مع معالجة أخطاء محسنة لـ app context
