@@ -583,18 +583,18 @@ class BackupMonitor {
             }
         }
         
-        // تحديث وجهة النسخ الاحتياطي
-        if (this.destinationElement) {
+        // تحديث وجهة النسخ الاحتياطي - فقط للعناصر العرضية (span/div) لا لعناصر الإدخال (select)
+        if (this.destinationElement && this.destinationElement.tagName !== 'SELECT') {
             const isGoogleDriveConnected = googleDriveInfo.connected;
             const backupDestination = settingsInfo.backup_destination || 'local';
-            
+
             let destinationText = 'محلي';
             if (isGoogleDriveConnected && backupDestination === 'google_drive') {
                 destinationText = 'Google Drive';
             } else if (backupDestination === 'google_drive' && !isGoogleDriveConnected) {
                 destinationText = 'Google Drive (غير متصل)';
             }
-            
+
             this.destinationElement.textContent = destinationText;
         }
         
