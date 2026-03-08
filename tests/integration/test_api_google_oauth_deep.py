@@ -960,7 +960,11 @@ class TestStartGoogleDriveOAuth:
     def test_with_auth_redirects_to_google(self, client, db_session):
         user = _make_admin(db_session)
         _login(client, user)
-        with patch('src.models.google_drive.google_drive_manager') as mock_mgr:
+        mock_flow = MagicMock()
+        mock_flow.authorization_url.return_value = ('https://accounts.google.com/o/oauth2/auth?mock=1', 'state123')
+        with patch('src.models.google_drive.google_drive_manager') as mock_mgr, \
+             patch('google_auth_oauthlib.flow.Flow.from_client_config', return_value=mock_flow), \
+             patch.dict('os.environ', {'GOOGLE_CLIENT_ID': 'test_id', 'GOOGLE_CLIENT_SECRET': 'test_secret'}):
             mock_mgr.get_authorization_url.return_value = 'https://accounts.google.com/o/oauth2/auth?mock=1'
             r = client.get('/api/v1/google-drive/start-oauth')
         assert r.status_code in [302, 200]

@@ -114,7 +114,10 @@ def get_backup_status():
 
                 # fallback: البحث في backup_jobs مباشرة
                 if not user_job:
-                    from src.backup_scheduler_fixed import backup_scheduler as _sched
+                    try:
+                        from src.backup_scheduler_fixed import backup_scheduler as _sched
+                    except ImportError:
+                        from backup_scheduler_fixed import backup_scheduler as _sched
                     bj = getattr(_sched, 'backup_jobs', {})
                     user_job = bj.get(user_id) or bj.get(str(user_id))
 
