@@ -111,10 +111,16 @@ def get_backup_status():
                 # البحث عن مهمة المستخدم الحالي
                 jobs = get_scheduled_backup_jobs()
                 user_job = next((job for job in jobs if job.get('user_id') == user_id), None)
-                
+
+                # fallback: البحث في backup_jobs مباشرة
+                if not user_job:
+                    from src.backup_scheduler_fixed import backup_scheduler as _sched
+                    bj = getattr(_sched, 'backup_jobs', {})
+                    user_job = bj.get(user_id) or bj.get(str(user_id))
+
                 if user_job:
                     status['scheduler']['user_scheduled'] = True
-                    status['scheduler']['next_backup'] = user_job.get('next_run')
+                    status['scheduler']['next_backup'] = user_job.get('next_run') or user_job.get('next_run_time')
                     
             except Exception as e:
                 logger.error(f"Error getting scheduler status: {e}")

@@ -2080,14 +2080,24 @@ def create_app():
             try:
                 if backup_scheduler_available and hasattr(app, 'backup_scheduler'):
                     scheduler = app.backup_scheduler
+                    uid = current_user.id
+
+                    # طريقة 1: البحث في APScheduler jobs
                     jobs = scheduler.get_scheduled_jobs()
-                    user_jobs = [job for job in jobs if job.get('user_id') == current_user.id]
+                    user_jobs = [job for job in jobs if job.get('user_id') == uid]
+
+                    # طريقة 2 (fallback): البحث في backup_jobs dict مباشرة
+                    if not user_jobs and hasattr(scheduler, 'backup_jobs'):
+                        job_data = scheduler.backup_jobs.get(uid) or scheduler.backup_jobs.get(str(uid))
+                        if job_data:
+                            user_jobs = [job_data]
+
                     if user_jobs:
                         status['status']['scheduler']['user_scheduled'] = True
-                        # البحث عن موعد النسخة التالية
                         for job in user_jobs:
-                            if job.get('next_run_time'):
-                                status['status']['scheduler']['next_backup'] = job['next_run_time']
+                            next_run = job.get('next_run_time') or job.get('next_run')
+                            if next_run:
+                                status['status']['scheduler']['next_backup'] = next_run
                                 break
             except Exception as e:
                 logger.error(f"خطأ في فحص حالة الجدولة: {e}")
