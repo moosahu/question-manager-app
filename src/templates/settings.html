@@ -2486,6 +2486,10 @@ async function saveBackupSettings() {
             if (data.success) {
                 console.log('✅ تم حفظ الإعدادات بنجاح');
                 showNotification('تم حفظ إعدادات النسخ الاحتياطي بنجاح', 'success');
+                // تحديث حالة الجدولة بعد الحفظ
+                if (window.backupMonitor) {
+                    setTimeout(() => window.backupMonitor.checkBackupStatus(), 1500);
+                }
             } else {
                 console.error('❌ فشل في حفظ الإعدادات:', data.error);
                 showNotification(data.error || 'فشل في حفظ الإعدادات', 'error');

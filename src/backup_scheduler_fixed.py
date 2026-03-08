@@ -411,44 +411,41 @@ class BackupScheduler:
         """
         try:
             hour, minute = map(int, backup_time.split(':'))
-            return CronTrigger(hour=hour, minute=minute)
+            return CronTrigger(hour=hour, minute=minute, timezone='Asia/Riyadh')
         except:
-            # إعدادات افتراضية
-            return CronTrigger(hour=2, minute=0)
-    
+            return CronTrigger(hour=2, minute=0, timezone='Asia/Riyadh')
+
     def _create_weekly_trigger(self, backup_time):
         """
         إنشاء trigger للنسخ الأسبوعي
-        
+
         Args:
             backup_time: وقت النسخ (HH:MM)
-        
+
         Returns:
             CronTrigger: trigger للنسخ الأسبوعي
         """
         try:
             hour, minute = map(int, backup_time.split(':'))
-            return CronTrigger(day_of_week=0, hour=hour, minute=minute)  # الأحد
+            return CronTrigger(day_of_week=0, hour=hour, minute=minute, timezone='Asia/Riyadh')
         except:
-            # إعدادات افتراضية
-            return CronTrigger(day_of_week=0, hour=2, minute=0)
-    
+            return CronTrigger(day_of_week=0, hour=2, minute=0, timezone='Asia/Riyadh')
+
     def _create_monthly_trigger(self, backup_time):
         """
         إنشاء trigger للنسخ الشهري
-        
+
         Args:
             backup_time: وقت النسخ (HH:MM)
-        
+
         Returns:
             CronTrigger: trigger للنسخ الشهري
         """
         try:
             hour, minute = map(int, backup_time.split(':'))
-            return CronTrigger(day=1, hour=hour, minute=minute)  # أول يوم في الشهر
+            return CronTrigger(day=1, hour=hour, minute=minute, timezone='Asia/Riyadh')
         except:
-            # إعدادات افتراضية
-            return CronTrigger(day=1, hour=2, minute=0)
+            return CronTrigger(day=1, hour=2, minute=0, timezone='Asia/Riyadh')
     
     def _job_executed_listener(self, event):
         """
