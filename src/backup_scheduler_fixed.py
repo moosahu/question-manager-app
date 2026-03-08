@@ -21,7 +21,7 @@ try:
     from src.extensions import db
     from src.models.backup_settings import BackupSettings
     from src.models.user import User
-    from backup_logic import perform_backup_for_user
+    from src.backup_logic import perform_backup_for_user
 except ImportError:
     try:
         from extensions import db
@@ -32,7 +32,6 @@ except ImportError:
         try:
             from backup_settings import BackupSettings
             from backup_logic import perform_backup_for_user
-            # إذا فشل استيراد db، سنحاول استيراده لاحقاً
             db = None
         except ImportError:
             logger.error("فشل في استيراد النماذج المطلوبة")
