@@ -128,6 +128,9 @@ def perform_backup_for_user(user_id, force=False):
         if result.get("success"):
             update_backup_settings(settings, result)
         
+        # إضافة عدد الأسئلة للنتيجة
+        result["questions_count"] = len(backup_data.get("questions", []))
+
         logger.info(f"انتهى النسخ الاحتياطي للمستخدم {user_id}: {result.get('success', False)}")
 
         # حفظ السجل في قاعدة البيانات
@@ -158,11 +161,11 @@ def perform_backup_for_user(user_id, force=False):
 def collect_backup_data(user_id, settings):
     """
     جمع البيانات المطلوبة للنسخ الاحتياطي
-    
+
     Args:
         user_id: معرف المستخدم
         settings: إعدادات النسخ الاحتياطي
-    
+
     Returns:
         dict: البيانات المجمعة
     """
@@ -171,14 +174,21 @@ def collect_backup_data(user_id, settings):
             "user_id": user_id,
             "backup_time": datetime.utcnow().isoformat(),
             "backup_type": "automatic",
-            "version": "1.0"
+            "version": "2.0"
         },
         "user_settings": {},
         "questions": [],
         "curriculum": {},
+        "students": [],
+        "teachers": [],
+        "lesson_plans": [],
+        "lesson_summaries": [],
+        "concept_maps": [],
+        "student_results": [],
+        "student_lesson_progress": [],
         "statistics": {}
     }
-    
+
     try:
         # جمع إعدادات المستخدم
         if User:
@@ -190,7 +200,7 @@ def collect_backup_data(user_id, settings):
                     "is_admin": getattr(user, 'is_admin', False),
                     "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None
                 }
-        
+
         # جمع الأسئلة (إذا كانت متوفرة)
         if Question:
             questions = Question.query.all()
@@ -203,7 +213,7 @@ def collect_backup_data(user_id, settings):
                     "lesson_id": question.lesson_id,
                     "options": []
                 }
-                
+
                 # جمع خيارات السؤال
                 if hasattr(question, 'options') and question.options:
                     for option in question.options:
@@ -214,14 +224,14 @@ def collect_backup_data(user_id, settings):
                             "image_url": getattr(option, 'image_url', None)
                         }
                         question_data["options"].append(option_data)
-                
+
                 backup_data["questions"].append(question_data)
-        
+
         # جمع المناهج (إذا كانت متوفرة)
         if Course:
             courses = Course.query.all()
             backup_data["curriculum"]["courses"] = []
-            
+
             for course in courses:
                 course_data = {
                     "id": course.id,
@@ -229,7 +239,7 @@ def collect_backup_data(user_id, settings):
                     "order_num": getattr(course, 'order_num', 0),
                     "units": []
                 }
-                
+
                 # جمع الوحدات
                 if Unit and hasattr(course, 'units'):
                     for unit in course.units:
@@ -239,7 +249,7 @@ def collect_backup_data(user_id, settings):
                             "order_num": getattr(unit, 'order_num', 0),
                             "lessons": []
                         }
-                        
+
                         # جمع الدروس
                         if Lesson and hasattr(unit, 'lessons'):
                             for lesson in unit.lessons:
@@ -249,29 +259,174 @@ def collect_backup_data(user_id, settings):
                                     "order_num": getattr(lesson, 'order_num', 0)
                                 }
                                 unit_data["lessons"].append(lesson_data)
-                        
+
                         course_data["units"].append(unit_data)
-                
+
                 backup_data["curriculum"]["courses"].append(course_data)
-        
-        # جمع الإحصائيات
-        backup_data["statistics"] = {
-            "total_questions": len(backup_data["questions"]),
-            "total_courses": len(backup_data["curriculum"].get("courses", [])),
-            "backup_settings": {
-                "auto_backup_enabled": settings.auto_backup_enabled,
-                "backup_frequency": settings.backup_frequency,
-                "backup_time": settings.backup_time,
-                "max_backups": settings.max_backups,
-                "backup_destination": settings.backup_destination
-            }
-        }
-        
-        logger.info(f"تم جمع البيانات للمستخدم {user_id}: {backup_data['statistics']['total_questions']} سؤال، {backup_data['statistics']['total_courses']} منهج")
-        
+
     except Exception as e:
-        logger.error(f"خطأ في جمع البيانات للمستخدم {user_id}: {e}")
-    
+        logger.error(f"خطأ في جمع البيانات الأساسية للمستخدم {user_id}: {e}")
+
+    # جمع الطلاب (بدون password_hash)
+    try:
+        from src.models.student import Student
+        students = Student.query.all()
+        for s in students:
+            backup_data["students"].append({
+                "id": s.id,
+                "name": s.name,
+                "username": s.username,
+                "email": s.email,
+                "phone": s.phone,
+                "school": s.school,
+                "grade": s.grade,
+                "is_active": s.is_active,
+                "created_at": s.created_at.isoformat() if s.created_at else None
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع بيانات الطلاب: {e}")
+
+    # جمع المعلمين (بدون password_hash)
+    try:
+        from src.models.teacher import Teacher
+        teachers = Teacher.query.all()
+        for t in teachers:
+            backup_data["teachers"].append({
+                "id": t.id,
+                "name": t.name,
+                "username": t.username,
+                "email": t.email,
+                "phone": t.phone,
+                "school": t.school,
+                "is_active": t.is_active,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع بيانات المعلمين: {e}")
+
+    # جمع تحضيرات الدروس
+    try:
+        from src.models.textbook import LessonPlan
+        plans = LessonPlan.query.all()
+        for p in plans:
+            backup_data["lesson_plans"].append({
+                "id": p.id,
+                "lesson_id": p.lesson_id,
+                "teacher_id": p.teacher_id,
+                "plan_type": p.plan_type,
+                "plan_data": p.plan_data,
+                "pdf_file_url": p.pdf_file_url,
+                "student_level": p.student_level,
+                "include_support_plan": p.include_support_plan,
+                "status": p.status,
+                "created_at": p.created_at.isoformat() if p.created_at else None
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع تحضيرات الدروس: {e}")
+
+    # جمع ملخصات الدروس
+    try:
+        from src.models.learning_content import LessonSummary
+        summaries = LessonSummary.query.all()
+        for ls in summaries:
+            backup_data["lesson_summaries"].append({
+                "id": ls.id,
+                "lesson_id": ls.lesson_id,
+                "introduction": ls.introduction,
+                "key_points": ls.key_points,
+                "examples": ls.examples,
+                "vocabulary": ls.vocabulary,
+                "estimated_reading_time": ls.estimated_reading_time
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع ملخصات الدروس: {e}")
+
+    # جمع خرائط المفاهيم
+    try:
+        from src.models.learning_content import ConceptMap
+        maps = ConceptMap.query.all()
+        for cm in maps:
+            backup_data["concept_maps"].append({
+                "id": cm.id,
+                "lesson_id": cm.lesson_id,
+                "layout_type": cm.layout_type,
+                "theme": cm.theme,
+                "animation_type": cm.animation_type,
+                "map_data": cm.map_data,
+                "settings": cm.settings
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع خرائط المفاهيم: {e}")
+
+    # جمع نتائج الطلاب
+    try:
+        from src.models.student_result import StudentResult
+        results = StudentResult.query.all()
+        for r in results:
+            backup_data["student_results"].append({
+                "id": r.id,
+                "student_id": r.student_id,
+                "quiz_type": r.quiz_type,
+                "course_id": r.course_id,
+                "unit_id": r.unit_id,
+                "lesson_id": r.lesson_id,
+                "quiz_name": r.quiz_name,
+                "total_questions": r.total_questions,
+                "correct_answers": r.correct_answers,
+                "score_percentage": r.score_percentage,
+                "created_at": r.created_at.isoformat() if r.created_at else None
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع نتائج الطلاب: {e}")
+
+    # جمع تقدم الطلاب في الدروس
+    try:
+        from src.models.learning_content import StudentLessonProgress
+        progress_records = StudentLessonProgress.query.all()
+        for pr in progress_records:
+            backup_data["student_lesson_progress"].append({
+                "id": pr.id,
+                "student_id": pr.student_id,
+                "lesson_id": pr.lesson_id,
+                "status": pr.status,
+                "summary_read": pr.summary_read,
+                "concept_map_explored": pr.concept_map_explored,
+                "completion_percentage": pr.completion_percentage,
+                "started_at": pr.started_at.isoformat() if pr.started_at else None,
+                "completed_at": pr.completed_at.isoformat() if pr.completed_at else None
+            })
+    except Exception as e:
+        logger.warning(f"تعذّر جمع تقدم الطلاب: {e}")
+
+    # جمع الإحصائيات
+    backup_data["statistics"] = {
+        "total_questions": len(backup_data["questions"]),
+        "total_courses": len(backup_data["curriculum"].get("courses", [])),
+        "total_students": len(backup_data["students"]),
+        "total_teachers": len(backup_data["teachers"]),
+        "total_lesson_plans": len(backup_data["lesson_plans"]),
+        "total_lesson_summaries": len(backup_data["lesson_summaries"]),
+        "total_concept_maps": len(backup_data["concept_maps"]),
+        "total_student_results": len(backup_data["student_results"]),
+        "total_student_progress": len(backup_data["student_lesson_progress"]),
+        "backup_settings": {
+            "auto_backup_enabled": settings.auto_backup_enabled,
+            "backup_frequency": settings.backup_frequency,
+            "backup_time": settings.backup_time,
+            "max_backups": settings.max_backups,
+            "backup_destination": settings.backup_destination
+        }
+    }
+
+    logger.info(
+        f"تم جمع البيانات للمستخدم {user_id}: "
+        f"{backup_data['statistics']['total_questions']} سؤال، "
+        f"{backup_data['statistics']['total_courses']} منهج، "
+        f"{backup_data['statistics']['total_students']} طالب، "
+        f"{backup_data['statistics']['total_teachers']} معلم، "
+        f"{backup_data['statistics']['total_lesson_plans']} تحضير"
+    )
+
     return backup_data
 
 def save_to_google_drive(user_id, backup_data, settings):

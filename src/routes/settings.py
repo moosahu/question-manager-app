@@ -976,32 +976,243 @@ def create_comprehensive_backup():
 @settings_bp.route('/api/v1/backup/restore', methods=['POST'])
 @login_required
 def restore_backup():
-    """استعادة نسخة احتياطية"""
+    """استعادة نسخة احتياطية (v1.0 و v2.0)"""
     try:
-        from src.models.backup_settings import BackupSettings
-        
         data = request.get_json()
-        backup_data = data.get('backup_data')
-        
-        if not backup_data or 'data' not in backup_data:
-            return jsonify({
-                'success': False,
-                'message': 'بيانات النسخة الاحتياطية غير صحيحة'
-            }), 400
-        
-        # استعادة إعدادات النسخ الاحتياطي
-        if 'backup_settings' in backup_data['data']:
-            backup_settings_data = backup_data['data']['backup_settings']
-            BackupSettings.update_user_settings(current_user.id, backup_settings_data)
-        
-        print(f"✅ تم استعادة النسخة الاحتياطية للمستخدم {current_user.id}")
-        
+        if not data:
+            return jsonify({'success': False, 'message': 'لا توجد بيانات'}), 400
+
+        # دعم الصيغتين: v1 (backup_data.data.questions) و v2 (backup_data مباشرة)
+        raw = data.get('backup_data', {})
+        version = raw.get('version') or raw.get('metadata', {}).get('version', '1.0')
+
+        if version.startswith('2'):
+            backup = raw
+        else:
+            # v1: كل شيء تحت 'data'
+            backup = raw.get('data', raw)
+
+        counts = {}
+
+        # استيراد النماذج
+        from src.models.curriculum import Course, Unit, Lesson
+        from src.models.question import Question
+        try:
+            from src.models.question import Option
+        except ImportError:
+            Option = None
+        from src.models.student import Student
+        from src.models.teacher import Teacher
+        from src.models.textbook import LessonPlan
+        from src.models.learning_content import LessonSummary, ConceptMap, StudentLessonProgress
+        from src.models.student_result import StudentResult
+        from werkzeug.security import generate_password_hash
+
+        # ─── 1. Curriculum ───────────────────────────────────────────────
+        courses_data = backup.get('curriculum', {}).get('courses', [])
+        counts['courses'] = counts['units'] = counts['lessons'] = 0
+        for cd in courses_data:
+            course = Course.query.get(cd['id'])
+            if not course:
+                course = Course(id=cd['id'], name=cd['name'],
+                                order_num=cd.get('order_num', 0))
+                db.session.add(course)
+                counts['courses'] += 1
+            for ud in cd.get('units', []):
+                unit = Unit.query.get(ud['id'])
+                if not unit:
+                    unit = Unit(id=ud['id'], name=ud['name'],
+                                order_num=ud.get('order_num', 0),
+                                course_id=cd['id'])
+                    db.session.add(unit)
+                    counts['units'] += 1
+                for ld in ud.get('lessons', []):
+                    lesson = Lesson.query.get(ld['id'])
+                    if not lesson:
+                        lesson = Lesson(id=ld['id'], name=ld['name'],
+                                        order_num=ld.get('order_num', 0),
+                                        unit_id=ud['id'])
+                        db.session.add(lesson)
+                        counts['lessons'] += 1
+        db.session.flush()
+
+        # ─── 2. Questions + Options ───────────────────────────────────────
+        counts['questions'] = 0
+        for qd in backup.get('questions', []):
+            existing = Question.query.get(qd['question_id'])
+            if not existing:
+                q = Question(
+                    question_id=qd['question_id'],
+                    question_text=qd.get('question_text', ''),
+                    image_url=qd.get('image_url'),
+                    explanation=qd.get('explanation'),
+                    lesson_id=qd.get('lesson_id')
+                )
+                db.session.add(q)
+                counts['questions'] += 1
+                if Option:
+                    for od in qd.get('options', []):
+                        opt = Option(
+                            option_id=od['option_id'],
+                            option_text=od.get('option_text', ''),
+                            is_correct=od.get('is_correct', False),
+                            image_url=od.get('image_url'),
+                            question_id=qd['question_id']
+                        )
+                        db.session.add(opt)
+        db.session.flush()
+
+        # ─── 3. Students ──────────────────────────────────────────────────
+        counts['students'] = 0
+        for sd in backup.get('students', []):
+            if not Student.query.filter_by(username=sd['username']).first():
+                s = Student(
+                    name=sd['name'],
+                    username=sd['username'],
+                    email=sd.get('email'),
+                    phone=sd.get('phone'),
+                    school=sd.get('school'),
+                    grade=sd.get('grade'),
+                    is_active=sd.get('is_active', True),
+                    password_hash=generate_password_hash('changeme123')
+                )
+                db.session.add(s)
+                counts['students'] += 1
+        db.session.flush()
+
+        # ─── 4. Teachers ──────────────────────────────────────────────────
+        counts['teachers'] = 0
+        for td in backup.get('teachers', []):
+            if not Teacher.query.filter_by(username=td['username']).first():
+                t = Teacher(
+                    name=td['name'],
+                    username=td['username'],
+                    email=td.get('email'),
+                    phone=td.get('phone'),
+                    school=td.get('school'),
+                    is_active=td.get('is_active', True),
+                    password_hash=generate_password_hash('changeme123')
+                )
+                db.session.add(t)
+                counts['teachers'] += 1
+        db.session.flush()
+
+        # ─── 5. LessonSummary (upsert by lesson_id) ───────────────────────
+        counts['lesson_summaries'] = 0
+        for lsd in backup.get('lesson_summaries', []):
+            ls = LessonSummary.query.filter_by(lesson_id=lsd['lesson_id']).first()
+            if ls:
+                ls.introduction = lsd.get('introduction', ls.introduction)
+                ls.key_points = lsd.get('key_points', ls.key_points)
+                ls.examples = lsd.get('examples', ls.examples)
+                ls.vocabulary = lsd.get('vocabulary', ls.vocabulary)
+                ls.estimated_reading_time = lsd.get('estimated_reading_time', ls.estimated_reading_time)
+            else:
+                ls = LessonSummary(
+                    lesson_id=lsd['lesson_id'],
+                    introduction=lsd.get('introduction', ''),
+                    key_points=lsd.get('key_points', []),
+                    examples=lsd.get('examples', []),
+                    vocabulary=lsd.get('vocabulary', {}),
+                    estimated_reading_time=lsd.get('estimated_reading_time', 5)
+                )
+                db.session.add(ls)
+                counts['lesson_summaries'] += 1
+
+        # ─── 6. ConceptMap (upsert by lesson_id) ──────────────────────────
+        counts['concept_maps'] = 0
+        for cmd in backup.get('concept_maps', []):
+            cm = ConceptMap.query.filter_by(lesson_id=cmd['lesson_id']).first()
+            if cm:
+                cm.layout_type = cmd.get('layout_type', cm.layout_type)
+                cm.theme = cmd.get('theme', cm.theme)
+                cm.animation_type = cmd.get('animation_type', cm.animation_type)
+                cm.map_data = cmd.get('map_data', cm.map_data)
+                cm.settings = cmd.get('settings', cm.settings)
+            else:
+                cm = ConceptMap(
+                    lesson_id=cmd['lesson_id'],
+                    layout_type=cmd.get('layout_type', 'radial'),
+                    theme=cmd.get('theme', 'modern'),
+                    animation_type=cmd.get('animation_type', 'fade-in'),
+                    map_data=cmd.get('map_data', {}),
+                    settings=cmd.get('settings', {})
+                )
+                db.session.add(cm)
+                counts['concept_maps'] += 1
+
+        # ─── 7. LessonPlan (skip if exists by id) ─────────────────────────
+        counts['lesson_plans'] = 0
+        for pd in backup.get('lesson_plans', []):
+            if not LessonPlan.query.get(pd['id']):
+                lp = LessonPlan(
+                    id=pd['id'],
+                    lesson_id=pd.get('lesson_id'),
+                    teacher_id=pd.get('teacher_id'),
+                    plan_type=pd.get('plan_type', 'single_lesson'),
+                    plan_data=pd.get('plan_data', {}),
+                    pdf_file_url=pd.get('pdf_file_url'),
+                    student_level=pd.get('student_level'),
+                    include_support_plan=pd.get('include_support_plan', False),
+                    status=pd.get('status', 'completed')
+                )
+                db.session.add(lp)
+                counts['lesson_plans'] += 1
+
+        # ─── 8. StudentResult (skip if exists by id) ──────────────────────
+        counts['student_results'] = 0
+        for rd in backup.get('student_results', []):
+            if not StudentResult.query.get(rd['id']):
+                sr = StudentResult(
+                    id=rd['id'],
+                    student_id=rd['student_id'],
+                    quiz_type=rd.get('quiz_type', 'lesson'),
+                    course_id=rd.get('course_id'),
+                    unit_id=rd.get('unit_id'),
+                    lesson_id=rd.get('lesson_id'),
+                    quiz_name=rd.get('quiz_name', ''),
+                    total_questions=rd.get('total_questions', 0),
+                    correct_answers=rd.get('correct_answers', 0),
+                    wrong_answers=rd.get('total_questions', 0) - rd.get('correct_answers', 0),
+                    score_percentage=rd.get('score_percentage', 0.0)
+                )
+                db.session.add(sr)
+                counts['student_results'] += 1
+
+        # ─── 9. StudentLessonProgress (upsert by student_id+lesson_id) ────
+        counts['student_progress'] = 0
+        for prd in backup.get('student_lesson_progress', []):
+            pr = StudentLessonProgress.query.filter_by(
+                student_id=prd['student_id'], lesson_id=prd['lesson_id']
+            ).first()
+            if pr:
+                pr.status = prd.get('status', pr.status)
+                pr.summary_read = prd.get('summary_read', pr.summary_read)
+                pr.concept_map_explored = prd.get('concept_map_explored', pr.concept_map_explored)
+                pr.completion_percentage = prd.get('completion_percentage', pr.completion_percentage)
+            else:
+                pr = StudentLessonProgress(
+                    student_id=prd['student_id'],
+                    lesson_id=prd['lesson_id'],
+                    status=prd.get('status', 'not_started'),
+                    summary_read=prd.get('summary_read', False),
+                    concept_map_explored=prd.get('concept_map_explored', False),
+                    completion_percentage=prd.get('completion_percentage', 0)
+                )
+                db.session.add(pr)
+                counts['student_progress'] += 1
+
+        db.session.commit()
+        print(f"✅ تم استعادة النسخة الاحتياطية للمستخدم {current_user.id}: {counts}")
+
         return jsonify({
             'success': True,
-            'message': 'تم استعادة النسخة الاحتياطية بنجاح'
+            'message': 'تم استعادة النسخة الاحتياطية بنجاح',
+            'restored': counts
         })
-        
+
     except Exception as e:
+        db.session.rollback()
         print(f"❌ خطأ في استعادة النسخة الاحتياطية: {str(e)}")
         return jsonify({
             'success': False,
