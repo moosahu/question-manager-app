@@ -584,6 +584,19 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ column migration: {_col_err}")
 
+            # ✅ إضافة أعمدة backup_type و sections_included لجدول backup_logs
+            try:
+                db.session.execute(db.text(
+                    "ALTER TABLE backup_logs ADD COLUMN IF NOT EXISTS backup_type VARCHAR(20) DEFAULT 'automatic'"
+                ))
+                db.session.execute(db.text(
+                    "ALTER TABLE backup_logs ADD COLUMN IF NOT EXISTS sections_included TEXT"
+                ))
+                db.session.commit()
+            except Exception as _col_err:
+                db.session.rollback()
+                print(f"⚠️ backup_logs column migration: {_col_err}")
+
             # ✅ إنشاء جداول الكتب والتحضير إن لم تكن موجودة
             try:
                 db.session.execute(db.text("""
