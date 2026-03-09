@@ -2841,22 +2841,48 @@ window.cancelPhoneChange = function() {
     <p style="color:#6c757d; font-size:0.85rem; margin-bottom:1rem;">
       النسخ التلقائي دائماً شامل — هذا الاختيار للنسخ اليدوي فقط
     </p>
-    <div style="display:flex; flex-direction:column; gap:0.6rem;">
-      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-        <input type="checkbox" id="bs-questions" checked> الأسئلة والمناهج والدروس
+    <div style="display:flex; flex-direction:column; gap:0.8rem;">
+
+      <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.6rem 0.7rem; border:1px solid #dee2e6; border-radius:8px;">
+        <input type="checkbox" id="bs-questions" checked style="margin-top:3px; flex-shrink:0;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem;">📚 الأسئلة والمناهج والدروس</div>
+          <div style="color:#6c757d; font-size:0.78rem; margin-top:2px;">بنك الأسئلة كاملاً + المناهج والوحدات والدروس</div>
+        </div>
       </label>
-      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-        <input type="checkbox" id="bs-students" checked> الطلاب والمعلمون
+
+      <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.6rem 0.7rem; border:1px solid #dee2e6; border-radius:8px;">
+        <input type="checkbox" id="bs-students" checked style="margin-top:3px; flex-shrink:0;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem;">👥 الطلاب والمعلمون</div>
+          <div style="color:#6c757d; font-size:0.78rem; margin-top:2px;">الاسم، اسم المستخدم، الإيميل، الجوال، المدرسة، الصف — بدون كلمات المرور</div>
+        </div>
       </label>
-      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-        <input type="checkbox" id="bs-plans" checked> تحضيرات الدروس
+
+      <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.6rem 0.7rem; border:1px solid #dee2e6; border-radius:8px;">
+        <input type="checkbox" id="bs-plans" checked style="margin-top:3px; flex-shrink:0;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem;">📝 تحضيرات الدروس</div>
+          <div style="color:#6c757d; font-size:0.78rem; margin-top:2px;">كل التحضيرات المولّدة بالذكاء الاصطناعي + ملفات PDF</div>
+        </div>
       </label>
-      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-        <input type="checkbox" id="bs-summaries" checked> الملخصات وخرائط المفاهيم
+
+      <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.6rem 0.7rem; border:1px solid #dee2e6; border-radius:8px;">
+        <input type="checkbox" id="bs-summaries" checked style="margin-top:3px; flex-shrink:0;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem;">🗺️ الملخصات وخرائط المفاهيم</div>
+          <div style="color:#6c757d; font-size:0.78rem; margin-top:2px;">ملخصات الدروس التفاعلية + خرائط المفاهيم بكل إعداداتها</div>
+        </div>
       </label>
-      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-        <input type="checkbox" id="bs-results" checked> نتائج وتقدم الطلاب
+
+      <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.6rem 0.7rem; border:1px solid #dee2e6; border-radius:8px;">
+        <input type="checkbox" id="bs-results" checked style="margin-top:3px; flex-shrink:0;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem;">📊 نتائج وتقدم الطلاب</div>
+          <div style="color:#6c757d; font-size:0.78rem; margin-top:2px;">درجات الاختبارات + نسبة إتمام كل درس لكل طالب</div>
+        </div>
       </label>
+
     </div>
     <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1.2rem;">
       <button id="cancelBackupSelection" class="btn btn-secondary btn-sm">إلغاء</button>
