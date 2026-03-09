@@ -2597,8 +2597,19 @@ async function loadBackupLogs() {
                 : '<span style="color:#dc3545; font-weight:bold;">✘ فشل</span>';
             const dest = destLabel[log.destination] || log.destination || '-';
             const size = log.file_size ? (log.file_size / 1024).toFixed(1) + ' KB' : '-';
-            const note = log.status === 'success'
-                ? (log.questions_count != null ? `${log.questions_count} سؤال` : '-')
+            const typeBadge = log.backup_type === 'manual'
+            ? '<span style="background:#0d6efd;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.75rem;">يدوي</span>'
+            : '<span style="background:#6c757d;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.75rem;">تلقائي</span>';
+        let sectionsTip = '';
+        if (log.sections_included) {
+            try {
+                const secs = JSON.parse(log.sections_included);
+                const labels = { questions:'أسئلة', students:'طلاب', plans:'تحضيرات', summaries:'ملخصات', results:'نتائج' };
+                sectionsTip = ' · ' + secs.map(s => labels[s] || s).join('، ');
+            } catch(e) {}
+        }
+        const note = log.status === 'success'
+                ? `${typeBadge}${sectionsTip}` + (log.questions_count != null ? ` · ${log.questions_count} سؤال` : '')
                 : (log.error_msg || '-');
             return `<tr style="border-bottom:1px solid #dee2e6;">
                 <td style="padding:7px 10px; white-space:nowrap;">${dt}</td>

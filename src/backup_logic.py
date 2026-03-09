@@ -51,13 +51,14 @@ except ImportError:
     logger.warning("مكتبات Google Drive غير متوفرة")
     google_drive_available = False
 
-def create_backup(user_id, include_sections=None):
+def create_backup(user_id, include_sections=None, backup_type='manual'):
     """
     إنشاء نسخة احتياطية فورية لمستخدم محدد
 
     Args:
         user_id: معرف المستخدم
         include_sections: قائمة الأقسام المطلوبة أو None لكل شيء
+        backup_type: نوع النسخة ('manual' | 'automatic')
 
     Returns:
         dict: نتيجة عملية النسخ الاحتياطي
@@ -66,7 +67,7 @@ def create_backup(user_id, include_sections=None):
         logger.info(f"بدء إنشاء نسخة احتياطية فورية للمستخدم {user_id}")
 
         # استخدام دالة النسخ الاحتياطي الموجودة
-        result = perform_backup_for_user(user_id, force=True, include_sections=include_sections)
+        result = perform_backup_for_user(user_id, force=True, include_sections=include_sections, backup_type=backup_type)
         
         if result.get("success"):
             logger.info(f"تم إنشاء النسخة الاحتياطية بنجاح للمستخدم {user_id}")
@@ -89,7 +90,7 @@ def create_backup(user_id, include_sections=None):
             "error": str(e)
         }
 
-def perform_backup_for_user(user_id, force=False, include_sections=None):
+def perform_backup_for_user(user_id, force=False, include_sections=None, backup_type=None):
     """
     تنفيذ النسخ الاحتياطي لمستخدم محدد
 
@@ -97,6 +98,7 @@ def perform_backup_for_user(user_id, force=False, include_sections=None):
         user_id: معرف المستخدم
         force: تجاوز شرط التفعيل
         include_sections: قائمة الأقسام أو None لكل شيء
+        backup_type: 'manual' | 'automatic' (None = automatic)
 
     Returns:
         dict: نتيجة عملية النسخ الاحتياطي
@@ -133,6 +135,12 @@ def perform_backup_for_user(user_id, force=False, include_sections=None):
         
         # إضافة عدد الأسئلة للنتيجة
         result["questions_count"] = len(backup_data.get("questions", []))
+
+        # تسجيل نوع النسخة والأقسام
+        result["backup_type"] = backup_type or 'automatic'
+        if include_sections is not None:
+            import json as _json
+            result["sections_included"] = _json.dumps(include_sections, ensure_ascii=False)
 
         logger.info(f"انتهى النسخ الاحتياطي للمستخدم {user_id}: {result.get('success', False)}")
 

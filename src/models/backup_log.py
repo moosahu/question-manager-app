@@ -20,24 +20,28 @@ class BackupLog(db.Model):
     __tablename__ = 'backup_logs'
     __table_args__ = {'extend_existing': True}
 
-    id              = db.Column(db.Integer, primary_key=True)
-    user_id         = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    status          = db.Column(db.String(10), nullable=False)   # 'success' | 'failed'
-    destination     = db.Column(db.String(20))                   # 'google_drive' | 'local'
-    file_size       = db.Column(db.Integer)                      # بالبايت
-    error_msg       = db.Column(db.Text)                         # سبب الفشل
-    questions_count = db.Column(db.Integer)                      # عدد الأسئلة المنسوخة
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    id               = db.Column(db.Integer, primary_key=True)
+    user_id          = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    status           = db.Column(db.String(10), nullable=False)   # 'success' | 'failed'
+    destination      = db.Column(db.String(20))                   # 'google_drive' | 'local'
+    file_size        = db.Column(db.Integer)                      # بالبايت
+    error_msg        = db.Column(db.Text)                         # سبب الفشل
+    questions_count  = db.Column(db.Integer)                      # عدد الأسئلة المنسوخة
+    backup_type      = db.Column(db.String(20), default='automatic')  # 'manual' | 'automatic'
+    sections_included = db.Column(db.Text)                        # الأقسام المشمولة (JSON)
+    created_at       = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     def to_dict(self):
         return {
-            'id':              self.id,
-            'status':          self.status,
-            'destination':     self.destination,
-            'file_size':       self.file_size,
-            'error_msg':       self.error_msg,
-            'questions_count': self.questions_count,
-            'created_at':      self.created_at.isoformat() if self.created_at else None,
+            'id':               self.id,
+            'status':           self.status,
+            'destination':      self.destination,
+            'file_size':        self.file_size,
+            'error_msg':        self.error_msg,
+            'questions_count':  self.questions_count,
+            'backup_type':      self.backup_type or 'automatic',
+            'sections_included': self.sections_included,
+            'created_at':       self.created_at.isoformat() if self.created_at else None,
         }
 
     @classmethod
@@ -46,12 +50,14 @@ class BackupLog(db.Model):
         try:
             success = result_dict.get('success', False)
             entry = cls(
-                user_id         = user_id,
-                status          = 'success' if success else 'failed',
-                destination     = result_dict.get('destination'),
-                file_size       = int(result_dict['size']) if result_dict.get('size') else None,
-                error_msg       = result_dict.get('error') if not success else None,
-                questions_count = result_dict.get('questions_count'),
+                user_id           = user_id,
+                status            = 'success' if success else 'failed',
+                destination       = result_dict.get('destination'),
+                file_size         = int(result_dict['size']) if result_dict.get('size') else None,
+                error_msg         = result_dict.get('error') if not success else None,
+                questions_count   = result_dict.get('questions_count'),
+                backup_type       = result_dict.get('backup_type', 'automatic'),
+                sections_included = result_dict.get('sections_included'),
             )
             db.session.add(entry)
             db.session.commit()
