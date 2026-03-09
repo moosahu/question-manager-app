@@ -51,21 +51,22 @@ except ImportError:
     logger.warning("مكتبات Google Drive غير متوفرة")
     google_drive_available = False
 
-def create_backup(user_id):
+def create_backup(user_id, include_sections=None):
     """
     إنشاء نسخة احتياطية فورية لمستخدم محدد
-    
+
     Args:
         user_id: معرف المستخدم
-    
+        include_sections: قائمة الأقسام المطلوبة أو None لكل شيء
+
     Returns:
         dict: نتيجة عملية النسخ الاحتياطي
     """
     try:
         logger.info(f"بدء إنشاء نسخة احتياطية فورية للمستخدم {user_id}")
-        
+
         # استخدام دالة النسخ الاحتياطي الموجودة
-        result = perform_backup_for_user(user_id, force=True)
+        result = perform_backup_for_user(user_id, force=True, include_sections=include_sections)
         
         if result.get("success"):
             logger.info(f"تم إنشاء النسخة الاحتياطية بنجاح للمستخدم {user_id}")
@@ -88,13 +89,15 @@ def create_backup(user_id):
             "error": str(e)
         }
 
-def perform_backup_for_user(user_id, force=False):
+def perform_backup_for_user(user_id, force=False, include_sections=None):
     """
     تنفيذ النسخ الاحتياطي لمستخدم محدد
-    
+
     Args:
         user_id: معرف المستخدم
-    
+        force: تجاوز شرط التفعيل
+        include_sections: قائمة الأقسام أو None لكل شيء
+
     Returns:
         dict: نتيجة عملية النسخ الاحتياطي
     """
@@ -116,7 +119,7 @@ def perform_backup_for_user(user_id, force=False):
             return {"success": False, "error": "النسخ التلقائي غير مفعل"}
         
         # جمع البيانات للنسخ الاحتياطي
-        backup_data = collect_backup_data(user_id, settings)
+        backup_data = collect_backup_data(user_id, settings, include_sections=include_sections)
         
         # تحديد وجهة النسخ الاحتياطي
         if settings.backup_destination == 'google_drive':
@@ -158,17 +161,19 @@ def perform_backup_for_user(user_id, force=False):
             pass
         return error_result
 
-def collect_backup_data(user_id, settings):
+def collect_backup_data(user_id, settings, include_sections=None):
     """
     جمع البيانات المطلوبة للنسخ الاحتياطي
 
     Args:
         user_id: معرف المستخدم
         settings: إعدادات النسخ الاحتياطي
+        include_sections: قائمة الأقسام أو None لكل شيء
 
     Returns:
         dict: البيانات المجمعة
     """
+    inc = include_sections  # None = كل شيء (للتلقائي)
     backup_data = {
         "metadata": {
             "user_id": user_id,
@@ -201,202 +206,201 @@ def collect_backup_data(user_id, settings):
                     "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None
                 }
 
-        # جمع الأسئلة (إذا كانت متوفرة)
-        if Question:
-            questions = Question.query.all()
-            for question in questions:
-                question_data = {
-                    "question_id": question.question_id,
-                    "question_text": question.question_text,
-                    "image_url": question.image_url,
-                    "explanation": question.explanation,
-                    "lesson_id": question.lesson_id,
-                    "options": []
-                }
+        # جمع الأسئلة والمناهج
+        if inc is None or 'questions' in inc:
+            if Question:
+                questions = Question.query.all()
+                for question in questions:
+                    question_data = {
+                        "question_id": question.question_id,
+                        "question_text": question.question_text,
+                        "image_url": question.image_url,
+                        "explanation": question.explanation,
+                        "lesson_id": question.lesson_id,
+                        "options": []
+                    }
 
-                # جمع خيارات السؤال
-                if hasattr(question, 'options') and question.options:
-                    for option in question.options:
-                        option_data = {
-                            "option_id": option.option_id,
-                            "option_text": option.option_text,
-                            "is_correct": option.is_correct,
-                            "image_url": getattr(option, 'image_url', None)
-                        }
-                        question_data["options"].append(option_data)
+                    # جمع خيارات السؤال
+                    if hasattr(question, 'options') and question.options:
+                        for option in question.options:
+                            option_data = {
+                                "option_id": option.option_id,
+                                "option_text": option.option_text,
+                                "is_correct": option.is_correct,
+                                "image_url": getattr(option, 'image_url', None)
+                            }
+                            question_data["options"].append(option_data)
 
-                backup_data["questions"].append(question_data)
+                    backup_data["questions"].append(question_data)
 
-        # جمع المناهج (إذا كانت متوفرة)
-        if Course:
-            courses = Course.query.all()
-            backup_data["curriculum"]["courses"] = []
+            if Course:
+                courses = Course.query.all()
+                backup_data["curriculum"]["courses"] = []
 
-            for course in courses:
-                course_data = {
-                    "id": course.id,
-                    "name": course.name,
-                    "order_num": getattr(course, 'order_num', 0),
-                    "units": []
-                }
+                for course in courses:
+                    course_data = {
+                        "id": course.id,
+                        "name": course.name,
+                        "order_num": getattr(course, 'order_num', 0),
+                        "units": []
+                    }
 
-                # جمع الوحدات
-                if Unit and hasattr(course, 'units'):
-                    for unit in course.units:
-                        unit_data = {
-                            "id": unit.id,
-                            "name": unit.name,
-                            "order_num": getattr(unit, 'order_num', 0),
-                            "lessons": []
-                        }
+                    if Unit and hasattr(course, 'units'):
+                        for unit in course.units:
+                            unit_data = {
+                                "id": unit.id,
+                                "name": unit.name,
+                                "order_num": getattr(unit, 'order_num', 0),
+                                "lessons": []
+                            }
 
-                        # جمع الدروس
-                        if Lesson and hasattr(unit, 'lessons'):
-                            for lesson in unit.lessons:
-                                lesson_data = {
-                                    "id": lesson.id,
-                                    "name": lesson.name,
-                                    "order_num": getattr(lesson, 'order_num', 0)
-                                }
-                                unit_data["lessons"].append(lesson_data)
+                            if Lesson and hasattr(unit, 'lessons'):
+                                for lesson in unit.lessons:
+                                    lesson_data = {
+                                        "id": lesson.id,
+                                        "name": lesson.name,
+                                        "order_num": getattr(lesson, 'order_num', 0)
+                                    }
+                                    unit_data["lessons"].append(lesson_data)
 
-                        course_data["units"].append(unit_data)
+                            course_data["units"].append(unit_data)
 
-                backup_data["curriculum"]["courses"].append(course_data)
+                    backup_data["curriculum"]["courses"].append(course_data)
 
     except Exception as e:
         logger.error(f"خطأ في جمع البيانات الأساسية للمستخدم {user_id}: {e}")
 
-    # جمع الطلاب (بدون password_hash)
-    try:
-        from src.models.student import Student
-        students = Student.query.all()
-        for s in students:
-            backup_data["students"].append({
-                "id": s.id,
-                "name": s.name,
-                "username": s.username,
-                "email": s.email,
-                "phone": s.phone,
-                "school": s.school,
-                "grade": s.grade,
-                "is_active": s.is_active,
-                "created_at": s.created_at.isoformat() if s.created_at else None
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع بيانات الطلاب: {e}")
+    # جمع الطلاب والمعلمين
+    if inc is None or 'students' in inc:
+        try:
+            from src.models.student import Student
+            students = Student.query.all()
+            for s in students:
+                backup_data["students"].append({
+                    "id": s.id,
+                    "name": s.name,
+                    "username": s.username,
+                    "email": s.email,
+                    "phone": s.phone,
+                    "school": s.school,
+                    "grade": s.grade,
+                    "is_active": s.is_active,
+                    "created_at": s.created_at.isoformat() if s.created_at else None
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع بيانات الطلاب: {e}")
 
-    # جمع المعلمين (بدون password_hash)
-    try:
-        from src.models.teacher import Teacher
-        teachers = Teacher.query.all()
-        for t in teachers:
-            backup_data["teachers"].append({
-                "id": t.id,
-                "name": t.name,
-                "username": t.username,
-                "email": t.email,
-                "phone": t.phone,
-                "school": t.school,
-                "is_active": t.is_active,
-                "created_at": t.created_at.isoformat() if t.created_at else None
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع بيانات المعلمين: {e}")
+        try:
+            from src.models.teacher import Teacher
+            teachers = Teacher.query.all()
+            for t in teachers:
+                backup_data["teachers"].append({
+                    "id": t.id,
+                    "name": t.name,
+                    "username": t.username,
+                    "email": t.email,
+                    "phone": t.phone,
+                    "school": t.school,
+                    "is_active": t.is_active,
+                    "created_at": t.created_at.isoformat() if t.created_at else None
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع بيانات المعلمين: {e}")
 
     # جمع تحضيرات الدروس
-    try:
-        from src.models.textbook import LessonPlan
-        plans = LessonPlan.query.all()
-        for p in plans:
-            backup_data["lesson_plans"].append({
-                "id": p.id,
-                "lesson_id": p.lesson_id,
-                "teacher_id": p.teacher_id,
-                "plan_type": p.plan_type,
-                "plan_data": p.plan_data,
-                "pdf_file_url": p.pdf_file_url,
-                "student_level": p.student_level,
-                "include_support_plan": p.include_support_plan,
-                "status": p.status,
-                "created_at": p.created_at.isoformat() if p.created_at else None
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع تحضيرات الدروس: {e}")
+    if inc is None or 'plans' in inc:
+        try:
+            from src.models.textbook import LessonPlan
+            plans = LessonPlan.query.all()
+            for p in plans:
+                backup_data["lesson_plans"].append({
+                    "id": p.id,
+                    "lesson_id": p.lesson_id,
+                    "teacher_id": p.teacher_id,
+                    "plan_type": p.plan_type,
+                    "plan_data": p.plan_data,
+                    "pdf_file_url": p.pdf_file_url,
+                    "student_level": p.student_level,
+                    "include_support_plan": p.include_support_plan,
+                    "status": p.status,
+                    "created_at": p.created_at.isoformat() if p.created_at else None
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع تحضيرات الدروس: {e}")
 
-    # جمع ملخصات الدروس
-    try:
-        from src.models.learning_content import LessonSummary
-        summaries = LessonSummary.query.all()
-        for ls in summaries:
-            backup_data["lesson_summaries"].append({
-                "id": ls.id,
-                "lesson_id": ls.lesson_id,
-                "introduction": ls.introduction,
-                "key_points": ls.key_points,
-                "examples": ls.examples,
-                "vocabulary": ls.vocabulary,
-                "estimated_reading_time": ls.estimated_reading_time
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع ملخصات الدروس: {e}")
+    # جمع الملخصات وخرائط المفاهيم
+    if inc is None or 'summaries' in inc:
+        try:
+            from src.models.learning_content import LessonSummary
+            summaries = LessonSummary.query.all()
+            for ls in summaries:
+                backup_data["lesson_summaries"].append({
+                    "id": ls.id,
+                    "lesson_id": ls.lesson_id,
+                    "introduction": ls.introduction,
+                    "key_points": ls.key_points,
+                    "examples": ls.examples,
+                    "vocabulary": ls.vocabulary,
+                    "estimated_reading_time": ls.estimated_reading_time
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع ملخصات الدروس: {e}")
 
-    # جمع خرائط المفاهيم
-    try:
-        from src.models.learning_content import ConceptMap
-        maps = ConceptMap.query.all()
-        for cm in maps:
-            backup_data["concept_maps"].append({
-                "id": cm.id,
-                "lesson_id": cm.lesson_id,
-                "layout_type": cm.layout_type,
-                "theme": cm.theme,
-                "animation_type": cm.animation_type,
-                "map_data": cm.map_data,
-                "settings": cm.settings
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع خرائط المفاهيم: {e}")
+        try:
+            from src.models.learning_content import ConceptMap
+            maps = ConceptMap.query.all()
+            for cm in maps:
+                backup_data["concept_maps"].append({
+                    "id": cm.id,
+                    "lesson_id": cm.lesson_id,
+                    "layout_type": cm.layout_type,
+                    "theme": cm.theme,
+                    "animation_type": cm.animation_type,
+                    "map_data": cm.map_data,
+                    "settings": cm.settings
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع خرائط المفاهيم: {e}")
 
-    # جمع نتائج الطلاب
-    try:
-        from src.models.student_result import StudentResult
-        results = StudentResult.query.all()
-        for r in results:
-            backup_data["student_results"].append({
-                "id": r.id,
-                "student_id": r.student_id,
-                "quiz_type": r.quiz_type,
-                "course_id": r.course_id,
-                "unit_id": r.unit_id,
-                "lesson_id": r.lesson_id,
-                "quiz_name": r.quiz_name,
-                "total_questions": r.total_questions,
-                "correct_answers": r.correct_answers,
-                "score_percentage": r.score_percentage,
-                "created_at": r.created_at.isoformat() if r.created_at else None
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع نتائج الطلاب: {e}")
+    # جمع نتائج وتقدم الطلاب
+    if inc is None or 'results' in inc:
+        try:
+            from src.models.student_result import StudentResult
+            results = StudentResult.query.all()
+            for r in results:
+                backup_data["student_results"].append({
+                    "id": r.id,
+                    "student_id": r.student_id,
+                    "quiz_type": r.quiz_type,
+                    "course_id": r.course_id,
+                    "unit_id": r.unit_id,
+                    "lesson_id": r.lesson_id,
+                    "quiz_name": r.quiz_name,
+                    "total_questions": r.total_questions,
+                    "correct_answers": r.correct_answers,
+                    "score_percentage": r.score_percentage,
+                    "created_at": r.created_at.isoformat() if r.created_at else None
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع نتائج الطلاب: {e}")
 
-    # جمع تقدم الطلاب في الدروس
-    try:
-        from src.models.learning_content import StudentLessonProgress
-        progress_records = StudentLessonProgress.query.all()
-        for pr in progress_records:
-            backup_data["student_lesson_progress"].append({
-                "id": pr.id,
-                "student_id": pr.student_id,
-                "lesson_id": pr.lesson_id,
-                "status": pr.status,
-                "summary_read": pr.summary_read,
-                "concept_map_explored": pr.concept_map_explored,
-                "completion_percentage": pr.completion_percentage,
-                "started_at": pr.started_at.isoformat() if pr.started_at else None,
-                "completed_at": pr.completed_at.isoformat() if pr.completed_at else None
-            })
-    except Exception as e:
-        logger.warning(f"تعذّر جمع تقدم الطلاب: {e}")
+        try:
+            from src.models.learning_content import StudentLessonProgress
+            progress_records = StudentLessonProgress.query.all()
+            for pr in progress_records:
+                backup_data["student_lesson_progress"].append({
+                    "id": pr.id,
+                    "student_id": pr.student_id,
+                    "lesson_id": pr.lesson_id,
+                    "status": pr.status,
+                    "summary_read": pr.summary_read,
+                    "concept_map_explored": pr.concept_map_explored,
+                    "completion_percentage": pr.completion_percentage,
+                    "started_at": pr.started_at.isoformat() if pr.started_at else None,
+                    "completed_at": pr.completed_at.isoformat() if pr.completed_at else None
+                })
+        except Exception as e:
+            logger.warning(f"تعذّر جمع تقدم الطلاب: {e}")
 
     # جمع الإحصائيات
     backup_data["statistics"] = {

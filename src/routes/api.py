@@ -2792,8 +2792,12 @@ def create_immediate_backup():
                 'error': 'نظام النسخ الاحتياطي غير متوفر'
             }), 503
         
+        # قراءة الأقسام المختارة (None = كل شيء، للتلقائي دائماً)
+        data = request.get_json() or {}
+        include_sections = data.get('include_sections', None)
+
         # تنفيذ النسخ الاحتياطي
-        result = create_backup(user_id)
+        result = create_backup(user_id, include_sections=include_sections)
         
         if result.get('success'):
             # تحديث session مع معلومات النسخة الجديدة

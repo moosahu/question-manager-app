@@ -2832,5 +2832,39 @@ window.cancelPhoneChange = function() {
 });
 </script>
 {% endif %}
+
+<!-- Modal اختيار بيانات النسخ اليدوي -->
+<div id="backupSelectionModal" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:1.5rem; width:420px; max-width:95vw; direction:rtl;">
+    <h5 style="margin-bottom:0.3rem;"><i class="fas fa-filter"></i> اختر البيانات للنسخة الاحتياطية</h5>
+    <p style="color:#6c757d; font-size:0.85rem; margin-bottom:1rem;">
+      النسخ التلقائي دائماً شامل — هذا الاختيار للنسخ اليدوي فقط
+    </p>
+    <div style="display:flex; flex-direction:column; gap:0.6rem;">
+      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+        <input type="checkbox" id="bs-questions" checked> الأسئلة والمناهج والدروس
+      </label>
+      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+        <input type="checkbox" id="bs-students" checked> الطلاب والمعلمون
+      </label>
+      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+        <input type="checkbox" id="bs-plans" checked> تحضيرات الدروس
+      </label>
+      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+        <input type="checkbox" id="bs-summaries" checked> الملخصات وخرائط المفاهيم
+      </label>
+      <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+        <input type="checkbox" id="bs-results" checked> نتائج وتقدم الطلاب
+      </label>
+    </div>
+    <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1.2rem;">
+      <button id="cancelBackupSelection" class="btn btn-secondary btn-sm">إلغاء</button>
+      <button id="confirmBackupSelection" class="btn btn-primary btn-sm">
+        <i class="fas fa-play"></i> نسخ الآن
+      </button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 

@@ -905,26 +905,59 @@ class BackupMonitor {
     }
 
     async testBackup() {
+        // التحقق من الوجهة - إذا google_drive يجب الاتصال أولاً
+        const destSelect = document.getElementById('backup-destination');
+        const destination = destSelect ? destSelect.value : 'local';
+        if (destination === 'google_drive' && !this.googleDriveConnected) {
+            this.showError('يجب ربط Google Drive أولاً قبل إنشاء نسخة احتياطية');
+            return;
+        }
+
+        // فتح modal الاختيار بدلاً من التنفيذ المباشر
+        this._showBackupSelectionModal();
+    }
+
+    _showBackupSelectionModal() {
+        const modal = document.getElementById('backupSelectionModal');
+        if (!modal) {
+            // إذا لم يوجد modal (مثلاً في صفحة أخرى)، نفّذ مباشرة بكل الأقسام
+            this._executeManualBackup(null);
+            return;
+        }
+        modal.style.display = 'flex';
+
+        document.getElementById('cancelBackupSelection').onclick = () => {
+            modal.style.display = 'none';
+        };
+
+        document.getElementById('confirmBackupSelection').onclick = async () => {
+            modal.style.display = 'none';
+            await this._executeManualBackup(this._getSelectedSections());
+        };
+    }
+
+    _getSelectedSections() {
+        const checks = {
+            'questions': 'bs-questions',
+            'students':  'bs-students',
+            'plans':     'bs-plans',
+            'summaries': 'bs-summaries',
+            'results':   'bs-results'
+        };
+        return Object.entries(checks)
+            .filter(([, id]) => document.getElementById(id)?.checked)
+            .map(([key]) => key);
+    }
+
+    async _executeManualBackup(sections) {
         const testBtn = document.getElementById('test-backup-btn') || document.getElementById('immediate-backup-btn');
         if (testBtn) {
             testBtn.disabled = true;
             testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري النسخ...';
         }
-        
+
         try {
             console.log('🔄 بدء اختبار النسخ الاحتياطي...');
-
-            // التحقق من الوجهة - إذا google_drive يجب الاتصال أولاً
-            const destSelect = document.getElementById('backup-destination');
-            const destination = destSelect ? destSelect.value : 'local';
-            if (destination === 'google_drive' && !this.googleDriveConnected) {
-                this.showError('يجب ربط Google Drive أولاً قبل إنشاء نسخة احتياطية');
-                if (testBtn) {
-                    testBtn.disabled = false;
-                    testBtn.innerHTML = '<i class="fas fa-play"></i> اختبار النسخ الآن';
-                }
-                return;
-            }
             
             // الحصول على CSRF token
             let csrfToken = this.getCSRFToken();
@@ -948,14 +981,15 @@ class BackupMonitor {
             }
             
             // محاولة استخدام API الأصلي أولاً
+            const requestBody = { test_mode: false, destination: 'google_drive' };
+            if (sections !== null) {
+                requestBody.include_sections = sections;
+            }
             let response = await this.fetchWithTimeout('/api/v1/backup/immediate', {
                 method: 'POST',
                 headers: headers,
                 credentials: 'same-origin',
-                body: JSON.stringify({
-                    test_mode: false,
-                    destination: 'google_drive'
-                })
+                body: JSON.stringify(requestBody)
             }, 30000); // timeout أطول للنسخ الاحتياطي
             
             console.log('📡 استجابة الخادم:', response.status, response.statusText);
@@ -990,10 +1024,7 @@ class BackupMonitor {
                             method: 'POST',
                             headers: headers,
                             credentials: 'same-origin',
-                            body: JSON.stringify({
-                                test_mode: false,
-                                destination: 'google_drive'
-                            })
+                            body: JSON.stringify(requestBody)
                         }, 30000);
                         
                         console.log('📡 استجابة الخادم بعد إعادة المحاولة:', response.status, response.statusText);
