@@ -573,12 +573,22 @@ class EmailService:
             return False, str(e)
 
 
-    def send_admin_notification(self, to_email, title, message):
-        """إرسال إشعار للأدمن (تسجيل جديد / حذف حساب)"""
+    def send_admin_notification(self, to_email, title, message, image_base64=None):
+        """إرسال إشعار للأدمن (تسجيل جديد / حذف حساب / تقرير مشكلة)"""
         try:
             subject = f'{title} - كيم تحصيلي'
             # تحويل الرسالة لسطور HTML
             message_html = message.replace('\n', '<br>')
+            # صورة مرفقة (اختياري)
+            image_html = ''
+            if image_base64:
+                image_html = f'''
+                <div style="margin-top:16px;text-align:center;">
+                  <p style="color:#555;font-size:13px;margin-bottom:8px;">📸 الصورة المرفقة:</p>
+                  <img src="data:image/jpeg;base64,{image_base64}"
+                       style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;"
+                       alt="مرفق" />
+                </div>'''
 
             html_content = f'''
             <!DOCTYPE html>
@@ -598,6 +608,7 @@ class EmailService:
               <div class="header"><h1>{title}</h1></div>
               <div class="content">
                 <div class="info">{message_html}</div>
+                {image_html}
               </div>
               <div class="footer">كيم تحصيلي &copy; {datetime.utcnow().year}</div>
             </div>

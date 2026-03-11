@@ -5107,11 +5107,12 @@ def submit_bug_report():
     """استقبال تقرير مشكلة — بدون login_required (يقبل طلاب + معلمين + أدمن)"""
     try:
         data = request.get_json()
-        category    = (data.get('category') or '').strip()
-        description = (data.get('description') or '').strip()
-        app_version = (data.get('app_version') or '').strip()
-        user_type   = (data.get('user_type') or '').strip()
-        username    = (data.get('username') or '').strip() or 'غير معروف'
+        category     = (data.get('category') or '').strip()
+        description  = (data.get('description') or '').strip()
+        app_version  = (data.get('app_version') or '').strip()
+        user_type    = (data.get('user_type') or '').strip()
+        username     = (data.get('username') or '').strip() or 'غير معروف'
+        image_base64 = (data.get('image_base64') or '').strip() or None
 
         if not description:
             return jsonify({'success': False, 'error': 'الوصف مطلوب'}), 400
@@ -5148,7 +5149,9 @@ def submit_bug_report():
             from src.services.email_service import email_service
             admin = _User.query.filter_by(is_admin=True).first()
             if admin and admin.email:
-                email_service.send_admin_notification(admin.email, title, message)
+                email_service.send_admin_notification(
+                    admin.email, title, message, image_base64=image_base64
+                )
         except Exception as _ee:
             logger.warning(f"Bug report email failed: {_ee}")
 
