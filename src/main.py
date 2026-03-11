@@ -712,6 +712,23 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ feature tables migration: {_feat_err}")
 
+            # جدول ما الجديد (Changelog)
+            try:
+                db.session.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS changelogs (
+                        id           SERIAL PRIMARY KEY,
+                        version      VARCHAR(20) NOT NULL,
+                        entries      TEXT NOT NULL,
+                        published_at TIMESTAMP DEFAULT NOW(),
+                        is_active    BOOLEAN DEFAULT TRUE
+                    )
+                """))
+                db.session.commit()
+                print("✅ changelogs table ensured")
+            except Exception as _cl_err:
+                db.session.rollback()
+                print(f"⚠️ changelog table migration: {_cl_err}")
+
             # Check if admin user exists
             admin_user = User.query.filter_by(username="admin").first()
             if not admin_user:

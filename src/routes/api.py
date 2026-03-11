@@ -31,6 +31,8 @@ try:
     from src.models.backup_settings import BackupSettings
     from src.models.backup_log import BackupLog
     from src.models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
+    from src.models.changelog import Changelog
+    from src.models.notification import Notification
     # محاولة استيراد نموذج Activity
     try:
         from src.models.activity import Activity
@@ -49,6 +51,8 @@ except ImportError:  # pragma: no cover
         from models.backup_settings import BackupSettings
         from models.backup_log import BackupLog
         from models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
+        from models.changelog import Changelog
+        from models.notification import Notification
         # محاولة استيراد نموذج Activity
         try:
             from models.activity import Activity
@@ -5040,3 +5044,119 @@ def get_classification_summary():
 
 
 # ===== نهاية نظام تصنيف الأسئلة =====
+
+
+# ===== نظام ما الجديد (Changelog) =====
+
+@api_bp.route("/changelog/latest", methods=["GET"])
+def get_latest_changelog():
+    """جلب آخر changelog — متاح لكل المستخدمين بدون تسجيل دخول"""
+    try:
+        changelog = Changelog.query.filter_by(is_active=True)\
+            .order_by(Changelog.published_at.desc()).first()
+        if not changelog:
+            return jsonify({'success': True, 'changelog': None})
+        return jsonify({'success': True, 'changelog': changelog.to_dict()})
+    except Exception as e:
+        logger.exception(f"Error fetching changelog: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/changelog", methods=["POST"])
+@login_required
+def publish_changelog():
+    """نشر changelog جديد — أدمن فقط"""
+    try:
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
+        data = request.get_json()
+        version = (data.get('version') or '').strip()
+        entries = data.get('entries', [])
+
+        if not version or not entries:
+            return jsonify({'success': False, 'error': 'version وentries مطلوبة'}), 400
+
+        import json as _json
+
+        # إلغاء تفعيل القديم
+        Changelog.query.filter_by(is_active=True).update({'is_active': False})
+
+        new_log = Changelog(
+            version=version,
+            entries=_json.dumps(entries, ensure_ascii=False),
+            published_at=datetime.utcnow(),
+            is_active=True,
+        )
+        db.session.add(new_log)
+        db.session.commit()
+
+        return jsonify({'success': True, 'changelog': new_log.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error publishing changelog: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ===== نهاية نظام ما الجديد =====
+
+
+# ===== نظام تقارير المشاكل (Bug Reports) =====
+
+@api_bp.route("/bug-report", methods=["POST"])
+@login_required
+def submit_bug_report():
+    """استقبال تقرير مشكلة من المستخدم → حفظ إشعار للأدمن + إيميل"""
+    try:
+        data = request.get_json()
+        category    = (data.get('category') or '').strip()
+        description = (data.get('description') or '').strip()
+        app_version = (data.get('app_version') or '').strip()
+        user_type   = (data.get('user_type') or '').strip()
+
+        if not description:
+            return jsonify({'success': False, 'error': 'الوصف مطلوب'}), 400
+
+        username = getattr(current_user, 'username', 'غير معروف')
+        title   = f'تقرير مشكلة - {category}' if category else 'تقرير مشكلة'
+        message = (
+            f'المستخدم: {username}\n'
+            f'نوع المستخدم: {user_type}\n'
+            f'الإصدار: {app_version}\n'
+            f'نوع المشكلة: {category}\n\n'
+            f'{description}'
+        )
+
+        # ① حفظ إشعار في DB للأدمن
+        try:
+            from src.models.user import User
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                notif = Notification(
+                    title=title,
+                    message=message,
+                    type='bug_report',
+                    user_id=admin_user.id,
+                    is_read=False,
+                )
+                db.session.add(notif)
+                db.session.commit()
+        except Exception as _ne:
+            logger.warning(f"Bug report notification save failed: {_ne}")
+
+        # ② إرسال إيميل للأدمن
+        try:
+            from src.models.user import User as _User
+            from src.services.email_service import email_service
+            admin = _User.query.filter_by(is_admin=True).first()
+            if admin and admin.email:
+                email_service.send_admin_notification(admin.email, title, message)
+        except Exception as _ee:
+            logger.warning(f"Bug report email failed: {_ee}")
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.exception(f"Error submitting bug report: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ===== نهاية نظام تقارير المشاكل =====
