@@ -963,14 +963,14 @@ class TestBackupSchedulerRoutes:
         assert 'success' in data
 
     def test_backup_logs_without_auth(self, client):
-        """backup/logs بدون auth"""
+        """backup/logs بدون auth يرجع redirect"""
         resp = client.get('/api/v1/backup/logs')
-        assert resp.status_code in [200, 500]
+        assert resp.status_code in [200, 302, 500]
 
     def test_backup_logs_with_level(self, client):
-        """backup/logs مع level"""
+        """backup/logs مع level بدون auth يرجع redirect"""
         resp = client.get('/api/v1/backup/logs?level=ERROR')
-        assert resp.status_code in [200, 500]
+        assert resp.status_code in [200, 302, 500]
 
     def test_backup_test_connection_without_auth(self, client):
         """backup/test-connection بدون auth"""

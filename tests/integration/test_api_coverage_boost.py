@@ -417,6 +417,8 @@ class TestBackupLogsWithFile:
         import tempfile
         import os
 
+        user = _make_admin(db_session)
+        _login(client, user)
         # Create a temporary log file
         with tempfile.TemporaryDirectory() as tmpdir:
             logs_dir = os.path.join(tmpdir, 'logs')
@@ -439,6 +441,8 @@ class TestBackupLogsWithFile:
         import tempfile
         import os
 
+        user = _make_admin(db_session)
+        _login(client, user)
         with tempfile.TemporaryDirectory() as tmpdir:
             logs_dir = os.path.join(tmpdir, 'logs')
             os.makedirs(logs_dir)
@@ -453,6 +457,8 @@ class TestBackupLogsWithFile:
 
     def test_backup_logs_exception(self, client, db_session):
         """GET /api/v1/backup/logs - exception in file reading"""
+        user = _make_admin(db_session)
+        _login(client, user)
         with patch('src.routes.api.os.path.exists', return_value=True), \
              patch('src.routes.api.os.path.join', return_value='/nonexistent/path/backup.log'):
             r = client.get('/api/v1/backup/logs')

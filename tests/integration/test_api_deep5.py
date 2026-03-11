@@ -1455,11 +1455,15 @@ class TestBackupHealthCheck:
 class TestBackupLogs:
     """GET /api/v1/backup/logs"""
 
-    def test_returns_200_when_no_file(self, client):
+    def test_returns_200_when_no_file(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs')
         assert resp.status_code == 200
 
-    def test_returns_empty_data_when_no_file(self, client):
+    def test_returns_empty_data_when_no_file(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         data = client.get('/api/v1/backup/logs').get_json()
         assert 'data' in data or 'success' in data
 

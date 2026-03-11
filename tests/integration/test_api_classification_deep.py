@@ -451,11 +451,15 @@ class TestDashboardStatisticsWithData:
 class TestBackupLogsWithContent:
     """اختبار backup logs"""
 
-    def test_logs_endpoint_returns_json(self, client):
+    def test_logs_endpoint_returns_json(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs')
         assert r.content_type.startswith('application/json')
 
-    def test_logs_with_level_error(self, client):
+    def test_logs_with_level_error(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs?level=error')
         assert r.status_code == 200
 
