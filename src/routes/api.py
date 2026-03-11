@@ -5117,13 +5117,16 @@ def submit_bug_report():
         if not description:
             return jsonify({'success': False, 'error': 'الوصف مطلوب'}), 400
 
-        title   = f'🐛 تقرير مشكلة - {category}' if category else '🐛 تقرير مشكلة'
+        has_image   = bool(image_base64)
+        image_badge = ' 📸' if has_image else ''
+        title   = f'🐛 تقرير مشكلة - {category}{image_badge}' if category else f'🐛 تقرير مشكلة{image_badge}'
         message = (
             f'المستخدم: {username}\n'
             f'نوع المستخدم: {user_type}\n'
             f'الإصدار: {app_version}\n'
-            f'نوع المشكلة: {category}\n\n'
-            f'{description}'
+            f'نوع المشكلة: {category}\n'
+            + (f'مرفق: صورة 📸\n' if has_image else '')
+            + f'\n{description}'
         )
 
         # ① حفظ إشعار في DB للأدمن — type=admin_event حتى يظهر في صندوق الوارد

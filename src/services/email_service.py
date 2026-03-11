@@ -597,10 +597,10 @@ class EmailService:
             <style>
                 body {{ font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; direction:rtl; }}
                 .container {{ max-width:500px; margin:0 auto; background:white; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.1); }}
-                .header {{ background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:25px; text-align:center; }}
+                .header {{ background:linear-gradient(135deg,#4ECDC4 0%,#2563EB 100%); color:white; padding:25px; text-align:center; }}
                 .header h1 {{ margin:0; font-size:20px; }}
                 .content {{ padding:25px; text-align:right; }}
-                .info {{ background:#f0f4ff; padding:15px; border-radius:10px; font-size:15px; color:#333; line-height:1.8; }}
+                .info {{ background:#EFF6FF; padding:15px; border-radius:10px; font-size:15px; color:#333; line-height:1.8; border-right:4px solid #2563EB; }}
                 .footer {{ background:#f8f9fa; padding:15px; text-align:center; color:#999; font-size:12px; }}
             </style></head>
             <body>
