@@ -346,7 +346,7 @@ class EmailService:
                         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
                     }}
                     .header {{
-                        background: linear-gradient(135deg, #4ECDC4 0%, #2563EB 100%);
+                        background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%);
                         color: white;
                         padding: 30px;
                         text-align: center;
@@ -365,7 +365,7 @@ class EmailService:
                         margin-bottom: 20px;
                     }}
                     .code-box {{
-                        background: linear-gradient(135deg, #4ECDC4 0%, #2563EB 100%);
+                        background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%);
                         color: white;
                         font-size: 36px;
                         font-weight: bold;
