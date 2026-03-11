@@ -605,15 +605,15 @@ class EmailService:
 
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
-            msg['From'] = self.sender_email
+            msg['From'] = f'{self.mail_sender_name} <{self.mail_sender_email}>'
             msg['To'] = to_email
             msg.attach(MIMEText(message_html, 'plain', 'utf-8'))
             msg.attach(MIMEText(html_content, 'html', 'utf-8'))
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with smtplib.SMTP(self.mail_server, self.mail_port) as server:
                 server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
-                server.sendmail(self.sender_email, to_email, msg.as_string())
+                server.login(self.mail_username, self.mail_password)
+                server.sendmail(self.mail_sender_email, to_email, msg.as_string())
 
             print(f"✅ إشعار أدمن أُرسل إلى: {to_email} [{title}]")
             return True, 'تم الإرسال'

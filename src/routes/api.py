@@ -5067,7 +5067,7 @@ def get_latest_changelog():
 def publish_changelog():
     """نشر changelog جديد — أدمن فقط"""
     try:
-        if not current_user.is_authenticated or current_user.role != 'admin':
+        if not current_user.is_authenticated or not current_user.is_admin:
             return jsonify({'success': False, 'error': 'غير مصرح'}), 403
 
         data = request.get_json()
