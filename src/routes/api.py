@@ -5119,7 +5119,7 @@ def submit_bug_report():
 
         has_image   = bool(image_base64)
         image_badge = ' 📸' if has_image else ''
-        title   = f'🐛 تقرير مشكلة - {category}{image_badge}' if category else f'🐛 تقرير مشكلة{image_badge}'
+        title   = f'⚠️ تقرير مشكلة - {category}{image_badge}' if category else f'⚠️ تقرير مشكلة{image_badge}'
         message = (
             f'المستخدم: {username}\n'
             f'نوع المستخدم: {user_type}\n'
