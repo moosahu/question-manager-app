@@ -5103,21 +5103,20 @@ def publish_changelog():
 # ===== نظام تقارير المشاكل (Bug Reports) =====
 
 @api_bp.route("/bug-report", methods=["POST"])
-@login_required
 def submit_bug_report():
-    """استقبال تقرير مشكلة من المستخدم → حفظ إشعار للأدمن + إيميل"""
+    """استقبال تقرير مشكلة — بدون login_required (يقبل طلاب + معلمين + أدمن)"""
     try:
         data = request.get_json()
         category    = (data.get('category') or '').strip()
         description = (data.get('description') or '').strip()
         app_version = (data.get('app_version') or '').strip()
         user_type   = (data.get('user_type') or '').strip()
+        username    = (data.get('username') or '').strip() or 'غير معروف'
 
         if not description:
             return jsonify({'success': False, 'error': 'الوصف مطلوب'}), 400
 
-        username = getattr(current_user, 'username', 'غير معروف')
-        title   = f'تقرير مشكلة - {category}' if category else 'تقرير مشكلة'
+        title   = f'🐛 تقرير مشكلة - {category}' if category else '🐛 تقرير مشكلة'
         message = (
             f'المستخدم: {username}\n'
             f'نوع المستخدم: {user_type}\n'
@@ -5126,7 +5125,7 @@ def submit_bug_report():
             f'{description}'
         )
 
-        # ① حفظ إشعار في DB للأدمن
+        # ① حفظ إشعار في DB للأدمن — type=admin_event حتى يظهر في صندوق الوارد
         try:
             from src.models.user import User
             admin_user = User.query.filter_by(is_admin=True).first()
@@ -5134,7 +5133,7 @@ def submit_bug_report():
                 notif = Notification(
                     title=title,
                     message=message,
-                    type='bug_report',
+                    type='admin_event',
                     user_id=admin_user.id,
                     is_read=False,
                 )
