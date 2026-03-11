@@ -983,14 +983,20 @@ def restore_backup():
             return jsonify({'success': False, 'message': 'لا توجد بيانات'}), 400
 
         # دعم الصيغتين: v1 (backup_data.data.questions) و v2 (backup_data مباشرة)
-        raw = data.get('backup_data', {})
+        raw = data.get('backup_data')
+        if raw is None or not isinstance(raw, dict):
+            return jsonify({'success': False, 'message': 'backup_data مطلوب ويجب أن يكون كائناً'}), 400
+
         version = raw.get('version') or raw.get('metadata', {}).get('version', '1.0')
 
         if version.startswith('2'):
             backup = raw
         else:
             # v1: كل شيء تحت 'data'
-            backup = raw.get('data', raw)
+            backup_inner = raw.get('data')
+            if backup_inner is None:
+                return jsonify({'success': False, 'message': 'مفتاح data مطلوب في backup_data'}), 400
+            backup = backup_inner
 
         counts = {}
 

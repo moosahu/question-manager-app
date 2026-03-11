@@ -228,27 +228,37 @@ class TestBackupTestConnection:
 class TestBackupLogs:
     """GET /api/v1/backup/logs"""
 
-    def test_backup_logs_no_log_file_returns_200(self, client):
+    def test_backup_logs_no_log_file_returns_200(self, client, db_session):
         """When logs file doesn't exist, returns empty list"""
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs')
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['success'] is True
         assert 'data' in data
 
-    def test_backup_logs_with_lines_param(self, client):
+    def test_backup_logs_with_lines_param(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs?lines=50')
         assert resp.status_code == 200
 
-    def test_backup_logs_with_level_param(self, client):
+    def test_backup_logs_with_level_param(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs?level=ERROR')
         assert resp.status_code == 200
 
-    def test_backup_logs_all_level(self, client):
+    def test_backup_logs_all_level(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs?level=all')
         assert resp.status_code == 200
 
-    def test_backup_logs_with_lines_and_level(self, client):
+    def test_backup_logs_with_lines_and_level(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         resp = client.get('/api/v1/backup/logs?lines=20&level=WARNING')
         assert resp.status_code == 200
 

@@ -1048,19 +1048,27 @@ class TestBackupHealth:
 class TestBackupLogs:
     """اختبارات /api/v1/backup/logs"""
 
-    def test_returns_200_no_logs_file(self, client):
+    def test_returns_200_no_logs_file(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs')
         assert r.status_code == 200
 
-    def test_response_has_success(self, client):
+    def test_response_has_success(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs')
         data = r.get_json()
         assert 'success' in data
 
-    def test_lines_param(self, client):
+    def test_lines_param(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs?lines=10')
         assert r.status_code == 200
 
-    def test_level_param(self, client):
+    def test_level_param(self, client, db_session):
+        user = _make_admin(db_session)
+        _login(client, user)
         r = client.get('/api/v1/backup/logs?level=ERROR')
         assert r.status_code == 200
