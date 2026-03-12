@@ -1558,6 +1558,8 @@ def get_student_assigned_tests():
                         try:
                             username = cookie_name.replace('student_session_', '')
                             student = Student.query.filter_by(username=username).first()
+                            if not student:
+                                student = Student.query.filter_by(email=username).first()
                             if student:
                                 student_id = student.id
                                 print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")
