@@ -30,11 +30,11 @@ except ImportError:
 # ─── استيراد النماذج ─────────────────────────────────────────────────────────
 
 try:
-    from src.models.error_tracking import ErrorReport, ErrorGroup
+    from src.models.error_tracking import ErrorReport, ErrorGroup, AuthEventLog
     from src.models.notification import Notification
     from src.models.user import User
 except ImportError:
-    from models.error_tracking import ErrorReport, ErrorGroup
+    from models.error_tracking import ErrorReport, ErrorGroup, AuthEventLog
     from models.notification import Notification
     from models.user import User
 
@@ -178,6 +178,27 @@ def report_error():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@errors_bp.route('/auth-event', methods=['POST'])
+def log_auth_event():
+    """يستقبل أحداث المصادقة (401/403) من Flutter — بدون auth"""
+    try:
+        data       = request.get_json(silent=True) or {}
+        event_type = (data.get('event_type') or '').strip()[:30]
+        user_type  = (data.get('user_type')  or 'unknown').strip()[:20]
+
+        if event_type not in ('session_expired', 'permission_denied'):
+            return jsonify({'success': False, 'error': 'event_type غير صالح'}), 400
+
+        log = AuthEventLog(event_type=event_type, user_type=user_type)
+        db.session.add(log)
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.exception(f'log_auth_event failed: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @errors_bp.route('/groups', methods=['GET'])
 @login_required
 def get_groups():
@@ -317,14 +338,36 @@ def get_stats():
         total_unresolved = ErrorGroup.query.filter_by(is_resolved=False).count()
         total_week       = sum(d['count'] for d in daily)
 
+        # ── عدّادات المصادقة (كل الوقت + تفصيل حسب نوع المستخدم) ──
+        try:
+            auth_rows = (
+                db.session.query(
+                    AuthEventLog.event_type,
+                    AuthEventLog.user_type,
+                    func.count(AuthEventLog.id).label('cnt')
+                )
+                .group_by(AuthEventLog.event_type, AuthEventLog.user_type)
+                .all()
+            )
+            auth_counters = {}
+            auth_by_type  = {}   # {event_type: {user_type: count}}
+            for row in auth_rows:
+                auth_counters[row.event_type] = auth_counters.get(row.event_type, 0) + row.cnt
+                auth_by_type.setdefault(row.event_type, {})[row.user_type or 'unknown'] = row.cnt
+        except Exception:
+            auth_counters = {}
+            auth_by_type  = {}
+
         return jsonify({
-            'success'        : True,
-            'daily'          : daily,
-            'top_screens'    : top_screens,
-            'versions'       : versions,
-            'priorities'     : priorities,
+            'success'         : True,
+            'daily'           : daily,
+            'top_screens'     : top_screens,
+            'versions'        : versions,
+            'priorities'      : priorities,
             'total_unresolved': total_unresolved,
-            'total_week'     : total_week,
+            'total_week'      : total_week,
+            'auth_counters'   : auth_counters,
+            'auth_by_type'    : auth_by_type,
         })
 
     except Exception as e:

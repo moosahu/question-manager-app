@@ -3,8 +3,9 @@
 src/models/error_tracking.py
 
 الجداول:
-  error_groups  — تجميع الأخطاء المتشابهة (PK: group_hash)
-  error_reports — سجل كل خطأ مُرسَل من التطبيق (FK → error_groups)
+  error_groups    — تجميع الأخطاء المتشابهة (PK: group_hash)
+  error_reports   — سجل كل خطأ مُرسَل من التطبيق (FK → error_groups)
+  auth_event_logs — عدّادات أحداث المصادقة (401 = session_expired, 403 = permission_denied)
 """
 
 from datetime import datetime
@@ -78,3 +79,16 @@ class ErrorReport(db.Model):
             'app_version'  : self.app_version,
             'created_at'   : self.created_at.isoformat() + 'Z' if self.created_at else None,
         }
+
+
+class AuthEventLog(db.Model):
+    """أحداث المصادقة — 401 (جلسة منتهية) و403 (رفض صلاحية) من كل الأجهزة"""
+    __tablename__ = 'auth_event_logs'
+
+    id         = db.Column(db.Integer,    primary_key=True, autoincrement=True)
+    event_type = db.Column(db.String(30), nullable=False)   # session_expired | permission_denied
+    user_type  = db.Column(db.String(20), nullable=True)    # admin | teacher | student | unknown
+    created_at = db.Column(db.DateTime,  nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AuthEventLog {self.event_type} [{self.user_type}]>'

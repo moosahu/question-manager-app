@@ -452,6 +452,15 @@ try:
         except ImportError:
             print("Warning: Could not import AuditLog.")
 
+    # استيراد نماذج تتبع الأخطاء لضمان إنشاء الجداول عند db.create_all()
+    try:
+        from src.models.error_tracking import ErrorGroup, ErrorReport, AuthEventLog
+    except ImportError:
+        try:
+            from models.error_tracking import ErrorGroup, ErrorReport, AuthEventLog
+        except ImportError:
+            print("Warning: Could not import error_tracking models.")
+
 except ImportError:
     try:
         from models.user import User

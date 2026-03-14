@@ -62,6 +62,7 @@
         display: block;
     }
     .stat-card .stat-label { color: #9ca3af; font-size: .82rem; }
+    .stat-card .stat-sub   { color: #6b7280; font-size: .72rem; display: block; margin-top: 2px; }
 
     /* ── Filter bar ─────────────────────────────────────────────── */
     .filter-bar {
@@ -544,6 +545,16 @@
             <span class="stat-num" id="stat-unresolved" style="color:#facc15;">—</span>
             <span class="stat-label">غير محلولة</span>
         </div>
+        <div class="stat-card" id="stat-card-session" title="عدد مرات انتهاء الجلسة (HTTP 401) من جميع الأجهزة">
+            <span class="stat-num" id="stat-session" style="color:#a78bfa;">—</span>
+            <span class="stat-label">🔒 جلسات منتهية</span>
+            <span class="stat-sub" id="stat-session-sub"></span>
+        </div>
+        <div class="stat-card" id="stat-card-denied" title="عدد مرات رفض الصلاحية (HTTP 403) من جميع الأجهزة">
+            <span class="stat-num" id="stat-denied" style="color:#f472b6;">—</span>
+            <span class="stat-label">🚫 رفض صلاحية</span>
+            <span class="stat-sub" id="stat-denied-sub"></span>
+        </div>
     </div>
 
     <!-- Charts Row -->
@@ -844,6 +855,28 @@
                         <span class="version-count">${v.count}</span>
                     </div>`).join('')
                 : '<p style="color:#4b5563;font-size:.82rem;">لا بيانات</p>';
+
+            // ── عدّادات المصادقة ──────────────────────────────
+            const authC   = data.auth_counters || {};
+            const authByT = data.auth_by_type   || {};
+
+            const sessionCount = authC['session_expired']    || 0;
+            const deniedCount  = authC['permission_denied']  || 0;
+
+            document.getElementById('stat-session').textContent = sessionCount;
+            document.getElementById('stat-denied').textContent  = deniedCount;
+
+            // تفصيل حسب نوع المستخدم (طالب / معلم / مشرف)
+            function buildSubText(byType) {
+                if (!byType) return '';
+                const labels = { student: 'طالب', teacher: 'معلم', admin: 'مشرف', unknown: '?' };
+                return Object.entries(byType)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([t, c]) => `${labels[t] || t}: ${c}`)
+                    .join(' | ');
+            }
+            document.getElementById('stat-session-sub').textContent = buildSubText(authByT['session_expired']);
+            document.getElementById('stat-denied-sub').textContent  = buildSubText(authByT['permission_denied']);
 
         } catch (_) {}
     }
