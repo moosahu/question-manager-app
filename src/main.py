@@ -1041,6 +1041,18 @@ def create_app():
     except Exception as e:
         print(f"❌ Teacher Features blueprint error: {e}")
 
+    # ✅ تسجيل Error Tracking Blueprint — تتبع الأخطاء التلقائي
+    try:
+        from src.routes.errors import errors_bp
+        csrf.exempt(errors_bp)
+        app.register_blueprint(errors_bp)
+        print("✅ Error Tracking blueprint registered successfully")
+        print("🐛  Error Tracking endpoints available at: /api/v1/errors")
+    except ImportError as e:
+        print(f"⚠️ Error Tracking blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Error Tracking blueprint error: {e}")
+
     @app.route("/", endpoint='index')
     def home():
         # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم

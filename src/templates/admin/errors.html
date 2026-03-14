@@ -1,0 +1,1113 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة تتبع الأخطاء{% endblock %}
+
+{% block extra_css %}
+<style>
+    * { direction: rtl; text-align: right; }
+
+    /* ── Page layout ───────────────────────────────────────────── */
+    .err-container {
+        max-width: 1300px;
+        margin: 24px auto;
+        padding: 0 20px;
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .err-header {
+        text-align: center !important;
+        margin-bottom: 28px;
+        padding: 28px 20px 24px;
+        background: linear-gradient(135deg, #4ecdc4, #2563eb);
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .err-header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,.25);
+        border-radius: 16px;
+    }
+    .err-header > * { position: relative; z-index: 1; }
+    .err-header h1 {
+        font-size: 1.9rem;
+        color: #fff;
+        font-weight: 700;
+        margin: 0 0 6px;
+    }
+    .err-header p { color: rgba(255,255,255,.85); font-size: .95rem; margin: 0; }
+
+    /* ── Stats bar ─────────────────────────────────────────────── */
+    .stats-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        flex: 1;
+        min-width: 130px;
+        background: rgba(20,25,45,.85);
+        border: 1px solid rgba(78,205,196,.2);
+        border-radius: 12px;
+        padding: 14px 18px;
+        text-align: center !important;
+    }
+    .stat-card .stat-num {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #4ecdc4;
+        display: block;
+    }
+    .stat-card .stat-label { color: #9ca3af; font-size: .82rem; }
+
+    /* ── Filter bar ─────────────────────────────────────────────── */
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 20px;
+        background: rgba(20,25,45,.85);
+        border: 1px solid rgba(78,205,196,.2);
+        border-radius: 12px;
+        padding: 14px 18px;
+    }
+    .filter-bar label {
+        color: #9ca3af;
+        font-size: .85rem;
+        margin-left: 4px;
+    }
+    .filter-select {
+        padding: 8px 12px;
+        background: rgba(10,15,30,.7);
+        border: 1px solid rgba(78,205,196,.35);
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: .9rem;
+        cursor: pointer;
+        min-width: 155px;
+    }
+    .filter-select:focus { outline: none; border-color: #4ecdc4; }
+
+    .toggle-btn {
+        padding: 8px 18px;
+        border-radius: 8px;
+        border: 1px solid rgba(78,205,196,.35);
+        background: rgba(10,15,30,.6);
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: .9rem;
+        transition: all .2s;
+    }
+    .toggle-btn.active {
+        background: rgba(78,205,196,.15);
+        border-color: #4ecdc4;
+        color: #4ecdc4;
+    }
+
+    .filter-spacer { flex: 1; }
+
+    .refresh-info {
+        color: #6b7280;
+        font-size: .78rem;
+        white-space: nowrap;
+    }
+    #refresh-countdown { color: #4ecdc4; font-weight: 600; }
+
+    /* ── Table wrapper ──────────────────────────────────────────── */
+    .table-wrapper {
+        background: rgba(20,25,45,.85);
+        border: 1px solid rgba(78,205,196,.2);
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .err-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .88rem;
+    }
+    .err-table thead th {
+        background: rgba(10,15,30,.6);
+        color: #4ecdc4;
+        padding: 13px 14px;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(78,205,196,.2);
+        white-space: nowrap;
+    }
+    .err-table tbody tr {
+        border-bottom: 1px solid rgba(255,255,255,.05);
+        transition: background .15s;
+    }
+    .err-table tbody tr:last-child { border-bottom: none; }
+    .err-table tbody tr:hover { background: rgba(78,205,196,.05); }
+    .err-table td {
+        padding: 12px 14px;
+        color: #d1d5db;
+        vertical-align: middle;
+    }
+
+    /* Priority row left-border */
+    .row-CRITICAL { border-right: 3px solid #ef4444; }
+    .row-HIGH     { border-right: 3px solid #f97316; }
+    .row-MEDIUM   { border-right: 3px solid #eab308; }
+    .row-LOW      { border-right: 3px solid #22c55e; }
+
+    /* ── Badges ─────────────────────────────────────────────────── */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .74rem;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .badge-source {
+        background: rgba(37,99,235,.18);
+        color: #60a5fa;
+        border: 1px solid rgba(37,99,235,.3);
+    }
+    .badge-CRITICAL {
+        background: rgba(239,68,68,.18);
+        color: #f87171;
+        border: 1px solid rgba(239,68,68,.35);
+    }
+    .badge-HIGH {
+        background: rgba(249,115,22,.18);
+        color: #fb923c;
+        border: 1px solid rgba(249,115,22,.35);
+    }
+    .badge-MEDIUM {
+        background: rgba(234,179,8,.18);
+        color: #facc15;
+        border: 1px solid rgba(234,179,8,.35);
+    }
+    .badge-LOW {
+        background: rgba(34,197,94,.18);
+        color: #4ade80;
+        border: 1px solid rgba(34,197,94,.35);
+    }
+    .badge-resolved {
+        background: rgba(100,116,139,.18);
+        color: #94a3b8;
+        border: 1px solid rgba(100,116,139,.3);
+    }
+
+    /* ── Action buttons ─────────────────────────────────────────── */
+    .act-btn {
+        padding: 6px 13px;
+        border-radius: 7px;
+        border: none;
+        cursor: pointer;
+        font-size: .8rem;
+        transition: all .2s;
+        font-weight: 500;
+    }
+    .btn-details {
+        background: rgba(78,205,196,.15);
+        color: #4ecdc4;
+        border: 1px solid rgba(78,205,196,.3);
+    }
+    .btn-details:hover { background: rgba(78,205,196,.28); }
+    .btn-resolve {
+        background: rgba(34,197,94,.12);
+        color: #4ade80;
+        border: 1px solid rgba(34,197,94,.3);
+        margin-right: 6px;
+    }
+    .btn-resolve:hover { background: rgba(34,197,94,.25); }
+    .btn-resolve:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+    /* ── Hash cell ──────────────────────────────────────────────── */
+    .hash-cell {
+        font-family: 'Courier New', monospace;
+        color: #6b7280;
+        font-size: .8rem;
+        direction: ltr;
+        text-align: left;
+    }
+
+    /* ── Count cell ─────────────────────────────────────────────── */
+    .count-cell {
+        font-weight: 700;
+        color: #e2e8f0;
+        text-align: center !important;
+    }
+
+    /* ── Empty state ────────────────────────────────────────────── */
+    .empty-state {
+        text-align: center !important;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+    .empty-state .empty-icon { font-size: 3.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 1rem; margin: 0; }
+
+    /* ── Loading ────────────────────────────────────────────────── */
+    .loading-row td {
+        text-align: center !important;
+        padding: 50px;
+        color: #6b7280;
+    }
+    .spinner {
+        display: inline-block;
+        width: 28px; height: 28px;
+        border: 3px solid rgba(78,205,196,.3);
+        border-top-color: #4ecdc4;
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+        vertical-align: middle;
+        margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Pagination ─────────────────────────────────────────────── */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .page-btn {
+        min-width: 36px; height: 36px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(78,205,196,.25);
+        background: rgba(20,25,45,.85);
+        color: #c0c4d0;
+        cursor: pointer;
+        font-size: .88rem;
+        transition: all .2s;
+    }
+    .page-btn:hover:not(:disabled) {
+        border-color: #4ecdc4;
+        color: #4ecdc4;
+        background: rgba(78,205,196,.1);
+    }
+    .page-btn.active {
+        background: rgba(78,205,196,.2);
+        border-color: #4ecdc4;
+        color: #4ecdc4;
+        font-weight: 700;
+    }
+    .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .page-info { color: #6b7280; font-size: .83rem; }
+
+    /* ── Modal overlay ──────────────────────────────────────────── */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.65);
+        z-index: 9000;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 40px 16px;
+        overflow-y: auto;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+        background: #0d1225;
+        border: 1px solid rgba(78,205,196,.3);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 820px;
+        position: relative;
+        animation: modalIn .25s ease;
+    }
+    @keyframes modalIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 22px;
+        border-bottom: 1px solid rgba(78,205,196,.15);
+    }
+    .modal-title { color: #4ecdc4; font-size: 1.05rem; font-weight: 600; }
+    .modal-close {
+        background: none;
+        border: none;
+        color: #6b7280;
+        font-size: 1.4rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: color .2s;
+    }
+    .modal-close:hover { color: #e2e8f0; }
+
+    .modal-body { padding: 20px 22px; max-height: 70vh; overflow-y: auto; }
+
+    .modal-loading {
+        text-align: center !important;
+        padding: 40px;
+        color: #6b7280;
+    }
+
+    /* Individual report card inside modal */
+    .report-card {
+        background: rgba(20,25,45,.7);
+        border: 1px solid rgba(78,205,196,.12);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 14px;
+    }
+    .report-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    .meta-item {
+        background: rgba(10,15,30,.5);
+        color: #9ca3af;
+        font-size: .78rem;
+        padding: 3px 10px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,.07);
+    }
+    .meta-item span { color: #e2e8f0; }
+
+    .report-message {
+        color: #fbbf24;
+        font-size: .88rem;
+        margin-bottom: 10px;
+        word-break: break-word;
+    }
+
+    .stack-trace-label {
+        color: #6b7280;
+        font-size: .78rem;
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+    .stack-trace {
+        background: rgba(0,0,0,.4);
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: 'Courier New', monospace;
+        font-size: .75rem;
+        color: #a78bfa;
+        white-space: pre-wrap;
+        word-break: break-all;
+        direction: ltr;
+        text-align: left;
+        max-height: 200px;
+        overflow-y: auto;
+        margin: 0;
+    }
+
+    .no-stack { color: #4b5563; font-size: .8rem; font-style: italic; }
+
+    /* ── Toast ──────────────────────────────────────────────────── */
+    .err-toast {
+        position: fixed;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 12px 26px;
+        border-radius: 10px;
+        font-size: .9rem;
+        z-index: 9999;
+        box-shadow: 0 4px 24px rgba(0,0,0,.5);
+        display: none;
+        border-right: 4px solid #4ecdc4;
+        min-width: 240px;
+        text-align: center !important;
+    }
+    .err-toast.toast-error { border-right-color: #f87171; }
+    .err-toast.toast-show {
+        display: block;
+        animation: toastIn .3s ease;
+    }
+    @keyframes toastIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── Charts section ─────────────────────────────────────────── */
+    .charts-row {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .chart-card {
+        background: rgba(20,25,45,.85);
+        border: 1px solid rgba(78,205,196,.2);
+        border-radius: 14px;
+        padding: 18px 20px;
+        flex: 1;
+        min-width: 280px;
+    }
+    .chart-card h3 {
+        color: #4ecdc4;
+        font-size: .95rem;
+        margin: 0 0 14px;
+        font-weight: 600;
+    }
+    .chart-canvas-wrap { position: relative; height: 160px; }
+    /* Top screens table */
+    .screen-table { width: 100%; border-collapse: collapse; }
+    .screen-table td { padding: 7px 4px; font-size: .85rem; color: #c0c4d0; }
+    .screen-table td:last-child { text-align: left; color: #4ecdc4; font-weight: 600; }
+    .screen-bar {
+        display: inline-block;
+        height: 6px;
+        background: linear-gradient(90deg, #4ecdc4, #2563eb);
+        border-radius: 3px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+    /* Version pills */
+    .version-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .version-label { color: #94a3b8; font-size: .82rem; min-width: 60px; }
+    .version-bar-wrap { flex: 1; background: rgba(255,255,255,.07); border-radius: 4px; height: 8px; overflow: hidden; }
+    .version-bar { height: 8px; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 4px; transition: width .5s; }
+    .version-count { color: #e2e8f0; font-size: .82rem; min-width: 32px; text-align: left; }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+        .err-table thead { display: none; }
+        .err-table tr {
+            display: block;
+            margin-bottom: 12px;
+            border: 1px solid rgba(78,205,196,.15);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .err-table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .err-table td:last-child { border-bottom: none; }
+        .err-table td::before {
+            content: attr(data-label);
+            color: #6b7280;
+            font-size: .78rem;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+        .row-CRITICAL, .row-HIGH, .row-MEDIUM, .row-LOW {
+            border-right-width: 4px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="err-container">
+
+    <!-- Header -->
+    <div class="err-header">
+        <h1>🐛 لوحة تتبع الأخطاء</h1>
+        <p>مراقبة وإدارة الأخطاء الواردة من التطبيق والخادم</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar">
+        <div class="stat-card">
+            <span class="stat-num" id="stat-total">—</span>
+            <span class="stat-label">إجمالي المجموعات</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num" id="stat-critical" style="color:#f87171;">—</span>
+            <span class="stat-label">🔴 حرج</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num" id="stat-high" style="color:#fb923c;">—</span>
+            <span class="stat-label">🟠 عالي</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num" id="stat-unresolved" style="color:#facc15;">—</span>
+            <span class="stat-label">غير محلولة</span>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row" id="charts-row" style="display:none;">
+        <!-- رسم بياني — آخر 7 أيام -->
+        <div class="chart-card">
+            <h3>📈 أخطاء آخر 7 أيام</h3>
+            <div class="chart-canvas-wrap">
+                <canvas id="daily-chart"></canvas>
+            </div>
+        </div>
+        <!-- أكثر الشاشات -->
+        <div class="chart-card">
+            <h3>📱 أكثر الشاشات أخطاءً</h3>
+            <table class="screen-table" id="top-screens-table">
+                <tbody></tbody>
+            </table>
+        </div>
+        <!-- مقارنة الإصدارات -->
+        <div class="chart-card">
+            <h3>🏷️ توزيع الأخطاء بالإصدار</h3>
+            <div id="versions-list"></div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <label for="filter-source">المصدر:</label>
+        <select id="filter-source" class="filter-select" onchange="applyFilters()">
+            <option value="">الكل</option>
+            <option value="auto_crash">كراش تلقائي</option>
+            <option value="api_error">خطأ API</option>
+            <option value="screen_error">خطأ شاشة</option>
+            <option value="user_report">بلاغ مستخدم</option>
+        </select>
+
+        <label for="filter-priority">الأولوية:</label>
+        <select id="filter-priority" class="filter-select" onchange="applyFilters()">
+            <option value="">الكل</option>
+            <option value="CRITICAL">🔴 حرج</option>
+            <option value="HIGH">🟠 عالي</option>
+            <option value="MEDIUM">🟡 متوسط</option>
+            <option value="LOW">🟢 منخفض</option>
+        </select>
+
+        <button id="toggle-resolved" class="toggle-btn" onclick="toggleResolved()">
+            عرض المحلولة
+        </button>
+
+        <div class="filter-spacer"></div>
+
+        <span class="refresh-info">
+            تحديث تلقائي بعد <span id="refresh-countdown">60</span>ث
+        </span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+        <table class="err-table">
+            <thead>
+                <tr>
+                    <th>المعرّف</th>
+                    <th>الملخص</th>
+                    <th>المصدر</th>
+                    <th>الأولوية</th>
+                    <th>التكرار</th>
+                    <th>آخر ظهور</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="errors-tbody">
+                <tr class="loading-row">
+                    <td colspan="7">
+                        <span class="spinner"></span>
+                        جاري التحميل…
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="pagination"></div>
+
+</div>
+
+<!-- Detail Modal -->
+<div id="detail-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title" id="modal-title-text">تفاصيل الخطأ</span>
+            <button class="modal-close" onclick="closeModal()" aria-label="إغلاق">✕</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <div class="modal-loading">
+                <span class="spinner"></span>
+                جاري التحميل…
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="err-toast" class="err-toast"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    /* ═══════════════════════════════════════════════════════════
+       Constants & State
+    ═══════════════════════════════════════════════════════════ */
+    const PER_PAGE   = 50;
+    const REFRESH_SEC = 60;
+
+    let state = {
+        page:       1,
+        source:     '',
+        priority:   '',
+        resolved:   false,
+        total:      0,
+        groups:     [],
+        countdown:  REFRESH_SEC,
+        timer:      null,
+        cdownTimer: null,
+    };
+
+    /* ═══════════════════════════════════════════════════════════
+       Helpers
+    ═══════════════════════════════════════════════════════════ */
+    function getCsrf() {
+        return document.querySelector('meta[name="csrf-token"]')?.content || '';
+    }
+
+    const SOURCE_LABELS = {
+        auto_crash:  'كراش تلقائي',
+        api_error:   'خطأ API',
+        screen_error:'خطأ شاشة',
+        user_report: 'بلاغ مستخدم',
+    };
+    const PRIORITY_LABELS = {
+        CRITICAL: '🔴 حرج',
+        HIGH:     '🟠 عالي',
+        MEDIUM:   '🟡 متوسط',
+        LOW:      '🟢 منخفض',
+    };
+    const USER_TYPE_LABELS = {
+        admin:   'مشرف',
+        teacher: 'معلم',
+        student: 'طالب',
+        unknown: 'غير معروف',
+    };
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        try {
+            const d = new Date(iso);
+            return d.toLocaleString('ar-SA', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true,
+            });
+        } catch { return iso; }
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Toast
+    ═══════════════════════════════════════════════════════════ */
+    let toastTimer = null;
+    function showToast(msg, isError = false) {
+        const el = document.getElementById('err-toast');
+        el.textContent = msg;
+        el.className = 'err-toast toast-show' + (isError ? ' toast-error' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('toast-show'), 3500);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       API calls
+    ═══════════════════════════════════════════════════════════ */
+    async function fetchGroups() {
+        const params = new URLSearchParams({
+            resolved: state.resolved ? 'true' : 'false',
+            page:     state.page,
+            per_page: PER_PAGE,
+        });
+        if (state.source)   params.append('source',   state.source);
+        if (state.priority) params.append('priority', state.priority);
+
+        const url = `/api/v1/errors/groups?${params.toString()}`;
+
+        try {
+            const r = await fetch(url, { headers: { 'X-CSRFToken': getCsrf() } });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (!data.success) throw new Error(data.error || 'فشل الطلب');
+            return data;
+        } catch (e) {
+            showToast('خطأ في تحميل البيانات: ' + e.message, true);
+            return null;
+        }
+    }
+
+    async function fetchReports(groupHash) {
+        try {
+            const r = await fetch(`/api/v1/errors/list?group_hash=${encodeURIComponent(groupHash)}`, {
+                headers: { 'X-CSRFToken': getCsrf() },
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (!data.success) throw new Error(data.error || 'فشل الطلب');
+            return data;
+        } catch (e) {
+            showToast('خطأ في تحميل التفاصيل: ' + e.message, true);
+            return null;
+        }
+    }
+
+    // ─── Stats ───────────────────────────────────────────────────
+    let dailyChart = null;
+
+    async function loadStats() {
+        try {
+            const r = await fetch('/api/v1/errors/stats', { headers: { 'X-CSRFToken': getCsrf() } });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (!data.success) return;
+
+            document.getElementById('charts-row').style.display = 'flex';
+
+            // ── رسم بياني آخر 7 أيام ─────────────────────────
+            const labels = data.daily.map(d => {
+                const dt = new Date(d.date);
+                return dt.toLocaleDateString('ar-SA', { weekday: 'short', day: 'numeric' });
+            });
+            const values = data.daily.map(d => d.count);
+
+            const ctx = document.getElementById('daily-chart').getContext('2d');
+            if (dailyChart) dailyChart.destroy();
+            dailyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'أخطاء',
+                        data: values,
+                        backgroundColor: 'rgba(78,205,196,.5)',
+                        borderColor: '#4ecdc4',
+                        borderWidth: 1.5,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(255,255,255,.05)' } },
+                    }
+                }
+            });
+
+            // ── أكثر الشاشات ──────────────────────────────────
+            const maxCount = data.top_screens.length ? data.top_screens[0].count : 1;
+            const tbody = document.querySelector('#top-screens-table tbody');
+            tbody.innerHTML = data.top_screens.length
+                ? data.top_screens.map(s => `
+                    <tr>
+                        <td>${escHtml(s.screen)}</td>
+                        <td>
+                            <span class="screen-bar" style="width:${Math.round(s.count/maxCount*80)}px"></span>
+                            ${s.count}
+                        </td>
+                    </tr>`).join('')
+                : '<tr><td colspan="2" style="color:#4b5563;font-style:italic;">لا بيانات</td></tr>';
+
+            // ── مقارنة الإصدارات ──────────────────────────────
+            const maxVer = data.versions.length ? data.versions[0].count : 1;
+            document.getElementById('versions-list').innerHTML = data.versions.length
+                ? data.versions.map(v => `
+                    <div class="version-row">
+                        <span class="version-label">v${escHtml(v.version)}</span>
+                        <div class="version-bar-wrap">
+                            <div class="version-bar" style="width:${Math.round(v.count/maxVer*100)}%"></div>
+                        </div>
+                        <span class="version-count">${v.count}</span>
+                    </div>`).join('')
+                : '<p style="color:#4b5563;font-size:.82rem;">لا بيانات</p>';
+
+        } catch (_) {}
+    }
+
+    async function resolveGroup(groupHash, btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        try {
+            const r = await fetch(`/api/v1/errors/${encodeURIComponent(groupHash)}/resolve`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (!data.success) throw new Error(data.error || 'فشل الطلب');
+            showToast('✅ تم حلّ المجموعة بنجاح');
+            await loadGroups();
+        } catch (e) {
+            showToast('خطأ: ' + e.message, true);
+            btn.disabled = false;
+            btn.textContent = 'حلّ';
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Render
+    ═══════════════════════════════════════════════════════════ */
+    function renderGroups(data) {
+        state.total  = data.total;
+        state.groups = data.groups || [];
+
+        const tbody = document.getElementById('errors-tbody');
+
+        if (!state.groups.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-icon">🎉</div>
+                            <p>لا توجد أخطاء مطابقة للفلاتر الحالية</p>
+                        </div>
+                    </td>
+                </tr>`;
+            renderPagination();
+            updateStats(data);
+            return;
+        }
+
+        tbody.innerHTML = state.groups.map(g => {
+            const hash8      = escHtml(g.group_hash.substring(0, 8));
+            const summary    = escHtml(g.error_summary || '—');
+            const sourceLabel = escHtml(SOURCE_LABELS[g.source] || g.source);
+            const priLabel   = PRIORITY_LABELS[g.priority] || g.priority;
+            const lastSeen   = fmtDate(g.last_seen);
+            const isResolved = !!g.is_resolved;
+
+            return `
+            <tr class="row-${escHtml(g.priority)}" data-hash="${escHtml(g.group_hash)}">
+                <td data-label="المعرّف" class="hash-cell" title="${escHtml(g.group_hash)}">${hash8}</td>
+                <td data-label="الملخص">${summary}
+                    ${isResolved ? '<br><span class="badge badge-resolved" style="margin-top:4px;">✔ محلول</span>' : ''}
+                </td>
+                <td data-label="المصدر"><span class="badge badge-source">${sourceLabel}</span></td>
+                <td data-label="الأولوية"><span class="badge badge-${escHtml(g.priority)}">${priLabel}</span></td>
+                <td data-label="التكرار" class="count-cell">${g.count || 0}</td>
+                <td data-label="آخر ظهور" style="font-size:.82rem; color:#9ca3af;">${lastSeen}</td>
+                <td data-label="الإجراءات">
+                    <button class="act-btn btn-details"
+                            onclick="openModal('${escHtml(g.group_hash)}', '${summary.replace(/'/g,"\\'")}')">
+                        تفاصيل
+                    </button>
+                    <button class="act-btn btn-resolve"
+                            onclick="handleResolve('${escHtml(g.group_hash)}', this)"
+                            ${isResolved ? 'disabled' : ''}>
+                        ${isResolved ? '✔ محلول' : 'حلّ'}
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        renderPagination();
+        updateStats(data);
+    }
+
+    function updateStats(data) {
+        const groups = data.groups || [];
+        document.getElementById('stat-total').textContent     = data.total ?? '—';
+        document.getElementById('stat-critical').textContent  = groups.filter(g => g.priority === 'CRITICAL').length;
+        document.getElementById('stat-high').textContent      = groups.filter(g => g.priority === 'HIGH').length;
+        document.getElementById('stat-unresolved').textContent = groups.filter(g => !g.is_resolved).length;
+    }
+
+    function renderPagination() {
+        const container  = document.getElementById('pagination');
+        const totalPages = Math.ceil(state.total / PER_PAGE);
+        if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+        let html = `<button class="page-btn" onclick="gotoPage(${state.page - 1})" ${state.page <= 1 ? 'disabled' : ''}>&raquo; السابق</button>`;
+
+        // Window of pages
+        const start = Math.max(1, state.page - 2);
+        const end   = Math.min(totalPages, state.page + 2);
+
+        if (start > 1) html += `<button class="page-btn" onclick="gotoPage(1)">1</button>`;
+        if (start > 2) html += `<span class="page-info">…</span>`;
+
+        for (let p = start; p <= end; p++) {
+            html += `<button class="page-btn ${p === state.page ? 'active' : ''}" onclick="gotoPage(${p})">${p}</button>`;
+        }
+
+        if (end < totalPages - 1) html += `<span class="page-info">…</span>`;
+        if (end < totalPages)     html += `<button class="page-btn" onclick="gotoPage(${totalPages})">${totalPages}</button>`;
+
+        html += `<button class="page-btn" onclick="gotoPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>التالي &laquo;</button>`;
+        html += `<span class="page-info">(${state.total} مجموعة)</span>`;
+
+        container.innerHTML = html;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Load
+    ═══════════════════════════════════════════════════════════ */
+    async function loadGroups() {
+        const tbody = document.getElementById('errors-tbody');
+        tbody.innerHTML = '<tr class="loading-row"><td colspan="7"><span class="spinner"></span> جاري التحميل…</td></tr>';
+
+        const data = await fetchGroups();
+        if (data) renderGroups(data);
+        else {
+            tbody.innerHTML = '<tr class="loading-row"><td colspan="7">❌ فشل تحميل البيانات. حاول لاحقاً.</td></tr>';
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Filters & Pagination (exposed globally)
+    ═══════════════════════════════════════════════════════════ */
+    window.applyFilters = function () {
+        state.source   = document.getElementById('filter-source').value;
+        state.priority = document.getElementById('filter-priority').value;
+        state.page     = 1;
+        loadGroups();
+        resetCountdown();
+    };
+
+    window.toggleResolved = function () {
+        state.resolved = !state.resolved;
+        const btn = document.getElementById('toggle-resolved');
+        btn.classList.toggle('active', state.resolved);
+        btn.textContent = state.resolved ? '✔ عرض غير المحلولة' : 'عرض المحلولة';
+        state.page = 1;
+        loadGroups();
+        resetCountdown();
+    };
+
+    window.gotoPage = function (page) {
+        const totalPages = Math.ceil(state.total / PER_PAGE);
+        if (page < 1 || page > totalPages) return;
+        state.page = page;
+        loadGroups();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        resetCountdown();
+    };
+
+    window.handleResolve = function (hash, btn) {
+        if (!confirm('هل تريد تحديد هذه المجموعة كمحلولة؟')) return;
+        resolveGroup(hash, btn);
+        resetCountdown();
+    };
+
+    /* ═══════════════════════════════════════════════════════════
+       Modal
+    ═══════════════════════════════════════════════════════════ */
+    window.openModal = async function (groupHash, summary) {
+        const modal     = document.getElementById('detail-modal');
+        const body      = document.getElementById('modal-body');
+        const titleEl   = document.getElementById('modal-title-text');
+
+        titleEl.textContent = `تفاصيل: ${summary.substring(0, 60)}…`;
+        body.innerHTML = '<div class="modal-loading"><span class="spinner"></span> جاري التحميل…</div>';
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        const data = await fetchReports(groupHash);
+        if (!data) {
+            body.innerHTML = '<p style="color:#f87171; text-align:center">فشل تحميل التفاصيل.</p>';
+            return;
+        }
+
+        if (!data.reports || !data.reports.length) {
+            body.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>لا توجد تقارير مرتبطة</p></div>';
+            return;
+        }
+
+        body.innerHTML = data.reports.map(rep => {
+            const userType = USER_TYPE_LABELS[rep.user_type] || rep.user_type || '—';
+            const stackHtml = rep.stack_trace
+                ? `<div class="stack-trace-label">Stack Trace:</div><pre class="stack-trace">${escHtml(rep.stack_trace)}</pre>`
+                : '<span class="no-stack">لا يوجد stack trace</span>';
+
+            return `
+            <div class="report-card">
+                <div class="report-meta">
+                    <span class="meta-item">#<span>${rep.id}</span></span>
+                    <span class="meta-item">الشاشة: <span>${escHtml(rep.screen_name || '—')}</span></span>
+                    <span class="meta-item">المستخدم: <span>${escHtml(userType)}</span></span>
+                    <span class="meta-item">الإصدار: <span>${escHtml(rep.app_version || '—')}</span></span>
+                    <span class="meta-item">السياق: <span>${escHtml(rep.error_context || '—')}</span></span>
+                    <span class="meta-item">التاريخ: <span>${fmtDate(rep.created_at)}</span></span>
+                </div>
+                <div class="report-message">${escHtml(rep.error_message || '—')}</div>
+                ${stackHtml}
+            </div>`;
+        }).join('');
+    };
+
+    window.closeModal = function () {
+        document.getElementById('detail-modal').classList.remove('open');
+        document.body.style.overflow = '';
+    };
+
+    // Close on backdrop click
+    document.getElementById('detail-modal').addEventListener('click', function (e) {
+        if (e.target === this) window.closeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') window.closeModal();
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       Auto-refresh + countdown
+    ═══════════════════════════════════════════════════════════ */
+    function resetCountdown() {
+        state.countdown = REFRESH_SEC;
+        document.getElementById('refresh-countdown').textContent = REFRESH_SEC;
+    }
+
+    function startAutoRefresh() {
+        clearInterval(state.timer);
+        clearInterval(state.cdownTimer);
+
+        state.cdownTimer = setInterval(() => {
+            state.countdown--;
+            const el = document.getElementById('refresh-countdown');
+            if (el) el.textContent = state.countdown;
+
+            if (state.countdown <= 0) {
+                state.countdown = REFRESH_SEC;
+                loadGroups();
+            }
+        }, 1000);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       Init
+    ═══════════════════════════════════════════════════════════ */
+    document.addEventListener('DOMContentLoaded', function () {
+        loadGroups();
+        loadStats();
+        startAutoRefresh();
+    });
+
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock scripts %}

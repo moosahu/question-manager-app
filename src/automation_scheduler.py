@@ -567,6 +567,67 @@ def check_notification_effectiveness_job():
         logger.error(f"❌ [Scheduler] خطأ في فحص فعالية الإشعارات: {e}")
 
 
+def send_weekly_error_report_job():
+    """تقرير أسبوعي بالإيميل للأدمن — كل اثنين 8 صباحاً"""
+    global _flask_app
+    if _flask_app is None:
+        return
+    try:
+        with _flask_app.app_context():
+            from datetime import timedelta
+            from src.models.error_tracking import ErrorGroup, ErrorReport
+            from src.models.user import User
+            from src.services.email_service import email_service
+            from sqlalchemy import func, cast, Date
+
+            admin = User.query.filter_by(is_admin=True).first()
+            if not admin or not admin.email:
+                return
+
+            now = datetime.utcnow()
+            week_ago = now - timedelta(days=7)
+
+            # إجمالي الأخطاء الأسبوع الماضي
+            total_week = ErrorReport.query.filter(ErrorReport.created_at >= week_ago).count()
+            critical   = ErrorGroup.query.filter_by(priority='CRITICAL', is_resolved=False).count()
+            high       = ErrorGroup.query.filter_by(priority='HIGH',     is_resolved=False).count()
+            unresolved = ErrorGroup.query.filter_by(is_resolved=False).count()
+            resolved_week = ErrorGroup.query.filter(
+                ErrorGroup.is_resolved == True,
+                ErrorGroup.resolved_at >= week_ago
+            ).count()
+
+            # أكثر شاشة بها أخطاء
+            top = (
+                db.session.query(ErrorReport.screen_name, func.count(ErrorReport.id).label('c'))
+                .filter(ErrorReport.created_at >= week_ago, ErrorReport.screen_name.isnot(None))
+                .group_by(ErrorReport.screen_name)
+                .order_by(func.count(ErrorReport.id).desc())
+                .first()
+            )
+            top_screen_text = f"{top.screen_name} ({top.c} خطأ)" if top else "—"
+
+            if total_week == 0 and unresolved == 0:
+                logger.info("✅ [WeeklyReport] لا أخطاء هذا الأسبوع — تخطي الإرسال")
+                return
+
+            title   = f"📊 التقرير الأسبوعي للأخطاء — {now.strftime('%Y-%m-%d')}"
+            message = (
+                f"ملخص الأسبوع الماضي:\n"
+                f"• إجمالي الأخطاء: {total_week}\n"
+                f"• مجموعات غير محلولة: {unresolved} (حرج: {critical}, عالي: {high})\n"
+                f"• محلولة هذا الأسبوع: {resolved_week}\n"
+                f"• أكثر شاشة أخطاء: {top_screen_text}\n\n"
+                f"للتفاصيل: https://chem-tahsili.com/api/v1/errors/dashboard"
+            )
+
+            email_service.send_admin_notification(admin.email, title, message)
+            logger.info(f"✅ [WeeklyReport] تم إرسال التقرير الأسبوعي للأخطاء")
+
+    except Exception as e:
+        logger.error(f"❌ [WeeklyReport] خطأ في إرسال التقرير الأسبوعي: {e}")
+
+
 def start_automation_scheduler(app):
     """بدء جدولة الرسائل التلقائية"""
     global automation_scheduler, _flask_app, _has_lock
@@ -632,6 +693,19 @@ def start_automation_scheduler(app):
             id='check_notification_effectiveness',
             name='فحص فعالية الإشعارات',
             replace_existing=True
+        )
+
+        # ✅ تقرير الأخطاء الأسبوعي — كل اثنين الساعة 8 صباحاً بتوقيت السعودية
+        automation_scheduler.add_job(
+            func=send_weekly_error_report_job,
+            trigger='cron',
+            day_of_week='mon',
+            hour=5,          # 8 صباحاً KSA = 5 UTC
+            minute=0,
+            id='weekly_error_report',
+            name='التقرير الأسبوعي للأخطاء',
+            replace_existing=True,
+            timezone='UTC',
         )
 
         # بدء التشغيل
