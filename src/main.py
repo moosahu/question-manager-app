@@ -1062,6 +1062,18 @@ def create_app():
     except Exception as e:
         print(f"❌ Error Tracking blueprint error: {e}")
 
+    # ✅ تسجيل Design Access Blueprint — إدارة صلاحيات اختبار التصاميم
+    try:
+        from src.routes.design_access import design_access_bp
+        csrf.exempt(design_access_bp)
+        app.register_blueprint(design_access_bp)
+        print("✅ Design Access blueprint registered successfully")
+        print("🎨  Design Access endpoints available at: /api/design-access")
+    except ImportError as e:
+        print(f"⚠️ Design Access blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Design Access blueprint error: {e}")
+
     @app.route("/", endpoint='index')
     def home():
         # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم

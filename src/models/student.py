@@ -35,6 +35,10 @@ class Student(db.Model, UserMixin):
     fcm_token = db.Column(db.String(500), nullable=True)  # للإشعارات
     fcm_token_updated_at = db.Column(db.DateTime, nullable=True)  # آخر تحديث للـ FCM Token
 
+    # ✅ اختبار التصاميم — الأدمن يفعّل لطلاب محددين
+    design_tester = db.Column(db.Boolean, default=False)       # هل مسموح له بزر التصاميم؟
+    allowed_designs = db.Column(db.String(100), nullable=True) # "1,3,5" أو null=الكل
+
     # ✅ جديد: بيانات الجهاز للتسجيل من جهاز واحد
     device_id = db.Column(db.String(255), nullable=True)  # معرف الجهاز الفريد
     device_name = db.Column(db.String(255), nullable=True)  # اسم الجهاز
@@ -158,6 +162,9 @@ class Student(db.Model, UserMixin):
             'device_id': self.device_id,
             'device_name': self.device_name,
             'last_device_login': self.last_device_login.isoformat() if self.last_device_login else None,
+            # اختبار التصاميم
+            'design_tester': self.design_tester or False,
+            'allowed_designs': self.allowed_designs,
         }
 
     def __repr__(self):
