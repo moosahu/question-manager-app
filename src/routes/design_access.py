@@ -10,6 +10,7 @@ from functools import wraps
 
 from src.models.student import Student
 from src.extensions import db
+from src.middleware.auth_middleware import verify_student_token
 
 design_access_bp = Blueprint('design_access', __name__, url_prefix='/api/design-access')
 
@@ -92,15 +93,17 @@ def update_tester(student_id):
 # ─────────────────────────────────────────────────────────────────────────────
 # Student: جلب صلاحية التصاميم الخاصة بالطالب الحالي
 # GET /api/design-access/my-access
+# يقبل JWT Token (Authorization: Bearer) من التطبيق
 # ─────────────────────────────────────────────────────────────────────────────
 @design_access_bp.route('/my-access', methods=['GET'])
-@login_required
-@student_required
+@verify_student_token
 def get_my_access():
-    # current_user هنا هو الطالب (Student model)
-    student = current_user
-    enabled = getattr(student, 'design_tester', False) or False
-    allowed_raw = getattr(student, 'allowed_designs', None)
+    student = Student.query.get(request.student_id)
+    if not student:
+        return jsonify({'success': False, 'error': 'الطالب غير موجود'}), 404
+
+    enabled = student.design_tester or False
+    allowed_raw = student.allowed_designs
 
     # تحويل "1,3,5" لقائمة أرقام
     allowed_list = None
