@@ -1064,6 +1064,7 @@ def create_app():
 
     # ✅ تسجيل Design Access Blueprint — إدارة صلاحيات اختبار التصاميم
     try:
+        from src.models.student_design_settings import StudentDesignSettings  # noqa: F401
         from src.routes.design_access import design_access_bp
         csrf.exempt(design_access_bp)
         app.register_blueprint(design_access_bp)

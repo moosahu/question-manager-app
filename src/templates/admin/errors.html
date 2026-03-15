@@ -578,6 +578,13 @@
             <h3>🏷️ توزيع الأخطاء بالإصدار</h3>
             <div id="versions-list"></div>
         </div>
+        <!-- مقارنة أسبوعية -->
+        <div class="chart-card">
+            <h3>📊 مقارنة أسبوعية</h3>
+            <div id="trend-content" style="display:flex;flex-direction:column;gap:16px;padding-top:12px;">
+                <div style="text-align:center;color:#6b7280;font-style:italic;">جاري التحميل…</div>
+            </div>
+        </div>
     </div>
 
     <!-- Filter Bar -->
@@ -598,6 +605,14 @@
             <option value="HIGH">🟠 عالي</option>
             <option value="MEDIUM">🟡 متوسط</option>
             <option value="LOW">🟢 منخفض</option>
+        </select>
+
+        <label for="filter-usertype">نوع المستخدم:</label>
+        <select id="filter-usertype" class="filter-select" onchange="applyFilters()">
+            <option value="">الكل</option>
+            <option value="student">طالب</option>
+            <option value="teacher">معلم</option>
+            <option value="admin">مشرف</option>
         </select>
 
         <button id="toggle-resolved" class="toggle-btn" onclick="toggleResolved()">
@@ -677,6 +692,7 @@
         page:       1,
         source:     '',
         priority:   '',
+        userType:   '',
         resolved:   false,
         total:      0,
         groups:     [],
@@ -752,8 +768,9 @@
             page:     state.page,
             per_page: PER_PAGE,
         });
-        if (state.source)   params.append('source',   state.source);
-        if (state.priority) params.append('priority', state.priority);
+        if (state.source)   params.append('source',    state.source);
+        if (state.priority) params.append('priority',  state.priority);
+        if (state.userType) params.append('user_type', state.userType);
 
         const url = `/api/v1/errors/groups?${params.toString()}`;
 
@@ -877,6 +894,37 @@
             }
             document.getElementById('stat-session-sub').textContent = buildSubText(authByT['session_expired']);
             document.getElementById('stat-denied-sub').textContent  = buildSubText(authByT['permission_denied']);
+
+            // ── مقارنة أسبوعية ────────────────────────────────────
+            const trend    = data.week_trend || {};
+            const thisWeek = trend.this_week || 0;
+            const lastWeek = trend.last_week || 0;
+            const changePct = trend.change_pct;
+
+            let trendIcon = '➡️', trendColor = '#9ca3af', trendText = 'لا تغيير';
+            if (changePct > 0) {
+                trendIcon = '📈'; trendColor = '#f87171';
+                trendText = `ارتفع ${changePct}%`;
+            } else if (changePct < 0) {
+                trendIcon = '📉'; trendColor = '#4ade80';
+                trendText = `انخفض ${Math.abs(changePct)}%`;
+            }
+
+            document.getElementById('trend-content').innerHTML = `
+                <div style="display:flex;justify-content:space-around;text-align:center;">
+                    <div>
+                        <div style="font-size:1.8rem;font-weight:700;color:#4ecdc4;">${thisWeek}</div>
+                        <div style="color:#9ca3af;font-size:.8rem;">هذا الأسبوع</div>
+                    </div>
+                    <div style="font-size:1.4rem;color:#4b5563;align-self:center;">vs</div>
+                    <div>
+                        <div style="font-size:1.8rem;font-weight:700;color:#6b7280;">${lastWeek}</div>
+                        <div style="color:#9ca3af;font-size:.8rem;">الأسبوع الماضي</div>
+                    </div>
+                </div>
+                <div style="text-align:center;font-size:1.15rem;color:${trendColor};font-weight:600;">
+                    ${trendIcon} ${trendText}
+                </div>`;
 
         } catch (_) {}
     }
@@ -1016,6 +1064,7 @@
     window.applyFilters = function () {
         state.source   = document.getElementById('filter-source').value;
         state.priority = document.getElementById('filter-priority').value;
+        state.userType = document.getElementById('filter-usertype').value;
         state.page     = 1;
         loadGroups();
         resetCountdown();

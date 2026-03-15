@@ -9,6 +9,7 @@ from flask_login import current_user, login_required
 from functools import wraps
 
 from src.models.student import Student
+from src.models.student_design_settings import StudentDesignSettings
 from src.extensions import db
 from src.middleware.auth_middleware import verify_student_token
 
@@ -117,4 +118,68 @@ def get_my_access():
         'success': True,
         'design_tester': enabled,
         'allowed_designs': allowed_list,  # null = الكل، أو قائمة أرقام
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin: جلب إعدادات اختيار التصميم العام
+# GET /api/design-access/admin/student-design-options
+# ─────────────────────────────────────────────────────────────────────────────
+@design_access_bp.route('/admin/student-design-options', methods=['GET'])
+@login_required
+@admin_required
+def get_student_design_options():
+    settings = StudentDesignSettings.get()
+    return jsonify({
+        'success': True,
+        'enabled': settings.enabled,
+        'allowed_designs': settings.allowed_list(),  # None = الكل، أو قائمة
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin: تحديث إعدادات اختيار التصميم العام
+# PUT /api/design-access/admin/student-design-options
+# Body: { "enabled": true, "allowed_designs": [1, 2, 5, 16] }
+# ─────────────────────────────────────────────────────────────────────────────
+@design_access_bp.route('/admin/student-design-options', methods=['PUT'])
+@login_required
+@admin_required
+def update_student_design_options():
+    data = request.get_json() or {}
+    settings = StudentDesignSettings.get()
+
+    if 'enabled' in data:
+        settings.enabled = bool(data['enabled'])
+
+    if 'allowed_designs' in data:
+        val = data['allowed_designs']
+        if not val:
+            settings.allowed_designs = None
+        elif isinstance(val, list):
+            settings.allowed_designs = ','.join(str(v) for v in val if str(v).isdigit() or isinstance(v, int))
+        else:
+            settings.allowed_designs = str(val)
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'enabled': settings.enabled,
+        'allowed_designs': settings.allowed_list(),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Student: جلب التصاميم المسموحة للاختيار
+# GET /api/design-access/student-design-options
+# يقبل JWT Token من التطبيق
+# ─────────────────────────────────────────────────────────────────────────────
+@design_access_bp.route('/student-design-options', methods=['GET'])
+@verify_student_token
+def get_student_design_options_public():
+    settings = StudentDesignSettings.get()
+    return jsonify({
+        'success': True,
+        'enabled': settings.enabled,
+        'allowed_designs': settings.allowed_list(),  # None = الكل
     })

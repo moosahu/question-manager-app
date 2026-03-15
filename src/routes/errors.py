@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 errors_bp = Blueprint('errors', __name__, url_prefix='/api/v1/errors')
 
+# في الذاكرة — cooldowns للـ spike notifications (ساعتان بين إشعارين لنفس المجموعة)
+_spike_cooldowns: dict = {}  # group_hash → datetime utc
+
 # ─── استيراد DB ─────────────────────────────────────────────────────────────
 
 try:
@@ -99,6 +102,38 @@ def _notify_admin(group: 'ErrorGroup', report: 'ErrorReport') -> None:
     except Exception as _e:
         logger.warning(f'_notify_admin failed: {_e}')
 
+def _notify_spike(group: 'ErrorGroup', report: 'ErrorReport', count_1h: int) -> None:
+    """إشعار فوري عند تصاعد مفاجئ (≥5 أخطاء لنفس المجموعة في ساعة واحدة)"""
+    try:
+        admin = User.query.filter_by(is_admin=True).first()
+        if not admin:
+            return
+
+        title   = f'⚡ تصاعد مفاجئ — {group.error_summary[:50]}'
+        message = (
+            f'تكرر هذا الخطأ {count_1h} مرة خلال الساعة الأخيرة!\n'
+            f'الخطأ: {group.error_summary}\n'
+            f'الشاشة: {report.screen_name or "غير محدد"}\n'
+            f'نوع المستخدم: {report.user_type or "غير معروف"}\n'
+            f'إجمالي التكرار منذ البداية: {group.count} مرة'
+        )
+
+        notif = Notification(
+            title=title, message=message, type='admin_event',
+            user_id=admin.id, is_read=False,
+        )
+        db.session.add(notif)
+        db.session.commit()
+
+        try:
+            from src.services.email_service import email_service
+            if admin.email:
+                email_service.send_admin_notification(admin.email, title, message)
+        except Exception as _e:
+            logger.warning(f'Spike email failed: {_e}')
+    except Exception as _e:
+        logger.warning(f'_notify_spike failed: {_e}')
+
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @errors_bp.route('/report', methods=['POST'])
@@ -162,14 +197,25 @@ def report_error():
         db.session.add(report)
         db.session.commit()
 
-        # ── إشعار الأدمن عند: crash جديد أو تكرار ≥ 5 ──────────
-        should_notify = (
-            priority == 'CRITICAL' and is_new_group
-        ) or (
-            group.count in (5, 10, 25, 50, 100)
-        )
-        if should_notify:
+        # ── إشعارات الأدمن ──────────────────────────────────────
+        # ① خطأ حرج جديد
+        if priority == 'CRITICAL' and is_new_group:
             _notify_admin(group, report)
+
+        # ② تصاعد مفاجئ: ≥5 تقارير لنفس المجموعة في الساعة الأخيرة
+        try:
+            hour_ago  = now - timedelta(hours=1)
+            count_1h  = ErrorReport.query.filter(
+                ErrorReport.group_hash == g_hash,
+                ErrorReport.created_at >= hour_ago,
+            ).count()
+            last_spike    = _spike_cooldowns.get(g_hash)
+            cooldown_ok   = last_spike is None or (now - last_spike) >= timedelta(hours=2)
+            if count_1h >= 5 and cooldown_ok:
+                _spike_cooldowns[g_hash] = now
+                _notify_spike(group, report, count_1h)
+        except Exception:
+            pass
 
         return jsonify({'success': True, 'group_hash': g_hash})
 
@@ -206,17 +252,25 @@ def get_groups():
     if not current_user.is_admin:
         return jsonify({'error': 'غير مصرح'}), 403
 
-    resolved  = request.args.get('resolved', 'false').lower() == 'true'
-    source    = request.args.get('source')
-    priority  = request.args.get('priority')
-    page      = int(request.args.get('page', 1))
-    per_page  = int(request.args.get('per_page', 50))
+    resolved   = request.args.get('resolved', 'false').lower() == 'true'
+    source     = request.args.get('source')
+    priority   = request.args.get('priority')
+    user_type  = request.args.get('user_type')
+    page       = int(request.args.get('page', 1))
+    per_page   = int(request.args.get('per_page', 50))
 
     q = ErrorGroup.query.filter_by(is_resolved=resolved)
     if source:
         q = q.filter_by(source=source)
     if priority:
         q = q.filter_by(priority=priority)
+    if user_type:
+        # نجلب المجموعات التي يوجد لها تقارير من هذا النوع من المستخدمين
+        subq = (db.session.query(ErrorReport.group_hash)
+                .filter_by(user_type=user_type)
+                .distinct()
+                .subquery())
+        q = q.filter(ErrorGroup.group_hash.in_(subq))
 
     # ترتيب: CRITICAL أولاً ثم الأحدث
     priority_order = db.case(
@@ -338,6 +392,26 @@ def get_stats():
         total_unresolved = ErrorGroup.query.filter_by(is_resolved=False).count()
         total_week       = sum(d['count'] for d in daily)
 
+        # ── مقارنة أسبوعية (الأسبوع الحالي vs السابق) ───────────
+        two_weeks_ago   = now - timedelta(days=14)
+        prev_week_total = (
+            db.session.query(func.count(ErrorReport.id))
+            .filter(ErrorReport.created_at >= two_weeks_ago,
+                    ErrorReport.created_at <  week_ago)
+            .scalar() or 0
+        )
+        if prev_week_total > 0:
+            change_pct = round((total_week - prev_week_total) / prev_week_total * 100)
+        elif total_week > 0:
+            change_pct = 100
+        else:
+            change_pct = 0
+        week_trend = {
+            'this_week' : total_week,
+            'last_week' : prev_week_total,
+            'change_pct': change_pct,
+        }
+
         # ── عدّادات المصادقة (كل الوقت + تفصيل حسب نوع المستخدم) ──
         try:
             auth_rows = (
@@ -368,6 +442,7 @@ def get_stats():
             'total_week'      : total_week,
             'auth_counters'   : auth_counters,
             'auth_by_type'    : auth_by_type,
+            'week_trend'      : week_trend,
         })
 
     except Exception as e:

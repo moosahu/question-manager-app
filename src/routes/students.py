@@ -1842,6 +1842,45 @@ def api_get_results_stats():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@students_bp.route('/api/results/best', methods=['GET'])
+def api_get_best_score():
+    """جلب أفضل نتيجة للطالب لتكوين اختبار محدد (كورس/وحدة/درس)"""
+    try:
+        student_id = request.headers.get('X-Student-Id', type=int) or \
+                     request.args.get('student_id', type=int)
+        if not student_id:
+            return jsonify({'success': False, 'error': 'student_id مطلوب'}), 400
+
+        try:
+            from src.models.student_result import StudentResult
+        except ImportError:
+            from models.student_result import StudentResult
+
+        from sqlalchemy import func
+
+        course_id  = request.args.get('course_id',  type=int)
+        unit_id    = request.args.get('unit_id',    type=int)
+        lesson_id  = request.args.get('lesson_id',  type=int)
+
+        q = db.session.query(func.max(StudentResult.score_percentage))\
+                       .filter(StudentResult.student_id == student_id)
+
+        if course_id  is not None: q = q.filter(StudentResult.course_id  == course_id)
+        if unit_id    is not None: q = q.filter(StudentResult.unit_id    == unit_id)
+        if lesson_id  is not None: q = q.filter(StudentResult.lesson_id  == lesson_id)
+
+        best = q.scalar()
+        return jsonify({
+            'success': True,
+            'best_score': round(float(best), 1) if best is not None else None
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @students_bp.route('/api/results', methods=['POST'])
 def api_save_result():
     """حفظ نتيجة اختبار الطالب - محسّنة ومطوّرة"""
