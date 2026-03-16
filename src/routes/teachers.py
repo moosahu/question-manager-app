@@ -321,6 +321,18 @@ def api_mobile_add_teacher():
     try:
         db.session.add(teacher)
         db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='add_teacher',
+                description=f'إضافة معلم جديد: {name} (@{username})',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='teacher',
+                target_id=teacher.id,
+            )
+            db.session.commit()
+        except Exception:
+            pass
         return jsonify({'success': True, 'message': f'تم إضافة المعلم "{name}"', 'teacher_id': teacher.id})
     except Exception as e:
         db.session.rollback()
@@ -1040,6 +1052,19 @@ def api_admin_notify_teacher(teacher_id):
     if notif is None:
         return jsonify({'success': False, 'error': 'فشل في إرسال الإشعار'}), 500
 
+    try:
+        from src.models.audit_log import AuditLog
+        AuditLog.log(
+            action='send_notification',
+            description=f'إرسال إشعار للمعلم "{teacher.name}": {title}',
+            admin_name=getattr(current_user, 'username', 'الادمن'),
+            target_type='teacher',
+            target_id=teacher.id,
+        )
+        db.session.commit()
+    except Exception as log_err:
+        print(f'⚠️ AuditLog error: {log_err}')
+
     return jsonify({'success': True})
 
 
@@ -1070,6 +1095,17 @@ def api_admin_notify_all_teachers():
             db.session.add(notif)
             count += 1
         db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='send_notification',
+                description=f'إرسال إشعار لجميع المعلمين ({count} معلم): {title}',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='teachers_all',
+            )
+            db.session.commit()
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error: {log_err}')
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

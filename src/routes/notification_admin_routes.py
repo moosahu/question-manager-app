@@ -138,6 +138,8 @@ def send_notification():
         # استيراد نموذج Student
         from models.student_model import Student  # عدل هذا حسب موقع النموذج
 
+        student_ids_raw = data.get('student_ids', '')
+
         # جلب الطلاب المستهدفين
         if recipient_type == 'all':
             students = Student.query.filter_by(is_active=True).all()
@@ -145,6 +147,9 @@ def send_notification():
             students = Student.query.filter_by(id=recipient_id, is_active=True).all()
         elif recipient_type == 'level' and level:
             students = Student.query.filter_by(grade=level, is_active=True).all()
+        elif recipient_type == 'multiple' and student_ids_raw:
+            id_list = [int(x) for x in str(student_ids_raw).split(',') if x.strip().isdigit()]
+            students = Student.query.filter(Student.id.in_(id_list), Student.is_active == True).all()
         else:
             return jsonify({
                 'success': False,
@@ -253,6 +258,26 @@ def send_notification():
 
         # حفظ كل شيء
         db.session.commit()
+
+        # ✅ تسجيل النشاط في سجل الأدمن
+        try:
+            from src.models.audit_log import AuditLog
+            target_desc = {
+                'all': 'جميع الطلاب',
+                'student_id': f'طالب (ID: {recipient_id})',
+                'level': f'مستوى {level}',
+                'multiple': f'{total} طالب',
+            }.get(recipient_type, recipient_type)
+            AuditLog.log(
+                action='send_notification',
+                description=f'إرسال إشعار "{title}" إلى {target_desc} ({success_count} طالب)',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='notification',
+                target_id=notification.id,
+            )
+            db.session.commit()
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error: {log_err}')
 
         # تنظيف FCM tokens غير صالحة
         if failed_tokens:

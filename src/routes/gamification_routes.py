@@ -121,12 +121,29 @@ def add_points(student_id):
             amount,
             reason
         )
-        
+
+        try:
+            from src.models.audit_log import AuditLog
+            from extensions import db as _db
+            student_obj = Student.query.get(student_id)
+            student_name = student_obj.name if student_obj else f'#{student_id}'
+            admin_name = getattr(current_user, 'username', 'الادمن') if current_user.is_authenticated else 'الادمن'
+            AuditLog.log(
+                action='add_points',
+                description=f'منح {amount} نقطة للطالب "{student_name}" — السبب: {reason}',
+                admin_name=admin_name,
+                target_type='student',
+                target_id=student_id,
+            )
+            _db.session.commit()
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error: {log_err}')
+
         return jsonify({
             'success': True,
             'data': result
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,

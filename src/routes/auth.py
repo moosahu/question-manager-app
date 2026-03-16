@@ -51,7 +51,15 @@ def login():
 
             # بدون 2FA، سجّل الدخول مباشرة
             login_user(user, remember=getattr(form, 'remember_me', False).data)
-            
+
+            try:
+                from src.models.audit_log import AuditLog
+                AuditLog.log('login', f'تسجيل دخول: {user.username}', admin_name=user.username)
+                from extensions import db as _db
+                _db.session.commit()
+            except Exception:
+                pass
+
             # === إضافة الإشعارات ===
             if notifications_available and UserNotifications:
                 try:
@@ -115,6 +123,14 @@ def verify_2fa():
         if verified:
             login_user(user, remember=session.pop('pre_2fa_remember', False))
             session.pop('pre_2fa_user_id', None)
+
+            try:
+                from src.models.audit_log import AuditLog
+                AuditLog.log('login', f'تسجيل دخول (2FA): {user.username}', admin_name=user.username)
+                from extensions import db as _db
+                _db.session.commit()
+            except Exception:
+                pass
 
             if notifications_available and UserNotifications:
                 try:
