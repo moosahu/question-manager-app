@@ -966,7 +966,7 @@ def api_export_excel():
         footer_row = len(data) + 3
         ws.merge_cells(f'A{footer_row}:O{footer_row}')
         footer_cell = ws[f'A{footer_row}']
-        footer_cell.value = '⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة ©'
+        footer_cell.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
         footer_cell.font      = Font(size=9, color='888888', italic=True)
         footer_cell.alignment = Alignment(horizontal='center', vertical='center')
         footer_cell.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
@@ -1044,7 +1044,7 @@ def api_export_excel():
         s2_footer_row = 20
         ws2.merge_cells(f'A{s2_footer_row}:B{s2_footer_row}')
         s2_footer = ws2[f'A{s2_footer_row}']
-        s2_footer.value = '⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة ©'
+        s2_footer.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
         s2_footer.font      = Font(size=9, color='888888', italic=True)
         s2_footer.alignment = Alignment(horizontal='center', vertical='center')
         s2_footer.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
