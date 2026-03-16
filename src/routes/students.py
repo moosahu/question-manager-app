@@ -2746,16 +2746,33 @@ def api_student_get_teacher():
     if not link:
         return jsonify({'success': True, 'teacher': None})
 
-    t = link.teacher
-    return jsonify({
-        'success': True,
-        'teacher': {
-            'id': t.id,
-            'name': t.name,
-            'school': t.school or '',
-            'joined_at': link.joined_at.isoformat() if link.joined_at else '',
-        },
-    })
+    if link.teacher_id and link.teacher:
+        t = link.teacher
+        return jsonify({
+            'success': True,
+            'teacher': {
+                'id': t.id,
+                'name': t.name,
+                'school': t.school or '',
+                'joined_at': link.joined_at.isoformat() if link.joined_at else '',
+                'is_admin': False,
+            },
+        })
+    elif link.admin_id:
+        from src.models.user import User
+        admin = User.query.get(link.admin_id)
+        return jsonify({
+            'success': True,
+            'teacher': {
+                'id': link.admin_id,
+                'name': admin.username if admin else 'الأدمن',
+                'school': '',
+                'joined_at': link.joined_at.isoformat() if link.joined_at else '',
+                'is_admin': True,
+            },
+        })
+    else:
+        return jsonify({'success': True, 'teacher': None})
 
 
 @students_bp.route('/api/leave-class', methods=['POST'])
