@@ -2710,6 +2710,20 @@ def api_student_join_class():
         db.session.add(link)
         db.session.commit()
         owner_name = teacher.name if teacher else admin_owner.username
+
+        # إشعار للمعلم: انضمام طالب
+        if teacher:
+            try:
+                from src.models.teacher_notification import TeacherNotification
+                TeacherNotification.create(
+                    teacher_id=teacher.id,
+                    title='طالب جديد انضم لقائمتك',
+                    message=f'الطالب "{student.name}" انضم إلى قائمتك.',
+                    type='student_joined',
+                )
+            except Exception:
+                pass
+
         return jsonify({
             'success': True,
             'message': f'تم الانضمام لـ: {owner_name}',
@@ -2806,9 +2820,26 @@ def api_student_leave_class():
     if not link:
         return jsonify({'success': False, 'error': 'أنت غير مرتبط بأي معلم'}), 404
 
+    # احتفظ بـ teacher_id قبل الحذف لإرسال الإشعار لاحقاً
+    linked_teacher_id = link.teacher_id
+
     try:
         db.session.delete(link)
         db.session.commit()
+
+        # إشعار للمعلم: مغادرة طالب
+        if linked_teacher_id:
+            try:
+                from src.models.teacher_notification import TeacherNotification
+                TeacherNotification.create(
+                    teacher_id=linked_teacher_id,
+                    title='طالب غادر قائمتك',
+                    message=f'الطالب "{student.name}" غادر قائمتك.',
+                    type='student_left',
+                )
+            except Exception:
+                pass
+
         return jsonify({'success': True, 'message': 'تم فك الارتباط بالمعلم'})
     except Exception as e:
         db.session.rollback()

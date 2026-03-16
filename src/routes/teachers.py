@@ -949,3 +949,129 @@ def api_teacher_delete_fcm_token():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Teacher Notifications Endpoints ====================
+
+@teachers_bp.route('/api/my/notifications', methods=['GET'])
+@verify_teacher_token
+def api_teacher_my_notifications():
+    """المعلم يجلب إشعاراته مع عدد غير المقروء"""
+    from src.models.teacher_notification import TeacherNotification
+
+    teacher_id = request.teacher_id
+    notifications = (
+        TeacherNotification.query
+        .filter_by(teacher_id=teacher_id)
+        .order_by(TeacherNotification.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    unread_count = (
+        TeacherNotification.query
+        .filter_by(teacher_id=teacher_id, is_read=False)
+        .count()
+    )
+    return jsonify({
+        'success': True,
+        'notifications': [n.to_dict() for n in notifications],
+        'unread_count': unread_count,
+    })
+
+
+@teachers_bp.route('/api/my/notifications/read', methods=['POST'])
+@verify_teacher_token
+def api_teacher_mark_notifications_read():
+    """تعليم كل إشعارات المعلم كمقروءة"""
+    from src.models.teacher_notification import TeacherNotification
+
+    try:
+        TeacherNotification.query.filter_by(
+            teacher_id=request.teacher_id, is_read=False
+        ).update({'is_read': True})
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/my/notifications/<int:notif_id>', methods=['DELETE'])
+@verify_teacher_token
+def api_teacher_delete_notification(notif_id):
+    """حذف إشعار واحد (يخص المعلم الحالي فقط)"""
+    from src.models.teacher_notification import TeacherNotification
+
+    notif = TeacherNotification.query.filter_by(
+        id=notif_id, teacher_id=request.teacher_id
+    ).first_or_404()
+    try:
+        db.session.delete(notif)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Admin → Teacher Notify Endpoints ====================
+
+@teachers_bp.route('/api/admin/notify/<int:teacher_id>', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_notify_teacher(teacher_id):
+    """الأدمن يرسل إشعاراً لمعلم معين"""
+    from src.models.teacher_notification import TeacherNotification
+
+    teacher = Teacher.query.get_or_404(teacher_id)
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    message = (data.get('message') or '').strip()
+
+    if not title or not message:
+        return jsonify({'success': False, 'error': 'title و message مطلوبان'}), 400
+
+    notif = TeacherNotification.create(
+        teacher_id=teacher.id,
+        title=title,
+        message=message,
+        type='system',
+    )
+    if notif is None:
+        return jsonify({'success': False, 'error': 'فشل في إرسال الإشعار'}), 500
+
+    return jsonify({'success': True})
+
+
+@teachers_bp.route('/api/admin/notify-all', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_notify_all_teachers():
+    """الأدمن يرسل إشعاراً لجميع المعلمين"""
+    from src.models.teacher_notification import TeacherNotification
+
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    message = (data.get('message') or '').strip()
+
+    if not title or not message:
+        return jsonify({'success': False, 'error': 'title و message مطلوبان'}), 400
+
+    teachers = Teacher.query.filter_by(is_active=True).all()
+    count = 0
+    try:
+        for t in teachers:
+            notif = TeacherNotification(
+                teacher_id=t.id,
+                title=title,
+                message=message,
+                type='system',
+            )
+            db.session.add(notif)
+            count += 1
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    return jsonify({'success': True, 'count': count})
