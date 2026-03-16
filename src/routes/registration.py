@@ -83,6 +83,50 @@ WEAK_PASSWORDS = [
 ]
 
 
+_NAME_BLACKLIST = {
+    # تحيات وعبارات ترحيب
+    'أهلا', 'اهلا', 'وسهلا', 'مرحبا', 'هلا', 'يهلا', 'هلو', 'اهلين', 'يسلم',
+    'حياك', 'حياكم', 'تسلم', 'تسلمين',
+    # عبارات شائعة
+    'كيفك', 'زين', 'تمام', 'حسنا', 'اوكي', 'اوك', 'يلا', 'ياله', 'شكرا', 'عفوا',
+    'ماشي', 'خلاص', 'واجد', 'حيل', 'شلون', 'واو', 'لول', 'هيهي', 'لالا', 'هاها',
+    # ضمائر منفصلة
+    'انا', 'أنا', 'انت', 'أنت', 'انتي', 'أنتي', 'هو', 'هي', 'هم', 'نحن', 'انتم', 'أنتم',
+    'هما', 'انتما', 'أنتما',
+    # أسماء إشارة
+    'هذا', 'هذي', 'هذه', 'ذاك', 'ذلك', 'تلك', 'هؤلاء', 'أولئك',
+    # ظروف مكان وزمان
+    'هنا', 'هناك', 'الان', 'الآن', 'اليوم', 'امس', 'أمس', 'غدا', 'غداً',
+    'دائما', 'دائماً', 'أبدا', 'أبداً', 'أحيانا',
+    # أدوات استفهام
+    'ماذا', 'متى', 'اين', 'أين', 'لماذا', 'لمن', 'كيفما',
+    # نعم/لا وردود
+    'نعم', 'لا', 'بلى', 'ايه', 'ايوه', 'آه', 'اوف', 'اوه',
+    # حروف جر وأدوات (لا تكون أسماء)
+    'في', 'على', 'عن', 'مع', 'عند', 'الى', 'إلى', 'حتى', 'بين', 'عبر',
+    'قبل', 'بعد', 'فوق', 'تحت', 'امام', 'أمام', 'خلف', 'يمين', 'يسار',
+    'لكن', 'لكنه', 'لكنها', 'اذا', 'إذا', 'لأن', 'لان', 'لأنه', 'لأنها',
+    # ضمائر متصلة (بدون الاسم)
+    'بك', 'لك', 'منك', 'معك', 'عنك', 'فيك', 'عليك', 'اليك', 'إليك', 'الك', 'معاك',
+    'بهم', 'لهم', 'منهم', 'معهم', 'بها', 'لها', 'منها', 'معها',
+    # أرقام مكتوبة
+    'واحد', 'اثنين', 'اثنان', 'ثلاثة', 'اربعة', 'أربعة', 'خمسة', 'ستة',
+    'سبعة', 'ثمانية', 'تسعة', 'عشرة', 'مئة', 'مائة', 'الف', 'ألف',
+    # عائلي (ليس أسماء)
+    'ابوي', 'اخوي', 'اختي', 'امي', 'أمي', 'عمي', 'خالي', 'جدي', 'جدتي',
+    'خالتي', 'عمتي', 'ابني', 'بنتي',
+    # كلمات عشوائية/اختبار
+    'تجربة', 'اختبار', 'مجهول', 'معروف', 'شخص', 'مستخدم',
+    'test', 'hello', 'welcome', 'admin', 'user', 'fake', 'name',
+    'null', 'none', 'password', 'pass', 'guest', 'unknown',
+}
+
+_SCHOOL_BLACKLIST = _NAME_BLACKLIST | {
+    # كلمات خاصة بالمدارس لا معنى لها كاسم مدرسة
+    'بيتي', 'منزلي', 'شارع', 'حارة', 'طريق', 'حي', 'منطقة',
+}
+
+
 def validate_arabic_name(name):
     """التحقق من صحة الاسم - يرجع None لو صحيح، أو رسالة الخطأ"""
     if len(name) > 40:
@@ -97,15 +141,49 @@ def validate_arabic_name(name):
     has_english = bool(re.search(r'[a-zA-Z]', name))
     if has_arabic and has_english:
         return 'يرجى كتابة الاسم بلغة واحدة (عربي أو إنجليزي)'
-    if name_parts[0] == name_parts[1]:
-        return 'الاسم الأول والثاني لا يمكن أن يكونا متطابقين'
     if name_parts[0] in ['ابو', 'أبو', 'ام', 'أم']:
         return 'يرجى كتابة الاسم الحقيقي بدون ألقاب (ابو/ام)'
+    # منع تكرار أي كلمتين متطابقتين
+    if len(set(name_parts)) < len(name_parts):
+        return 'الاسم يحتوي على كلمات متكررة'
     if any(len(part) < 2 for part in name_parts):
         return 'كل جزء من الاسم يجب أن يكون حرفين على الأقل'
     # منع الأحرف المكررة (ااااا أو hhhhh)
     if re.search(r'(.)\1{3,}', name):
         return 'الرجاء إدخال اسم صحيح'
+    # منع كلمات كلها نفس الحرف (هه، كك، للل)
+    for part in name_parts:
+        if re.match(r'^(.)\1+$', part):
+            return 'الرجاء إدخال اسم صحيح'
+    # منع الكلمات غير الأسماء
+    for part in name_parts:
+        if part in _NAME_BLACKLIST:
+            return 'الرجاء إدخال الاسم الحقيقي'
+    return None
+
+
+def validate_school_name(school):
+    """التحقق من صحة اسم المدرسة - يرجع None لو صحيح، أو رسالة الخطأ"""
+    if len(school) < 10:
+        return 'اسم المدرسة يجب أن يكون 10 أحرف على الأقل'
+    if len(school) > 80:
+        return 'اسم المدرسة يجب أن يكون 80 حرف كحد أقصى'
+    if not re.match(r'^[\u0600-\u06FFa-zA-Z0-9\s]+$', school):
+        return 'اسم المدرسة يحتوي على رموز غير مسموحة'
+    has_arabic = bool(re.search(r'[\u0600-\u06FF]', school))
+    has_english = bool(re.search(r'[a-zA-Z]', school))
+    if has_arabic and has_english:
+        return 'اسم المدرسة يجب أن يكون بلغة واحدة'
+    school_parts = school.split()
+    if len(school_parts) < 2:
+        return 'اسم المدرسة يجب أن يكون كلمتين على الأقل'
+    if re.search(r'(.)\1{3,}', school):
+        return 'الرجاء إدخال اسم مدرسة صحيح'
+    for part in school_parts:
+        if re.match(r'^(.)\1+$', part):
+            return 'الرجاء إدخال اسم مدرسة صحيح'
+        if part in _SCHOOL_BLACKLIST:
+            return 'الرجاء إدخال اسم مدرسة صحيح'
     return None
 
 
@@ -177,6 +255,12 @@ def register_student():
         name_error = validate_arabic_name(name)
         if name_error:
             return jsonify({'success': False, 'error': name_error}), 400
+
+        # التحقق من اسم المدرسة لو مُدخَل
+        if school:
+            school_error = validate_school_name(school)
+            if school_error:
+                return jsonify({'success': False, 'error': school_error}), 400
 
         # التحقق من اسم المستخدم
         if len(username) < 4 or len(username) > 20:
@@ -311,6 +395,12 @@ def register_teacher():
         name_error = validate_arabic_name(name)
         if name_error:
             return jsonify({'success': False, 'error': name_error}), 400
+
+        # التحقق من اسم المدرسة لو مُدخَل
+        if school:
+            school_error = validate_school_name(school)
+            if school_error:
+                return jsonify({'success': False, 'error': school_error}), 400
 
         # التحقق من اسم المستخدم
         if len(username) < 4 or len(username) > 20:

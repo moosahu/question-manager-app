@@ -1797,9 +1797,18 @@ def api_get_results_stats():
             from src.models.student_result import StudentResult
         except ImportError:
             from models.student_result import StudentResult
-        
+
         from sqlalchemy import func
-        
+        from datetime import datetime, timedelta
+
+        # ✅ فلتر زمني: week / month / all
+        period = request.args.get('period', 'all')
+        base_filter = [StudentResult.student_id == student_id]
+        if period == 'week':
+            base_filter.append(StudentResult.created_at >= datetime.utcnow() - timedelta(days=7))
+        elif period == 'month':
+            base_filter.append(StudentResult.created_at >= datetime.utcnow() - timedelta(days=30))
+
         # ✅ إحصائيات شاملة في استعلام واحد
         stats = db.session.query(
             func.count(StudentResult.id).label('total_quizzes'),
@@ -1810,17 +1819,23 @@ def api_get_results_stats():
             func.coalesce(func.sum(StudentResult.correct_answers), 0).label('correct_answers'),
             func.coalesce(func.sum(StudentResult.wrong_answers), 0).label('wrong_answers'),
             func.coalesce(func.sum(StudentResult.time_spent), 0).label('total_time'),
-        ).filter(StudentResult.student_id == student_id).first()
-        
-        # آخر 7 نتائج للرسم البياني
+        ).filter(*base_filter).first()
+
+        # ✅ متوسط النظام الكلي (لمقارنة الطالب)
+        system_avg = db.session.query(
+            func.coalesce(func.avg(StudentResult.score_percentage), 0)
+        ).scalar()
+        system_avg = round(float(system_avg or 0), 1)
+
+        # آخر 7 نتائج للرسم البياني (دائماً بدون فلتر زمني)
         recent_results = StudentResult.query.filter_by(student_id=student_id)\
             .order_by(StudentResult.created_at.desc()).limit(7).all()
-        
+
         chart_data = [{
             'date': r.created_at.strftime('%m/%d') if r.created_at else '',
             'score': round(r.score_percentage, 0) if r.score_percentage else 0
         } for r in reversed(recent_results)]
-        
+
         return jsonify({
             'success': True,
             'stats': {
@@ -1832,6 +1847,7 @@ def api_get_results_stats():
                 'correct_answers': stats.correct_answers or 0,
                 'wrong_answers': stats.wrong_answers or 0,
                 'total_time': stats.total_time or 0,
+                'system_avg': system_avg,
                 'chart_data': chart_data
             }
         })
