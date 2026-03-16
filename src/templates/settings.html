@@ -1512,6 +1512,9 @@ if (!document.getElementById('notification-styles')) {
                 <li class="settings-menu-item">
                     <a href="#backup-settings"><i class="fas fa-cloud-upload-alt"></i> النسخ الاحتياطي</a>
                 </li>
+                <li class="settings-menu-item">
+                    <a href="#ai-settings"><i class="fas fa-brain"></i> الذكاء الاصطناعي</a>
+                </li>
             </ul>
         </div>
         
@@ -2903,5 +2906,126 @@ window.cancelPhoneChange = function() {
     </div>
   </div>
 </div>
+
+<!-- ── قسم الذكاء الاصطناعي ─────────────────────────────────────── -->
+<section id="ai-settings" class="settings-section" style="display:none">
+    <h3><i class="fas fa-brain"></i> نظام الذكاء الاصطناعي</h3>
+    <p class="text-muted mb-3" style="font-size:0.85rem">
+        ملخص حالة الطلاب وفعالية الإشعارات الذكية التلقائية
+    </p>
+    <div id="ai-stats-container">
+        <div class="text-center py-4 text-muted">
+            <i class="fas fa-brain fa-2x mb-2"></i><br>
+            اضغط لتحميل البيانات
+        </div>
+    </div>
+</section>
+
+<script>
+// ── قسم الذكاء الاصطناعي ─────────────────────────────────────────────────
+function loadAiStats() {
+    const container = document.getElementById('ai-stats-container');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> جاري التحميل...</div>';
+
+    Promise.all([
+        fetch('/api/admin/ai/dashboard/stats').then(r => r.json()),
+        fetch('/api/admin/ai/notifications/effectiveness').then(r => r.json())
+    ]).then(([statsRes, effectRes]) => {
+        const s = statsRes.success ? statsRes.data : null;
+        const e = effectRes.success ? effectRes.data : null;
+        const dist = s?.severity_distribution || {};
+        const last24 = s?.last_24_hours || {};
+        const openRate = e?.open_rate != null ? e.open_rate.toFixed(0) : '—';
+        const solveRate = e?.solve_rate != null ? e.solve_rate.toFixed(0) : '—';
+        const needs = s?.needs_attention ?? 0;
+
+        container.innerHTML = `
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+              <div class="p-3 rounded text-center" style="background:#dcfce7;border:1px solid #bbf7d0">
+                <div style="font-size:1.4rem;font-weight:700;color:#166534">🟢 ${dist.green ?? 0}</div>
+                <div style="font-size:0.8rem;color:#166534">ممتاز</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="p-3 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a">
+                <div style="font-size:1.4rem;font-weight:700;color:#92400e">🟡 ${dist.yellow ?? 0}</div>
+                <div style="font-size:0.8rem;color:#92400e">جيد</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="p-3 rounded text-center" style="background:#ffedd5;border:1px solid #fed7aa">
+                <div style="font-size:1.4rem;font-weight:700;color:#9a3412">🟠 ${dist.orange ?? 0}</div>
+                <div style="font-size:0.8rem;color:#9a3412">يحتاج انتباه</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="p-3 rounded text-center" style="background:#fee2e2;border:1px solid #fecaca">
+                <div style="font-size:1.4rem;font-weight:700;color:#991b1b">🔴 ${dist.red ?? 0}</div>
+                <div style="font-size:0.8rem;color:#991b1b">حرج</div>
+              </div>
+            </div>
+          </div>
+          ${needs > 0 ? `<div class="alert alert-warning py-2 mb-3"><i class="fas fa-exclamation-triangle"></i> <strong>${needs} طالب</strong> يحتاجون متابعة</div>` : ''}
+          <div class="row g-3 mb-3 text-center">
+            <div class="col-6 col-md-3">
+              <div style="font-size:1.2rem;font-weight:700">📤 ${last24.messages_sent ?? 0}</div>
+              <div style="font-size:0.78rem;color:#6c757d">رسالة (24 ساعة)</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div style="font-size:1.2rem;font-weight:700">🔬 ${last24.analyses_performed ?? 0}</div>
+              <div style="font-size:0.78rem;color:#6c757d">تحليل (24 ساعة)</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div style="font-size:1.2rem;font-weight:700">👁️ ${openRate}%</div>
+              <div style="font-size:0.78rem;color:#6c757d">معدل فتح الإشعارات</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div style="font-size:1.2rem;font-weight:700">✅ ${solveRate}%</div>
+              <div style="font-size:0.78rem;color:#6c757d">معدل الحل بعد الإشعار</div>
+            </div>
+          </div>
+          <hr>
+          <button class="btn btn-primary btn-sm" onclick="triggerAiAnalysis(this)">
+            <i class="fas fa-sync-alt"></i> تحليل الآن
+          </button>
+          <small class="text-muted ms-2">سيبدأ التحليل لجميع الطلاب ويكتمل خلال دقائق</small>
+        `;
+    }).catch(() => {
+        container.innerHTML = '<div class="text-muted">تعذّر تحميل البيانات</div>';
+    });
+}
+
+function triggerAiAnalysis(btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> جاري...'; }
+    fetch('/api/admin/ai/analyze/all', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' })
+        .then(r => r.json())
+        .then(() => {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحليل الآن'; }
+            const t = document.createElement('div');
+            t.className = 'alert alert-success position-fixed';
+            t.style.cssText = 'top:20px;left:50%;transform:translateX(-50%);z-index:9999;min-width:300px;text-align:center';
+            t.textContent = '✅ بدأ التحليل — سيكتمل خلال دقائق';
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        })
+        .catch(() => {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحليل الآن'; }
+        });
+}
+
+// تحميل البيانات عند فتح قسم AI
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.settings-menu-item a').forEach(link => {
+        link.addEventListener('click', function() {
+            if (this.getAttribute('href') === '#ai-settings') {
+                setTimeout(loadAiStats, 100);
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}
 
