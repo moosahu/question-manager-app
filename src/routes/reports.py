@@ -842,134 +842,206 @@ def api_export_excel():
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        
+
         body = request.json or {}
         data = body.get('students', body.get('data', []))
-        
+        report_author = body.get('author', 'الإدارة')
+
         if not data:
             return jsonify({'success': False, 'error': 'لا توجد بيانات للتصدير'}), 400
-        
-        # إنشاء ملف Excel
+
         wb = Workbook()
+
+        # ==================== ورقة 1: تقرير الطلاب ====================
         ws = wb.active
         ws.title = 'تقرير الطلاب'
         ws.sheet_view.rightToLeft = True
-        
-        # تنسيق العناوين
-        header_font = Font(bold=True, size=12, color='FFFFFF')
-        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
-        header_alignment = Alignment(horizontal='center', vertical='center')
-        
-        # الحدود
-        border_side = Side(style='thin', color='000000')
-        border = Border(left=border_side, right=border_side, top=border_side, bottom=border_side)
-        
-        # العناوين
-        headers = ['#', 'الاسم', 'البريد الإلكتروني', 'الهاتف', 'عدد الاختبارات', 
-                   'المعدل العام', 'أفضل درجة', 'أقل درجة', 'الوقت الكلي', 
-                   'متوسط الوقت', 'آخر نشاط', 'حالة النشاط', 'مستوى الأداء', 'اتجاه التحسن']
-        
+
+        # أنماط مشتركة
+        header_font      = Font(bold=True, size=11, color='FFFFFF')
+        header_fill      = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+        header_align     = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        center_align     = Alignment(horizontal='center', vertical='center')
+        right_align      = Alignment(horizontal='right',  vertical='center')
+        border_side      = Side(style='thin', color='CCCCCC')
+        border           = Border(left=border_side, right=border_side,
+                                  top=border_side,  bottom=border_side)
+        title_font       = Font(bold=True, size=14, color='1E3A5F')
+        meta_font        = Font(size=10, color='555555')
+
+        # ── صف العنوان (مدمج) ──
+        now_str = datetime.now().strftime('%Y-%m-%d  %H:%M')
+        ws.merge_cells('A1:O1')
+        title_cell = ws['A1']
+        title_cell.value = f'تقرير أداء الطلاب  |  أعدّه: {report_author}  |  {now_str}'
+        title_cell.font      = title_font
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        title_cell.fill      = PatternFill(start_color='EFF6FF', end_color='EFF6FF', fill_type='solid')
+        ws.row_dimensions[1].height = 30
+
+        # ── رأس الجدول (صف 2) ──
+        headers = [
+            '#', 'الاسم', 'الصف', 'البريد الإلكتروني', 'الهاتف',
+            'عدد الاختبارات', 'المعدل العام', 'أفضل درجة', 'أقل درجة',
+            'الوقت الكلي', 'متوسط الوقت', 'آخر نشاط',
+            'حالة النشاط', 'مستوى الأداء', 'اتجاه التحسن'
+        ]
         for col, header in enumerate(headers, 1):
-            cell = ws.cell(1, col, header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_alignment
-            cell.border = border
-        
-        # البيانات
-        cell_alignment = Alignment(horizontal='center', vertical='center')
-        
-        for row_idx, student in enumerate(data, 2):
-            ws.cell(row_idx, 1, row_idx - 1).border = border
-            ws.cell(row_idx, 1).alignment = cell_alignment
-            
-            ws.cell(row_idx, 2, student.get('student_name', '')).border = border
-            ws.cell(row_idx, 2).alignment = Alignment(horizontal='right', vertical='center')
-            
-            ws.cell(row_idx, 3, student.get('email', '')).border = border
-            ws.cell(row_idx, 3).alignment = Alignment(horizontal='right', vertical='center')
-            
-            ws.cell(row_idx, 4, student.get('phone', '')).border = border
-            ws.cell(row_idx, 4).alignment = cell_alignment
-            
-            ws.cell(row_idx, 5, student.get('total_quizzes', 0)).alignment = cell_alignment
-            ws.cell(row_idx, 5).border = border
-            
-            # المعدل العام مع تنسيق لوني
+            cell = ws.cell(2, col, header)
+            cell.font      = header_font
+            cell.fill      = header_fill
+            cell.alignment = header_align
+            cell.border    = border
+        ws.row_dimensions[2].height = 28
+
+        # ── بيانات الطلاب (من صف 3) ──
+        even_fill = PatternFill(start_color='F8FAFF', end_color='F8FAFF', fill_type='solid')
+
+        for row_idx, student in enumerate(data, 3):
+            row_fill = even_fill if row_idx % 2 == 0 else None
+
+            def _cell(col, value, align=center_align, bold=False, bg=None):
+                c = ws.cell(row_idx, col, value)
+                c.alignment = align
+                c.border    = border
+                c.font      = Font(bold=bold, size=10)
+                if bg:
+                    c.fill = PatternFill(start_color=bg, end_color=bg, fill_type='solid')
+                elif row_fill:
+                    c.fill = row_fill
+
+            _cell(1, row_idx - 2)
+            _cell(2, student.get('student_name', ''), right_align, bold=True)
+            _cell(3, student.get('grade', ''))
+            _cell(4, student.get('email', ''), right_align)
+            _cell(5, student.get('phone', ''))
+            _cell(6, student.get('total_quizzes', 0))
+
+            # المعدل — ملوّن
             avg_score = student.get('avg_score', 0)
-            cell = ws.cell(row_idx, 6, f"{avg_score:.1f}%")
-            cell.alignment = cell_alignment
-            cell.border = border
-            if avg_score >= 80:
-                cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-            elif avg_score >= 60:
-                cell.fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
-            elif avg_score > 0:
-                cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-            
-            ws.cell(row_idx, 7, f"{student.get('best_score', 0):.1f}%").alignment = cell_alignment
-            ws.cell(row_idx, 7).border = border
-            
-            ws.cell(row_idx, 8, f"{student.get('worst_score', 0):.1f}%").alignment = cell_alignment
-            ws.cell(row_idx, 8).border = border
-            
-            # الوقت
+            avg_bg = None
+            if   avg_score >= 80: avg_bg = 'C6EFCE'
+            elif avg_score >= 60: avg_bg = 'FFEB9C'
+            elif avg_score >  0:  avg_bg = 'FFC7CE'
+            _cell(7, f"{avg_score:.1f}%", bold=True, bg=avg_bg)
+
+            _cell(8, f"{student.get('best_score',  0):.1f}%")
+            _cell(9, f"{student.get('worst_score', 0):.1f}%")
+
             total_time = student.get('total_time_spent', 0)
-            ws.cell(row_idx, 9, format_time_arabic(total_time)).alignment = cell_alignment
-            ws.cell(row_idx, 9).border = border
-            
-            avg_time = student.get('avg_time_per_quiz', 0)
-            ws.cell(row_idx, 10, f"{avg_time:.1f} ث").alignment = cell_alignment
-            ws.cell(row_idx, 10).border = border
-            
-            # آخر نشاط
+            _cell(10, format_time_arabic(total_time))
+            _cell(11, f"{student.get('avg_time_per_quiz', 0):.1f} ث")
+
             last_activity = student.get('last_activity', '')
             if last_activity:
                 try:
                     dt = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
-                    ws.cell(row_idx, 11, dt.strftime('%Y-%m-%d %H:%M')).alignment = cell_alignment
+                    _cell(12, dt.strftime('%Y-%m-%d %H:%M'))
                 except:
-                    ws.cell(row_idx, 11, 'غير متاح').alignment = cell_alignment
+                    _cell(12, 'غير متاح')
             else:
-                ws.cell(row_idx, 11, 'غير متاح').alignment = cell_alignment
-            ws.cell(row_idx, 11).border = border
-            
-            ws.cell(row_idx, 12, student.get('active_status', '')).alignment = cell_alignment
-            ws.cell(row_idx, 12).border = border
-            
-            ws.cell(row_idx, 13, student.get('performance_level', '')).alignment = cell_alignment
-            ws.cell(row_idx, 13).border = border
-            
-            # اتجاه التحسن
+                _cell(12, 'غير متاح')
+
+            _cell(13, student.get('active_status', ''))
+            _cell(14, student.get('performance_level', ''))
+
             trend = student.get('improvement_trend', 0)
             trend_text = f"+{trend:.1f}%" if trend > 0 else f"{trend:.1f}%"
-            cell = ws.cell(row_idx, 14, trend_text)
-            cell.alignment = cell_alignment
-            cell.border = border
-            if trend > 5:
-                cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-            elif trend < -5:
-                cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-        
+            trend_bg = None
+            if   trend >  5: trend_bg = 'C6EFCE'
+            elif trend < -5: trend_bg = 'FFC7CE'
+            _cell(15, trend_text, bg=trend_bg)
+
         # ضبط عرض الأعمدة
-        column_widths = [5, 25, 30, 15, 15, 15, 15, 15, 18, 18, 20, 15, 15, 15]
-        for idx, width in enumerate(column_widths, 1):
-            ws.column_dimensions[get_column_letter(idx)].width = width
-        
-        # حفظ في memory
+        col_widths = [5, 26, 12, 28, 14, 14, 13, 12, 10, 14, 14, 20, 14, 15, 14]
+        for idx, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(idx)].width = w
+
+        # تجميد الصفين الأولين
+        ws.freeze_panes = 'A3'
+
+        # ==================== ورقة 2: الملخص ====================
+        ws2 = wb.create_sheet('الملخص')
+        ws2.sheet_view.rightToLeft = True
+
+        total   = len(data)
+        active  = sum(1 for s in data if s.get('active_status') in ['نشط جداً', 'نشط'])
+        scores  = [s.get('avg_score', 0) for s in data]
+        avg_all = sum(scores) / total if total else 0
+        quizzes = sum(s.get('total_quizzes', 0) for s in data)
+
+        dist = {
+            'ممتاز (80%+)':            sum(1 for s in scores if s >= 80),
+            'جيد (60-79%)':            sum(1 for s in scores if 60 <= s < 80),
+            'يحتاج انتباه (40-59%)':   sum(1 for s in scores if 40 <= s < 60),
+            'حرج (أقل من 40%)':        sum(1 for s in scores if 0 < s < 40),
+            'لا توجد بيانات':          sum(1 for s in scores if s == 0),
+        }
+
+        s2_title_font  = Font(bold=True, size=13, color='FFFFFF')
+        s2_header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+        s2_label_font  = Font(bold=True, size=11)
+        s2_val_font    = Font(size=11)
+
+        def _s2_header(row, text):
+            ws2.merge_cells(f'A{row}:B{row}')
+            c = ws2[f'A{row}']
+            c.value     = text
+            c.font      = s2_title_font
+            c.fill      = s2_header_fill
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            ws2.row_dimensions[row].height = 24
+
+        def _s2_row(row, label, value, val_bg=None):
+            lc = ws2.cell(row, 1, label)
+            lc.font      = s2_label_font
+            lc.alignment = right_align
+            lc.border    = border
+            vc = ws2.cell(row, 2, value)
+            vc.font      = s2_val_font
+            vc.alignment = center_align
+            vc.border    = border
+            if val_bg:
+                vc.fill = PatternFill(start_color=val_bg, end_color=val_bg, fill_type='solid')
+
+        # معلومات التقرير
+        _s2_header(1, 'معلومات التقرير')
+        _s2_row(2, 'أعدّه',         report_author)
+        _s2_row(3, 'تاريخ الإنشاء', now_str)
+        _s2_row(4, 'عدد الطلاب في التقرير', total)
+
+        # إحصائيات عامة
+        _s2_header(6, 'إحصائيات عامة')
+        _s2_row(7,  'إجمالي الطلاب',  total)
+        _s2_row(8,  'النشطون',         active,           val_bg='C6EFCE')
+        _s2_row(9,  'غير النشطين',     total - active,   val_bg='FFC7CE')
+        _s2_row(10, 'المعدل العام',    f"{avg_all:.1f}%")
+        _s2_row(11, 'إجمالي الاختبارات', quizzes)
+
+        # توزيع الأداء
+        _s2_header(13, 'توزيع مستويات الأداء')
+        dist_colors = ['C6EFCE', 'FFEB9C', 'FFD18C', 'FFC7CE', 'EEEEEE']
+        for i, (label, count) in enumerate(dist.items()):
+            pct = f"{(count/total*100):.1f}%" if total else '0%'
+            _s2_row(14 + i, label, f"{count} طالب  ({pct})", val_bg=dist_colors[i])
+
+        ws2.column_dimensions['A'].width = 28
+        ws2.column_dimensions['B'].width = 22
+
+        # ==================== حفظ وإرسال ====================
         excel_file = io.BytesIO()
         wb.save(excel_file)
         excel_file.seek(0)
-        
-        filename = f'students_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-        
+
+        filename = f'تقرير_الطلاب_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+
         return send_file(
             excel_file,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
             download_name=filename
         )
-        
+
     except Exception as e:
         print(f'❌ Error exporting Excel: {e}')
         import traceback
