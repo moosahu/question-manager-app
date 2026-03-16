@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.teacher import Teacher
 from src.models.email_verification import RegistrationSettings  # ✅ جديد
+from src.middleware.auth_middleware import verify_teacher_token
 from functools import wraps
 from datetime import datetime
 
@@ -771,6 +772,116 @@ def api_remove_admin_student(student_id):
     admin = User.query.filter_by(is_admin=True).first_or_404()
     link = TeacherStudent.query.filter_by(
         admin_id=admin.id, student_id=student_id).first_or_404()
+    try:
+        db.session.delete(link)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم إزالة الطالب من قائمتك'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Teacher Self-Service Endpoints (توكن المعلم) ====================
+
+@teachers_bp.route('/api/my/class-code', methods=['GET'])
+@verify_teacher_token
+def api_teacher_my_class_code():
+    """المعلم يجلب كوده الخاص"""
+    teacher = Teacher.query.get_or_404(request.teacher_id)
+    teacher.ensure_class_code()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify({
+        'success': True,
+        'class_code': teacher.class_code,
+        'teacher_name': teacher.name,
+    })
+
+
+@teachers_bp.route('/api/my/students', methods=['GET'])
+@verify_teacher_token
+def api_teacher_my_students():
+    """المعلم يجلب قائمة طلابه"""
+    from src.models.teacher_student import TeacherStudent
+    from src.models.student_result import StudentResult
+    from sqlalchemy import func
+
+    teacher = Teacher.query.get_or_404(request.teacher_id)
+    links = TeacherStudent.query.filter_by(teacher_id=teacher.id).all()
+
+    result = []
+    for link in links:
+        s = link.student
+        if not s:
+            continue
+        avg = db.session.query(func.avg(StudentResult.score_percentage))\
+            .filter_by(student_id=s.id).scalar()
+        count = StudentResult.query.filter_by(student_id=s.id).count()
+        result.append({
+            'student_id': s.id,
+            'name': s.name,
+            'grade': s.grade or '',
+            'school': s.school or '',
+            'is_active': s.is_active,
+            'last_login': s.last_login.isoformat() if s.last_login else '',
+            'joined_at': link.joined_at.isoformat() if link.joined_at else '',
+            'avg_score': round(avg, 1) if avg is not None else None,
+            'quiz_count': count,
+        })
+
+    return jsonify({
+        'success': True,
+        'teacher_name': teacher.name,
+        'class_code': teacher.class_code or '',
+        'students': result,
+    })
+
+
+@teachers_bp.route('/api/my/students/<int:student_id>/results', methods=['GET'])
+@verify_teacher_token
+def api_teacher_my_student_results(student_id):
+    """المعلم يجلب نتائج طالب من قائمته"""
+    from src.models.teacher_student import TeacherStudent
+    from src.models.student_result import StudentResult
+    from src.models.student import Student
+
+    link = TeacherStudent.query.filter_by(
+        teacher_id=request.teacher_id, student_id=student_id).first_or_404()
+    student = Student.query.get_or_404(student_id)
+    results = StudentResult.query.filter_by(student_id=student_id)\
+        .order_by(StudentResult.created_at.desc()).limit(50).all()
+
+    return jsonify({
+        'success': True,
+        'student': {
+            'id': student.id,
+            'name': student.name,
+            'grade': student.grade or '',
+        },
+        'results': [
+            {
+                'id': r.id,
+                'quiz_name': r.quiz_name,
+                'score_percentage': r.score_percentage,
+                'correct_answers': r.correct_answers,
+                'total_questions': r.total_questions,
+                'created_at': r.created_at.isoformat() if r.created_at else '',
+            }
+            for r in results
+        ],
+    })
+
+
+@teachers_bp.route('/api/my/students/<int:student_id>/remove', methods=['POST'])
+@verify_teacher_token
+def api_teacher_remove_my_student(student_id):
+    """المعلم يزيل طالباً من قائمته"""
+    from src.models.teacher_student import TeacherStudent
+
+    link = TeacherStudent.query.filter_by(
+        teacher_id=request.teacher_id, student_id=student_id).first_or_404()
     try:
         db.session.delete(link)
         db.session.commit()
