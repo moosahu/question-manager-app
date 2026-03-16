@@ -171,6 +171,16 @@ def index():
                           firebase_api_key=os.environ.get('FIREBASE_WEB_API_KEY', ''),
                           firebase_project_id=os.environ.get('FIREBASE_PROJECT_ID', 'chem-tahsili'))
 
+@settings_bp.route('/api/profile', methods=['GET'])
+@login_required
+def api_get_profile():
+    """جلب بيانات الملف الشخصي للأدمن"""
+    return jsonify({
+        'username': current_user.username,
+        'full_name': getattr(current_user, 'full_name', '') or current_user.username,
+        'email': getattr(current_user, 'email', ''),
+    })
+
 @settings_bp.route('/setup-2fa', methods=['GET', 'POST'])
 @login_required
 def setup_2fa():
