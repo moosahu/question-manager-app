@@ -851,6 +851,7 @@ def api_export_excel():
         wb = Workbook()
         ws = wb.active
         ws.title = 'تقرير الطلاب'
+        ws.sheet_view.rightToLeft = True
         
         # تنسيق العناوين
         header_font = Font(bold=True, size=12, color='FFFFFF')
