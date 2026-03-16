@@ -536,6 +536,16 @@ def _build_student_results_response(student_id):
         for name, data in topics_map.items()
     ]
 
+    # آخر 10 اختبارات للرسم البياني (من الأقدم للأحدث)
+    chart_results = [r for r in reversed(results[:10]) if r.score_percentage is not None]
+    chart_data = [
+        {
+            'score': r.score_percentage,
+            'date': f"{r.created_at.day}/{r.created_at.month}" if r.created_at else '',
+        }
+        for r in chart_results
+    ]
+
     return {
         'success': True,
         'student': {
@@ -550,6 +560,7 @@ def _build_student_results_response(student_id):
             'last_score': last_score,
             'total_quizzes': len(results),
             'trend': trend,
+            'chart_data': chart_data,
         },
         'topics': topics,
         'results': [
