@@ -41,6 +41,7 @@ def get_admin_profile():
         admin_data = {
             'id': current_user.id,
             'username': current_user.username,
+            'full_name': getattr(current_user, 'full_name', '') or current_user.username,
             'email': current_user.email,
             'is_admin': current_user.is_admin
         }
