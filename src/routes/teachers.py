@@ -356,6 +356,18 @@ def api_mobile_edit_teacher(teacher_id):
         teacher.set_password(new_password)
     try:
         db.session.commit()
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='edit_teacher',
+                description=f'تعديل بيانات المعلم: {teacher.name}',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='teacher',
+                target_id=teacher_id,
+            )
+            db.session.commit()
+        except Exception:
+            pass
         return jsonify({'success': True, 'message': 'تم التحديث بنجاح'})
     except Exception as e:
         db.session.rollback()
@@ -408,6 +420,19 @@ def api_mobile_delete_teacher(teacher_id):
         except Exception:
             pass
 
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='delete_teacher',
+                description=f'حذف المعلم: {name}',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='teacher',
+                target_id=teacher_id,
+            )
+            db.session.commit()
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'message': f'تم حذف المعلم "{name}"'})
     except Exception as e:
         db.session.rollback()
@@ -425,6 +450,18 @@ def api_mobile_toggle_teacher(teacher_id):
     try:
         db.session.commit()
         status = 'مفعّل' if teacher.is_active else 'معطّل'
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='toggle_teacher',
+                description=f'تغيير حالة المعلم "{teacher.name}" إلى {status}',
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='teacher',
+                target_id=teacher_id,
+            )
+            db.session.commit()
+        except Exception:
+            pass
         return jsonify({'success': True, 'message': f'تم تغيير حالة المعلم "{teacher.name}" إلى {status}',
                         'is_active': teacher.is_active})
     except Exception as e:
