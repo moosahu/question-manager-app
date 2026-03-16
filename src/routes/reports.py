@@ -962,6 +962,16 @@ def api_export_excel():
         # تجميد الصفين الأولين
         ws.freeze_panes = 'A3'
 
+        # صف المصدر (آخر صف)
+        footer_row = len(data) + 3
+        ws.merge_cells(f'A{footer_row}:O{footer_row}')
+        footer_cell = ws[f'A{footer_row}']
+        footer_cell.value = '⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة ©'
+        footer_cell.font      = Font(size=9, color='888888', italic=True)
+        footer_cell.alignment = Alignment(horizontal='center', vertical='center')
+        footer_cell.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        ws.row_dimensions[footer_row].height = 18
+
         # ==================== ورقة 2: الملخص ====================
         ws2 = wb.create_sheet('الملخص')
         ws2.sheet_view.rightToLeft = True
@@ -1029,6 +1039,16 @@ def api_export_excel():
 
         ws2.column_dimensions['A'].width = 28
         ws2.column_dimensions['B'].width = 22
+
+        # صف المصدر في ورقة الملخص
+        s2_footer_row = 20
+        ws2.merge_cells(f'A{s2_footer_row}:B{s2_footer_row}')
+        s2_footer = ws2[f'A{s2_footer_row}']
+        s2_footer.value = '⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة ©'
+        s2_footer.font      = Font(size=9, color='888888', italic=True)
+        s2_footer.alignment = Alignment(horizontal='center', vertical='center')
+        s2_footer.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        ws2.row_dimensions[s2_footer_row].height = 18
 
         # ==================== حفظ وإرسال ====================
         excel_file = io.BytesIO()
