@@ -23,7 +23,7 @@ class TeacherStudent(db.Model):
     )
     admin_id = db.Column(
         db.Integer,
-        db.ForeignKey('users.id', ondelete='CASCADE'),
+        db.ForeignKey('user.id', ondelete='CASCADE'),
         nullable=True,
         index=True,
     )
