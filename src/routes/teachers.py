@@ -486,30 +486,72 @@ def api_get_teacher_students(teacher_id):
     })
 
 
-@teachers_bp.route('/api/mobile/<int:teacher_id>/students/<int:student_id>/results', methods=['GET'])
-@login_required
-@admin_required
-def api_get_teacher_student_results(teacher_id, student_id):
-    """نتائج طالب معين تابع لمعلم (للأدمن)"""
-    from src.models.teacher_student import TeacherStudent
+def _build_student_results_response(student_id):
+    """دالة مساعدة: تبني response النتائج المحسّن لأي طالب"""
     from src.models.student_result import StudentResult
     from src.models.student import Student
 
-    # تحقق أن الطالب فعلاً مرتبط بهذا المعلم
-    link = TeacherStudent.query.filter_by(
-        teacher_id=teacher_id, student_id=student_id).first_or_404()
-
     student = Student.query.get_or_404(student_id)
     results = StudentResult.query.filter_by(student_id=student_id)\
-        .order_by(StudentResult.created_at.desc()).limit(50).all()
+        .order_by(StudentResult.created_at.desc()).limit(100).all()
 
-    return jsonify({
+    # إحصائيات عامة
+    scores = [r.score_percentage for r in results if r.score_percentage is not None]
+    if scores:
+        avg_score = round(sum(scores) / len(scores), 1)
+        max_score = max(scores)
+        min_score = min(scores)
+        last_score = scores[0] if scores else None
+    else:
+        avg_score = max_score = min_score = last_score = None
+
+    # حساب trend (آخر 5 مقارنةً بالـ 5 السابقة)
+    trend = 'stable'
+    if len(scores) >= 6:
+        recent_avg = sum(scores[:5]) / 5
+        older_avg = sum(scores[5:10]) / len(scores[5:10])
+        if recent_avg > older_avg + 5:
+            trend = 'improving'
+        elif recent_avg < older_avg - 5:
+            trend = 'declining'
+
+    # تجميع حسب quiz_name
+    topics_map = {}
+    for r in results:
+        name = r.quiz_name or 'غير محدد'
+        if name not in topics_map:
+            topics_map[name] = {'scores': [], 'last_score': None}
+        if r.score_percentage is not None:
+            topics_map[name]['scores'].append(r.score_percentage)
+        if topics_map[name]['last_score'] is None and r.score_percentage is not None:
+            topics_map[name]['last_score'] = r.score_percentage
+
+    topics = [
+        {
+            'name': name,
+            'count': len(data['scores']),
+            'avg': round(sum(data['scores']) / len(data['scores']), 1) if data['scores'] else None,
+            'last_score': data['last_score'],
+        }
+        for name, data in topics_map.items()
+    ]
+
+    return {
         'success': True,
         'student': {
             'id': student.id,
             'name': student.name,
             'grade': student.grade or '',
         },
+        'stats': {
+            'avg_score': avg_score,
+            'max_score': max_score,
+            'min_score': min_score,
+            'last_score': last_score,
+            'total_quizzes': len(results),
+            'trend': trend,
+        },
+        'topics': topics,
         'results': [
             {
                 'id': r.id,
@@ -517,11 +559,28 @@ def api_get_teacher_student_results(teacher_id, student_id):
                 'score_percentage': r.score_percentage,
                 'correct_answers': r.correct_answers,
                 'total_questions': r.total_questions,
+                'wrong_answers': r.wrong_answers,
+                'time_spent': r.time_spent,
+                'quiz_type': r.quiz_type,
                 'created_at': r.created_at.isoformat() if r.created_at else '',
             }
             for r in results
         ],
-    })
+    }
+
+
+@teachers_bp.route('/api/mobile/<int:teacher_id>/students/<int:student_id>/results', methods=['GET'])
+@login_required
+@admin_required
+def api_get_teacher_student_results(teacher_id, student_id):
+    """نتائج طالب معين تابع لمعلم (للأدمن)"""
+    from src.models.teacher_student import TeacherStudent
+
+    # تحقق أن الطالب فعلاً مرتبط بهذا المعلم
+    TeacherStudent.query.filter_by(
+        teacher_id=teacher_id, student_id=student_id).first_or_404()
+
+    return jsonify(_build_student_results_response(student_id))
 
 
 @teachers_bp.route('/api/mobile/<int:teacher_id>/students/<int:student_id>/remove', methods=['POST'])
@@ -732,33 +791,13 @@ def api_get_admin_students():
 def api_get_admin_student_results(student_id):
     """نتائج طالب مرتبط بالأدمن"""
     from src.models.teacher_student import TeacherStudent
-    from src.models.student_result import StudentResult
-    from src.models.student import Student
     from src.models.user import User
 
     admin = User.query.filter_by(is_admin=True).first_or_404()
-    link = TeacherStudent.query.filter_by(
+    TeacherStudent.query.filter_by(
         admin_id=admin.id, student_id=student_id).first_or_404()
 
-    student = Student.query.get_or_404(student_id)
-    results = StudentResult.query.filter_by(student_id=student_id)\
-        .order_by(StudentResult.created_at.desc()).limit(50).all()
-
-    return jsonify({
-        'success': True,
-        'student': {'id': student.id, 'name': student.name, 'grade': student.grade or ''},
-        'results': [
-            {
-                'id': r.id,
-                'quiz_name': r.quiz_name,
-                'score_percentage': r.score_percentage,
-                'correct_answers': r.correct_answers,
-                'total_questions': r.total_questions,
-                'created_at': r.created_at.isoformat() if r.created_at else '',
-            }
-            for r in results
-        ],
-    })
+    return jsonify(_build_student_results_response(student_id))
 
 
 @teachers_bp.route('/api/mobile/admin/students/<int:student_id>/remove', methods=['POST'])
@@ -844,34 +883,11 @@ def api_teacher_my_students():
 def api_teacher_my_student_results(student_id):
     """المعلم يجلب نتائج طالب من قائمته"""
     from src.models.teacher_student import TeacherStudent
-    from src.models.student_result import StudentResult
-    from src.models.student import Student
 
-    link = TeacherStudent.query.filter_by(
+    TeacherStudent.query.filter_by(
         teacher_id=request.teacher_id, student_id=student_id).first_or_404()
-    student = Student.query.get_or_404(student_id)
-    results = StudentResult.query.filter_by(student_id=student_id)\
-        .order_by(StudentResult.created_at.desc()).limit(50).all()
 
-    return jsonify({
-        'success': True,
-        'student': {
-            'id': student.id,
-            'name': student.name,
-            'grade': student.grade or '',
-        },
-        'results': [
-            {
-                'id': r.id,
-                'quiz_name': r.quiz_name,
-                'score_percentage': r.score_percentage,
-                'correct_answers': r.correct_answers,
-                'total_questions': r.total_questions,
-                'created_at': r.created_at.isoformat() if r.created_at else '',
-            }
-            for r in results
-        ],
-    })
+    return jsonify(_build_student_results_response(student_id))
 
 
 @teachers_bp.route('/api/my/students/<int:student_id>/remove', methods=['POST'])
