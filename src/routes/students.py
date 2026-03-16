@@ -2779,7 +2779,7 @@ def api_student_get_teacher():
             'success': True,
             'teacher': {
                 'id': link.admin_id,
-                'name': admin.username if admin else 'الأدمن',
+                'name': (getattr(admin, 'full_name', '') or admin.username) if admin else 'الأدمن',
                 'school': '',
                 'joined_at': link.joined_at.isoformat() if link.joined_at else '',
                 'is_admin': True,
