@@ -2410,6 +2410,7 @@ def api_mobile_list_students():
                 'is_active': s.is_active,
                 'notes': s.notes or '',
                 'created_at': s.created_at.isoformat() if hasattr(s, 'created_at') and s.created_at else '',
+                'last_login': s.last_login.isoformat() if hasattr(s, 'last_login') and s.last_login else '',
             }
             for s in students
         ],
