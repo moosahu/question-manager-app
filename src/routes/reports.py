@@ -841,7 +841,8 @@ def api_export_excel():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
         
-        data = request.json.get('data', [])
+        body = request.json or {}
+        data = body.get('students', body.get('data', []))
         
         if not data:
             return jsonify({'success': False, 'error': 'لا توجد بيانات للتصدير'}), 400
