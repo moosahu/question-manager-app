@@ -2648,3 +2648,151 @@ def api_mobile_toggle_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== Teacher-Student Link (Student side) ====================
+
+@students_bp.route('/api/join-class', methods=['POST'])
+def api_student_join_class():
+    """
+    الطالب يُدخل كود المعلم للانضمام إلى قائمته
+    Body: { student_id, class_code }
+    Headers: X-Session-Token
+    """
+    from src.models.teacher import Teacher
+    from src.models.teacher_student import TeacherStudent
+
+    data = request.get_json() or {}
+    student_id = data.get('student_id') or request.headers.get('X-Student-Id')
+    class_code = (data.get('class_code') or '').strip().upper()
+
+    if not student_id or not class_code:
+        return jsonify({'success': False, 'error': 'student_id والكود مطلوبان'}), 400
+
+    try:
+        student_id = int(student_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'student_id غير صحيح'}), 400
+
+    student = Student.query.get(student_id)
+    if not student or not student.is_active:
+        return jsonify({'success': False, 'error': 'حساب الطالب غير موجود أو معطّل'}), 404
+
+    # التحقق من الجلسة
+    session_token = request.headers.get('X-Session-Token')
+    if session_token and student.session_token and student.session_token != session_token:
+        return jsonify({'success': False, 'error': 'جلسة غير صالحة'}), 401
+
+    # البحث عن الكود — أولاً في المعلمين ثم في الأدمن
+    from src.models.user import User
+    teacher = Teacher.query.filter_by(class_code=class_code, is_active=True).first()
+    admin_owner = None
+    if not teacher:
+        admin_owner = User.query.filter_by(class_code=class_code, is_admin=True).first()
+    if not teacher and not admin_owner:
+        return jsonify({'success': False, 'error': 'الكود غير صحيح'}), 404
+
+    # هل الطالب مرتبط بمعلم أو أدمن آخر؟
+    existing = TeacherStudent.query.filter_by(student_id=student_id).first()
+    if existing:
+        same = (teacher and existing.teacher_id == teacher.id) or \
+               (admin_owner and existing.admin_id == admin_owner.id)
+        if same:
+            return jsonify({'success': False, 'error': 'أنت مرتبط بهذا الكود بالفعل'}), 409
+        return jsonify({'success': False, 'error': 'أنت مرتبط بقائمة أخرى بالفعل. اطلب الإزالة أولاً'}), 409
+
+    link = TeacherStudent(
+        teacher_id=teacher.id if teacher else None,
+        admin_id=admin_owner.id if admin_owner else None,
+        student_id=student_id,
+    )
+    try:
+        db.session.add(link)
+        db.session.commit()
+        owner_name = teacher.name if teacher else admin_owner.username
+        return jsonify({
+            'success': True,
+            'message': f'تم الانضمام لـ: {owner_name}',
+            'teacher': {
+                'id': teacher.id if teacher else admin_owner.id,
+                'name': owner_name,
+                'school': (teacher.school if teacher else '') or '',
+                'is_admin': admin_owner is not None,
+            },
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/my-teacher', methods=['GET'])
+def api_student_get_teacher():
+    """
+    الطالب يجلب بيانات معلمه الحالي
+    Headers: X-Student-Id, X-Session-Token
+    """
+    from src.models.teacher_student import TeacherStudent
+
+    student_id = request.headers.get('X-Student-Id') or request.args.get('student_id')
+    if not student_id:
+        return jsonify({'success': False, 'error': 'student_id مطلوب'}), 400
+
+    try:
+        student_id = int(student_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'student_id غير صحيح'}), 400
+
+    link = TeacherStudent.query.filter_by(student_id=student_id).first()
+    if not link:
+        return jsonify({'success': True, 'teacher': None})
+
+    t = link.teacher
+    return jsonify({
+        'success': True,
+        'teacher': {
+            'id': t.id,
+            'name': t.name,
+            'school': t.school or '',
+            'joined_at': link.joined_at.isoformat() if link.joined_at else '',
+        },
+    })
+
+
+@students_bp.route('/api/leave-class', methods=['POST'])
+def api_student_leave_class():
+    """
+    الطالب يغادر قائمة المعلم (فك الربط)
+    Body: { student_id }
+    """
+    from src.models.teacher_student import TeacherStudent
+
+    data = request.get_json() or {}
+    student_id = data.get('student_id') or request.headers.get('X-Student-Id')
+
+    if not student_id:
+        return jsonify({'success': False, 'error': 'student_id مطلوب'}), 400
+
+    try:
+        student_id = int(student_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'student_id غير صحيح'}), 400
+
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'success': False, 'error': 'الطالب غير موجود'}), 404
+
+    session_token = request.headers.get('X-Session-Token')
+    if session_token and student.session_token and student.session_token != session_token:
+        return jsonify({'success': False, 'error': 'جلسة غير صالحة'}), 401
+
+    link = TeacherStudent.query.filter_by(student_id=student_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'أنت غير مرتبط بأي معلم'}), 404
+
+    try:
+        db.session.delete(link)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم فك الارتباط بالمعلم'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

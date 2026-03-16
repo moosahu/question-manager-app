@@ -6,6 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from src.extensions import db
 from datetime import datetime
+import secrets
+import string
 
 
 class Teacher(db.Model, UserMixin):
@@ -33,6 +35,9 @@ class Teacher(db.Model, UserMixin):
     
     # ملاحظات الأدمن
     notes = db.Column(db.Text, nullable=True)
+
+    # كود الربط — الطالب يدخله للانضمام لهذا المعلم
+    class_code = db.Column(db.String(10), unique=True, nullable=True)
     
     # Firebase Cloud Messaging Token
     fcm_token = db.Column(db.String(500), nullable=True)
@@ -44,6 +49,21 @@ class Teacher(db.Model, UserMixin):
     device_name = db.Column(db.String(255), nullable=True)
     last_device_login = db.Column(db.DateTime, nullable=True)
     session_token = db.Column(db.String(255), nullable=True)
+
+    @staticmethod
+    def generate_class_code():
+        """توليد كود فريد من 6 أحرف/أرقام كبيرة"""
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(secrets.choice(chars) for _ in range(6))
+            if not Teacher.query.filter_by(class_code=code).first():
+                return code
+
+    def ensure_class_code(self):
+        """تأكد من وجود كود — أنشئه إذا لم يكن موجوداً"""
+        if not self.class_code:
+            self.class_code = Teacher.generate_class_code()
+        return self.class_code
 
     def set_password(self, password):
         """تشفير كلمة المرور"""

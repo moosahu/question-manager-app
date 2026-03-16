@@ -461,6 +461,15 @@ try:
         except ImportError:
             print("Warning: Could not import error_tracking models.")
 
+    # استيراد نموذج ربط الطالب بالمعلم
+    try:
+        from src.models.teacher_student import TeacherStudent
+    except ImportError:
+        try:
+            from models.teacher_student import TeacherStudent
+        except ImportError:
+            print("Warning: Could not import TeacherStudent model.")
+
 except ImportError:
     try:
         from models.user import User
