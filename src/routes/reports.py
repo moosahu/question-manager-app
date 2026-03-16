@@ -925,8 +925,10 @@ def api_export_excel():
             elif avg_score >  0:  avg_bg = 'FFC7CE'
             _cell(7, f"{avg_score:.1f}%", bold=True, bg=avg_bg)
 
-            _cell(8, f"{student.get('best_score',  0):.1f}%")
-            _cell(9, f"{student.get('worst_score', 0):.1f}%")
+            best  = student.get('best_score',  0)
+            worst = student.get('worst_score', 0)
+            _cell(8, f"{best:.1f}%"  if best  > 0 else '-')
+            _cell(9, f"{worst:.1f}%" if worst > 0 else '-')
 
             total_time = student.get('total_time_spent', 0)
             _cell(10, format_time_arabic(total_time))
