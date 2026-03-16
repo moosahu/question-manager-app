@@ -916,3 +916,36 @@ def api_teacher_remove_my_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/my/fcm-token', methods=['POST'])
+@verify_teacher_token
+def api_teacher_save_fcm_token():
+    """المعلم يحفظ FCM Token للإشعارات"""
+    data = request.get_json() or {}
+    fcm_token = data.get('fcm_token', '').strip()
+    if not fcm_token:
+        return jsonify({'success': False, 'error': 'fcm_token مطلوب'}), 400
+
+    teacher = Teacher.query.get_or_404(request.teacher_id)
+    try:
+        teacher.update_fcm_token(fcm_token)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم حفظ FCM Token'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/my/fcm-token', methods=['DELETE'])
+@verify_teacher_token
+def api_teacher_delete_fcm_token():
+    """المعلم يحذف FCM Token عند تسجيل الخروج"""
+    teacher = Teacher.query.get_or_404(request.teacher_id)
+    try:
+        teacher.clear_fcm_token()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم حذف FCM Token'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
