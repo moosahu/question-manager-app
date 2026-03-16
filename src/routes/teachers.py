@@ -288,6 +288,8 @@ def api_mobile_list_teachers():
                 'username': t.username,
                 'email': t.email or '',
                 'is_active': t.is_active if hasattr(t, 'is_active') else True,
+                'created_at': t.created_at.isoformat() if t.created_at else '',
+                'last_login': t.last_login.isoformat() if t.last_login else '',
             }
             for t in teachers
         ],
@@ -394,6 +396,24 @@ def api_mobile_delete_teacher(teacher_id):
             pass
 
         return jsonify({'success': True, 'message': f'تم حذف المعلم "{name}"'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/mobile/<int:teacher_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def api_mobile_toggle_teacher(teacher_id):
+    """تفعيل/تعطيل حساب معلم عبر الموبايل"""
+    from src.models.teacher import Teacher
+    teacher = Teacher.query.get_or_404(teacher_id)
+    teacher.is_active = not teacher.is_active
+    try:
+        db.session.commit()
+        status = 'مفعّل' if teacher.is_active else 'معطّل'
+        return jsonify({'success': True, 'message': f'تم تغيير حالة المعلم "{teacher.name}" إلى {status}',
+                        'is_active': teacher.is_active})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
