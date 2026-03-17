@@ -7,48 +7,20 @@
     </title>
     
     <style>
-        /* الخط المختار فقط — لا نحمّل بقية الخطوط */
-        {% if font_family == 'amiri' %}
+        /* الخط المختار — مضمّن كـ base64 لتجنب HTTP requests */
+        {% if font_data %}
         @font-face {
-            font-family: 'Amiri';
-            src: url('/static/fonts/Amiri-Regular.ttf') format('truetype');
+            font-family: 'SelectedFont';
+            src: url('{{ font_data }}') format('truetype');
             font-weight: normal;
         }
+        {% if font_data_bold %}
         @font-face {
-            font-family: 'Amiri';
-            src: url('/static/fonts/Amiri-Bold.ttf') format('truetype');
+            font-family: 'SelectedFont';
+            src: url('{{ font_data_bold }}') format('truetype');
             font-weight: bold;
         }
-        {% elif font_family == 'traditional' %}
-        @font-face {
-            font-family: 'TraditionalArabic';
-            src: url('/static/fonts/TraditionalArabic-Regular.ttf') format('truetype');
-        }
-        {% elif font_family == 'cairo' %}
-        @font-face {
-            font-family: 'Cairo';
-            src: url('/static/fonts/Cairo-Regular.ttf') format('truetype');
-        }
-        {% elif font_family == 'tajawal' %}
-        @font-face {
-            font-family: 'Tajawal';
-            src: url('/static/fonts/Tajawal-Regular.ttf') format('truetype');
-        }
-        {% elif font_family == 'tahoma' %}
-        @font-face {
-            font-family: 'Tahoma';
-            src: url('/static/fonts/Tahoma-Regular.ttf') format('truetype');
-        }
-        {% elif font_family == 'scheherazade' %}
-        @font-face {
-            font-family: 'Scheherazade';
-            src: url('/static/fonts/ScheherazadeNew-Regular.ttf') format('truetype');
-        }
-        {% elif font_family == 'noto' %}
-        @font-face {
-            font-family: 'NotoNaskhArabic';
-            src: url('/static/fonts/NotoNaskhArabic-Regular.ttf') format('truetype');
-        }
+        {% endif %}
         {% endif %}
 
         /* =============================================
@@ -90,7 +62,7 @@
         }
 
         body {
-            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% elif font_family == 'cairo' %}'Cairo'{% elif font_family == 'scheherazade' %}'Scheherazade'{% elif font_family == 'tajawal' %}'Tajawal'{% elif font_family == 'traditional' %}'TraditionalArabic'{% elif font_family == 'tahoma' %}'Tahoma'{% else %}'TraditionalArabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
+            font-family: 'SelectedFont', 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
             font-size: {{ font_size|default(14, true) }}px;
             line-height: 1.5;
             color: #000;

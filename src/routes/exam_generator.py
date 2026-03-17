@@ -5,7 +5,23 @@ import os
 import base64
 from docx import Document # للحفاظ على دعم الوورد
 
-_logo_cache = None  # cache في الذاكرة — يُحمَّل مرة واحدة فقط
+_logo_cache = None   # cache في الذاكرة — يُحمَّل مرة واحدة فقط
+_font_cache  = {}    # {filename: 'data:font/truetype;base64,...'}
+
+def _font_base64(filename):
+    """يقرأ ملف الخط ويحوّله base64 مع cache في الذاكرة"""
+    if filename in _font_cache:
+        return _font_cache[filename]
+    path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', filename)
+    )
+    try:
+        with open(path, 'rb') as f:
+            data = base64.b64encode(f.read()).decode()
+            _font_cache[filename] = f'data:font/truetype;base64,{data}'
+    except Exception:
+        _font_cache[filename] = ''
+    return _font_cache[filename]
 
 def _default_logo_base64():
     """يحاول تحميل شعار الوزارة من مسارات متعددة (مع cache)"""
@@ -28,6 +44,25 @@ def _default_logo_base64():
             pass
     _logo_cache = ''  # لا يوجد شعار — لا نعيد المحاولة
     return None
+
+_FONT_FILES = {
+    'traditional':   ('TraditionalArabic-Regular.ttf', None),
+    'amiri':         ('Amiri-Regular.ttf',              'Amiri-Bold.ttf'),
+    'cairo':         ('Cairo-Regular.ttf',              None),
+    'tajawal':       ('Tajawal-Regular.ttf',            None),
+    'tahoma':        ('Tahoma-Regular.ttf',             None),
+    'scheherazade':  ('ScheherazadeNew-Regular.ttf',    None),
+    'noto':          ('NotoNaskhArabic-Regular.ttf',    None),
+}
+
+def _get_font_data(family):
+    regular, _ = _FONT_FILES.get(family, _FONT_FILES['traditional'])
+    return _font_base64(regular)
+
+def _get_font_data_bold(family):
+    _, bold = _FONT_FILES.get(family, _FONT_FILES['traditional'])
+    return _font_base64(bold) if bold else ''
+
 
 class ExamGenerator:
     def __init__(self, header_settings=None, logo_path=None):
@@ -97,7 +132,9 @@ class ExamGenerator:
             'spacing':             kwargs.get('spacing', 'normal'),
             'options_layout':      kwargs.get('options_layout', 'vertical'),
             'include_qr':          kwargs.get('include_qr', True),
-            'font_family':         kwargs.get('font_family', 'amiri'),
+            'font_family':         kwargs.get('font_family', 'traditional'),
+            'font_data':           _get_font_data(kwargs.get('font_family', 'traditional')),
+            'font_data_bold':      _get_font_data_bold(kwargs.get('font_family', 'traditional')),
         }
 
         arabic_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
