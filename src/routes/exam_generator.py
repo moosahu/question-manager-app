@@ -5,12 +5,15 @@ import os
 import base64
 from docx import Document # للحفاظ على دعم الوورد
 
+_logo_cache = None  # cache في الذاكرة — يُحمَّل مرة واحدة فقط
+
 def _default_logo_base64():
-    """يحاول تحميل شعار الوزارة من مسارات متعددة"""
+    """يحاول تحميل شعار الوزارة من مسارات متعددة (مع cache)"""
+    global _logo_cache
+    if _logo_cache is not None:
+        return _logo_cache
     candidates = [
-        # على Render
         os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'logo.png'),
-        # مسار قديم
         '/home/ubuntu/ministry_logo.png',
     ]
     for path in candidates:
@@ -19,9 +22,11 @@ def _default_logo_base64():
             if os.path.exists(abs_path):
                 with open(abs_path, 'rb') as f:
                     data = base64.b64encode(f.read()).decode()
-                    return f'data:image/png;base64,{data}'
+                    _logo_cache = f'data:image/png;base64,{data}'
+                    return _logo_cache
         except Exception:
             pass
+    _logo_cache = ''  # لا يوجد شعار — لا نعيد المحاولة
     return None
 
 class ExamGenerator:

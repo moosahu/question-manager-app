@@ -180,6 +180,11 @@ init_backup_system()
 # Create Blueprint
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
+@api_bp.route("/ping", methods=["GET"])
+def ping():
+    """endpoint بسيط لإيقاظ السيرفر مسبقاً"""
+    return jsonify({"ok": True})
+
 # دالة مخصصة لإزالة CSRF protection
 def csrf_exempt(f):
     """Decorator to exempt a view from CSRF protection"""
@@ -3870,10 +3875,11 @@ def generate_exam():
             lid_list = [l.id for l in Lesson.query.filter(Lesson.unit_id == unit_id).all()]
             base_query = base_query.filter(Question.lesson_id.in_(lid_list))
         else:
-            all_lid = []
-            for cid in course_ids:
-                for unit in Unit.query.filter(Unit.course_id == cid).all():
-                    all_lid.extend([l.id for l in unit.lessons])
+            all_lid = [
+                l.id for l in Lesson.query.join(Unit)
+                .filter(Unit.course_id.in_(course_ids))
+                .with_entities(Lesson.id).all()
+            ]
             base_query = base_query.filter(Question.lesson_id.in_(all_lid))
 
         if difficulty_filter:
