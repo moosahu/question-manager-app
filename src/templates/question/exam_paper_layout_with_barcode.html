@@ -130,11 +130,11 @@
         
         /* حساب حجم الشعار */
         {% if logo_sz == 'small' %}
-            {% set logo_height = 70 %}
+            {% set logo_height = 50 %}
         {% elif logo_sz == 'large' %}
-            {% set logo_height = 130 %}
+            {% set logo_height = 90 %}
         {% else %}
-            {% set logo_height = 100 %}
+            {% set logo_height = 65 %}
         {% endif %}
         
         /* حساب حجم الباركود */
@@ -304,8 +304,18 @@
         .questions-wrapper {
             column-count: {{ col_count }};
             column-gap: {% if col_count == 1 %}0{% elif col_count == 3 %}15px{% else %}20px{% endif %};
-            column-rule: {% if col_count > 1 %}1px solid #000{% else %}none{% endif %};
             column-fill: balance;
+            {% if col_count == 2 %}
+            background-image: linear-gradient(to bottom, #000 0%, #000 100%);
+            background-size: 1px 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            {% elif col_count == 3 %}
+            background-image: linear-gradient(to bottom, #000 0%, #000 100%), linear-gradient(to bottom, #000 0%, #000 100%);
+            background-size: 1px 100%, 1px 100%;
+            background-position: 33.3% center, 66.6% center;
+            background-repeat: no-repeat, no-repeat;
+            {% endif %}
         }
 
         .question-box { 
