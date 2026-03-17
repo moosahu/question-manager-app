@@ -207,34 +207,36 @@
         .column-title.matching { background: #7b1fa2; }
 
         .questions-grid { display: flex; flex-direction: row; gap: 0 6px; flex: 1; overflow: hidden; }
-        .questions-grid > div { flex: 1; overflow: hidden; }
+        .questions-grid > div { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
         .questions-grid.matching-grid { flex-direction: column; }
-        .questions-grid.matching-grid > div { flex: none; }
+        .questions-grid.matching-grid > div { flex: 1; display: flex; flex-direction: column; }
 
-        .question-row { display: flex; align-items: center; justify-content: center; padding: 2px 0; gap: 3px; }
+        .rows-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+
+        .question-row { display: flex; align-items: center; justify-content: center; padding: 1px 0; gap: 3px; }
         .question-num { width: 19px; font-weight: bold; font-size: 10px; text-align: center; }
 
-        .answer-bubble { width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .answer-bubble { width: 16px; height: 16px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
         .answer-bubble.filled { background: #000; }
 
         .column-headers { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #333; display: flex; flex-direction: column; align-items: center; margin-right: 22px; }
 
         .bubbles-labels-ar { display: flex; gap: 4px; font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px; }
-        .bubbles-labels-ar span { width: 20px; text-align: center; display: inline-block; }
+        .bubbles-labels-ar span { width: 16px; text-align: center; display: inline-block; }
 
         .bubbles-labels-en { display: flex; gap: 4px; font-size: 9px; font-weight: bold; color: #666; margin-bottom: 1px; }
-        .bubbles-labels-en span { width: 20px; text-align: center; display: inline-block; }
+        .bubbles-labels-en span { width: 16px; text-align: center; display: inline-block; }
 
         .bubbles-row-only { display: flex; gap: 4px; }
 
-        .matching-bubble { width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .matching-bubble { width: 16px; height: 16px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
         .matching-bubble.filled { background: #000; }
 
         .matching-labels-ar { display: flex; gap: 4px; font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px; }
-        .matching-labels-ar span { width: 20px; text-align: center; display: inline-block; }
+        .matching-labels-ar span { width: 16px; text-align: center; display: inline-block; }
 
         .matching-labels-en { display: flex; gap: 4px; font-size: 9px; font-weight: bold; color: #666; margin-bottom: 1px; }
-        .matching-labels-en span { width: 20px; text-align: center; display: inline-block; }
+        .matching-labels-en span { width: 16px; text-align: center; display: inline-block; }
 
         .matching-row-only { display: flex; gap: 4px; }
 
@@ -411,6 +413,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(1, 11) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -422,12 +425,14 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
                 <div>
                     <div class="column-headers">
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(11, 21) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -439,6 +444,7 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -451,6 +457,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(21, 31) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -462,12 +469,14 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
                 <div>
                     <div class="column-headers">
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(31, 41) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -479,6 +488,7 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -491,6 +501,7 @@
                         <div class="bubbles-labels-ar"><span>ص</span><span>خ</span></div>
                         <div class="bubbles-labels-en"><span>T</span><span>F</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(1, 11) %}{% set q_num = i + 40 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -500,12 +511,14 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
                 <div>
                     <div class="column-headers">
                         <div class="bubbles-labels-ar"><span>ص</span><span>خ</span></div>
                         <div class="bubbles-labels-en"><span>T</span><span>F</span></div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(11, 21) %}{% set q_num = i + 40 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -515,6 +528,7 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -531,6 +545,7 @@
                             <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
                         </div>
                     </div>
+                    <div class="rows-wrapper">
                     {% for i in range(1, 11) %}{% set q_num = i + 60 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
@@ -548,6 +563,7 @@
                         </div>
                     </div>
                     {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
