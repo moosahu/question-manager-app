@@ -67,6 +67,7 @@ except ImportError:  # pragma: no cover
 try:
     from src.models.question import Question, Option
     from src.models.curriculum import Lesson, Unit, Course
+    from src.models.generated_exam import GeneratedExam
     from src.models.backup_settings import BackupSettings
     from src.models.backup_log import BackupLog
     from src.models.google_drive import GoogleDriveToken  # إضافة استيراد GoogleDriveToken
@@ -3744,103 +3745,293 @@ def export_questions():
 
 
 @api_bp.route("/questions/generate-exam", methods=["POST"])
-@login_required
+@teacher_or_admin_required
 def generate_exam():
     """
     توليد نموذج اختبار عشوائي من أسئلة محددة
-    
+
     Request JSON:
     {
         "course_id": 1,
-        "unit_id": 2,
-        "lesson_id": 3,
+        "unit_id": 2,          (اختياري)
+        "lesson_id": 3,        (اختياري)
         "question_count": 10,
-        "include_answers": false
+        "include_answers": false,
+        "shuffle_questions": true,
+        "shuffle_options": true,
+        "format": "json",      (json | pdf)
+        "header": {            (اختياري — يُستخدم عند format=pdf)
+            "school_name": "",
+            "grade": "",
+            "teacher_name": "",
+            "exam_date": "",
+            "total_score": 30,
+            "subject": ""
+        }
     }
-    
-    يمكن تحديد course_id فقط، أو course_id + unit_id، أو جميع المعاملات
     """
     try:
-        from random import shuffle
-        
+        import random as _random
+
         data = request.get_json()
-        course_id = data.get("course_id")
-        unit_id = data.get("unit_id")
-        lesson_id = data.get("lesson_id")
-        question_count = data.get("question_count", 10)
-        include_answers = data.get("include_answers", False)
-        
+        course_id        = data.get("course_id")
+        unit_id          = data.get("unit_id")
+        lesson_id        = data.get("lesson_id")
+        question_count   = data.get("question_count", 10)
+        include_answers  = data.get("include_answers", False)
+        shuffle_questions = data.get("shuffle_questions", True)
+        shuffle_options  = data.get("shuffle_options", True)
+        output_format    = data.get("format", "json")   # json | pdf
+        header           = data.get("header", {})
+
         if not course_id:
-            return jsonify({
-                'success': False,
-                'error': 'يجب تحديد المنهج على الأقل'
-            }), 400
-        
-        # بناء الاستعلام
+            return jsonify({'success': False, 'error': 'يجب تحديد المنهج على الأقل'}), 400
+
+        # ── بناء الاستعلام ──────────────────────────────────────────
         query = Question.query.filter(Question.is_blocked == False)
-        
-        # التصفية حسب الدرس
+
         if lesson_id:
             query = query.filter(Question.lesson_id == lesson_id)
-        # التصفية حسب الوحدة
         elif unit_id:
-            lessons = Lesson.query.filter(Lesson.unit_id == unit_id).all()
-            lesson_ids = [l.id for l in lessons]
+            lesson_ids = [l.id for l in Lesson.query.filter(Lesson.unit_id == unit_id).all()]
             query = query.filter(Question.lesson_id.in_(lesson_ids))
-        # التصفية حسب المنهج
         else:
             units = Unit.query.filter(Unit.course_id == course_id).all()
             lesson_ids = []
             for unit in units:
                 lesson_ids.extend([l.id for l in unit.lessons])
             query = query.filter(Question.lesson_id.in_(lesson_ids))
-        
-        # الحصول على جميع الأسئلة المتاحة
+
         available_questions = query.all()
-        
+
         if not available_questions:
-            return jsonify({
-                'success': False,
-                'error': 'لا توجد أسئلة متاحة للاختبار'
-            }), 404
-        
-        # اختيار عشوائي من الأسئلة
-        if len(available_questions) > question_count:
-            selected_questions = []
-            indices = list(range(len(available_questions)))
-            shuffle(indices)
-            for i in range(question_count):
-                selected_questions.append(available_questions[indices[i]])
-        else:
-            selected_questions = available_questions
-        
-        # تنسيق الأسئلة
+            return jsonify({'success': False, 'error': 'لا توجد أسئلة متاحة للاختبار'}), 404
+
+        # ── اختيار + خلط الأسئلة ────────────────────────────────────
+        selected = list(available_questions)
+        if shuffle_questions:
+            _random.shuffle(selected)
+        selected = selected[:question_count]
+
+        # ── تنسيق الأسئلة ───────────────────────────────────────────
         formatted_questions = []
-        for question in selected_questions:
-            formatted_q = format_question(question)
-            
-            # إذا لم نطلب الإجابات، نزيل معرف الخيار الصحيح
+        for question in selected:
+            fq = format_question(question)
+
+            # خلط الخيارات
+            if shuffle_options and fq.get('options'):
+                options = fq['options']
+                _random.shuffle(options)
+                fq['options'] = options
+
+            # إخفاء الإجابة الصحيحة إذا لم تُطلب
             if not include_answers:
-                formatted_q.pop('correct_option_id', None)
-            
-            formatted_questions.append(formatted_q)
-        
+                fq.pop('correct_option_id', None)
+
+            formatted_questions.append(fq)
+
+        # ── إرجاع PDF ───────────────────────────────────────────────
+        if output_format == 'pdf':
+            try:
+                from src.routes.exam_generator import ExamGenerator
+            except ImportError:
+                from exam_generator import ExamGenerator
+
+            # تجهيز الأسئلة بصيغة مناسبة للمولد
+            gen_questions = []
+            for fq in formatted_questions:
+                gen_q = {
+                    'question_text': fq.get('question_text', ''),
+                    'points': fq.get('points', 1),
+                    'options': [],
+                    'correct_option_id': fq.get('correct_option_id'),
+                }
+                for opt in fq.get('options', []):
+                    gen_q['options'].append({
+                        'option_id':   opt.get('option_id'),
+                        'option_text': opt.get('option_text', ''),
+                        'is_correct':  opt.get('is_correct', False),
+                    })
+                gen_questions.append(gen_q)
+
+            # بيانات الكليشه
+            course = Course.query.get(course_id)
+            exam_title = header.get('exam_title') or (f'اختبار {course.name}' if course else 'نموذج اختبار')
+
+            generator = ExamGenerator()
+            pdf_bytes = generator.generate_pdf(
+                gen_questions,
+                exam_title=exam_title,
+                show_answers=include_answers,
+                school_name=header.get('school_name', ''),
+                grade=header.get('grade', ''),
+                subject=header.get('subject', course.name if course else ''),
+                checker_name=header.get('teacher_name', ''),
+                exam_date=header.get('exam_date', ''),
+                total_score=header.get('total_score', 30),
+            )
+
+            from flask import send_file
+            return send_file(
+                io.BytesIO(pdf_bytes),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='exam.pdf',
+            )
+
+        # ── حفظ في التاريخ ──────────────────────────────────────────
+        try:
+            from src.models.generated_exam import GeneratedExam as _GE
+            from src.extensions import db as _db
+            from src.models.curriculum import Course as _Course, Unit as _Unit, Lesson as _Lesson
+
+            _course  = _Course.query.get(course_id)
+            _unit    = _Unit.query.get(unit_id)   if unit_id   else None
+            _lesson  = _Lesson.query.get(lesson_id) if lesson_id else None
+
+            # معرفة هل المستخدم معلم أو أدمن
+            _teacher_id = None
+            _user_id    = None
+            _session_tok = request.headers.get('X-Session-Token')
+            _auth_header = request.headers.get('Authorization', '')
+            if _session_tok:
+                from src.models.teacher import Teacher as _T
+                _t = _T.query.filter_by(session_token=_session_tok, is_active=True).first()
+                if _t:
+                    _teacher_id = _t.id
+            elif _auth_header.startswith('Bearer '):
+                import jwt as _jwt
+                try:
+                    _data = _jwt.decode(_auth_header[7:], current_app.config['JWT_SECRET_KEY'],
+                                        algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
+                    if _data.get('user_type') == 'teacher':
+                        _teacher_id = _data.get('user_id')
+                except Exception:
+                    pass
+            elif current_user.is_authenticated:
+                _user_id = current_user.id
+
+            _ge = _GE(
+                teacher_id=_teacher_id,
+                user_id=_user_id,
+                course_id=course_id,
+                unit_id=unit_id,
+                lesson_id=lesson_id,
+                question_count=len(formatted_questions),
+                include_answers=include_answers,
+                shuffle_questions=shuffle_questions,
+                shuffle_options=shuffle_options,
+                course_name=_course.name if _course else None,
+                unit_name=_unit.name   if _unit   else None,
+                lesson_name=_lesson.name if _lesson else None,
+            )
+            _ge.header = header
+            _db.session.add(_ge)
+            _db.session.commit()
+        except Exception:
+            pass  # التاريخ اختياري — لا يوقف التوليد
+
+        # ── إرجاع JSON (افتراضي) ────────────────────────────────────
         return jsonify({
             'success': True,
             'exam': {
-                'questions': formatted_questions,
-                'count': len(formatted_questions),
+                'questions':       formatted_questions,
+                'count':           len(formatted_questions),
                 'include_answers': include_answers,
-                'generated_at': datetime.utcnow().isoformat()
+                'generated_at':    datetime.utcnow().isoformat(),
             }
         })
-        
+
     except Exception as e:
         logger.exception(f"Error generating exam: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/questions/exam-history", methods=["GET"])
+@teacher_or_admin_required
+def get_exam_history():
+    """آخر 20 اختبار مولّد للمستخدم الحالي"""
+    try:
+        from src.models.generated_exam import GeneratedExam as _GE
+        from src.models.teacher import Teacher as _T
+
+        query = _GE.query
+
+        # تحديد المستخدم
+        session_tok  = request.headers.get('X-Session-Token')
+        auth_header  = request.headers.get('Authorization', '')
+        teacher_id   = None
+
+        if session_tok:
+            _t = _T.query.filter_by(session_token=session_tok, is_active=True).first()
+            if _t:
+                teacher_id = _t.id
+        elif auth_header.startswith('Bearer '):
+            import jwt as _jwt
+            try:
+                _data = _jwt.decode(auth_header[7:], current_app.config['JWT_SECRET_KEY'],
+                                    algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
+                if _data.get('user_type') == 'teacher':
+                    teacher_id = _data.get('user_id')
+            except Exception:
+                pass
+
+        if teacher_id:
+            query = query.filter(_GE.teacher_id == teacher_id)
+        elif current_user.is_authenticated:
+            query = query.filter(_GE.user_id == current_user.id)
+        else:
+            return jsonify({'success': False, 'error': 'غير مصرّح'}), 401
+
+        items = query.order_by(_GE.generated_at.desc()).limit(20).all()
+        return jsonify({'success': True, 'history': [i.to_dict() for i in items]})
+
+    except Exception as e:
+        logger.exception(f"Error fetching exam history: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/questions/exam-history/<int:item_id>", methods=["DELETE"])
+@teacher_or_admin_required
+def delete_exam_history_item(item_id):
+    """حذف عنصر من تاريخ الاختبارات"""
+    try:
+        from src.models.generated_exam import GeneratedExam as _GE
+        from src.extensions import db as _db
+
+        item = _GE.query.get_or_404(item_id)
+        _db.session.delete(item)
+        _db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/questions/exam-history/all", methods=["GET"])
+@login_required
+def get_all_exam_history():
+    """سجل كل الاختبارات المولّدة — للأدمن فقط"""
+    try:
+        from src.models.generated_exam import GeneratedExam as _GE
+        from src.models.teacher import Teacher as _T
+
+        items = _GE.query.order_by(_GE.generated_at.desc()).limit(50).all()
+        result = []
+        for item in items:
+            d = item.to_dict()
+            # إضافة اسم المولّد
+            if item.teacher_id:
+                t = _T.query.get(item.teacher_id)
+                d['generated_by'] = t.name if t else f'معلم #{item.teacher_id}'
+                d['generated_by_type'] = 'teacher'
+            else:
+                d['generated_by'] = 'الأدمن'
+                d['generated_by_type'] = 'admin'
+            result.append(d)
+        return jsonify({'success': True, 'history': result})
+    except Exception as e:
+        logger.exception(f"Error fetching all exam history: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/lessons", methods=["GET"])

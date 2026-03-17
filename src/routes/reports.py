@@ -566,6 +566,7 @@ def api_student_report(student_id):
                     'avg_score': 0,
                     'message': 'لم يقم الطالب بأي اختبار بعد'
                 },
+                'topics_breakdown': {'units': [], 'lessons': []},
                 'timezone': user_timezone,
             })
         
@@ -648,9 +649,10 @@ def api_student_report(student_id):
             'strengths': strengths,
             'weaknesses': weaknesses,
             'recent_results': recent_results,
+            'topics_breakdown': get_topics_breakdown(student_id),
             'timezone': user_timezone,
         })
-        
+
     except Exception as e:
         print(f'❌ Error in student report: {e}')
         import traceback
@@ -1137,6 +1139,48 @@ def get_badge(rank):
         3: '🥉 المركز الثالث'
     }
     return badges.get(rank, f'⭐ المركز {rank}')
+
+
+def get_topics_breakdown(student_id):
+    """
+    إرجاع جميع الوحدات والدروس مع متوسط الأداء للمقارنة
+    """
+    results = StudentResult.query.filter_by(student_id=student_id).all()
+
+    if not results:
+        return {'units': [], 'lessons': []}
+
+    units = {}
+    lessons = {}
+
+    for r in results:
+        score = r.score_percentage
+        name = r.quiz_name or 'غير محدد'
+
+        if r.quiz_type == 'lesson':
+            if name not in lessons:
+                lessons[name] = []
+            lessons[name].append(score)
+        elif r.quiz_type in ('unit', 'course') or r.course_id:
+            if r.course_id:
+                course = Course.query.get(r.course_id)
+                name = course.name if course else name
+            if name not in units:
+                units[name] = []
+            units[name].append(score)
+        else:
+            if name not in units:
+                units[name] = []
+            units[name].append(score)
+
+    def to_list(d):
+        lst = []
+        for n, scores in d.items():
+            avg = sum(scores) / len(scores)
+            lst.append({'name': n, 'avg_score': round(avg, 2), 'total_attempts': len(scores)})
+        return sorted(lst, key=lambda x: x['name'])
+
+    return {'units': to_list(units), 'lessons': to_list(lessons)}
 
 
 def analyze_topics_from_student_results(student_id):

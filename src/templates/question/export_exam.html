@@ -1981,6 +1981,30 @@
                 </div>
             </div>
 
+            <!-- ==================== القسم 7: سجل الاختبارات ==================== -->
+            <div class="collapsible-section section-purple collapsed" id="examHistorySection">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">
+                        <i class="fas fa-history"></i>
+                        سجل الاختبارات المولّدة
+                    </span>
+                    <i class="fas fa-chevron-down section-toggle"></i>
+                </div>
+                <div class="section-content">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.8rem; color: #666;">آخر 20 اختبار مولّد</span>
+                        <button class="btn" onclick="loadExamHistory()" style="padding: 4px 10px; font-size: 0.8rem; background: #9c27b0; color: white;">
+                            <i class="fas fa-sync"></i> تحديث
+                        </button>
+                    </div>
+                    <div id="examHistoryList">
+                        <div style="text-align: center; padding: 20px; color: #999; font-size: 0.85rem;">
+                            <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- المحتوى الرئيسي -->
@@ -4293,6 +4317,101 @@ function getHeaderSettings() {
         academic_year: document.getElementById('academicYear').value
     };
 }
+
+// ==================== دوال سجل الاختبارات المولّدة ====================
+
+async function loadExamHistory() {
+    const container = document.getElementById('examHistoryList');
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:0.85rem;"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+
+    try {
+        const response = await fetch('/api/v1/questions/exam-history/all');
+        if (!response.ok) throw new Error('فشل التحميل');
+        const data = await response.json();
+        const items = data.history || data.exams || [];
+
+        if (items.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:0.85rem;"><i class="fas fa-inbox"></i><br>لا يوجد سجل بعد</div>';
+            return;
+        }
+
+        container.innerHTML = items.slice(0, 20).map(item => {
+            const date = new Date(item.generated_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+            const scope = [item.course_name, item.unit_name, item.lesson_name].filter(Boolean).join(' › ');
+            const by = item.generated_by || 'الأدمن';
+            return `
+                <div style="background:#f8f4ff;border:1px solid #ce93d8;border-radius:8px;padding:10px;margin-bottom:8px;">
+                    <div style="font-size:0.8rem;font-weight:600;color:#6a1b9a;margin-bottom:4px;">${scope || 'غير محدد'}</div>
+                    <div style="font-size:0.75rem;color:#555;margin-bottom:6px;">
+                        <i class="fas fa-question-circle"></i> ${item.question_count} سؤال
+                        &nbsp;|&nbsp; <i class="fas fa-user"></i> ${by}
+                        &nbsp;|&nbsp; <i class="fas fa-calendar"></i> ${date}
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button onclick="reuseExamHistory(${item.id})" style="flex:1;padding:5px;font-size:0.75rem;background:#9c27b0;color:white;border:none;border-radius:4px;cursor:pointer;">
+                            <i class="fas fa-redo"></i> إعادة توليد
+                        </button>
+                        <button onclick="deleteExamHistory(${item.id}, this)" style="padding:5px 8px;font-size:0.75rem;background:#f44336;color:white;border:none;border-radius:4px;cursor:pointer;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = `<div style="text-align:center;padding:15px;color:#c62828;font-size:0.8rem;"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;
+    }
+}
+
+async function reuseExamHistory(id) {
+    try {
+        const response = await fetch('/api/v1/questions/exam-history/all');
+        if (!response.ok) return;
+        const data = await response.json();
+        const item = (data.history || data.exams || []).find(e => e.id === id);
+        if (!item) return;
+
+        // fill question count if smart random section exists
+        const countInput = document.getElementById('randomQuestionCount');
+        if (countInput) countInput.value = item.question_count;
+
+        // show a toast
+        showSuccess(`تم تحميل إعدادات الاختبار (${item.question_count} سؤال)`);
+    } catch (e) {
+        showError('تعذّر تحميل الاختبار');
+    }
+}
+
+async function deleteExamHistory(id, btn) {
+    if (!confirm('حذف هذا السجل؟')) return;
+    btn.disabled = true;
+    try {
+        const response = await fetch(`/api/v1/questions/exam-history/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error();
+        loadExamHistory();
+    } catch (e) {
+        btn.disabled = false;
+        showError('تعذّر الحذف');
+    }
+}
+
+// تحميل السجل تلقائياً عند فتح القسم
+document.addEventListener('DOMContentLoaded', () => {
+    const historySection = document.getElementById('examHistorySection');
+    if (historySection) {
+        const header = historySection.querySelector('.section-header');
+        const origToggle = header.onclick;
+        header.addEventListener('click', function() {
+            const isCollapsed = historySection.classList.contains('collapsed');
+            if (isCollapsed) {
+                // About to open — load if list is empty
+                const list = document.getElementById('examHistoryList');
+                if (!list.querySelector('[style*="background:#f8f4ff"]')) {
+                    loadExamHistory();
+                }
+            }
+        });
+    }
+});
 
 // ==================== دوال حفظ واسترجاع الاختبارات ====================
 

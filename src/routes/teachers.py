@@ -595,6 +595,22 @@ def _build_student_results_response(student_id):
         for r in chart_results
     ]
 
+    # topics_breakdown مقسّم حسب quiz_type للمقارنة
+    units_map = {}
+    lessons_map = {}
+    for r in results:
+        name = r.quiz_name or 'غير محدد'
+        if r.score_percentage is None:
+            continue
+        if r.quiz_type == 'lesson':
+            lessons_map.setdefault(name, []).append(r.score_percentage)
+        else:
+            units_map.setdefault(name, []).append(r.score_percentage)
+
+    def _to_breakdown(d):
+        lst = [{'name': n, 'avg_score': round(sum(s) / len(s), 2), 'total_attempts': len(s)} for n, s in d.items()]
+        return sorted(lst, key=lambda x: x['name'])
+
     return {
         'success': True,
         'student': {
@@ -612,6 +628,7 @@ def _build_student_results_response(student_id):
             'chart_data': chart_data,
         },
         'topics': topics,
+        'topics_breakdown': {'units': _to_breakdown(units_map), 'lessons': _to_breakdown(lessons_map)},
         'results': [
             {
                 'id': r.id,
@@ -1155,6 +1172,207 @@ def api_teacher_export_excel():
         excel_file.seek(0)
 
         filename = f'تقرير_طلابي_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@teachers_bp.route('/api/mobile/admin/export-excel', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_export_excel():
+    """الأدمن يصدّر قائمة الطلاب كـ Excel"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        body = request.json or {}
+        data = body.get('students', [])
+        admin_name = body.get('admin_name', 'الإدارة')
+
+        if not data:
+            return jsonify({'success': False, 'error': 'لا توجد بيانات للتصدير'}), 400
+
+        wb = Workbook()
+
+        # ==================== ورقة 1: تقرير الطلاب ====================
+        ws = wb.active
+        ws.title = 'تقرير الطلاب'
+        ws.sheet_view.rightToLeft = True
+
+        header_font  = Font(bold=True, size=11, color='FFFFFF')
+        header_fill  = PatternFill(start_color='1e3a8a', end_color='2563EB', fill_type='solid')
+        header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        center_align = Alignment(horizontal='center', vertical='center')
+        right_align  = Alignment(horizontal='right',  vertical='center')
+        border_side  = Side(style='thin', color='CCCCCC')
+        border       = Border(left=border_side, right=border_side,
+                              top=border_side,  bottom=border_side)
+        even_fill    = PatternFill(start_color='EFF6FF', end_color='EFF6FF', fill_type='solid')
+
+        now_str = datetime.now().strftime('%Y-%m-%d  %H:%M')
+
+        # صف العنوان
+        ws.merge_cells('A1:H1')
+        title_cell = ws['A1']
+        title_cell.value     = f'تقرير الطلاب  |  {admin_name}  |  {now_str}'
+        title_cell.font      = Font(bold=True, size=13, color='1e3a8a')
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        title_cell.fill      = PatternFill(start_color='DBEAFE', end_color='DBEAFE', fill_type='solid')
+        ws.row_dimensions[1].height = 28
+
+        # رأس الجدول (صف 2)
+        headers = ['#', 'الطالب', 'الصف', 'المدرسة', 'المعدل', 'الاختبارات', 'آخر دخول', 'الحالة']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(2, col, h)
+            cell.font      = header_font
+            cell.fill      = header_fill
+            cell.alignment = header_align
+            cell.border    = border
+        ws.row_dimensions[2].height = 26
+
+        # البيانات
+        for row_idx, student in enumerate(data, 3):
+            row_fill = even_fill if row_idx % 2 == 0 else None
+
+            def _c(col, value, align=center_align, bold=False, bg=None):
+                c = ws.cell(row_idx, col, value)
+                c.alignment = align
+                c.border    = border
+                c.font      = Font(bold=bold, size=10)
+                if bg:
+                    c.fill = PatternFill(start_color=bg, end_color=bg, fill_type='solid')
+                elif row_fill:
+                    c.fill = row_fill
+
+            _c(1, row_idx - 2)
+            _c(2, student.get('name', ''), right_align, bold=True)
+            _c(3, student.get('grade', ''))
+            _c(4, student.get('school', ''), right_align)
+
+            avg = student.get('avg_score')
+            avg_bg = None
+            if avg is not None:
+                if   avg >= 80: avg_bg = 'C6EFCE'
+                elif avg >= 60: avg_bg = 'FFEB9C'
+                else:           avg_bg = 'FFC7CE'
+            _c(5, f"{avg:.1f}%" if avg is not None else 'لا نتائج', bold=True, bg=avg_bg)
+
+            _c(6, student.get('quiz_count', 0))
+
+            last_login = student.get('last_login', '')
+            if last_login:
+                try:
+                    dt = datetime.fromisoformat(last_login.replace('Z', '+00:00'))
+                    _c(7, dt.strftime('%Y-%m-%d'))
+                except:
+                    _c(7, 'غير متاح')
+            else:
+                _c(7, 'غير متاح')
+
+            is_active = student.get('is_active', False)
+            status_text = 'نشط' if is_active else 'غير نشط'
+            status_bg   = 'C6EFCE' if is_active else 'FFC7CE'
+            _c(8, status_text, bg=status_bg)
+
+        # عرض الأعمدة
+        for idx, w in enumerate([5, 26, 14, 22, 12, 13, 14, 12], 1):
+            ws.column_dimensions[get_column_letter(idx)].width = w
+
+        ws.freeze_panes = 'A3'
+
+        # صف المصدر
+        footer_row = len(data) + 3
+        ws.merge_cells(f'A{footer_row}:H{footer_row}')
+        fc = ws[f'A{footer_row}']
+        fc.value     = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+        fc.font      = Font(size=9, color='888888', italic=True)
+        fc.alignment = Alignment(horizontal='center', vertical='center')
+        fc.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        ws.row_dimensions[footer_row].height = 18
+
+        # ==================== ورقة 2: الملخص ====================
+        ws2 = wb.create_sheet('الملخص')
+        ws2.sheet_view.rightToLeft = True
+
+        total       = len(data)
+        active      = sum(1 for s in data if s.get('is_active'))
+        with_results= sum(1 for s in data if (s.get('quiz_count') or 0) > 0)
+        scores      = [s['avg_score'] for s in data if s.get('avg_score') is not None]
+        avg_all     = sum(scores) / len(scores) if scores else 0
+
+        dist = {
+            'ممتاز (80%+)':           sum(1 for s in scores if s >= 80),
+            'جيد (60-79%)':           sum(1 for s in scores if 60 <= s < 80),
+            'يحتاج انتباه (40-59%)':  sum(1 for s in scores if 40 <= s < 60),
+            'حرج (أقل من 40%)':       sum(1 for s in scores if 0 < s < 40),
+            'لا توجد نتائج':          sum(1 for s in data if not s.get('avg_score')),
+        }
+
+        s2_hfont = Font(bold=True, size=11, color='FFFFFF')
+        s2_hfill = PatternFill(start_color='1e3a8a', end_color='2563EB', fill_type='solid')
+        s2_lf    = Font(bold=True, size=11)
+        s2_vf    = Font(size=11)
+
+        def _h2(row, text):
+            ws2.merge_cells(f'A{row}:B{row}')
+            c = ws2[f'A{row}']
+            c.value = text; c.font = s2_hfont; c.fill = s2_hfill
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            ws2.row_dimensions[row].height = 22
+
+        def _r2(row, label, value, bg=None):
+            lc = ws2.cell(row, 1, label)
+            lc.font = s2_lf; lc.alignment = right_align; lc.border = border
+            vc = ws2.cell(row, 2, value)
+            vc.font = s2_vf; vc.alignment = center_align; vc.border = border
+            if bg:
+                vc.fill = PatternFill(start_color=bg, end_color=bg, fill_type='solid')
+
+        _h2(1, 'معلومات التقرير')
+        _r2(2, 'الإدارة',          admin_name)
+        _r2(3, 'تاريخ الإنشاء',   now_str)
+        _r2(4, 'عدد الطلاب',      total)
+
+        _h2(6, 'إحصائيات عامة')
+        _r2(7,  'إجمالي الطلاب',   total)
+        _r2(8,  'النشطون',          active,       bg='C6EFCE')
+        _r2(9,  'غير النشطين',      total-active, bg='FFC7CE')
+        _r2(10, 'لهم نتائج',        with_results)
+        _r2(11, 'المعدل العام',      f"{avg_all:.1f}%" if scores else 'لا نتائج')
+
+        _h2(13, 'توزيع مستويات الأداء')
+        dist_colors = ['C6EFCE', 'FFEB9C', 'FFD18C', 'FFC7CE', 'EEEEEE']
+        for i, (label, count) in enumerate(dist.items()):
+            pct = f"{(count/total*100):.1f}%" if total else '0%'
+            _r2(14+i, label, f"{count} طالب  ({pct})", bg=dist_colors[i])
+
+        ws2.column_dimensions['A'].width = 28
+        ws2.column_dimensions['B'].width = 22
+
+        ws2.merge_cells('A20:B20')
+        sf = ws2['A20']
+        sf.value     = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+        sf.font      = Font(size=9, color='888888', italic=True)
+        sf.alignment = Alignment(horizontal='center', vertical='center')
+        sf.fill      = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        ws2.row_dimensions[20].height = 18
+
+        # ==================== حفظ وإرسال ====================
+        excel_file = io.BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        filename = f'تقرير_الطلاب_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
         return send_file(
             excel_file,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

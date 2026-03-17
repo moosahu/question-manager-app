@@ -2136,16 +2136,57 @@ def export_exam_pdf():
             **settings_dict  # فك القاموس تمريره كـ kwargs
         )
         
+        # ── حفظ في تاريخ الاختبارات ──────────────────────────────
+        try:
+            from src.models.generated_exam import GeneratedExam as _GE
+            # استخراج course_id من أول سؤال (عبر lesson → unit → course)
+            first_q = Question.query.get(question_ids[0]) if question_ids else None
+            _course_id = None
+            _unit_id   = None
+            _lesson_id = None
+            _course_name = None
+            if first_q and first_q.lesson_id:
+                from src.models.curriculum import Lesson as _Lesson, Unit as _Unit, Course as _Course
+                _lesson = _Lesson.query.get(first_q.lesson_id)
+                if _lesson:
+                    _lesson_id   = _lesson.id
+                    _unit        = _Unit.query.get(_lesson.unit_id)
+                    if _unit:
+                        _unit_id     = _unit.id
+                        _course      = _Course.query.get(_unit.course_id)
+                        if _course:
+                            _course_id   = _course.id
+                            _course_name = _course.name
+
+            _ge = _GE(
+                user_id=current_user.id,
+                course_id=_course_id or 0,
+                unit_id=_unit_id,
+                lesson_id=_lesson_id,
+                question_count=len(question_ids),
+                include_answers=include_answers,
+                shuffle_questions=False,
+                shuffle_options=False,
+                course_name=_course_name,
+            )
+            _ge.header = settings_dict
+            db.session.add(_ge)
+            db.session.commit()
+        except Exception:
+            pass
+
         return send_file(
             io.BytesIO(pdf_bytes),
             mimetype='application/pdf',
             as_attachment=True,
             download_name=f"exam_{int(time.time())}.pdf"
         )
-        
+
     except Exception as e:
         current_app.logger.exception(f"Error exporting PDF: {e}")
         return jsonify({'error': str(e)}), 500
+
+
 @question_bp.route('/preview-exam-paper', methods=['POST'])
 @login_required
 def preview_exam_paper():
