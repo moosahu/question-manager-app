@@ -29,6 +29,24 @@
             font-weight: normal;
             font-style: normal;
         }
+        @font-face {
+            font-family: 'Cairo';
+            src: url('/static/fonts/Cairo-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Scheherazade';
+            src: url('/static/fonts/ScheherazadeNew-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Tajawal';
+            src: url('/static/fonts/Tajawal-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
 
         /* =============================================
            إعدادات الصفحة لـ WeasyPrint
@@ -69,7 +87,7 @@
         }
 
         body {
-            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% else %}'Traditional Arabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
+            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% elif font_family == 'cairo' %}'Cairo'{% elif font_family == 'scheherazade' %}'Scheherazade'{% elif font_family == 'tajawal' %}'Tajawal'{% else %}'Traditional Arabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
             font-size: {{ font_size|default(14, true) }}px;
             line-height: 1.5;
             color: #000;
