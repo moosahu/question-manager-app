@@ -33,9 +33,30 @@ class ExamGenerator:
             'checker_name': get_val('checker_name', ''),
             'reviewer_name': get_val('reviewer_name', ''),
             'exam_date': get_val('exam_date', ''),
+            'teacher_name': get_val('teacher_name', ''),
+            'academic_year': get_val('academic_year', ''),
+            'exam_type': get_val('exam_type', ''),
+            'semester': get_val('semester', ''),
             'questions': [],
             'show_answers': show_answers,
-            'logo': self._get_logo_base64()
+            'logo': self._get_logo_base64(),
+            # إعدادات التنسيق
+            'font_size': kwargs.get('font_size', 14),
+            'image_size': kwargs.get('image_size', 100),
+            'columns': kwargs.get('columns', 2),
+            'spacing': kwargs.get('spacing', 'normal'),
+            'options_layout': kwargs.get('options_layout', 'vertical'),
+            'include_qr': kwargs.get('include_qr', True),
+            # إعدادات الكليشه
+            'header_size': get_val('header_size', 'medium'),
+            'show_logo': get_val('show_logo', True),
+            'logo_size': get_val('logo_size', 'medium'),
+            'show_grades_table': get_val('show_grades_table', True),
+            'show_extra_grade': get_val('show_extra_grade', False),
+            'show_student_name': get_val('show_student_name', True),
+            'show_student_class': get_val('show_student_class', True),
+            'show_student_seat': get_val('show_student_seat', False),
+            'show_student_signature': get_val('show_student_signature', False),
         }
         
         letters = ['a', 'b', 'c', 'd'] 
@@ -61,7 +82,7 @@ class ExamGenerator:
     def generate_html(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         context = self._prepare_context(questions, exam_title, show_answers, **kwargs)
         # هنا التغيير الجذري: استخدام القالب الموحد
-        return render_template('question/exam_paper_layout.html', **context)
+        return render_template('question/exam_paper_layout_with_barcode.html', **context)
     
     def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)

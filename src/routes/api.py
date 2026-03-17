@@ -3840,10 +3840,11 @@ def generate_exam():
         shuffle_questions = bool(data.get("shuffle_questions", True))
         shuffle_options   = bool(data.get("shuffle_options", True))
         output_format     = data.get("format", "json")
-        mode              = data.get("mode", "normal")       # normal|balanced|perLesson|custom
+        mode              = data.get("mode", "normal")       # normal|balanced|perLesson|custom|manual
         models_count      = min(int(data.get("models_count", 1)), 4)
         include_qr        = bool(data.get("include_qr", True))
         unit_distribution = data.get("unit_distribution", {})
+        manual_question_ids = list(data.get("question_ids", []))  # اختيار يدوي
 
         # ── فلاتر ──────────────────────────────────────────────────
         difficulty_filter = data.get("difficulty", [])   # [] = كل الصعوبات
@@ -3880,6 +3881,15 @@ def generate_exam():
             base_query = base_query.filter(Question.bloom_level.in_(bloom_filter))
 
         available = base_query.all()
+
+        # ── الوضع اليدوي: استخدم question_ids مباشرةً ──────────────
+        if manual_question_ids:
+            id_to_q = {q.question_id: q for q in Question.query.filter(
+                Question.question_id.in_(manual_question_ids),
+                Question.is_blocked == False
+            ).all()}
+            available = [id_to_q[qid] for qid in manual_question_ids if qid in id_to_q]
+            mode = "manual"
 
         if not available:
             return jsonify({
@@ -3928,6 +3938,11 @@ def generate_exam():
                     selected.extend(uqs[:int(cnt)])
                 if shuffle_questions: _random.shuffle(selected)
                 return selected[:question_count]
+
+            elif mode == "manual":
+                result = list(pool)
+                if shuffle_questions: _random.shuffle(result)
+                return result  # كل الأسئلة المختارة يدوياً
 
             else:  # normal
                 result = list(pool)
