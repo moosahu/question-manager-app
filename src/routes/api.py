@@ -3744,91 +3744,209 @@ def export_questions():
         }), 500
 
 
+def _resolve_caller_ids():
+    """يحدد teacher_id أو user_id بناءً على نوع الجلسة الحالية"""
+    teacher_id, user_id = None, None
+    session_tok  = request.headers.get('X-Session-Token')
+    auth_header  = request.headers.get('Authorization', '')
+    if session_tok:
+        from src.models.teacher import Teacher as _T
+        t = _T.query.filter_by(session_token=session_tok, is_active=True).first()
+        if t:
+            teacher_id = t.id
+    elif auth_header.startswith('Bearer '):
+        import jwt as _jwt
+        try:
+            payload = _jwt.decode(
+                auth_header[7:],
+                current_app.config['JWT_SECRET_KEY'],
+                algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
+            )
+            if payload.get('user_type') == 'teacher':
+                teacher_id = payload.get('user_id')
+        except Exception:
+            pass
+    elif current_user.is_authenticated:
+        user_id = current_user.id
+    return teacher_id, user_id
+
+
+def _save_exam_history_record(course_id, unit_id, lesson_id,
+                               question_count, include_answers,
+                               shuffle_questions, shuffle_options, header):
+    """يحفظ سجل التوليد — يُبتلع الخطأ دائماً لأن التاريخ اختياري"""
+    try:
+        from src.models.generated_exam import GeneratedExam as _GE
+        from src.extensions import db as _db
+        from src.models.curriculum import Course as _C, Unit as _U, Lesson as _L
+        teacher_id, user_id = _resolve_caller_ids()
+        _course  = _C.query.get(course_id)
+        _unit    = _U.query.get(unit_id)   if unit_id   else None
+        _lesson  = _L.query.get(lesson_id) if lesson_id else None
+        ge = _GE(
+            teacher_id=teacher_id, user_id=user_id,
+            course_id=course_id,   unit_id=unit_id,   lesson_id=lesson_id,
+            question_count=question_count,
+            include_answers=include_answers,
+            shuffle_questions=shuffle_questions,
+            shuffle_options=shuffle_options,
+            course_name=_course.name  if _course  else None,
+            unit_name=_unit.name      if _unit    else None,
+            lesson_name=_lesson.name  if _lesson  else None,
+        )
+        ge.header = header
+        _db.session.add(ge)
+        _db.session.commit()
+    except Exception:
+        pass
+
+
 @api_bp.route("/questions/generate-exam", methods=["POST"])
 @teacher_or_admin_required
 def generate_exam():
     """
-    توليد نموذج اختبار عشوائي من أسئلة محددة
-
-    Request JSON:
-    {
-        "course_id": 1,
-        "unit_id": 2,          (اختياري)
-        "lesson_id": 3,        (اختياري)
-        "question_count": 10,
-        "include_answers": false,
-        "shuffle_questions": true,
-        "shuffle_options": true,
-        "format": "json",      (json | pdf)
-        "header": {            (اختياري — يُستخدم عند format=pdf)
-            "school_name": "",
-            "grade": "",
-            "teacher_name": "",
-            "exam_date": "",
-            "total_score": 30,
-            "subject": ""
-        }
-    }
+    توليد نموذج اختبار — يدعم:
+    • مناهج متعددة  (course_ids)
+    • فلاتر الصعوبة  (difficulty: ["easy","medium","hard"])
+    • فلاتر بلوم     (bloom_levels: ["remember","understand","apply","analyze","evaluate","create"])
+    • أوضاع التوليد  (mode: normal|balanced|perLesson|custom)
+    • نماذج متعددة   (models_count: 1-4 → أ/ب/ج/د)
+    • إعدادات PDF    (font_size, image_size, columns, spacing, options_layout)
+    • كليشه كاملة    (exam_type, semester, academic_year, header_size, show_logo, ...)
+    • تنسيق الإخراج  (format: json|pdf)
     """
     try:
         import random as _random
+        import io
 
         data = request.get_json()
-        course_id        = data.get("course_id")
-        unit_id          = data.get("unit_id")
-        lesson_id        = data.get("lesson_id")
-        question_count   = data.get("question_count", 10)
-        include_answers  = data.get("include_answers", False)
-        shuffle_questions = data.get("shuffle_questions", True)
-        shuffle_options  = data.get("shuffle_options", True)
-        output_format    = data.get("format", "json")   # json | pdf
-        header           = data.get("header", {})
 
-        if not course_id:
-            return jsonify({'success': False, 'error': 'يجب تحديد المنهج على الأقل'}), 400
+        # ── التحديد ──────────────────────────────────────────────────
+        course_id   = data.get("course_id")
+        course_ids  = list(data.get("course_ids") or [])
+        if course_id and course_id not in course_ids:
+            course_ids.insert(0, course_id)
+        unit_id     = data.get("unit_id")
+        lesson_id   = data.get("lesson_id")
 
-        # ── بناء الاستعلام ──────────────────────────────────────────
-        query = Question.query.filter(Question.is_blocked == False)
+        if not course_ids:
+            return jsonify({'success': False, 'error': 'يجب تحديد منهج واحد على الأقل'}), 400
+
+        primary_course_id = course_ids[0]
+
+        # ── إعدادات التوليد ───────────────────────────────────────────
+        question_count    = int(data.get("question_count", 10))
+        include_answers   = bool(data.get("include_answers", False))
+        shuffle_questions = bool(data.get("shuffle_questions", True))
+        shuffle_options   = bool(data.get("shuffle_options", True))
+        output_format     = data.get("format", "json")
+        mode              = data.get("mode", "normal")       # normal|balanced|perLesson|custom
+        models_count      = min(int(data.get("models_count", 1)), 4)
+        include_qr        = bool(data.get("include_qr", True))
+        unit_distribution = data.get("unit_distribution", {})
+
+        # ── فلاتر ──────────────────────────────────────────────────
+        difficulty_filter = data.get("difficulty", [])   # [] = كل الصعوبات
+        bloom_filter      = data.get("bloom_levels", []) # [] = كل المستويات
+
+        # ── إعدادات PDF ───────────────────────────────────────────────
+        font_size      = int(data.get("font_size", 14))
+        image_size     = int(data.get("image_size", 100))
+        columns        = int(data.get("columns", 2))
+        spacing        = data.get("spacing", "normal")
+        options_layout = data.get("options_layout", "vertical")
+
+        # ── الكليشه الكاملة ───────────────────────────────────────────
+        header = data.get("header", {})
+
+        # ── بناء قاعدة الأسئلة ───────────────────────────────────────
+        base_query = Question.query.filter(Question.is_blocked == False)
 
         if lesson_id:
-            query = query.filter(Question.lesson_id == lesson_id)
+            base_query = base_query.filter(Question.lesson_id == lesson_id)
         elif unit_id:
-            lesson_ids = [l.id for l in Lesson.query.filter(Lesson.unit_id == unit_id).all()]
-            query = query.filter(Question.lesson_id.in_(lesson_ids))
+            lid_list = [l.id for l in Lesson.query.filter(Lesson.unit_id == unit_id).all()]
+            base_query = base_query.filter(Question.lesson_id.in_(lid_list))
         else:
-            units = Unit.query.filter(Unit.course_id == course_id).all()
-            lesson_ids = []
-            for unit in units:
-                lesson_ids.extend([l.id for l in unit.lessons])
-            query = query.filter(Question.lesson_id.in_(lesson_ids))
+            all_lid = []
+            for cid in course_ids:
+                for unit in Unit.query.filter(Unit.course_id == cid).all():
+                    all_lid.extend([l.id for l in unit.lessons])
+            base_query = base_query.filter(Question.lesson_id.in_(all_lid))
 
-        available_questions = query.all()
+        if difficulty_filter:
+            base_query = base_query.filter(Question.difficulty.in_(difficulty_filter))
+        if bloom_filter:
+            base_query = base_query.filter(Question.bloom_level.in_(bloom_filter))
 
-        if not available_questions:
-            return jsonify({'success': False, 'error': 'لا توجد أسئلة متاحة للاختبار'}), 404
+        available = base_query.all()
 
-        # ── اختيار + خلط الأسئلة ────────────────────────────────────
-        selected = list(available_questions)
-        if shuffle_questions:
-            _random.shuffle(selected)
-        selected = selected[:question_count]
+        if not available:
+            return jsonify({
+                'success': False,
+                'error': 'لا توجد أسئلة متاحة بهذه الفلاتر — جرّب تخفيف الفلاتر'
+            }), 404
 
-        # ── تنسيق الأسئلة ───────────────────────────────────────────
-        formatted_questions = []
-        for question in selected:
-            fq = format_question(question)
+        # ── دالة الاختيار حسب الوضع ──────────────────────────────────
+        def select_questions(pool):
+            if mode == "balanced" and not lesson_id and not unit_id:
+                groups = {}
+                for q in pool:
+                    lesson = Lesson.query.get(q.lesson_id)
+                    if lesson:
+                        groups.setdefault(lesson.unit_id, []).append(q)
+                if not groups:
+                    result = list(pool)
+                    if shuffle_questions: _random.shuffle(result)
+                    return result[:question_count]
+                per_unit = max(1, question_count // len(groups))
+                selected = []
+                for qs in groups.values():
+                    _random.shuffle(qs)
+                    selected.extend(qs[:per_unit])
+                extras = [q for q in pool if q not in selected]
+                _random.shuffle(extras)
+                selected.extend(extras[:question_count - len(selected)])
+                if shuffle_questions: _random.shuffle(selected)
+                return selected[:question_count]
 
-            # خلط الخيارات
-            if shuffle_options and fq.get('options'):
-                options = fq['options']
-                _random.shuffle(options)
-                fq['options'] = options
+            elif mode == "perLesson" and not lesson_id:
+                groups = {}
+                for q in pool:
+                    groups.setdefault(q.lesson_id, []).append(q)
+                selected = [_random.choice(qs) for qs in groups.values()]
+                if shuffle_questions: _random.shuffle(selected)
+                return selected[:question_count]
 
-            # إخفاء الإجابة الصحيحة إذا لم تُطلب
-            if not include_answers:
-                fq.pop('correct_option_id', None)
+            elif mode == "custom" and unit_distribution:
+                selected = []
+                for uid_str, cnt in unit_distribution.items():
+                    uid = int(uid_str)
+                    ul = [l.id for l in Lesson.query.filter(Lesson.unit_id == uid).all()]
+                    uqs = [q for q in pool if q.lesson_id in ul]
+                    _random.shuffle(uqs)
+                    selected.extend(uqs[:int(cnt)])
+                if shuffle_questions: _random.shuffle(selected)
+                return selected[:question_count]
 
-            formatted_questions.append(fq)
+            else:  # normal
+                result = list(pool)
+                if shuffle_questions: _random.shuffle(result)
+                return result[:question_count]
+
+        # ── دالة التنسيق ──────────────────────────────────────────────
+        def format_selected(qs_list):
+            formatted = []
+            for q in qs_list:
+                fq = format_question(q)
+                if shuffle_options and fq.get('options'):
+                    opts = list(fq['options'])
+                    _random.shuffle(opts)
+                    fq['options'] = opts
+                if not include_answers:
+                    fq.pop('correct_option_id', None)
+                formatted.append(fq)
+            return formatted
 
         # ── إرجاع PDF ───────────────────────────────────────────────
         if output_format == 'pdf':
@@ -3837,13 +3955,17 @@ def generate_exam():
             except ImportError:
                 from exam_generator import ExamGenerator
 
-            # تجهيز الأسئلة بصيغة مناسبة للمولد
+            selected   = select_questions(available)
+            formatted  = format_selected(selected)
+            course     = Course.query.get(primary_course_id)
+            exam_title = header.get('exam_title') or (f'اختبار {course.name}' if course else 'نموذج اختبار')
+
             gen_questions = []
-            for fq in formatted_questions:
+            for fq in formatted:
                 gen_q = {
-                    'question_text': fq.get('question_text', ''),
-                    'points': fq.get('points', 1),
-                    'options': [],
+                    'question_text':    fq.get('question_text', ''),
+                    'points':           fq.get('points', 1),
+                    'options':          [],
                     'correct_option_id': fq.get('correct_option_id'),
                 }
                 for opt in fq.get('options', []):
@@ -3853,10 +3975,6 @@ def generate_exam():
                         'is_correct':  opt.get('is_correct', False),
                     })
                 gen_questions.append(gen_q)
-
-            # بيانات الكليشه
-            course = Course.query.get(course_id)
-            exam_title = header.get('exam_title') or (f'اختبار {course.name}' if course else 'نموذج اختبار')
 
             generator = ExamGenerator()
             pdf_bytes = generator.generate_pdf(
@@ -3869,8 +3987,30 @@ def generate_exam():
                 checker_name=header.get('teacher_name', ''),
                 exam_date=header.get('exam_date', ''),
                 total_score=header.get('total_score', 30),
+                exam_type=header.get('exam_type', 'نهاية'),
+                semester=header.get('semester', 'الأول'),
+                academic_year=header.get('academic_year', ''),
+                header_size=header.get('header_size', 'medium'),
+                show_logo=header.get('show_logo', True),
+                logo_size=header.get('logo_size', 'medium'),
+                show_grades_table=header.get('show_grades_table', True),
+                show_extra_grade=header.get('show_extra_grade', False),
+                show_student_name=header.get('show_student_name', True),
+                show_student_class=header.get('show_student_class', True),
+                show_student_seat=header.get('show_student_seat', False),
+                show_student_signature=header.get('show_student_signature', False),
+                font_size=font_size,
+                image_size=image_size,
+                columns=columns,
+                spacing=spacing,
+                options_layout=options_layout,
+                include_qr=include_qr,
             )
 
+            _save_exam_history_record(
+                primary_course_id, unit_id, lesson_id,
+                len(selected), include_answers, shuffle_questions, shuffle_options, header
+            )
             from flask import send_file
             return send_file(
                 io.BytesIO(pdf_bytes),
@@ -3879,59 +4019,38 @@ def generate_exam():
                 download_name='exam.pdf',
             )
 
-        # ── حفظ في التاريخ ──────────────────────────────────────────
-        try:
-            from src.models.generated_exam import GeneratedExam as _GE
-            from src.extensions import db as _db
-            from src.models.curriculum import Course as _Course, Unit as _Unit, Lesson as _Lesson
+        # ── JSON: نماذج متعددة ────────────────────────────────────────
+        model_letters = ['أ', 'ب', 'ج', 'د']
+        base_selected = select_questions(available)
 
-            _course  = _Course.query.get(course_id)
-            _unit    = _Unit.query.get(unit_id)   if unit_id   else None
-            _lesson  = _Lesson.query.get(lesson_id) if lesson_id else None
-
-            # معرفة هل المستخدم معلم أو أدمن
-            _teacher_id = None
-            _user_id    = None
-            _session_tok = request.headers.get('X-Session-Token')
-            _auth_header = request.headers.get('Authorization', '')
-            if _session_tok:
-                from src.models.teacher import Teacher as _T
-                _t = _T.query.filter_by(session_token=_session_tok, is_active=True).first()
-                if _t:
-                    _teacher_id = _t.id
-            elif _auth_header.startswith('Bearer '):
-                import jwt as _jwt
-                try:
-                    _data = _jwt.decode(_auth_header[7:], current_app.config['JWT_SECRET_KEY'],
-                                        algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
-                    if _data.get('user_type') == 'teacher':
-                        _teacher_id = _data.get('user_id')
-                except Exception:
-                    pass
-            elif current_user.is_authenticated:
-                _user_id = current_user.id
-
-            _ge = _GE(
-                teacher_id=_teacher_id,
-                user_id=_user_id,
-                course_id=course_id,
-                unit_id=unit_id,
-                lesson_id=lesson_id,
-                question_count=len(formatted_questions),
-                include_answers=include_answers,
-                shuffle_questions=shuffle_questions,
-                shuffle_options=shuffle_options,
-                course_name=_course.name if _course else None,
-                unit_name=_unit.name   if _unit   else None,
-                lesson_name=_lesson.name if _lesson else None,
+        if models_count > 1:
+            models_result = []
+            for i in range(models_count):
+                pool_copy = list(base_selected)
+                _random.shuffle(pool_copy)
+                models_result.append({
+                    'model':     model_letters[i],
+                    'questions': format_selected(pool_copy),
+                    'count':     len(pool_copy),
+                })
+            _save_exam_history_record(
+                primary_course_id, unit_id, lesson_id,
+                question_count, include_answers, shuffle_questions, shuffle_options, header
             )
-            _ge.header = header
-            _db.session.add(_ge)
-            _db.session.commit()
-        except Exception:
-            pass  # التاريخ اختياري — لا يوقف التوليد
+            return jsonify({
+                'success':     True,
+                'multi_model': True,
+                'models':      models_result,
+                'total_count': len(models_result),
+                'generated_at': datetime.utcnow().isoformat(),
+            })
 
-        # ── إرجاع JSON (افتراضي) ────────────────────────────────────
+        # ── JSON: نموذج واحد ─────────────────────────────────────────
+        formatted_questions = format_selected(base_selected)
+        _save_exam_history_record(
+            primary_course_id, unit_id, lesson_id,
+            len(formatted_questions), include_answers, shuffle_questions, shuffle_options, header
+        )
         return jsonify({
             'success': True,
             'exam': {
