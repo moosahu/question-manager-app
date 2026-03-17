@@ -9,31 +9,22 @@
             margin: 5mm;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html, body {
             width: 100%;
             background: white;
             font-family: 'Noto Sans Arabic', 'DejaVu Sans', Arial, sans-serif;
             font-size: 12px;
-            -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
-        /* =============== الحاوية الرئيسية =============== */
         .sheet-container {
             width: 285mm;
             height: 190mm;
             border: 2px solid #000;
             margin: 0 auto;
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
             overflow: hidden;
         }
@@ -42,654 +33,211 @@
             page-break-before: always;
         }
 
-        /* =============== الصف العلوي =============== */
         .sheet-top {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: row;
             flex-direction: row;
-            -webkit-flex-shrink: 0;
             flex-shrink: 0;
         }
 
-        /* =============== القسم العلوي الأيمن =============== */
+        /* القسم الأيمن */
         .top-right {
             width: 47%;
             border-left: 2px solid #000;
             border-bottom: 2px solid #000;
             padding: 8px;
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
         }
 
         .logo-section {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: row;
-            flex-direction: row;
-            -webkit-align-items: flex-start;
             align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
             margin-bottom: 6px;
         }
 
-        .logo-img {
-            width: 70px;
-            height: auto;
-        }
+        .logo-img { width: 65px; height: auto; }
 
-        .ministry-info {
-            text-align: right;
-            font-size: 12px;
-            line-height: 1.4;
-            -webkit-flex: 1;
-            flex: 1;
-        }
-
-        .ministry-info .title {
-            font-weight: bold;
-            color: #1a5c4c;
-            font-size: 13px;
-        }
-
-        .school-name {
-            font-weight: bold;
-            color: #c41e3a;
-            font-size: 13px;
-            margin-top: 2px;
-        }
+        .ministry-info { flex: 1; text-align: right; font-size: 11px; line-height: 1.4; }
+        .ministry-info .title { font-weight: bold; color: #1a5c4c; font-size: 12px; }
+        .school-name { font-weight: bold; color: #c41e3a; font-size: 12px; margin-top: 2px; }
 
         .exam-info-box {
             background: #f0f7f0;
             border: 1px solid #1a5c4c;
-            border-radius: 5px;
-            padding: 8px;
-            margin-top: 6px;
-            font-size: 12px;
+            border-radius: 4px;
+            padding: 6px;
+            margin-top: 5px;
+            font-size: 11px;
         }
 
-        .dor-section {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 20px;
-            -webkit-align-items: center;
-            align-items: center;
-            margin-top: 6px;
-        }
-
-        .dor-option {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            gap: 6px;
-            font-weight: bold;
-        }
-
-        .checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #000;
-            display: inline-block;
-            background: white;
-        }
+        .dor-section { display: flex; gap: 15px; align-items: center; margin-top: 5px; }
+        .dor-option { display: flex; align-items: center; gap: 4px; font-weight: bold; }
+        .checkbox { width: 16px; height: 16px; border: 2px solid #000; display: inline-block; background: white; }
 
         .instructions-box {
             background: #fff8e1;
             border: 2px solid #f9a825;
-            border-radius: 6px;
-            padding: 8px;
-            margin-top: 8px;
-            display: -webkit-box;
-            display: -webkit-flex;
+            border-radius: 5px;
+            padding: 6px;
+            margin-top: 6px;
             display: flex;
-            -webkit-justify-content: space-between;
             justify-content: space-between;
-            -webkit-align-items: flex-start;
             align-items: flex-start;
-            gap: 8px;
-            -webkit-flex: 1;
-            flex: 1;
-        }
-
-        .instructions-content {
-            -webkit-flex: 1;
-            flex: 1;
-        }
-
-        .instructions-title {
-            font-weight: bold;
-            color: #e65100;
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-
-        .instructions-list {
-            font-size: 11px;
-            line-height: 1.5;
-            list-style: disc;
-            padding-right: 16px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        .shading-example {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            gap: 8px;
-            padding: 4px;
-            min-width: 90px;
-        }
-
-        .shading-item {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
             gap: 6px;
-            font-size: 12px;
-            font-weight: bold;
+            flex: 1;
         }
 
-        .bubble-correct {
-            width: 22px;
-            height: 22px;
-            background: #000;
-            border-radius: 50%;
-        }
+        .instructions-content { flex: 1; }
+        .instructions-title { font-weight: bold; color: #e65100; margin-bottom: 3px; font-size: 12px; }
+        .instructions-list { font-size: 10px; line-height: 1.5; list-style: disc; padding-right: 14px; color: #333; font-weight: bold; }
 
-        .bubble-wrong {
-            width: 22px;
-            height: 22px;
-            border: 2px solid #000;
-            border-radius: 50%;
-        }
+        .shading-example { display: flex; flex-direction: column; gap: 6px; padding: 3px; min-width: 80px; }
+        .shading-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: bold; }
+        .bubble-correct { width: 20px; height: 20px; background: #000; border-radius: 50%; }
+        .bubble-wrong { width: 20px; height: 20px; border: 2px solid #000; border-radius: 50%; text-align: center; line-height: 16px; color: #c41e3a; font-weight: bold; }
 
-        /* =============== القسم العلوي الأيسر =============== */
+        /* القسم الأيسر */
         .top-left {
             width: 53%;
             border-bottom: 2px solid #000;
             padding: 8px;
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
         }
 
-        /* صف الطالب: 3 عناصر جنب بعض */
-        .student-section {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: row;
-            flex-direction: row;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
+        .student-section { display: flex; flex-direction: row; gap: 6px; margin-bottom: 6px; }
 
         .student-name-box {
-            -webkit-flex: 1;
             flex: 1;
             background: #e3f2fd;
             border: 2px solid #1976d2;
-            border-radius: 6px;
-            padding: 6px;
-            display: -webkit-box;
-            display: -webkit-flex;
+            border-radius: 5px;
+            padding: 5px;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
-            -webkit-justify-content: center;
             justify-content: center;
         }
 
-        .student-name-label {
-            font-size: 11px;
-            color: #555;
-            margin-bottom: 3px;
-            font-weight: bold;
-        }
-
-        .student-name {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1565c0;
-        }
+        .student-name-label { font-size: 10px; color: #555; margin-bottom: 2px; font-weight: bold; }
+        .student-name { font-size: 15px; font-weight: bold; color: #1565c0; }
 
         .barcode-box {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
-            -webkit-align-items: center;
             align-items: center;
-            -webkit-justify-content: center;
             justify-content: center;
             border: 2px solid #4caf50;
-            padding: 5px;
-            border-radius: 6px;
+            padding: 4px;
+            border-radius: 5px;
             background: #f1f8f4;
-            width: 190px;
+            width: 185px;
         }
 
-        .barcode-container {
-            text-align: center;
-            width: 100%;
-        }
-
-        .barcode-img {
-            width: 170px;
-            height: 60px;
-        }
+        .barcode-img { width: 168px; height: 55px; }
 
         .barcode-id-box {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
-            -webkit-align-items: center;
             align-items: center;
-            -webkit-justify-content: center;
             justify-content: center;
             border: 1px solid #ccc;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
             background: #fafafa;
-            width: 130px;
+            width: 125px;
         }
 
-        .status-options {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 10px;
-            -webkit-justify-content: center;
-            justify-content: center;
-            margin-bottom: 3px;
-            font-size: 11px;
-            font-weight: bold;
-        }
+        .status-options { display: flex; gap: 8px; justify-content: center; margin-bottom: 2px; font-size: 10px; font-weight: bold; }
+        .academic-id-label { font-size: 9px; color: #666; margin-bottom: 2px; text-align: center; }
+        .academic-id-number { font-size: 17px; font-weight: bold; letter-spacing: 2px; }
 
-        .academic-id-label {
-            font-size: 9px;
-            color: #666;
-            margin-bottom: 2px;
-            text-align: center;
-        }
+        .info-grid { display: flex; flex-direction: row; gap: 4px; margin: 4px 0; }
+        .info-item { flex: 1; text-align: center; border: 1px solid #000; padding: 3px; background: #fafafa; }
+        .info-label { font-size: 10px; color: #333; font-weight: bold; }
+        .info-value { font-size: 11px; font-weight: bold; }
 
-        .academic-id-number {
-            font-size: 18px;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
+        .score-table-section { margin-top: 4px; border: 2px solid #000; }
+        .score-table { width: 100%; border-collapse: collapse; }
+        .score-table th { background: #ddd; border: 1px solid #000; padding: 2px; text-align: center; font-size: 10px; font-weight: bold; }
+        .score-table td { border: 1px solid #000; padding: 2px; text-align: center; height: 26px; vertical-align: middle; }
+        .score-bubble { width: 13px; height: 13px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .score-num-header { font-size: 11px; font-weight: bold; display: block; }
 
-        /* صف المعلومات الأربع: flex بنسبة متساوية */
-        .info-grid {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: row;
-            flex-direction: row;
-            gap: 5px;
-            margin: 5px 0;
-        }
-
-        .info-item {
-            -webkit-flex: 1;
-            flex: 1;
-            text-align: center;
-            border: 1px solid #000;
-            padding: 4px;
-            background: #fafafa;
-        }
-
-        .info-label {
-            font-size: 11px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        .info-value {
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .score-table-section {
-            margin-top: 4px;
-            border: 2px solid #000;
-        }
-
-        .score-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .score-table th {
-            background: #ddd;
-            border: 1px solid #000;
-            padding: 3px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .score-table td {
-            border: 1px solid #000;
-            padding: 2px;
-            text-align: center;
-            height: 28px;
-            vertical-align: middle;
-        }
-
-        .score-bubble {
-            width: 14px;
-            height: 14px;
-            border: 2px solid #000;
-            border-radius: 50%;
-            display: inline-block;
-            background: white;
-        }
-
-        .score-num-header {
-            font-size: 12px;
-            font-weight: bold;
-            display: block;
-        }
-
-        /* نموذج الاختبار */
         .model-section {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-align-items: center;
             align-items: center;
-            gap: 15px;
-            margin-top: 8px;
-            padding: 6px;
+            gap: 12px;
+            margin-top: 6px;
+            padding: 5px;
             background: #f5f5f5;
             border: 1px solid #999;
-            -webkit-justify-content: center;
             justify-content: center;
         }
 
-        .model-bubbles {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            -webkit-align-items: center;
-            align-items: center;
-            gap: 2px;
-        }
+        .model-bubbles { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .model-bubble { width: 17px; height: 17px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .model-bubble.selected { background: #000; }
 
-        .model-bubble {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #000;
-            border-radius: 50%;
-            display: inline-block;
-            background: white;
-        }
-
-        .model-bubble.selected {
-            background: #000;
-            color: #fff;
-        }
-
-        /* =============== قسم الأسئلة =============== */
+        /* قسم الأسئلة */
         .questions-section {
-            display: -webkit-box;
-            display: -webkit-flex;
             display: flex;
-            -webkit-flex-direction: row;
             flex-direction: row;
-            -webkit-flex: 1;
             flex: 1;
             border-top: 2px solid #000;
             overflow: hidden;
         }
 
-        /* عرض كل عمود: بالنسب الأصلية 0.9 0.9 0.65 1.55 من أصل 4.0 */
         .question-column {
             border-left: 2px solid #000;
-            padding: 5px 6px;
-            display: -webkit-box;
-            display: -webkit-flex;
+            padding: 4px 5px;
             display: flex;
-            -webkit-flex-direction: column;
             flex-direction: column;
             overflow: hidden;
         }
-
-        .question-column:last-child {
-            border-left: none;
-        }
+        .question-column:last-child { border-left: none; }
 
         .col-mcq1  { width: 22.5%; }
         .col-mcq2  { width: 22.5%; }
-        .col-tf    { width: 16%;   }
-        .col-match { width: 39%;   }
+        .col-tf    { width: 16%; }
+        .col-match { width: 39%; }
 
-        .column-title {
-            text-align: center;
-            padding: 4px;
-            font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 4px;
-            border-radius: 4px;
-            color: white;
-            border: 1px solid #000;
-        }
-
+        .column-title { text-align: center; padding: 3px; font-weight: bold; font-size: 11px; margin-bottom: 3px; border-radius: 3px; color: white; border: 1px solid #000; }
         .column-title.mcq     { background: #1a5c4c; }
         .column-title.tf      { background: #e65100; }
         .column-title.matching { background: #7b1fa2; }
 
-        /* شبكة الأسئلة الداخلية: عمودين جنب بعض */
-        .questions-grid {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: row;
-            flex-direction: row;
-            gap: 0 8px;
-            -webkit-flex: 1;
-            flex: 1;
-            overflow: hidden;
-        }
+        .questions-grid { display: flex; flex-direction: row; gap: 0 6px; flex: 1; overflow: hidden; }
+        .questions-grid > div { flex: 1; overflow: hidden; }
+        .questions-grid.matching-grid { flex-direction: column; }
+        .questions-grid.matching-grid > div { flex: none; }
 
-        .questions-grid > div {
-            -webkit-flex: 1;
-            flex: 1;
-            overflow: hidden;
-        }
+        .question-row { display: flex; align-items: center; justify-content: center; padding: 1px 0; gap: 3px; }
+        .question-num { width: 19px; font-weight: bold; font-size: 10px; text-align: center; }
 
-        .questions-grid.matching-grid {
-            -webkit-flex-direction: column;
-            flex-direction: column;
-        }
+        .answer-bubble { width: 14px; height: 14px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .answer-bubble.filled { background: #000; }
 
-        .questions-grid.matching-grid > div {
-            -webkit-flex: none;
-            flex: none;
-        }
+        .column-headers { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #333; display: flex; flex-direction: column; align-items: center; margin-right: 22px; }
 
-        .question-row {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
-            padding: 1px 0;
-            gap: 4px;
-        }
+        .bubbles-labels-ar { display: flex; gap: 4px; font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px; }
+        .bubbles-labels-ar span { width: 14px; text-align: center; display: inline-block; }
 
-        .question-num {
-            width: 20px;
-            font-weight: bold;
-            font-size: 11px;
-            text-align: center;
-        }
+        .bubbles-labels-en { display: flex; gap: 4px; font-size: 9px; font-weight: bold; color: #666; margin-bottom: 1px; }
+        .bubbles-labels-en span { width: 14px; text-align: center; display: inline-block; }
 
-        .answer-bubbles {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-            -webkit-flex: 1;
-            flex: 1;
-            -webkit-justify-content: center;
-            justify-content: center;
-        }
+        .bubbles-row-only { display: flex; gap: 4px; }
 
-        .answer-bubble {
-            width: 15px;
-            height: 15px;
-            border: 2px solid #000;
-            border-radius: 50%;
-            display: inline-block;
-            background: white;
-        }
+        .matching-bubble { width: 14px; height: 14px; border: 2px solid #000; border-radius: 50%; display: inline-block; background: white; }
+        .matching-bubble.filled { background: #000; }
 
-        .answer-bubble.filled {
-            background: #000;
-        }
+        .matching-labels-ar { display: flex; gap: 4px; font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px; }
+        .matching-labels-ar span { width: 14px; text-align: center; display: inline-block; }
 
-        .column-headers {
-            margin-bottom: 5px;
-            padding-bottom: 4px;
-            border-bottom: 2px solid #333;
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            -webkit-align-items: center;
-            align-items: center;
-            margin-right: 24px;
-        }
+        .matching-labels-en { display: flex; gap: 4px; font-size: 9px; font-weight: bold; color: #666; margin-bottom: 1px; }
+        .matching-labels-en span { width: 14px; text-align: center; display: inline-block; }
 
-        .bubbles-labels-ar {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 1px;
-        }
-
-        .bubbles-labels-ar span {
-            width: 15px;
-            text-align: center;
-            display: inline-block;
-        }
-
-        .bubbles-labels-en {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            color: #666;
-            margin-bottom: 1px;
-        }
-
-        .bubbles-labels-en span {
-            width: 15px;
-            text-align: center;
-            display: inline-block;
-        }
-
-        .bubbles-row-only {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-        }
-
-        .matching-bubble {
-            width: 15px;
-            height: 15px;
-            border: 2px solid #000;
-            border-radius: 50%;
-            display: inline-block;
-            background: white;
-        }
-
-        .matching-bubble.filled {
-            background: #000;
-        }
-
-        .matching-labels-ar {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 1px;
-        }
-
-        .matching-labels-ar span {
-            width: 15px;
-            text-align: center;
-            display: inline-block;
-        }
-
-        .matching-labels-en {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-            font-size: 9px;
-            font-weight: bold;
-            color: #666;
-            margin-bottom: 1px;
-        }
-
-        .matching-labels-en span {
-            width: 15px;
-            text-align: center;
-            display: inline-block;
-        }
-
-        .matching-row-only {
-            display: -webkit-box;
-            display: -webkit-flex;
-            display: flex;
-            gap: 4px;
-        }
-
-        .answer-key-badge {
-            background: #c41e3a;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            padding: 5px 15px;
-            border-radius: 5px;
-            display: inline-block;
-        }
+        .matching-row-only { display: flex; gap: 4px; }
 
         @media print {
             body { padding: 0; }
@@ -701,16 +249,14 @@
 
 <div class="sheet-container">
 
-    <!-- الصف العلوي: معلومات المدرسة + بيانات الطالب -->
     <div class="sheet-top">
 
-        <!-- القسم الأيمن: شعار + معلومات + تعليمات -->
         <div class="top-right">
             <div class="logo-section">
                 {% if logo_base64 %}
                     <img src="{{ logo_base64 }}" class="logo-img" alt="Logo">
                 {% else %}
-                    <div style="width:70px; height:70px; background:#eee; border:1px dashed #000; text-align:center; line-height:70px;">شعار</div>
+                    <div style="width:65px; height:65px; background:#eee; border:1px dashed #000; text-align:center; line-height:65px;">شعار</div>
                 {% endif %}
                 <div class="ministry-info">
                     <div class="title">{{ country|default('المملكة العربية السعودية', true) }}</div>
@@ -721,8 +267,8 @@
             </div>
 
             <div class="exam-info-box">
-                <div style="margin-bottom: 5px;">
-                    <strong>اختبار {{ exam_type|default('نهاية', true) }} الفصل الدراسي {{ semester|default('الأول', true) }}</strong>
+                <div style="margin-bottom:4px;">
+                    <strong>اختبار {{ exam_type|default('نهاية', true) }} الفصل {{ semester|default('الأول', true) }}</strong>
                 </div>
                 <div class="dor-section">
                     <span>الدور:</span>
@@ -730,21 +276,19 @@
                     <div class="dor-option"><span class="checkbox"></span> الثاني</div>
                     <div class="dor-option"><span class="checkbox"></span> التعثر</div>
                 </div>
-                <div style="margin-top: 8px;">
-                    العام الدراسي: <strong>{{ academic_year|default('1447هـ', true) }}</strong>
-                </div>
+                <div style="margin-top:6px;">العام الدراسي: <strong>{{ academic_year|default('1447هـ', true) }}</strong></div>
             </div>
 
             <div class="instructions-box">
                 <div class="instructions-content">
                     <div class="instructions-title">تعليمات هامة</div>
                     <ul class="instructions-list">
-                        <li>استخدم القلم الرصاص فقط HB2 للإجابة.</li>
-                        <li>اقرأ السؤال جيداً ثم حدد الإجابة الصحيحة.</li>
-                        <li>تأكد من تظليل فقرة واحدة فقط لكل سؤال.</li>
-                        <li>امسح الفقرة المظللة جيداً عند تغيير الإجابة.</li>
+                        <li>استخدم القلم الرصاص فقط HB2.</li>
+                        <li>اقرأ السؤال جيداً ثم حدد الإجابة.</li>
+                        <li>ظلّل فقرة واحدة فقط لكل سؤال.</li>
+                        <li>امسح جيداً عند تغيير الإجابة.</li>
                         <li>لا تترك أي سؤال بدون إجابة.</li>
-                        <li>لا تستخدم قلم الحبر أو مزيل الحبر.</li>
+                        <li>لا تستخدم قلم الحبر أو مزيله.</li>
                     </ul>
                 </div>
                 <div class="shading-example">
@@ -753,14 +297,13 @@
                         <span>صحيح</span>
                     </div>
                     <div class="shading-item">
-                        <div class="bubble-wrong" style="border: 2px solid #000; display: inline-block; width:22px; height:22px; border-radius:50%; text-align:center; line-height:18px; color:#c41e3a; font-weight:bold;">X</div>
+                        <div class="bubble-wrong">X</div>
                         <span>خاطئ</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- القسم الأيسر: بيانات الطالب + جدول الدرجات -->
         <div class="top-left">
             <div class="student-section">
                 <div class="student-name-box">
@@ -769,15 +312,13 @@
                 </div>
 
                 <div class="barcode-box">
-                    <div class="barcode-container">
-                        {% if student.barcode %}
+                    {% if student.barcode %}
                         <img src="{{ student.barcode }}" class="barcode-img" alt="Barcode">
-                        {% else %}
-                        <div style="width:170px; height:60px; text-align:center; line-height:60px; font-weight:bold; color:#4caf50;">
+                    {% else %}
+                        <div style="width:168px; height:55px; text-align:center; line-height:55px; font-weight:bold; color:#4caf50;">
                             {% if is_answer_key %}للمعلم فقط{% else %}---{% endif %}
                         </div>
-                        {% endif %}
-                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="barcode-id-box">
@@ -841,7 +382,7 @@
             </div>
 
             <div class="model-section">
-                <span style="font-weight:bold; font-size:13px; margin-left:10px;">نموذج الاختبار:</span>
+                <span style="font-weight:bold; font-size:12px; margin-left:8px;">نموذج الاختبار:</span>
                 <div class="model-bubbles">
                     <div class="bubbles-labels-ar" style="margin-bottom:2px;">
                         <span>أ</span><span>ب</span><span>ج</span><span>د</span>
@@ -859,12 +400,10 @@
             </div>
         </div>
 
-    </div><!-- end .sheet-top -->
+    </div>
 
-    <!-- قسم الأسئلة: 4 أعمدة بالعرض الكامل -->
     <div class="questions-section">
 
-        <!-- اختيار من متعدد 1-20 -->
         <div class="question-column col-mcq1">
             <div class="column-title mcq">اختر (1-20)</div>
             <div class="questions-grid">
@@ -873,8 +412,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
-                    {% for i in range(1, 11) %}
-                    {% set correct = answers.get(i, '') if answers else '' %}
+                    {% for i in range(1, 11) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="bubbles-row-only">
@@ -891,8 +429,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
-                    {% for i in range(11, 21) %}
-                    {% set correct = answers.get(i, '') if answers else '' %}
+                    {% for i in range(11, 21) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="bubbles-row-only">
@@ -907,7 +444,6 @@
             </div>
         </div>
 
-        <!-- اختيار من متعدد 21-40 -->
         <div class="question-column col-mcq2">
             <div class="column-title mcq">تابع (21-40)</div>
             <div class="questions-grid">
@@ -916,8 +452,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
-                    {% for i in range(21, 31) %}
-                    {% set correct = answers.get(i, '') if answers else '' %}
+                    {% for i in range(21, 31) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="bubbles-row-only">
@@ -934,8 +469,7 @@
                         <div class="bubbles-labels-ar"><span>أ</span><span>ب</span><span>ج</span><span>د</span></div>
                         <div class="bubbles-labels-en"><span>A</span><span>B</span><span>C</span><span>D</span></div>
                     </div>
-                    {% for i in range(31, 41) %}
-                    {% set correct = answers.get(i, '') if answers else '' %}
+                    {% for i in range(31, 41) %}{% set correct = answers.get(i, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="bubbles-row-only">
@@ -950,7 +484,6 @@
             </div>
         </div>
 
-        <!-- صح وخطأ 1-20 -->
         <div class="question-column col-tf">
             <div class="column-title tf">ص/خ (1-20)</div>
             <div class="questions-grid">
@@ -959,12 +492,10 @@
                         <div class="bubbles-labels-ar"><span>ص</span><span>خ</span></div>
                         <div class="bubbles-labels-en"><span>T</span><span>F</span></div>
                     </div>
-                    {% for i in range(1, 11) %}
-                    {% set q_num = i + 40 %}
-                    {% set correct = answers.get(q_num, '') if answers else '' %}
+                    {% for i in range(1, 11) %}{% set q_num = i + 40 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
-                        <div class="bubbles-row-only" style="gap:12px;">
+                        <div class="bubbles-row-only" style="gap:10px;">
                             <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}"></span>
                             <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}"></span>
                         </div>
@@ -976,12 +507,10 @@
                         <div class="bubbles-labels-ar"><span>ص</span><span>خ</span></div>
                         <div class="bubbles-labels-en"><span>T</span><span>F</span></div>
                     </div>
-                    {% for i in range(11, 21) %}
-                    {% set q_num = i + 40 %}
-                    {% set correct = answers.get(q_num, '') if answers else '' %}
+                    {% for i in range(11, 21) %}{% set q_num = i + 40 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
-                        <div class="bubbles-row-only" style="gap:12px;">
+                        <div class="bubbles-row-only" style="gap:10px;">
                             <span class="answer-bubble {% if correct == 'ص' %}filled{% endif %}"></span>
                             <span class="answer-bubble {% if correct == 'خ' %}filled{% endif %}"></span>
                         </div>
@@ -991,12 +520,11 @@
             </div>
         </div>
 
-        <!-- المزاوجة 1-10 -->
         <div class="question-column col-match">
             <div class="column-title matching">المزاوجة (1-10)</div>
             <div class="questions-grid matching-grid">
                 <div>
-                    <div class="column-headers" style="margin-right:24px;">
+                    <div class="column-headers" style="margin-right:22px;">
                         <div class="matching-labels-ar">
                             <span>أ</span><span>ب</span><span>ج</span><span>د</span><span>هـ</span><span>و</span><span>ز</span><span>ح</span><span>ط</span><span>ي</span>
                         </div>
@@ -1004,9 +532,7 @@
                             <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
                         </div>
                     </div>
-                    {% for i in range(1, 11) %}
-                    {% set q_num = i + 60 %}
-                    {% set correct = answers.get(q_num, '') if answers else '' %}
+                    {% for i in range(1, 11) %}{% set q_num = i + 60 %}{% set correct = answers.get(q_num, '') if answers else '' %}
                     <div class="question-row">
                         <span class="question-num">{{ i }}</span>
                         <div class="matching-row-only">
@@ -1027,9 +553,9 @@
             </div>
         </div>
 
-    </div><!-- end .questions-section -->
+    </div>
 
-</div><!-- end .sheet-container -->
+</div>
 
 </body>
 </html>
