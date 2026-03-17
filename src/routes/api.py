@@ -3842,7 +3842,6 @@ def get_unit_lessons_export(course_id, unit_id):
 
 
 @api_bp.route("/units/<int:unit_id>/questions-count", methods=["GET"])
-@login_required
 def get_unit_questions_count(unit_id):
     """
     الحصول على عدد الأسئلة في وحدة معينة
@@ -3878,7 +3877,6 @@ def get_unit_questions_count(unit_id):
 
 
 @api_bp.route("/lessons/<int:lesson_id>/questions-count", methods=["GET"])
-@login_required
 def get_lesson_questions_count(lesson_id):
     """
     الحصول على عدد الأسئلة في درس معين
@@ -3914,7 +3912,6 @@ def get_lesson_questions_count(lesson_id):
 
 
 @api_bp.route("/courses/<int:course_id>/questions-count", methods=["GET"])
-@login_required
 def get_course_questions_count(course_id):
     """
     الحصول على عدد الأسئلة في منهج معين
