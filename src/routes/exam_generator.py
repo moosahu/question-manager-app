@@ -92,6 +92,7 @@ class ExamGenerator:
             'spacing':             kwargs.get('spacing', 'normal'),
             'options_layout':      kwargs.get('options_layout', 'vertical'),
             'include_qr':          kwargs.get('include_qr', True),
+            'font_family':         kwargs.get('font_family', 'amiri'),
         }
 
         arabic_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
@@ -127,7 +128,13 @@ class ExamGenerator:
 
     def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
-        html_obj = HTML(string=html_content)
+        # base_url لحل مسارات الخطوط والصور النسبية
+        try:
+            from flask import request as _req
+            base_url = _req.url_root
+        except Exception:
+            base_url = None
+        html_obj = HTML(string=html_content, base_url=base_url)
         return html_obj.write_pdf()
 
     def generate_word(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):

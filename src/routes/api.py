@@ -3856,6 +3856,7 @@ def generate_exam():
         columns        = int(data.get("columns", 2))
         spacing        = data.get("spacing", "normal")
         options_layout = data.get("options_layout", "vertical")
+        font_family    = data.get("font_family", "amiri")
 
         # ── الكليشه الكاملة ───────────────────────────────────────────
         header = data.get("header", {})

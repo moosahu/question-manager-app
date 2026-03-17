@@ -8,7 +8,30 @@
     
     <style>
         /* =============================================
-           إعدادات الصفحة لـ WeasyPrint 
+           خطوط عربية مخصصة
+           =============================================
+        */
+        @font-face {
+            font-family: 'Amiri';
+            src: url('/static/fonts/Amiri-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Amiri';
+            src: url('/static/fonts/Amiri-Bold.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'NotoNaskhArabic';
+            src: url('/static/fonts/NotoNaskhArabic-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* =============================================
+           إعدادات الصفحة لـ WeasyPrint
            =============================================
         */
         @page {
@@ -46,7 +69,7 @@
         }
 
         body {
-            font-family: 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
+            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% else %}'Traditional Arabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
             font-size: {{ font_size|default(14, true) }}px;
             line-height: 1.5;
             color: #000;
