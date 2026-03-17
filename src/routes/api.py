@@ -4027,6 +4027,7 @@ def generate_exam():
                 spacing=spacing,
                 options_layout=options_layout,
                 include_qr=include_qr,
+                font_family=font_family,
             )
 
             _save_exam_history_record(
