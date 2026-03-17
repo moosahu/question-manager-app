@@ -4003,9 +4003,8 @@ def generate_exam():
                     result.append(gen_q)
                 return result
 
-            # إعدادات الكليشة المشتركة
+            # إعدادات الكليشة المشتركة (بدون show_answers — تُمرَّر صريحةً لكل استدعاء)
             pdf_kwargs = dict(
-                show_answers=include_answers,
                 school_name=header.get('school_name', ''),
                 grade=header.get('grade', ''),
                 subject=header.get('subject', course.name if course else ''),
@@ -4034,10 +4033,15 @@ def generate_exam():
             )
 
             if models_count <= 1:
-                # نموذج واحد — السلوك القديم
+                # نموذج واحد
                 gen_questions = to_gen_questions(format_selected(select_questions(available)))
-                pdf_bytes = generator.generate_pdf(gen_questions, exam_title=exam_title,
-                                                   model_letter='', **pdf_kwargs)
+                pdf_bytes = generator.generate_pdf(
+                    gen_questions,
+                    exam_title=exam_title,
+                    show_answers=include_answers,
+                    model_letter='',
+                    **pdf_kwargs
+                )
                 _save_exam_history_record(
                     primary_course_id, unit_id, lesson_id,
                     len(gen_questions), include_answers, shuffle_questions, shuffle_options, header
@@ -4048,8 +4052,13 @@ def generate_exam():
                 merged = fitz.open()
                 for i in range(models_count):
                     gen_questions_i = to_gen_questions(format_selected(select_questions(available)))
-                    pdf_i = generator.generate_pdf(gen_questions_i, exam_title=exam_title,
-                                                   model_letter=model_letters[i], **pdf_kwargs)
+                    pdf_i = generator.generate_pdf(
+                        gen_questions_i,
+                        exam_title=exam_title,
+                        show_answers=include_answers,
+                        model_letter=model_letters[i],
+                        **pdf_kwargs
+                    )
                     doc_i = fitz.open(stream=pdf_i, filetype='pdf')
                     merged.insert_pdf(doc_i)
                     doc_i.close()
