@@ -3977,31 +3977,34 @@ def generate_exam():
             except ImportError:
                 from exam_generator import ExamGenerator
 
-            selected   = select_questions(available)
-            formatted  = format_selected(selected)
             course     = Course.query.get(primary_course_id)
             exam_title = header.get('exam_title') or (f'اختبار {course.name}' if course else 'نموذج اختبار')
-
-            gen_questions = []
-            for fq in formatted:
-                gen_q = {
-                    'question_text':    fq.get('question_text', ''),
-                    'points':           fq.get('points', 1),
-                    'options':          [],
-                    'correct_option_id': fq.get('correct_option_id'),
-                }
-                for opt in fq.get('options', []):
-                    gen_q['options'].append({
-                        'option_id':   opt.get('option_id'),
-                        'option_text': opt.get('option_text', ''),
-                        'is_correct':  opt.get('is_correct', False),
-                    })
-                gen_questions.append(gen_q)
-
+            model_letters = ['أ', 'ب', 'ج', 'د']
             generator = ExamGenerator()
-            pdf_bytes = generator.generate_pdf(
-                gen_questions,
-                exam_title=exam_title,
+
+            # دالة مساعدة: تحوّل قائمة الأسئلة المنسّقة إلى صيغة المولّد
+            def to_gen_questions(formatted_list):
+                result = []
+                for fq in formatted_list:
+                    gen_q = {
+                        'question_text':     fq.get('question_text', ''),
+                        'points':            fq.get('points', 1),
+                        'options':           [],
+                        'correct_option_id': fq.get('correct_option_id'),
+                        'image_url':         fq.get('image_url'),
+                    }
+                    for opt in fq.get('options', []):
+                        gen_q['options'].append({
+                            'option_id':   opt.get('option_id'),
+                            'option_text': opt.get('option_text', ''),
+                            'image_url':   opt.get('image_url'),
+                            'is_correct':  opt.get('is_correct', False),
+                        })
+                    result.append(gen_q)
+                return result
+
+            # إعدادات الكليشة المشتركة
+            pdf_kwargs = dict(
                 show_answers=include_answers,
                 school_name=header.get('school_name', ''),
                 grade=header.get('grade', ''),
@@ -4030,16 +4033,40 @@ def generate_exam():
                 font_family=font_family,
             )
 
-            _save_exam_history_record(
-                primary_course_id, unit_id, lesson_id,
-                len(selected), include_answers, shuffle_questions, shuffle_options, header
-            )
+            if models_count <= 1:
+                # نموذج واحد — السلوك القديم
+                gen_questions = to_gen_questions(format_selected(select_questions(available)))
+                pdf_bytes = generator.generate_pdf(gen_questions, exam_title=exam_title,
+                                                   model_letter='', **pdf_kwargs)
+                _save_exam_history_record(
+                    primary_course_id, unit_id, lesson_id,
+                    len(gen_questions), include_answers, shuffle_questions, shuffle_options, header
+                )
+            else:
+                # نماذج متعددة — كل نموذج يُولَّد بترتيب مختلف ثم تُدمج الـ PDFs
+                import fitz  # PyMuPDF موجود في requirements
+                merged = fitz.open()
+                for i in range(models_count):
+                    gen_questions_i = to_gen_questions(format_selected(select_questions(available)))
+                    pdf_i = generator.generate_pdf(gen_questions_i, exam_title=exam_title,
+                                                   model_letter=model_letters[i], **pdf_kwargs)
+                    doc_i = fitz.open(stream=pdf_i, filetype='pdf')
+                    merged.insert_pdf(doc_i)
+                    doc_i.close()
+                pdf_bytes = merged.tobytes()
+                merged.close()
+                _save_exam_history_record(
+                    primary_course_id, unit_id, lesson_id,
+                    question_count, include_answers, shuffle_questions, shuffle_options, header
+                )
+
             from flask import send_file
+            download_name = f'exam_models_{models_count}.pdf' if models_count > 1 else 'exam.pdf'
             return send_file(
                 io.BytesIO(pdf_bytes),
                 mimetype='application/pdf',
                 as_attachment=True,
-                download_name='exam.pdf',
+                download_name=download_name,
             )
 
         # ── JSON: نماذج متعددة ────────────────────────────────────────
