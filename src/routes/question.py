@@ -3641,6 +3641,93 @@ def _remark_pdf_wrapper(sheets_html):
     )
 
 
+def _remark_pdf_wrapper_colored(sheets_html):
+    """يلف صفحات ورقة التظليل الملونة (CSS Grid) في HTML واحد — للاستخدام مع WebView فقط"""
+    return (
+        '<!DOCTYPE html><html dir="rtl" lang="ar">'
+        '<head><meta charset="UTF-8">'
+        '<style>'
+        '@page{size:A4 landscape;margin:0;}'
+        '*{margin:0;padding:0;box-sizing:border-box;}'
+        'html,body{width:100%;background:white;font-family:"Segoe UI","Traditional Arabic",Arial,sans-serif;font-size:12px;}'
+        '.sheet-container{width:285mm;height:190mm;display:grid;grid-template-columns:1fr 1.1fr;grid-template-rows:auto 1fr;border:2px solid #000;margin:5mm auto;page-break-inside:avoid;break-inside:avoid;}'
+        '.sheet-container:not(:first-of-type){page-break-before:always;break-before:page;}'
+        '.top-right{border-left:2px solid #000;border-bottom:2px solid #000;padding:8px;display:flex;flex-direction:column;}'
+        '.logo-section{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px;}'
+        '.logo-img{width:70px;height:auto;}'
+        '.ministry-info{text-align:right;font-size:12px;line-height:1.4;flex:1;}'
+        '.ministry-info .title{font-weight:bold;color:#1a5c4c;font-size:13px;}'
+        '.school-name{font-weight:bold;color:#c41e3a;font-size:13px;margin-top:2px;}'
+        '.exam-info-box{background:#f0f7f0;border:1px solid #1a5c4c;border-radius:5px;padding:8px;margin-top:6px;font-size:12px;}'
+        '.dor-section{display:flex;gap:20px;align-items:center;margin-top:6px;}'
+        '.dor-option{display:flex;align-items:center;gap:6px;font-weight:bold;}'
+        '.checkbox{width:18px;height:18px;border:2px solid #000;display:inline-block;background:white;}'
+        '.instructions-box{background:#fff8e1;border:2px solid #f9a825;border-radius:6px;padding:8px;margin-top:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex:1;}'
+        '.instructions-content{flex:1;}'
+        '.instructions-title{font-weight:bold;color:#e65100;margin-bottom:4px;font-size:13px;}'
+        '.instructions-list{font-size:11px;line-height:1.5;list-style:disc;padding-right:16px;color:#333;font-weight:bold;}'
+        '.shading-example{display:flex;flex-direction:column;gap:8px;padding:4px;min-width:90px;}'
+        '.shading-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:bold;}'
+        '.bubble-correct{width:22px;height:22px;background:#000;border-radius:50%;}'
+        '.bubble-wrong{width:22px;height:22px;border:2px solid #000;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#c41e3a;font-size:16px;font-weight:bold;}'
+        '.top-left{border-bottom:2px solid #000;padding:8px;display:flex;flex-direction:column;}'
+        '.student-section{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:8px;}'
+        '.student-name-box{background:#e3f2fd;border:2px solid #1976d2;border-radius:6px;padding:6px;display:flex;flex-direction:column;justify-content:center;}'
+        '.student-name-label{font-size:11px;color:#555;margin-bottom:3px;font-weight:bold;}'
+        '.student-name{font-size:16px;font-weight:bold;color:#1565c0;}'
+        '.barcode-box{display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #4caf50;padding:5px;border-radius:6px;background:#f1f8f4;min-width:180px;}'
+        '.barcode-img{width:170px;height:60px;}'
+        '.barcode-id-box{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #ccc;padding:5px 10px;border-radius:5px;background:#fafafa;min-width:150px;}'
+        '.status-options{display:flex;gap:10px;justify-content:center;margin-bottom:3px;font-size:11px;font-weight:bold;}'
+        '.academic-id-label{font-size:9px;color:#666;margin-bottom:2px;}'
+        '.academic-id-number{font-size:20px;font-weight:bold;letter-spacing:4px;}'
+        '.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:5px 0;}'
+        '.info-item{text-align:center;border:1px solid #000;padding:4px;background:#fafafa;}'
+        '.info-label{font-size:11px;color:#333;font-weight:bold;}'
+        '.info-value{font-size:12px;font-weight:bold;}'
+        '.score-table-section{margin-top:4px;border:2px solid #000;}'
+        '.score-table{width:100%;border-collapse:collapse;}'
+        '.score-table th{background:#ddd;border:1px solid #000;padding:3px;text-align:center;font-size:11px;font-weight:bold;}'
+        '.score-table td{border:1px solid #000;padding:2px;text-align:center;height:30px;vertical-align:middle;}'
+        '.score-bubble{width:16px;height:16px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.score-num-header{font-size:14px;font-weight:bold;display:block;}'
+        '.model-section{display:flex;align-items:center;gap:15px;margin-top:8px;padding:6px;background:#f5f5f5;border:1px solid #999;justify-content:center;}'
+        '.model-bubbles{display:flex;flex-direction:column;align-items:center;gap:2px;}'
+        '.model-bubble{width:18px;height:18px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.model-bubble.selected{background:#000;}'
+        '.questions-section{grid-column:1 / -1;display:grid;grid-template-columns:0.9fr 0.9fr 0.65fr 1.55fr;border-top:2px solid #000;}'
+        '.question-column{border-left:2px solid #000;padding:8px 10px;display:flex;flex-direction:column;}'
+        '.question-column:last-child{border-left:none;}'
+        '.column-title{text-align:center;padding:5px;font-weight:bold;font-size:13px;margin-bottom:6px;border-radius:4px;color:white;border:1px solid #000;}'
+        '.column-title.mcq{background:#1a5c4c;}.column-title.tf{background:#e65100;}.column-title.matching{background:#7b1fa2;}'
+        '.questions-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 15px;}'
+        '.questions-grid>div:first-child{border-left:1px solid #ddd;padding-left:8px;}'
+        '.questions-grid>div:last-child{border-right:1px solid #ddd;padding-right:8px;}'
+        '.questions-grid.matching-grid{grid-template-columns:1fr;}'
+        '.questions-grid.matching-grid>div{border-left:none!important;border-right:none!important;padding-left:0!important;padding-right:0!important;}'
+        '.question-row{display:flex;align-items:center;justify-content:center;padding:2px 0;gap:5px;}'
+        '.question-num{width:22px;font-weight:bold;font-size:12px;text-align:center;}'
+        '.answer-bubble{width:16px;height:16px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.answer-bubble.filled{background:#000;}'
+        '.column-headers{margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #333;display:flex;flex-direction:column;align-items:center;margin-right:27px;}'
+        '.bubbles-labels-ar{display:flex;gap:4px;font-size:11px;font-weight:bold;color:#000;margin-bottom:2px;}'
+        '.bubbles-labels-ar span{width:16px;text-align:center;display:inline-block;}'
+        '.bubbles-labels-en{display:flex;gap:4px;font-size:10px;font-weight:bold;color:#666;margin-bottom:2px;}'
+        '.bubbles-labels-en span{width:16px;text-align:center;display:inline-block;}'
+        '.bubbles-row-only{display:flex;gap:4px;}'
+        '.matching-bubble{width:16px;height:16px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.matching-bubble.filled{background:#000;}'
+        '.matching-labels-ar{display:flex;gap:4px;font-size:11px;font-weight:bold;color:#000;margin-bottom:2px;}'
+        '.matching-labels-ar span{width:16px;text-align:center;display:inline-block;}'
+        '.matching-labels-en{display:flex;gap:4px;font-size:10px;font-weight:bold;color:#666;margin-bottom:2px;}'
+        '.matching-labels-en span{width:16px;text-align:center;display:inline-block;}'
+        '.matching-row-only{display:flex;gap:4px;}'
+        '</style></head><body>'
+        + sheets_html
+        + '</body></html>'
+    )
+
+
 def _html_to_pdf_response(html_str, filename):
     """دالة مساعدة: تحوّل HTML إلى PDF وترجعه كـ send_file"""
     from weasyprint import HTML as WeasyHTML
@@ -3939,18 +4026,20 @@ def remark_blank_html():
         exam_type       = data.get('exam_type', 'نهاية')
         semester        = data.get('semester', 'الأول')
         academic_year   = data.get('academic_year', '1447هـ')
+        style           = data.get('style', 'clean')
 
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
         questions_count = len(get_ordered_questions(question_ids))
         ctx = _remark_header_context(exam_type, semester, academic_year)
+        template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
         all_html = ""
         for model_letter in models:
             for _ in range(count_per_model):
                 all_html += render_template(
-                    'question/remark_answer_sheet.html',
+                    template_name,
                     standalone=False,
                     student={'name': '..........................................',
                              'academic_id': '..........................................',
@@ -3961,7 +4050,8 @@ def remark_blank_html():
                     questions_count=questions_count,
                     **ctx
                 )
-        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+        wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_blank_html error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -3979,6 +4069,7 @@ def remark_answer_key_html():
         exam_type     = data.get('exam_type', 'نهاية')
         semester      = data.get('semester', 'الأول')
         academic_year = data.get('academic_year', '1447هـ')
+        style         = data.get('style', 'clean')
 
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
@@ -3996,6 +4087,7 @@ def remark_answer_key_html():
 
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         ctx = _remark_header_context(exam_type, semester, academic_year)
+        template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
         all_html = ""
 
         for idx, model_letter in enumerate(models):
@@ -4012,7 +4104,7 @@ def remark_answer_key_html():
                         break
 
             all_html += render_template(
-                'question/remark_answer_sheet.html',
+                template_name,
                 standalone=False,
                 student={'name': f'مفتاح الإجابة - نموذج {model_letter}',
                          'academic_id': '---', 'section': '---', 'barcode': None},
@@ -4022,7 +4114,8 @@ def remark_answer_key_html():
                 questions_count=len(questions),
                 **ctx
             )
-        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+        wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_answer_key_html error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -4042,6 +4135,7 @@ def remark_students_html():
         academic_year = data.get('academic_year', '1447هـ')
         students_raw  = data.get('students', [])
         student_ids   = data.get('student_ids', [])
+        style         = data.get('style', 'clean')
 
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
@@ -4072,6 +4166,7 @@ def remark_students_html():
 
         letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         ctx = _remark_header_context(exam_type, semester, academic_year)
+        template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
         # بناء مفاتيح الإجابة لكل نموذج
         answer_keys = {}
@@ -4101,7 +4196,7 @@ def remark_students_html():
                 acad_id = s.get('academic_id', '')
                 s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
                 all_html += render_template(
-                    'question/remark_answer_sheet.html',
+                    template_name,
                     standalone=False,
                     student=s,
                     model_letter=model_letter,
@@ -4113,7 +4208,7 @@ def remark_students_html():
 
         for model_letter in models:
             all_html += render_template(
-                'question/remark_answer_sheet.html',
+                template_name,
                 standalone=False,
                 student={'name': f'مفتاح الإجابة - نموذج {model_letter}',
                          'academic_id': '---', 'section': '---', 'barcode': None},
@@ -4124,7 +4219,8 @@ def remark_students_html():
                 **ctx
             )
 
-        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+        wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_students_html error: {e}")
         return jsonify({'error': str(e)}), 500
