@@ -3923,6 +3923,213 @@ def remark_excel_template():
 
 
 # =====================================================
+# ===== ورقة تظليل Remark — HTML (للتحويل على الجهاز) =====
+# =====================================================
+
+@question_bp.route('/remark-blank-html', methods=['POST'])
+@login_required
+def remark_blank_html():
+    """ورقة تظليل فارغة → HTML JSON (يتحوّل لـ PDF على جهاز المستخدم)"""
+    try:
+        data            = request.get_json()
+        models          = data.get('models', ['أ'])
+        count_per_model = int(data.get('count_per_model', 10))
+        question_ids    = data.get('question_ids', [])
+        exam_type       = data.get('exam_type', 'نهاية')
+        semester        = data.get('semester', 'الأول')
+        academic_year   = data.get('academic_year', '1447هـ')
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        questions_count = len(get_ordered_questions(question_ids))
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+
+        all_html = ""
+        for model_letter in models:
+            for _ in range(count_per_model):
+                all_html += render_template(
+                    'question/remark_answer_sheet.html',
+                    standalone=False,
+                    student={'name': '..........................................',
+                             'academic_id': '..........................................',
+                             'section': '.....', 'barcode': None, 'seat_no': ''},
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,
+                    questions_count=questions_count,
+                    **ctx
+                )
+        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+    except Exception as e:
+        current_app.logger.exception(f"remark_blank_html error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/remark-answer-key-html', methods=['POST'])
+@login_required
+def remark_answer_key_html():
+    """مفاتيح إجابة ريمارك → HTML JSON"""
+    try:
+        data          = request.get_json()
+        question_ids  = data.get('question_ids', [])
+        models        = data.get('models', ['أ'])
+        shuffle_opts  = data.get('shuffle_options', True)
+        exam_type     = data.get('exam_type', 'نهاية')
+        semester      = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        questions = get_ordered_questions(question_ids)
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+
+        questions_data = []
+        for q in questions:
+            q_dict = {'question_id': q.question_id, 'options': []}
+            for opt in q.options:
+                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
+            questions_data.append(q_dict)
+
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+        all_html = ""
+
+        for idx, model_letter in enumerate(models):
+            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
+
+            answers = {}
+            for q_num, q in enumerate(shuffled, 1):
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
+                        break
+
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                standalone=False,
+                student={'name': f'مفتاح الإجابة - نموذج {model_letter}',
+                         'academic_id': '---', 'section': '---', 'barcode': None},
+                is_answer_key=True,
+                answers=answers,
+                model_letter=model_letter,
+                questions_count=len(questions),
+                **ctx
+            )
+        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+    except Exception as e:
+        current_app.logger.exception(f"remark_answer_key_html error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/remark-students-html', methods=['POST'])
+@login_required
+def remark_students_html():
+    """ورقة تظليل بأسماء الطلاب → HTML JSON"""
+    try:
+        data          = request.get_json()
+        question_ids  = data.get('question_ids', [])
+        models        = data.get('models', ['أ'])
+        shuffle_opts  = data.get('shuffle_options', True)
+        exam_type     = data.get('exam_type', 'نهاية')
+        semester      = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+        students_raw  = data.get('students', [])
+        student_ids   = data.get('student_ids', [])
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        questions = get_ordered_questions(question_ids)
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+
+        questions_data = []
+        for q in questions:
+            q_dict = {'question_id': q.question_id, 'options': []}
+            for opt in q.options:
+                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
+            questions_data.append(q_dict)
+
+        # بناء قائمة الطلاب
+        if students_raw:
+            students_list = [dict(s) for s in students_raw]
+        elif student_ids:
+            from src.models.user import User
+            db_students = User.query.filter(User.user_id.in_(student_ids), User.role == 'student').all()
+            students_list = [{'name': s.full_name or s.username,
+                              'academic_id': getattr(s, 'academic_id', '') or '',
+                              'section': getattr(s, 'class_name', '') or '',
+                              'seat_no': ''} for s in db_students]
+        else:
+            return jsonify({'error': 'لم يتم تحديد طلاب'}), 400
+
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+
+        # بناء مفاتيح الإجابة لكل نموذج
+        answer_keys = {}
+        for idx, model_letter in enumerate(models):
+            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
+            answers = {}
+            for q_num, q in enumerate(shuffled, 1):
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
+                        break
+            answer_keys[model_letter] = answers
+
+        all_html = ""
+        student_idx = 0
+        for model_letter in models:
+            while student_idx < len(students_list):
+                if student_idx >= len(students_list):
+                    break
+                s = dict(students_list[student_idx])
+                student_idx += 1
+                if not s.get('seat_no'):
+                    s['seat_no'] = str(student_idx)
+                acad_id = s.get('academic_id', '')
+                s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
+                all_html += render_template(
+                    'question/remark_answer_sheet.html',
+                    standalone=False,
+                    student=s,
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,
+                    questions_count=len(questions_data),
+                    **ctx
+                )
+
+        for model_letter in models:
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                standalone=False,
+                student={'name': f'مفتاح الإجابة - نموذج {model_letter}',
+                         'academic_id': '---', 'section': '---', 'barcode': None},
+                is_answer_key=True,
+                answers=answer_keys[model_letter],
+                model_letter=model_letter,
+                questions_count=len(questions_data),
+                **ctx
+            )
+
+        return jsonify({'html': _remark_pdf_wrapper(all_html)})
+    except Exception as e:
+        current_app.logger.exception(f"remark_students_html error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
 # ===== صفحة تصنيف الأسئلة بالذكاء الاصطناعي =====
 # =====================================================
 
