@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+from functools import wraps
 import uuid
 import io # Added for reading/writing file in memory
 import json
@@ -3550,6 +3551,116 @@ def _remark_header_context(exam_type='نهاية', semester='الأول', academ
     return ctx
 
 
+def _remark_auth_required(f):
+    """Decorator يقبل أدمن (session) أو معلم (JWT) لـ remark endpoints"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        import jwt as pyjwt
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+        auth = request.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            try:
+                data = pyjwt.decode(
+                    auth[7:],
+                    current_app.config['JWT_SECRET_KEY'],
+                    algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
+                )
+                if data.get('user_type') == 'teacher':
+                    return f(*args, **kwargs)
+            except Exception:
+                pass
+        try:
+            from src.models.teacher import Teacher
+        except ImportError:
+            from models.teacher import Teacher
+        tok = request.headers.get('X-Session-Token')
+        if tok and Teacher.query.filter_by(session_token=tok, is_active=True).first():
+            return f(*args, **kwargs)
+        return jsonify({'success': False, 'error': 'يرجى تسجيل الدخول'}), 401
+    return decorated
+
+
+def _q_get_teacher_id():
+    """يرجع teacher_id إذا المرسِل معلم، None إذا أدمن — لاستخدام داخل question.py"""
+    import jwt as pyjwt
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        try:
+            data = pyjwt.decode(
+                auth[7:],
+                current_app.config['JWT_SECRET_KEY'],
+                algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
+            )
+            if data.get('user_type') == 'teacher':
+                return data.get('teacher_id')
+        except Exception:
+            pass
+    try:
+        from src.models.teacher import Teacher
+    except ImportError:
+        from models.teacher import Teacher
+    tok = request.headers.get('X-Session-Token')
+    if tok:
+        t = Teacher.query.filter_by(session_token=tok, is_active=True).first()
+        if t:
+            return t.id
+    return None
+
+
+def _q_check_remark_quota(teacher_id):
+    """تحقق من كوتا ورقة التظليل للمعلم — يرجع (allowed, remaining, limit, msg)"""
+    try:
+        from src.models.teacher_feature import TeacherFeatureOverride, FEATURE_DEFAULTS
+        from src.models.teacher_export_log import TeacherExportLog
+    except ImportError:
+        from models.teacher_feature import TeacherFeatureOverride, FEATURE_DEFAULTS
+        from models.teacher_export_log import TeacherExportLog
+
+    try:
+        from src.models.ai_setting import AISetting
+        def _gs(key): return AISetting.get_setting(key)
+    except Exception:
+        def _gs(key): return None
+
+    from datetime import timezone, timedelta as _td
+
+    # هل الميزة مفعّلة؟
+    ov = TeacherFeatureOverride.get_override(teacher_id, 'remark_export_enabled')
+    if ov:
+        enabled = ov.value == 'true'
+    else:
+        gv = _gs('remark_export_enabled')
+        enabled = (gv or FEATURE_DEFAULTS.get('remark_export_enabled', 'false')) == 'true'
+    if not enabled:
+        return False, 0, 0, 'هذه الميزة غير مفعّلة لحسابك'
+
+    # الحد اليومي
+    oq = TeacherFeatureOverride.get_override(teacher_id, 'quota_remark_export')
+    if oq:
+        limit = int(oq.value)
+    else:
+        gq = _gs('quota_remark_export')
+        limit = int(gq) if gq else int(FEATURE_DEFAULTS.get('quota_remark_export', '2'))
+
+    # الاستخدام اليوم
+    sa_tz = timezone(_td(hours=3))
+    today_start = datetime.now(sa_tz).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).astimezone(timezone.utc).replace(tzinfo=None)
+
+    used = db.session.query(TeacherExportLog).filter(
+        TeacherExportLog.teacher_id == teacher_id,
+        TeacherExportLog.export_type == 'remark',
+        TeacherExportLog.created_at >= today_start,
+    ).count()
+
+    remaining = max(0, limit - used)
+    if remaining == 0:
+        return False, 0, limit, f'تجاوزت الحد اليومي ({limit} أوراق/يوم)'
+    return True, remaining, limit, ''
+
+
 def _remark_pdf_wrapper(sheets_html):
     """يلف صفحات ورقة التظليل في HTML واحد صحيح مع CSS مرة واحدة فقط"""
     # نولّد صفحة واحدة بوضع standalone=True للحصول على الـ CSS
@@ -4015,10 +4126,16 @@ def remark_excel_template():
 # =====================================================
 
 @question_bp.route('/remark-blank-html', methods=['POST'])
-@login_required
+@_remark_auth_required
 def remark_blank_html():
     """ورقة تظليل فارغة → HTML JSON (يتحوّل لـ PDF على جهاز المستخدم)"""
     try:
+        _tid = _q_get_teacher_id()
+        if _tid:
+            _ok, _rem, _lim, _msg = _q_check_remark_quota(_tid)
+            if not _ok:
+                return jsonify({'success': False, 'error': _msg,
+                                'quota_exceeded': True, 'limit': _lim, 'remaining': 0}), 403
         data            = request.get_json()
         models          = data.get('models', ['أ'])
         count_per_model = int(data.get('count_per_model', 10))
@@ -4051,6 +4168,13 @@ def remark_blank_html():
                     **ctx
                 )
         wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        if _tid:
+            try:
+                from src.models.teacher_export_log import TeacherExportLog
+                db.session.add(TeacherExportLog(teacher_id=_tid, export_type='remark'))
+                db.session.commit()
+            except Exception:
+                pass
         return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_blank_html error: {e}")
@@ -4058,10 +4182,16 @@ def remark_blank_html():
 
 
 @question_bp.route('/remark-answer-key-html', methods=['POST'])
-@login_required
+@_remark_auth_required
 def remark_answer_key_html():
     """مفاتيح إجابة ريمارك → HTML JSON"""
     try:
+        _tid = _q_get_teacher_id()
+        if _tid:
+            _ok, _rem, _lim, _msg = _q_check_remark_quota(_tid)
+            if not _ok:
+                return jsonify({'success': False, 'error': _msg,
+                                'quota_exceeded': True, 'limit': _lim, 'remaining': 0}), 403
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
         models        = data.get('models', ['أ'])
@@ -4115,6 +4245,13 @@ def remark_answer_key_html():
                 **ctx
             )
         wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        if _tid:
+            try:
+                from src.models.teacher_export_log import TeacherExportLog
+                db.session.add(TeacherExportLog(teacher_id=_tid, export_type='remark'))
+                db.session.commit()
+            except Exception:
+                pass
         return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_answer_key_html error: {e}")
@@ -4122,10 +4259,16 @@ def remark_answer_key_html():
 
 
 @question_bp.route('/remark-students-html', methods=['POST'])
-@login_required
+@_remark_auth_required
 def remark_students_html():
     """ورقة تظليل بأسماء الطلاب → HTML JSON"""
     try:
+        _tid = _q_get_teacher_id()
+        if _tid:
+            _ok, _rem, _lim, _msg = _q_check_remark_quota(_tid)
+            if not _ok:
+                return jsonify({'success': False, 'error': _msg,
+                                'quota_exceeded': True, 'limit': _lim, 'remaining': 0}), 403
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
         models        = data.get('models', ['أ'])
@@ -4220,6 +4363,13 @@ def remark_students_html():
             )
 
         wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
+        if _tid:
+            try:
+                from src.models.teacher_export_log import TeacherExportLog
+                db.session.add(TeacherExportLog(teacher_id=_tid, export_type='remark'))
+                db.session.commit()
+            except Exception:
+                pass
         return jsonify({'html': wrapper(all_html)})
     except Exception as e:
         current_app.logger.exception(f"remark_students_html error: {e}")

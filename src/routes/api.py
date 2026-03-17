@@ -10,6 +10,99 @@ from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 
 
+def _get_teacher_id_from_request():
+    """يرجع teacher_id إذا المرسِل معلم، None إذا أدمن"""
+    import jwt as pyjwt
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        try:
+            data = pyjwt.decode(
+                auth[7:],
+                current_app.config['JWT_SECRET_KEY'],
+                algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
+            )
+            if data.get('user_type') == 'teacher':
+                return data.get('teacher_id')
+        except Exception:
+            pass
+    try:
+        from src.models.teacher import Teacher
+    except ImportError:
+        from models.teacher import Teacher
+    tok = request.headers.get('X-Session-Token')
+    if tok:
+        t = Teacher.query.filter_by(session_token=tok, is_active=True).first()
+        if t:
+            return t.id
+    return None  # أدمن → بلا قيود
+
+
+def _check_teacher_export_quota(teacher_id, export_type):
+    """
+    يتحقق من الصلاحية والكوتا اليومية للمعلم.
+    export_type: 'exam' أو 'remark'
+    يرجع: (allowed: bool, remaining: int, limit: int, error_msg: str)
+    """
+    try:
+        from src.models.teacher_feature import TeacherFeatureOverride, FEATURE_DEFAULTS
+        from src.models.teacher_export_log import TeacherExportLog
+    except ImportError:
+        from models.teacher_feature import TeacherFeatureOverride, FEATURE_DEFAULTS
+        from models.teacher_export_log import TeacherExportLog
+
+    try:
+        from src.models.ai_setting import AISetting
+        def _get_setting(key):
+            return AISetting.get_setting(key)
+    except Exception:
+        def _get_setting(key):
+            return None
+
+    from datetime import timezone, timedelta as td
+
+    enabled_key = f'{export_type}_export_enabled'
+    quota_key   = f'quota_{export_type}_export'
+
+    # هل الميزة مفعّلة؟ (override أولاً ثم global ثم default)
+    ov = TeacherFeatureOverride.get_override(teacher_id, enabled_key)
+    if ov:
+        enabled = ov.value == 'true'
+    else:
+        gv = _get_setting(enabled_key)
+        enabled = (gv or FEATURE_DEFAULTS.get(enabled_key, 'false')) == 'true'
+
+    if not enabled:
+        return False, 0, 0, 'هذه الميزة غير مفعّلة لحسابك'
+
+    # الحد اليومي
+    oq = TeacherFeatureOverride.get_override(teacher_id, quota_key)
+    if oq:
+        limit = int(oq.value)
+    else:
+        gq = _get_setting(quota_key)
+        limit = int(gq) if gq else int(FEATURE_DEFAULTS.get(quota_key, '3'))
+
+    # الاستخدام اليوم (توقيت السعودية UTC+3)
+    sa_tz = timezone(td(hours=3))
+    today_start = datetime.now(sa_tz).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).astimezone(timezone.utc).replace(tzinfo=None)
+
+    from src.extensions import db as _db
+    used = _db.session.query(TeacherExportLog).filter(
+        TeacherExportLog.teacher_id == teacher_id,
+        TeacherExportLog.export_type == export_type,
+        TeacherExportLog.created_at >= today_start,
+    ).count()
+
+    remaining = max(0, limit - used)
+    if remaining == 0:
+        label = 'أوراق' if export_type == 'remark' else 'استخراجات'
+        return False, 0, limit, f'تجاوزت الحد اليومي ({limit} {label}/يوم)'
+
+    return True, remaining, limit, ''
+
+
 def teacher_or_admin_required(f):
     """Decorator يقبل أدمن (session) أو معلم (JWT أو X-Session-Token)"""
     @wraps(f)
@@ -3845,6 +3938,16 @@ def generate_exam():
         shuffle_questions = bool(data.get("shuffle_questions", True))
         shuffle_options   = bool(data.get("shuffle_options", True))
         output_format     = data.get("format", "json")
+
+        # ── تحقق من كوتا المعلم (PDF فقط) ────────────────────────────
+        _teacher_id = _get_teacher_id_from_request()
+        if _teacher_id and output_format == 'pdf':
+            _allowed, _remaining, _limit, _msg = _check_teacher_export_quota(_teacher_id, 'exam')
+            if not _allowed:
+                return jsonify({
+                    'success': False, 'error': _msg,
+                    'quota_exceeded': True, 'limit': _limit, 'remaining': 0,
+                }), 403
         mode              = data.get("mode", "normal")       # normal|balanced|perLesson|custom|manual
         models_count      = min(int(data.get("models_count", 1)), 4)
         include_qr        = bool(data.get("include_qr", True))
@@ -4069,6 +4172,16 @@ def generate_exam():
                     primary_course_id, unit_id, lesson_id,
                     question_count, include_answers, shuffle_questions, shuffle_options, header
                 )
+
+            # سجّل استخراج المعلم
+            if _teacher_id:
+                try:
+                    from src.models.teacher_export_log import TeacherExportLog
+                    from src.extensions import db as _db
+                    _db.session.add(TeacherExportLog(teacher_id=_teacher_id, export_type='exam'))
+                    _db.session.commit()
+                except Exception:
+                    pass
 
             from flask import send_file
             download_name = f'exam_models_{models_count}.pdf' if models_count > 1 else 'exam.pdf'
@@ -5575,3 +5688,23 @@ def submit_bug_report():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ===== نهاية نظام تقارير المشاكل =====
+
+
+# ===== كوتا الاستخراج للمعلم =====
+
+@api_bp.route("/questions/export-quota", methods=["GET"])
+@teacher_or_admin_required
+def get_export_quota():
+    """يرجع الكوتا المتبقية للمعلم (اختبار + رمارك)"""
+    teacher_id = _get_teacher_id_from_request()
+    if not teacher_id:
+        return jsonify({'success': True, 'is_admin': True})
+    result = {}
+    for export_type in ['exam', 'remark']:
+        allowed, remaining, limit, _ = _check_teacher_export_quota(teacher_id, export_type)
+        result[export_type] = {
+            'enabled':   allowed or remaining > 0,
+            'remaining': remaining,
+            'limit':     limit,
+        }
+    return jsonify({'success': True, 'quota': result})

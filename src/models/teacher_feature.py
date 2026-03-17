@@ -13,10 +13,14 @@ FEATURE_DEFAULTS = {
     'worksheet_enabled':               'true',
     'ai_analysis_enabled':             'true',
     'shared_library_enabled':          'true',
+    'exam_export_enabled':             'true',
+    'remark_export_enabled':           'false',
     'quota_single_lesson':             '5',
     'quota_unit_distribution':         '2',
     'quota_semester_distribution':     '2',
     'quota_worksheet':                 '3',
+    'quota_exam_export':               '3',
+    'quota_remark_export':             '2',
 }
 
 # أسماء عربية للعرض
@@ -27,10 +31,14 @@ FEATURE_LABELS = {
     'worksheet_enabled':               'أوراق العمل',
     'ai_analysis_enabled':             'تحليل الذكاء الاصطناعي',
     'shared_library_enabled':          'المكتبة المشتركة',
+    'exam_export_enabled':             'استخراج الاختبار',
+    'remark_export_enabled':           'ورقة التظليل Remark',
     'quota_single_lesson':             'حد تحضير الدرس اليومي',
     'quota_unit_distribution':         'حد توزيع الوحدة اليومي',
     'quota_semester_distribution':     'حد التوزيع الفصلي اليومي',
     'quota_worksheet':                 'حد أوراق العمل اليومي',
+    'quota_exam_export':               'حد استخراج الاختبار اليومي',
+    'quota_remark_export':             'حد ورقة التظليل اليومي',
 }
 
 

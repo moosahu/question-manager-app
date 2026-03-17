@@ -1047,6 +1047,12 @@ def create_app():
     except Exception as e:
         print(f"❌ Lesson Prep blueprint error: {e}")
 
+    # ✅ استيراد TeacherExportLog لإنشاء الجدول عند التشغيل
+    try:
+        from src.models.teacher_export_log import TeacherExportLog  # noqa: F401
+    except Exception as e:
+        print(f"⚠️ TeacherExportLog import warning: {e}")
+
     # ✅ تسجيل Teacher Features Blueprint — التحكم بمميزات المعلمين
     try:
         from src.routes.teacher_features_routes import teacher_features_bp
