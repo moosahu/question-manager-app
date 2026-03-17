@@ -7,20 +7,22 @@
     </title>
     
     <style>
-        /* الخط المختار — مضمّن كـ base64 لتجنب HTTP requests */
-        {% if font_data %}
-        @font-face {
-            font-family: 'SelectedFont';
-            src: url('{{ font_data }}') format('truetype');
-            font-weight: normal;
-        }
-        {% if font_data_bold %}
-        @font-face {
-            font-family: 'SelectedFont';
-            src: url('{{ font_data_bold }}') format('truetype');
-            font-weight: bold;
-        }
-        {% endif %}
+        /* الخط المختار فقط — مسار مباشر من الملف */
+        {% if font_family == 'amiri' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/Amiri-Regular.ttf') format('truetype'); font-weight:normal; }
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/Amiri-Bold.ttf') format('truetype'); font-weight:bold; }
+        {% elif font_family == 'traditional' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/TraditionalArabic-Regular.ttf') format('truetype'); }
+        {% elif font_family == 'cairo' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/Cairo-Regular.ttf') format('truetype'); }
+        {% elif font_family == 'tajawal' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/Tajawal-Regular.ttf') format('truetype'); }
+        {% elif font_family == 'tahoma' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/Tahoma-Regular.ttf') format('truetype'); }
+        {% elif font_family == 'scheherazade' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/ScheherazadeNew-Regular.ttf') format('truetype'); }
+        {% elif font_family == 'noto' %}
+        @font-face { font-family:'SelectedFont'; src:url('static/fonts/NotoNaskhArabic-Regular.ttf') format('truetype'); }
         {% endif %}
 
         /* =============================================
@@ -268,16 +270,8 @@
             column-count: {{ col_count }};
             column-gap: {% if col_count == 1 %}0{% elif col_count == 3 %}15px{% else %}20px{% endif %};
             column-fill: balance;
-            {% if col_count == 2 %}
-            background-image: linear-gradient(to bottom, #000 0%, #000 100%);
-            background-size: 1px 100%;
-            background-position: center;
-            background-repeat: no-repeat;
-            {% elif col_count == 3 %}
-            background-image: linear-gradient(to bottom, #000 0%, #000 100%), linear-gradient(to bottom, #000 0%, #000 100%);
-            background-size: 1px 100%, 1px 100%;
-            background-position: 33.3% center, 66.6% center;
-            background-repeat: no-repeat, no-repeat;
+            {% if col_count > 1 %}
+            column-rule: 1px solid #999;
             {% endif %}
         }
 
@@ -340,9 +334,7 @@
             border: 1px solid #ccc;
             border-radius: 4px;
             padding: 4px;
-            /* خلفية فاتحة وظل خفيف */
             background: #fafafa;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         /* صور الخيارات - بمحاذاة حرف الإجابة */

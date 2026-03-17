@@ -133,8 +133,6 @@ class ExamGenerator:
             'options_layout':      kwargs.get('options_layout', 'vertical'),
             'include_qr':          kwargs.get('include_qr', True),
             'font_family':         kwargs.get('font_family', 'traditional'),
-            'font_data':           _get_font_data(kwargs.get('font_family', 'traditional')),
-            'font_data_bold':      _get_font_data_bold(kwargs.get('font_family', 'traditional')),
         }
 
         arabic_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
@@ -170,12 +168,9 @@ class ExamGenerator:
 
     def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
-        # base_url لحل مسارات الخطوط والصور النسبية
-        try:
-            from flask import request as _req
-            base_url = _req.url_root
-        except Exception:
-            base_url = None
+        # base_url كمسار ملف مباشر — يتجنب HTTP requests للخطوط
+        src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        base_url = f"file://{src_dir}/"
         html_obj = HTML(string=html_content, base_url=base_url)
         return html_obj.write_pdf()
 
