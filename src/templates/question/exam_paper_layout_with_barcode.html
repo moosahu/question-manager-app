@@ -264,17 +264,41 @@
             {% set q_margin = 12 %}
         {% endif %}
         
-        .questions-wrapper {
-            column-count: {{ col_count }};
-            column-gap: {% if col_count == 1 %}0{% elif col_count == 3 %}15px{% else %}20px{% endif %};
-            column-fill: balance;
-            {% if col_count > 1 %}
-            column-rule: 1px solid #999;
+        /* تخطيط الأسئلة - جدول بدل column-count لضمان الفاصل في المنتصف */
+        .questions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .questions-col {
+            vertical-align: top;
+            {% if col_count == 3 %}
+            width: 33.33%;
+            {% else %}
+            width: 50%;
             {% endif %}
         }
 
-        .question-box { 
-            display: inline-block;
+        .col-divider {
+            border-left: 1px solid #999;
+            {% if col_count == 3 %}
+            padding-left: 8px;
+            padding-right: 8px;
+            {% else %}
+            padding-left: 10px;
+            padding-right: 10px;
+            {% endif %}
+        }
+
+        .col-last {
+            {% if col_count == 3 %}
+            padding-right: 8px;
+            {% else %}
+            padding-right: 10px;
+            {% endif %}
+        }
+
+        .question-box {
             width: 100%;
             margin-bottom: {{ q_margin }}px;
             font-size: {{ font_size|default(14, true) }}px;
@@ -600,88 +624,89 @@
         {% endif %}
     </div>
 
-    <div class="questions-wrapper">
-        
-        {% for question in questions %}
-        
-            <div class="question-box">
-                
-                <div class="q-header">
-                    <span class="q-num">
-                        س{{ loop.index }}:
-                    </span>
-                    <span class="q-text">
-                        {{ question.question_text|default('', true) }}
-                    </span>
-                </div>
-                
-                {% if question.image_url %}
-                    <img src="{{ question.image_url }}" class="q-image" alt="diagram">
-                {% endif %}
-                
-                {% set has_image_options = [] %}
-                
-                {% for option in question.options %}
-                    {% if option.image_url or (option.option_text and option.option_text.startswith('http')) %}
-                        {% set _ = has_image_options.append(1) %}
-                    {% endif %}
-                {% endfor %}
-                
-                {% if has_image_options|length > 0 %}
-                    
-                    <div class="options-grid">
-                        
-                        {% for option in question.options %}
-                            <div class="q-option">
-                                <span class="option-char">
-                                    {{ letters[loop.index0] }})
-                                </span>
-                                
-                                <div class="option-content">
-                                    {% if option.option_text and not option.option_text.startswith('http') %}
-                                        <span>{{ option.option_text }}</span>
-                                    {% endif %}
-                                    
-                                    {% if option.image_url %}
-                                        <img src="{{ option.image_url }}" class="option-img">
-                                    {% elif option.option_text and option.option_text.startswith('http') %}
-                                        <img src="{{ option.option_text }}" class="option-img">
-                                    {% endif %}
-                                </div>
-                                
-                            </div>
-                        {% endfor %}
-                        
-                    </div>
-                    
-                {% else %}
-                
-                    <div class="options-container{% if opt_layout == 'grid' %} grid-layout{% endif %}">
-                        
-                        {% for option in question.options %}
-                            <div class="q-option">
-                                <span class="option-char">
-                                    {{ letters[loop.index0] }})
-                                </span>
-                                
-                                <div class="option-content">
-                                    {% if option.option_text %}
-                                        {{ option.option_text }}
-                                    {% endif %}
-                                </div>
-                                
-                            </div>
-                        {% endfor %}
-                        
-                    </div>
-                    
-                {% endif %}
-                
-            </div>
-            
+    {# ماكرو لرسم سؤال واحد - يأخذ السؤال ورقمه #}
+    {% macro render_question(q, qnum) %}
+    {% set letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
+    {% set opt_layout = options_layout|default('vertical', true) %}
+    <div class="question-box">
+
+        <div class="q-header">
+            <span class="q-num">س{{ qnum }}:</span>
+            <span class="q-text">{{ q.question_text|default('', true) }}</span>
+        </div>
+
+        {% if q.image_url %}
+            <img src="{{ q.image_url }}" class="q-image" alt="diagram">
+        {% endif %}
+
+        {% set has_img_opts = [] %}
+        {% for opt in q.options %}
+            {% if opt.image_url or (opt.option_text and opt.option_text.startswith('http')) %}
+                {% set _ = has_img_opts.append(1) %}
+            {% endif %}
         {% endfor %}
-        
+
+        {% if has_img_opts|length > 0 %}
+            <div class="options-grid">
+                {% for opt in q.options %}
+                    <div class="q-option">
+                        <span class="option-char">{{ letters[loop.index0] }})</span>
+                        <div class="option-content">
+                            {% if opt.option_text and not opt.option_text.startswith('http') %}
+                                <span>{{ opt.option_text }}</span>
+                            {% endif %}
+                            {% if opt.image_url %}
+                                <img src="{{ opt.image_url }}" class="option-img">
+                            {% elif opt.option_text and opt.option_text.startswith('http') %}
+                                <img src="{{ opt.option_text }}" class="option-img">
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="options-container{% if opt_layout == 'grid' %} grid-layout{% endif %}">
+                {% for opt in q.options %}
+                    <div class="q-option">
+                        <span class="option-char">{{ letters[loop.index0] }})</span>
+                        <div class="option-content">
+                            {% if opt.option_text %}{{ opt.option_text }}{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
     </div>
+    {% endmacro %}
+
+    {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
+    {% if col_count == 1 %}
+
+    <div>
+        {% for question in questions %}
+            {{ render_question(question, loop.index) }}
+        {% endfor %}
+    </div>
+
+    {% else %}
+
+    {% set col_size = (questions|length / col_count)|round(0, 'ceil')|int %}
+    <table class="questions-table">
+        <tr>
+            {% for c in range(col_count) %}
+                {% set start = c * col_size %}
+                {% set end = start + col_size %}
+                <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
+                    {% for question in questions[start:end] %}
+                        {{ render_question(question, start + loop.index) }}
+                    {% endfor %}
+                </td>
+            {% endfor %}
+        </tr>
+    </table>
+
+    {% endif %}
 
     <div class="exam-end">
         <div class="end-text">
