@@ -3,7 +3,34 @@ from weasyprint import HTML
 import io
 import os
 import base64
+import threading
 from docx import Document # للحفاظ على دعم الوورد
+
+# ── Playwright browser singleton (per-process) ──────────────────────────────
+_pw_instance = None
+_pw_browser  = None
+_pw_lock     = threading.Lock()
+
+def _get_browser():
+    global _pw_instance, _pw_browser
+    with _pw_lock:
+        try:
+            if _pw_browser and _pw_browser.is_connected():
+                return _pw_browser
+        except Exception:
+            pass
+        try:
+            if _pw_instance:
+                _pw_instance.stop()
+        except Exception:
+            pass
+        from playwright.sync_api import sync_playwright
+        _pw_instance = sync_playwright().start()
+        _pw_browser  = _pw_instance.chromium.launch(args=[
+            '--no-sandbox', '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', '--disable-gpu',
+        ])
+        return _pw_browser
 
 _logo_cache = None   # cache في الذاكرة — يُحمَّل مرة واحدة فقط
 _font_cache  = {}    # {filename: 'data:font/truetype;base64,...'}
@@ -168,11 +195,27 @@ class ExamGenerator:
 
     def generate_pdf(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         html_content = self.generate_html(questions, exam_title, show_answers, **kwargs)
-        # base_url كمسار ملف مباشر — يتجنب HTTP requests للخطوط
         src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         base_url = f"file://{src_dir}/"
-        html_obj = HTML(string=html_content, base_url=base_url)
-        return html_obj.write_pdf()
+        # Playwright أسرع بـ 5-8x — WeasyPrint احتياطي إذا فشل
+        try:
+            return self._pdf_playwright(html_content, base_url)
+        except Exception as e:
+            current_app.logger.warning(f"Playwright failed, fallback to WeasyPrint: {e}")
+            return HTML(string=html_content, base_url=base_url).write_pdf()
+
+    def _pdf_playwright(self, html_content, base_url):
+        browser = _get_browser()
+        ctx  = browser.new_context()
+        page = ctx.new_page()
+        page.set_content(html_content, base_url=base_url, wait_until='load')
+        pdf  = page.pdf(
+            format='A4',
+            print_background=True,
+            margin={'top': '20mm', 'right': '15mm', 'bottom': '25mm', 'left': '15mm'},
+        )
+        ctx.close()
+        return pdf
 
     def generate_word(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
         return b""

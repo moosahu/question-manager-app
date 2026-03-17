@@ -12,6 +12,7 @@ Flask-Mail>=0.9.1
 WTForms>=3.0.0
 python-docx>=0.8.11
 weasyprint
+playwright
 html2docx
 
 # Database Support
