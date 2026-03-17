@@ -2547,7 +2547,7 @@ body { font-family: Arial, Tahoma, sans-serif; font-size: 12px; }
         pdf_buffer = io.BytesIO()
         try:
             # استخدام base_url محلي لتجنب HTTP requests
-            WeasyHTML(string=combined_html, base_url='/').write_pdf(pdf_buffer)
+            WeasyHTML(string=combined_html, base_url=None).write_pdf(pdf_buffer)
         except Exception as pdf_err:
             current_app.logger.error(f"WeasyPrint PDF generation failed: {pdf_err}")
             # Fallback: إرجاع HTML بدلاً من PDF
