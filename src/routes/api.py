@@ -4009,6 +4009,7 @@ def generate_exam():
                 grade=header.get('grade', ''),
                 subject=header.get('subject', course.name if course else ''),
                 checker_name=header.get('teacher_name', ''),
+                time=header.get('time', ''),
                 exam_date=header.get('exam_date', ''),
                 total_score=header.get('total_score', 30),
                 exam_type=header.get('exam_type', 'نهاية'),

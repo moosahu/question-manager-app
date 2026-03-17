@@ -551,13 +551,20 @@
                             <div>
                                 المادة : {{ subject }}
                             </div>
+                            {% if time %}
                             <div>
                                 الزمن : {{ time }}
                             </div>
+                            {% endif %}
                             <div>
                                 الصف : {{ grade }}
                             </div>
-                            
+                            {% if exam_date %}
+                            <div>
+                                التاريخ : {{ exam_date }}
+                            </div>
+                            {% endif %}
+
                             {% if model_letter and model_letter != '' %}
                                 <div>
                                     <strong>النموذج : {{ model_letter }}</strong>
@@ -610,16 +617,16 @@
     {% endif %}
 
     <div class="student-info">
-        {% if hf.show_student_name|default(true, true) %}
+        {% if hf.show_student_name|default(true) %}
             <span>اسم الطالب: {{ name_dots }}</span>
         {% endif %}
-        {% if hf.show_student_class|default(true, true) %}
+        {% if hf.show_student_class|default(true) %}
             <span>الشعبة: ............</span>
         {% endif %}
-        {% if hf.show_student_seat_no|default(true, true) %}
+        {% if hf.show_student_seat|default(false) %}
             <span>رقم الجلوس: ............</span>
         {% endif %}
-        {% if hf.show_student_signature|default(false, true) %}
+        {% if hf.show_student_signature|default(false) %}
             <span>التوقيع: ................</span>
         {% endif %}
     </div>
