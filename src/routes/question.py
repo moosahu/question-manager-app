@@ -3611,7 +3611,7 @@ def _remark_pdf_wrapper(sheets_html):
         '.question-column{border-left:2px solid #000;padding:4px 5px;display:flex;flex-direction:column;overflow:hidden;}'
         '.question-column:last-child{border-left:none;}'
         '.col-mcq1{width:22.5%;}.col-mcq2{width:22.5%;}.col-tf{width:16%;}.col-match{width:39%;}'
-        '.column-title{text-align:center;padding:3px;font-weight:bold;font-size:11px;margin-bottom:3px;border-radius:3px;color:white;background:#555;border:1px solid #000;}'
+        '.column-title{text-align:center;padding:3px;font-weight:bold;font-size:11px;margin-bottom:3px;border-radius:3px;color:#000;background:white;border:2px solid #000;}'
         '.column-title.mcq{}.column-title.tf{}.column-title.matching{}'
         '.questions-grid{display:flex;flex-direction:row;gap:0 6px;flex:1;overflow:hidden;}'
         '.questions-grid>div{flex:1;overflow:hidden;display:flex;flex-direction:column;}'
