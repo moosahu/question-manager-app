@@ -3521,6 +3521,324 @@ body {{
 
 
 # =====================================================
+# ===== ورقة التظليل Remark — PDF Endpoints =====
+# =====================================================
+
+def _remark_header_context(exam_type='نهاية', semester='الأول', academic_year='1447هـ'):
+    """دالة مساعدة: تجيب إعدادات الكليشة + الشعار Base64"""
+    settings = ExamHeaderSettings.query.first()
+    ctx = {
+        'country':              settings.country             if settings else 'المملكة العربية السعودية',
+        'ministry':             settings.ministry            if settings else 'وزارة التعليم',
+        'education_department': settings.education_department if settings else '',
+        'school_name':          settings.school_name         if settings else '',
+        'subject':              settings.subject             if settings else '',
+        'grade':                settings.grade               if settings else '',
+        'total_score':          settings.total_score         if settings else 30,
+        'exam_type':            exam_type,
+        'semester':             semester,
+        'academic_year':        academic_year,
+        'logo_base64':          '',
+    }
+    try:
+        logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                ctx['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+    except Exception:
+        pass
+    return ctx
+
+
+def _html_to_pdf_response(html_str, filename):
+    """دالة مساعدة: تحوّل HTML إلى PDF وترجعه كـ send_file"""
+    from weasyprint import HTML as WeasyHTML
+    buf = io.BytesIO()
+    try:
+        WeasyHTML(string=html_str, base_url='/').write_pdf(buf)
+    except Exception as e:
+        current_app.logger.error(f"WeasyPrint error: {e}")
+        return html_str, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    buf.seek(0)
+    return send_file(buf, mimetype='application/pdf', as_attachment=True, download_name=filename)
+
+
+@question_bp.route('/remark-blank-pdf', methods=['POST'])
+@login_required
+def remark_blank_pdf():
+    """ورقة تظليل فارغة → PDF"""
+    try:
+        data             = request.get_json()
+        models           = data.get('models', ['أ'])
+        count_per_model  = int(data.get('count_per_model', 10))
+        question_ids     = data.get('question_ids', [])
+        exam_type        = data.get('exam_type', 'نهاية')
+        semester         = data.get('semester', 'الأول')
+        academic_year    = data.get('academic_year', '1447هـ')
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        questions_count = len(get_ordered_questions(question_ids))
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+
+        all_html = ""
+        for model_letter in models:
+            for _ in range(count_per_model):
+                all_html += render_template(
+                    'question/remark_answer_sheet.html',
+                    student={
+                        'name':         '..........................................',
+                        'academic_id':  '..........................................',
+                        'section':      '.....',
+                        'barcode':      None,
+                        'model_letter': model_letter,
+                        'seat_no':      '',
+                    },
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,
+                    questions_count=questions_count,
+                    **ctx
+                )
+                all_html += '<div style="page-break-after: always;"></div>'
+
+        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
+        fname = f'remark_blank_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        return _html_to_pdf_response(full_html, fname)
+
+    except Exception as e:
+        current_app.logger.exception(f"remark_blank_pdf error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/remark-answer-key-pdf', methods=['POST'])
+@login_required
+def remark_answer_key_pdf():
+    """مفاتيح إجابة ريمارك → PDF (نموذج واحد أو كل النماذج)"""
+    try:
+        data          = request.get_json()
+        question_ids  = data.get('question_ids', [])
+        models        = data.get('models', ['أ'])
+        shuffle_opts  = data.get('shuffle_options', True)
+        exam_type     = data.get('exam_type', 'نهاية')
+        semester      = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        questions = get_ordered_questions(question_ids)
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+
+        questions_data = []
+        for q in questions:
+            q_dict = {'question_id': q.question_id, 'options': []}
+            for opt in q.options:
+                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
+            questions_data.append(q_dict)
+
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+        all_html = ""
+
+        for idx, model_letter in enumerate(models):
+            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
+
+            answers = {}
+            for q_num, q in enumerate(shuffled, 1):
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
+                        break
+
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                student={'name': f'مفتاح الإجابة - نموذج {model_letter}', 'academic_id': '---', 'section': '---', 'barcode': None},
+                is_answer_key=True,
+                answers=answers,
+                model_letter=model_letter,
+                exam_type=exam_type,
+                semester=semester,
+                academic_year=academic_year,
+                questions_count=len(questions),
+                **ctx
+            )
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
+        fname = f'remark_answer_key_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        return _html_to_pdf_response(full_html, fname)
+
+    except Exception as e:
+        current_app.logger.exception(f"remark_answer_key_pdf error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/remark-students-pdf', methods=['POST'])
+@login_required
+def remark_students_pdf():
+    """
+    ورقة تظليل بأسماء الطلاب → PDF
+    يقبل مصدرين:
+      - students: [{name, academic_id, section, seat_no}]  ← من Excel
+      - student_ids: [1, 2, 3]                              ← من DB
+    """
+    try:
+        data          = request.get_json()
+        question_ids  = data.get('question_ids', [])
+        models        = data.get('models', ['أ'])
+        shuffle_opts  = data.get('shuffle_options', True)
+        exam_type     = data.get('exam_type', 'نهاية')
+        semester      = data.get('semester', 'الأول')
+        academic_year = data.get('academic_year', '1447هـ')
+
+        if not question_ids:
+            return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
+
+        # ── جلب الطلاب ──────────────────────────────────────────────
+        students_list = data.get('students', [])
+
+        if not students_list:
+            # من قاعدة البيانات
+            student_ids = data.get('student_ids', [])
+            if not student_ids:
+                return jsonify({'error': 'لم يتم تحديد طلاب'}), 400
+            try:
+                from src.models.student import Student as StudentModel
+            except ImportError:
+                from models.student import Student as StudentModel
+            db_students = StudentModel.query.filter(StudentModel.id.in_(student_ids)).all()
+            for idx, s in enumerate(db_students):
+                students_list.append({
+                    'name':        s.name,
+                    'academic_id': str(s.id),
+                    'section':     s.grade or '',
+                    'seat_no':     str(idx + 1),
+                })
+
+        if not students_list:
+            return jsonify({'error': 'لا يوجد طلاب'}), 400
+
+        # ── جلب الأسئلة ─────────────────────────────────────────────
+        questions = get_ordered_questions(question_ids)
+        if not questions:
+            return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
+
+        questions_data = []
+        for q in questions:
+            q_dict = {'question_id': q.question_id, 'options': []}
+            for opt in q.options:
+                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
+            questions_data.append(q_dict)
+
+        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        ctx = _remark_header_context(exam_type, semester, academic_year)
+
+        # ── بناء مفاتيح الإجابة لكل نموذج ──────────────────────────
+        answer_keys = {}
+        for idx, model_letter in enumerate(models):
+            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
+            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
+            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
+            model_answers = {}
+            for q_num, q in enumerate(shuffled, 1):
+                for i, opt in enumerate(q.get('options', [])):
+                    if opt.get('is_correct'):
+                        model_answers[q_num] = letters[i] if i < len(letters) else str(i+1)
+                        break
+            answer_keys[model_letter] = model_answers
+
+        # ── توزيع الطلاب على النماذج ────────────────────────────────
+        per_model   = len(students_list) // len(models)
+        remainder   = len(students_list) % len(models)
+        all_html    = ""
+        student_idx = 0
+
+        for m_idx, model_letter in enumerate(models):
+            count = per_model + (1 if m_idx < remainder else 0)
+            for _ in range(count):
+                if student_idx >= len(students_list):
+                    break
+                s = dict(students_list[student_idx])
+                student_idx += 1
+                # رقم الجلوس: من البيانات أو تسلسلي
+                if not s.get('seat_no'):
+                    s['seat_no'] = str(student_idx)
+                # باركود
+                acad_id = s.get('academic_id', '')
+                s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
+                s['model_letter'] = model_letter
+
+                all_html += render_template(
+                    'question/remark_answer_sheet.html',
+                    student=s,
+                    model_letter=model_letter,
+                    is_answer_key=False,
+                    answers=None,
+                    questions_count=len(questions_data),
+                    **ctx
+                )
+                all_html += '<div style="page-break-after: always;"></div>'
+
+        # ── مفاتيح الإجابة في النهاية ────────────────────────────────
+        for model_letter in models:
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                student={'name': f'مفتاح الإجابة - نموذج {model_letter}', 'academic_id': '---', 'section': '---', 'barcode': None},
+                is_answer_key=True,
+                answers=answer_keys[model_letter],
+                model_letter=model_letter,
+                questions_count=len(questions_data),
+                **ctx
+            )
+            all_html += '<div style="page-break-after: always;"></div>'
+
+        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
+        fname = f'remark_students_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        return _html_to_pdf_response(full_html, fname)
+
+    except Exception as e:
+        current_app.logger.exception(f"remark_students_pdf error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@question_bp.route('/remark-excel-template', methods=['GET'])
+@login_required
+def remark_excel_template():
+    """تحميل نموذج Excel فارغ لرفع أسماء الطلاب"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'قائمة الطلاب'
+        headers = ['الاسم', 'الرقم الأكاديمي', 'الشعبة', 'رقم الجلوس']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font      = Font(bold=True, color='FFFFFF')
+            cell.fill      = PatternFill('solid', fgColor='2563EB')
+            cell.alignment = Alignment(horizontal='center')
+            ws.column_dimensions[chr(64 + col)].width = 22
+        # صفوف مثال
+        ws.append(['أحمد محمد علي', '202501001', 'أ', '1'])
+        ws.append(['سارة خالد المطيري', '202501002', 'ب', '2'])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                         as_attachment=True, download_name='نموذج_قائمة_الطلاب.xlsx')
+    except Exception as e:
+        current_app.logger.exception(f"remark_excel_template error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
 # ===== صفحة تصنيف الأسئلة بالذكاء الاصطناعي =====
 # =====================================================
 
