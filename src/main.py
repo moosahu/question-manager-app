@@ -2978,13 +2978,6 @@ def create_app():
     except Exception as e:
         print(f"⚠️ تعذّر بدء automation_scheduler من create_app: {e}")
 
-    # تسخين خطوط WeasyPrint في الخلفية (كل الخطوط المتاحة)
-    try:
-        from src.routes.exam_generator import prewarm_fonts
-        prewarm_fonts(app)
-    except Exception as e:
-        print(f"⚠️ prewarm_fonts: {e}")
-
     return app
 
 if __name__ == "__main__":
