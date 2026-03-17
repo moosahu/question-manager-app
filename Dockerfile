@@ -21,7 +21,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# تثبيت Chromium لـ Playwright
+# تثبيت Chromium لـ Playwright في مسار ثابت
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install chromium --with-deps
 
 COPY . .
