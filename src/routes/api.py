@@ -9,6 +9,26 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 
+
+def teacher_or_admin_required(f):
+    """Decorator يقبل أدمن (session) أو معلم (X-Session-Token)"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # أدمن عبر Flask-Login session
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+        # معلم عبر X-Session-Token
+        from src.models.teacher import Teacher
+        session_token = request.headers.get('X-Session-Token')
+        if session_token:
+            teacher = Teacher.query.filter_by(
+                session_token=session_token, is_active=True
+            ).first()
+            if teacher:
+                return f(*args, **kwargs)
+        return jsonify({'success': False, 'error': 'يرجى تسجيل الدخول'}), 401
+    return decorated
+
 # إعداد logger
 logger = logging.getLogger(__name__)
 
@@ -3805,6 +3825,7 @@ def generate_exam():
 
 
 @api_bp.route("/courses/<int:course_id>/units/<int:unit_id>/lessons", methods=["GET"])
+@teacher_or_admin_required
 def get_unit_lessons_export(course_id, unit_id):
     """
     الحصول على جميع دروس وحدة معينة
@@ -3841,6 +3862,7 @@ def get_unit_lessons_export(course_id, unit_id):
 
 
 @api_bp.route("/units/<int:unit_id>/questions-count", methods=["GET"])
+@teacher_or_admin_required
 def get_unit_questions_count(unit_id):
     """
     الحصول على عدد الأسئلة في وحدة معينة
@@ -3876,6 +3898,7 @@ def get_unit_questions_count(unit_id):
 
 
 @api_bp.route("/lessons/<int:lesson_id>/questions-count", methods=["GET"])
+@teacher_or_admin_required
 def get_lesson_questions_count(lesson_id):
     """
     الحصول على عدد الأسئلة في درس معين
@@ -3911,6 +3934,7 @@ def get_lesson_questions_count(lesson_id):
 
 
 @api_bp.route("/courses/<int:course_id>/questions-count", methods=["GET"])
+@teacher_or_admin_required
 def get_course_questions_count(course_id):
     """
     الحصول على عدد الأسئلة في منهج معين
