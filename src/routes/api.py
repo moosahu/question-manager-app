@@ -11,12 +11,30 @@ from flask_login import login_required, current_user
 
 
 def teacher_or_admin_required(f):
-    """Decorator يقبل أدمن (session) أو معلم (X-Session-Token)"""
+    """Decorator يقبل أدمن (session) أو معلم (JWT أو X-Session-Token)"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        import jwt as pyjwt
+
         # أدمن عبر Flask-Login session
         if current_user.is_authenticated:
             return f(*args, **kwargs)
+
+        # معلم عبر JWT Bearer token
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+            try:
+                data = pyjwt.decode(
+                    token,
+                    current_app.config['JWT_SECRET_KEY'],
+                    algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
+                )
+                if data.get('user_type') == 'teacher':
+                    return f(*args, **kwargs)
+            except Exception:
+                pass
+
         # معلم عبر X-Session-Token
         from src.models.teacher import Teacher
         session_token = request.headers.get('X-Session-Token')
@@ -26,6 +44,7 @@ def teacher_or_admin_required(f):
             ).first()
             if teacher:
                 return f(*args, **kwargs)
+
         return jsonify({'success': False, 'error': 'يرجى تسجيل الدخول'}), 401
     return decorated
 
