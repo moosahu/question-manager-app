@@ -3550,12 +3550,102 @@ def _remark_header_context(exam_type='نهاية', semester='الأول', academ
     return ctx
 
 
+def _remark_pdf_wrapper(sheets_html):
+    """يلف صفحات ورقة التظليل في HTML واحد صحيح مع CSS مرة واحدة فقط"""
+    # نولّد صفحة واحدة بوضع standalone=True للحصول على الـ CSS
+    # ثم نستخدم standalone=False لباقي الصفحات
+    return (
+        '<!DOCTYPE html><html dir="rtl" lang="ar">'
+        '<head><meta charset="UTF-8">'
+        '<style>'
+        '@page{size:A4 landscape;margin:5mm;}'
+        '*{margin:0;padding:0;box-sizing:border-box;}'
+        'html,body{width:100%;background:white;font-family:"Noto Sans Arabic","DejaVu Sans",Arial,sans-serif;font-size:12px;}'
+        '.sheet-container{width:285mm;height:190mm;border:2px solid #000;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;}'
+        '.sheet-container:not(:first-of-type){page-break-before:always;}'
+        '.sheet-top{display:flex;flex-direction:row;flex-shrink:0;}'
+        '.top-right{width:47%;border-left:2px solid #000;border-bottom:2px solid #000;padding:8px;display:flex;flex-direction:column;}'
+        '.top-left{width:53%;border-bottom:2px solid #000;padding:8px;display:flex;flex-direction:column;}'
+        '.logo-section{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;}'
+        '.logo-img{width:65px;height:auto;}'
+        '.ministry-info{flex:1;text-align:right;font-size:11px;line-height:1.4;}'
+        '.ministry-info .title{font-weight:bold;color:#1a5c4c;font-size:12px;}'
+        '.school-name{font-weight:bold;color:#c41e3a;font-size:12px;margin-top:2px;}'
+        '.exam-info-box{background:#f0f7f0;border:1px solid #1a5c4c;border-radius:4px;padding:6px;margin-top:5px;font-size:11px;}'
+        '.dor-section{display:flex;gap:15px;align-items:center;margin-top:5px;}'
+        '.dor-option{display:flex;align-items:center;gap:4px;font-weight:bold;}'
+        '.checkbox{width:16px;height:16px;border:2px solid #000;display:inline-block;background:white;}'
+        '.instructions-box{background:#fff8e1;border:2px solid #f9a825;border-radius:5px;padding:6px;margin-top:6px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px;flex:1;}'
+        '.instructions-content{flex:1;}'
+        '.instructions-title{font-weight:bold;color:#e65100;margin-bottom:3px;font-size:12px;}'
+        '.instructions-list{font-size:10px;line-height:1.5;list-style:disc;padding-right:14px;color:#333;font-weight:bold;}'
+        '.shading-example{display:flex;flex-direction:column;gap:6px;padding:3px;min-width:80px;}'
+        '.shading-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:bold;}'
+        '.bubble-correct{width:20px;height:20px;background:#000;border-radius:50%;}'
+        '.bubble-wrong{width:20px;height:20px;border:2px solid #000;border-radius:50%;text-align:center;line-height:16px;color:#c41e3a;font-weight:bold;}'
+        '.student-section{display:flex;flex-direction:row;gap:6px;margin-bottom:6px;}'
+        '.student-name-box{flex:1;background:#e3f2fd;border:2px solid #1976d2;border-radius:5px;padding:5px;display:flex;flex-direction:column;justify-content:center;}'
+        '.student-name-label{font-size:10px;color:#555;margin-bottom:2px;font-weight:bold;}'
+        '.student-name{font-size:15px;font-weight:bold;color:#1565c0;}'
+        '.barcode-box{display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #4caf50;padding:4px;border-radius:5px;background:#f1f8f4;width:185px;}'
+        '.barcode-img{width:168px;height:55px;}'
+        '.barcode-id-box{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #ccc;padding:4px 8px;border-radius:4px;background:#fafafa;width:125px;}'
+        '.status-options{display:flex;gap:8px;justify-content:center;margin-bottom:2px;font-size:10px;font-weight:bold;}'
+        '.academic-id-label{font-size:9px;color:#666;margin-bottom:2px;text-align:center;}'
+        '.academic-id-number{font-size:17px;font-weight:bold;letter-spacing:2px;}'
+        '.info-grid{display:flex;flex-direction:row;gap:4px;margin:4px 0;}'
+        '.info-item{flex:1;text-align:center;border:1px solid #000;padding:3px;background:#fafafa;}'
+        '.info-label{font-size:10px;color:#333;font-weight:bold;}'
+        '.info-value{font-size:11px;font-weight:bold;}'
+        '.score-table-section{margin-top:4px;border:2px solid #000;}'
+        '.score-table{width:100%;border-collapse:collapse;}'
+        '.score-table th{background:#ddd;border:1px solid #000;padding:2px;text-align:center;font-size:10px;font-weight:bold;}'
+        '.score-table td{border:1px solid #000;padding:2px;text-align:center;height:26px;vertical-align:middle;}'
+        '.score-bubble{width:13px;height:13px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.score-num-header{font-size:11px;font-weight:bold;display:block;}'
+        '.model-section{display:flex;align-items:center;gap:12px;margin-top:6px;padding:5px;background:#f5f5f5;border:1px solid #999;justify-content:center;}'
+        '.model-bubbles{display:flex;flex-direction:column;align-items:center;gap:2px;}'
+        '.model-bubble{width:17px;height:17px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.model-bubble.selected{background:#000;}'
+        '.questions-section{display:flex;flex-direction:row;flex:1;border-top:2px solid #000;overflow:hidden;}'
+        '.question-column{border-left:2px solid #000;padding:4px 5px;display:flex;flex-direction:column;overflow:hidden;}'
+        '.question-column:last-child{border-left:none;}'
+        '.col-mcq1{width:22.5%;}.col-mcq2{width:22.5%;}.col-tf{width:16%;}.col-match{width:39%;}'
+        '.column-title{text-align:center;padding:3px;font-weight:bold;font-size:11px;margin-bottom:3px;border-radius:3px;color:white;border:1px solid #000;}'
+        '.column-title.mcq{background:#1a5c4c;}.column-title.tf{background:#e65100;}.column-title.matching{background:#7b1fa2;}'
+        '.questions-grid{display:flex;flex-direction:row;gap:0 6px;flex:1;overflow:hidden;}'
+        '.questions-grid>div{flex:1;overflow:hidden;}'
+        '.questions-grid.matching-grid{flex-direction:column;}'
+        '.questions-grid.matching-grid>div{flex:none;}'
+        '.question-row{display:flex;align-items:center;justify-content:center;padding:1px 0;gap:3px;}'
+        '.question-num{width:19px;font-weight:bold;font-size:10px;text-align:center;}'
+        '.answer-bubble{width:14px;height:14px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.answer-bubble.filled{background:#000;}'
+        '.column-headers{margin-bottom:4px;padding-bottom:3px;border-bottom:2px solid #333;display:flex;flex-direction:column;align-items:center;margin-right:22px;}'
+        '.bubbles-labels-ar{display:flex;gap:4px;font-size:10px;font-weight:bold;color:#000;margin-bottom:1px;}'
+        '.bubbles-labels-ar span{width:14px;text-align:center;display:inline-block;}'
+        '.bubbles-labels-en{display:flex;gap:4px;font-size:9px;font-weight:bold;color:#666;margin-bottom:1px;}'
+        '.bubbles-labels-en span{width:14px;text-align:center;display:inline-block;}'
+        '.bubbles-row-only{display:flex;gap:4px;}'
+        '.matching-bubble{width:14px;height:14px;border:2px solid #000;border-radius:50%;display:inline-block;background:white;}'
+        '.matching-bubble.filled{background:#000;}'
+        '.matching-labels-ar{display:flex;gap:4px;font-size:10px;font-weight:bold;color:#000;margin-bottom:1px;}'
+        '.matching-labels-ar span{width:14px;text-align:center;display:inline-block;}'
+        '.matching-labels-en{display:flex;gap:4px;font-size:9px;font-weight:bold;color:#666;margin-bottom:1px;}'
+        '.matching-labels-en span{width:14px;text-align:center;display:inline-block;}'
+        '.matching-row-only{display:flex;gap:4px;}'
+        '</style></head><body>'
+        + sheets_html
+        + '</body></html>'
+    )
+
+
 def _html_to_pdf_response(html_str, filename):
     """دالة مساعدة: تحوّل HTML إلى PDF وترجعه كـ send_file"""
     from weasyprint import HTML as WeasyHTML
     buf = io.BytesIO()
     try:
-        WeasyHTML(string=html_str, base_url='/').write_pdf(buf)
+        WeasyHTML(string=html_str, base_url=None).write_pdf(buf)
     except Exception as e:
         current_app.logger.error(f"WeasyPrint error: {e}")
         return html_str, 200, {'Content-Type': 'text/html; charset=utf-8'}
@@ -3587,6 +3677,7 @@ def remark_blank_pdf():
             for _ in range(count_per_model):
                 all_html += render_template(
                     'question/remark_answer_sheet.html',
+                    standalone=False,
                     student={
                         'name':         '..........................................',
                         'academic_id':  '..........................................',
@@ -3601,11 +3692,9 @@ def remark_blank_pdf():
                     questions_count=questions_count,
                     **ctx
                 )
-                all_html += '<div style="page-break-after: always;"></div>'
 
-        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
         fname = f'remark_blank_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-        return _html_to_pdf_response(full_html, fname)
+        return _html_to_pdf_response(_remark_pdf_wrapper(all_html), fname)
 
     except Exception as e:
         current_app.logger.exception(f"remark_blank_pdf error: {e}")
@@ -3658,6 +3747,7 @@ def remark_answer_key_pdf():
 
             all_html += render_template(
                 'question/remark_answer_sheet.html',
+                standalone=False,
                 student={'name': f'مفتاح الإجابة - نموذج {model_letter}', 'academic_id': '---', 'section': '---', 'barcode': None},
                 is_answer_key=True,
                 answers=answers,
@@ -3665,11 +3755,9 @@ def remark_answer_key_pdf():
                 questions_count=len(questions),
                 **ctx
             )
-            all_html += '<div style="page-break-after: always;"></div>'
 
-        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
         fname = f'remark_answer_key_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-        return _html_to_pdf_response(full_html, fname)
+        return _html_to_pdf_response(_remark_pdf_wrapper(all_html), fname)
 
     except Exception as e:
         current_app.logger.exception(f"remark_answer_key_pdf error: {e}")
@@ -3774,6 +3862,7 @@ def remark_students_pdf():
 
                 all_html += render_template(
                     'question/remark_answer_sheet.html',
+                    standalone=False,
                     student=s,
                     model_letter=model_letter,
                     is_answer_key=False,
@@ -3781,12 +3870,12 @@ def remark_students_pdf():
                     questions_count=len(questions_data),
                     **ctx
                 )
-                all_html += '<div style="page-break-after: always;"></div>'
 
         # ── مفاتيح الإجابة في النهاية ────────────────────────────────
         for model_letter in models:
             all_html += render_template(
                 'question/remark_answer_sheet.html',
+                standalone=False,
                 student={'name': f'مفتاح الإجابة - نموذج {model_letter}', 'academic_id': '---', 'section': '---', 'barcode': None},
                 is_answer_key=True,
                 answers=answer_keys[model_letter],
@@ -3794,11 +3883,9 @@ def remark_students_pdf():
                 questions_count=len(questions_data),
                 **ctx
             )
-            all_html += '<div style="page-break-after: always;"></div>'
 
-        full_html = f'<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body>{all_html}</body></html>'
         fname = f'remark_students_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-        return _html_to_pdf_response(full_html, fname)
+        return _html_to_pdf_response(_remark_pdf_wrapper(all_html), fname)
 
     except Exception as e:
         current_app.logger.exception(f"remark_students_pdf error: {e}")
