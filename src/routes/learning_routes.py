@@ -26,6 +26,7 @@ def api_get_lesson_content(lesson_id):
     from flask import session
     from flask_login import current_user
     from src.models.student import Student
+    from src.models.teacher import Teacher
 
     student_id = None
     is_admin_view = False
@@ -35,23 +36,31 @@ def api_get_lesson_content(lesson_id):
         is_admin_view = True
 
     if not is_admin_view:
-        # محاولة 1: Session Cookie للطالب
-        if 'user_id' in session:
-            student_id = session['user_id']
+        # محاولة 1: معلم عبر X-Session-Token
+        session_token = request.headers.get('X-Session-Token')
+        if session_token:
+            teacher = Teacher.query.filter_by(session_token=session_token, is_active=True).first()
+            if teacher:
+                is_admin_view = True  # المعلم يرى المحتوى بدون تتبع تقدم
 
-        # محاولة 2: Device ID من Header
-        if not student_id:
-            device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
-            if device_id:
-                student = Student.query.filter_by(device_id=device_id).first()
-                if student:
-                    student_id = student.id
+        if not is_admin_view:
+            # محاولة 2: Session Cookie للطالب
+            if 'user_id' in session:
+                student_id = session['user_id']
 
-        if not student_id:
-            return jsonify({
-                'success': False,
-                'error': 'يرجى تسجيل الدخول أولاً'
-            }), 401
+            # محاولة 3: Device ID من Header
+            if not student_id:
+                device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+                if device_id:
+                    student = Student.query.filter_by(device_id=device_id).first()
+                    if student:
+                        student_id = student.id
+
+            if not student_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'يرجى تسجيل الدخول أولاً'
+                }), 401
 
     try:
         # التحقق من وجود الدرس
@@ -126,16 +135,28 @@ def api_update_progress(lesson_id):
         "total_nodes": 5
     }
     """
-    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
     from src.models.student import Student
-    
+    from src.models.teacher import Teacher
+    from flask_login import current_user
+
     student_id = None
-    
+
+    # محاولة 0: أدمن عبر Flask-Login
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        return jsonify({'success': True, 'progress': None, 'message': 'لا يتتبع تقدم الأدمن'})
+
+    # محاولة 1: معلم عبر X-Session-Token
+    session_token = request.headers.get('X-Session-Token')
+    if session_token:
+        teacher = Teacher.query.filter_by(session_token=session_token, is_active=True).first()
+        if teacher:
+            return jsonify({'success': True, 'progress': None, 'message': 'لا يتتبع تقدم المعلم'})
+
     # محاولة 1: Session Cookie
     if 'user_id' in session:
         student_id = session['user_id']
-    
+
     # محاولة 2: Device ID من Header
     if not student_id:
         device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
@@ -143,7 +164,7 @@ def api_update_progress(lesson_id):
             student = Student.query.filter_by(device_id=device_id).first()
             if student:
                 student_id = student.id
-    
+
     if not student_id:
         return jsonify({
             'success': False,
@@ -219,10 +240,9 @@ def api_get_all_lessons():
     """
     API: جلب جميع الدروس مع تقدم الطالب (منظمة حسب المناهج والوحدات)
     """
-    # ✅ التحقق من الجلسة - نفس طريقة verify-session
     from flask import session
     from src.models.student import Student
-    
+    from src.models.teacher import Teacher
     from flask_login import current_user
 
     student_id = None
@@ -231,29 +251,33 @@ def api_get_all_lessons():
     # محاولة 0: أدمن عبر Flask-Login
     if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
         is_admin_view = True
-        print("✅ Admin viewing lessons (read-only mode)")
 
     if not is_admin_view:
-        # محاولة 1: Session Cookie للطالب
-        if 'user_id' in session:
-            student_id = session['user_id']
-            print(f"✅ Student authenticated via session: {student_id}")
+        # محاولة 1: معلم عبر X-Session-Token
+        session_token = request.headers.get('X-Session-Token')
+        if session_token:
+            teacher = Teacher.query.filter_by(session_token=session_token, is_active=True).first()
+            if teacher:
+                is_admin_view = True  # المعلم يرى كل الدروس بدون تتبع تقدم
 
-        # محاولة 2: Device ID من Header
-        if not student_id:
-            device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
-            if device_id:
-                student = Student.query.filter_by(device_id=device_id).first()
-                if student:
-                    student_id = student.id
-                    print(f"✅ Student authenticated via device_id: {student_id}")
+        if not is_admin_view:
+            # محاولة 2: Session Cookie للطالب
+            if 'user_id' in session:
+                student_id = session['user_id']
 
-        if not student_id:
-            print("❌ No authentication found")
-            return jsonify({
-                'success': False,
-                'error': 'يرجى تسجيل الدخول أولاً'
-            }), 401
+            # محاولة 3: Device ID من Header
+            if not student_id:
+                device_id = request.headers.get('X-Device-ID') or request.headers.get('Device-ID')
+                if device_id:
+                    student = Student.query.filter_by(device_id=device_id).first()
+                    if student:
+                        student_id = student.id
+
+            if not student_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'يرجى تسجيل الدخول أولاً'
+                }), 401
     
     try:
         # جلب الدروس فقط من المناهج المفعلة للطلاب
