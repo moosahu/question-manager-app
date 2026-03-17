@@ -3662,9 +3662,6 @@ def remark_answer_key_pdf():
                 is_answer_key=True,
                 answers=answers,
                 model_letter=model_letter,
-                exam_type=exam_type,
-                semester=semester,
-                academic_year=academic_year,
                 questions_count=len(questions),
                 **ctx
             )
