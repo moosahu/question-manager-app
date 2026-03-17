@@ -47,6 +47,18 @@
             font-weight: normal;
             font-style: normal;
         }
+        @font-face {
+            font-family: 'TraditionalArabic';
+            src: url('/static/fonts/TraditionalArabic-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Tahoma';
+            src: url('/static/fonts/Tahoma-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
 
         /* =============================================
            إعدادات الصفحة لـ WeasyPrint
@@ -87,7 +99,7 @@
         }
 
         body {
-            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% elif font_family == 'cairo' %}'Cairo'{% elif font_family == 'scheherazade' %}'Scheherazade'{% elif font_family == 'tajawal' %}'Tajawal'{% else %}'Traditional Arabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
+            font-family: {% if font_family == 'amiri' %}'Amiri'{% elif font_family == 'noto' %}'NotoNaskhArabic'{% elif font_family == 'cairo' %}'Cairo'{% elif font_family == 'scheherazade' %}'Scheherazade'{% elif font_family == 'tajawal' %}'Tajawal'{% elif font_family == 'traditional' %}'TraditionalArabic'{% elif font_family == 'tahoma' %}'Tahoma'{% else %}'TraditionalArabic', 'Tahoma'{% endif %}, 'Traditional Arabic', 'Simplified Arabic', 'Tahoma', 'Arial', sans-serif;
             font-size: {{ font_size|default(14, true) }}px;
             line-height: 1.5;
             color: #000;
