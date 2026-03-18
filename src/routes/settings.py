@@ -356,6 +356,78 @@ def verify_2fa():
 from datetime import datetime, timedelta
 import json
 
+# ── 2FA API endpoints للتطبيق (stateless — بدون session) ──────────────────
+
+@settings_bp.route('/api/v1/2fa/status', methods=['GET'])
+@login_required
+def api_2fa_status():
+    """حالة التحقق بخطوتين للمستخدم الحالي"""
+    return jsonify({
+        'success': True,
+        'enabled': bool(getattr(current_user, 'two_factor_auth', False))
+    })
+
+@settings_bp.route('/api/v1/2fa/setup', methods=['GET'])
+@login_required
+def api_2fa_setup():
+    """توليد QR code + secret جديد (stateless)"""
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(
+        name=current_user.email or current_user.username,
+        issuer_name='الكيمياء التحصيلي'
+    )
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(provisioning_uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
+    img_buffer = io.BytesIO()
+    img.save(img_buffer, format='PNG')
+    img_buffer.seek(0)
+    img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+    return jsonify({
+        'success': True,
+        'secret': secret,
+        'qr_code': img_base64
+    })
+
+@settings_bp.route('/api/v1/2fa/enable', methods=['POST'])
+@login_required
+def api_2fa_enable():
+    """تفعيل 2FA — يستقبل {secret, code}"""
+    data = request.get_json() or {}
+    secret = data.get('secret', '').strip()
+    code   = data.get('code', '').strip()
+    if not secret or not code:
+        return jsonify({'success': False, 'message': 'secret و code مطلوبان'}), 400
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code):
+        return jsonify({'success': False, 'message': 'رمز التحقق غير صحيح'}), 400
+    current_user.totp_secret     = secret
+    current_user.two_factor_auth = True
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'تم تفعيل التحقق بخطوتين'})
+
+@settings_bp.route('/api/v1/2fa/disable', methods=['POST'])
+@login_required
+def api_2fa_disable():
+    """إلغاء 2FA — يستقبل {code}"""
+    data = request.get_json() or {}
+    code = data.get('code', '').strip()
+    if not code:
+        return jsonify({'success': False, 'message': 'رمز التحقق مطلوب'}), 400
+    if not getattr(current_user, 'totp_secret', None):
+        return jsonify({'success': False, 'message': 'التحقق بخطوتين غير مفعّل'}), 400
+    totp = pyotp.TOTP(current_user.totp_secret)
+    if not totp.verify(code):
+        return jsonify({'success': False, 'message': 'رمز التحقق غير صحيح'}), 400
+    current_user.two_factor_auth = False
+    current_user.totp_secret     = None
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'تم إلغاء التحقق بخطوتين'})
+
+# ──────────────────────────────────────────────────────────────────────────────
+
 @settings_bp.route('/api/v1/google-drive/connect', methods=['POST'])
 @login_required
 def google_drive_connect():
