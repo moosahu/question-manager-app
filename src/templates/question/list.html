@@ -97,11 +97,27 @@
                                     <label for="course_id" class="form-label">المنهج</label>
                                     <select class="form-select" id="course_id" name="course_id">
                                         <option value="">-- اختر المنهج --</option>
-                                        {% for course in courses %}
-                                            <option value="{{ course.id }}" {% if request.args.get('course_id') == course.id|string %}selected{% endif %}>
-                                                {{ course.name }}
-                                            </option>
-                                        {% endfor %}
+                                        {% set regular_courses = courses | selectattr('is_bank', 'equalto', False) | list %}
+                                        {% set bank_courses = courses | selectattr('is_bank', 'equalto', True) | list %}
+                                        {% if regular_courses and bank_courses %}
+                                            <optgroup label="📚 المناهج العادية">
+                                                {% for course in regular_courses %}
+                                                    <option value="{{ course.id }}" {% if request.args.get('course_id') == course.id|string %}selected{% endif %}>{{ course.name }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                            <optgroup label="🏦 بنك الأسئلة">
+                                                {% for course in bank_courses %}
+                                                    <option value="{{ course.id }}" {% if request.args.get('course_id') == course.id|string %}selected{% endif %} style="color:#b45309;font-weight:bold;">🏦 {{ course.name }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% else %}
+                                            {% for course in courses %}
+                                                <option value="{{ course.id }}" {% if request.args.get('course_id') == course.id|string %}selected{% endif %}
+                                                    {% if course.is_bank %}style="color:#b45309;font-weight:bold;"{% endif %}>
+                                                    {% if course.is_bank %}🏦 {% endif %}{{ course.name }}
+                                                </option>
+                                            {% endfor %}
+                                        {% endif %}
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -579,11 +595,9 @@
             // حفظ المنهج المختار حالياً (إن وجد)
             const currentSelectedCourse = courseSelect.value;
             
-            console.log('=== تحميل المناهج من API ===');
-            console.log('المنهج المختار حالياً:', currentSelectedCourse);
-            
-            // تحميل المناهج من API
-            fetch('/api/v1/courses?show_all=true')
+            // المناهج محمّلة مباشرة من الـ server — لا حاجة لـ AJAX
+            // نحمّل الوحدات فقط إذا كان هناك منهج مختار
+            if (false) fetch('/api/v1/courses?show_all=true')
                 .then(response => {
                     console.log('API Response status:', response.status);
                     if (!response.ok) {
