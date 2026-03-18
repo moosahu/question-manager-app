@@ -470,6 +470,15 @@ try:
         except ImportError:
             print("Warning: Could not import TeacherStudent model.")
 
+    # استيراد TeacherExportLog لضمان إنشاء جدول teacher_export_logs عند db.create_all()
+    try:
+        from src.models.teacher_export_log import TeacherExportLog  # noqa: F401
+    except ImportError:
+        try:
+            from models.teacher_export_log import TeacherExportLog  # noqa: F401
+        except ImportError:
+            print("Warning: Could not import TeacherExportLog model.")
+
 except ImportError:
     try:
         from models.user import User
