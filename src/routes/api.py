@@ -3861,7 +3861,7 @@ def _resolve_caller_ids():
                 algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')]
             )
             if payload.get('user_type') == 'teacher':
-                teacher_id = payload.get('user_id')
+                teacher_id = payload.get('teacher_id')
         except Exception:
             pass
     elif current_user.is_authenticated:
@@ -4264,7 +4264,7 @@ def get_exam_history():
                 _data = _jwt.decode(auth_header[7:], current_app.config['JWT_SECRET_KEY'],
                                     algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
                 if _data.get('user_type') == 'teacher':
-                    teacher_id = _data.get('user_id')
+                    teacher_id = _data.get('teacher_id')
             except Exception:
                 pass
 
