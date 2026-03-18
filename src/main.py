@@ -1,5 +1,4 @@
 import os
-import os
 import logging
 from flask import Flask, render_template, redirect, url_for, flash, current_app, request, jsonify, session
 from werkzeug.security import generate_password_hash
