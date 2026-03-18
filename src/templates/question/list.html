@@ -583,7 +583,7 @@
             console.log('المنهج المختار حالياً:', currentSelectedCourse);
             
             // تحميل المناهج من API
-            fetch('/api/v1/courses')
+            fetch('/api/v1/courses?show_all=true')
                 .then(response => {
                     console.log('API Response status:', response.status);
                     if (!response.ok) {
@@ -599,18 +599,38 @@
                     
                     // إضافة المناهج الجديدة
                     if (courses && Array.isArray(courses)) {
-                        courses.forEach(course => {
-                            const option = document.createElement('option');
-                            option.value = course.id;
-                            option.textContent = course.name;
-                            
-                            // إعادة تحديد المنهج المختار سابقاً
-                            if (currentSelectedCourse && course.id.toString() === currentSelectedCourse) {
-                                option.selected = true;
-                            }
-                            
-                            courseSelect.appendChild(option);
-                        });
+                        const bankCourses    = courses.filter(c => c.is_bank);
+                        const regularCourses = courses.filter(c => !c.is_bank);
+
+                        function appendCourseOptions(list, parent) {
+                            list.forEach(course => {
+                                const option = document.createElement('option');
+                                option.value = course.id;
+                                option.textContent = course.is_bank ? `🏦 ${course.name}` : course.name;
+                                if (course.is_bank) {
+                                    option.style.color      = '#b45309';
+                                    option.style.fontWeight = 'bold';
+                                }
+                                if (currentSelectedCourse && course.id.toString() === currentSelectedCourse) {
+                                    option.selected = true;
+                                }
+                                parent.appendChild(option);
+                            });
+                        }
+
+                        if (bankCourses.length > 0 && regularCourses.length > 0) {
+                            const grpRegular = document.createElement('optgroup');
+                            grpRegular.label = '📚 المناهج العادية';
+                            appendCourseOptions(regularCourses, grpRegular);
+                            courseSelect.appendChild(grpRegular);
+
+                            const grpBank = document.createElement('optgroup');
+                            grpBank.label = '🏦 بنك الأسئلة';
+                            appendCourseOptions(bankCourses, grpBank);
+                            courseSelect.appendChild(grpBank);
+                        } else {
+                            appendCourseOptions(courses, courseSelect);
+                        }
                         
                         console.log('تم تحميل', courses.length, 'منهج بنجاح');
                         
