@@ -28,7 +28,10 @@ class Question(db.Model):
     
     # حقل منع السؤال من الظهور في المنهج/الوحدة/الدرس
     is_blocked = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    
+
+    # بنك الأسئلة — مخصص للأدمن فقط، لا يظهر في التفاعلي
+    is_bank = db.Column(db.Boolean, default=False, nullable=False, index=True)
+
     # ==================== الحقول الجديدة ====================
     # مستوى الصعوبة: easy (سهل), medium (متوسط), hard (صعب)
     difficulty = db.Column(db.String(20), default='medium', nullable=False, index=True)

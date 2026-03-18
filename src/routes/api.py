@@ -793,6 +793,7 @@ def get_lesson_questions(lesson_id):
             .options(joinedload(Question.options))
             .filter(Question.lesson_id == lesson_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
             .order_by(Question.question_id)
             .all()
         )
@@ -829,14 +830,15 @@ def get_unit_questions_direct(unit_id):
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
         )
-        
+
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
         if not show_all:
             query = query.filter(Course.show_in_bot == True)
-        
+
         questions = query.order_by(Question.question_id).all()
-        
+
         logger.info(f"Found {len(questions)} questions for unit_id: {unit_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
@@ -870,14 +872,15 @@ def get_course_questions_direct(course_id):
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
         )
-        
+
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
         if not show_all:
             query = query.filter(Course.show_in_bot == True)
-        
+
         questions = query.order_by(Question.question_id).all()
-        
+
         logger.info(f"Found {len(questions)} questions for course_id: {course_id} (show_all={show_all})")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
@@ -914,6 +917,7 @@ def get_course_unit_questions(course_id, unit_id):
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
+            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
             .order_by(Question.question_id)
             .all()
         )
@@ -943,6 +947,7 @@ def get_all_questions_in_db(): # Renamed function to be more descriptive
             .join(Unit.course)
             .options(joinedload(Question.options)) # Eager load options
             .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
+            .filter(Question.is_bank == False)    # استبعاد أسئلة البنك
             .order_by(Question.question_id) # Optional: order by ID or another field
             .all()
         )
@@ -1380,15 +1385,16 @@ def get_filtered_questions():
         query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
         logger.info(f"Filtering by course_id: {course_id}")
 
+    query = query.filter(Question.is_bank == False)  # استبعاد أسئلة البنك
     questions = query.order_by(Question.question_id).all()
-    
+
     # التحقق من جلب الخيارات بشكل صحيح
     for question in questions:
         options_count = len(question.options) if question.options else 0
         logger.info(f"API Question {question.question_id} has {options_count} options")
-    
+
     logger.info(f"API found {len(questions)} questions with filters applied")
-    
+
     return jsonify([format_question(q) for q in questions])
 
 
@@ -3969,8 +3975,18 @@ def generate_exam():
         # ── الكليشه الكاملة ───────────────────────────────────────────
         header = data.get("header", {})
 
+        # ── مصدر الأسئلة: regular | bank | both ──────────────────────
+        question_source = data.get('source', 'regular')  # 'regular' | 'bank' | 'both'
+
         # ── بناء قاعدة الأسئلة ───────────────────────────────────────
         base_query = Question.query.filter(Question.is_blocked == False)
+        if question_source == 'bank':
+            base_query = base_query.filter(Question.is_bank == True)
+        elif question_source == 'both':
+            pass  # بدون فلتر is_bank — كل الأسئلة
+        else:
+            # regular (الافتراضي)
+            base_query = base_query.filter(Question.is_bank == False)
 
         if lesson_id:
             base_query = base_query.filter(Question.lesson_id == lesson_id)
@@ -4237,6 +4253,195 @@ def generate_exam():
     except Exception as e:
         logger.exception(f"Error generating exam: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== بنك الأسئلة ====================
+
+@api_bp.route("/bank/questions", methods=["GET"])
+@login_required
+def get_bank_questions():
+    """جلب أسئلة بنك الأسئلة مع الفلترة — أدمن فقط"""
+    try:
+        course_id  = request.args.get('course_id',  type=int)
+        unit_id    = request.args.get('unit_id',    type=int)
+        lesson_id  = request.args.get('lesson_id',  type=int)
+        difficulty = request.args.get('difficulty')
+        bloom      = request.args.get('bloom_level')
+        page       = request.args.get('page',     1,   type=int)
+        per_page   = request.args.get('per_page', 20,  type=int)
+        search     = request.args.get('search',   '')
+
+        query = Question.query.options(joinedload(Question.options)).filter(Question.is_bank == True)
+
+        if lesson_id:
+            query = query.filter(Question.lesson_id == lesson_id)
+        elif unit_id:
+            query = query.filter(Question.lesson.has(Lesson.unit_id == unit_id))
+        elif course_id:
+            query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
+
+        if difficulty:
+            query = query.filter(Question.difficulty == difficulty)
+        if bloom:
+            query = query.filter(Question.bloom_level == bloom)
+        if search:
+            query = query.filter(Question.question_text.ilike(f'%{search}%'))
+
+        total = query.count()
+        questions = query.order_by(Question.question_id.desc()).offset((page-1)*per_page).limit(per_page).all()
+
+        return jsonify({
+            'success': True,
+            'questions': [format_question(q) for q in questions],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page
+        })
+    except Exception as e:
+        logger.exception(f"Error fetching bank questions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/bank/questions", methods=["POST"])
+@login_required
+def add_bank_question():
+    """إضافة سؤال لبنك الأسئلة — أدمن فقط"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'لا توجد بيانات'}), 400
+
+        lesson_id = data.get('lesson_id')
+        if not lesson_id:
+            return jsonify({'success': False, 'error': 'lesson_id مطلوب'}), 400
+
+        q = Question(
+            question_text=data.get('question_text'),
+            image_url=data.get('image_url'),
+            lesson_id=lesson_id,
+            explanation=data.get('explanation'),
+            explanation_image_path=data.get('explanation_image_path'),
+            difficulty=data.get('difficulty', 'medium'),
+            bloom_level=data.get('bloom_level', 'remember'),
+            is_bank=True,
+            is_blocked=False,
+        )
+        db.session.add(q)
+        db.session.flush()
+
+        options_data = data.get('options', [])
+        for opt in options_data:
+            o = Option(
+                option_text=opt.get('option_text'),
+                image_url=opt.get('image_url'),
+                is_correct=bool(opt.get('is_correct', False)),
+                question_id=q.question_id,
+            )
+            db.session.add(o)
+
+        db.session.commit()
+        return jsonify({'success': True, 'question_id': q.question_id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error adding bank question: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/bank/questions/<int:question_id>", methods=["PUT"])
+@login_required
+def update_bank_question(question_id):
+    """تعديل سؤال في بنك الأسئلة — أدمن فقط"""
+    try:
+        q = Question.query.filter_by(question_id=question_id, is_bank=True).first_or_404()
+        data = request.get_json()
+
+        if 'question_text' in data:
+            q.question_text = data['question_text']
+        if 'image_url' in data:
+            q.image_url = data['image_url']
+        if 'explanation' in data:
+            q.explanation = data['explanation']
+        if 'difficulty' in data:
+            q.difficulty = data['difficulty']
+        if 'bloom_level' in data:
+            q.bloom_level = data['bloom_level']
+        if 'lesson_id' in data:
+            q.lesson_id = data['lesson_id']
+
+        if 'options' in data:
+            for opt in q.options:
+                db.session.delete(opt)
+            db.session.flush()
+            for opt in data['options']:
+                o = Option(
+                    option_text=opt.get('option_text'),
+                    image_url=opt.get('image_url'),
+                    is_correct=bool(opt.get('is_correct', False)),
+                    question_id=q.question_id,
+                )
+                db.session.add(o)
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error updating bank question: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/bank/questions/<int:question_id>", methods=["DELETE"])
+@login_required
+def delete_bank_question(question_id):
+    """حذف سؤال من بنك الأسئلة — أدمن فقط"""
+    try:
+        q = Question.query.filter_by(question_id=question_id, is_bank=True).first_or_404()
+        db.session.delete(q)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error deleting bank question: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/bank/stats", methods=["GET"])
+@login_required
+def get_bank_stats():
+    """إحصائيات بنك الأسئلة — أدمن فقط"""
+    try:
+        from sqlalchemy import func
+        total = Question.query.filter_by(is_bank=True).count()
+
+        by_course = (
+            db.session.query(Course.id, Course.name, func.count(Question.question_id))
+            .join(Unit, Unit.course_id == Course.id)
+            .join(Lesson, Lesson.unit_id == Unit.id)
+            .join(Question, Question.lesson_id == Lesson.id)
+            .filter(Question.is_bank == True)
+            .group_by(Course.id, Course.name)
+            .all()
+        )
+
+        by_difficulty = (
+            db.session.query(Question.difficulty, func.count(Question.question_id))
+            .filter(Question.is_bank == True)
+            .group_by(Question.difficulty)
+            .all()
+        )
+
+        return jsonify({
+            'success': True,
+            'total': total,
+            'by_course': [{'id': r[0], 'name': r[1], 'count': r[2]} for r in by_course],
+            'by_difficulty': {r[0]: r[1] for r in by_difficulty},
+        })
+    except Exception as e:
+        logger.exception(f"Error getting bank stats: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ======================================================
 
 
 @api_bp.route("/questions/exam-history", methods=["GET"])
