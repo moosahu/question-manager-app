@@ -398,16 +398,23 @@ def list_questions():
     lesson_id = request.args.get("lesson_id", type=int)
     page = request.args.get("page", 1, type=int)
     per_page = 9
-    
-    current_app.logger.info(f"Filter parameters: course_id={course_id}, unit_id={unit_id}, lesson_id={lesson_id}, page={page}")
-    
+    bank_mode = request.args.get('bank', '0') == '1'
+
+    current_app.logger.info(f"Filter parameters: course_id={course_id}, unit_id={unit_id}, lesson_id={lesson_id}, page={page}, bank_mode={bank_mode}")
+
     try:
         # بناء الاستعلام الأساسي مع ضمان جلب جميع العلاقات
         query = Question.query.options(
             joinedload(Question.options),  # جلب خيارات السؤال
             joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
         )
-        
+
+        # فلتر بنك الأسئلة
+        if bank_mode:
+            query = query.filter(Question.is_bank == True)
+        else:
+            query = query.filter(Question.is_bank == False)
+
         # إضافة شروط التصفية بطريقة محسنة لتجنب تداخل الـ joins
         if lesson_id:
             # التصفية حسب الدرس - مباشرة بدون join إضافي
@@ -445,14 +452,15 @@ def list_questions():
                 lessons = Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all()
         
         rendered_template = render_template(
-            "question/list.html", 
-            questions=questions_pagination.items, 
+            "question/list.html",
+            questions=questions_pagination.items,
             pagination=questions_pagination,
             courses=courses,
             units=units,
             lessons=lessons,
             page=page,
-            per_page=per_page
+            per_page=per_page,
+            bank=bank_mode,
         )
         
         current_app.logger.info("Template rendering successful.")
@@ -1184,13 +1192,20 @@ def add_question():
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال", form=form)
 
         try:
+            # هل الدرس تابع لمنهج بنك؟
+            lesson_obj = Lesson.query.get(lesson_id)
+            auto_is_bank = False
+            if lesson_obj and lesson_obj.unit and lesson_obj.unit.course:
+                auto_is_bank = bool(lesson_obj.unit.course.is_bank)
+
             new_question = Question(
                 question_text=question_text if question_text else None,
                 lesson_id=lesson_id,
                 image_url=q_image_path,
                 explanation=request.form.get("explanation", "").strip() or None,
                 explanation_image_path=None,
-                is_blocked=(request.form.get("is_blocked") == "1")  # معالجة حقل منع السؤال
+                is_blocked=(request.form.get("is_blocked") == "1"),  # معالجة حقل منع السؤال
+                is_bank=auto_is_bank,
             )
             db.session.add(new_question)
             db.session.flush()

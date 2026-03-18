@@ -70,6 +70,21 @@
                     {% endif %}
                 {% endwith %}
 
+                <!-- تبويبات بنك الأسئلة / الأسئلة العادية -->
+                <div class="mb-3 d-flex gap-2 align-items-center" dir="rtl">
+                    <a href="{{ url_for('question.list_questions', bank='0', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id','')) }}"
+                       class="btn btn-sm {% if request.args.get('bank','0') != '1' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        📚 الأسئلة العادية
+                    </a>
+                    <a href="{{ url_for('question.list_questions', bank='1', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id','')) }}"
+                       class="btn btn-sm {% if request.args.get('bank','0') == '1' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        🏦 بنك الأسئلة
+                    </a>
+                    {% if request.args.get('bank','0') == '1' %}
+                    <span class="badge bg-warning text-dark">تعرض أسئلة البنك فقط</span>
+                    {% endif %}
+                </div>
+
                 <!-- بداية قسم التصفية -->
                 <div class="card mb-4">
                     <div class="card-header bg-primary text-white">

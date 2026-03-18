@@ -150,6 +150,7 @@
                         <a href="#" class="nav-dropdown-toggle"><i class="fas fa-question-circle"></i> الأسئلة والاختبارات <i class="fas fa-chevron-down dropdown-arrow"></i></a>
                         <ul class="nav-dropdown-menu">
                             <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-list"></i> إدارة الأسئلة</a></li>
+                            <li><a href="{{ url_for('question.list_questions', bank='1') }}">🏦 بنك الأسئلة</a></li>
                             <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
                             <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
                             <li><a href="{{ url_for('diagnostic.admin_page') }}" {% if request.endpoint == 'diagnostic.admin_page' %}class="active"{% endif %}><i class="fas fa-stethoscope"></i> الاختبارات التشخيصية</a></li>

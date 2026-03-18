@@ -687,6 +687,17 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ is_bank migration: {_e}")
 
+            # ✅ إضافة is_bank لجدول courses
+            try:
+                db.session.execute(db.text(
+                    'ALTER TABLE course ADD COLUMN IF NOT EXISTS is_bank BOOLEAN NOT NULL DEFAULT FALSE'
+                ))
+                db.session.commit()
+                print("✅ is_bank column ensured for courses")
+            except Exception as _e:
+                db.session.rollback()
+                print(f"⚠️ is_bank migration (courses): {_e}")
+
             # ✅ إضافة show_in_bot لـ unit و lesson
             try:
                 db.session.execute(db.text(

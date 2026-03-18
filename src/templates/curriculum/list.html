@@ -24,6 +24,9 @@
                         <div class="course-title">
                             <h3>
                                 {{ course.name }}
+                                {% if course.is_bank %}
+                                <span class="badge bg-warning text-dark ms-2">🏦 بنك أسئلة</span>
+                                {% endif %}
                                 <!-- شارة حالة البوت -->
                                 {% if course.show_in_bot %}
                                     <span class="bot-status active" title="يظهر في البوت">

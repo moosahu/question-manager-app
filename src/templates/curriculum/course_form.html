@@ -30,7 +30,20 @@
                 </div>
                 <small class="text-muted">عند إيقاف هذا الخيار، لن يظهر المنهج في البوت ولكن سيبقى متاحاً في لوحة التحكم</small>
             </div>
-            
+
+            <!-- بنك الأسئلة -->
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="is_bank"
+                           name="is_bank"
+                           {% if course and course.is_bank %}checked{% endif %}>
+                    <label class="form-check-label" for="is_bank">
+                        🏦 منهج بنك أسئلة
+                        <small class="text-muted d-block">أسئلته لا تظهر في الاختبار التفاعلي، مخصصة للأدمن فقط</small>
+                    </label>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">{{ submit_text }}</button>
                 <a href="{{ url_for('curriculum.list_courses') }}" class="btn btn-secondary">إلغاء</a>
