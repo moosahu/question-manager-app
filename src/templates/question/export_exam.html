@@ -3339,16 +3339,39 @@ async function loadCourses() {
         }
         
         courseSelect.innerHTML = '<option value="">-- اختر المنهج --</option>';
-        
+
         const courses = Array.isArray(data) ? data : (data.courses || []);
-        
+
         if (courses.length > 0) {
-            courses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = course.name;
-                courseSelect.appendChild(option);
-            });
+            const bankCourses    = courses.filter(c => c.is_bank);
+            const regularCourses = courses.filter(c => !c.is_bank);
+
+            function appendOpts(list, parent) {
+                list.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.id;
+                    option.textContent = course.is_bank ? `🏦 ${course.name}` : course.name;
+                    if (course.is_bank) {
+                        option.style.color = '#b45309';
+                        option.style.fontWeight = 'bold';
+                    }
+                    parent.appendChild(option);
+                });
+            }
+
+            if (bankCourses.length > 0 && regularCourses.length > 0) {
+                const grpR = document.createElement('optgroup');
+                grpR.label = '📚 المناهج العادية';
+                appendOpts(regularCourses, grpR);
+                courseSelect.appendChild(grpR);
+
+                const grpB = document.createElement('optgroup');
+                grpB.label = '🏦 بنك الأسئلة';
+                appendOpts(bankCourses, grpB);
+                courseSelect.appendChild(grpB);
+            } else {
+                appendOpts(courses, courseSelect);
+            }
         } else {
             showError('لا توجد مناهج متاحة');
         }
