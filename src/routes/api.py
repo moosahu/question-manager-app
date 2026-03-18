@@ -650,7 +650,7 @@ def get_all_courses():
             courses = Course.query.filter(Course.show_in_bot == True).order_by(Course.order_num.asc(), Course.id).all()
         
         logger.info(f"Found {len(courses)} courses.")
-        formatted_courses = [{"id": c.id, "name": c.name, "order_num": c.order_num} for c in courses]
+        formatted_courses = [{"id": c.id, "name": c.name, "order_num": c.order_num, "is_bank": bool(c.is_bank)} for c in courses]
         return jsonify(formatted_courses)
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching courses: {e}")

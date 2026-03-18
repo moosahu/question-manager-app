@@ -18,8 +18,8 @@
     {% if courses %}
         <div class="courses-list">
             {% for course in courses %}
-                <div class="course-item">
-                    <div class="course-header" onclick="toggleCourse({{ course.id }})">
+                <div class="course-item{% if course.is_bank %} course-item-bank{% endif %}">
+                    <div class="course-header{% if course.is_bank %} course-header-bank{% endif %}" onclick="toggleCourse({{ course.id }})">
                         <div class="course-indicator"></div>
                         <div class="course-title">
                             <h3>
@@ -215,6 +215,11 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
+    .course-item-bank {
+        border: 2px solid #f59e0b;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+    }
+
     .course-header {
         display: flex;
         align-items: center;
@@ -222,6 +227,14 @@
         background-color: #f8f9fa;
         cursor: pointer;
         transition: background-color 0.3s;
+    }
+
+    .course-header-bank {
+        background-color: #fffbeb;
+    }
+
+    .course-header-bank:hover {
+        background-color: #fef3c7 !important;
     }
 
     .course-header:hover {

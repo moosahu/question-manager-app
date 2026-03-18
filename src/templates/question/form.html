@@ -804,15 +804,40 @@
 
             function populateSelect(selectElement, items, placeholder, selectedValue = null) {
                 selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
-                items.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.id;
-                    option.textContent = item.name;
-                    if (selectedValue && item.id.toString() === selectedValue.toString()) {
-                        option.selected = true;
-                    }
-                    selectElement.appendChild(option);
-                });
+                // فصل مناهج البنك عن العادية
+                const bankItems = items.filter(i => i.is_bank);
+                const regularItems = items.filter(i => !i.is_bank);
+
+                function appendItems(list, group) {
+                    list.forEach(item => {
+                        const option = document.createElement("option");
+                        option.value = item.id;
+                        option.textContent = item.is_bank ? `🏦 ${item.name}` : item.name;
+                        if (item.is_bank) {
+                            option.style.color = '#b45309';
+                            option.style.fontWeight = 'bold';
+                        }
+                        if (selectedValue && item.id.toString() === selectedValue.toString()) {
+                            option.selected = true;
+                        }
+                        group.appendChild(option);
+                    });
+                }
+
+                if (bankItems.length > 0 && regularItems.length > 0) {
+                    const grpRegular = document.createElement("optgroup");
+                    grpRegular.label = "📚 المناهج العادية";
+                    appendItems(regularItems, grpRegular);
+                    selectElement.appendChild(grpRegular);
+
+                    const grpBank = document.createElement("optgroup");
+                    grpBank.label = "🏦 بنك الأسئلة";
+                    appendItems(bankItems, grpBank);
+                    selectElement.appendChild(grpBank);
+                } else {
+                    appendItems(items, selectElement);
+                }
+
                 selectElement.disabled = false;
             }
 
