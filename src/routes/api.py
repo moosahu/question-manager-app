@@ -5923,10 +5923,11 @@ def cleanup_orphan_questions():
     """حذف الأسئلة التي فقدت ارتباطها بدرس موجود"""
     try:
         from sqlalchemy import text
-        # أسئلة lesson_id تشير لدرس محذوف
+        # أسئلة lesson_id = NULL أو تشير لدرس محذوف
         result = db.session.execute(text("""
             DELETE FROM questions
-            WHERE lesson_id NOT IN (SELECT id FROM lesson)
+            WHERE lesson_id IS NULL
+               OR lesson_id NOT IN (SELECT id FROM lesson)
         """))
         deleted_count = result.rowcount
         db.session.commit()
