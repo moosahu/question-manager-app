@@ -2136,7 +2136,13 @@ def generate_explanation_unit(unit_id):
 AI_PROVIDERS = {
     'gemini': {
         'label': 'Google Gemini',
-        'models': ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+        'models': [
+            'gemini-2.0-flash',
+            'gemini-2.0-pro-exp',
+            'gemini-2.5-pro-exp-03-25',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+        ]
     },
     'claude': {
         'label': 'Anthropic Claude',
