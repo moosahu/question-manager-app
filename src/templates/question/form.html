@@ -425,11 +425,10 @@
                             <input type="text" name="video_url" id="video_url" class="form-control"
                                    placeholder="https://youtu.be/..."
                                    value="{{ question.video_url or '' }}">
-                            <button type="button" id="btn-generate-video"
-                                    class="btn btn-outline-danger btn-sm"
-                                    data-question-id="{{ question.question_id }}">
-                                <span class="spinner-border spinner-border-sm d-none me-1" id="vid-spinner"></span>
-                                🎬 توليد الفيديو
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    onclick="copyVideoCmd({{ question.question_id }})"
+                                    title="انسخ الأمر وشغّله في Terminal على جهازك">
+                                📋 نسخ أمر التوليد
                             </button>
                         </div>
                         <small class="text-muted d-block mt-1">
@@ -1288,50 +1287,16 @@
 
     <!-- زر توليد الفيديو (Phase 3) -->
     <script>
-    (function() {
-        const btn = document.getElementById('btn-generate-video');
-        if (!btn) return;
-
-        btn.addEventListener('click', function() {
-            const questionId = btn.dataset.questionId;
-            const spinner    = document.getElementById('vid-spinner');
-            const badge      = document.getElementById('video-status-badge');
-
-            if (!confirm('سيبدأ توليد الفيديو — قد يستغرق عدة دقائق. هل أنت متأكد؟')) return;
-
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" id="vid-spinner"></span> جاري التوليد...';
-            if (badge) { badge.className = 'badge bg-warning text-dark'; badge.textContent = 'جاري التوليد'; }
-
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري التوليد (3-5 دقائق)...';
-            if (badge) { badge.className = 'badge bg-warning text-dark'; badge.textContent = 'جاري التوليد'; }
-
-            fetch(`/api/admin/ai/generate-video/question/${questionId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json',
-                          'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || ''}
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    if (badge) { badge.className = 'badge bg-success'; badge.textContent = 'جاهز للتحميل'; }
-                    btn.innerHTML = `<a href="${data.download_url}" download class="text-white text-decoration-none">⬇️ تحميل الفيديو</a>`;
-                    btn.className = 'btn btn-success btn-sm';
-                } else {
-                    if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
-                    btn.innerHTML = '❌ ' + (data.error || 'فشل التوليد');
-                    btn.className = 'btn btn-outline-danger btn-sm';
-                }
-            })
-            .catch(() => {
-                btn.innerHTML = '❌ خطأ في الاتصال';
-                if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
-                btn.className = 'btn btn-outline-danger btn-sm';
-            })
-            .finally(() => { btn.disabled = false; });
+    function copyVideoCmd(questionId) {
+        const cmd = `python3 ~/Desktop/generate_video.py ${questionId}`;
+        navigator.clipboard.writeText(cmd).then(() => {
+            const btn = event.currentTarget;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✅ تم النسخ — افتح Terminal والصق';
+            btn.className = 'btn btn-success btn-sm';
+            setTimeout(() => { btn.innerHTML = orig; btn.className = 'btn btn-outline-secondary btn-sm'; }, 3000);
         });
-    })();
+    }
     </script>
 {% endblock %}
 
