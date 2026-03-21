@@ -1718,6 +1718,14 @@ def edit_question(question_id):
             question.image_url = q_image_path
             question.explanation = explanation or None
             question.is_blocked = (request.form.get("is_blocked") == "1")  # معالجة حقل منع السؤال
+            # حفظ رابط الفيديو إذا تم تعديله يدوياً
+            video_url_form = request.form.get("video_url", "").strip()
+            if video_url_form:
+                question.video_url = video_url_form
+                question.video_status = 'ready'
+            elif 'video_url' in request.form and not video_url_form:
+                question.video_url = None
+                question.video_status = 'none'
             
             # Track existing options to determine which to delete
             existing_option_ids = {opt.option_id for opt in question.options}
@@ -4785,3 +4793,17 @@ def export_courses_units_lessons():
         current_app.logger.exception(f"Error exporting courses/units/lessons list: {e}")
         flash(f"حدث خطأ أثناء تصدير قائمة المناهج والوحدات والدروس: {str(e)}", "danger")
         return redirect(url_for("question.import_questions"))
+
+
+# ============================================================
+# صفحة توليد الشرح بالجملة (درس / وحدة)
+# ============================================================
+
+@question_bp.route('/generate-explanations')
+def generate_explanations_page():
+    """صفحة توليد الشرح بالذكاء الاصطناعي للدروس والوحدات"""
+    try:
+        courses = Course.query.order_by(Course.name).all()
+    except Exception:
+        courses = []
+    return render_template('question/generate_explanations.html', courses=courses)

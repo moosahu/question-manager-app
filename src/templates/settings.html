@@ -2919,6 +2919,35 @@ window.cancelPhoneChange = function() {
             اضغط لتحميل البيانات
         </div>
     </div>
+
+    <hr class="my-4">
+
+    <!-- إعدادات AI لتوليد شرح الأسئلة -->
+    <h5 class="mb-3"><i class="fas fa-robot text-primary me-2"></i> توليد شرح الأسئلة</h5>
+    <p class="text-muted mb-3" style="font-size:0.85rem">اختر مزوّد الذكاء الاصطناعي والنموذج المستخدم لتوليد شرح الأسئلة تلقائياً</p>
+    <div id="exp-settings-loading" class="text-center py-3">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div> جاري التحميل...
+    </div>
+    <div id="exp-settings-form" style="display:none">
+        <div class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label fw-semibold">مزوّد AI</label>
+                <select id="exp-provider" class="form-select" onchange="onProviderChange()">
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-semibold">النموذج</label>
+                <select id="exp-model" class="form-select">
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="saveExpSettings(this)">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+            </div>
+        </div>
+        <div id="exp-settings-msg" class="mt-2"></div>
+    </div>
 </section>
 
 <script>
@@ -3021,10 +3050,86 @@ document.addEventListener('DOMContentLoaded', function() {
         link.addEventListener('click', function() {
             if (this.getAttribute('href') === '#ai-settings') {
                 setTimeout(loadAiStats, 100);
+                setTimeout(loadExpSettings, 150);
             }
         });
     });
 });
+
+// ── إعدادات توليد الشرح ──────────────────────────────────────────────────
+let _expProviders = {};
+
+function loadExpSettings() {
+    fetch('/api/admin/ai/explanation-settings')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            _expProviders = data.providers;
+            const pSel = document.getElementById('exp-provider');
+            pSel.innerHTML = '';
+            Object.entries(data.providers).forEach(([key, info]) => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = info.label;
+                if (key === data.provider) opt.selected = true;
+                pSel.appendChild(opt);
+            });
+            fillModels(data.provider, data.model);
+            document.getElementById('exp-settings-loading').style.display = 'none';
+            document.getElementById('exp-settings-form').style.display = 'block';
+        })
+        .catch(() => {
+            document.getElementById('exp-settings-loading').innerHTML = '<span class="text-danger">تعذّر التحميل</span>';
+        });
+}
+
+function fillModels(provider, selectedModel) {
+    const mSel = document.getElementById('exp-model');
+    mSel.innerHTML = '';
+    const models = (_expProviders[provider] || {}).models || [];
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        if (m === selectedModel) opt.selected = true;
+        mSel.appendChild(opt);
+    });
+}
+
+function onProviderChange() {
+    const provider = document.getElementById('exp-provider').value;
+    fillModels(provider, null);
+}
+
+function saveExpSettings(btn) {
+    const provider = document.getElementById('exp-provider').value;
+    const model    = document.getElementById('exp-model').value;
+    const msg      = document.getElementById('exp-settings-msg');
+    btn.disabled   = true;
+    btn.innerHTML  = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch('/api/admin/ai/explanation-settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({provider, model})
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+        if (data.success) {
+            msg.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> تم الحفظ</span>';
+        } else {
+            msg.innerHTML = `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        }
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+        msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
+    });
+}
 </script>
 
 {% endblock %}

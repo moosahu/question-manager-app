@@ -1156,6 +1156,9 @@ def api_get_questions(lesson_id):
                 'image_url': q.image_url,
                 'options': options_list,
                 'correct_option_id': correct_option_id,
+                'explanation': q.explanation,
+                'video_url': q.video_url if hasattr(q, 'video_url') else None,
+                'video_status': q.video_status if hasattr(q, 'video_status') else 'none',
             })
         
         return jsonify({

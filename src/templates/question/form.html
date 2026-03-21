@@ -372,6 +372,15 @@
                         <label for="explanation" class="form-label">نص الشرح</label>
                         <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
                         <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        {% if question %}
+                        <button type="button" id="btn-generate-explanation"
+                                class="btn btn-outline-primary btn-sm mt-2"
+                                data-question-id="{{ question.question_id }}">
+                            <span class="spinner-border spinner-border-sm d-none me-1" id="exp-spinner"></span>
+                            🤖 توليد الشرح بالذكاء الاصطناعي
+                        </button>
+                        <small class="text-muted d-block mt-1">يستبدل الشرح الحالي إن وجد — راجعه قبل الحفظ</small>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
@@ -396,6 +405,35 @@
                         </div>
                     </div>
                     
+                    <!-- ===== فيديو الشرح ===== -->
+                    {% if question %}
+                    <div class="mb-3">
+                        <label for="video_url" class="form-label">رابط فيديو الشرح (YouTube)</label>
+                        <div class="input-group">
+                            <input type="text" name="video_url" id="video_url" class="form-control"
+                                   placeholder="https://youtu.be/..."
+                                   value="{{ question.video_url or '' }}">
+                            <button type="button" id="btn-generate-video"
+                                    class="btn btn-outline-danger btn-sm"
+                                    data-question-id="{{ question.question_id }}">
+                                <span class="spinner-border spinner-border-sm d-none me-1" id="vid-spinner"></span>
+                                🎬 توليد الفيديو
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            الحالة:
+                            <span id="video-status-badge"
+                                  class="badge {% if question.video_status == 'ready' %}bg-success{% elif question.video_status == 'generating' %}bg-warning text-dark{% elif question.video_status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {% if question.video_status == 'ready' %}جاهز{% elif question.video_status == 'generating' %}جاري التوليد{% elif question.video_status == 'failed' %}فشل{% else %}لا يوجد{% endif %}
+                            </span>
+                            {% if question.video_url %}
+                            — <a href="{{ question.video_url }}" target="_blank" class="text-decoration-none">🔗 عرض الفيديو</a>
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                    <!-- ============================= -->
+
                     <!-- ===== إضافة خيار منع السؤال ===== -->
                     <div class="mb-3">
                         <div class="alert alert-warning" role="alert">
@@ -1153,6 +1191,92 @@
                 });
             }
         });
+    </script>
+
+    <!-- زر توليد الشرح بالذكاء الاصطناعي -->
+    <script>
+    (function() {
+        const btn = document.getElementById('btn-generate-explanation');
+        if (!btn) return;
+
+        btn.addEventListener('click', function() {
+            const questionId = btn.dataset.questionId;
+            const spinner    = document.getElementById('exp-spinner');
+            const textarea   = document.getElementById('explanation');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" id="exp-spinner"></span> جاري التوليد...';
+
+            fetch(`/api/admin/ai/generate-explanation/question/${questionId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || ''}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    textarea.value = data.explanation;
+                    textarea.dispatchEvent(new Event('input'));
+                    btn.innerHTML = '✅ تم التوليد — راجع الشرح قبل الحفظ';
+                    btn.classList.replace('btn-outline-primary', 'btn-outline-success');
+                } else {
+                    btn.innerHTML = '❌ ' + (data.error || 'حدث خطأ');
+                    btn.classList.replace('btn-outline-primary', 'btn-outline-danger');
+                }
+            })
+            .catch(e => {
+                btn.innerHTML = '❌ خطأ في الاتصال';
+                btn.classList.replace('btn-outline-primary', 'btn-outline-danger');
+            })
+            .finally(() => { btn.disabled = false; });
+        });
+    })();
+    </script>
+
+    <!-- زر توليد الفيديو (Phase 3) -->
+    <script>
+    (function() {
+        const btn = document.getElementById('btn-generate-video');
+        if (!btn) return;
+
+        btn.addEventListener('click', function() {
+            const questionId = btn.dataset.questionId;
+            const spinner    = document.getElementById('vid-spinner');
+            const badge      = document.getElementById('video-status-badge');
+
+            if (!confirm('سيبدأ توليد الفيديو — قد يستغرق عدة دقائق. هل أنت متأكد؟')) return;
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" id="vid-spinner"></span> جاري التوليد...';
+            if (badge) { badge.className = 'badge bg-warning text-dark'; badge.textContent = 'جاري التوليد'; }
+
+            fetch(`/api/admin/ai/generate-video/question/${questionId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || ''}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.video_url) {
+                    document.getElementById('video_url').value = data.video_url;
+                    if (badge) { badge.className = 'badge bg-success'; badge.textContent = 'جاهز'; }
+                    btn.innerHTML = '✅ تم توليد الفيديو';
+                    btn.classList.replace('btn-outline-danger', 'btn-outline-success');
+                } else {
+                    if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
+                    btn.innerHTML = '❌ ' + (data.error || 'فشل التوليد');
+                    btn.classList.replace('btn-outline-danger', 'btn-outline-danger');
+                }
+            })
+            .catch(() => {
+                btn.innerHTML = '❌ خطأ في الاتصال';
+                if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
+            })
+            .finally(() => { btn.disabled = false; });
+        });
+    })();
     </script>
 {% endblock %}
 

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}توليد الشرح بالذكاء الاصطناعي{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+    <div class="d-flex align-items-center mb-4 gap-2">
+        <i class="fas fa-robot text-primary fa-2x"></i>
+        <h3 class="mb-0">توليد الشرح بالذكاء الاصطناعي</h3>
+    </div>
+
+    <div class="row g-4">
+        <!-- اختيار النطاق -->
+        <div class="col-md-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-filter me-2"></i>اختر النطاق</h6>
+                </div>
+                <div class="card-body">
+                    <!-- نوع النطاق -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">نوع التوليد</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="scope" id="scope-lesson" value="lesson" checked>
+                                <label class="form-check-label" for="scope-lesson">درس</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="scope" id="scope-unit" value="unit">
+                                <label class="form-check-label" for="scope-unit">وحدة</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- اختيار المنهج -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">المنهج</label>
+                        <select id="sel-course" class="form-select" onchange="loadUnits()">
+                            <option value="">— اختر المنهج —</option>
+                            {% for c in courses %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- اختيار الوحدة -->
+                    <div class="mb-3" id="unit-row">
+                        <label class="form-label fw-semibold">الوحدة</label>
+                        <select id="sel-unit" class="form-select" onchange="loadLessons()">
+                            <option value="">— اختر الوحدة —</option>
+                        </select>
+                    </div>
+
+                    <!-- اختيار الدرس (يختفي عند scope=unit) -->
+                    <div class="mb-3" id="lesson-row">
+                        <label class="form-label fw-semibold">الدرس</label>
+                        <select id="sel-lesson" class="form-select">
+                            <option value="">— اختر الدرس —</option>
+                        </select>
+                    </div>
+
+                    <button id="btn-start" class="btn btn-primary w-100" onclick="startGeneration()">
+                        <i class="fas fa-play me-2"></i>بدء التوليد
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- النتائج -->
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-list-check me-2"></i>النتائج</h6>
+                </div>
+                <div class="card-body">
+                    <div id="result-area">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-robot fa-3x mb-3 opacity-25"></i>
+                            <p>اختر درساً أو وحدة ثم اضغط "بدء التوليد"</p>
+                        </div>
+                    </div>
+                    <!-- شريط التقدم -->
+                    <div id="progress-area" style="display:none">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="progress-label">جاري التوليد...</span>
+                            <span id="progress-count">0 / 0</span>
+                        </div>
+                        <div class="progress mb-3" style="height:12px">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                                 style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// مزامنة ظهور درس/وحدة حسب النطاق
+document.querySelectorAll('input[name=scope]').forEach(r => {
+    r.addEventListener('change', function() {
+        document.getElementById('lesson-row').style.display =
+            this.value === 'lesson' ? '' : 'none';
+    });
+});
+
+function loadUnits() {
+    const courseId = document.getElementById('sel-course').value;
+    const uSel = document.getElementById('sel-unit');
+    const lSel = document.getElementById('sel-lesson');
+    uSel.innerHTML = '<option value="">جاري التحميل...</option>';
+    lSel.innerHTML = '<option value="">— اختر الدرس —</option>';
+    if (!courseId) { uSel.innerHTML = '<option value="">— اختر الوحدة —</option>'; return; }
+
+    fetch(`/api/v1/courses/${courseId}/units?show_all=true`)
+        .then(r => r.json())
+        .then(data => {
+            uSel.innerHTML = '<option value="">— اختر الوحدة —</option>';
+            const units = Array.isArray(data) ? data : (data.units || []);
+            units.forEach(u => {
+                uSel.innerHTML += `<option value="${u.id}">${u.name}</option>`;
+            });
+        })
+        .catch(() => { uSel.innerHTML = '<option value="">خطأ في التحميل</option>'; });
+}
+
+function loadLessons() {
+    const unitId = document.getElementById('sel-unit').value;
+    const lSel   = document.getElementById('sel-lesson');
+    lSel.innerHTML = '<option value="">جاري التحميل...</option>';
+    if (!unitId) { lSel.innerHTML = '<option value="">— اختر الدرس —</option>'; return; }
+
+    fetch(`/api/v1/units/${unitId}/lessons?show_all=true`)
+        .then(r => r.json())
+        .then(data => {
+            lSel.innerHTML = '<option value="">— اختر الدرس —</option>';
+            const lessons = Array.isArray(data) ? data : (data.lessons || []);
+            lessons.forEach(l => {
+                lSel.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+            });
+        })
+        .catch(() => { lSel.innerHTML = '<option value="">خطأ في التحميل</option>'; });
+}
+
+function startGeneration() {
+    const scope    = document.querySelector('input[name=scope]:checked').value;
+    const unitId   = document.getElementById('sel-unit').value;
+    const lessonId = document.getElementById('sel-lesson').value;
+
+    let url = '';
+    if (scope === 'lesson') {
+        if (!lessonId) { alert('اختر درساً أولاً'); return; }
+        url = `/api/admin/ai/generate-explanation/lesson/${lessonId}`;
+    } else {
+        if (!unitId) { alert('اختر وحدة أولاً'); return; }
+        url = `/api/admin/ai/generate-explanation/unit/${unitId}`;
+    }
+
+    const btn   = document.getElementById('btn-start');
+    const area  = document.getElementById('result-area');
+    const prog  = document.getElementById('progress-area');
+    const bar   = document.getElementById('progress-bar');
+    const label = document.getElementById('progress-label');
+    const count = document.getElementById('progress-count');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري التوليد...';
+    area.innerHTML = '';
+    prog.style.display = 'block';
+    bar.style.width = '0%';
+    label.textContent = 'جاري التوليد...';
+    count.textContent = '';
+
+    // تحديث شريط التقدم (محاكاة — الـ endpoint يرجع النتيجة دفعة واحدة)
+    let pct = 0;
+    const ticker = setInterval(() => {
+        pct = Math.min(pct + 5, 90);
+        bar.style.width = pct + '%';
+    }, 800);
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+                   'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || '' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        clearInterval(ticker);
+        bar.style.width = '100%';
+        bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+        bar.classList.add(data.success ? 'bg-success' : 'bg-danger');
+
+        if (data.success) {
+            count.textContent = `${data.count_updated} سؤال`;
+            label.textContent = 'اكتمل التوليد';
+            let html = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>
+                تم تحديث شرح <strong>${data.count_updated}</strong> سؤال بنجاح</div>`;
+            if (data.errors && data.errors.length) {
+                html += `<div class="alert alert-warning"><strong>${data.errors.length} أخطاء:</strong>
+                    <ul class="mb-0 mt-1">${data.errors.map(e => `<li>${e}</li>`).join('')}</ul></div>`;
+            }
+            area.innerHTML = html;
+        } else {
+            label.textContent = 'فشل التوليد';
+            area.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>${data.error || 'حدث خطأ'}</div>`;
+        }
+    })
+    .catch(e => {
+        clearInterval(ticker);
+        bar.style.width = '100%';
+        bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+        bar.classList.add('bg-danger');
+        label.textContent = 'خطأ في الاتصال';
+        area.innerHTML = `<div class="alert alert-danger">خطأ في الاتصال بالخادم</div>`;
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play me-2"></i>بدء التوليد';
+    });
+}
+</script>
+{% endblock %}

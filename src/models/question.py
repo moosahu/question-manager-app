@@ -32,6 +32,11 @@ class Question(db.Model):
     # بنك الأسئلة — مخصص للأدمن فقط، لا يظهر في التفاعلي
     is_bank = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
+    # فيديو الشرح — يولَّد بالذكاء الاصطناعي ويُرفع على YouTube
+    video_url    = db.Column(db.String(500), nullable=True)
+    video_status = db.Column(db.String(20), default='none', nullable=True)
+    # video_status: none | generating | ready | failed
+
     # ==================== الحقول الجديدة ====================
     # مستوى الصعوبة: easy (سهل), medium (متوسط), hard (صعب)
     difficulty = db.Column(db.String(20), default='medium', nullable=False, index=True)

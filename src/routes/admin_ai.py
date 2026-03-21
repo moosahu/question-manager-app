@@ -1939,3 +1939,168 @@ def api_create_audit_log():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# توليد الشرح بالذكاء الاصطناعي
+# ============================================
+
+def _call_ai_for_explanation(question_text, options_data, correct_text):
+    """يستدعي AI لتوليد الشرح — يقرأ المزوّد والنموذج من AISetting"""
+    provider = AISetting.get_setting('explanation_ai_provider', 'gemini')
+    model    = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+
+    opts_text = '، '.join([o['text'] for o in options_data if o.get('text')])
+    prompt = (
+        f"اكتب شرحاً لطالب كيمياء ثانوي في 2-3 جمل حسب تعقيد السؤال، "
+        f"بالعربية الفصحى البسيطة، لماذا الإجابة الصحيحة للسؤال "
+        f"«{question_text}» هي «{correct_text}»، "
+        f"والخيارات كانت: {opts_text}. بدون تمهيد أو ترحيب."
+    )
+
+    if provider == 'gemini':
+        import google.generativeai as genai
+        api_key = AISetting.get_setting('gemini_api_key', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+        genai.configure(api_key=api_key)
+        response = genai.GenerativeModel(model).generate_content(prompt)
+        return response.text.strip()
+
+    elif provider == 'claude':
+        import anthropic
+        api_key = AISetting.get_setting('claude_api_key', '')
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model=model, max_tokens=300,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return msg.content[0].text.strip()
+
+    elif provider == 'openai':
+        from openai import OpenAI
+        api_key = AISetting.get_setting('openai_api_key', '')
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model=model, max_tokens=300,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return resp.choices[0].message.content.strip()
+
+    raise ValueError(f'مزوّد AI غير معروف: {provider}')
+
+
+def _generate_for_questions(questions):
+    """يولّد الشرح لقائمة أسئلة ويحفظه في DB"""
+    from src.extensions import db as _db
+    updated, errors = 0, []
+    for q in questions:
+        try:
+            correct_opt = next((o for o in q.options if o.is_correct), None)
+            if not correct_opt:
+                continue
+            explanation = _call_ai_for_explanation(
+                q.question_text or 'سؤال',
+                [{'text': o.option_text or ''} for o in q.options],
+                correct_opt.option_text or ''
+            )
+            q.explanation = explanation
+            updated += 1
+        except Exception as e:
+            errors.append({'question_id': q.question_id, 'error': str(e)})
+    _db.session.commit()
+    return updated, errors
+
+
+@admin_ai_bp.route('/generate-explanation/question/<int:question_id>', methods=['POST'])
+@admin_required
+def generate_explanation_question(question_id):
+    """توليد شرح لسؤال واحد"""
+    from src.models.question import Question
+    from sqlalchemy.orm import joinedload
+    q = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
+    updated, errors = _generate_for_questions([q])
+    if errors:
+        return jsonify({'success': False, 'error': errors[0]['error']}), 500
+    return jsonify({'success': True, 'explanation': q.explanation, 'count': updated})
+
+
+@admin_ai_bp.route('/generate-explanation/lesson/<int:lesson_id>', methods=['POST'])
+@admin_required
+def generate_explanation_lesson(lesson_id):
+    """توليد شرح لكل أسئلة درس"""
+    from src.models.question import Question
+    from sqlalchemy.orm import joinedload
+    questions = Question.query.options(joinedload(Question.options)).filter_by(lesson_id=lesson_id).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذا الدرس'}), 404
+    updated, errors = _generate_for_questions(questions)
+    return jsonify({'success': True, 'count_updated': updated, 'errors': errors})
+
+
+@admin_ai_bp.route('/generate-explanation/unit/<int:unit_id>', methods=['POST'])
+@admin_required
+def generate_explanation_unit(unit_id):
+    """توليد شرح لكل أسئلة وحدة"""
+    from src.models.question import Question
+    from src.models.curriculum import Lesson
+    from sqlalchemy.orm import joinedload
+    lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=unit_id).all()]
+    if not lesson_ids:
+        return jsonify({'success': False, 'error': 'لا توجد دروس في هذه الوحدة'}), 404
+    questions = Question.query.options(joinedload(Question.options)).filter(
+        Question.lesson_id.in_(lesson_ids)
+    ).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذه الوحدة'}), 404
+    updated, errors = _generate_for_questions(questions)
+    return jsonify({'success': True, 'count_updated': updated, 'errors': errors})
+
+
+# ============================================
+# إعدادات AI للشرح (المرحلة 2)
+# ============================================
+
+AI_PROVIDERS = {
+    'gemini': {
+        'label': 'Google Gemini',
+        'models': ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+    },
+    'claude': {
+        'label': 'Anthropic Claude',
+        'models': ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6']
+    },
+    'openai': {
+        'label': 'OpenAI',
+        'models': ['gpt-4o-mini', 'gpt-4o']
+    }
+}
+
+
+@admin_ai_bp.route('/explanation-settings', methods=['GET'])
+@admin_required
+def get_explanation_settings():
+    """جلب إعدادات AI الشرح"""
+    return jsonify({
+        'success': True,
+        'provider':  AISetting.get_setting('explanation_ai_provider', 'gemini'),
+        'model':     AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
+        'providers': AI_PROVIDERS
+    })
+
+
+@admin_ai_bp.route('/explanation-settings', methods=['POST'])
+@admin_required
+def save_explanation_settings():
+    """حفظ إعدادات AI الشرح"""
+    data     = request.get_json() or {}
+    provider = data.get('provider', '').strip()
+    model    = data.get('model', '').strip()
+
+    if provider not in AI_PROVIDERS:
+        return jsonify({'success': False, 'error': 'مزوّد غير مدعوم'}), 400
+    if model not in AI_PROVIDERS[provider]['models']:
+        return jsonify({'success': False, 'error': 'نموذج غير مدعوم'}), 400
+
+    AISetting.set_setting('explanation_ai_provider', provider, description='مزوّد AI لتوليد شرح الأسئلة')
+    AISetting.set_setting('explanation_ai_model',    model,    description='نموذج AI لتوليد شرح الأسئلة')
+
+    return jsonify({'success': True, 'provider': provider, 'model': model})
