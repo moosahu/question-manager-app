@@ -19,6 +19,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.orm import joinedload, contains_eager
 from flask_wtf import FlaskForm # إضافة استيراد FlaskForm
@@ -396,6 +397,7 @@ def list_questions():
     course_id = request.args.get("course_id", type=int)
     unit_id = request.args.get("unit_id", type=int)
     lesson_id = request.args.get("lesson_id", type=int)
+    search_q = request.args.get("q", "").strip()
     page = request.args.get("page", 1, type=int)
     per_page = 9
     bank_mode = request.args.get('bank', '0') == '1'
@@ -429,6 +431,15 @@ def list_questions():
             query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
             current_app.logger.info(f"Filtering by course_id: {course_id}")
         
+        # فلتر البحث النصي
+        if search_q:
+            query = query.filter(
+                or_(
+                    Question.question_text.ilike(f"%{search_q}%"),
+                    Question.options.any(Option.option_text.ilike(f"%{search_q}%"))
+                )
+            )
+
         # ترتيب النتائج وتقسيمها إلى صفحات
         questions_pagination = query.order_by(Question.question_id.desc()).paginate(
             page=page, per_page=per_page, error_out=False
@@ -461,6 +472,7 @@ def list_questions():
             page=page,
             per_page=per_page,
             bank=bank_mode,
+            search_q=search_q,
         )
         
         current_app.logger.info("Template rendering successful.")

@@ -154,7 +154,7 @@
                 </div>
                 <!-- نهاية قسم التصفية -->
 
-                <!-- بداية قسم البحث المتقدم -->
+                <!-- بداية قسم البحث -->
                 <div class="card mb-4">
                     <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
@@ -162,57 +162,32 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-8">
-                                <label for="search_input" class="form-label">البحث</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="search_input" 
-                                           placeholder="ابحث في نص الأسئلة والخيارات..." 
-                                           autocomplete="off">
-                                    <button class="btn btn-outline-secondary" type="button" id="clear_search">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                <small class="form-text text-muted">
-                                    يمكنك البحث في نص الأسئلة، الخيارات، أو أي محتوى نصي
-                                </small>
+                        <form method="get" action="{{ url_for('question.list_questions') }}">
+                            {# حفظ الفلاتر الحالية #}
+                            {% if request.args.get('course_id') %}<input type="hidden" name="course_id" value="{{ request.args.get('course_id') }}">{% endif %}
+                            {% if request.args.get('unit_id') %}<input type="hidden" name="unit_id" value="{{ request.args.get('unit_id') }}">{% endif %}
+                            {% if request.args.get('lesson_id') %}<input type="hidden" name="lesson_id" value="{{ request.args.get('lesson_id') }}">{% endif %}
+                            {% if request.args.get('bank') %}<input type="hidden" name="bank" value="{{ request.args.get('bank') }}">{% endif %}
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="q" id="search_input"
+                                       placeholder="ابحث في نص الأسئلة والخيارات..."
+                                       value="{{ search_q }}" autocomplete="off">
+                                <button class="btn btn-success" type="submit">
+                                    <i class="fas fa-search"></i> بحث
+                                </button>
+                                {% if search_q %}
+                                <a href="{{ url_for('question.list_questions', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id',''), bank=request.args.get('bank','')) }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label for="search_type" class="form-label">نوع البحث</label>
-                                <select class="form-select" id="search_type">
-                                    <option value="all">البحث في كل شيء</option>
-                                    <option value="question">نص السؤال فقط</option>
-                                    <option value="options">الخيارات فقط</option>
-                                    <option value="correct">الإجابات الصحيحة فقط</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="search-options">
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" id="case_sensitive">
-                                            <label class="form-check-label" for="case_sensitive">
-                                                حساس لحالة الأحرف
-                                            </label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" id="whole_word">
-                                            <label class="form-check-label" for="whole_word">
-                                                كلمة كاملة فقط
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="search-results-info">
-                                        <span id="search_results_count" class="badge bg-info"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            {% if search_q %}
+                            <small class="text-success mt-1 d-block">نتائج البحث عن: <strong>{{ search_q }}</strong></small>
+                            {% endif %}
+                        </form>
                     </div>
                 </div>
-                <!-- نهاية قسم البحث المتقدم -->
+                <!-- نهاية قسم البحث -->
 
                 <!-- عرض الجدول -->
                 <div id="tableView" class="view-container">
