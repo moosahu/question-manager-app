@@ -2042,6 +2042,27 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                     <div id="exp-settings-msg" class="mt-2"></div>
                 </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3"><i class="fas fa-microphone text-success me-2"></i> صوت الفيديو (ElevenLabs)</h5>
+                <p class="text-muted mb-3" style="font-size:0.85rem">اختر الصوت المستخدم في توليد الفيديو — يُطبّق في المرة القادمة</p>
+                <div id="voice-settings-loading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-success" role="status"></div> جاري التحميل...
+                </div>
+                <div id="voice-settings-form" style="display:none">
+                    <div class="row g-3">
+                        <div class="col-md-10">
+                            <label class="form-label fw-semibold">الصوت</label>
+                            <select id="voice-select" class="form-select"></select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-success w-100" onclick="saveVoiceSettings(this)">
+                                <i class="fas fa-save"></i> حفظ
+                            </button>
+                        </div>
+                    </div>
+                    <div id="voice-settings-msg" class="mt-2"></div>
+                </div>
             </section>
 
         </div>
@@ -2173,6 +2194,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (targetId === 'ai-settings') {
                 if (typeof loadAiStats === 'function') loadAiStats();
                 if (typeof loadExpSettings === 'function') loadExpSettings();
+                if (typeof loadVoiceSettings === 'function') loadVoiceSettings();
             }
         });
     });
@@ -3057,6 +3079,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.location.hash === '#ai-settings') {
         setTimeout(loadAiStats, 300);
         setTimeout(loadExpSettings, 350);
+        setTimeout(loadVoiceSettings, 400);
     }
 });
 
@@ -3130,6 +3153,55 @@ function saveExpSettings(btn) {
     })
     .catch(() => {
         btn.disabled  = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+        msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
+    });
+}
+
+function loadVoiceSettings() {
+    fetch('/api/admin/ai/elevenlabs-voices')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            const sel = document.getElementById('voice-select');
+            sel.innerHTML = '';
+            data.voices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.id;
+                const gender = v.gender === 'male' ? '👨' : v.gender === 'female' ? '👩' : '👤';
+                opt.textContent = `${gender} ${v.name} — ${v.accent}`;
+                if (v.id === data.selected) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            document.getElementById('voice-settings-loading').style.display = 'none';
+            document.getElementById('voice-settings-form').style.display = 'block';
+        })
+        .catch(() => {
+            document.getElementById('voice-settings-loading').innerHTML = '<span class="text-danger">تعذّر التحميل</span>';
+        });
+}
+
+function saveVoiceSettings(btn) {
+    const voice_id = document.getElementById('voice-select').value;
+    const msg = document.getElementById('voice-settings-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/api/admin/ai/elevenlabs-voices', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({voice_id})
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+        msg.innerHTML = data.success
+            ? '<span class="text-success"><i class="fas fa-check-circle"></i> تم الحفظ</span>'
+            : `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => {
+        btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
         msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
     });

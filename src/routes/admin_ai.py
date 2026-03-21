@@ -2044,6 +2044,40 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     raise ValueError(f'مزوّد AI غير معروف: {provider}')
 
 
+@admin_ai_bp.route('/elevenlabs-voices', methods=['GET'])
+@admin_required
+def get_elevenlabs_voices():
+    """يجيب قائمة الأصوات من ElevenLabs + الصوت المحفوظ"""
+    import requests as _req
+    el_key = (AISetting.get_setting('elevenlabs_api_key')
+              or os.environ.get('ELEVENLABS_API_KEY', ''))
+    saved_voice = AISetting.get_setting('elevenlabs_voice_id', 'CwhRBWXzGAHq8TQ4Fs17')
+    try:
+        r = _req.get('https://api.elevenlabs.io/v1/voices',
+                     headers={'xi-api-key': el_key}, timeout=10)
+        voices = [
+            {'id': v['voice_id'], 'name': v['name'],
+             'gender': v.get('labels', {}).get('gender', ''),
+             'accent': v.get('labels', {}).get('accent', '')}
+            for v in r.json().get('voices', [])
+        ]
+    except Exception as e:
+        voices = []
+    return jsonify({'success': True, 'voices': voices, 'selected': saved_voice})
+
+
+@admin_ai_bp.route('/elevenlabs-voices', methods=['POST'])
+@admin_required
+def save_elevenlabs_voice():
+    """يحفظ الصوت المختار"""
+    data = request.get_json() or {}
+    voice_id = data.get('voice_id', '').strip()
+    if not voice_id:
+        return jsonify({'success': False, 'error': 'voice_id مطلوب'}), 400
+    AISetting.set_setting('elevenlabs_voice_id', voice_id, 'string', description='صوت ElevenLabs للفيديو')
+    return jsonify({'success': True})
+
+
 @admin_ai_bp.route('/question-data/<int:question_id>', methods=['GET'])
 def get_question_data_for_video(question_id):
     """يُرجع بيانات السؤال + إعدادات AI للسكريبت المحلي — محمي بـ GEMINI_API_KEY"""
@@ -2077,8 +2111,9 @@ def get_question_data_for_video(question_id):
         'options':           options,
         'ai_provider':       AISetting.get_setting('explanation_ai_provider', 'gemini'),
         'ai_model':          AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
-        'gemini_api_key':    os.environ.get('GOOGLE_AI_API_KEY') or os.environ.get('GEMINI_API_KEY', ''),
-        'elevenlabs_api_key': AISetting.get_setting('elevenlabs_api_key') or os.environ.get('ELEVENLABS_API_KEY', ''),
+        'gemini_api_key':      os.environ.get('GOOGLE_AI_API_KEY') or os.environ.get('GEMINI_API_KEY', ''),
+        'elevenlabs_api_key':  AISetting.get_setting('elevenlabs_api_key') or os.environ.get('ELEVENLABS_API_KEY', ''),
+        'elevenlabs_voice_id': AISetting.get_setting('elevenlabs_voice_id', 'CwhRBWXzGAHq8TQ4Fs17'),
     })
 
 
