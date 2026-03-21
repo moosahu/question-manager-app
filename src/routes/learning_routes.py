@@ -825,10 +825,61 @@ def admin_generate_concept_map_ai():
         # جلب بيانات الوحدة والمنهج
         unit = Unit.query.get(lesson.unit_id) if lesson.unit_id else None
         course = Course.query.get(unit.course_id) if unit and unit.course_id else None
-        
+
+        # محاولة استخراج محتوى الكتاب المدرسي كمرجع للذكاء الاصطناعي
+        if not lesson_content:
+            from src.models.textbook import LessonPages
+            lesson_page_map = LessonPages.query.filter_by(lesson_id=lesson_id).first()
+            if lesson_page_map and lesson_page_map.textbook and lesson_page_map.textbook.pdf_url:
+                try:
+                    import fitz
+                    import requests as _req
+                    import re as _re
+                    pdf_url = lesson_page_map.textbook.pdf_url
+                    start_p = lesson_page_map.start_page
+                    end_p = lesson_page_map.end_page
+
+                    if 'drive.google.com' in pdf_url:
+                        if '/file/d/' in pdf_url:
+                            file_id = _re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                        else:
+                            file_id = _re.search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                        session = _req.Session()
+                        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                        resp = session.get(download_url, timeout=120)
+                        if b'%PDF' not in resp.content[:10]:
+                            confirm = _re.search(r'confirm=([0-9A-Za-z_]+)', resp.text)
+                            uuid = _re.search(r'uuid=([0-9A-Za-z_-]+)', resp.text)
+                            if confirm and uuid:
+                                download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm={confirm.group(1)}&uuid={uuid.group(1)}"
+                            else:
+                                download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+                            resp = session.get(download_url, timeout=120)
+                        resp.raise_for_status()
+                        if b'%PDF' not in resp.content[:10]:
+                            raise Exception("فشل تحميل PDF من Google Drive")
+                    else:
+                        resp = _req.get(pdf_url, timeout=60)
+                        resp.raise_for_status()
+
+                    doc = fitz.open(stream=resp.content, filetype="pdf")
+
+                    pages_text = []
+                    actual_end = min(end_p, len(doc))
+                    for page_num in range(start_p - 1, actual_end):
+                        page_text = doc[page_num].get_text("text")
+                        if page_text.strip():
+                            pages_text.append(page_text.strip())
+
+                    if pages_text:
+                        lesson_content = "\n\n".join(pages_text)
+                        print(f"✅ تم استخراج {len(pages_text)} صفحة من الكتاب (صفحات {start_p}-{end_p})")
+                except Exception as pdf_err:
+                    print(f"⚠️ فشل استخراج نص الكتاب: {pdf_err}")
+
         # استيراد AI assistant
         from src.services.ai_assistant import ai_assistant
-        
+
         # توليد خريطة المفاهيم
         concept_map_data = ai_assistant.generate_concept_map(
             lesson_name=lesson.name,

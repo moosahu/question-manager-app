@@ -567,7 +567,7 @@ class AIAssistant:
         if unit_name:
             context += f"\nالوحدة: {unit_name}"
         if lesson_content:
-            context += f"\n\nمحتوى الدرس:\n{lesson_content[:1000]}"  # أول 1000 حرف فقط
+            context += f"\n\nمحتوى الدرس (مستخرج من الكتاب المدرسي):\n{lesson_content[:6000]}"
         
         return f"""
 أنت خبير في تصميم خرائط المفاهيم التعليمية لمادة الكيمياء.
