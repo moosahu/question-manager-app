@@ -1244,6 +1244,7 @@ def add_question():
                 lesson_id=lesson_id,
                 image_url=q_image_path,
                 explanation=request.form.get("explanation", "").strip() or None,
+                video_explanation=request.form.get("video_explanation", "").strip() or None,
                 explanation_image_path=None,
                 is_blocked=(request.form.get("is_blocked") == "1"),  # معالجة حقل منع السؤال
                 is_bank=auto_is_bank,
@@ -1717,6 +1718,7 @@ def edit_question(question_id):
             question.lesson_id = lesson_id
             question.image_url = q_image_path
             question.explanation = explanation or None
+            question.video_explanation = request.form.get("video_explanation", "").strip() or None
             question.is_blocked = (request.form.get("is_blocked") == "1")  # معالجة حقل منع السؤال
             # حفظ رابط الفيديو إذا تم تعديله يدوياً
             video_url_form = request.form.get("video_url", "").strip()

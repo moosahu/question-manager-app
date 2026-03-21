@@ -369,9 +369,8 @@
                 <div class="card-header">الشرح (اختياري)</div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="explanation" class="form-label">نص الشرح</label>
-                        <textarea name="explanation" id="explanation" rows="4" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
-                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        <label for="explanation" class="form-label">الشرح المختصر <small class="text-muted">(يظهر للطالب)</small></label>
+                        <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
                         {% if question %}
                         <button type="button" id="btn-generate-explanation"
                                 class="btn btn-outline-primary btn-sm mt-2"
@@ -381,6 +380,10 @@
                         </button>
                         <small class="text-muted d-block mt-1">يستبدل الشرح الحالي إن وجد — راجعه قبل الحفظ</small>
                         {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="video_explanation" class="form-label">شرح الفيديو <small class="text-muted">(مفصّل — لا يظهر للطالب)</small></label>
+                        <textarea name="video_explanation" id="video_explanation" rows="4" class="form-control">{{ question.video_explanation if question else request.form.get("video_explanation", "") }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
