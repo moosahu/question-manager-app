@@ -381,7 +381,7 @@ def tts(text: str, path_mp3: str, api_key: str):
 
 def generate_all_content(question_text, options, lesson, unit,
                          explanation=None, gemini_api_key=None) -> dict:
-    import google.generativeai as genai
+    from google import genai
 
     opts_lines = "\n".join(
         f"- {l}: {t}  {'(الإجابة الصحيحة)' if c else ''}"
@@ -450,9 +450,10 @@ def generate_all_content(question_text, options, lesson, unit,
 - إذا ما في صيغة كيميائية، اكتب القاعدة أو التعريف بالعربية وضع formula_is_latin: false
 """
 
-    genai.configure(api_key=gemini_api_key)
-    model    = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
+    client   = genai.Client(api_key=gemini_api_key)
+    response = client.models.generate_content(
+        model='gemini-2.0-flash', contents=prompt
+    )
     text     = response.text.strip()
 
     if text.startswith("```"):
