@@ -31,7 +31,6 @@ googleapis-common-protos>=1.60.0
 
 # ✅ AI Providers
 google-genai>=1.0.0
-google-generativeai>=0.8.0
 anthropic>=0.42.0
 
 # Scheduling (موجود بالفعل)
