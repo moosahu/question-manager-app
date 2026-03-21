@@ -37,9 +37,13 @@ class AIAssistant:
         self.active_provider = 'gemini-flash'
 
     def _ensure_configured(self):
-        """تهيئة الـ AI provider المختار"""
+        """تهيئة الـ AI provider المختار — يقرأ من الإعداد الموحّد"""
         try:
-            new_provider = AISetting.get_setting('ai_provider') or 'gemini-flash'
+            from src.services.lesson_prep_service import _EXPLANATION_TO_LESSON_KEY, AI_PROVIDERS as _LP
+            exp_provider = AISetting.get_setting('explanation_ai_provider', 'gemini')
+            exp_model    = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+            mapped = _EXPLANATION_TO_LESSON_KEY.get((exp_provider, exp_model))
+            new_provider = mapped if mapped and mapped in _LP else (AISetting.get_setting('ai_provider') or 'gemini-flash')
         except Exception:
             new_provider = 'gemini-flash'
 
@@ -110,8 +114,10 @@ class AIAssistant:
                 )
                 return response.content[0].text
             elif self.gemini_client:
+                from src.services.lesson_prep_service import AI_PROVIDERS as _LP
+                model_id = _LP.get(self.active_provider, {}).get('model', 'gemini-2.0-flash')
                 response = self.gemini_client.models.generate_content(
-                    model='gemini-2.0-flash',
+                    model=model_id,
                     contents=prompt,
                 )
                 return response.text
