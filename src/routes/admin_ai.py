@@ -2259,21 +2259,21 @@ def generate_video_explanation_unit(unit_id):
 # إعدادات AI للشرح (المرحلة 2)
 # ============================================
 
-AI_PROVIDERS = {
-    'gemini': {
-        'label': 'Google Gemini',
-        'models': [
-            'gemini-2.0-flash',       # مجاني ✅
-            'gemini-1.5-flash',       # مجاني ✅
-            'gemini-2.0-pro-exp',     # تجريبي (يحتاج وصول)
-            'gemini-2.5-pro-exp-03-25',  # تجريبي (يحتاج وصول)
-        ]
-    },
-    'claude': {
-        'label': 'Anthropic Claude',
-        'models': ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6']
-    },
-}
+def _build_web_providers():
+    """يبني قائمة AI_PROVIDERS للموقع من lesson_prep_service (مصدر واحد)"""
+    from src.services.lesson_prep_service import AI_PROVIDERS as _LP
+    result = {}
+    for key, info in _LP.items():
+        p = info['provider']   # 'gemini' | 'claude'
+        if p not in result:
+            result[p] = {'label': p.capitalize(), 'models': []}
+        result[p]['models'].append(info['model'])
+    # تعديل التسميات
+    if 'gemini' in result:
+        result['gemini']['label'] = 'Google Gemini'
+    if 'claude' in result:
+        result['claude']['label'] = 'Anthropic Claude'
+    return result
 
 
 @admin_ai_bp.route('/explanation-settings', methods=['GET'])
@@ -2284,7 +2284,7 @@ def get_explanation_settings():
         'success': True,
         'provider':  AISetting.get_setting('explanation_ai_provider', 'gemini'),
         'model':     AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
-        'providers': AI_PROVIDERS
+        'providers': _build_web_providers()
     })
 
 
@@ -2296,10 +2296,11 @@ def save_explanation_settings():
     provider = data.get('provider', '').strip()
     model    = data.get('model', '').strip()
 
-    if provider not in AI_PROVIDERS:
+    _providers = _build_web_providers()
+    if provider not in _providers:
         return jsonify({'success': False, 'error': 'مزوّد غير مدعوم'}), 400
-    if model not in AI_PROVIDERS[provider]['models']:
-        return jsonify({'success': False, 'error': 'نموذج غير مدعوم'}), 400
+    if model not in _providers[provider]['models']:
+        return jsonify({'success': False, 'error': f'نموذج غير مدعوم: {model}'}), 400
 
     AISetting.set_setting('explanation_ai_provider', provider, description='مزوّد AI لتوليد شرح الأسئلة')
     AISetting.set_setting('explanation_ai_model',    model,    description='نموذج AI لتوليد شرح الأسئلة')

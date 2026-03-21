@@ -58,6 +58,8 @@ _EXPLANATION_TO_LESSON_KEY = {
     ('gemini', 'gemini-2.5-pro-exp-03-25'):  'gemini-2.5-pro',
     ('gemini', 'gemini-1.5-flash'):          'gemini-flash',
     ('gemini', 'gemini-1.5-pro'):            'gemini-1.5-pro',
+    ('gemini', 'gemini-3-flash-preview'):    'gemini-3-flash',
+    ('gemini', 'gemini-3.1-pro-preview'):    'gemini-3.1-pro',
     ('claude', 'claude-haiku-4-5-20251001'): 'claude-haiku',
     ('claude', 'claude-sonnet-4-6'):         'claude-sonnet',
     ('claude', 'claude-opus-4-6'):           'claude-opus',
