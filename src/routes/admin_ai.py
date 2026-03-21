@@ -2183,4 +2183,10 @@ def save_explanation_settings():
     AISetting.set_setting('explanation_ai_provider', provider, description='مزوّد AI لتوليد شرح الأسئلة')
     AISetting.set_setting('explanation_ai_model',    model,    description='نموذج AI لتوليد شرح الأسئلة')
 
+    # مزامنة مع إعداد lesson_prep/تحليل الطلاب
+    from src.services.lesson_prep_service import _EXPLANATION_TO_LESSON_KEY
+    lesson_key = _EXPLANATION_TO_LESSON_KEY.get((provider, model))
+    if lesson_key:
+        AISetting.set_setting('ai_provider', lesson_key, 'string', description='مزوّد AI الموحّد')
+
     return jsonify({'success': True, 'provider': provider, 'model': model})

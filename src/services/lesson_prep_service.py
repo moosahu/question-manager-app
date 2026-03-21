@@ -40,14 +40,27 @@ logger = logging.getLogger(__name__)
 
 # النماذج المتاحة
 AI_PROVIDERS = {
-    'gemini-flash':   {'name': 'Gemini 2.0 Flash',  'provider': 'gemini', 'model': 'gemini-2.0-flash',          'cost': 'منخفض',  'output_limit': 24576},
-    'gemini-1.5-pro': {'name': 'Gemini 1.5 Pro',    'provider': 'gemini', 'model': 'gemini-1.5-pro',            'cost': 'متوسط',  'output_limit': 24576},
-    'gemini-2.5-pro': {'name': 'Gemini 2.5 Pro',    'provider': 'gemini', 'model': 'gemini-2.5-pro',            'cost': 'متوسط',  'output_limit': 65536},
-    'gemini-3-flash': {'name': 'Gemini 3 Flash',    'provider': 'gemini', 'model': 'gemini-3-flash-preview',    'cost': 'منخفض',  'output_limit': 65536},
-    'gemini-3.1-pro': {'name': 'Gemini 3.1 Pro',    'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',   'cost': 'متوسط',  'output_limit': 65536},
-    'claude-haiku':   {'name': 'Claude Haiku 4.5',  'provider': 'claude', 'model': 'claude-haiku-4-5-20251001', 'cost': 'منخفض', 'output_limit': 8192},
-    'claude-sonnet':  {'name': 'Claude Sonnet 4.6', 'provider': 'claude', 'model': 'claude-sonnet-4-6',         'cost': 'متوسط',  'output_limit': 16000},
-    'claude-opus':    {'name': 'Claude Opus 4.6',   'provider': 'claude', 'model': 'claude-opus-4-6',           'cost': 'مرتفع',  'output_limit': 32000},
+    'gemini-flash':       {'name': 'Gemini 2.0 Flash',      'provider': 'gemini', 'model': 'gemini-2.0-flash',             'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-2.0-pro-exp': {'name': 'Gemini 2.0 Pro (Exp)',  'provider': 'gemini', 'model': 'gemini-2.0-pro-exp',           'cost': 'متوسط',  'output_limit': 32768},
+    'gemini-1.5-pro':     {'name': 'Gemini 1.5 Pro',        'provider': 'gemini', 'model': 'gemini-1.5-pro',               'cost': 'متوسط',  'output_limit': 24576},
+    'gemini-2.5-pro':     {'name': 'Gemini 2.5 Pro (Exp)',  'provider': 'gemini', 'model': 'gemini-2.5-pro-exp-03-25',     'cost': 'متوسط',  'output_limit': 65536},
+    'gemini-3-flash':     {'name': 'Gemini 3 Flash',        'provider': 'gemini', 'model': 'gemini-3-flash-preview',       'cost': 'منخفض',  'output_limit': 65536},
+    'gemini-3.1-pro':     {'name': 'Gemini 3.1 Pro',        'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',       'cost': 'متوسط',  'output_limit': 65536},
+    'claude-haiku':       {'name': 'Claude Haiku 4.5',      'provider': 'claude', 'model': 'claude-haiku-4-5-20251001',    'cost': 'منخفض',  'output_limit': 8192},
+    'claude-sonnet':      {'name': 'Claude Sonnet 4.6',     'provider': 'claude', 'model': 'claude-sonnet-4-6',            'cost': 'متوسط',  'output_limit': 16000},
+    'claude-opus':        {'name': 'Claude Opus 4.6',       'provider': 'claude', 'model': 'claude-opus-4-6',              'cost': 'مرتفع',  'output_limit': 32000},
+}
+
+# خريطة ربط: (provider, model) → مفتاح lesson_prep
+_EXPLANATION_TO_LESSON_KEY = {
+    ('gemini', 'gemini-2.0-flash'):          'gemini-flash',
+    ('gemini', 'gemini-2.0-pro-exp'):        'gemini-2.0-pro-exp',
+    ('gemini', 'gemini-2.5-pro-exp-03-25'):  'gemini-2.5-pro',
+    ('gemini', 'gemini-1.5-flash'):          'gemini-flash',
+    ('gemini', 'gemini-1.5-pro'):            'gemini-1.5-pro',
+    ('claude', 'claude-haiku-4-5-20251001'): 'claude-haiku',
+    ('claude', 'claude-sonnet-4-6'):         'claude-sonnet',
+    ('claude', 'claude-opus-4-6'):           'claude-opus',
 }
 
 DEFAULT_PROVIDER = 'gemini-flash'
@@ -118,9 +131,15 @@ class LessonPrepService:
         return info
 
     def _get_active_provider(self):
-        """جلب الـ provider المختار من إعدادات الأدمن"""
+        """جلب الـ provider الموحّد — يقرأ من explanation_ai_model أولاً"""
         try:
             from src.models.ai_analysis import AISetting
+            exp_provider = AISetting.get_setting('explanation_ai_provider', 'gemini')
+            exp_model    = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+            key = _EXPLANATION_TO_LESSON_KEY.get((exp_provider, exp_model))
+            if key and key in AI_PROVIDERS:
+                return key
+            # fallback للإعداد القديم
             provider = AISetting.get_setting('ai_provider')
             if provider and provider in AI_PROVIDERS:
                 return provider
