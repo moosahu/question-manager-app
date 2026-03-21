@@ -10,6 +10,7 @@ from functools import wraps
 from datetime import datetime, timedelta
 import json
 import io
+import os
 
 from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
