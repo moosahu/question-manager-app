@@ -5918,7 +5918,7 @@ def get_export_quota():
 # ===== تنظيف الأسئلة المعلّقة =====
 
 @api_bp.route("/questions/cleanup-orphans", methods=["POST"])
-@admin_required
+@login_required
 def cleanup_orphan_questions():
     """حذف الأسئلة التي فقدت ارتباطها بدرس موجود"""
     try:
