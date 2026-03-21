@@ -1253,8 +1253,8 @@ def add_question():
             except Exception as activity_error:
                 current_app.logger.error(f"Error logging activity: {activity_error}")
                 # لا نريد أن يؤثر خطأ تسجيل النشاط على تدفق العملية الأساسية
-            
-            return redirect(url_for("question.list_questions"))
+
+            return redirect(url_for("question.list_questions", lesson_id=lesson_id))
 
         except (IntegrityError, DBAPIError) as db_err:
             db.session.rollback()
@@ -1472,7 +1472,7 @@ def import_questions():
                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id, form=form)
             else:
                 if imported_count > 0:
-                     return redirect(url_for("question.list_questions"))
+                     return redirect(url_for("question.list_questions", lesson_id=lesson_id))
                 else:
                      flash("لم يتم العثور على أسئلة صالحة للاستيراد في الملف.", "warning")
                      return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id, form=form)
@@ -1753,8 +1753,8 @@ def edit_question(question_id):
             except Exception as activity_error:
                 current_app.logger.error(f"Error logging activity: {activity_error}")
                 # لا نريد أن يؤثر خطأ تسجيل النشاط على تدفق العملية الأساسية
-            
-            return redirect(url_for("question.list_questions"))
+
+            return redirect(url_for("question.list_questions", lesson_id=question.lesson_id))
 
         except (IntegrityError, DBAPIError) as db_err:
             db.session.rollback()
@@ -1816,7 +1816,7 @@ def delete_question(question_id):
         current_app.logger.exception(f"Error deleting question ID {question_id}.")
         flash("حدث خطأ أثناء محاولة حذف السؤال.", "danger")
     
-    return redirect(url_for("question.list_questions"))
+    return redirect(request.referrer or url_for("question.list_questions"))
 
 
 # ===== Route لصفحة الاختبار التفاعلي =====
