@@ -2069,14 +2069,16 @@ def get_question_data_for_video(question_id):
     ]
 
     return jsonify({
-        'success':      True,
-        'question_text': q.question_text or '',
-        'explanation':  q.explanation,
-        'lesson':       lesson.name if lesson else '',
-        'unit':         unit.name if unit else '',
-        'options':      options,
-        'ai_provider':  AISetting.get_setting('explanation_ai_provider', 'gemini'),
-        'ai_model':     AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
+        'success':           True,
+        'question_text':     q.question_text or '',
+        'explanation':       q.explanation,
+        'lesson':            lesson.name if lesson else '',
+        'unit':              unit.name if unit else '',
+        'options':           options,
+        'ai_provider':       AISetting.get_setting('explanation_ai_provider', 'gemini'),
+        'ai_model':          AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
+        'gemini_api_key':    os.environ.get('GEMINI_API_KEY', ''),
+        'elevenlabs_api_key': AISetting.get_setting('elevenlabs_api_key') or os.environ.get('ELEVENLABS_API_KEY', ''),
     })
 
 
