@@ -2077,7 +2077,7 @@ def get_question_data_for_video(question_id):
         'options':           options,
         'ai_provider':       AISetting.get_setting('explanation_ai_provider', 'gemini'),
         'ai_model':          AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
-        'gemini_api_key':    os.environ.get('GEMINI_API_KEY', ''),
+        'gemini_api_key':    os.environ.get('GOOGLE_AI_API_KEY') or os.environ.get('GEMINI_API_KEY', ''),
         'elevenlabs_api_key': AISetting.get_setting('elevenlabs_api_key') or os.environ.get('ELEVENLABS_API_KEY', ''),
     })
 
