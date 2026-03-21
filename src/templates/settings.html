@@ -2124,6 +2124,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     section.style.display = 'none';
                 }
             });
+
+            // تحميل بيانات الذكاء الاصطناعي عند فتح قسمه
+            if (targetId === 'ai-settings') {
+                if (typeof loadAiStats === 'function') loadAiStats();
+                if (typeof loadExpSettings === 'function') loadExpSettings();
+            }
         });
     });
     
@@ -3044,16 +3050,12 @@ function triggerAiAnalysis(btn) {
         });
 }
 
-// تحميل البيانات عند فتح قسم AI
+// تحميل تلقائي إذا فُتح القسم مباشرة عبر hash
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.settings-menu-item a').forEach(link => {
-        link.addEventListener('click', function() {
-            if (this.getAttribute('href') === '#ai-settings') {
-                setTimeout(loadAiStats, 100);
-                setTimeout(loadExpSettings, 150);
-            }
-        });
-    });
+    if (window.location.hash === '#ai-settings') {
+        setTimeout(loadAiStats, 300);
+        setTimeout(loadExpSettings, 350);
+    }
 });
 
 // ── إعدادات توليد الشرح ──────────────────────────────────────────────────

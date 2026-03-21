@@ -964,6 +964,12 @@ def set_ai_provider():
         AISetting.set_setting('ai_provider', provider, 'string')
         info = AI_PROVIDERS[provider]
 
+        # مزامنة مع إعدادات الشرح (explanation_ai_provider / explanation_ai_model)
+        AISetting.set_setting('explanation_ai_provider', info['provider'], 'string',
+                              description='مزوّد توليد الشرح')
+        AISetting.set_setting('explanation_ai_model', info['model'], 'string',
+                              description='نموذج توليد الشرح')
+
         AILog.log_operation(
             operation_type='change_ai_provider',
             description=f'تغيير نظام AI إلى {info["name"]}',
