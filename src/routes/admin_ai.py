@@ -1961,7 +1961,7 @@ def _call_ai_for_explanation(question_text, options_data, correct_text):
 
     if provider == 'gemini':
         from google import genai
-        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GOOGLE_API_KEY', '')
+        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GOOGLE_AI_API_KEY', '')
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
