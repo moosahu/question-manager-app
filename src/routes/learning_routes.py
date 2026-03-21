@@ -11,6 +11,7 @@ from src.models.learning_content import LessonSummary, ConceptMap, StudentLesson
 from src.models.curriculum import Lesson, Unit, Course
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from sqlalchemy.orm.attributes import flag_modified
 
 learning_bp = Blueprint('learning', __name__, url_prefix='/learning')
 
@@ -1082,8 +1083,9 @@ def admin_save_ai_generated_concept_map():
             existing_map.theme = theme
             existing_map.animation_type = animation_type
             existing_map.map_data = map_data
+            flag_modified(existing_map, 'map_data')  # ضمان أن SQLAlchemy يكتشف تغيير JSONB
             existing_map.updated_at = datetime.utcnow()
-            
+
             db.session.commit()
             
             return jsonify({
