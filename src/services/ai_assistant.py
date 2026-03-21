@@ -557,6 +557,83 @@ class AIAssistant:
             print(f"❌ خطأ في generate_concept_map: {e}")
             return None
     
+    def generate_lesson_summary(self, lesson_name: str, lesson_content: str = None,
+                               course_name: str = None, unit_name: str = None) -> Optional[Dict]:
+        """توليد ملخص الدرس تلقائياً بالذكاء الاصطناعي"""
+        if not self._ensure_configured():
+            return None
+
+        start_time = datetime.utcnow()
+        try:
+            prompt = self._build_summary_prompt(lesson_name, lesson_content, course_name, unit_name)
+            ai_text = self._generate(prompt)
+            if not ai_text:
+                raise Exception("لم يتم الحصول على رد من AI")
+
+            data = self._extract_json_from_response(ai_text)
+            if not data or 'introduction' not in data:
+                raise Exception("بنية الملخص غير صحيحة")
+
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            AILog.log_operation('generate_summary', description=f'ملخص: {lesson_name}',
+                                success=True, duration_seconds=duration)
+            return data
+
+        except Exception as e:
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            AILog.log_operation('generate_summary', description=f'فشل ملخص: {lesson_name}',
+                                success=False, error_message=str(e), duration_seconds=duration)
+            print(f"❌ خطأ في generate_lesson_summary: {e}")
+            return None
+
+    def _build_summary_prompt(self, lesson_name: str, lesson_content: str = None,
+                              course_name: str = None, unit_name: str = None) -> str:
+        """بناء prompt لتوليد ملخص الدرس"""
+        context = f"الدرس: {lesson_name}"
+        if course_name:
+            context += f"\nالمنهج: {course_name}"
+        if unit_name:
+            context += f"\nالوحدة: {unit_name}"
+        if lesson_content:
+            context += f"\n\nمحتوى الدرس (مستخرج من الكتاب المدرسي):\n{lesson_content[:6000]}"
+
+        return f"""
+أنت خبير تربوي متخصص في مادة الكيمياء للمرحلة الثانوية.
+
+{context}
+
+المطلوب: قم بإنشاء ملخص شامل للدرس بصيغة JSON بالتنسيق التالي:
+
+{{
+  "introduction": "مقدمة تعريفية بالدرس في فقرة واحدة (3-5 جمل)",
+  "key_points": [
+    "النقطة الرئيسية الأولى مع تفاصيلها",
+    "النقطة الرئيسية الثانية (تضمّن المعادلات مثل: 2H₂ + O₂ → 2H₂O)",
+    "النقطة الثالثة..."
+  ],
+  "examples": [
+    "مثال عملي أول",
+    "مثال عملي ثانٍ"
+  ],
+  "vocabulary": {{
+    "المصطلح الأول": "تعريف المصطلح الأول",
+    "المصطلح الثاني": "تعريف المصطلح الثاني"
+  }}
+}}
+
+تعليمات مهمة:
+1. المقدمة: فقرة واحدة واضحة تشرح موضوع الدرس
+2. النقاط الرئيسية: 5-8 نقاط تغطي أهم المفاهيم والقوانين
+3. المعادلات الكيميائية: استخدم Unicode دائماً: H₂O، CO₂، →، ⇌، Δ، Na⁺، Cl⁻
+4. الأمثلة: 2-4 أمثلة عملية أو تطبيقية
+5. المصطلحات: 4-8 مصطلحات علمية مهمة مع تعريفاتها
+6. إذا كان المحتوى من الكتاب متاحاً، التزم بما ورد فيه تماماً
+7. الرد: JSON فقط بدون أي نص إضافي
+8. اللغة: العربية الفصحى
+
+أرسل JSON فقط بدون أي نص قبله أو بعده:
+"""
+
     def _build_concept_map_prompt(self, lesson_name: str, lesson_content: str = None,
                                  course_name: str = None, unit_name: str = None) -> str:
         """بناء prompt لتوليد خريطة المفاهيم"""

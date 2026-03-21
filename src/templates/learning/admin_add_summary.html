@@ -53,6 +53,18 @@
             </div>
         </div>
 
+        <!-- زر AI -->
+        <div id="aiSection" style="display: none; background: linear-gradient(135deg, #667eea22, #764ba222); border: 2px solid #667eea; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+            <h4 style="margin: 0 0 12px; color: #4c51bf;"><i class="fas fa-robot"></i> توليد الملخص بالذكاء الاصطناعي</h4>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">سيقوم الذكاء الاصطناعي بتحليل الكتاب المدرسي وتوليد ملخص شامل للدرس تلقائياً.</p>
+            <button type="button" id="generateAiBtn" onclick="generateSummaryAI()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-magic"></i> توليد الملخص تلقائياً
+            </button>
+            <span id="aiLoading" style="display: none; margin-right: 15px; color: #667eea;">
+                <i class="fas fa-spinner fa-spin"></i> جاري التوليد...
+            </span>
+        </div>
+
         <!-- Introduction -->
         <div style="margin-bottom: 25px;">
             <label style="display: block; font-weight: 600; margin-bottom: 8px;">
@@ -513,10 +525,76 @@ function showLessonInfo() {
     const courseName = document.getElementById('courseSelect').selectedOptions[0].text;
     const unitName = document.getElementById('unitSelect').selectedOptions[0].text;
     const lessonName = document.getElementById('lessonSelect').selectedOptions[0].text;
-    
+
     const path = `${courseName} ← ${unitName} ← ${lessonName}`;
     document.getElementById('selectedLessonPath').textContent = path;
     document.getElementById('lessonInfo').style.display = 'block';
+    document.getElementById('aiSection').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════
+// AI Summary Generation
+// ═══════════════════════════════════════════════
+async function generateSummaryAI() {
+    const lessonId = document.getElementById('lessonSelect').value;
+    if (!lessonId) {
+        alert('⚠️ الرجاء اختيار الدرس أولاً');
+        return;
+    }
+
+    const btn = document.getElementById('generateAiBtn');
+    const loading = document.getElementById('aiLoading');
+    btn.disabled = true;
+    loading.style.display = 'inline';
+
+    try {
+        const response = await fetch('/learning/admin/summary/generate-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ lesson_id: parseInt(lessonId) })
+        });
+        const result = await response.json();
+
+        if (!result.success) {
+            alert('❌ فشل توليد الملخص: ' + result.error);
+            return;
+        }
+
+        const data = result.data;
+
+        // تعبئة المقدمة
+        if (data.introduction) {
+            document.querySelector('textarea[name="introduction"]').value = data.introduction;
+        }
+
+        // تعبئة النقاط الرئيسية
+        if (data.key_points && data.key_points.length > 0) {
+            document.getElementById('keyPointsList').innerHTML = '';
+            keyPointCounter = 0;
+            data.key_points.forEach(pt => addKeyPoint(pt));
+        }
+
+        // تعبئة الأمثلة
+        if (data.examples && data.examples.length > 0) {
+            document.getElementById('examplesList').innerHTML = '';
+            exampleCounter = 0;
+            data.examples.forEach(ex => addExample(ex));
+        }
+
+        // تعبئة المصطلحات
+        if (data.vocabulary && Object.keys(data.vocabulary).length > 0) {
+            document.getElementById('vocabularyList').innerHTML = '';
+            vocabularyCounter = 0;
+            Object.entries(data.vocabulary).forEach(([term, def]) => addVocabulary(term, def));
+        }
+
+        alert('✅ تم توليد الملخص بنجاح! راجع المحتوى وعدّل إذا لزم ثم احفظ.');
+    } catch (err) {
+        alert('❌ خطأ في الاتصال: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+    }
 }
 
 // ═══════════════════════════════════════════════

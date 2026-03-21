@@ -791,6 +791,100 @@ def admin_delete_summary(summary_id):
 
 
 # =====================================================
+# AI-Powered Summary Generation
+# =====================================================
+
+@learning_bp.route('/admin/summary/generate-ai', methods=['POST'])
+@login_required
+def admin_generate_summary_ai():
+    """توليد ملخص درس تلقائياً باستخدام الذكاء الاصطناعي"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'ليس لديك صلاحية الوصول'}), 403
+
+    try:
+        lesson_id = request.json.get('lesson_id')
+        lesson_content = request.json.get('lesson_content', '')
+
+        if not lesson_id:
+            return jsonify({'success': False, 'error': 'lesson_id مطلوب'}), 400
+
+        lesson = Lesson.query.get(lesson_id)
+        if not lesson:
+            return jsonify({'success': False, 'error': 'الدرس غير موجود'}), 404
+
+        unit = Unit.query.get(lesson.unit_id) if lesson.unit_id else None
+        course = Course.query.get(unit.course_id) if unit and unit.course_id else None
+
+        # استخراج نص الكتاب المدرسي إذا لم يتوفر محتوى
+        if not lesson_content:
+            from src.models.textbook import LessonPages
+            lesson_page_map = LessonPages.query.filter_by(lesson_id=lesson_id).first()
+            if lesson_page_map and lesson_page_map.textbook and lesson_page_map.textbook.pdf_url:
+                try:
+                    import fitz
+                    import requests as _req
+                    import re as _re
+                    pdf_url = lesson_page_map.textbook.pdf_url
+                    start_p = lesson_page_map.start_page
+                    end_p = lesson_page_map.end_page
+
+                    if 'drive.google.com' in pdf_url:
+                        if '/file/d/' in pdf_url:
+                            file_id = _re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                        else:
+                            file_id = _re.search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
+                        session = _req.Session()
+                        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                        resp = session.get(download_url, timeout=120)
+                        if b'%PDF' not in resp.content[:10]:
+                            confirm = _re.search(r'confirm=([0-9A-Za-z_]+)', resp.text)
+                            uuid = _re.search(r'uuid=([0-9A-Za-z_-]+)', resp.text)
+                            if confirm and uuid:
+                                download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm={confirm.group(1)}&uuid={uuid.group(1)}"
+                            else:
+                                download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+                            resp = session.get(download_url, timeout=120)
+                        resp.raise_for_status()
+                        if b'%PDF' not in resp.content[:10]:
+                            raise Exception("فشل تحميل PDF من Google Drive")
+                    else:
+                        resp = _req.get(pdf_url, timeout=60)
+                        resp.raise_for_status()
+
+                    doc = fitz.open(stream=resp.content, filetype="pdf")
+                    pages_text = []
+                    actual_end = min(end_p, len(doc))
+                    for page_num in range(start_p - 1, actual_end):
+                        page_text = doc[page_num].get_text("text")
+                        if page_text.strip():
+                            pages_text.append(page_text.strip())
+                    if pages_text:
+                        lesson_content = "\n\n".join(pages_text)
+                        print(f"✅ تم استخراج {len(pages_text)} صفحة للملخص (صفحات {start_p}-{end_p})")
+                except Exception as pdf_err:
+                    print(f"⚠️ فشل استخراج نص الكتاب للملخص: {pdf_err}")
+
+        from src.services.ai_assistant import ai_assistant
+        summary_data = ai_assistant.generate_lesson_summary(
+            lesson_name=lesson.name,
+            lesson_content=lesson_content,
+            course_name=course.name if course else None,
+            unit_name=unit.name if unit else None
+        )
+
+        if not summary_data:
+            return jsonify({'success': False, 'error': 'فشل توليد الملخص'}), 500
+
+        return jsonify({'success': True, 'message': 'تم توليد الملخص بنجاح', 'data': summary_data})
+
+    except Exception as e:
+        print(f"❌ خطأ في توليد الملخص: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =====================================================
 # AI-Powered Concept Map Generation - جديد
 # =====================================================
 
