@@ -2044,6 +2044,42 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     raise ValueError(f'مزوّد AI غير معروف: {provider}')
 
 
+@admin_ai_bp.route('/question-data/<int:question_id>', methods=['GET'])
+def get_question_data_for_video(question_id):
+    """يُرجع بيانات السؤال + إعدادات AI للسكريبت المحلي — محمي بـ GEMINI_API_KEY"""
+    token = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('GEMINI_API_KEY', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+
+    from src.models.question import Question
+    from src.models.curriculum import Lesson, Unit
+    from sqlalchemy.orm import joinedload
+
+    q = Question.query.options(joinedload(Question.options)).get(question_id)
+    if not q:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+
+    lesson = Lesson.query.get(q.lesson_id)
+    unit   = Unit.query.get(lesson.unit_id) if lesson else None
+    letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    options = [
+        {'letter': letters[i], 'text': o.option_text or '', 'correct': bool(o.is_correct)}
+        for i, o in enumerate(sorted(q.options, key=lambda x: x.option_id))
+    ]
+
+    return jsonify({
+        'success':      True,
+        'question_text': q.question_text or '',
+        'explanation':  q.explanation,
+        'lesson':       lesson.name if lesson else '',
+        'unit':         unit.name if unit else '',
+        'options':      options,
+        'ai_provider':  AISetting.get_setting('explanation_ai_provider', 'gemini'),
+        'ai_model':     AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
+    })
+
+
 @admin_ai_bp.route('/generate-video/question/<int:question_id>', methods=['POST'])
 @admin_required
 def generate_video_question(question_id):
