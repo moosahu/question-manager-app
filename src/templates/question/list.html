@@ -83,19 +83,20 @@
                     {% endif %}
                 </div>
 
-                <!-- تبويبات بنك الأسئلة / الأسئلة العادية -->
-                <div class="mb-3 d-flex gap-2 align-items-center" dir="rtl">
+                <!-- تبويبات بنك الأسئلة / الأسئلة العادية / المحجوبة -->
+                <div class="mb-3 d-flex gap-2 align-items-center flex-wrap" dir="rtl">
                     <a href="{{ url_for('question.list_questions', bank='0', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id','')) }}"
-                       class="btn btn-sm {% if request.args.get('bank','0') != '1' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                       class="btn btn-sm {% if request.args.get('bank','0') != '1' and blocked != '1' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                         📚 الأسئلة العادية
                     </a>
                     <a href="{{ url_for('question.list_questions', bank='1', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id','')) }}"
                        class="btn btn-sm {% if request.args.get('bank','0') == '1' %}btn-warning{% else %}btn-outline-warning{% endif %}">
                         🏦 بنك الأسئلة
                     </a>
-                    {% if request.args.get('bank','0') == '1' %}
-                    <span class="badge bg-warning text-dark">تعرض أسئلة البنك فقط</span>
-                    {% endif %}
+                    <a href="{{ url_for('question.list_questions', blocked='1', course_id=request.args.get('course_id',''), unit_id=request.args.get('unit_id',''), lesson_id=request.args.get('lesson_id','')) }}"
+                       class="btn btn-sm {% if blocked == '1' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                        🚫 المحجوبة ({{ stats.total_blocked }})
+                    </a>
                 </div>
 
                 <!-- بداية قسم التصفية -->
@@ -332,14 +333,25 @@
                                                         <span class="badge bg-warning text-dark">ممنوع</span>
                                                     {% endif %}
                                                 </div>
-                                                <!-- الجانب الأيسر: وسم المادة ووسم الصورة -->
-                                                <div class="left-section">
+                                                <!-- الجانب الأيسر: وسم المادة + الصعوبة + بلوم -->
+                                                <div class="left-section" style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
                                                     <span class="course-badge badge">{{ question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else 'غير محدد' }}</span>
                                                     {% if question.image_url %}
-                                                    <span class="image-badge badge" style="background-color: #28a745; margin-right: 5px;">
-                                                        <i class="fas fa-image"></i> يحتوي على صورة
+                                                    <span class="image-badge badge" style="background-color: #28a745;">
+                                                        <i class="fas fa-image"></i>
                                                     </span>
                                                     {% endif %}
+                                                    {# صعوبة #}
+                                                    {% if question.difficulty == 'easy' %}
+                                                        <span class="badge bg-success">🟢 سهل</span>
+                                                    {% elif question.difficulty == 'hard' %}
+                                                        <span class="badge bg-danger">🔴 صعب</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark">🟡 متوسط</span>
+                                                    {% endif %}
+                                                    {# بلوم #}
+                                                    {% set bloom_labels = {'remember': 'تذكر', 'understand': 'فهم', 'apply': 'تطبيق', 'analyze': 'تحليل', 'evaluate': 'تقويم', 'create': 'إبداع'} %}
+                                                    <span class="badge bg-info text-dark">{{ bloom_labels.get(question.bloom_level, question.bloom_level) }}</span>
                                                 </div>
                                             </div>
                                         </div>

@@ -457,8 +457,8 @@ def list_questions():
         elif blocked == "0":
             query = query.filter(Question.is_blocked == False)
 
-        # ترتيب النتائج وتقسيمها إلى صفحات
-        questions_pagination = query.order_by(Question.question_id.desc()).paginate(
+        # ترتيب النتائج: بالدرس ثم بالـ ID تصاعدياً
+        questions_pagination = query.order_by(Question.lesson_id.asc(), Question.question_id.asc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
         
