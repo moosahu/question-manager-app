@@ -2129,6 +2129,60 @@ def generate_explanation_unit(unit_id):
     return jsonify({'success': True, 'count_updated': updated, 'errors': errors})
 
 
+def _generate_video_explanation_for_questions(questions):
+    """يولّد شرح الفيديو المفصّل لقائمة أسئلة ويحفظه في DB"""
+    from src.extensions import db as _db
+    updated, errors = 0, []
+    for q in questions:
+        try:
+            correct_opt = next((o for o in q.options if o.is_correct), None)
+            if not correct_opt:
+                continue
+            video_explanation = _call_ai_for_video_explanation(
+                q.question_text or 'سؤال',
+                [{'text': o.option_text or ''} for o in q.options],
+                correct_opt.option_text or ''
+            )
+            q.video_explanation = video_explanation
+            updated += 1
+        except Exception as e:
+            errors.append({'question_id': q.question_id, 'error': str(e)})
+    _db.session.commit()
+    return updated, errors
+
+
+@admin_ai_bp.route('/generate-video-explanation/lesson/<int:lesson_id>', methods=['POST'])
+@admin_required
+def generate_video_explanation_lesson(lesson_id):
+    """توليد شرح الفيديو لكل أسئلة درس"""
+    from src.models.question import Question
+    from sqlalchemy.orm import joinedload
+    questions = Question.query.options(joinedload(Question.options)).filter_by(lesson_id=lesson_id).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذا الدرس'}), 404
+    updated, errors = _generate_video_explanation_for_questions(questions)
+    return jsonify({'success': True, 'count_updated': updated, 'errors': errors})
+
+
+@admin_ai_bp.route('/generate-video-explanation/unit/<int:unit_id>', methods=['POST'])
+@admin_required
+def generate_video_explanation_unit(unit_id):
+    """توليد شرح الفيديو لكل أسئلة وحدة"""
+    from src.models.question import Question
+    from src.models.curriculum import Lesson
+    from sqlalchemy.orm import joinedload
+    lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=unit_id).all()]
+    if not lesson_ids:
+        return jsonify({'success': False, 'error': 'لا توجد دروس في هذه الوحدة'}), 404
+    questions = Question.query.options(joinedload(Question.options)).filter(
+        Question.lesson_id.in_(lesson_ids)
+    ).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذه الوحدة'}), 404
+    updated, errors = _generate_video_explanation_for_questions(questions)
+    return jsonify({'success': True, 'count_updated': updated, 'errors': errors})
+
+
 # ============================================
 # إعدادات AI للشرح (المرحلة 2)
 # ============================================

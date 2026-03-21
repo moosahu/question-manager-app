@@ -17,9 +17,24 @@
                     <h6 class="mb-0"><i class="fas fa-filter me-2"></i>اختر النطاق</h6>
                 </div>
                 <div class="card-body">
+                    <!-- نوع الشرح -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">نوع الشرح</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="explanation_type" id="type-brief" value="brief" checked>
+                                <label class="form-check-label" for="type-brief">مختصر <small class="text-muted">(يظهر للطالب)</small></label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="explanation_type" id="type-video" value="video">
+                                <label class="form-check-label" for="type-video">🎬 شرح الفيديو <small class="text-muted">(مفصّل)</small></label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- نوع النطاق -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">نوع التوليد</label>
+                        <label class="form-label fw-semibold">النطاق</label>
                         <div class="d-flex gap-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="scope" id="scope-lesson" value="lesson" checked>
@@ -147,16 +162,19 @@ function loadLessons() {
 
 function startGeneration() {
     const scope    = document.querySelector('input[name=scope]:checked').value;
+    const expType  = document.querySelector('input[name=explanation_type]:checked').value;
     const unitId   = document.getElementById('sel-unit').value;
     const lessonId = document.getElementById('sel-lesson').value;
+
+    const prefix = expType === 'video' ? 'generate-video-explanation' : 'generate-explanation';
 
     let url = '';
     if (scope === 'lesson') {
         if (!lessonId) { alert('اختر درساً أولاً'); return; }
-        url = `/api/admin/ai/generate-explanation/lesson/${lessonId}`;
+        url = `/api/admin/ai/${prefix}/lesson/${lessonId}`;
     } else {
         if (!unitId) { alert('اختر وحدة أولاً'); return; }
-        url = `/api/admin/ai/generate-explanation/unit/${unitId}`;
+        url = `/api/admin/ai/${prefix}/unit/${unitId}`;
     }
 
     const btn   = document.getElementById('btn-start');
