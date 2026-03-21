@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required, login_user
 from flask_wtf.csrf import CSRFProtect
 from src.extensions import db
+from flask_migrate import Migrate
 # from src.models.notification import Notification  # ✅ نُقل داخل الدوال
 from datetime import datetime
 import uuid
@@ -528,6 +529,7 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
+    Migrate(app, db)
     login_manager.init_app(app)
 
     # ✅ WebSocket - يتفعل فقط لو ENABLE_WEBSOCKET=true في متغيرات البيئة

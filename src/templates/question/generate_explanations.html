@@ -200,7 +200,7 @@ function startGeneration() {
                 تم تحديث شرح <strong>${data.count_updated}</strong> سؤال بنجاح</div>`;
             if (data.errors && data.errors.length) {
                 html += `<div class="alert alert-warning"><strong>${data.errors.length} أخطاء:</strong>
-                    <ul class="mb-0 mt-1">${data.errors.map(e => `<li>${e}</li>`).join('')}</ul></div>`;
+                    <ul class="mb-0 mt-1">${data.errors.map(e => `<li>سؤال ${e.question_id}: ${e.error}</li>`).join('')}</ul></div>`;
             }
             area.innerHTML = html;
         } else {
