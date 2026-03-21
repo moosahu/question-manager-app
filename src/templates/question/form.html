@@ -383,7 +383,16 @@
                     </div>
                     <div class="mb-3">
                         <label for="video_explanation" class="form-label">شرح الفيديو <small class="text-muted">(مفصّل — لا يظهر للطالب)</small></label>
-                        <textarea name="video_explanation" id="video_explanation" rows="4" class="form-control">{{ question.video_explanation if question else request.form.get("video_explanation", "") }}</textarea>
+                        <textarea name="video_explanation" id="video_explanation" rows="4" class="form-control">{{ question.video_explanation or '' if question else request.form.get("video_explanation", "") }}</textarea>
+                        {% if question %}
+                        <button type="button" id="btn-generate-video-explanation"
+                                class="btn btn-outline-secondary btn-sm mt-2"
+                                data-question-id="{{ question.question_id }}">
+                            <span class="spinner-border spinner-border-sm d-none me-1" id="vid-exp-spinner"></span>
+                            🎬 توليد شرح الفيديو بالذكاء الاصطناعي
+                        </button>
+                        <small class="text-muted d-block mt-1">يولّد سيناريو مفصّل لاستخدامه في توليد الفيديو — لا يظهر للطالب</small>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="explanation_image" class="form-label">صورة الشرح (اختياري)</label>
@@ -1231,6 +1240,46 @@
             .catch(e => {
                 btn.innerHTML = '❌ خطأ في الاتصال';
                 btn.classList.replace('btn-outline-primary', 'btn-outline-danger');
+            })
+            .finally(() => { btn.disabled = false; });
+        });
+    })();
+    </script>
+
+    <!-- زر توليد شرح الفيديو المفصّل -->
+    <script>
+    (function() {
+        const btn = document.getElementById('btn-generate-video-explanation');
+        if (!btn) return;
+
+        btn.addEventListener('click', function() {
+            const questionId = btn.dataset.questionId;
+            const spinner    = document.getElementById('vid-exp-spinner');
+            const textarea   = document.getElementById('video_explanation');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري التوليد...';
+
+            fetch(`/api/admin/ai/generate-video-explanation/question/${questionId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || ''}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    textarea.value = data.video_explanation;
+                    btn.innerHTML = '✅ تم التوليد — راجع الشرح قبل الحفظ';
+                    btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+                } else {
+                    btn.innerHTML = '❌ ' + (data.error || 'حدث خطأ');
+                    btn.classList.replace('btn-outline-secondary', 'btn-outline-danger');
+                }
+            })
+            .catch(() => {
+                btn.innerHTML = '❌ خطأ في الاتصال';
+                btn.classList.replace('btn-outline-secondary', 'btn-outline-danger');
             })
             .finally(() => { btn.disabled = false; });
         });

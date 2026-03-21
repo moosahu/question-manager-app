@@ -1989,6 +1989,79 @@ def _call_ai_for_explanation(question_text, options_data, correct_text):
     raise ValueError(f'مزوّد AI غير معروف: {provider}')
 
 
+def _call_ai_for_video_explanation(question_text, options_data, correct_text):
+    """يولّد شرح مفصّل لسيناريو الفيديو — أطول وأكثر تعليمياً من الشرح المختصر"""
+    provider = AISetting.get_setting('explanation_ai_provider', 'gemini')
+    model    = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+
+    opts_text = '، '.join([o['text'] for o in options_data if o.get('text')])
+    prompt = (
+        f"أنت معلم كيمياء خبير. اكتب شرحاً تعليمياً مفصّلاً بالعربية الفصحى البسيطة "
+        f"للسؤال التالي: «{question_text}».\n"
+        f"الخيارات: {opts_text}.\n"
+        f"الإجابة الصحيحة: «{correct_text}».\n\n"
+        f"اشرح:\n"
+        f"1. لماذا الإجابة الصحيحة هي «{correct_text}» (المفهوم العلمي)\n"
+        f"2. لماذا الخيارات الأخرى خاطئة بإيجاز\n"
+        f"3. القاعدة أو المبدأ العلمي الذي يجب أن يتذكره الطالب\n\n"
+        f"اكتب بأسلوب شرح صوتي واضح كأنك تشرح للطالب مباشرة. بدون تمهيد أو ترحيب. "
+        f"الطول المناسب: 5-8 جمل."
+    )
+
+    if provider == 'gemini':
+        from google import genai
+        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GOOGLE_AI_API_KEY', '')
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(model=model, contents=prompt)
+        return response.text.strip()
+
+    elif provider == 'claude':
+        import anthropic
+        api_key = AISetting.get_setting('claude_api_key', '')
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model=model, max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return msg.content[0].text.strip()
+
+    elif provider == 'openai':
+        from openai import OpenAI
+        api_key = AISetting.get_setting('openai_api_key', '')
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model=model, max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return resp.choices[0].message.content.strip()
+
+    raise ValueError(f'مزوّد AI غير معروف: {provider}')
+
+
+@admin_ai_bp.route('/generate-video-explanation/question/<int:question_id>', methods=['POST'])
+@admin_required
+def generate_video_explanation_question(question_id):
+    """توليد شرح مفصّل لسيناريو الفيديو لسؤال واحد"""
+    from src.models.question import Question
+    from src.extensions import db as _db
+    from sqlalchemy.orm import joinedload
+    q = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
+    correct_opt = next((o for o in q.options if o.is_correct), None)
+    if not correct_opt:
+        return jsonify({'success': False, 'error': 'لا توجد إجابة صحيحة للسؤال'}), 400
+    try:
+        video_explanation = _call_ai_for_video_explanation(
+            q.question_text or 'سؤال',
+            [{'text': o.option_text or ''} for o in q.options],
+            correct_opt.option_text or ''
+        )
+        q.video_explanation = video_explanation
+        _db.session.commit()
+        return jsonify({'success': True, 'video_explanation': video_explanation})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _generate_for_questions(questions):
     """يولّد الشرح لقائمة أسئلة ويحفظه في DB"""
     from src.extensions import db as _db
