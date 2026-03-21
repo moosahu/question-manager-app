@@ -2000,6 +2000,50 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                 </div>
             </section>
+
+            <!-- ── قسم الذكاء الاصطناعي ── -->
+            <section id="ai-settings" class="settings-section" style="display:none">
+                <h3><i class="fas fa-brain"></i> نظام الذكاء الاصطناعي</h3>
+                <p class="text-muted mb-3" style="font-size:0.85rem">
+                    ملخص حالة الطلاب وفعالية الإشعارات الذكية التلقائية
+                </p>
+                <div id="ai-stats-container">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-brain fa-2x mb-2"></i><br>
+                        اضغط لتحميل البيانات
+                    </div>
+                </div>
+                <hr class="my-4">
+                <h5 class="mb-3"><i class="fas fa-robot text-primary me-2"></i> توليد شرح الأسئلة</h5>
+                <p class="text-muted mb-3" style="font-size:0.85rem">اختر مزوّد الذكاء الاصطناعي والنموذج المستخدم لتوليد شرح الأسئلة تلقائياً</p>
+                <div class="alert alert-info py-2 mb-3" style="font-size:0.82rem">
+                    <strong>✅ يعمل الآن:</strong> Gemini Flash (مجاني) &nbsp;|&nbsp;
+                    <strong>⚠️ يحتاج API key:</strong> Claude &nbsp;|&nbsp;
+                    <strong>🔒 يحتاج وصول خاص:</strong> Gemini Pro
+                </div>
+                <div id="exp-settings-loading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div> جاري التحميل...
+                </div>
+                <div id="exp-settings-form" style="display:none">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">مزوّد AI</label>
+                            <select id="exp-provider" class="form-select" onchange="onProviderChange()"></select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">النموذج</label>
+                            <select id="exp-model" class="form-select"></select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="saveExpSettings(this)">
+                                <i class="fas fa-save"></i> حفظ
+                            </button>
+                        </div>
+                    </div>
+                    <div id="exp-settings-msg" class="mt-2"></div>
+                </div>
+            </section>
+
         </div>
     </div>
 </div>
@@ -2913,53 +2957,6 @@ window.cancelPhoneChange = function() {
   </div>
 </div>
 
-<!-- ── قسم الذكاء الاصطناعي ─────────────────────────────────────── -->
-<section id="ai-settings" class="settings-section" style="display:none">
-    <h3><i class="fas fa-brain"></i> نظام الذكاء الاصطناعي</h3>
-    <p class="text-muted mb-3" style="font-size:0.85rem">
-        ملخص حالة الطلاب وفعالية الإشعارات الذكية التلقائية
-    </p>
-    <div id="ai-stats-container">
-        <div class="text-center py-4 text-muted">
-            <i class="fas fa-brain fa-2x mb-2"></i><br>
-            اضغط لتحميل البيانات
-        </div>
-    </div>
-
-    <hr class="my-4">
-
-    <!-- إعدادات AI لتوليد شرح الأسئلة -->
-    <h5 class="mb-3"><i class="fas fa-robot text-primary me-2"></i> توليد شرح الأسئلة</h5>
-    <p class="text-muted mb-3" style="font-size:0.85rem">اختر مزوّد الذكاء الاصطناعي والنموذج المستخدم لتوليد شرح الأسئلة تلقائياً</p>
-    <div class="alert alert-info py-2 mb-3" style="font-size:0.82rem">
-        <strong>✅ يعمل الآن:</strong> Gemini Flash (مجاني) &nbsp;|&nbsp;
-        <strong>⚠️ يحتاج API key:</strong> Claude &nbsp;|&nbsp;
-        <strong>🔒 يحتاج وصول خاص:</strong> Gemini Pro
-    </div>
-    <div id="exp-settings-loading" class="text-center py-3">
-        <div class="spinner-border spinner-border-sm text-primary" role="status"></div> جاري التحميل...
-    </div>
-    <div id="exp-settings-form" style="display:none">
-        <div class="row g-3">
-            <div class="col-md-5">
-                <label class="form-label fw-semibold">مزوّد AI</label>
-                <select id="exp-provider" class="form-select" onchange="onProviderChange()">
-                </select>
-            </div>
-            <div class="col-md-5">
-                <label class="form-label fw-semibold">النموذج</label>
-                <select id="exp-model" class="form-select">
-                </select>
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button class="btn btn-primary w-100" onclick="saveExpSettings(this)">
-                    <i class="fas fa-save"></i> حفظ
-                </button>
-            </div>
-        </div>
-        <div id="exp-settings-msg" class="mt-2"></div>
-    </div>
-</section>
 
 <script>
 // ── قسم الذكاء الاصطناعي ─────────────────────────────────────────────────
