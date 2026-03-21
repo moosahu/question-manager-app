@@ -398,6 +398,9 @@ def list_questions():
     unit_id = request.args.get("unit_id", type=int)
     lesson_id = request.args.get("lesson_id", type=int)
     search_q = request.args.get("q", "").strip()
+    difficulty = request.args.get("difficulty", "")
+    bloom_level = request.args.get("bloom_level", "")
+    blocked = request.args.get("blocked", "")  # "1"=محجوبة, "0"=غير محجوبة, ""=الكل
     page = request.args.get("page", 1, type=int)
     per_page = 9
     bank_mode = request.args.get('bank', '0') == '1'
@@ -440,6 +443,20 @@ def list_questions():
                 )
             )
 
+        # فلتر الصعوبة
+        if difficulty:
+            query = query.filter(Question.difficulty == difficulty)
+
+        # فلتر مستوى بلوم
+        if bloom_level:
+            query = query.filter(Question.bloom_level == bloom_level)
+
+        # فلتر المحجوبة
+        if blocked == "1":
+            query = query.filter(Question.is_blocked == True)
+        elif blocked == "0":
+            query = query.filter(Question.is_blocked == False)
+
         # ترتيب النتائج وتقسيمها إلى صفحات
         questions_pagination = query.order_by(Question.question_id.desc()).paginate(
             page=page, per_page=per_page, error_out=False
@@ -462,6 +479,14 @@ def list_questions():
             if unit_id:
                 lessons = Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all()
         
+        # إحصائيات سريعة
+        base_count_query = Question.query.filter(Question.is_bank == bank_mode)
+        stats = {
+            'total_all': base_count_query.count(),
+            'total_blocked': base_count_query.filter(Question.is_blocked == True).count(),
+            'total_filtered': questions_pagination.total,
+        }
+
         rendered_template = render_template(
             "question/list.html",
             questions=questions_pagination.items,
@@ -473,6 +498,10 @@ def list_questions():
             per_page=per_page,
             bank=bank_mode,
             search_q=search_q,
+            difficulty=difficulty,
+            bloom_level=bloom_level,
+            blocked=blocked,
+            stats=stats,
         )
         
         current_app.logger.info("Template rendering successful.")

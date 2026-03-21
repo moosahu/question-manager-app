@@ -47,6 +47,9 @@
                         <button type="button" class="btn btn-secondary ms-2" id="selectAllBtn">
                             <i class="fas fa-check-square"></i> تحديد الكل
                         </button>
+                        <button type="button" class="btn btn-danger ms-2" id="deleteSelectedBtn" disabled>
+                            <i class="fas fa-trash"></i> حذف المحدد (0)
+                        </button>
                     </div>
                     <!-- أزرار التبديل بين العرضين -->
                     <div class="btn-group view-toggle" role="group" aria-label="View Toggle">
@@ -69,6 +72,16 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+
+                <!-- إحصائيات سريعة -->
+                <div class="d-flex gap-3 mb-3 flex-wrap">
+                    <span class="badge bg-primary fs-6 px-3 py-2">📊 الكل: {{ stats.total_all }}</span>
+                    <span class="badge bg-danger fs-6 px-3 py-2">🚫 محجوبة: {{ stats.total_blocked }}</span>
+                    <span class="badge bg-success fs-6 px-3 py-2">✅ نشطة: {{ stats.total_all - stats.total_blocked }}</span>
+                    {% if stats.total_filtered != stats.total_all %}
+                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">🔍 نتائج الفلتر: {{ stats.total_filtered }}</span>
+                    {% endif %}
+                </div>
 
                 <!-- تبويبات بنك الأسئلة / الأسئلة العادية -->
                 <div class="mb-3 d-flex gap-2 align-items-center" dir="rtl">
@@ -140,6 +153,38 @@
                                                 {{ lesson.name }}
                                             </option>
                                         {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-4">
+                                    <label class="form-label">الصعوبة</label>
+                                    <select class="form-select" name="difficulty">
+                                        <option value="" {% if not difficulty %}selected{% endif %}>-- كل المستويات --</option>
+                                        <option value="easy" {% if difficulty == 'easy' %}selected{% endif %}>🟢 سهل</option>
+                                        <option value="medium" {% if difficulty == 'medium' %}selected{% endif %}>🟡 متوسط</option>
+                                        <option value="hard" {% if difficulty == 'hard' %}selected{% endif %}>🔴 صعب</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">مستوى بلوم</label>
+                                    <select class="form-select" name="bloom_level">
+                                        <option value="" {% if not bloom_level %}selected{% endif %}>-- كل المستويات --</option>
+                                        <option value="remember" {% if bloom_level == 'remember' %}selected{% endif %}>تذكر</option>
+                                        <option value="understand" {% if bloom_level == 'understand' %}selected{% endif %}>فهم</option>
+                                        <option value="apply" {% if bloom_level == 'apply' %}selected{% endif %}>تطبيق</option>
+                                        <option value="analyze" {% if bloom_level == 'analyze' %}selected{% endif %}>تحليل</option>
+                                        <option value="evaluate" {% if bloom_level == 'evaluate' %}selected{% endif %}>تقويم</option>
+                                        <option value="create" {% if bloom_level == 'create' %}selected{% endif %}>إبداع</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">الحالة</label>
+                                    <select class="form-select" name="blocked">
+                                        <option value="" {% if blocked == '' %}selected{% endif %}>-- الكل --</option>
+                                        <option value="0" {% if blocked == '0' %}selected{% endif %}>✅ نشطة فقط</option>
+                                        <option value="1" {% if blocked == '1' %}selected{% endif %}>🚫 محجوبة فقط</option>
                                     </select>
                                 </div>
                             </div>
@@ -1247,14 +1292,17 @@
         const selectAllBtn = document.getElementById('selectAllBtn');
         const blockSelectedBtn = document.getElementById('blockSelectedBtn');
         const unblockSelectedBtn = document.getElementById('unblockSelectedBtn');
-        
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+
         // تحديث عداد المحدد
         function updateSelectedCount() {
             const selectedCount = document.querySelectorAll('.question-checkbox:checked').length;
             blockSelectedBtn.textContent = `⚠️ منع المحدد (${selectedCount})`;
             unblockSelectedBtn.textContent = `✅ إلغاء منع المحدد (${selectedCount})`;
+            deleteSelectedBtn.textContent = `🗑️ حذف المحدد (${selectedCount})`;
             blockSelectedBtn.disabled = selectedCount === 0;
             unblockSelectedBtn.disabled = selectedCount === 0;
+            deleteSelectedBtn.disabled = selectedCount === 0;
         }
         
         // تحديد/إلغاء تحديد الكل
@@ -1351,6 +1399,40 @@
             });
         }
         
+        // حذف المحدد
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', async function() {
+                const selectedIds = Array.from(document.querySelectorAll('.question-checkbox:checked'))
+                    .map(cb => parseInt(cb.dataset.questionId));
+
+                if (selectedIds.length === 0) return;
+
+                if (!confirm(`⚠️ هل أنت متأكد من حذف ${selectedIds.length} سؤال نهائياً؟ لا يمكن التراجع عن هذا!`)) return;
+
+                try {
+                    const csrfToken = getCSRFToken();
+                    const headers = {'Content-Type': 'application/json'};
+                    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+                    const response = await fetch('/api/v1/questions/bulk-delete', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({question_ids: selectedIds})
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('خطأ: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('حدث خطأ: ' + error.message);
+                }
+            });
+        }
+
         // منع سؤال واحد
         document.querySelectorAll('.block-btn').forEach(btn => {
             btn.addEventListener('click', async function() {

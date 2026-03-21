@@ -3501,6 +3501,32 @@ def bulk_unblock_questions():
         }), 500
 
 
+@api_bp.route("/questions/bulk-delete", methods=["POST"])
+@login_required
+def bulk_delete_questions():
+    """حذف عدة أسئلة دفعة واحدة"""
+    try:
+        data = request.get_json()
+        question_ids = data.get('question_ids', [])
+
+        if not question_ids:
+            return jsonify({'success': False, 'error': 'لم يتم تحديد أي أسئلة'}), 400
+
+        # حذف الخيارات أولاً ثم الأسئلة
+        from src.models.question import Option
+        Option.query.filter(Option.question_id.in_(question_ids)).delete(synchronize_session=False)
+        deleted_count = Question.query.filter(Question.question_id.in_(question_ids)).delete(synchronize_session=False)
+        db.session.commit()
+
+        logger.info(f"Bulk deleted {deleted_count} questions: {question_ids}")
+        return jsonify({'success': True, 'message': f'تم حذف {deleted_count} سؤال بنجاح', 'deleted_count': deleted_count})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error bulk deleting questions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @api_bp.route("/lessons/<int:lesson_id>/questions/block-all", methods=["PUT"])
 def block_all_lesson_questions(lesson_id):
     """منع جميع أسئلة درس معين"""
