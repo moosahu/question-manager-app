@@ -791,6 +791,52 @@ def admin_delete_summary(summary_id):
 
 
 # =====================================================
+# JSON Save (upsert) — for Flutter admin editor
+# =====================================================
+
+@learning_bp.route('/admin/summary/save', methods=['POST'])
+@login_required
+def admin_save_summary():
+    """حفظ ملخص (إضافة أو تحديث) — JSON API للتطبيق"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'ليس لديك صلاحية'}), 403
+    try:
+        import json as _json
+        data = request.get_json() or {}
+        lesson_id = data.get('lesson_id')
+        introduction = data.get('introduction', '')
+        key_points = data.get('key_points', [])
+        examples = data.get('examples', [])
+        vocabulary = data.get('vocabulary', {})
+
+        if not lesson_id or not introduction.strip():
+            return jsonify({'success': False, 'error': 'lesson_id والمقدمة مطلوبان'}), 400
+
+        existing = LessonSummary.query.filter_by(lesson_id=lesson_id).first()
+        if existing:
+            existing.introduction = introduction
+            existing.key_points = key_points
+            existing.examples = examples
+            existing.vocabulary = vocabulary
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'تم تحديث الملخص', 'data': existing.to_dict()})
+        else:
+            summary = LessonSummary(
+                lesson_id=lesson_id,
+                introduction=introduction,
+                key_points=key_points,
+                examples=examples,
+                vocabulary=vocabulary,
+            )
+            db.session.add(summary)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'تم حفظ الملخص', 'data': summary.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =====================================================
 # AI-Powered Summary Generation
 # =====================================================
 
