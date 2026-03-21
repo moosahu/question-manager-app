@@ -1025,7 +1025,7 @@ def api_get_courses():
         from src.models.question import Question
         from sqlalchemy import func
         
-        courses = Course.query.filter_by(show_in_bot=True).all()
+        courses = Course.query.filter_by(show_in_bot=True).order_by(Course.order_num.asc(), Course.id).all()
         
         result = []
         for c in courses:
@@ -1069,7 +1069,7 @@ def api_get_units(course_id):
         from src.models.question import Question
         from sqlalchemy import func
         
-        units = Unit.query.filter_by(course_id=course_id, show_in_bot=True).all()
+        units = Unit.query.filter_by(course_id=course_id, show_in_bot=True).order_by(Unit.order_num.asc(), Unit.id).all()
 
         result = []
         for u in units:
@@ -1106,7 +1106,7 @@ def api_get_lessons(unit_id):
         from src.models.curriculum import Lesson
         from src.models.question import Question
 
-        lessons = Lesson.query.filter_by(unit_id=unit_id, show_in_bot=True).all()
+        lessons = Lesson.query.filter_by(unit_id=unit_id, show_in_bot=True).order_by(Lesson.order_num.asc(), Lesson.id).all()
         
         result = []
         for l in lessons:
