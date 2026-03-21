@@ -2046,6 +2046,22 @@ if (!document.getElementById('notification-styles')) {
                 <hr class="my-4">
                 <h5 class="mb-3"><i class="fas fa-microphone text-success me-2"></i> صوت الفيديو (ElevenLabs)</h5>
                 <p class="text-muted mb-3" style="font-size:0.85rem">اختر الصوت المستخدم في توليد الفيديو — يُطبّق في المرة القادمة</p>
+
+                <!-- حقل ElevenLabs API Key -->
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-9">
+                        <label class="form-label fw-semibold">ElevenLabs API Key</label>
+                        <input type="password" id="elevenlabs-api-key-input" class="form-control"
+                               placeholder="sk_..." autocomplete="off">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-success w-100" onclick="saveElevenLabsKey(this)">
+                            <i class="fas fa-key"></i> حفظ وتحميل الأصوات
+                        </button>
+                    </div>
+                </div>
+                <div id="el-key-msg" class="mb-3"></div>
+
                 <div id="voice-settings-loading" class="text-center py-3">
                     <div class="spinner-border spinner-border-sm text-success" role="status"></div> جاري التحميل...
                 </div>
@@ -3167,18 +3183,31 @@ function saveExpSettings(btn) {
 let _voicePreviews = {};
 
 function loadVoiceSettings() {
+    document.getElementById('voice-settings-loading').style.display = 'block';
+    document.getElementById('voice-settings-loading').innerHTML =
+        '<div class="spinner-border spinner-border-sm text-success" role="status"></div> جاري التحميل...';
+    document.getElementById('voice-settings-form').style.display = 'none';
+
     fetch('/api/admin/ai/elevenlabs-voices')
         .then(r => r.json())
         .then(data => {
-            if (!data.success) return;
+            // عرض الـ key المحفوظ (مخفي)
+            if (data.api_key_saved) {
+                document.getElementById('elevenlabs-api-key-input').placeholder = '●●●●●●●● (محفوظ)';
+            }
+            if (!data.success || !data.voices || data.voices.length === 0) {
+                document.getElementById('voice-settings-loading').innerHTML =
+                    '<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>أدخل ElevenLabs API Key أعلاه لتحميل الأصوات</span>';
+                return;
+            }
             const sel = document.getElementById('voice-select');
             sel.innerHTML = '';
             _voicePreviews = {};
             data.voices.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.id;
-                const gender = v.gender === 'male' ? '👨' : v.gender === 'female' ? '👩' : '👤';
-                opt.textContent = `${gender} ${v.name} — ${v.accent}`;
+                const gender = v.gender === 'male' ? '(ذكر)' : v.gender === 'female' ? '(أنثى)' : '';
+                opt.textContent = `${v.name} ${gender} ${v.accent ? '— ' + v.accent : ''}`;
                 if (v.id === data.selected) opt.selected = true;
                 if (v.preview_url) _voicePreviews[v.id] = v.preview_url;
                 sel.appendChild(opt);
@@ -3187,8 +3216,40 @@ function loadVoiceSettings() {
             document.getElementById('voice-settings-form').style.display = 'block';
         })
         .catch(() => {
-            document.getElementById('voice-settings-loading').innerHTML = '<span class="text-danger">تعذّر التحميل</span>';
+            document.getElementById('voice-settings-loading').innerHTML =
+                '<span class="text-danger">تعذّر الاتصال بالسيرفر</span>';
         });
+}
+
+function saveElevenLabsKey(btn) {
+    const key = document.getElementById('elevenlabs-api-key-input').value.trim();
+    const msg = document.getElementById('el-key-msg');
+    if (!key) { msg.innerHTML = '<span class="text-danger">أدخل الـ API Key أولاً</span>'; return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/api/admin/ai/elevenlabs-key', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({api_key: key})
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-key"></i> حفظ وتحميل الأصوات';
+        if (data.success) {
+            msg.innerHTML = '<span class="text-success"><i class="fas fa-check me-1"></i>تم الحفظ، جاري تحميل الأصوات...</span>';
+            document.getElementById('elevenlabs-api-key-input').value = '';
+            document.getElementById('elevenlabs-api-key-input').placeholder = '●●●●●●●● (محفوظ)';
+            setTimeout(() => { msg.innerHTML = ''; loadVoiceSettings(); }, 800);
+        } else {
+            msg.innerHTML = `<span class="text-danger">${data.error || 'حدث خطأ'}</span>`;
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-key"></i> حفظ وتحميل الأصوات';
+        msg.innerHTML = '<span class="text-danger">تعذّر الاتصال</span>';
+    });
 }
 
 function onVoiceChange() {

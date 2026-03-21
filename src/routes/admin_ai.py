@@ -2044,6 +2044,18 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     raise ValueError(f'مزوّد AI غير معروف: {provider}')
 
 
+@admin_ai_bp.route('/elevenlabs-key', methods=['POST'])
+@admin_required
+def save_elevenlabs_key():
+    """يحفظ ElevenLabs API Key"""
+    data = request.get_json() or {}
+    api_key = data.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'success': False, 'error': 'api_key مطلوب'}), 400
+    AISetting.set_setting('elevenlabs_api_key', api_key, 'string', description='ElevenLabs API Key')
+    return jsonify({'success': True})
+
+
 @admin_ai_bp.route('/elevenlabs-voices', methods=['GET'])
 @admin_required
 def get_elevenlabs_voices():
@@ -2052,6 +2064,9 @@ def get_elevenlabs_voices():
     el_key = (AISetting.get_setting('elevenlabs_api_key')
               or os.environ.get('ELEVENLABS_API_KEY', ''))
     saved_voice = AISetting.get_setting('elevenlabs_voice_id', 'CwhRBWXzGAHq8TQ4Fs17')
+    api_key_saved = bool(el_key)
+    if not el_key:
+        return jsonify({'success': True, 'voices': [], 'selected': saved_voice, 'api_key_saved': False})
     try:
         r = _req.get('https://api.elevenlabs.io/v1/voices',
                      headers={'xi-api-key': el_key}, timeout=10)
@@ -2062,9 +2077,9 @@ def get_elevenlabs_voices():
              'preview_url': v.get('preview_url', '')}
             for v in r.json().get('voices', [])
         ]
-    except Exception as e:
+    except Exception:
         voices = []
-    return jsonify({'success': True, 'voices': voices, 'selected': saved_voice})
+    return jsonify({'success': True, 'voices': voices, 'selected': saved_voice, 'api_key_saved': api_key_saved})
 
 
 @admin_ai_bp.route('/elevenlabs-voices', methods=['POST'])
