@@ -425,11 +425,9 @@
                             <input type="text" name="video_url" id="video_url" class="form-control"
                                    placeholder="https://youtu.be/..."
                                    value="{{ question.video_url or '' }}">
-                            <button type="button" id="btn-generate-video"
-                                    class="btn btn-outline-danger btn-sm"
-                                    data-question-id="{{ question.question_id }}">
-                                <span class="spinner-border spinner-border-sm d-none me-1" id="vid-spinner"></span>
-                                🎬 توليد الفيديو
+                            <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+                                    title="هذه الميزة قادمة قريباً — أدخل رابط YouTube يدوياً">
+                                🎬 توليد الفيديو (قريباً)
                             </button>
                         </div>
                         <small class="text-muted d-block mt-1">
