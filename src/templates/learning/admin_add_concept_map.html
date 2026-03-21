@@ -581,6 +581,14 @@ async function generateWithAI() {
             document.getElementById('branchesContainer').innerHTML = '';
             branchCount = 0;
             
+            // حفظ children من AI لإعادة دمجها عند الحفظ
+            window._aiChildrenMap = {};
+            result.data.branches.forEach((branch, i) => {
+                if (branch.children && branch.children.length > 0) {
+                    window._aiChildrenMap[i] = branch.children;
+                }
+            });
+
             // إضافة الفروع الجديدة
             result.data.branches.forEach(branch => {
                 addBranchWithData(branch);
@@ -696,8 +704,18 @@ document.getElementById('conceptMapForm').addEventListener('submit', (e) => {
     }
     
     const mapData = collectMapData();
+
+    // إعادة دمج children من AI (تحفظ البنية الشجرية)
+    if (window._aiChildrenMap) {
+        mapData.branches.forEach((branch, i) => {
+            if (window._aiChildrenMap[i]) {
+                branch.children = window._aiChildrenMap[i];
+            }
+        });
+    }
+
     document.getElementById('map_data').value = JSON.stringify(mapData);
-    
+
     // Now submit the form
     e.target.submit();
 });

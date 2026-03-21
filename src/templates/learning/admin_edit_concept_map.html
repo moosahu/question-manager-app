@@ -223,6 +223,16 @@ const existingData = {{ concept_map.map_data | tojson | safe }};
 document.addEventListener('DOMContentLoaded', () => {
     console.log('تحميل البيانات:', existingData);
     
+    // حفظ children الموجودة لإعادة دمجها عند الحفظ
+    window._existingChildren = {};
+    if (existingData && existingData.branches) {
+        existingData.branches.forEach((branch, index) => {
+            if (branch.children && branch.children.length > 0) {
+                window._existingChildren[index] = branch.children;
+            }
+        });
+    }
+
     if (existingData && existingData.branches) {
         existingData.branches.forEach((branch, index) => {
             addBranch();
@@ -386,6 +396,15 @@ document.getElementById('conceptMapForm').addEventListener('submit', function(e)
         return;
     }
     
+    // إعادة دمج children المحفوظة (تحفظ البنية الشجرية)
+    if (window._existingChildren) {
+        mapData.branches.forEach((branch, i) => {
+            if (window._existingChildren[i]) {
+                branch.children = window._existingChildren[i];
+            }
+        });
+    }
+
     // وضع JSON في الحقل المخفي
     document.getElementById('mapDataInput').value = JSON.stringify(mapData);
     
