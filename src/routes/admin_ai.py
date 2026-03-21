@@ -2044,6 +2044,72 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     raise ValueError(f'مزوّد AI غير معروف: {provider}')
 
 
+@admin_ai_bp.route('/generate-video/question/<int:question_id>', methods=['POST'])
+@admin_required
+def generate_video_question(question_id):
+    """يولّد فيديو MP4 للسؤال ويُحفظ في /tmp للتحميل"""
+    from src.models.question import Question
+    from src.models.ai_analysis import AISetting
+    from sqlalchemy.orm import joinedload
+    import os
+
+    q = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
+
+    # مفاتيح API
+    gemini_key   = os.environ.get('GEMINI_API_KEY', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+    el_key       = (AISetting.get_setting('elevenlabs_api_key')
+                    or os.environ.get('ELEVENLABS_API_KEY',
+                                      'sk_ad5ffe756188ba16fe7a02812a7a406712c73a68cf94851f'))
+
+    # تجهيز بيانات السؤال
+    letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    options = [
+        (letters[i], o.option_text or '', bool(o.is_correct))
+        for i, o in enumerate(sorted(q.options, key=lambda x: x.option_id))
+    ]
+
+    # جلب أسماء الدرس والوحدة
+    from src.models.curriculum import Lesson, Unit
+    lesson = Lesson.query.get(q.lesson_id)
+    unit   = Unit.query.get(lesson.unit_id) if lesson else None
+
+    question_data = {
+        'question_text':    q.question_text or '',
+        'explanation':      q.explanation,
+        'video_explanation': q.video_explanation,
+        'lesson':           lesson.name if lesson else '',
+        'unit':             unit.name   if unit   else '',
+        'options':          options,
+    }
+
+    try:
+        from src.services.video_generator import generate_video
+        output_path = generate_video(
+            question_id, question_data, gemini_key, el_key
+        )
+        return jsonify({
+            'success':      True,
+            'download_url': f'/api/admin/ai/download-video/{question_id}',
+            'message':      'تم توليد الفيديو — اضغط لتحميله',
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_ai_bp.route('/download-video/<int:question_id>', methods=['GET'])
+@admin_required
+def download_video_question(question_id):
+    """تحميل ملف MP4 المولّد من /tmp"""
+    from flask import send_file
+    import os
+    path = f'/tmp/question_{question_id}.mp4'
+    if not os.path.exists(path):
+        return jsonify({'error': 'الفيديو غير موجود — يرجى إعادة التوليد'}), 404
+    return send_file(path, as_attachment=True,
+                     download_name=f'question_{question_id}.mp4',
+                     mimetype='video/mp4')
+
+
 @admin_ai_bp.route('/generate-video-explanation/question/<int:question_id>', methods=['POST'])
 @admin_required
 def generate_video_explanation_question(question_id):

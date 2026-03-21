@@ -91,3 +91,7 @@ apscheduler==3.10.4
 # ✅ WebSocket للتحديثات الفورية
 flask-socketio>=5.3.0
 simple-websocket>=0.10.0
+
+# Video Generation
+moviepy>=2.0.0
+imageio-ffmpeg>=0.4.9

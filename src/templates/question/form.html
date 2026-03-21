@@ -425,9 +425,11 @@
                             <input type="text" name="video_url" id="video_url" class="form-control"
                                    placeholder="https://youtu.be/..."
                                    value="{{ question.video_url or '' }}">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" disabled
-                                    title="هذه الميزة قادمة قريباً — أدخل رابط YouTube يدوياً">
-                                🎬 توليد الفيديو (قريباً)
+                            <button type="button" id="btn-generate-video"
+                                    class="btn btn-outline-danger btn-sm"
+                                    data-question-id="{{ question.question_id }}">
+                                <span class="spinner-border spinner-border-sm d-none me-1" id="vid-spinner"></span>
+                                🎬 توليد الفيديو
                             </button>
                         </div>
                         <small class="text-muted d-block mt-1">
@@ -1302,6 +1304,9 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" id="vid-spinner"></span> جاري التوليد...';
             if (badge) { badge.className = 'badge bg-warning text-dark'; badge.textContent = 'جاري التوليد'; }
 
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري التوليد (3-5 دقائق)...';
+            if (badge) { badge.className = 'badge bg-warning text-dark'; badge.textContent = 'جاري التوليد'; }
+
             fetch(`/api/admin/ai/generate-video/question/${questionId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json',
@@ -1309,20 +1314,20 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.success && data.video_url) {
-                    document.getElementById('video_url').value = data.video_url;
-                    if (badge) { badge.className = 'badge bg-success'; badge.textContent = 'جاهز'; }
-                    btn.innerHTML = '✅ تم توليد الفيديو';
-                    btn.classList.replace('btn-outline-danger', 'btn-outline-success');
+                if (data.success) {
+                    if (badge) { badge.className = 'badge bg-success'; badge.textContent = 'جاهز للتحميل'; }
+                    btn.innerHTML = `<a href="${data.download_url}" download class="text-white text-decoration-none">⬇️ تحميل الفيديو</a>`;
+                    btn.className = 'btn btn-success btn-sm';
                 } else {
                     if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
                     btn.innerHTML = '❌ ' + (data.error || 'فشل التوليد');
-                    btn.classList.replace('btn-outline-danger', 'btn-outline-danger');
+                    btn.className = 'btn btn-outline-danger btn-sm';
                 }
             })
             .catch(() => {
                 btn.innerHTML = '❌ خطأ في الاتصال';
                 if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
+                btn.className = 'btn btn-outline-danger btn-sm';
             })
             .finally(() => { btn.disabled = false; });
         });
