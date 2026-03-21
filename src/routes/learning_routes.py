@@ -1048,6 +1048,7 @@ def admin_suggest_branches():
 - استخدم ألوان متنوعة
 - لا تكرر الفروع الموجودة
 - الرد JSON فقط بدون نص إضافي
+- إذا كان الفرع يتعلق بمعادلة كيميائية أو قانون، أضفها في الوصف باستخدام Unicode (مثل: H₂O، CO₂، →، ⇌، Δ)
 """
         
         response = ai_assistant.model.generate_content(prompt)
