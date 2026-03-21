@@ -47,7 +47,8 @@ class Lesson(db.Model):
     show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
     
     # العلاقات
-    questions = db.relationship("Question", back_populates="lesson", lazy=True)
+    questions = db.relationship("Question", back_populates="lesson", lazy=True,
+                             cascade="all, delete-orphan")
     
     # ✅ جديد: العلاقات مع Learning Content
     # لا نحتاج تعريفها هنا لأنها معرفة في learning_content.py

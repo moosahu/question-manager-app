@@ -1202,8 +1202,8 @@ def get_dashboard_statistics():
     """استرجاع إحصائيات لوحة التحكم"""
     logger.info("API request received for dashboard statistics.")
     try:
-        # إحصائيات عامة
-        total_questions = Question.query.count()
+        # إحصائيات عامة — نعدّ فقط الأسئلة المرتبطة بدرس ووحدة ومنهج صحيح
+        total_questions = Question.query.join(Question.lesson).join(Lesson.unit).join(Unit.course).count()
         total_courses = Course.query.count()
         total_units = Unit.query.count()
         total_lessons = Lesson.query.count()
@@ -5913,3 +5913,27 @@ def get_export_quota():
             'limit':     limit,
         }
     return jsonify({'success': True, 'quota': result})
+
+
+# ===== تنظيف الأسئلة المعلّقة =====
+
+@api_bp.route("/questions/cleanup-orphans", methods=["POST"])
+@admin_required
+def cleanup_orphan_questions():
+    """حذف الأسئلة التي فقدت ارتباطها بدرس موجود"""
+    try:
+        from sqlalchemy import text
+        # أسئلة lesson_id تشير لدرس محذوف
+        result = db.session.execute(text("""
+            DELETE FROM questions
+            WHERE lesson_id NOT IN (SELECT id FROM lesson)
+        """))
+        deleted_count = result.rowcount
+        db.session.commit()
+        logger.info(f"Cleaned up {deleted_count} orphaned questions")
+        return jsonify({"success": True, "deleted": deleted_count,
+                        "message": f"تم حذف {deleted_count} سؤال معلّق"})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error cleaning orphan questions: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

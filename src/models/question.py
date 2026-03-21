@@ -42,7 +42,7 @@ class Question(db.Model):
     bloom_level = db.Column(db.String(30), default='remember', nullable=False, index=True)
     # =========================================================
 
-    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False)
 
     # Cascade delete ensures options are deleted when a question is deleted
     options = db.relationship("Option", backref="question", lazy=True, cascade="all, delete-orphan")
