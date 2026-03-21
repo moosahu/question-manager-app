@@ -2050,18 +2050,24 @@ if (!document.getElementById('notification-styles')) {
                     <div class="spinner-border spinner-border-sm text-success" role="status"></div> جاري التحميل...
                 </div>
                 <div id="voice-settings-form" style="display:none">
-                    <div class="row g-3">
-                        <div class="col-md-10">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
                             <label class="form-label fw-semibold">الصوت</label>
-                            <select id="voice-select" class="form-select"></select>
+                            <select id="voice-select" class="form-select" onchange="onVoiceChange()"></select>
                         </div>
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-success w-100" onclick="previewVoice()" id="voice-preview-btn" title="استمع للصوت">
+                                <i class="fas fa-play"></i> معاينة
+                            </button>
+                        </div>
+                        <div class="col-md-2">
                             <button class="btn btn-success w-100" onclick="saveVoiceSettings(this)">
                                 <i class="fas fa-save"></i> حفظ
                             </button>
                         </div>
                     </div>
                     <div id="voice-settings-msg" class="mt-2"></div>
+                    <audio id="voice-preview-audio" style="display:none"></audio>
                 </div>
             </section>
 
@@ -3158,6 +3164,8 @@ function saveExpSettings(btn) {
     });
 }
 
+let _voicePreviews = {};
+
 function loadVoiceSettings() {
     fetch('/api/admin/ai/elevenlabs-voices')
         .then(r => r.json())
@@ -3165,12 +3173,14 @@ function loadVoiceSettings() {
             if (!data.success) return;
             const sel = document.getElementById('voice-select');
             sel.innerHTML = '';
+            _voicePreviews = {};
             data.voices.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.id;
                 const gender = v.gender === 'male' ? '👨' : v.gender === 'female' ? '👩' : '👤';
                 opt.textContent = `${gender} ${v.name} — ${v.accent}`;
                 if (v.id === data.selected) opt.selected = true;
+                if (v.preview_url) _voicePreviews[v.id] = v.preview_url;
                 sel.appendChild(opt);
             });
             document.getElementById('voice-settings-loading').style.display = 'none';
@@ -3179,6 +3189,34 @@ function loadVoiceSettings() {
         .catch(() => {
             document.getElementById('voice-settings-loading').innerHTML = '<span class="text-danger">تعذّر التحميل</span>';
         });
+}
+
+function onVoiceChange() {
+    const btn = document.getElementById('voice-preview-btn');
+    const audio = document.getElementById('voice-preview-audio');
+    audio.pause();
+    btn.innerHTML = '<i class="fas fa-play"></i> معاينة';
+}
+
+function previewVoice() {
+    const voiceId = document.getElementById('voice-select').value;
+    const url = _voicePreviews[voiceId];
+    const btn = document.getElementById('voice-preview-btn');
+    const audio = document.getElementById('voice-preview-audio');
+    if (!url) {
+        document.getElementById('voice-settings-msg').innerHTML = '<span class="text-warning">لا توجد معاينة لهذا الصوت</span>';
+        setTimeout(() => { document.getElementById('voice-settings-msg').innerHTML = ''; }, 2000);
+        return;
+    }
+    if (!audio.paused) {
+        audio.pause();
+        btn.innerHTML = '<i class="fas fa-play"></i> معاينة';
+        return;
+    }
+    audio.src = url;
+    audio.play();
+    btn.innerHTML = '<i class="fas fa-stop"></i> إيقاف';
+    audio.onended = () => { btn.innerHTML = '<i class="fas fa-play"></i> معاينة'; };
 }
 
 function saveVoiceSettings(btn) {

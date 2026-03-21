@@ -2058,7 +2058,8 @@ def get_elevenlabs_voices():
         voices = [
             {'id': v['voice_id'], 'name': v['name'],
              'gender': v.get('labels', {}).get('gender', ''),
-             'accent': v.get('labels', {}).get('accent', '')}
+             'accent': v.get('labels', {}).get('accent', ''),
+             'preview_url': v.get('preview_url', '')}
             for v in r.json().get('voices', [])
         ]
     except Exception as e:
