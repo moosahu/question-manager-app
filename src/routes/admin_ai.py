@@ -2263,21 +2263,16 @@ AI_PROVIDERS = {
     'gemini': {
         'label': 'Google Gemini',
         'models': [
-            'gemini-2.0-flash',
-            'gemini-2.0-pro-exp',
-            'gemini-2.5-pro-exp-03-25',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
+            'gemini-2.0-flash',       # مجاني ✅
+            'gemini-1.5-flash',       # مجاني ✅
+            'gemini-2.0-pro-exp',     # تجريبي (يحتاج وصول)
+            'gemini-2.5-pro-exp-03-25',  # تجريبي (يحتاج وصول)
         ]
     },
     'claude': {
         'label': 'Anthropic Claude',
         'models': ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6']
     },
-    'openai': {
-        'label': 'OpenAI',
-        'models': ['gpt-4o-mini', 'gpt-4o']
-    }
 }
 
 
