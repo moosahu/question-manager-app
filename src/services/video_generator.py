@@ -450,9 +450,14 @@ def generate_all_content(question_text, options, lesson, unit,
 - إذا ما في صيغة كيميائية، اكتب القاعدة أو التعريف بالعربية وضع formula_is_latin: false
 """
 
+    try:
+        from src.models.ai_analysis import AISetting
+        _model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+    except Exception:
+        _model = 'gemini-2.0-flash'
     client   = genai.Client(api_key=gemini_api_key)
     response = client.models.generate_content(
-        model='gemini-2.0-flash', contents=prompt
+        model=_model, contents=prompt
     )
     text     = response.text.strip()
 

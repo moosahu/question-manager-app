@@ -40,22 +40,30 @@ logger = logging.getLogger(__name__)
 
 # النماذج المتاحة — آخر تحديث: مارس 2026
 AI_PROVIDERS = {
-    'gemini-flash':      {'name': 'Gemini 2.0 Flash',       'provider': 'gemini', 'model': 'gemini-2.0-flash',                'cost': 'منخفض',  'output_limit': 24576},
-    'gemini-flash-lite': {'name': 'Gemini 2.0 Flash Lite',  'provider': 'gemini', 'model': 'gemini-2.0-flash-lite',           'cost': 'منخفض',  'output_limit': 24576},
-    'gemini-2.5-flash':  {'name': 'Gemini 2.5 Flash',       'provider': 'gemini', 'model': 'gemini-2.5-flash-preview-04-17',  'cost': 'منخفض',  'output_limit': 65536},
-    'gemini-2.5-pro':    {'name': 'Gemini 2.5 Pro',         'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25',    'cost': 'متوسط',  'output_limit': 65536},
-    'gemini-3.1-pro':    {'name': 'Gemini 3.1 Pro',         'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',          'cost': 'متوسط',  'output_limit': 65536},
-    'claude-haiku':      {'name': 'Claude Haiku 4.5',       'provider': 'claude', 'model': 'claude-haiku-4-5-20251001',       'cost': 'منخفض',  'output_limit': 8192},
-    'claude-sonnet':     {'name': 'Claude Sonnet 4.6',      'provider': 'claude', 'model': 'claude-sonnet-4-6',               'cost': 'متوسط',  'output_limit': 16000},
-    'claude-opus':       {'name': 'Claude Opus 4.6',        'provider': 'claude', 'model': 'claude-opus-4-6',                 'cost': 'مرتفع',  'output_limit': 32000},
+    'gemini-flash':          {'name': 'Gemini 2.0 Flash',        'provider': 'gemini', 'model': 'gemini-2.0-flash',               'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-flash-lite':     {'name': 'Gemini 2.0 Flash Lite',   'provider': 'gemini', 'model': 'gemini-2.0-flash-lite',          'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-flash-exp':      {'name': 'Gemini 2.0 Flash Exp',    'provider': 'gemini', 'model': 'gemini-2.0-flash-exp',           'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-2.5-flash':      {'name': 'Gemini 2.5 Flash',        'provider': 'gemini', 'model': 'gemini-2.5-flash-preview-04-17', 'cost': 'منخفض',  'output_limit': 65536},
+    'gemini-2.5-flash-lite': {'name': 'Gemini 2.5 Flash Lite',   'provider': 'gemini', 'model': 'gemini-2.5-flash-lite',          'cost': 'منخفض',  'output_limit': 65536},
+    'gemini-2.5-pro':        {'name': 'Gemini 2.5 Pro',          'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25',   'cost': 'متوسط',  'output_limit': 65536},
+    'gemini-3-flash':        {'name': 'Gemini 3 Flash',          'provider': 'gemini', 'model': 'gemini-3.0-flash',               'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-3.1-flash-lite': {'name': 'Gemini 3.1 Flash Lite',   'provider': 'gemini', 'model': 'gemini-3.1-flash-lite',          'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-3.1-pro':        {'name': 'Gemini 3.1 Pro',          'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',         'cost': 'متوسط',  'output_limit': 65536},
+    'claude-haiku':          {'name': 'Claude Haiku 4.5',        'provider': 'claude', 'model': 'claude-haiku-4-5-20251001',      'cost': 'منخفض',  'output_limit': 8192},
+    'claude-sonnet':         {'name': 'Claude Sonnet 4.6',       'provider': 'claude', 'model': 'claude-sonnet-4-6',              'cost': 'متوسط',  'output_limit': 16000},
+    'claude-opus':           {'name': 'Claude Opus 4.6',         'provider': 'claude', 'model': 'claude-opus-4-6',               'cost': 'مرتفع',  'output_limit': 32000},
 }
 
 # خريطة ربط: (provider, model) → مفتاح lesson_prep
 _EXPLANATION_TO_LESSON_KEY = {
     ('gemini', 'gemini-2.0-flash'):               'gemini-flash',
     ('gemini', 'gemini-2.0-flash-lite'):          'gemini-flash-lite',
+    ('gemini', 'gemini-2.0-flash-exp'):           'gemini-flash-exp',
     ('gemini', 'gemini-2.5-flash-preview-04-17'): 'gemini-2.5-flash',
+    ('gemini', 'gemini-2.5-flash-lite'):          'gemini-2.5-flash-lite',
     ('gemini', 'gemini-2.5-pro-preview-03-25'):   'gemini-2.5-pro',
+    ('gemini', 'gemini-3.0-flash'):               'gemini-3-flash',
+    ('gemini', 'gemini-3.1-flash-lite'):          'gemini-3.1-flash-lite',
     ('gemini', 'gemini-3.1-pro-preview'):         'gemini-3.1-pro',
     # fallback للأسماء القديمة المحفوظة في DB
     ('gemini', 'gemini-2.0-pro-exp'):             'gemini-flash',

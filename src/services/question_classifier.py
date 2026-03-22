@@ -67,6 +67,11 @@ class QuestionClassifier:
                 return False
 
             self.client = genai.Client(api_key=self.api_key)
+            try:
+                from src.models.ai_analysis import AISetting
+                self.model_name = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+            except Exception:
+                self.model_name = 'gemini-2.0-flash'
             self.is_configured = True
             logger.info(f"✅ تم تهيئة Gemini: {self.model_name}")
             return True

@@ -53,6 +53,14 @@ class DiagnosticService:
         self.search_enabled = False
         self.is_configured = False
 
+    def _get_model(self) -> str:
+        """جلب اسم النموذج من إعدادات DB"""
+        try:
+            from src.models.ai_analysis import AISetting
+            return AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+        except Exception:
+            return 'gemini-2.0-flash'
+
     def _configure_ai(self):
         """تهيئة AI مع دعم البحث في الإنترنت"""
         if self.is_configured:
@@ -382,7 +390,7 @@ class DiagnosticService:
 ]
 """
             print(f"🤖 Generating questions for: {context.get('name', 'Unknown')}")
-            response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
             
             import re
             import json
@@ -590,7 +598,7 @@ class DiagnosticService:
 
 اكتب الرد بالعربية، مختصر ومفيد (أقل من 200 كلمة)، بأسلوب تشجيعي وإيجابي.
 """
-            response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
             
             return {
                 'analysis': response.text,
@@ -675,7 +683,7 @@ class DiagnosticService:
 
 اكتب بأسلوب إيجابي ومشجع، أقل من 150 كلمة.
 """
-                response = self.client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+                response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
                 analysis = response.text
                 
             except Exception as e:
