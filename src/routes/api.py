@@ -373,7 +373,10 @@ def format_question(question):
         "course": course_name,
         # ==================== الحقول الجديدة ====================
         "difficulty": getattr(question, 'difficulty', 'medium'),  # مستوى الصعوبة
-        "bloom_level": getattr(question, 'bloom_level', 'remember')  # مستوى بلوم
+        "bloom_level": getattr(question, 'bloom_level', 'remember'),  # مستوى بلوم
+        "video_url": getattr(question, 'video_url', None),  # رابط الفيديو
+        "video_status": getattr(question, 'video_status', 'none'),  # حالة الفيديو
+        "is_blocked": getattr(question, 'is_blocked', False),  # حالة الحظر
         # =========================================================
     }
 
