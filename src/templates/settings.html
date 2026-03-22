@@ -2085,6 +2085,22 @@ if (!document.getElementById('notification-styles')) {
                     <div id="voice-settings-msg" class="mt-2"></div>
                     <audio id="voice-preview-audio" style="display:none"></audio>
                 </div>
+
+                <hr class="my-4">
+                <h5 class="mb-3"><i class="fas fa-play-circle text-danger me-2"></i> زر الفيديو للطلاب</h5>
+                <p class="text-muted mb-3" style="font-size:0.85rem">
+                    عند تفعيله، يظهر زر "شاهد شرح الفيديو" للطالب في شاشة مراجعة الإجابات الخاطئة — فقط إذا كان السؤال يملك فيديو
+                </p>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="video-button-toggle" role="switch"
+                               style="width:3em; height:1.5em;" onchange="saveVideoButtonSetting(this)">
+                        <label class="form-check-label fw-semibold ms-2" for="video-button-toggle" id="video-button-label">
+                            جاري التحميل...
+                        </label>
+                    </div>
+                </div>
+                <div id="video-button-msg" class="mt-2"></div>
             </section>
 
         </div>
@@ -2217,6 +2233,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof loadAiStats === 'function') loadAiStats();
                 if (typeof loadExpSettings === 'function') loadExpSettings();
                 if (typeof loadVoiceSettings === 'function') loadVoiceSettings();
+                if (typeof loadVideoButtonSetting === 'function') loadVideoButtonSetting();
             }
         });
     });
@@ -3102,6 +3119,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(loadAiStats, 300);
         setTimeout(loadExpSettings, 350);
         setTimeout(loadVoiceSettings, 400);
+        setTimeout(loadVideoButtonSetting, 450);
     }
 });
 
@@ -3303,6 +3321,44 @@ function saveVoiceSettings(btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
         msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
+    });
+}
+
+function loadVideoButtonSetting() {
+    fetch('/api/admin/ai/video-button')
+        .then(r => r.json())
+        .then(data => {
+            const toggle = document.getElementById('video-button-toggle');
+            const label  = document.getElementById('video-button-label');
+            if (toggle) {
+                toggle.checked = data.enabled;
+                label.textContent = data.enabled ? 'مفعّل — يظهر الزر للطلاب' : 'معطّل — لا يظهر الزر';
+            }
+        })
+        .catch(() => {});
+}
+
+function saveVideoButtonSetting(toggle) {
+    const enabled = toggle.checked;
+    const label   = document.getElementById('video-button-label');
+    const msg     = document.getElementById('video-button-msg');
+    label.textContent = 'جاري الحفظ...';
+    fetch('/api/admin/ai/video-button', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled})
+    })
+    .then(r => r.json())
+    .then(data => {
+        label.textContent = enabled ? 'مفعّل — يظهر الزر للطلاب' : 'معطّل — لا يظهر الزر';
+        msg.innerHTML = data.success
+            ? `<span class="text-success"><i class="fas fa-check-circle"></i> تم ${enabled ? 'التفعيل' : 'الإيقاف'}</span>`
+            : `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => {
+        toggle.checked = !enabled;
+        label.textContent = 'خطأ في الاتصال';
     });
 }
 </script>

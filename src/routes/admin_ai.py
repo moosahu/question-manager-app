@@ -2133,6 +2133,34 @@ def get_question_data_for_video(question_id):
     })
 
 
+@admin_ai_bp.route('/app-settings', methods=['GET'])
+def get_app_settings():
+    """إعدادات التطبيق العامة — يُستدعى من Flutter بدون auth"""
+    return jsonify({
+        'success': True,
+        'video_button_enabled': AISetting.get_setting('video_button_enabled', 'false') == 'true',
+    })
+
+
+@admin_ai_bp.route('/video-button', methods=['GET'])
+@admin_required
+def get_video_button_setting():
+    """يُرجع حالة زر الفيديو للأدمن"""
+    enabled = AISetting.get_setting('video_button_enabled', 'false') == 'true'
+    return jsonify({'success': True, 'enabled': enabled})
+
+
+@admin_ai_bp.route('/video-button', methods=['POST'])
+@admin_required
+def save_video_button_setting():
+    """يحفظ حالة زر الفيديو"""
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled', False))
+    AISetting.set_setting('video_button_enabled', 'true' if enabled else 'false',
+                          'string', description='إظهار زر الفيديو للطالب عند الإجابة الخاطئة')
+    return jsonify({'success': True, 'enabled': enabled})
+
+
 @admin_ai_bp.route('/generate-video/question/<int:question_id>', methods=['POST'])
 @admin_required
 def generate_video_question(question_id):
