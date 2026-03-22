@@ -70,7 +70,7 @@ class Config:
     BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 30))
     
     # ==================== AI Providers ====================
-    GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY', '')
+    GOOGLE_AI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY', '')
     CLAUDE_AI_API_KEY = os.getenv('CLAUDE_AI_API_KEY', '')
 
     # ==================== API ====================

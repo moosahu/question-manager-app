@@ -63,7 +63,7 @@ class AIAssistant:
         if self.gemini_client and self.is_configured:
             return True
         try:
-            api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
+            api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
             if api_key and GEMINI_AVAILABLE:
                 self.gemini_client = genai.Client(api_key=api_key)
                 self.is_configured = True

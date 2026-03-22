@@ -1967,7 +1967,7 @@ def _call_ai_for_explanation(question_text, options_data, correct_text):
 
     if provider == 'gemini':
         from google import genai
-        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GOOGLE_AI_API_KEY', '')
+        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY', '')
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
@@ -2016,14 +2016,14 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
 
     if provider == 'gemini':
         from google import genai
-        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GOOGLE_AI_API_KEY', '')
+        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY', '')
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
 
     elif provider == 'claude':
         import anthropic
-        api_key = AISetting.get_setting('claude_api_key', '')
+        api_key = AISetting.get_setting('claude_api_key', '') or os.environ.get('CLAUDE_AI_API_KEY', '')
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
             model=model, max_tokens=600,
@@ -2133,7 +2133,7 @@ def get_question_data_for_video(question_id):
         'options':           options,
         'ai_provider':       AISetting.get_setting('explanation_ai_provider', 'gemini'),
         'ai_model':          AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
-        'gemini_api_key':      os.environ.get('GOOGLE_AI_API_KEY') or os.environ.get('GEMINI_API_KEY', ''),
+        'gemini_api_key':      os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY', ''),
         'elevenlabs_api_key':  AISetting.get_setting('elevenlabs_api_key') or os.environ.get('ELEVENLABS_API_KEY', ''),
         'elevenlabs_voice_id': AISetting.get_setting('elevenlabs_voice_id', 'CwhRBWXzGAHq8TQ4Fs17'),
     })

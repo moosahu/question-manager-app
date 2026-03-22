@@ -54,8 +54,8 @@ class QuestionClassifier:
         try:
             self.api_key = (
                 current_app.config.get('GOOGLE_AI_API_KEY') or
-                os.getenv('GOOGLE_AI_API_KEY') or
-                os.getenv('GEMINI_API_KEY')
+                os.getenv('GEMINI_API_KEY') or
+                os.getenv('GOOGLE_AI_API_KEY')
             )
 
             if not self.api_key:

@@ -67,7 +67,7 @@ class DiagnosticService:
             return True
 
         try:
-            api_key = os.getenv('GOOGLE_AI_API_KEY')
+            api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
             if GEMINI_AVAILABLE and api_key:
                 self.client = genai.Client(api_key=api_key)
                 self.search_enabled = True

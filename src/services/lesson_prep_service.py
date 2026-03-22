@@ -109,7 +109,7 @@ class LessonPrepService:
         """تهيئة Gemini API - يدعم تغيير النموذج ديناميكياً"""
         if self.gemini_configured and self.gemini_client and self._current_gemini_model_id == model_id:
             return True
-        api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
+        api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
         if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY غير موجود")
         # جلب الحد الأقصى للإخراج من AI_PROVIDERS
