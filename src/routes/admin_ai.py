@@ -2114,13 +2114,19 @@ def get_question_data_for_video(question_id):
     unit   = Unit.query.get(lesson.unit_id) if lesson else None
     letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
     options = [
-        {'letter': letters[i], 'text': o.option_text or '', 'correct': bool(o.is_correct)}
+        {
+            'letter':    letters[i],
+            'text':      o.option_text or '',
+            'correct':   bool(o.is_correct),
+            'image_url': o.image_url or None,
+        }
         for i, o in enumerate(sorted(q.options, key=lambda x: x.option_id))
     ]
 
     return jsonify({
         'success':           True,
         'question_text':     q.question_text or '',
+        'image_url':         q.image_url or None,
         'explanation':       q.explanation,
         'lesson':            lesson.name if lesson else '',
         'unit':              unit.name if unit else '',
