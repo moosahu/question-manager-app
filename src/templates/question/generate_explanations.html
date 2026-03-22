@@ -52,9 +52,24 @@
                         <label class="form-label fw-semibold">المنهج</label>
                         <select id="sel-course" class="form-select" onchange="loadUnits()">
                             <option value="">— اختر المنهج —</option>
-                            {% for c in courses %}
-                            <option value="{{ c.id }}">{{ c.name }}</option>
-                            {% endfor %}
+                            {% set regular = courses | selectattr('is_bank', 'equalto', False) | list %}
+                            {% set bank    = courses | selectattr('is_bank', 'equalto', True)  | list %}
+                            {% if regular and bank %}
+                                <optgroup label="📚 المناهج العادية">
+                                    {% for c in regular %}
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                <optgroup label="🏦 بنك الأسئلة">
+                                    {% for c in bank %}
+                                    <option value="{{ c.id }}" style="color:#b45309;font-weight:bold;">🏦 {{ c.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                            {% else %}
+                                {% for c in courses %}
+                                <option value="{{ c.id }}">{% if c.is_bank %}🏦 {% endif %}{{ c.name }}</option>
+                                {% endfor %}
+                            {% endif %}
                         </select>
                     </div>
 
