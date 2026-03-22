@@ -26,43 +26,45 @@ from src.models.curriculum import Lesson, Unit, Course
 
 # تسعيرة كل provider (بالدولار لكل مليون token)
 AI_PRICING = {
-    'gemini-flash':    {'input': 0.075, 'output': 0.30},
-    'gemini-1.5-pro':  {'input': 1.25,  'output': 5.0},
-    'gemini-2.5-pro':  {'input': 1.25,  'output': 10.0},
-    'gemini-3-flash':  {'input': 0.10,  'output': 0.40},
-    'gemini-3.1-pro':  {'input': 2.50,  'output': 10.0},
-    'claude-haiku':    {'input': 0.80,  'output': 4.0},
-    'claude-sonnet':   {'input': 3.0,   'output': 15.0},
-    'claude-opus':     {'input': 15.0,  'output': 75.0},
+    'gemini-flash':      {'input': 0.075, 'output': 0.30},
+    'gemini-flash-lite': {'input': 0.025, 'output': 0.10},
+    'gemini-2.5-flash':  {'input': 0.075, 'output': 0.30},
+    'gemini-2.5-pro':    {'input': 1.25,  'output': 10.0},
+    'gemini-3.1-pro':    {'input': 2.50,  'output': 10.0},
+    'claude-haiku':      {'input': 0.80,  'output': 4.0},
+    'claude-sonnet':     {'input': 3.0,   'output': 15.0},
+    'claude-opus':       {'input': 15.0,  'output': 75.0},
 }
 
 logger = logging.getLogger(__name__)
 
-# النماذج المتاحة
+# النماذج المتاحة — آخر تحديث: مارس 2026
 AI_PROVIDERS = {
-    'gemini-flash':       {'name': 'Gemini 2.0 Flash',      'provider': 'gemini', 'model': 'gemini-2.0-flash',             'cost': 'منخفض',  'output_limit': 24576},
-    'gemini-2.0-pro-exp': {'name': 'Gemini 2.0 Pro (Exp)',  'provider': 'gemini', 'model': 'gemini-2.0-pro-exp',           'cost': 'متوسط',  'output_limit': 32768},
-    'gemini-1.5-pro':     {'name': 'Gemini 1.5 Pro',        'provider': 'gemini', 'model': 'gemini-1.5-pro',               'cost': 'متوسط',  'output_limit': 24576},
-    'gemini-2.5-pro':     {'name': 'Gemini 2.5 Pro (Exp)',  'provider': 'gemini', 'model': 'gemini-2.5-pro-exp-03-25',     'cost': 'متوسط',  'output_limit': 65536},
-    'gemini-3-flash':     {'name': 'Gemini 3 Flash',        'provider': 'gemini', 'model': 'gemini-3-flash-preview',       'cost': 'منخفض',  'output_limit': 65536},
-    'gemini-3.1-pro':     {'name': 'Gemini 3.1 Pro',        'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',       'cost': 'متوسط',  'output_limit': 65536},
-    'claude-haiku':       {'name': 'Claude Haiku 4.5',      'provider': 'claude', 'model': 'claude-haiku-4-5-20251001',    'cost': 'منخفض',  'output_limit': 8192},
-    'claude-sonnet':      {'name': 'Claude Sonnet 4.6',     'provider': 'claude', 'model': 'claude-sonnet-4-6',            'cost': 'متوسط',  'output_limit': 16000},
-    'claude-opus':        {'name': 'Claude Opus 4.6',       'provider': 'claude', 'model': 'claude-opus-4-6',              'cost': 'مرتفع',  'output_limit': 32000},
+    'gemini-flash':      {'name': 'Gemini 2.0 Flash',       'provider': 'gemini', 'model': 'gemini-2.0-flash',                'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-flash-lite': {'name': 'Gemini 2.0 Flash Lite',  'provider': 'gemini', 'model': 'gemini-2.0-flash-lite',           'cost': 'منخفض',  'output_limit': 24576},
+    'gemini-2.5-flash':  {'name': 'Gemini 2.5 Flash',       'provider': 'gemini', 'model': 'gemini-2.5-flash-preview-04-17',  'cost': 'منخفض',  'output_limit': 65536},
+    'gemini-2.5-pro':    {'name': 'Gemini 2.5 Pro',         'provider': 'gemini', 'model': 'gemini-2.5-pro-preview-03-25',    'cost': 'متوسط',  'output_limit': 65536},
+    'gemini-3.1-pro':    {'name': 'Gemini 3.1 Pro',         'provider': 'gemini', 'model': 'gemini-3.1-pro-preview',          'cost': 'متوسط',  'output_limit': 65536},
+    'claude-haiku':      {'name': 'Claude Haiku 4.5',       'provider': 'claude', 'model': 'claude-haiku-4-5-20251001',       'cost': 'منخفض',  'output_limit': 8192},
+    'claude-sonnet':     {'name': 'Claude Sonnet 4.6',      'provider': 'claude', 'model': 'claude-sonnet-4-6',               'cost': 'متوسط',  'output_limit': 16000},
+    'claude-opus':       {'name': 'Claude Opus 4.6',        'provider': 'claude', 'model': 'claude-opus-4-6',                 'cost': 'مرتفع',  'output_limit': 32000},
 }
 
 # خريطة ربط: (provider, model) → مفتاح lesson_prep
 _EXPLANATION_TO_LESSON_KEY = {
-    ('gemini', 'gemini-2.0-flash'):          'gemini-flash',
-    ('gemini', 'gemini-2.0-pro-exp'):        'gemini-2.0-pro-exp',
-    ('gemini', 'gemini-2.5-pro-exp-03-25'):  'gemini-2.5-pro',
-    ('gemini', 'gemini-1.5-flash'):          'gemini-flash',
-    ('gemini', 'gemini-1.5-pro'):            'gemini-1.5-pro',
-    ('gemini', 'gemini-3-flash-preview'):    'gemini-3-flash',
-    ('gemini', 'gemini-3.1-pro-preview'):    'gemini-3.1-pro',
-    ('claude', 'claude-haiku-4-5-20251001'): 'claude-haiku',
-    ('claude', 'claude-sonnet-4-6'):         'claude-sonnet',
-    ('claude', 'claude-opus-4-6'):           'claude-opus',
+    ('gemini', 'gemini-2.0-flash'):               'gemini-flash',
+    ('gemini', 'gemini-2.0-flash-lite'):          'gemini-flash-lite',
+    ('gemini', 'gemini-2.5-flash-preview-04-17'): 'gemini-2.5-flash',
+    ('gemini', 'gemini-2.5-pro-preview-03-25'):   'gemini-2.5-pro',
+    ('gemini', 'gemini-3.1-pro-preview'):         'gemini-3.1-pro',
+    # fallback للأسماء القديمة المحفوظة في DB
+    ('gemini', 'gemini-2.0-pro-exp'):             'gemini-flash',
+    ('gemini', 'gemini-1.5-pro'):                 'gemini-flash',
+    ('gemini', 'gemini-2.5-pro-exp-03-25'):       'gemini-2.5-pro',
+    ('gemini', 'gemini-3-flash-preview'):         'gemini-flash',
+    ('claude', 'claude-haiku-4-5-20251001'):      'claude-haiku',
+    ('claude', 'claude-sonnet-4-6'):              'claude-sonnet',
+    ('claude', 'claude-opus-4-6'):                'claude-opus',
 }
 
 DEFAULT_PROVIDER = 'gemini-flash'
