@@ -175,7 +175,7 @@ function loadLessons() {
         .catch(() => { lSel.innerHTML = '<option value="">خطأ في التحميل</option>'; });
 }
 
-function startGeneration() {
+async function startGeneration() {
     const scope    = document.querySelector('input[name=scope]:checked').value;
     const expType  = document.querySelector('input[name=explanation_type]:checked').value;
     const unitId   = document.getElementById('sel-unit').value;
@@ -186,10 +186,10 @@ function startGeneration() {
     let url = '';
     if (scope === 'lesson') {
         if (!lessonId) { alert('اختر درساً أولاً'); return; }
-        url = `/api/admin/ai/${prefix}/lesson/${lessonId}`;
+        url = `/api/admin/ai/${prefix}/lesson/${lessonId}/stream`;
     } else {
         if (!unitId) { alert('اختر وحدة أولاً'); return; }
-        url = `/api/admin/ai/${prefix}/unit/${unitId}`;
+        url = `/api/admin/ai/${prefix}/unit/${unitId}/stream`;
     }
 
     const btn   = document.getElementById('btn-start');
@@ -204,55 +204,73 @@ function startGeneration() {
     area.innerHTML = '';
     prog.style.display = 'block';
     bar.style.width = '0%';
+    bar.className = 'progress-bar progress-bar-striped progress-bar-animated';
     label.textContent = 'جاري التوليد...';
-    count.textContent = '';
+    count.textContent = '0 / ...';
 
-    // تحديث شريط التقدم (محاكاة — الـ endpoint يرجع النتيجة دفعة واحدة)
-    let pct = 0;
-    const ticker = setInterval(() => {
-        pct = Math.min(pct + 5, 90);
-        bar.style.width = pct + '%';
-    }, 800);
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || '' }
+        });
 
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json',
-                   'X-CSRFToken': document.querySelector('input[name=csrf_token]')?.value || '' }
-    })
-    .then(r => r.json())
-    .then(data => {
-        clearInterval(ticker);
-        bar.style.width = '100%';
-        bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-        bar.classList.add(data.success ? 'bg-success' : 'bg-danger');
-
-        if (data.success) {
-            count.textContent = `${data.count_updated} سؤال`;
-            label.textContent = 'اكتمل التوليد';
-            let html = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>
-                تم تحديث شرح <strong>${data.count_updated}</strong> سؤال بنجاح</div>`;
-            if (data.errors && data.errors.length) {
-                html += `<div class="alert alert-warning"><strong>${data.errors.length} أخطاء:</strong>
-                    <ul class="mb-0 mt-1">${data.errors.map(e => `<li>سؤال ${e.question_id}: ${e.error}</li>`).join('')}</ul></div>`;
-            }
-            area.innerHTML = html;
-        } else {
-            label.textContent = 'فشل التوليد';
-            area.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>${data.error || 'حدث خطأ'}</div>`;
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
         }
-    })
-    .catch(e => {
-        clearInterval(ticker);
+
+        const reader  = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // احتفظ بالسطر غير المكتمل
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                let data;
+                try { data = JSON.parse(line.slice(6)); } catch { continue; }
+
+                const total = data.total || 0;
+                const done_ = data.done  || 0;
+                const pct   = total > 0 ? Math.round((done_ / total) * 100) : 0;
+
+                bar.style.width = pct + '%';
+                count.textContent = `${done_} / ${total} سؤال`;
+
+                if (data.complete) {
+                    bar.style.width = '100%';
+                    bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    bar.classList.add('bg-success');
+                    label.textContent = 'اكتمل التوليد ✓';
+                    count.textContent = `${data.count_updated} / ${total} سؤال`;
+
+                    let html = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>
+                        تم تحديث شرح <strong>${data.count_updated}</strong> من أصل <strong>${total}</strong> سؤال</div>`;
+                    if (data.errors && data.errors.length) {
+                        html += `<div class="alert alert-warning"><strong>${data.errors.length} أخطاء:</strong>
+                            <ul class="mb-0 mt-1">${data.errors.map(e => `<li>سؤال ${e.question_id}: ${e.error}</li>`).join('')}</ul></div>`;
+                    }
+                    area.innerHTML = html;
+                } else {
+                    label.textContent = `جاري المعالجة... (${done_} تم، ${total - done_} باقي)`;
+                }
+            }
+        }
+    } catch (e) {
         bar.style.width = '100%';
         bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
         bar.classList.add('bg-danger');
         label.textContent = 'خطأ في الاتصال';
-        area.innerHTML = `<div class="alert alert-danger">خطأ في الاتصال بالخادم</div>`;
-    })
-    .finally(() => {
+        area.innerHTML = `<div class="alert alert-danger">خطأ في الاتصال بالخادم: ${e.message}</div>`;
+    } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-play me-2"></i>بدء التوليد';
-    });
+    }
 }
 </script>
 {% endblock %}

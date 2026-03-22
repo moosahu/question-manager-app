@@ -2379,6 +2379,107 @@ def generate_video_explanation_unit(unit_id):
 
 
 # ============================================
+# SSE Streaming — progress per question
+# ============================================
+
+def _stream_generate(questions, call_fn, field_name):
+    """Generator يُرسل SSE event بعد كل سؤال لإظهار التقدم الحقيقي"""
+    import json as _json
+    from src.extensions import db as _db
+
+    total   = len(questions)
+    done    = 0
+    updated = 0
+    errors  = []
+
+    yield f"data: {_json.dumps({'total': total, 'done': 0})}\n\n"
+
+    for q in questions:
+        try:
+            correct_opt = next((o for o in q.options if o.is_correct), None)
+            if correct_opt:
+                result = call_fn(
+                    q.question_text or 'سؤال',
+                    [{'text': o.option_text or ''} for o in q.options],
+                    correct_opt.option_text or ''
+                )
+                setattr(q, field_name, result)
+                _db.session.commit()
+                updated += 1
+        except Exception as e:
+            errors.append({'question_id': q.question_id, 'error': str(e)})
+        done += 1
+        yield f"data: {_json.dumps({'total': total, 'done': done})}\n\n"
+
+    yield f"data: {_json.dumps({'total': total, 'done': done, 'complete': True, 'count_updated': updated, 'errors': errors})}\n\n"
+
+
+def _stream_response(questions, call_fn, field_name):
+    from flask import Response, stream_with_context
+    return Response(
+        stream_with_context(_stream_generate(questions, call_fn, field_name)),
+        content_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+    )
+
+
+@admin_ai_bp.route('/generate-explanation/lesson/<int:lesson_id>/stream', methods=['POST'])
+@admin_required
+def stream_explanation_lesson(lesson_id):
+    from src.models.question import Question
+    from sqlalchemy.orm import joinedload
+    questions = Question.query.options(joinedload(Question.options)).filter_by(lesson_id=lesson_id).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذا الدرس'}), 404
+    return _stream_response(questions, _call_ai_for_explanation, 'explanation')
+
+
+@admin_ai_bp.route('/generate-explanation/unit/<int:unit_id>/stream', methods=['POST'])
+@admin_required
+def stream_explanation_unit(unit_id):
+    from src.models.question import Question
+    from src.models.curriculum import Lesson
+    from sqlalchemy.orm import joinedload
+    lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=unit_id).all()]
+    if not lesson_ids:
+        return jsonify({'success': False, 'error': 'لا توجد دروس في هذه الوحدة'}), 404
+    questions = Question.query.options(joinedload(Question.options)).filter(
+        Question.lesson_id.in_(lesson_ids)
+    ).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذه الوحدة'}), 404
+    return _stream_response(questions, _call_ai_for_explanation, 'explanation')
+
+
+@admin_ai_bp.route('/generate-video-explanation/lesson/<int:lesson_id>/stream', methods=['POST'])
+@admin_required
+def stream_video_explanation_lesson(lesson_id):
+    from src.models.question import Question
+    from sqlalchemy.orm import joinedload
+    questions = Question.query.options(joinedload(Question.options)).filter_by(lesson_id=lesson_id).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذا الدرس'}), 404
+    return _stream_response(questions, _call_ai_for_video_explanation, 'video_explanation')
+
+
+@admin_ai_bp.route('/generate-video-explanation/unit/<int:unit_id>/stream', methods=['POST'])
+@admin_required
+def stream_video_explanation_unit(unit_id):
+    from src.models.question import Question
+    from src.models.curriculum import Lesson
+    from sqlalchemy.orm import joinedload
+    lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=unit_id).all()]
+    if not lesson_ids:
+        return jsonify({'success': False, 'error': 'لا توجد دروس في هذه الوحدة'}), 404
+    questions = Question.query.options(joinedload(Question.options)).filter(
+        Question.lesson_id.in_(lesson_ids)
+    ).all()
+    if not questions:
+        return jsonify({'success': False, 'error': 'لا توجد أسئلة في هذه الوحدة'}), 404
+    return _stream_response(questions, _call_ai_for_video_explanation, 'video_explanation')
+
+
+# ============================================
 # إعدادات AI للشرح (المرحلة 2)
 # ============================================
 
