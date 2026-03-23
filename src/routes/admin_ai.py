@@ -2144,7 +2144,7 @@ def get_question_data_for_video(question_id):
 def save_video_url():
     """يحفظ رابط YouTube للسؤال — يُستدعى من السكريبت المحلي"""
     token    = request.headers.get('X-Api-Token') or request.args.get('token')
-    expected = os.environ.get('GEMINI_API_KEY', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
     if not token or token != expected:
         return jsonify({'success': False, 'error': 'unauthorized'}), 401
 
