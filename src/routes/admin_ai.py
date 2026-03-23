@@ -2140,6 +2140,33 @@ def get_question_data_for_video(question_id):
     })
 
 
+@admin_ai_bp.route('/save-video-url', methods=['POST'])
+def save_video_url():
+    """يحفظ رابط YouTube للسؤال — يُستدعى من السكريبت المحلي"""
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('GEMINI_API_KEY', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+
+    data        = request.get_json() or {}
+    question_id = data.get('question_id')
+    video_url   = data.get('video_url', '').strip()
+
+    if not question_id or not video_url:
+        return jsonify({'success': False, 'error': 'question_id و video_url مطلوبان'}), 400
+
+    from src.models.question import Question
+    q = Question.query.get(question_id)
+    if not q:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+
+    q.video_url    = video_url
+    q.video_status = 'ready'
+    from src import db
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @admin_ai_bp.route('/app-settings', methods=['GET'])
 def get_app_settings():
     """إعدادات التطبيق العامة — يُستدعى من Flutter بدون auth"""
