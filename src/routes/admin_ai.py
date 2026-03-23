@@ -2096,7 +2096,7 @@ def save_elevenlabs_voice():
 
 @admin_ai_bp.route('/question-data/<int:question_id>', methods=['GET'])
 def get_question_data_for_video(question_id):
-    """يُرجع بيانات السؤال + إعدادات AI للسكريبت المحلي — محمي بـ GEMINI_API_KEY"""
+    """يُرجع بيانات السؤال + إعدادات AI للسكريبت المحلي — محمي بـ VIDEO_SAVE_TOKEN"""
     token = request.headers.get('X-Api-Token') or request.args.get('token')
     expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
     if not token or token != expected:
