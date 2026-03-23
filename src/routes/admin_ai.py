@@ -2162,7 +2162,6 @@ def save_video_url():
 
     q.video_url    = video_url
     q.video_status = 'ready'
-    from src import db
     db.session.commit()
     return jsonify({'success': True})
 
