@@ -1122,6 +1122,18 @@ def create_app():
     except Exception as e:
         print(f"❌ Design Access blueprint error: {e}")
 
+    @app.route("/download")
+    def download_app():
+        """يوجّه المستخدم لمتجر التطبيق المناسب حسب جهازه"""
+        from flask import redirect, request as freq
+        ua = freq.headers.get('User-Agent', '').lower()
+        if 'iphone' in ua or 'ipad' in ua or 'ipod' in ua or 'mac os' in ua:
+            return redirect("https://apps.apple.com/sa/app/%D9%83%D9%8A%D9%85-%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%D9%8A/id6758346611")
+        elif 'android' in ua:
+            return redirect("https://play.google.com/store/apps/details?id=com.chemtahsili.app")
+        else:
+            return redirect("https://apps.apple.com/sa/app/%D9%83%D9%8A%D9%85-%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%D9%8A/id6758346611")
+
     @app.route("/", endpoint='index')
     def home():
         # إذا كان المستخدم مسجل الدخول، عرض لوحة التحكم
