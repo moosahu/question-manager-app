@@ -134,31 +134,54 @@
                     <div class="collapse" id="drillPanel">
                         <div class="card-body pt-3 pb-2 drill-wrap">
 
-                            <!-- تبويب الفيديو / الشرح -->
-                            <div class="drill-tabs">
-                                <button onclick="showDrill('video')" id="tab-video" class="active">🎬 فيديو</button>
-                                <button onclick="showDrill('expl')"  id="tab-expl">💡 شرح مختصر</button>
-                                {% if drill_level != 'course' %}
-                                <a href="{{ url_for('question.list_questions', bank=_b) }}"
-                                   class="btn btn-sm btn-outline-secondary ms-2" style="font-size:.8rem;">↩ كل المناهج</a>
-                                {% endif %}
-                                {% if drill_level == 'lesson' %}
-                                <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c) }}"
-                                   class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">↩ الوحدات</a>
-                                {% endif %}
+                            <!-- اختيار المنهج + تبويب -->
+                            <div class="d-flex align-items-center gap-2 mb-3 flex-wrap" dir="rtl">
+
+                                <!-- dropdown اختيار المنهج -->
+                                <form method="get" action="{{ url_for('question.list_questions') }}"
+                                      class="d-flex align-items-center gap-2 mb-0">
+                                    <input type="hidden" name="bank" value="{{ _b }}">
+                                    <select name="course_id" class="form-select form-select-sm"
+                                            style="width:200px;" onchange="this.form.submit()">
+                                        <option value="">-- اختر المنهج --</option>
+                                        {% for crs in courses %}
+                                        <option value="{{ crs.id }}"
+                                            {% if _c == crs.id|string %}selected{% endif %}>
+                                            {{ crs.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if drill_level == 'lesson' %}
+                                    <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c) }}"
+                                       class="btn btn-sm btn-outline-secondary">↩ الوحدات</a>
+                                    {% endif %}
+                                </form>
+
+                                <!-- تبويب فيديو / شرح -->
+                                <div class="drill-tabs mb-0">
+                                    <button onclick="showDrill('video')" id="tab-video" class="active">🎬 فيديو</button>
+                                    <button onclick="showDrill('expl')"  id="tab-expl">💡 شرح مختصر</button>
+                                </div>
+
                                 {% if has_video or has_explanation %}
-                                <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c, unit_id=_u, lesson_id=_l) }}"
-                                   class="btn btn-sm btn-secondary ms-auto" style="font-size:.8rem;">✖ إلغاء الفرز</a>
+                                <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c, unit_id=_u) }}"
+                                   class="btn btn-sm btn-secondary" style="font-size:.8rem;">✖ إلغاء الفرز</a>
                                 {% endif %}
                             </div>
 
+                            {% if not _c %}
+                            <p class="text-muted text-center py-2" style="font-size:.85rem;">
+                                اختر منهجاً من القائمة لعرض تغطية وحداته
+                            </p>
+                            {% else %}
                             <div class="mb-1 text-muted" style="font-size:.75rem; padding-right:208px;">
                                 <span class="text-success me-3">■ فيه</span>
                                 <span class="text-danger me-3">■ ناقص</span>
                                 <span class="text-muted">— اضغط الشريط للفرز، اضغط الاسم للتعمق</span>
                             </div>
+                            {% endif %}
 
-                            {% if drill_stats %}
+                            {% if _c and drill_stats %}
                                 {% for item in drill_stats %}
                                 {% set pv  = ((item.video / item.total * 100)|int) if item.total > 0 else 0 %}
                                 {% set pe  = ((item.expl  / item.total * 100)|int) if item.total > 0 else 0 %}
@@ -213,7 +236,7 @@
                                     <span class="drill-pct">{{ item.expl }}/{{ item.total }} ({{ pe }}%)</span>
                                 </div>
                                 {% endfor %}
-                            {% else %}
+                            {% elif _c %}
                                 <p class="text-muted text-center py-2">لا توجد بيانات</p>
                             {% endif %}
 
