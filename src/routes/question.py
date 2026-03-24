@@ -19,7 +19,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from sqlalchemy.orm import joinedload, contains_eager
 from flask_wtf import FlaskForm # إضافة استيراد FlaskForm
@@ -401,6 +401,8 @@ def list_questions():
     difficulty = request.args.get("difficulty", "")
     bloom_level = request.args.get("bloom_level", "")
     blocked = request.args.get("blocked", "")  # "1"=محجوبة, "0"=غير محجوبة, ""=الكل
+    has_video = request.args.get("has_video", "")        # "1"=فيه فيديو, "0"=ما فيه, ""=الكل
+    has_explanation = request.args.get("has_explanation", "")  # "1"=فيه شرح, "0"=ما فيه, ""=الكل
     page = request.args.get("page", 1, type=int)
     per_page = 9
     bank_mode = request.args.get('bank', '0') == '1'
@@ -457,6 +459,18 @@ def list_questions():
         elif blocked == "0":
             query = query.filter(Question.is_blocked == False)
 
+        # فلتر الفيديو
+        if has_video == "1":
+            query = query.filter(Question.video_url != None, Question.video_url != '')
+        elif has_video == "0":
+            query = query.filter(or_(Question.video_url == None, Question.video_url == ''))
+
+        # فلتر الشرح
+        if has_explanation == "1":
+            query = query.filter(Question.explanation != None, Question.explanation != '')
+        elif has_explanation == "0":
+            query = query.filter(or_(Question.explanation == None, Question.explanation == ''))
+
         # ترتيب النتائج: بالدرس ثم بالـ ID تصاعدياً
         questions_pagination = query.order_by(Question.lesson_id.asc(), Question.question_id.asc()).paginate(
             page=page, per_page=per_page, error_out=False
@@ -481,10 +495,80 @@ def list_questions():
         
         # إحصائيات سريعة
         base_count_query = Question.query.filter(Question.is_bank == bank_mode)
+        _bq = base_count_query  # اختصار
+
+        # إحصائيات الفيديو
+        q_with_video = _bq.filter(Question.video_url != None, Question.video_url != '').count()
+
+        # إحصائيات الشرح المفصّل (video_explanation) — يُعرض في التطبيق
+        q_with_vexpl = _bq.filter(Question.video_explanation != None, Question.video_explanation != '').count()
+
+        # إحصائيات الشرح المختصر (explanation) — يُعرض في التطبيق
+        q_with_expl = _bq.filter(Question.explanation != None, Question.explanation != '').count()
+
+        # إجمالي الدروس التي فيها أسئلة
+        total_lessons = db.session.query(func.count(func.distinct(Question.lesson_id)))\
+            .filter(Question.is_bank == bank_mode).scalar() or 0
+
+        lessons_with_video = db.session.query(func.count(func.distinct(Question.lesson_id)))\
+            .filter(Question.is_bank == bank_mode, Question.video_url != None, Question.video_url != '').scalar() or 0
+
+        lessons_with_expl = db.session.query(func.count(func.distinct(Question.lesson_id)))\
+            .filter(Question.is_bank == bank_mode, Question.explanation != None, Question.explanation != '').scalar() or 0
+
+        lessons_with_vexpl = db.session.query(func.count(func.distinct(Question.lesson_id)))\
+            .filter(Question.is_bank == bank_mode, Question.video_explanation != None, Question.video_explanation != '').scalar() or 0
+
+        # الوحدات
+        total_units = db.session.query(func.count(func.distinct(Lesson.unit_id)))\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode).scalar() or 0
+
+        units_with_video = db.session.query(func.count(func.distinct(Lesson.unit_id)))\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode, Question.video_url != None, Question.video_url != '').scalar() or 0
+
+        units_with_expl = db.session.query(func.count(func.distinct(Lesson.unit_id)))\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode, Question.explanation != None, Question.explanation != '').scalar() or 0
+
+        # المناهج
+        total_courses = db.session.query(func.count(func.distinct(Unit.course_id)))\
+            .join(Lesson, Lesson.unit_id == Unit.id)\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode).scalar() or 0
+
+        courses_with_video = db.session.query(func.count(func.distinct(Unit.course_id)))\
+            .join(Lesson, Lesson.unit_id == Unit.id)\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode, Question.video_url != None, Question.video_url != '').scalar() or 0
+
+        courses_with_expl = db.session.query(func.count(func.distinct(Unit.course_id)))\
+            .join(Lesson, Lesson.unit_id == Unit.id)\
+            .join(Question, Question.lesson_id == Lesson.id)\
+            .filter(Question.is_bank == bank_mode, Question.explanation != None, Question.explanation != '').scalar() or 0
+
         stats = {
-            'total_all': base_count_query.count(),
-            'total_blocked': base_count_query.filter(Question.is_blocked == True).count(),
+            'total_all': _bq.count(),
+            'total_blocked': _bq.filter(Question.is_blocked == True).count(),
             'total_filtered': questions_pagination.total,
+            # أسئلة
+            'q_with_video': q_with_video,
+            'q_with_expl': q_with_expl,
+            'q_with_vexpl': q_with_vexpl,
+            # دروس
+            'total_lessons': total_lessons,
+            'lessons_with_video': lessons_with_video,
+            'lessons_with_expl': lessons_with_expl,
+            'lessons_with_vexpl': lessons_with_vexpl,
+            # وحدات
+            'total_units': total_units,
+            'units_with_video': units_with_video,
+            'units_with_expl': units_with_expl,
+            # مناهج
+            'total_courses': total_courses,
+            'courses_with_video': courses_with_video,
+            'courses_with_expl': courses_with_expl,
         }
 
         rendered_template = render_template(
@@ -501,6 +585,8 @@ def list_questions():
             difficulty=difficulty,
             bloom_level=bloom_level,
             blocked=blocked,
+            has_video=has_video,
+            has_explanation=has_explanation,
             stats=stats,
         )
         
