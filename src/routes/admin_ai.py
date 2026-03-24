@@ -2413,6 +2413,19 @@ def _stream_generate(questions, call_fn, field_name):
     """Generator يُرسل SSE event بعد كل سؤال لإظهار التقدم الحقيقي"""
     import json as _json
     from src.extensions import db as _db
+    from sqlalchemy import text
+
+    # نحفظ بيانات الأسئلة مسبقاً قبل بدء الـ stream
+    q_data = []
+    for q in questions:
+        correct_opt = next((o for o in q.options if o.is_correct), None)
+        if correct_opt:
+            q_data.append({
+                'id': q.question_id,
+                'question_text': q.question_text or 'سؤال',
+                'options': [{'text': o.option_text or ''} for o in q.options],
+                'correct_text': correct_opt.option_text or '',
+            })
 
     total   = len(questions)
     done    = 0
@@ -2421,19 +2434,23 @@ def _stream_generate(questions, call_fn, field_name):
 
     yield f"data: {_json.dumps({'total': total, 'done': 0})}\n\n"
 
-    for q in questions:
+    for i, q in enumerate(questions):
+        qd = next((x for x in q_data if x['id'] == q.question_id), None)
         try:
-            correct_opt = next((o for o in q.options if o.is_correct), None)
-            if correct_opt:
-                result = call_fn(
-                    q.question_text or 'سؤال',
-                    [{'text': o.option_text or ''} for o in q.options],
-                    correct_opt.option_text or ''
+            if qd:
+                result = call_fn(qd['question_text'], qd['options'], qd['correct_text'])
+                # UPDATE مباشر بدل ORM لضمان الحفظ في PostgreSQL
+                _db.session.execute(
+                    text(f"UPDATE questions SET {field_name} = :val WHERE question_id = :qid"),
+                    {'val': result, 'qid': q.question_id}
                 )
-                setattr(q, field_name, result)
                 _db.session.commit()
                 updated += 1
         except Exception as e:
+            try:
+                _db.session.rollback()
+            except Exception:
+                pass
             errors.append({'question_id': q.question_id, 'error': str(e)})
         done += 1
         yield f"data: {_json.dumps({'total': total, 'done': done})}\n\n"
