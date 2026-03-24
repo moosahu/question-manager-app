@@ -559,7 +559,8 @@ def list_questions():
             total = base_q.count()
             video = base_q.filter(Question.video_url != None, Question.video_url != '').count()
             expl  = base_q.filter(Question.explanation != None, Question.explanation != '').count()
-            return total, video, expl
+            vexpl = base_q.filter(Question.video_explanation != None, Question.video_explanation != '').count()
+            return total, video, expl, vexpl
 
         drill_stats  = []
         drill_level  = 'course'
@@ -570,11 +571,11 @@ def list_questions():
             drill_parent = Unit.query.get(unit_id)
             for les in Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all():
                 bq = Question.query.filter(Question.is_bank == bank_mode, Question.lesson_id == les.id)
-                total, video, expl = _q_stats(bq)
+                total, video, expl, vexpl = _q_stats(bq)
                 if total == 0:
                     continue
                 drill_stats.append({'id': les.id, 'name': les.name,
-                                    'total': total, 'video': video, 'expl': expl,
+                                    'total': total, 'video': video, 'expl': expl, 'vexpl': vexpl,
                                     'param': 'lesson_id'})
         elif course_id:
             drill_level  = 'unit'
@@ -582,22 +583,22 @@ def list_questions():
             for u in Unit.query.filter_by(course_id=course_id).order_by(Unit.name).all():
                 bq = Question.query.filter(Question.is_bank == bank_mode,
                                            Question.lesson.has(Lesson.unit_id == u.id))
-                total, video, expl = _q_stats(bq)
+                total, video, expl, vexpl = _q_stats(bq)
                 if total == 0:
                     continue
                 drill_stats.append({'id': u.id, 'name': u.name,
-                                    'total': total, 'video': video, 'expl': expl,
+                                    'total': total, 'video': video, 'expl': expl, 'vexpl': vexpl,
                                     'param': 'unit_id'})
         else:
             for crs in Course.query.filter_by(is_bank=bank_mode).order_by(Course.name).all():
                 bq = Question.query.filter(Question.is_bank == bank_mode,
                                            Question.lesson.has(
                                                Lesson.unit.has(Unit.course_id == crs.id)))
-                total, video, expl = _q_stats(bq)
+                total, video, expl, vexpl = _q_stats(bq)
                 if total == 0:
                     continue
                 drill_stats.append({'id': crs.id, 'name': crs.name,
-                                    'total': total, 'video': video, 'expl': expl,
+                                    'total': total, 'video': video, 'expl': expl, 'vexpl': vexpl,
                                     'param': 'course_id'})
 
         rendered_template = render_template(

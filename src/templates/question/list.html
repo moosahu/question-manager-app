@@ -157,10 +157,11 @@
                                     {% endif %}
                                 </form>
 
-                                <!-- تبويب فيديو / شرح -->
+                                <!-- تبويب -->
                                 <div class="drill-tabs mb-0">
                                     <button onclick="showDrill('video')" id="tab-video" class="active">🎬 فيديو</button>
-                                    <button onclick="showDrill('expl')"  id="tab-expl">💡 شرح مختصر</button>
+                                    <button onclick="showDrill('expl')"  id="tab-expl">💡 شرح مختصر <small style="color:#16a34a;">(للطالب)</small></button>
+                                    <button onclick="showDrill('vexpl')" id="tab-vexpl">📖 شرح مفصّل <small style="color:#dc2626;">(لا يُعرض)</small></button>
                                 </div>
 
                                 {% if has_video or has_explanation %}
@@ -185,6 +186,7 @@
                                 {% for item in drill_stats %}
                                 {% set pv  = ((item.video / item.total * 100)|int) if item.total > 0 else 0 %}
                                 {% set pe  = ((item.expl  / item.total * 100)|int) if item.total > 0 else 0 %}
+                                {% set pve = ((item.vexpl / item.total * 100)|int) if item.total > 0 else 0 %}
 
                                 <!-- صف الفيديو -->
                                 <div class="drill-row drill-video">
@@ -235,6 +237,26 @@
                                     </div>
                                     <span class="drill-pct">{{ item.expl }}/{{ item.total }} ({{ pe }}%)</span>
                                 </div>
+                                <!-- صف الشرح المفصّل (لا يُعرض للطالب) -->
+                                <div class="drill-row drill-vexpl" style="display:none;">
+                                    <span class="drill-name">
+                                        <a href="{{ url_for('question.list_questions', bank=_b, **{item.param: item.id}) }}"
+                                           title="اضغط للتعمق">{{ item.name }}</a>
+                                    </span>
+                                    <div class="drill-bar">
+                                        <a href="{{ url_for('question.list_questions', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-yes" style="width:{{ [pve,4]|max }}%; background:#0891b2;"
+                                           title="{{ item.vexpl }} فيه شرح مفصّل">
+                                            {% if pve >= 10 %}{{ item.vexpl }}{% endif %}
+                                        </a>
+                                        <a href="{{ url_for('question.list_questions', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-no" style="width:{{ [100-pve,4]|max }}%;"
+                                           title="{{ item.total - item.vexpl }} بدون شرح مفصّل">
+                                            {% if (100-pve) >= 10 %}{{ item.total - item.vexpl }}{% endif %}
+                                        </a>
+                                    </div>
+                                    <span class="drill-pct">{{ item.vexpl }}/{{ item.total }} ({{ pve }}%)</span>
+                                </div>
                                 {% endfor %}
                             {% elif _c %}
                                 <p class="text-muted text-center py-2">لا توجد بيانات</p>
@@ -248,8 +270,11 @@
                 function showDrill(mode) {
                     document.querySelectorAll('.drill-video').forEach(el => el.style.display = mode === 'video' ? 'flex' : 'none');
                     document.querySelectorAll('.drill-expl').forEach(el  => el.style.display = mode === 'expl'  ? 'flex' : 'none');
-                    document.getElementById('tab-video').classList.toggle('active', mode === 'video');
-                    document.getElementById('tab-expl').classList.toggle('active', mode === 'expl');
+                    document.querySelectorAll('.drill-vexpl').forEach(el => el.style.display = mode === 'vexpl' ? 'flex' : 'none');
+                    ['video','expl','vexpl'].forEach(m => {
+                        const t = document.getElementById('tab-' + m);
+                        if (t) t.classList.toggle('active', m === mode);
+                    });
                 }
                 </script>
 
