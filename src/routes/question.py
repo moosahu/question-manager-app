@@ -552,24 +552,53 @@ def list_questions():
             'total_all': _bq.count(),
             'total_blocked': _bq.filter(Question.is_blocked == True).count(),
             'total_filtered': questions_pagination.total,
-            # أسئلة
-            'q_with_video': q_with_video,
-            'q_with_expl': q_with_expl,
-            'q_with_vexpl': q_with_vexpl,
-            # دروس
-            'total_lessons': total_lessons,
-            'lessons_with_video': lessons_with_video,
-            'lessons_with_expl': lessons_with_expl,
-            'lessons_with_vexpl': lessons_with_vexpl,
-            # وحدات
-            'total_units': total_units,
-            'units_with_video': units_with_video,
-            'units_with_expl': units_with_expl,
-            # مناهج
-            'total_courses': total_courses,
-            'courses_with_video': courses_with_video,
-            'courses_with_expl': courses_with_expl,
         }
+
+        # ====== drill-down stats: منهج → وحدة → درس ======
+        def _q_stats(base_q):
+            total = base_q.count()
+            video = base_q.filter(Question.video_url != None, Question.video_url != '').count()
+            expl  = base_q.filter(Question.explanation != None, Question.explanation != '').count()
+            return total, video, expl
+
+        drill_stats  = []
+        drill_level  = 'course'
+        drill_parent = None
+
+        if unit_id:
+            drill_level  = 'lesson'
+            drill_parent = Unit.query.get(unit_id)
+            for les in Lesson.query.filter_by(unit_id=unit_id).order_by(Lesson.name).all():
+                bq = Question.query.filter(Question.is_bank == bank_mode, Question.lesson_id == les.id)
+                total, video, expl = _q_stats(bq)
+                if total == 0:
+                    continue
+                drill_stats.append({'id': les.id, 'name': les.name,
+                                    'total': total, 'video': video, 'expl': expl,
+                                    'param': 'lesson_id'})
+        elif course_id:
+            drill_level  = 'unit'
+            drill_parent = Course.query.get(course_id)
+            for u in Unit.query.filter_by(course_id=course_id).order_by(Unit.name).all():
+                bq = Question.query.filter(Question.is_bank == bank_mode,
+                                           Question.lesson.has(Lesson.unit_id == u.id))
+                total, video, expl = _q_stats(bq)
+                if total == 0:
+                    continue
+                drill_stats.append({'id': u.id, 'name': u.name,
+                                    'total': total, 'video': video, 'expl': expl,
+                                    'param': 'unit_id'})
+        else:
+            for crs in Course.query.filter_by(is_bank=bank_mode).order_by(Course.name).all():
+                bq = Question.query.filter(Question.is_bank == bank_mode,
+                                           Question.lesson.has(
+                                               Lesson.unit.has(Unit.course_id == crs.id)))
+                total, video, expl = _q_stats(bq)
+                if total == 0:
+                    continue
+                drill_stats.append({'id': crs.id, 'name': crs.name,
+                                    'total': total, 'video': video, 'expl': expl,
+                                    'param': 'course_id'})
 
         rendered_template = render_template(
             "question/list.html",
@@ -588,6 +617,9 @@ def list_questions():
             has_video=has_video,
             has_explanation=has_explanation,
             stats=stats,
+            drill_stats=drill_stats,
+            drill_level=drill_level,
+            drill_parent=drill_parent,
         )
         
         current_app.logger.info("Template rendering successful.")

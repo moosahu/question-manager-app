@@ -88,86 +88,147 @@
                     {% endif %}
                 </div>
 
-                <!-- بانل إحصائيات الفيديو والشرح -->
-                {% set _b  = request.args.get('bank','0') %}
-                {% set _c  = request.args.get('course_id','') %}
-                {% set _u  = request.args.get('unit_id','') %}
-                {% set _l  = request.args.get('lesson_id','') %}
+                <!-- بانل الإحصائيات التفصيلية -->
+                {% set _b = request.args.get('bank','0') %}
+                {% set _c = request.args.get('course_id','') %}
+                {% set _u = request.args.get('unit_id','') %}
+                {% set _l = request.args.get('lesson_id','') %}
+
                 <style>
-                .stat-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:10px; direction:rtl; }
-                .stat-label    { width:170px; font-size:.85rem; font-weight:600; text-align:right; white-space:nowrap; }
-                .stat-bar      { flex:1; display:flex; height:26px; border-radius:6px; overflow:hidden; background:#e5e7eb; }
-                .stat-bar a    { display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700;
-                                 color:#fff; text-decoration:none; transition:.15s; min-width:28px; }
-                .stat-bar a:hover { filter:brightness(.88); }
-                .bar-yes       { background:#16a34a; }
-                .bar-no        { background:#dc2626; }
-                .bar-yes.active{ outline:3px solid #15803d; }
-                .bar-no.active { outline:3px solid #b91c1c; }
-                .stat-count    { width:80px; font-size:.8rem; color:#6b7280; text-align:left; }
+                .drill-wrap    { direction:rtl; }
+                .drill-row     { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+                .drill-name    { width:200px; font-size:.84rem; font-weight:600; white-space:nowrap;
+                                 overflow:hidden; text-overflow:ellipsis; text-align:right; }
+                .drill-name a  { color:inherit; text-decoration:none; }
+                .drill-name a:hover { text-decoration:underline; }
+                .drill-bar     { flex:1; display:flex; height:24px; border-radius:5px;
+                                 overflow:hidden; background:#e5e7eb; min-width:80px; }
+                .drill-bar a   { display:flex; align-items:center; justify-content:center;
+                                 font-size:.75rem; font-weight:700; color:#fff;
+                                 text-decoration:none; transition:.1s; }
+                .drill-bar a:hover { filter:brightness(.85); }
+                .d-yes         { background:#16a34a; }
+                .d-no          { background:#dc2626; }
+                .d-yes.on      { outline:2px solid #14532d; }
+                .d-no.on       { outline:2px solid #7f1d1d; }
+                .drill-pct     { width:70px; font-size:.78rem; color:#6b7280; text-align:left; white-space:nowrap; }
+                .drill-tabs    { display:flex; gap:6px; margin-bottom:10px; }
+                .drill-tabs button { border:1px solid #cbd5e1; background:#f8fafc;
+                                     border-radius:5px; padding:3px 12px; font-size:.82rem;
+                                     cursor:pointer; font-weight:600; }
+                .drill-tabs button.active { background:#1e3a8a; color:#fff; border-color:#1e3a8a; }
                 </style>
 
                 <div class="card mb-3 border-0 shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center"
                          style="background:#1e3a8a; color:#fff; cursor:pointer; user-select:none;"
-                         data-bs-toggle="collapse" data-bs-target="#statsPanel">
-                        <span><i class="fas fa-chart-bar me-2"></i> تغطية الفيديو والشروحات — اضغط للفرز</span>
+                         data-bs-toggle="collapse" data-bs-target="#drillPanel">
+                        <span>
+                            <i class="fas fa-layer-group me-2"></i>
+                            تغطية المحتوى
+                            {% if drill_level == 'unit' and drill_parent %}— {{ drill_parent.name }}{% endif %}
+                            {% if drill_level == 'lesson' and drill_parent %}— {{ drill_parent.name }}{% endif %}
+                        </span>
                         <i class="fas fa-chevron-down"></i>
                     </div>
-                    <div class="collapse" id="statsPanel">
-                        <div class="card-body pt-3 pb-2">
+                    <div class="collapse" id="drillPanel">
+                        <div class="card-body pt-3 pb-2 drill-wrap">
 
-                            {% macro stat_row(label, total, has, filter_key, active_val) %}
-                            {% set pct = ((has / total * 100) | int) if total > 0 else 0 %}
-                            {% set pct_no = 100 - pct %}
-                            <div class="stat-bar-wrap">
-                                <span class="stat-label">{{ label }}</span>
-                                <div class="stat-bar">
-                                    <a href="{{ url_for('question.list_questions', **{filter_key:'1', 'bank':_b, 'course_id':_c, 'unit_id':_u, 'lesson_id':_l}) }}"
-                                       class="bar-yes {% if active_val == '1' %}active{% endif %}"
-                                       style="width:{{ [pct,5]|max }}%"
-                                       title="فيه — {{ has }} سؤال ({{ pct }}%) — اضغط للفرز">
-                                        {% if pct >= 12 %}{{ has }}{% endif %}
-                                    </a>
-                                    <a href="{{ url_for('question.list_questions', **{filter_key:'0', 'bank':_b, 'course_id':_c, 'unit_id':_u, 'lesson_id':_l}) }}"
-                                       class="bar-no {% if active_val == '0' %}active{% endif %}"
-                                       style="width:{{ [pct_no,5]|max }}%"
-                                       title="ناقص — {{ total - has }} سؤال ({{ pct_no }}%) — اضغط للفرز">
-                                        {% if pct_no >= 12 %}{{ total - has }}{% endif %}
-                                    </a>
-                                </div>
-                                <span class="stat-count">{{ has }} / {{ total }} <small>({{ pct }}%)</small></span>
-                                {% if active_val %}
+                            <!-- تبويب الفيديو / الشرح -->
+                            <div class="drill-tabs">
+                                <button onclick="showDrill('video')" id="tab-video" class="active">🎬 فيديو</button>
+                                <button onclick="showDrill('expl')"  id="tab-expl">💡 شرح مختصر</button>
+                                {% if drill_level != 'course' %}
+                                <a href="{{ url_for('question.list_questions', bank=_b) }}"
+                                   class="btn btn-sm btn-outline-secondary ms-2" style="font-size:.8rem;">↩ كل المناهج</a>
+                                {% endif %}
+                                {% if drill_level == 'lesson' %}
+                                <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c) }}"
+                                   class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">↩ الوحدات</a>
+                                {% endif %}
+                                {% if has_video or has_explanation %}
                                 <a href="{{ url_for('question.list_questions', bank=_b, course_id=_c, unit_id=_u, lesson_id=_l) }}"
-                                   class="btn btn-sm btn-secondary py-0 px-1" style="font-size:.75rem;" title="إلغاء الفرز">✖</a>
+                                   class="btn btn-sm btn-secondary ms-auto" style="font-size:.8rem;">✖ إلغاء الفرز</a>
                                 {% endif %}
                             </div>
-                            {% endmacro %}
 
-                            <div class="mb-1 text-muted small fw-bold" style="padding-right:180px;">
-                                <span class="text-success me-3">■ فيه (اضغط للفرز)</span>
-                                <span class="text-danger">■ ناقص (اضغط للفرز)</span>
+                            <div class="mb-1 text-muted" style="font-size:.75rem; padding-right:208px;">
+                                <span class="text-success me-3">■ فيه</span>
+                                <span class="text-danger me-3">■ ناقص</span>
+                                <span class="text-muted">— اضغط الشريط للفرز، اضغط الاسم للتعمق</span>
                             </div>
 
-                            <div class="mb-2 border-bottom pb-2">
-                                <div class="text-muted small fw-semibold mb-1" style="padding-right:4px;">🎬 تغطية الفيديو</div>
-                                {{ stat_row('📝 أسئلة', stats.total_all, stats.q_with_video, 'has_video', has_video) }}
-                                {{ stat_row('📚 دروس', stats.total_lessons, stats.lessons_with_video, 'has_video', has_video) }}
-                                {{ stat_row('🗂️ وحدات', stats.total_units, stats.units_with_video, 'has_video', has_video) }}
-                                {{ stat_row('📖 مناهج', stats.total_courses, stats.courses_with_video, 'has_video', has_video) }}
-                            </div>
+                            {% if drill_stats %}
+                                {% for item in drill_stats %}
+                                {% set pv  = ((item.video / item.total * 100)|int) if item.total > 0 else 0 %}
+                                {% set pe  = ((item.expl  / item.total * 100)|int) if item.total > 0 else 0 %}
 
-                            <div>
-                                <div class="text-muted small fw-semibold mb-1" style="padding-right:4px;">💡 تغطية الشرح المختصر</div>
-                                {{ stat_row('📝 أسئلة', stats.total_all, stats.q_with_expl, 'has_explanation', has_explanation) }}
-                                {{ stat_row('📚 دروس', stats.total_lessons, stats.lessons_with_expl, 'has_explanation', has_explanation) }}
-                                {{ stat_row('🗂️ وحدات', stats.total_units, stats.units_with_expl, 'has_explanation', has_explanation) }}
-                                {{ stat_row('📖 مناهج', stats.total_courses, stats.courses_with_expl, 'has_explanation', has_explanation) }}
-                            </div>
+                                <!-- صف الفيديو -->
+                                <div class="drill-row drill-video">
+                                    <span class="drill-name">
+                                        <a href="{{ url_for('question.list_questions', bank=_b, **{item.param: item.id}) }}"
+                                           title="اضغط للتعمق في {{ item.name }}">
+                                            {{ item.name }}
+                                        </a>
+                                    </span>
+                                    <div class="drill-bar">
+                                        <a href="{{ url_for('question.list_questions', has_video='1', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-yes {% if has_video == '1' %}on{% endif %}"
+                                           style="width:{{ [pv,4]|max }}%"
+                                           title="{{ item.video }} فيه فيديو">
+                                            {% if pv >= 10 %}{{ item.video }}{% endif %}
+                                        </a>
+                                        <a href="{{ url_for('question.list_questions', has_video='0', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-no {% if has_video == '0' %}on{% endif %}"
+                                           style="width:{{ [100-pv,4]|max }}%"
+                                           title="{{ item.total - item.video }} بدون فيديو">
+                                            {% if (100-pv) >= 10 %}{{ item.total - item.video }}{% endif %}
+                                        </a>
+                                    </div>
+                                    <span class="drill-pct">{{ item.video }}/{{ item.total }} ({{ pv }}%)</span>
+                                </div>
+
+                                <!-- صف الشرح -->
+                                <div class="drill-row drill-expl" style="display:none;">
+                                    <span class="drill-name">
+                                        <a href="{{ url_for('question.list_questions', bank=_b, **{item.param: item.id}) }}"
+                                           title="اضغط للتعمق في {{ item.name }}">
+                                            {{ item.name }}
+                                        </a>
+                                    </span>
+                                    <div class="drill-bar">
+                                        <a href="{{ url_for('question.list_questions', has_explanation='1', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-yes {% if has_explanation == '1' %}on{% endif %}"
+                                           style="width:{{ [pe,4]|max }}%"
+                                           title="{{ item.expl }} فيه شرح">
+                                            {% if pe >= 10 %}{{ item.expl }}{% endif %}
+                                        </a>
+                                        <a href="{{ url_for('question.list_questions', has_explanation='0', bank=_b, **{item.param: item.id}) }}"
+                                           class="d-no {% if has_explanation == '0' %}on{% endif %}"
+                                           style="width:{{ [100-pe,4]|max }}%"
+                                           title="{{ item.total - item.expl }} بدون شرح">
+                                            {% if (100-pe) >= 10 %}{{ item.total - item.expl }}{% endif %}
+                                        </a>
+                                    </div>
+                                    <span class="drill-pct">{{ item.expl }}/{{ item.total }} ({{ pe }}%)</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center py-2">لا توجد بيانات</p>
+                            {% endif %}
 
                         </div>
                     </div>
                 </div>
+
+                <script>
+                function showDrill(mode) {
+                    document.querySelectorAll('.drill-video').forEach(el => el.style.display = mode === 'video' ? 'flex' : 'none');
+                    document.querySelectorAll('.drill-expl').forEach(el  => el.style.display = mode === 'expl'  ? 'flex' : 'none');
+                    document.getElementById('tab-video').classList.toggle('active', mode === 'video');
+                    document.getElementById('tab-expl').classList.toggle('active', mode === 'expl');
+                }
+                </script>
 
                 <!-- تبويبات بنك الأسئلة / الأسئلة العادية / المحجوبة -->
                 <div class="mb-3 d-flex gap-2 align-items-center flex-wrap" dir="rtl">
