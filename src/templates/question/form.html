@@ -419,8 +419,15 @@
                     
                     <!-- ===== فيديو الشرح ===== -->
                     {% if question %}
+                    {% if question.r2_video_url %}
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">📱 رابط الفيديو (التطبيق — R2)</label>
+                        <input type="text" class="form-control form-control-sm bg-light" readonly
+                               value="{{ question.r2_video_url }}">
+                    </div>
+                    {% endif %}
                     <div class="mb-3">
-                        <label for="video_url" class="form-label">رابط فيديو الشرح (YouTube)</label>
+                        <label for="video_url" class="form-label text-muted">رابط فيديو الشرح (YouTube)</label>
                         <div class="input-group">
                             <input type="text" name="video_url" id="video_url" class="form-control"
                                    placeholder="https://youtu.be/..."
