@@ -36,7 +36,8 @@ class Question(db.Model):
     video_explanation = db.Column(db.Text, nullable=True)
 
     # فيديو الشرح — يولَّد بالذكاء الاصطناعي ويُرفع على YouTube
-    video_url    = db.Column(db.String(500), nullable=True)
+    video_url    = db.Column(db.String(500), nullable=True)   # يوتيوب
+    r2_video_url = db.Column(db.String(500), nullable=True)   # Cloudflare R2 (للتطبيق)
     video_status = db.Column(db.String(20), default='none', nullable=True)
     # video_status: none | generating | ready | failed
 

@@ -2112,6 +2112,8 @@ def get_question_data_for_video(question_id):
 
     lesson = Lesson.query.get(q.lesson_id)
     unit   = Unit.query.get(lesson.unit_id) if lesson else None
+    from src.models.curriculum import Course
+    course = Course.query.get(unit.course_id) if unit else None
     letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
     options = [
         {
@@ -2130,6 +2132,7 @@ def get_question_data_for_video(question_id):
         'explanation':       q.explanation,
         'lesson':            lesson.name if lesson else '',
         'unit':              unit.name if unit else '',
+        'course':            course.name if course else '',
         'options':           options,
         'ai_provider':       AISetting.get_setting('explanation_ai_provider', 'gemini'),
         'ai_model':          AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash'),
@@ -2142,28 +2145,41 @@ def get_question_data_for_video(question_id):
 
 @admin_ai_bp.route('/save-video-url', methods=['POST'])
 def save_video_url():
-    """يحفظ رابط YouTube للسؤال — يُستدعى من السكريبت المحلي"""
+    """يحفظ روابط الفيديو (يوتيوب + R2) ويرجع الروابط القديمة للحذف"""
     token    = request.headers.get('X-Api-Token') or request.args.get('token')
     expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
     if not token or token != expected:
         return jsonify({'success': False, 'error': 'unauthorized'}), 401
 
-    data        = request.get_json() or {}
-    question_id = data.get('question_id')
-    video_url   = data.get('video_url', '').strip()
+    data         = request.get_json() or {}
+    question_id  = data.get('question_id')
+    video_url    = data.get('video_url', '').strip()
+    r2_video_url = data.get('r2_video_url', '').strip()
 
-    if not question_id or not video_url:
-        return jsonify({'success': False, 'error': 'question_id و video_url مطلوبان'}), 400
+    if not question_id:
+        return jsonify({'success': False, 'error': 'question_id مطلوب'}), 400
 
     from src.models.question import Question
     q = Question.query.get(question_id)
     if not q:
         return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
 
-    q.video_url    = video_url
+    # احفظ الروابط القديمة قبل الكتابة (للحذف في السكريبت)
+    old_video_url = q.video_url or ''
+    old_r2_url    = q.r2_video_url or ''
+
+    if video_url:
+        q.video_url = video_url
+    if r2_video_url:
+        q.r2_video_url = r2_video_url
     q.video_status = 'ready'
     db.session.commit()
-    return jsonify({'success': True})
+
+    return jsonify({
+        'success':      True,
+        'old_video_url': old_video_url,
+        'old_r2_url':    old_r2_url,
+    })
 
 
 @admin_ai_bp.route('/app-settings', methods=['GET'])
