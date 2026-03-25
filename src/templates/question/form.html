@@ -438,10 +438,10 @@
                                 {% if question.video_status == 'ready' %}جاهز{% elif question.video_status == 'generating' %}جاري التوليد{% elif question.video_status == 'failed' %}فشل{% else %}لا يوجد{% endif %}
                             </span>
                             {% if question.video_url %}
-                            — <a href="{{ question.video_url }}" target="_blank" class="text-decoration-none">▶️ YouTube</a>
+                            &nbsp;|&nbsp; <a href="{{ question.video_url }}" target="_blank" class="text-decoration-none">▶️ يوتيوب</a>
                             {% endif %}
                             {% if question.r2_video_url %}
-                            — <a href="{{ question.r2_video_url }}" target="_blank" class="text-decoration-none">☁️ R2 (التطبيق)</a>
+                            &nbsp;|&nbsp; <a href="{{ question.r2_video_url }}" target="_blank" class="text-decoration-none">📱 التطبيق</a>
                             {% endif %}
                         </small>
                     </div>
