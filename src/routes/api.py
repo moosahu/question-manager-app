@@ -374,7 +374,8 @@ def format_question(question):
         # ==================== الحقول الجديدة ====================
         "difficulty": getattr(question, 'difficulty', 'medium'),  # مستوى الصعوبة
         "bloom_level": getattr(question, 'bloom_level', 'remember'),  # مستوى بلوم
-        "video_url": getattr(question, 'video_url', None),  # رابط الفيديو
+        "video_url": getattr(question, 'video_url', None),  # رابط يوتيوب
+        "r2_video_url": getattr(question, 'r2_video_url', None),  # رابط R2 (للتطبيق)
         "video_explanation": getattr(question, 'video_explanation', None),  # شرح الفيديو المفصّل
         "video_status": getattr(question, 'video_status', 'none'),  # حالة الفيديو
         "is_blocked": getattr(question, 'is_blocked', False),  # حالة الحظر

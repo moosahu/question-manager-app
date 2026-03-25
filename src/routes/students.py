@@ -1158,6 +1158,7 @@ def api_get_questions(lesson_id):
                 'correct_option_id': correct_option_id,
                 'explanation': q.explanation,
                 'video_url': q.video_url if hasattr(q, 'video_url') else None,
+                'r2_video_url': q.r2_video_url if hasattr(q, 'r2_video_url') else None,
                 'video_status': q.video_status if hasattr(q, 'video_status') else 'none',
             })
         
