@@ -1406,12 +1406,19 @@
     }
 
     // ── Polling ──
+    // يبدأ الـ polling فقط أثناء التوليد النشط
+    const ACTIVE_STATUSES = ['queued', 'generating', 'approved'];
     let _pollTimer = null;
+
     function startPolling(questionId) {
         if (_pollTimer) clearInterval(_pollTimer);
         _pollTimer = setInterval(() => pollStatus(questionId), 5000);
-        pollStatus(questionId);
     }
+
+    function stopPolling() {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    }
+
     function pollStatus(questionId) {
         fetch(`/api/admin/ai/video-status/${questionId}`)
             .then(r => r.json())
@@ -1420,19 +1427,33 @@
                 updateStatusBadge(data.video_status);
                 updateMachineBadge(data.machine_online);
                 updateReviewPanel(data);
-                if (data.video_status === 'ready' || data.video_status === 'failed') {
-                    clearInterval(_pollTimer);
+                // أوقف الـ polling إذا وصلنا لحالة نهائية
+                if (!ACTIVE_STATUSES.includes(data.video_status)) {
+                    stopPolling();
                     if (data.video_status === 'ready') location.reload();
                 }
-            });
+            })
+            .catch(() => {});
     }
 
-    // ── تشغيل المؤشر عند تحميل الصفحة ──
+    // ── عند التحميل: طلب واحد فقط — ابدأ polling فقط إذا الحالة نشطة ──
     {% if question %}
     (function() {
         const qid = {{ question.question_id }};
-        pollStatus(qid);
-        setInterval(() => pollStatus(qid), 10000);
+        const initialStatus = '{{ question.video_status or "none" }}';
+        // جلب حالة الجهاز (طلب واحد فقط)
+        fetch(`/api/admin/ai/video-status/${qid}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                updateMachineBadge(data.machine_online);
+                updateReviewPanel(data);
+                // ابدأ polling فقط إذا في توليد نشط
+                if (ACTIVE_STATUSES.includes(data.video_status)) {
+                    startPolling(qid);
+                }
+            })
+            .catch(() => {});
     })();
     {% endif %}
     </script>
