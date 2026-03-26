@@ -2087,6 +2087,36 @@ if (!document.getElementById('notification-styles')) {
                 </div>
 
                 <hr class="my-4">
+                <h5 class="mb-3"><i class="fas fa-desktop text-success me-2"></i> جهاز التوليد المحلي</h5>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span id="machine-status-dot" class="rounded-circle d-inline-block"
+                          style="width:14px;height:14px;background:#6c757d"></span>
+                    <span id="machine-status-text" class="fw-semibold">جاري التحقق...</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="loadVideoSettings()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <p class="text-muted" style="font-size:0.82rem">
+                    شغّل <code>python3 ~/Desktop/process_queue.py</code> على جهازك لتفعيل التوليد التلقائي
+                </p>
+
+                <hr class="my-3">
+                <h5 class="mb-2"><i class="fas fa-volume-up text-primary me-2"></i> ElevenLabs (الصوت)</h5>
+                <p class="text-muted mb-2" style="font-size:0.82rem">
+                    أوقف الصوت أثناء الاختبار لتوفير رصيد ElevenLabs
+                </p>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="tts-toggle" role="switch"
+                               style="width:3em; height:1.5em;" onchange="saveTtsSetting(this)">
+                        <label class="form-check-label fw-semibold ms-2" for="tts-toggle" id="tts-label">
+                            جاري التحميل...
+                        </label>
+                    </div>
+                </div>
+                <div id="tts-msg" class="mt-2"></div>
+
+                <hr class="my-4">
                 <h5 class="mb-3"><i class="fas fa-play-circle text-danger me-2"></i> زر الفيديو للطلاب</h5>
                 <p class="text-muted mb-3" style="font-size:0.85rem">
                     عند تفعيله، يظهر زر "شاهد شرح الفيديو" للطالب في شاشة مراجعة الإجابات الخاطئة — فقط إذا كان السؤال يملك فيديو
@@ -2233,7 +2263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof loadAiStats === 'function') loadAiStats();
                 if (typeof loadExpSettings === 'function') loadExpSettings();
                 if (typeof loadVoiceSettings === 'function') loadVoiceSettings();
-                if (typeof loadVideoButtonSetting === 'function') loadVideoButtonSetting();
+                if (typeof loadVideoSettings === 'function') loadVideoSettings();
             }
         });
     });
@@ -3119,7 +3149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(loadAiStats, 300);
         setTimeout(loadExpSettings, 350);
         setTimeout(loadVoiceSettings, 400);
-        setTimeout(loadVideoButtonSetting, 450);
+        setTimeout(loadVideoSettings, 450);
     }
 });
 
@@ -3322,6 +3352,59 @@ function saveVoiceSettings(btn) {
         btn.innerHTML = '<i class="fas fa-save"></i> حفظ';
         msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
     });
+}
+
+function loadVideoSettings() {
+    fetch('/api/admin/ai/app-settings')
+        .then(r => r.json())
+        .then(data => {
+            // مؤشر الجهاز
+            const dot  = document.getElementById('machine-status-dot');
+            const txt  = document.getElementById('machine-status-text');
+            if (dot && txt) {
+                dot.style.background = data.machine_online ? '#198754' : '#dc3545';
+                txt.textContent      = data.machine_online ? '🟢 الجهاز متصل' : '🔴 الجهاز غير متصل';
+                txt.style.color      = data.machine_online ? '#198754' : '#dc3545';
+            }
+            // TTS
+            const tts   = document.getElementById('tts-toggle');
+            const ttsLb = document.getElementById('tts-label');
+            if (tts) {
+                tts.checked     = data.tts_enabled !== false;
+                ttsLb.textContent = data.tts_enabled !== false
+                    ? '🔊 مفعّل — صوت حقيقي'
+                    : '🔇 موقوف — صوت صامت (للاختبار)';
+            }
+            // زر الفيديو
+            const toggle = document.getElementById('video-button-toggle');
+            const label  = document.getElementById('video-button-label');
+            if (toggle) {
+                toggle.checked    = data.video_button_enabled;
+                label.textContent = data.video_button_enabled ? 'مفعّل — يظهر الزر للطلاب' : 'معطّل — لا يظهر الزر';
+            }
+        })
+        .catch(() => {});
+}
+
+function saveTtsSetting(toggle) {
+    const enabled = toggle.checked;
+    const label   = document.getElementById('tts-label');
+    const msg     = document.getElementById('tts-msg');
+    label.textContent = 'جاري الحفظ...';
+    fetch('/api/admin/ai/tts-toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled})
+    })
+    .then(r => r.json())
+    .then(data => {
+        label.textContent = enabled ? '🔊 مفعّل — صوت حقيقي' : '🔇 موقوف — صوت صامت (للاختبار)';
+        msg.innerHTML = data.success
+            ? `<span class="text-success"><i class="fas fa-check-circle"></i> تم ${enabled ? 'التفعيل' : 'الإيقاف'}</span>`
+            : `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => { toggle.checked = !enabled; label.textContent = 'خطأ في الاتصال'; });
 }
 
 function loadVideoButtonSetting() {
