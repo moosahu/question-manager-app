@@ -1122,6 +1122,22 @@ def create_app():
     except Exception as e:
         print(f"❌ Design Access blueprint error: {e}")
 
+    # ✅ تسجيل Video Views Blueprint — تتبع مشاهدات فيديو الشرح
+    try:
+        from src.models.question_video_view import QuestionVideoView  # noqa: F401
+        from src.routes.video_views_routes import video_views_bp
+        csrf.exempt(video_views_bp)
+        app.register_blueprint(video_views_bp)
+        print("✅ Video Views blueprint registered successfully")
+        print("🎬  Video Views endpoints available at:")
+        print("   - POST /api/questions/<id>/video-view")
+        print("   - GET  /api/admin/video-views/stats")
+        print("   - GET  /api/teacher/video-views/my-students")
+    except ImportError as e:
+        print(f"⚠️ Video Views blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Video Views blueprint error: {e}")
+
     @app.route("/download")
     def download_app():
         """يوجّه المستخدم لمتجر التطبيق المناسب حسب جهازه"""
