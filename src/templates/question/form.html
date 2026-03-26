@@ -435,14 +435,23 @@
                             <button type="button" class="btn btn-outline-secondary btn-sm"
                                     onclick="copyVideoCmd({{ question.question_id }})"
                                     title="انسخ الأمر وشغّله في Terminal على جهازك">
-                                📋 نسخ أمر التوليد
+                                📋 نسخ يدوي
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" id="btn-queue-video"
+                                    onclick="queueVideo({{ question.question_id }})"
+                                    title="ولّد الفيديو تلقائياً عبر جهازك المحلي">
+                                🤖 ولّد تلقائياً
                             </button>
                         </div>
                         <small class="text-muted d-block mt-1">
                             الحالة:
                             <span id="video-status-badge"
-                                  class="badge {% if question.video_status == 'ready' %}bg-success{% elif question.video_status == 'generating' %}bg-warning text-dark{% elif question.video_status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                {% if question.video_status == 'ready' %}جاهز{% elif question.video_status == 'generating' %}جاري التوليد{% elif question.video_status == 'failed' %}فشل{% else %}لا يوجد{% endif %}
+                                  class="badge {% if question.video_status == 'ready' %}bg-success{% elif question.video_status == 'generating' %}bg-warning text-dark{% elif question.video_status == 'queued' %}bg-info{% elif question.video_status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {% if question.video_status == 'ready' %}جاهز{% elif question.video_status == 'generating' %}جاري التوليد{% elif question.video_status == 'queued' %}في الانتظار{% elif question.video_status == 'failed' %}فشل{% else %}لا يوجد{% endif %}
+                            </span>
+                            &nbsp;|&nbsp;
+                            <span id="machine-status-badge">
+                                <span class="badge bg-secondary">جاري التحقق...</span>
                             </span>
                             {% if question.video_url %}
                             &nbsp;|&nbsp; <a href="{{ question.video_url }}" target="_blank" class="text-decoration-none">▶️ يوتيوب</a>
@@ -1307,6 +1316,125 @@
             setTimeout(() => { btn.innerHTML = orig; btn.className = 'btn btn-outline-secondary btn-sm'; }, 3000);
         });
     }
+
+    // ── Queue Video ──
+    function queueVideo(questionId) {
+        const btn = document.getElementById('btn-queue-video');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ جاري الإرسال...';
+        fetch(`/api/admin/ai/queue-video/${questionId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    updateStatusBadge('queued');
+                    btn.innerHTML = '✅ في الانتظار';
+                    startPolling(questionId);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '🤖 ولّد تلقائياً';
+                    alert('خطأ: ' + d.error);
+                }
+            });
+    }
+
+    // ── Approve (نشر على YouTube) ──
+    function approveVideo(questionId) {
+        const btn = document.getElementById('btn-approve-video');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ جاري النشر...';
+        fetch(`/api/admin/ai/approve-video/${questionId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    updateStatusBadge('approved');
+                    startPolling(questionId);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 نشر على YouTube';
+                    alert('خطأ: ' + d.error);
+                }
+            });
+    }
+
+    // ── Status Badge ──
+    const STATUS_LABELS = {
+        'none':       ['bg-secondary', 'لا يوجد'],
+        'queued':     ['bg-info text-dark', '⏳ في الانتظار'],
+        'generating': ['bg-warning text-dark', '🔄 جاري التوليد'],
+        'review':     ['bg-primary', '👁️ بانتظار المراجعة'],
+        'approved':   ['bg-warning text-dark', '🚀 جاري الرفع على YouTube'],
+        'ready':      ['bg-success', '✅ جاهز'],
+        'failed':     ['bg-danger', '❌ فشل'],
+    };
+    function updateStatusBadge(status) {
+        const badge = document.getElementById('video-status-badge');
+        if (!badge) return;
+        const [cls, label] = STATUS_LABELS[status] || ['bg-secondary', status];
+        badge.className = `badge ${cls}`;
+        badge.textContent = label;
+    }
+
+    // ── Machine Status Badge ──
+    function updateMachineBadge(online) {
+        const el = document.getElementById('machine-status-badge');
+        if (!el) return;
+        el.innerHTML = online
+            ? '<span class="badge bg-success">🟢 الجهاز متصل</span>'
+            : '<span class="badge bg-danger">🔴 الجهاز غير متصل</span>';
+    }
+
+    // ── Review Panel (يظهر عند status=review) ──
+    function updateReviewPanel(data) {
+        let panel = document.getElementById('review-panel');
+        if (data.video_status === 'review' && data.r2_video_url) {
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = 'review-panel';
+                panel.className = 'alert alert-primary mt-2';
+                document.getElementById('video-status-badge').closest('.mb-3').appendChild(panel);
+            }
+            panel.innerHTML = `
+                <strong>👁️ راجع الفيديو:</strong>
+                <a href="${data.r2_video_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">▶️ شاهد الفيديو</a>
+                <button id="btn-approve-video" class="btn btn-sm btn-success ms-2"
+                        onclick="approveVideo({{ question.question_id }})">
+                    🚀 نشر على YouTube
+                </button>`;
+        } else if (panel) {
+            panel.remove();
+        }
+    }
+
+    // ── Polling ──
+    let _pollTimer = null;
+    function startPolling(questionId) {
+        if (_pollTimer) clearInterval(_pollTimer);
+        _pollTimer = setInterval(() => pollStatus(questionId), 5000);
+        pollStatus(questionId);
+    }
+    function pollStatus(questionId) {
+        fetch(`/api/admin/ai/video-status/${questionId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                updateStatusBadge(data.video_status);
+                updateMachineBadge(data.machine_online);
+                updateReviewPanel(data);
+                if (data.video_status === 'ready' || data.video_status === 'failed') {
+                    clearInterval(_pollTimer);
+                    if (data.video_status === 'ready') location.reload();
+                }
+            });
+    }
+
+    // ── تشغيل المؤشر عند تحميل الصفحة ──
+    {% if question %}
+    (function() {
+        const qid = {{ question.question_id }};
+        pollStatus(qid);
+        setInterval(() => pollStatus(qid), 10000);
+    })();
+    {% endif %}
     </script>
 {% endblock %}
 

@@ -2185,9 +2185,151 @@ def save_video_url():
 @admin_ai_bp.route('/app-settings', methods=['GET'])
 def get_app_settings():
     """إعدادات التطبيق العامة — يُستدعى من Flutter بدون auth"""
+    from datetime import datetime, timezone
+    last_seen_str = AISetting.get_setting('machine_last_seen', '')
+    machine_online = False
+    if last_seen_str:
+        try:
+            last_seen = datetime.fromisoformat(last_seen_str)
+            diff = (datetime.now(timezone.utc) - last_seen).total_seconds()
+            machine_online = diff < 60
+        except Exception:
+            pass
     return jsonify({
-        'success': True,
+        'success':              True,
         'video_button_enabled': AISetting.get_setting('video_button_enabled', 'false') == 'true',
+        'tts_enabled':          AISetting.get_setting('tts_enabled', 'true') == 'true',
+        'machine_online':       machine_online,
+    })
+
+
+# ── Heartbeat — يُستدعى من process_queue.py كل 30 ثانية ──
+@admin_ai_bp.route('/heartbeat', methods=['POST'])
+def machine_heartbeat():
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from datetime import datetime, timezone
+    AISetting.set_setting('machine_last_seen',
+                          datetime.now(timezone.utc).isoformat(),
+                          'string', description='آخر اتصال بجهاز التوليد')
+    return jsonify({'success': True})
+
+
+# ── Queue Video — يُستدعى من الموقع/التطبيق ──
+@admin_ai_bp.route('/queue-video/<int:question_id>', methods=['POST'])
+def queue_video(question_id):
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if not token or token != expected:
+        # السماح للأدمن المسجل أيضاً
+        if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from src.models.question import Question
+    q = Question.query.get(question_id)
+    if not q:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+    q.video_status = 'queued'
+    db.session.commit()
+    return jsonify({'success': True, 'status': 'queued'})
+
+
+# ── TTS Toggle — إيقاف/تشغيل ElevenLabs ──
+@admin_ai_bp.route('/tts-toggle', methods=['POST'])
+@admin_required
+def tts_toggle():
+    data    = request.get_json() or {}
+    enabled = bool(data.get('enabled', True))
+    AISetting.set_setting('tts_enabled', 'true' if enabled else 'false',
+                          'string', description='تشغيل ElevenLabs (false = صوت صامت للاختبار)')
+    return jsonify({'success': True, 'tts_enabled': enabled})
+
+
+# ── Approve Video — الأدمن يوافق على النشر على YouTube ──
+@admin_ai_bp.route('/approve-video/<int:question_id>', methods=['POST'])
+@admin_required
+def approve_video(question_id):
+    """الأدمن راجع الفيديو على R2 ويوافق على رفعه على YouTube"""
+    from src.models.question import Question
+    q = Question.query.get(question_id)
+    if not q:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+    if q.video_status != 'review':
+        return jsonify({'success': False, 'error': f'الحالة الحالية: {q.video_status}'}), 400
+    q.video_status = 'approved'
+    db.session.commit()
+    return jsonify({'success': True, 'status': 'approved'})
+
+
+# ── Queued/Approved Lists — يُستدعى من process_queue.py ──
+@admin_ai_bp.route('/video-status/queued-list', methods=['GET'])
+def get_queued_list():
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from src.models.question import Question
+    questions = Question.query.filter_by(video_status='queued').all()
+    return jsonify({'success': True, 'questions': [{'question_id': q.question_id} for q in questions]})
+
+
+@admin_ai_bp.route('/video-status/approved-list', methods=['GET'])
+def get_approved_list():
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from src.models.question import Question
+    questions = Question.query.filter_by(video_status='approved').all()
+    return jsonify({'success': True, 'questions': [{'question_id': q.question_id} for q in questions]})
+
+
+@admin_ai_bp.route('/video-status/<int:question_id>', methods=['POST'])
+def set_video_status(question_id):
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if not token or token != expected:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from src.models.question import Question
+    data   = request.get_json() or {}
+    status = data.get('status', '')
+    q      = Question.query.get(question_id)
+    if not q:
+        return jsonify({'success': False}), 404
+    q.video_status = status
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ── Video Status — يُستدعى من الموقع/التطبيق للـ polling ──
+@admin_ai_bp.route('/video-status/<int:question_id>', methods=['GET'])
+def get_video_status(question_id):
+    token    = request.headers.get('X-Api-Token') or request.args.get('token')
+    expected = os.environ.get('VIDEO_SAVE_TOKEN', 'chem-tahsili-video-2026')
+    if token != expected:
+        if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'unauthorized'}), 401
+    from src.models.question import Question
+    from datetime import datetime, timezone
+    q = Question.query.get(question_id)
+    if not q:
+        return jsonify({'success': False}), 404
+    last_seen_str = AISetting.get_setting('machine_last_seen', '')
+    machine_online = False
+    if last_seen_str:
+        try:
+            last_seen = datetime.fromisoformat(last_seen_str)
+            machine_online = (datetime.now(timezone.utc) - last_seen).total_seconds() < 60
+        except Exception:
+            pass
+    return jsonify({
+        'success':        True,
+        'video_status':   q.video_status or 'none',
+        'video_url':      q.video_url or '',
+        'r2_video_url':   q.r2_video_url or '',
+        'machine_online': machine_online,
+        'tts_enabled':    AISetting.get_setting('tts_enabled', 'true') == 'true',
     })
 
 
