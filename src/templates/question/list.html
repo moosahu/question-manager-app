@@ -80,7 +80,7 @@
 
                 <!-- إحصائيات سريعة -->
                 <div class="d-flex gap-3 mb-3 flex-wrap">
-                    <span class="badge bg-primary fs-6 px-3 py-2">📊 الكل: {{ stats.total_all }}</span>
+                    <span class="badge bg-dark fs-6 px-3 py-2" title="المناهج العادية + بنك الأسئلة">📊 الإجمالي: {{ stats.total_combined }} (مناهج: {{ stats.total_regular }} | بنك: {{ stats.total_bank }})</span>
                     <span class="badge bg-danger fs-6 px-3 py-2">🚫 محجوبة: {{ stats.total_blocked }}</span>
                     <span class="badge bg-success fs-6 px-3 py-2">✅ نشطة: {{ stats.total_all - stats.total_blocked }}</span>
                     {% if stats.total_filtered != stats.total_all %}
@@ -340,6 +340,9 @@
                                                     <span class="question-id-badge">#{{ question.question_id }}</span>
                                                     {% if question.is_blocked %}
                                                         <span class="badge bg-warning text-dark">ممنوع</span>
+                                                    {% endif %}
+                                                    {% if question.is_bank %}
+                                                        <span class="badge" style="background-color:#b45309; color:white;">🏦 بنك</span>
                                                     {% endif %}
                                                 </div>
                                                 <!-- الجانب الأيسر: وسم المادة + الصعوبة + بلوم -->

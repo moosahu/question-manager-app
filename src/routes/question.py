@@ -408,6 +408,12 @@ def list_questions():
     per_page = 9
     bank_mode = request.args.get('bank', '0') == '1'
 
+    # auto-detect bank mode: إذا كان المنهج المختار is_bank=True، بدّل التلقائي لوضع البنك
+    if course_id and not bank_mode:
+        _course_check = Course.query.get(course_id)
+        if _course_check and _course_check.is_bank:
+            bank_mode = True
+
     current_app.logger.info(f"Filter parameters: course_id={course_id}, unit_id={unit_id}, lesson_id={lesson_id}, page={page}, bank_mode={bank_mode}")
 
     try:
@@ -549,10 +555,15 @@ def list_questions():
             .join(Question, Question.lesson_id == Lesson.id)\
             .filter(Question.is_bank == bank_mode, Question.explanation != None, Question.explanation != '').scalar() or 0
 
+        total_regular = Question.query.filter(Question.is_bank == False).count()
+        total_bank    = Question.query.filter(Question.is_bank == True).count()
         stats = {
             'total_all': _bq.count(),
             'total_blocked': _bq.filter(Question.is_blocked == True).count(),
             'total_filtered': questions_pagination.total,
+            'total_regular': total_regular,
+            'total_bank': total_bank,
+            'total_combined': total_regular + total_bank,
         }
 
         # ====== drill-down stats: منهج → وحدة → درس ======
