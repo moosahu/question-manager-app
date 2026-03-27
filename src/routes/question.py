@@ -1482,8 +1482,8 @@ def import_questions():
         current_app.logger.debug(f"Form data: {request.form}")
         current_app.logger.debug(f"Files: {request.files}")
         
-        lesson_id = request.form.get("lesson_id")  # Optional now, as we'll use Course/Unit/Lesson names from Excel
-        # lesson_id is now optional - if not provided, we'll use the names from the Excel file
+        lesson_id  = request.form.get("lesson_id")
+        course_id  = request.form.get("course_id_temp")   # المنهج المحدد من الـ dropdown
         
         file = request.files.get("question_file")
         if not file or not file.filename:
@@ -1533,11 +1533,16 @@ def import_questions():
                         continue
                     
                     # Find the lesson by course, unit, and lesson names
-                    lesson = Lesson.query.join(Unit).join(Course).filter(
-                        Course.name == course_name,
+                    # لو المستخدم اختار منهج محدد من الـ dropdown → نفلتر بـ course_id عشان نتجنب تضارب الأسماء
+                    lesson_q = Lesson.query.join(Unit).join(Course).filter(
                         Unit.name == unit_name,
                         Lesson.name == lesson_name
-                    ).first()
+                    )
+                    if course_id:
+                        lesson_q = lesson_q.filter(Course.id == int(course_id))
+                    else:
+                        lesson_q = lesson_q.filter(Course.name == course_name)
+                    lesson = lesson_q.first()
                     
                     if not lesson:
                         error_details.append(f"صف {index+2}: لم يتم العثور على الدرس '{lesson_name}' في الوحدة '{unit_name}' في المنهج '{course_name}'.")
