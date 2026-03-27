@@ -704,7 +704,7 @@ def create_app():
                 db.session.execute(db.text("""
                     UPDATE questions q
                     SET is_bank = c.is_bank
-                    FROM lessons l
+                    FROM lesson l
                     JOIN unit u ON l.unit_id = u.id
                     JOIN course c ON u.course_id = c.id
                     WHERE q.lesson_id = l.id
