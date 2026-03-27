@@ -1560,7 +1560,11 @@ def import_questions():
                         continue
                     
                     current_lesson_id = lesson.id
-                    
+                    # هل الدرس تابع لمنهج بنك؟
+                    import_is_bank = False
+                    if lesson.unit and lesson.unit.course:
+                        import_is_bank = bool(lesson.unit.course.is_bank)
+
                     # Extract question data
                     question_text = row["Question Text"] if pd.notna(row["Question Text"]) else None
                     question_image_url = row["Question Image URL"] if pd.notna(row["Question Image URL"]) else None
@@ -1648,6 +1652,7 @@ def import_questions():
                         video_url=video_url,
                         video_explanation=video_explanation,
                         is_blocked=is_blocked,
+                        is_bank=import_is_bank,
                     )
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
