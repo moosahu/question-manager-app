@@ -1736,7 +1736,12 @@ def download_import_template():
             "Option 4 Text": "O₂",
             "Option 4 Image URL": "",
             "Correct Option Number": 1,
-            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين"
+            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين",
+            "Difficulty": "medium",
+            "Bloom Level": "remember",
+            "Video URL": "",
+            "Video Explanation": "",
+            "Is Blocked": 0
         }
         df = pd.concat([df, pd.DataFrame([sample_row])], ignore_index=True)
         
@@ -1750,9 +1755,11 @@ def download_import_template():
             # Auto-adjust column widths
             worksheet = writer.sheets['Questions']
             for i, col in enumerate(df.columns):
-                max_width = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                # Convert to Excel column width which is based on the width of '0' character
-                worksheet.column_dimensions[chr(65 + i)].width = max_width
+                col_max = df[col].astype(str).map(len).max()
+                max_width = max(col_max if pd.notna(col_max) else 0, len(col)) + 2
+                # دعم أعمدة ما بعد Z (AA, AB, ...)
+                from openpyxl.utils import get_column_letter
+                worksheet.column_dimensions[get_column_letter(i + 1)].width = max_width
         
         # Seek to the beginning of the BytesIO object
         output.seek(0)
