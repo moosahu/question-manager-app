@@ -4935,6 +4935,29 @@ def add_question_api():
                 'error': 'يجب تحديد إجابة صحيحة واحدة على الأقل'
             }), 400
         
+        # فحص التكرار — نص + درس + إجابة صحيحة
+        if question_text:
+            correct_opt_text = next(
+                (o.get('option_text', '').strip() for o in valid_options if o.get('is_correct')), None
+            )
+            existing_qs = Question.query.filter_by(
+                question_text=question_text,
+                lesson_id=lesson_id
+            ).all()
+            is_duplicate = any(
+                Option.query.filter_by(
+                    question_id=q.question_id,
+                    is_correct=True,
+                    option_text=correct_opt_text
+                ).first()
+                for q in existing_qs
+            )
+            if is_duplicate:
+                return jsonify({
+                    'success': False,
+                    'error': 'هذا السؤال موجود بالفعل في هذا الدرس'
+                }), 409
+
         # إنشاء السؤال
         question = Question(
             lesson_id=lesson_id,
