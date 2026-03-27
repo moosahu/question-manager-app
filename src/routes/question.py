@@ -1246,7 +1246,7 @@ def get_sorted_lessons():
             .options(
                 contains_eager(Lesson.unit).contains_eager(Unit.course)
             )
-            .order_by(Course.name, Unit.name, Lesson.name)
+            .order_by(Course.is_bank, Course.name, Unit.name, Lesson.name)
             .all()
         )
         return lessons
