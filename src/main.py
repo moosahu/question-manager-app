@@ -699,6 +699,23 @@ def create_app():
                 db.session.rollback()
                 print(f"⚠️ is_bank migration (courses): {_e}")
 
+            # ✅ مزامنة is_bank على الأسئلة من منهجها (يُصلح الأسئلة القديمة)
+            try:
+                db.session.execute(db.text("""
+                    UPDATE questions q
+                    SET is_bank = c.is_bank
+                    FROM lessons l
+                    JOIN unit u ON l.unit_id = u.id
+                    JOIN course c ON u.course_id = c.id
+                    WHERE q.lesson_id = l.id
+                      AND q.is_bank IS DISTINCT FROM c.is_bank
+                """))
+                db.session.commit()
+                print("✅ is_bank synced on questions from their course")
+            except Exception as _e:
+                db.session.rollback()
+                print(f"⚠️ is_bank sync migration: {_e}")
+
             # ✅ إضافة show_in_bot لـ unit و lesson
             try:
                 db.session.execute(db.text(
