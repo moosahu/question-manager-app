@@ -2082,6 +2082,30 @@ def get_elevenlabs_voices():
     return jsonify({'success': True, 'voices': voices, 'selected': saved_voice, 'api_key_saved': api_key_saved})
 
 
+@admin_ai_bp.route('/elevenlabs-balance', methods=['GET'])
+@admin_required
+def get_elevenlabs_balance():
+    """يجيب رصيد ElevenLabs المتبقي"""
+    import requests as _req
+    el_key = (AISetting.get_setting('elevenlabs_api_key')
+              or os.environ.get('ELEVENLABS_API_KEY', ''))
+    if not el_key:
+        return jsonify({'success': False, 'error': 'لا يوجد API key'})
+    try:
+        r = _req.get('https://api.elevenlabs.io/v1/user/subscription',
+                     headers={'xi-api-key': el_key}, timeout=10)
+        data = r.json()
+        remaining = data.get('character_limit', 0) - data.get('character_count', 0)
+        return jsonify({
+            'success': True,
+            'remaining': remaining,
+            'total': data.get('character_limit', 0),
+            'used': data.get('character_count', 0),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @admin_ai_bp.route('/elevenlabs-voices', methods=['POST'])
 @admin_required
 def save_elevenlabs_voice():

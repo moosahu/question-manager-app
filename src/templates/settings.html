@@ -2116,6 +2116,21 @@ if (!document.getElementById('notification-styles')) {
                 </div>
                 <div id="tts-msg" class="mt-2"></div>
 
+                <!-- رصيد ElevenLabs -->
+                <div class="mt-3 p-3 rounded" style="background:#f8f9fa; border:1px solid #dee2e6;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-semibold" style="font-size:0.9rem">
+                            <i class="fas fa-coins text-warning me-1"></i> رصيد ElevenLabs
+                        </span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadElBalance()" id="el-balance-refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="el-balance-display" class="mt-2" style="font-size:0.85rem">
+                        <span class="text-muted">اضغط للتحميل</span>
+                    </div>
+                </div>
+
                 <hr class="my-4">
                 <h5 class="mb-3"><i class="fas fa-play-circle text-danger me-2"></i> زر الفيديو للطلاب</h5>
                 <p class="text-muted mb-3" style="font-size:0.85rem">
@@ -3267,6 +3282,35 @@ function loadVoiceSettings() {
             document.getElementById('voice-settings-loading').innerHTML =
                 '<span class="text-danger">تعذّر الاتصال بالسيرفر</span>';
         });
+}
+
+function loadElBalance() {
+    const display = document.getElementById('el-balance-display');
+    const btn = document.getElementById('el-balance-refresh');
+    display.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>جاري التحميل...</span>';
+    btn.disabled = true;
+    fetch('/api/admin/ai/elevenlabs-balance')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const pct = Math.round((data.remaining / data.total) * 100);
+                const color = data.remaining < 10000 ? 'danger' : 'success';
+                const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                display.innerHTML = `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>المتبقي: <strong class="text-${color}">${fmt(data.remaining)}</strong> حرف</span>
+                        <span class="text-muted">${pct}%</span>
+                    </div>
+                    <div class="progress" style="height:6px">
+                        <div class="progress-bar bg-${color}" style="width:${pct}%"></div>
+                    </div>
+                    <small class="text-muted">الإجمالي: ${fmt(data.total)} حرف</small>`;
+            } else {
+                display.innerHTML = `<span class="text-danger">${data.error || 'تعذّر التحميل'}</span>`;
+            }
+        })
+        .catch(() => { display.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>'; })
+        .finally(() => { btn.disabled = false; });
 }
 
 function saveElevenLabsKey(btn) {
