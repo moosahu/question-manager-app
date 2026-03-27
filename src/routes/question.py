@@ -231,7 +231,8 @@ EXPECTED_IMPORT_COLUMNS = [
     "Option 3 Text", "Option 3 Image URL",
     "Option 4 Text", "Option 4 Image URL",
     "Correct Option Number",
-    "Explanation"
+    "Explanation",
+    "Difficulty", "Bloom Level", "Video URL", "Is Blocked"
 ]
 
 def allowed_image_file(filename):
@@ -757,9 +758,15 @@ def prepare_template_export_data(filters=None):
                     break
             row['Correct Option Number'] = correct_option_number
             
-            # الشرح (الميزة الجديدة)
+            # الشرح
             row['Explanation'] = question.explanation or ''
-            
+
+            # حقول إضافية
+            row['Difficulty']  = question.difficulty or ''
+            row['Bloom Level'] = question.bloom_level or ''
+            row['Video URL']   = question.video_url or question.r2_video_url or ''
+            row['Is Blocked']  = '1' if question.is_blocked else '0'
+
             data.append(row)
         
         return data
@@ -1584,8 +1591,12 @@ def import_questions():
                         error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
                         continue
                     
-                    # Extract explanation if available
-                    explanation = row["Explanation"] if pd.notna(row.get("Explanation")) else None
+                    # Extract optional fields
+                    explanation  = row["Explanation"]  if pd.notna(row.get("Explanation"))  else None
+                    difficulty   = row["Difficulty"]   if pd.notna(row.get("Difficulty"))   else None
+                    bloom_level  = row["Bloom Level"]  if pd.notna(row.get("Bloom Level"))  else None
+                    video_url    = row["Video URL"]    if pd.notna(row.get("Video URL"))    else None
+                    is_blocked   = str(row.get("Is Blocked", "0")).strip() == "1"
 
                     # فحص التكرار — نص + درس + إجابة صحيحة
                     if question_text:
@@ -1613,7 +1624,11 @@ def import_questions():
                         question_text=question_text,
                         lesson_id=current_lesson_id,
                         image_url=question_image_url,
-                        explanation=explanation
+                        explanation=explanation,
+                        difficulty=difficulty,
+                        bloom_level=bloom_level,
+                        video_url=video_url,
+                        is_blocked=is_blocked,
                     )
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
