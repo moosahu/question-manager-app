@@ -504,7 +504,7 @@
                 items.forEach(item => {
                     const option = document.createElement("option");
                     option.value = item.id;
-                    option.textContent = item.name;
+                    option.textContent = item.is_bank ? `${item.name} 🏦` : item.name;
                     if (selectedValue && item.id.toString() === selectedValue.toString()) {
                         option.selected = true;
                     }
