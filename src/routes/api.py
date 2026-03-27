@@ -648,8 +648,8 @@ def get_all_courses():
         show_all = request.args.get('show_all', 'false').lower() == 'true'
         
         if show_all:
-            # عرض جميع المناهج (للوحة التحكم)
-            courses = Course.query.order_by(Course.order_num.asc(), Course.id).all()
+            # عرض جميع المناهج (للوحة التحكم) — العادية أولاً ثم البنك
+            courses = Course.query.order_by(Course.is_bank.asc(), Course.order_num.asc(), Course.id).all()
         else:
             # عرض المناهج المفعلة فقط (للبوت)
             courses = Course.query.filter(Course.show_in_bot == True).order_by(Course.order_num.asc(), Course.id).all()
