@@ -1352,13 +1352,24 @@ def add_question():
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال", form=form)
 
         try:
-            # فحص التكرار — نص السؤال + الدرس
+            # فحص التكرار — نص + درس + إجابة صحيحة (لأن نفس النص ممكن يكون سؤالين مختلفين)
             if question_text:
-                duplicate = Question.query.filter_by(
+                correct_answer_text = next(
+                    (o["option_text"] for o in options_data_from_form if o["is_correct"]), None
+                )
+                existing_qs = Question.query.filter_by(
                     question_text=question_text,
                     lesson_id=lesson_id
-                ).first()
-                if duplicate:
+                ).all()
+                is_duplicate = any(
+                    Option.query.filter_by(
+                        question_id=q.question_id,
+                        is_correct=True,
+                        option_text=correct_answer_text
+                    ).first()
+                    for q in existing_qs
+                )
+                if is_duplicate:
                     flash("هذا السؤال موجود بالفعل في هذا الدرس.", "warning")
                     return redirect(url_for("question.add_question"))
 
@@ -1576,13 +1587,26 @@ def import_questions():
                     # Extract explanation if available
                     explanation = row["Explanation"] if pd.notna(row.get("Explanation")) else None
 
-                    # فحص التكرار — تخطّى إذا السؤال موجود بنفس النص والدرس
-                    if question_text and Question.query.filter_by(
-                        question_text=question_text,
-                        lesson_id=current_lesson_id
-                    ).first():
-                        skipped_count += 1
-                        continue
+                    # فحص التكرار — نص + درس + إجابة صحيحة
+                    if question_text:
+                        correct_opt_text = next(
+                            (o["option_text"] for o in options_data if o["is_correct"]), None
+                        )
+                        existing_qs = Question.query.filter_by(
+                            question_text=question_text,
+                            lesson_id=current_lesson_id
+                        ).all()
+                        is_duplicate = any(
+                            Option.query.filter_by(
+                                question_id=q.question_id,
+                                is_correct=True,
+                                option_text=correct_opt_text
+                            ).first()
+                            for q in existing_qs
+                        )
+                        if is_duplicate:
+                            skipped_count += 1
+                            continue
 
                     # Create question
                     new_question = Question(
