@@ -1352,6 +1352,16 @@ def add_question():
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال", form=form)
 
         try:
+            # فحص التكرار — نص السؤال + الدرس
+            if question_text:
+                duplicate = Question.query.filter_by(
+                    question_text=question_text,
+                    lesson_id=lesson_id
+                ).first()
+                if duplicate:
+                    flash("هذا السؤال موجود بالفعل في هذا الدرس.", "warning")
+                    return redirect(url_for("question.add_question"))
+
             # هل الدرس تابع لمنهج بنك؟
             lesson_obj = Lesson.query.get(lesson_id)
             auto_is_bank = False
@@ -1488,6 +1498,7 @@ def import_questions():
             
             # Process each row
             imported_count = 0
+            skipped_count = 0
             error_details = []
             
             for index, row in df.iterrows():
@@ -1564,7 +1575,15 @@ def import_questions():
                     
                     # Extract explanation if available
                     explanation = row["Explanation"] if pd.notna(row.get("Explanation")) else None
-                    
+
+                    # فحص التكرار — تخطّى إذا السؤال موجود بنفس النص والدرس
+                    if question_text and Question.query.filter_by(
+                        question_text=question_text,
+                        lesson_id=current_lesson_id
+                    ).first():
+                        skipped_count += 1
+                        continue
+
                     # Create question
                     new_question = Question(
                         question_text=question_text,
@@ -1595,7 +1614,12 @@ def import_questions():
             if imported_count > 0:
                 db.session.commit()
                 current_app.logger.info(f"Successfully imported {imported_count} questions.")
-                flash(f"تم استيراد {imported_count} سؤال بنجاح!", "success")
+                msg = f"تم استيراد {imported_count} سؤال بنجاح!"
+                if skipped_count > 0:
+                    msg += f" (تم تخطي {skipped_count} مكرر موجود مسبقاً)"
+                flash(msg, "success")
+            elif skipped_count > 0:
+                flash(f"لم يُضَف أي سؤال — كل الأسئلة ({skipped_count}) موجودة مسبقاً.", "warning")
                 
                 # تسجيل النشاط بعد استيراد الأسئلة بنجاح
                 try:
