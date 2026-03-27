@@ -232,7 +232,7 @@ EXPECTED_IMPORT_COLUMNS = [
     "Option 4 Text", "Option 4 Image URL",
     "Correct Option Number",
     "Explanation",
-    "Difficulty", "Bloom Level", "Video URL", "Is Blocked"
+    "Difficulty", "Bloom Level", "Video URL", "Video Explanation", "Is Blocked"
 ]
 
 def allowed_image_file(filename):
@@ -764,8 +764,9 @@ def prepare_template_export_data(filters=None):
             # حقول إضافية
             row['Difficulty']  = question.difficulty or ''
             row['Bloom Level'] = question.bloom_level or ''
-            row['Video URL']   = question.video_url or question.r2_video_url or ''
-            row['Is Blocked']  = '1' if question.is_blocked else '0'
+            row['Video URL']          = question.video_url or question.r2_video_url or ''
+            row['Video Explanation']  = question.video_explanation or ''
+            row['Is Blocked']         = '1' if question.is_blocked else '0'
 
             data.append(row)
         
@@ -1595,8 +1596,9 @@ def import_questions():
                     explanation  = row["Explanation"]  if pd.notna(row.get("Explanation"))  else None
                     difficulty   = row["Difficulty"]   if pd.notna(row.get("Difficulty"))   else None
                     bloom_level  = row["Bloom Level"]  if pd.notna(row.get("Bloom Level"))  else None
-                    video_url    = row["Video URL"]    if pd.notna(row.get("Video URL"))    else None
-                    is_blocked   = str(row.get("Is Blocked", "0")).strip() == "1"
+                    video_url         = row["Video URL"]         if pd.notna(row.get("Video URL"))         else None
+                    video_explanation = row["Video Explanation"] if pd.notna(row.get("Video Explanation")) else None
+                    is_blocked        = str(row.get("Is Blocked", "0")).strip() == "1"
 
                     # فحص التكرار — نص + درس + إجابة صحيحة
                     if question_text:
@@ -1628,6 +1630,7 @@ def import_questions():
                         difficulty=difficulty,
                         bloom_level=bloom_level,
                         video_url=video_url,
+                        video_explanation=video_explanation,
                         is_blocked=is_blocked,
                     )
                     db.session.add(new_question)
