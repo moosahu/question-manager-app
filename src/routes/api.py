@@ -1221,7 +1221,8 @@ def get_dashboard_statistics():
             question_count = Question.query.join(Question.lesson).join(Lesson.unit).filter(Unit.course_id == course.id).count()
             course_distribution.append({
                 "name": course.name,
-                "count": question_count
+                "count": question_count,
+                "is_bank": course.is_bank or False
             })
         
         # إحصائيات الأسئلة المضافة خلال الأشهر الماضية (من قاعدة البيانات الفعلية)
