@@ -6,7 +6,6 @@
 serviceAccountKey.json
 src/serviceAccountKey.json
 google_drive_*.json
-scheduled_backup_jobs.json
 .env
 .env.*
 
