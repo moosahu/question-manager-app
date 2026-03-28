@@ -1,4 +1,33 @@
+# macOS
 .DS_Store
-.DS_Store
+
+# مفاتيح وبيانات حساسة
+*.key
 serviceAccountKey.json
 src/serviceAccountKey.json
+google_drive_*.json
+scheduled_backup_jobs.json
+.env
+.env.*
+
+# ملفات رُفعت من المستخدمين
+uploads/
+
+# ملفات Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+*.egg-info/
+
+# ملفات الاختبار والتغطية
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ملفات IDE
+.vscode/
+.idea/
