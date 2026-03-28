@@ -44,11 +44,14 @@ class Question(db.Model):
     # ==================== الحقول الجديدة ====================
     # مستوى الصعوبة: easy (سهل), medium (متوسط), hard (صعب)
     difficulty = db.Column(db.String(20), default='medium', nullable=False, index=True)
-    
+
     # مستوى بلوم (أهداف التعلم):
-    # remember (تذكر), understand (فهم), apply (تطبيق), 
+    # remember (تذكر), understand (فهم), apply (تطبيق),
     # analyze (تحليل), evaluate (تقويم), create (إبداع)
     bloom_level = db.Column(db.String(30), default='remember', nullable=False, index=True)
+
+    # مراجعة التصنيف من قِبل المعلم: True = تأكّد المعلم، False = لم يُراجَع بعد
+    human_verified = db.Column(db.Boolean, default=False, nullable=False, index=True)
     # =========================================================
 
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False)

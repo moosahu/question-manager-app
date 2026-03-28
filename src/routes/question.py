@@ -557,6 +557,12 @@ def list_questions():
 
         total_regular = Question.query.filter(Question.is_bank == False).count()
         total_bank    = Question.query.filter(Question.is_bank == True).count()
+
+        # إحصائية مراجعة التصنيف
+        total_classified  = Question.query.count()
+        total_verified    = Question.query.filter(Question.human_verified == True).count()
+        verify_pct = round(total_verified / total_classified * 100) if total_classified else 0
+
         stats = {
             'total_all': _bq.count(),
             'total_blocked': _bq.filter(Question.is_blocked == True).count(),
@@ -564,6 +570,9 @@ def list_questions():
             'total_regular': total_regular,
             'total_bank': total_bank,
             'total_combined': total_regular + total_bank,
+            'total_verified': total_verified,
+            'total_classified': total_classified,
+            'verify_pct': verify_pct,
         }
 
         # ====== drill-down stats: منهج → وحدة → درس ======
@@ -4667,6 +4676,47 @@ def classify_questions():
     تعرض إحصائيات التصنيف وتتيح التصنيف التلقائي والتعديل اليدوي
     """
     return render_template('classify_questions.html')
+
+
+@question_bp.route('/verify-classification', methods=['POST'])
+@login_required
+def verify_classification():
+    """
+    مراجعة تصنيف الذكاء الاصطناعي من قِبل المعلم.
+    action=approve → يثبّت التصنيف الحالي ويضع human_verified=True
+    action=correct → يحدّث difficulty/bloom_level ويضع human_verified=True
+    """
+    data = request.get_json(silent=True) or {}
+    question_id = data.get('question_id') or request.form.get('question_id', type=int)
+    action = data.get('action') or request.form.get('action', '')
+
+    if not question_id:
+        return jsonify({'success': False, 'error': 'question_id مطلوب'}), 400
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+
+    if action == 'correct':
+        difficulty  = data.get('difficulty')  or request.form.get('difficulty', '')
+        bloom_level = data.get('bloom_level') or request.form.get('bloom_level', '')
+        valid_diff  = {'easy', 'medium', 'hard'}
+        valid_bloom = {'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'}
+        if difficulty not in valid_diff or bloom_level not in valid_bloom:
+            return jsonify({'success': False, 'error': 'قيم غير صالحة'}), 400
+        question.difficulty  = difficulty
+        question.bloom_level = bloom_level
+
+    question.human_verified = True
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'question_id': question_id,
+        'difficulty':  question.difficulty,
+        'bloom_level': question.bloom_level,
+        'human_verified': True
+    })
 
 
 # =====================================================
