@@ -86,7 +86,7 @@
                     {% if stats.total_filtered != stats.total_all %}
                     <span class="badge bg-warning text-dark fs-6 px-3 py-2">🔍 نتائج الفلتر: {{ stats.total_filtered }}</span>
                     {% endif %}
-                    <span class="badge fs-6 px-3 py-2" style="background:#6366f1;" title="عدد الأسئلة التي راجع المعلم تصنيفها">🎯 مراجعة التصنيف: {{ stats.total_verified }}/{{ stats.total_classified }} ({{ stats.verify_pct }}%)</span>
+                    <a href="{{ url_for('question.review_classifications') }}" class="badge fs-6 px-3 py-2 text-decoration-none" style="background:#6366f1;" title="راجع تصنيف الذكاء الاصطناعي سؤالاً سؤالاً">🎯 مراجعة التصنيف: {{ stats.total_verified }}/{{ stats.total_classified }} ({{ stats.verify_pct }}%)</a>
                 </div>
 
 
@@ -369,16 +369,7 @@
                                                     {% endif %}
                                                     {# بلوم #}
                                                     {% set bloom_labels = {'remember': 'تذكر', 'understand': 'فهم', 'apply': 'تطبيق', 'analyze': 'تحليل', 'evaluate': 'تقويم', 'create': 'إبداع'} %}
-                                                    <span class="badge bg-info text-dark bloom-badge-{{ question.question_id }}">{{ bloom_labels.get(question.bloom_level, question.bloom_level) }}</span>
-                                                    {# مراجعة التصنيف #}
-                                                    {% if question.human_verified %}
-                                                        <span class="badge bg-success" title="تم التحقق من التصنيف">✅ مُراجَع</span>
-                                                    {% else %}
-                                                        <button class="badge border-0 bg-secondary" style="cursor:pointer;" title="موافقة على التصنيف"
-                                                            onclick="approveClassification({{ question.question_id }}, this)">✅ تأكيد</button>
-                                                        <button class="badge border-0 bg-warning text-dark" style="cursor:pointer;" title="تصحيح التصنيف"
-                                                            onclick="openCorrectModal({{ question.question_id }}, '{{ question.difficulty }}', '{{ question.bloom_level }}')">✏️ تصحيح</button>
-                                                    {% endif %}
+                                                    <span class="badge bg-info text-dark">{{ bloom_labels.get(question.bloom_level, question.bloom_level) }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1518,65 +1509,6 @@
             });
         });
         
-        // ===== مراجعة التصنيف =====
-        window.approveClassification = async function(questionId, btn) {
-            try {
-                const csrfToken = getCSRFToken();
-                const res = await fetch('/question/verify-classification', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken || ''},
-                    body: JSON.stringify({question_id: questionId, action: 'approve'})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    // استبدل الزرين بـ badge مُراجَع
-                    const container = btn.parentElement;
-                    // احذف زر التأكيد والتصحيح
-                    container.querySelectorAll('button').forEach(b => b.remove());
-                    const badge = document.createElement('span');
-                    badge.className = 'badge bg-success';
-                    badge.title = 'تم التحقق من التصنيف';
-                    badge.textContent = '✅ مُراجَع';
-                    container.appendChild(badge);
-                } else {
-                    alert('خطأ: ' + (data.error || 'غير معروف'));
-                }
-            } catch (err) {
-                alert('حدث خطأ: ' + err.message);
-            }
-        };
-
-        window.openCorrectModal = function(questionId, difficulty, bloom) {
-            document.getElementById('correctQId').value = questionId;
-            document.getElementById('correctDiff').value = difficulty;
-            document.getElementById('correctBloom').value = bloom;
-            new bootstrap.Modal(document.getElementById('correctClassificationModal')).show();
-        };
-
-        document.getElementById('saveCorrectBtn').addEventListener('click', async function() {
-            const questionId = document.getElementById('correctQId').value;
-            const difficulty  = document.getElementById('correctDiff').value;
-            const bloom_level = document.getElementById('correctBloom').value;
-            try {
-                const csrfToken = getCSRFToken();
-                const res = await fetch('/question/verify-classification', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken || ''},
-                    body: JSON.stringify({question_id: parseInt(questionId), action: 'correct', difficulty, bloom_level})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('correctClassificationModal')).hide();
-                    location.reload();
-                } else {
-                    alert('خطأ: ' + (data.error || 'غير معروف'));
-                }
-            } catch (err) {
-                alert('حدث خطأ: ' + err.message);
-            }
-        });
-        // ===========================
-
         // دالة لمنع/إلغاء منع سؤال واحد (للبطاقات)
         window.toggleBlockQuestion = async function(questionId, shouldBlock) {
             try {
@@ -1605,42 +1537,4 @@
         };
     });
     </script>
-
-    <!-- Modal تصحيح التصنيف -->
-    <div class="modal fade" id="correctClassificationModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">✏️ تصحيح التصنيف</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="correctQId">
-                    <div class="mb-3">
-                        <label class="form-label">الصعوبة</label>
-                        <select id="correctDiff" class="form-select">
-                            <option value="easy">🟢 سهل</option>
-                            <option value="medium">🟡 متوسط</option>
-                            <option value="hard">🔴 صعب</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">مستوى بلوم</label>
-                        <select id="correctBloom" class="form-select">
-                            <option value="remember">تذكر</option>
-                            <option value="understand">فهم</option>
-                            <option value="apply">تطبيق</option>
-                            <option value="analyze">تحليل</option>
-                            <option value="evaluate">تقويم</option>
-                            <option value="create">إبداع</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-primary" id="saveCorrectBtn">حفظ</button>
-                </div>
-            </div>
-        </div>
-    </div>
     {% endblock %}

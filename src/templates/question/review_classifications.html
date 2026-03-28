@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}مراجعة التصنيف{% endblock %}
+
+{% block content %}
+<main>
+<div class="dashboard">
+<h2><i class="fas fa-check-double"></i> مراجعة تصنيف الذكاء الاصطناعي</h2>
+
+<div class="section">
+
+    <!-- شريط التقدم -->
+    {% set pct = ((total_verified / total_all * 100) | round | int) if total_all else 0 %}
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        <span class="badge bg-success fs-6 px-3 py-2">✅ مُراجَع: {{ total_verified }}</span>
+        <span class="badge bg-secondary fs-6 px-3 py-2">⏳ متبقي: {{ total_pending }}</span>
+        <span class="badge bg-dark fs-6 px-3 py-2">📊 الكل: {{ total_all }}</span>
+        <a href="{{ url_for('question.list_questions') }}" class="btn btn-sm btn-outline-secondary">← رجوع للأسئلة</a>
+    </div>
+    <div class="progress mb-4" style="height:12px;">
+        <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
+    </div>
+
+    <!-- فلاتر -->
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-auto">
+            <select name="course_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">-- كل المناهج --</option>
+                {% for c in courses %}
+                    <option value="{{ c.id }}" {% if course_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <div class="form-check form-switch mt-1">
+                <input class="form-check-input" type="checkbox" name="show_all" value="1"
+                    id="showAll" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label" for="showAll">عرض المراجَعة أيضاً</label>
+            </div>
+        </div>
+    </form>
+
+    {% if not questions %}
+        <div class="alert alert-success text-center fs-5">
+            🎉 تم مراجعة جميع الأسئلة!
+        </div>
+    {% else %}
+
+    <!-- عداد -->
+    <p class="text-muted mb-3">{{ questions|length }} سؤال {% if not show_all %}غير مراجَع{% endif %}</p>
+
+    <!-- بطاقات الأسئلة -->
+    <div id="reviewContainer">
+    {% for q in questions %}
+    <div class="card mb-3 shadow-sm review-card" id="card-{{ q.question_id }}" dir="rtl">
+        <div class="card-body">
+            <!-- رأس: الموقع في المنهج -->
+            <div class="text-muted small mb-2">
+                {{ q.lesson.unit.course.name if q.lesson and q.lesson.unit and q.lesson.unit.course else '' }}
+                {% if q.lesson and q.lesson.unit %} ← {{ q.lesson.unit.name }}{% endif %}
+                {% if q.lesson %} ← {{ q.lesson.name }}{% endif %}
+            </div>
+
+            <!-- نص السؤال -->
+            <p class="fw-bold mb-2" dir="auto">{{ q.question_text or '[سؤال بصورة]' }}</p>
+            {% if q.image_url %}
+                <img src="{{ q.image_url }}" class="img-fluid mb-2" style="max-height:150px;">
+            {% endif %}
+
+            <!-- الخيارات -->
+            {% if q.options %}
+            <ul class="list-unstyled mb-3 small text-muted">
+                {% for opt in q.options %}
+                <li>{% if opt.is_correct %}✅{% else %}◦{% endif %} {{ opt.option_text or '' }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <!-- التصنيف الحالي -->
+            <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+                <span class="text-muted small">تصنيف AI:</span>
+                {% if q.difficulty == 'easy' %}
+                    <span class="badge bg-success diff-badge-{{ q.question_id }}">🟢 سهل</span>
+                {% elif q.difficulty == 'hard' %}
+                    <span class="badge bg-danger diff-badge-{{ q.question_id }}">🔴 صعب</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark diff-badge-{{ q.question_id }}">🟡 متوسط</span>
+                {% endif %}
+                {% set bloom_labels = {'remember':'تذكر','understand':'فهم','apply':'تطبيق','analyze':'تحليل','evaluate':'تقويم','create':'إبداع'} %}
+                <span class="badge bg-info text-dark bloom-badge-{{ q.question_id }}">{{ bloom_labels.get(q.bloom_level, q.bloom_level) }}</span>
+                {% if q.human_verified %}
+                    <span class="badge bg-success">✅ مُراجَع</span>
+                {% endif %}
+            </div>
+
+            <!-- أزرار الإجراء -->
+            {% if not q.human_verified %}
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-success btn-sm" onclick="approve({{ q.question_id }})">✅ موافق</button>
+                <button class="btn btn-warning btn-sm text-dark" onclick="toggleCorrect({{ q.question_id }})">✏️ تصحيح</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="skipCard({{ q.question_id }})">⏭️ تخطي</button>
+            </div>
+
+            <!-- قسم التصحيح (مخفي بالبداية) -->
+            <div id="correct-{{ q.question_id }}" class="mt-3 p-3 bg-light rounded" style="display:none;">
+                <div class="row g-2">
+                    <div class="col-auto">
+                        <label class="form-label small">الصعوبة</label>
+                        <select id="diff-{{ q.question_id }}" class="form-select form-select-sm">
+                            <option value="easy"   {% if q.difficulty=='easy'   %}selected{% endif %}>🟢 سهل</option>
+                            <option value="medium" {% if q.difficulty=='medium' %}selected{% endif %}>🟡 متوسط</option>
+                            <option value="hard"   {% if q.difficulty=='hard'   %}selected{% endif %}>🔴 صعب</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label small">مستوى بلوم</label>
+                        <select id="bloom-{{ q.question_id }}" class="form-select form-select-sm">
+                            <option value="remember"  {% if q.bloom_level=='remember'  %}selected{% endif %}>تذكر</option>
+                            <option value="understand"{% if q.bloom_level=='understand'%}selected{% endif %}>فهم</option>
+                            <option value="apply"     {% if q.bloom_level=='apply'     %}selected{% endif %}>تطبيق</option>
+                            <option value="analyze"   {% if q.bloom_level=='analyze'   %}selected{% endif %}>تحليل</option>
+                            <option value="evaluate"  {% if q.bloom_level=='evaluate'  %}selected{% endif %}>تقويم</option>
+                            <option value="create"    {% if q.bloom_level=='create'    %}selected{% endif %}>إبداع</option>
+                        </select>
+                    </div>
+                    <div class="col-auto d-flex align-items-end">
+                        <button class="btn btn-primary btn-sm" onclick="saveCorrect({{ q.question_id }})">حفظ</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    {% endif %}
+</div>
+</div>
+</main>
+
+<script>
+const CSRF = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrf_token='))?.split('=')[1] || '';
+
+async function postVerify(body) {
+    const res = await fetch('/question/verify-classification', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify(body)
+    });
+    return res.json();
+}
+
+function hideCard(qid) {
+    const card = document.getElementById('card-' + qid);
+    card.style.transition = 'opacity .3s';
+    card.style.opacity = '0';
+    setTimeout(() => card.remove(), 300);
+}
+
+window.approve = async function(qid) {
+    const data = await postVerify({question_id: qid, action: 'approve'});
+    if (data.success) hideCard(qid);
+    else alert('خطأ: ' + (data.error||''));
+};
+
+window.toggleCorrect = function(qid) {
+    const div = document.getElementById('correct-' + qid);
+    div.style.display = div.style.display === 'none' ? 'block' : 'none';
+};
+
+window.saveCorrect = async function(qid) {
+    const difficulty  = document.getElementById('diff-'  + qid).value;
+    const bloom_level = document.getElementById('bloom-' + qid).value;
+    const data = await postVerify({question_id: qid, action: 'correct', difficulty, bloom_level});
+    if (data.success) hideCard(qid);
+    else alert('خطأ: ' + (data.error||''));
+};
+
+window.skipCard = function(qid) {
+    hideCard(qid);
+};
+</script>
+{% endblock %}

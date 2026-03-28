@@ -4678,6 +4678,53 @@ def classify_questions():
     return render_template('classify_questions.html')
 
 
+@question_bp.route('/review-classifications')
+@login_required
+def review_classifications():
+    """صفحة مراجعة تصنيف الذكاء الاصطناعي — سؤال واحد في كل مرة"""
+    course_id  = request.args.get('course_id',  type=int)
+    unit_id    = request.args.get('unit_id',    type=int)
+    lesson_id  = request.args.get('lesson_id',  type=int)
+    show_all   = request.args.get('show_all', '0') == '1'
+
+    query = Question.query.options(
+        joinedload(Question.options),
+        joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+    )
+
+    if not show_all:
+        query = query.filter(Question.human_verified == False)
+
+    if lesson_id:
+        query = query.filter(Question.lesson_id == lesson_id)
+    elif unit_id:
+        query = query.filter(Question.lesson.has(Lesson.unit_id == unit_id))
+    elif course_id:
+        query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
+
+    query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
+
+    total_pending   = Question.query.filter(Question.human_verified == False).count()
+    total_verified  = Question.query.filter(Question.human_verified == True).count()
+    total_all       = Question.query.count()
+
+    questions = query.all()
+    courses   = Course.query.order_by(Course.name).all()
+
+    return render_template(
+        'question/review_classifications.html',
+        questions=questions,
+        courses=courses,
+        total_pending=total_pending,
+        total_verified=total_verified,
+        total_all=total_all,
+        show_all=show_all,
+        course_id=course_id,
+        unit_id=unit_id,
+        lesson_id=lesson_id,
+    )
+
+
 @question_bp.route('/verify-classification', methods=['POST'])
 @login_required
 def verify_classification():
