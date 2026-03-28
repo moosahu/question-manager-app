@@ -1966,16 +1966,14 @@ def _call_ai_for_explanation(question_text, options_data, correct_text):
     )
 
     if provider == 'gemini':
-        from google import genai
-        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY', '')
-        client = genai.Client(api_key=api_key)
+        from src.services.gemini_client import gemini_key_manager
+        client = gemini_key_manager.get_client()
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
 
     elif provider == 'claude':
-        import anthropic
-        api_key = AISetting.get_setting('claude_api_key', '')
-        client = anthropic.Anthropic(api_key=api_key)
+        from src.services.claude_client import claude_key_manager
+        client = claude_key_manager.get_client()
         msg = client.messages.create(
             model=model, max_tokens=300,
             messages=[{'role': 'user', 'content': prompt}]
@@ -2015,16 +2013,14 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     )
 
     if provider == 'gemini':
-        from google import genai
-        api_key = AISetting.get_setting('gemini_api_key') or os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY', '')
-        client = genai.Client(api_key=api_key)
+        from src.services.gemini_client import gemini_key_manager
+        client = gemini_key_manager.get_client()
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
 
     elif provider == 'claude':
-        import anthropic
-        api_key = AISetting.get_setting('claude_api_key', '') or os.environ.get('CLAUDE_AI_API_KEY', '')
-        client = anthropic.Anthropic(api_key=api_key)
+        from src.services.claude_client import claude_key_manager
+        client = claude_key_manager.get_client()
         msg = client.messages.create(
             model=model, max_tokens=600,
             messages=[{'role': 'user', 'content': prompt}]
@@ -2388,7 +2384,8 @@ def generate_video_question(question_id):
     q = Question.query.options(joinedload(Question.options)).get_or_404(question_id)
 
     # مفاتيح API
-    gemini_key   = os.environ.get('GEMINI_API_KEY', 'AIzaSyC6HT6lRsKS_NHynqDHOPqnRNasO4nt5Ew')
+    from src.services.gemini_client import gemini_key_manager
+    gemini_key   = gemini_key_manager.get_current_key()
     el_key       = (AISetting.get_setting('elevenlabs_api_key')
                     or os.environ.get('ELEVENLABS_API_KEY',
                                       'sk_ad5ffe756188ba16fe7a02812a7a406712c73a68cf94851f'))

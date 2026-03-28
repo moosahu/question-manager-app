@@ -40,6 +40,8 @@ class QuestionClassifier:
         self.client = None
         self.is_configured = False
         self.api_key = None
+        self.api_keys = []
+        self.current_key_index = 0
         self.model_name = 'gemini-2.0-flash'
         self.last_request_time = 0
         self.min_delay = 6.0
@@ -52,21 +54,17 @@ class QuestionClassifier:
             return True
 
         try:
-            self.api_key = (
-                current_app.config.get('GOOGLE_AI_API_KEY') or
-                os.getenv('GEMINI_API_KEY') or
-                os.getenv('GOOGLE_AI_API_KEY')
-            )
+            from src.services.gemini_client import gemini_key_manager
+            self._key_manager = gemini_key_manager
+            self.client = gemini_key_manager.get_client()
 
-            if not self.api_key:
+            if not self.client:
                 logger.error("❌ GOOGLE_AI_API_KEY غير موجود")
                 return False
 
             if not GEMINI_AVAILABLE:
                 logger.error("❌ google-genai غير مثبت")
                 return False
-
-            self.client = genai.Client(api_key=self.api_key)
             try:
                 from src.models.ai_analysis import AISetting
                 self.model_name = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
@@ -100,13 +98,14 @@ class QuestionClassifier:
             except Exception as e:
                 error_str = str(e)
                 
-                # Rate limit (429) - انتظر ثم أعد المحاولة
-                if '429' in error_str or 'quota' in error_str.lower():
-                    # بدل الانتظار الطويل، نرجع None ونكمل للسؤال التالي
-                    # أو نوقف الدفعة الحالية ونحفظ التقدم
-                    logger.warning(f"⏳ Rate limit - سيتم تخطي هذا السؤال")
+                # Rate limit (429) - جرب المفتاح التالي عبر المدير المركزي
+                if '429' in error_str or 'quota' in error_str.lower() or 'resource_exhausted' in error_str.lower():
+                    if hasattr(self, '_key_manager') and self._key_manager.rotate_key():
+                        self.client = self._key_manager.get_client()
+                        continue  # أعد المحاولة بالمفتاح الجديد
+                    logger.warning(f"⏳ خلصت كل المفاتيح - تخطي السؤال")
                     self.consecutive_errors += 1
-                    return None  # لا ننتظر، نرجع فوراً
+                    return None
                 
                 # أخطاء أخرى - سجل وارجع None
                 logger.error(f"❌ خطأ API: {error_str[:80]}")

@@ -109,13 +109,13 @@ class LessonPrepService:
         """تهيئة Gemini API - يدعم تغيير النموذج ديناميكياً"""
         if self.gemini_configured and self.gemini_client and self._current_gemini_model_id == model_id:
             return True
-        api_key = current_app.config.get('GOOGLE_AI_API_KEY') or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
-        if not api_key:
-            raise ValueError("GOOGLE_AI_API_KEY غير موجود")
+        from src.services.gemini_client import gemini_key_manager
         # جلب الحد الأقصى للإخراج من AI_PROVIDERS
         provider_info = next((v for v in AI_PROVIDERS.values() if v['model'] == model_id), None)
         self._current_max_tokens = provider_info['output_limit'] if provider_info else 8192
-        self.gemini_client = genai.Client(api_key=api_key)
+        self.gemini_client = gemini_key_manager.get_client()
+        if not self.gemini_client:
+            raise ValueError("GOOGLE_AI_API_KEY غير موجود")
         self.gemini_configured = True
         self._current_gemini_model_id = model_id
         return True
@@ -124,11 +124,10 @@ class LessonPrepService:
         """تهيئة Claude API"""
         if self.claude_configured and self.claude_client:
             return True
-        api_key = current_app.config.get('CLAUDE_AI_API_KEY') or os.getenv('CLAUDE_AI_API_KEY')
-        if not api_key:
+        from src.services.claude_client import claude_key_manager
+        self.claude_client = claude_key_manager.get_client()
+        if not self.claude_client:
             raise ValueError("CLAUDE_AI_API_KEY غير موجود")
-        import anthropic
-        self.claude_client = anthropic.Anthropic(api_key=api_key)
         self.claude_configured = True
         return True
 

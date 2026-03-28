@@ -455,7 +455,11 @@ def generate_all_content(question_text, options, lesson, unit,
         _model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
     except Exception:
         _model = 'gemini-2.0-flash'
-    client   = genai.Client(api_key=gemini_api_key)
+    try:
+        from src.services.gemini_client import gemini_key_manager
+        client = gemini_key_manager.get_client()
+    except Exception:
+        client = genai.Client(api_key=gemini_api_key)
     response = client.models.generate_content(
         model=_model, contents=prompt
     )

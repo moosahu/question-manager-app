@@ -67,23 +67,15 @@ class DiagnosticService:
             return True
 
         try:
-            api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
-            if GEMINI_AVAILABLE and api_key:
-                self.client = genai.Client(api_key=api_key)
+            from src.services.gemini_client import gemini_key_manager
+            self.client = gemini_key_manager.get_client()
+            if self.client:
                 self.search_enabled = True
                 self.is_configured = True
                 print("✅ AI configured with Google Search enabled")
                 return True
         except Exception as e:
             print(f"❌ AI Error: {e}")
-            try:
-                self.client = genai.Client(api_key=api_key)
-                self.search_enabled = False
-                self.is_configured = True
-                print("⚠️ AI configured without search (fallback)")
-                return True
-            except:
-                pass
         return False
     
     def generate_test(
