@@ -6015,6 +6015,8 @@ def get_review_questions():
     page      = request.args.get('page', 1, type=int)
     per_page  = request.args.get('per_page', 20, type=int)
     course_id = request.args.get('course_id', type=int)
+    unit_id   = request.args.get('unit_id',   type=int)
+    lesson_id = request.args.get('lesson_id', type=int)
     show_all  = request.args.get('show_all', '0') == '1'
 
     query = Question.query.options(
@@ -6025,7 +6027,11 @@ def get_review_questions():
     if not show_all:
         query = query.filter(Question.human_verified == False)
 
-    if course_id:
+    if lesson_id:
+        query = query.filter(Question.lesson_id == lesson_id)
+    elif unit_id:
+        query = query.filter(Question.lesson.has(Lesson.unit_id == unit_id))
+    elif course_id:
         query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
 
     query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
