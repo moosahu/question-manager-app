@@ -25,9 +25,22 @@
         <div class="col-auto">
             <select name="course_id" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">-- كل المناهج --</option>
-                {% for c in courses %}
-                    <option value="{{ c.id }}" {% if course_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-                {% endfor %}
+                {% set regular_courses = courses | selectattr('is_bank', 'equalto', False) | list %}
+                {% set bank_courses   = courses | selectattr('is_bank', 'equalto', True)  | list %}
+                {% if regular_courses %}
+                    <optgroup label="📚 المناهج العادية">
+                        {% for c in regular_courses %}
+                            <option value="{{ c.id }}" {% if course_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% endif %}
+                {% if bank_courses %}
+                    <optgroup label="🏦 بنك الأسئلة">
+                        {% for c in bank_courses %}
+                            <option value="{{ c.id }}" {% if course_id == c.id %}selected{% endif %} style="color:#b45309;font-weight:bold;">🏦 {{ c.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% endif %}
             </select>
         </div>
         <div class="col-auto">
