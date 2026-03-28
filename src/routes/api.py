@@ -5992,3 +5992,120 @@ def cleanup_orphan_questions():
         db.session.rollback()
         logger.exception(f"Error cleaning orphan questions: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =====================================================
+# ===== API مراجعة تصنيف الذكاء الاصطناعي =====
+# =====================================================
+
+@api_bp.route('/questions/review', methods=['GET'])
+@login_required
+def get_review_questions():
+    """
+    جلب الأسئلة للمراجعة (للتطبيق).
+    ?page=1&per_page=20&course_id=&show_all=0
+    """
+    try:
+        from src.models.question import Question, Option
+        from src.models.curriculum import Lesson, Unit, Course
+    except ImportError:
+        from models.question import Question, Option
+        from models.curriculum import Lesson, Unit, Course
+
+    page      = request.args.get('page', 1, type=int)
+    per_page  = request.args.get('per_page', 20, type=int)
+    course_id = request.args.get('course_id', type=int)
+    show_all  = request.args.get('show_all', '0') == '1'
+
+    query = Question.query.options(
+        joinedload(Question.options),
+        joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
+    )
+
+    if not show_all:
+        query = query.filter(Question.human_verified == False)
+
+    if course_id:
+        query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
+
+    query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
+    pag   = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    total_pending  = Question.query.filter(Question.human_verified == False).count()
+    total_verified = Question.query.filter(Question.human_verified == True).count()
+    total_all_q    = Question.query.count()
+
+    def q_dict(q):
+        return {
+            'id':             q.question_id,
+            'text':           q.question_text or '',
+            'image_url':      q.image_url or '',
+            'difficulty':     q.difficulty,
+            'bloom_level':    q.bloom_level,
+            'human_verified': q.human_verified,
+            'course':  q.lesson.unit.course.name if q.lesson and q.lesson.unit and q.lesson.unit.course else '',
+            'unit':    q.lesson.unit.name  if q.lesson and q.lesson.unit  else '',
+            'lesson':  q.lesson.name       if q.lesson                     else '',
+            'options': [
+                {'text': o.option_text or '', 'is_correct': o.is_correct}
+                for o in q.options
+            ],
+        }
+
+    return jsonify({
+        'success':        True,
+        'questions':      [q_dict(q) for q in pag.items],
+        'page':           page,
+        'pages':          pag.pages,
+        'total':          pag.total,
+        'total_pending':  total_pending,
+        'total_verified': total_verified,
+        'total_all':      total_all_q,
+    })
+
+
+@api_bp.route('/questions/verify-classification', methods=['POST'])
+@login_required
+def api_verify_classification():
+    """
+    تأكيد أو تصحيح تصنيف سؤال (للتطبيق — CSRF-exempt).
+    body JSON: {question_id, action: approve|correct, difficulty?, bloom_level?}
+    """
+    try:
+        from src.models.question import Question
+        from src.extensions import db as _db
+    except ImportError:
+        from models.question import Question
+        from extensions import db as _db
+
+    data        = request.get_json(silent=True) or {}
+    question_id = data.get('question_id')
+    action      = data.get('action', '')
+
+    if not question_id:
+        return jsonify({'success': False, 'error': 'question_id مطلوب'}), 400
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+
+    if action == 'correct':
+        difficulty  = data.get('difficulty', '')
+        bloom_level = data.get('bloom_level', '')
+        valid_diff  = {'easy', 'medium', 'hard'}
+        valid_bloom = {'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'}
+        if difficulty not in valid_diff or bloom_level not in valid_bloom:
+            return jsonify({'success': False, 'error': 'قيم غير صالحة'}), 400
+        question.difficulty  = difficulty
+        question.bloom_level = bloom_level
+
+    question.human_verified = True
+    _db.session.commit()
+
+    return jsonify({
+        'success':        True,
+        'question_id':    question_id,
+        'difficulty':     question.difficulty,
+        'bloom_level':    question.bloom_level,
+        'human_verified': True,
+    })
