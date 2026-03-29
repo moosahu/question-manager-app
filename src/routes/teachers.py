@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.teacher import Teacher
+from src.models.student import Student
 from src.models.email_verification import RegistrationSettings  # ✅ جديد
 from src.middleware.auth_middleware import verify_teacher_token
 from functools import wraps
