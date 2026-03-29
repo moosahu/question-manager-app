@@ -135,7 +135,9 @@ def _save_db_notification(student, title: str, body: str, notif_data: dict) -> i
 # مساعد: بناء prompt التحفيز
 # ─────────────────────────────────────────────
 def _build_motivation_prompt(student_name: str, grade: float,
-                              max_grade: float, period: int) -> str:
+                              max_grade: float, period: int,
+                              prev_grade: float = None,
+                              prev_max_grade: float = None) -> str:
     pct = round((grade / max_grade) * 100, 1) if max_grade > 0 else 0
     period_label = 'الأولى' if period == 1 else 'الثانية'
 
@@ -148,18 +150,31 @@ def _build_motivation_prompt(student_name: str, grade: float,
     else:
         level_hint = 'الطالب يحتاج دعماً، أرسل له رسالة تشجيعية تبثّ فيه الأمل وتحفّزه على المواصلة.'
 
+    # بناء سياق المقارنة للفترة الثانية
+    comparison_block = ''
+    if period == 2 and prev_grade is not None and prev_max_grade and prev_max_grade > 0:
+        prev_pct = round((prev_grade / prev_max_grade) * 100, 1)
+        diff = pct - prev_pct
+        if diff > 5:
+            trend = f'تحسّن بمقدار {round(diff, 1)}% عن الفترة الأولى ({prev_grade}/{prev_max_grade}) — وهذا إنجاز يستحق الإشادة.'
+        elif diff < -5:
+            trend = f'انخفض بمقدار {round(abs(diff), 1)}% عن الفترة الأولى ({prev_grade}/{prev_max_grade}) — يحتاج تشجيعاً ودعماً لاستعادة مستواه.'
+        else:
+            trend = f'حافظ على نفس مستواه تقريباً مقارنةً بالفترة الأولى ({prev_grade}/{prev_max_grade}) — شجّعه على الارتقاء أكثر.'
+        comparison_block = f'\n- مقارنة بالفترة الأولى: {trend}'
+
     return f"""أنت مشجّع تعليمي متخصص في مادة الكيمياء.
 اكتب رسالة تحفيزية قصيرة جداً (لا تتجاوز 3 جمل) باللغة العربية الفصيحة المبسّطة
 لطالب يدرس الكيمياء اسمه "{student_name}".
 
 معلومات:
 - فترة الاختبار: الفترة {period_label}
-- درجته: {grade} من {max_grade} ({pct}%)
+- درجته: {grade} من {max_grade} ({pct}%){comparison_block}
 - {level_hint}
 
 اجعل الرسالة:
 - شخصية (تذكر اسمه)
-- مرتبطة بالكيمياء (استخدم مصطلح أو استعارة كيميائية لطيفة إن أمكن)
+- {'تذكر التحسن أو التراجع مقارنةً بالفترة الأولى بشكل طبيعي ومحفّز' if comparison_block else 'مرتبطة بالكيمياء (استخدم مصطلح أو استعارة كيميائية لطيفة إن أمكن)'}
 - تنتهي بجملة تحفيزية قوية
 
 اكتب الرسالة فقط بدون مقدمة أو تعليق."""
@@ -190,11 +205,22 @@ def save_semester_grade():
     if not student:
         return jsonify({'success': False, 'message': 'الطالب غير موجود'}), 404
 
+    # جلب درجة الفترة الأولى للمقارنة (إن كانت الفترة الثانية)
+    prev_grade = prev_max_grade = None
+    if period == 2:
+        prev_record = StudentSemesterGrade.query.filter_by(
+            student_id=student_id, period=1
+        ).first()
+        if prev_record:
+            prev_grade     = prev_record.grade
+            prev_max_grade = prev_record.max_grade
+
     ai_message = None
     try:
         ai_assistant._ensure_configured()
         ai_message = ai_assistant._generate(
-            _build_motivation_prompt(student.name, grade, max_grade, period)
+            _build_motivation_prompt(student.name, grade, max_grade, period,
+                                     prev_grade, prev_max_grade)
         )
         if ai_message:
             ai_message = ai_message.strip()
@@ -261,11 +287,22 @@ def save_semester_grades_bulk():
             results.append({'student_id': student_id, 'success': False, 'message': 'طالب غير موجود'})
             continue
 
+        # جلب درجة الفترة الأولى للمقارنة (إن كانت الفترة الثانية)
+        prev_grade = prev_max_grade = None
+        if period == 2:
+            prev_record = StudentSemesterGrade.query.filter_by(
+                student_id=student_id, period=1
+            ).first()
+            if prev_record:
+                prev_grade     = prev_record.grade
+                prev_max_grade = prev_record.max_grade
+
         # توليد رسالة AI
         ai_message = None
         try:
             ai_message = ai_assistant._generate(
-                _build_motivation_prompt(student.name, grade, max_grade, period)
+                _build_motivation_prompt(student.name, grade, max_grade, period,
+                                         prev_grade, prev_max_grade)
             )
             if ai_message:
                 ai_message = ai_message.strip()
