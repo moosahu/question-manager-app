@@ -912,16 +912,19 @@ def api_search_unlinked_students():
         return jsonify({'success': True, 'students': []})
 
     # IDs المرتبطين بالفعل
-    linked_ids = {ts.student_id for ts in TeacherStudent.query.all()}
+    linked_ids = [ts.student_id for ts in TeacherStudent.query.with_entities(TeacherStudent.student_id).all()]
 
-    students = Student.query.filter(
+    filters = [
         Student.is_active == True,
-        ~Student.id.in_(linked_ids) if linked_ids else True,
         db.or_(
             Student.name.ilike(f'%{q}%'),
             Student.username.ilike(f'%{q}%'),
         )
-    ).limit(20).all()
+    ]
+    if linked_ids:
+        filters.append(~Student.id.in_(linked_ids))
+
+    students = Student.query.filter(*filters).limit(20).all()
 
     return jsonify({
         'success': True,
