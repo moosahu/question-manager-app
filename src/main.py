@@ -145,6 +145,15 @@ try:
 except ImportError as e:
     print(f"⚠️ Admin AI blueprint not available: {e}")
 
+# ✅ استيراد Semester Grades Blueprint لدرجات الفترة الفصلية
+semester_grades_available = False
+try:
+    from src.routes.semester_grades import semester_grades_bp
+    semester_grades_available = True
+    print("✅ Semester Grades blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Semester Grades blueprint not available: {e}")
+
 # ✅ استيراد Diagnostic Blueprint للاختبارات التشخيصية (قبلي/بعدي)
 diagnostic_available = False
 try:
@@ -984,6 +993,15 @@ def create_app():
         except Exception as e:
             print(f"❌ Error registering Diagnostic blueprint: {e}")
     
+    # ✅ تسجيل Semester Grades Blueprint لدرجات الفترة الفصلية
+    if semester_grades_available:
+        csrf.exempt(semester_grades_bp)
+        app.register_blueprint(semester_grades_bp)
+        print("✅ Semester Grades blueprint registered successfully")
+        print("   - POST /api/admin/semester-grades")
+        print("   - GET  /api/admin/students/<id>/semester-grades")
+        print("   - POST /api/admin/semester-grades/<id>/notify")
+
     # تسجيل Google Drive Backend routes إذا كان متاحاً - ✅ إصلاح التسجيل
     if google_drive_backend_available:
         try:
