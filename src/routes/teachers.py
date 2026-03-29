@@ -910,8 +910,14 @@ def api_search_unlinked_students():
     if len(q) < 2:
         return jsonify({'success': True, 'students': []})
 
-    # IDs المرتبطين بالفعل
-    linked_ids = [ts.student_id for ts in TeacherStudent.query.with_entities(TeacherStudent.student_id).all()]
+    # IDs المرتبطين بهذا الأدمن تحديداً (لا نعرضهم — موجودون بالفعل)
+    my_linked_ids = [
+        ts.student_id for ts in
+        TeacherStudent.query
+        .with_entities(TeacherStudent.student_id)
+        .filter_by(admin_id=current_user.id)
+        .all()
+    ]
 
     filters = [
         Student.is_active == True,
@@ -920,16 +926,28 @@ def api_search_unlinked_students():
             Student.username.ilike(f'%{q}%'),
         )
     ]
-    if linked_ids:
-        filters.append(~Student.id.in_(linked_ids))
+    if my_linked_ids:
+        filters.append(~Student.id.in_(my_linked_ids))
 
     students = Student.query.filter(*filters).limit(20).all()
+
+    # لكل طالب: هل مرتبط بمعلم آخر؟ نوضّح للأدمن
+    linked_elsewhere = {
+        ts.student_id for ts in
+        TeacherStudent.query.with_entities(TeacherStudent.student_id).all()
+    }
 
     return jsonify({
         'success': True,
         'students': [
-            {'id': s.id, 'name': s.name, 'username': s.username,
-             'grade': s.grade or '', 'school': s.school or ''}
+            {
+                'id':       s.id,
+                'name':     s.name,
+                'username': s.username,
+                'grade':    s.grade or '',
+                'school':   s.school or '',
+                'linked_to_other': s.id in linked_elsewhere,
+            }
             for s in students
         ],
     })
@@ -955,13 +973,20 @@ def api_link_student_to_admin():
     if not student or not student.is_active:
         return jsonify({'success': False, 'message': 'الطالب غير موجود أو معطّل'}), 404
 
-    # هل مرتبط بالفعل؟
+    # هل مرتبط بهذا الأدمن بالفعل؟
+    already_mine = TeacherStudent.query.filter_by(
+        student_id=student_id, admin_id=current_user.id
+    ).first()
+    if already_mine:
+        return jsonify({'success': False, 'message': 'الطالب في قائمتك بالفعل'}), 409
+
+    # هل مرتبط بمعلم/أدمن آخر؟ نفكّ الربط القديم ونربطه بهذا الأدمن
     existing = TeacherStudent.query.filter_by(student_id=student_id).first()
     if existing:
-        return jsonify({'success': False, 'message': 'الطالب مرتبط بقائمة بالفعل'}), 409
+        db.session.delete(existing)
+        db.session.flush()
 
-    admin = User.query.filter_by(is_admin=True).first_or_404()
-    link  = TeacherStudent(admin_id=admin.id, student_id=student_id)
+    link = TeacherStudent(admin_id=current_user.id, student_id=student_id)
     db.session.add(link)
     db.session.commit()
 
