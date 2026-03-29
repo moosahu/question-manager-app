@@ -910,9 +910,9 @@ def api_search_unlinked_students():
     if len(q) < 2:
         return jsonify({'success': True, 'students': []})
 
-    # جلب كل الطلاب المطابقين للاسم/اليوزرنيم
+    # جلب كل الطلاب المطابقين للاسم/اليوزرنيم (is_active != False يشمل NULL)
     students = Student.query.filter(
-        Student.is_active == True,
+        Student.is_active != False,
         db.or_(
             Student.name.ilike(f'%{q}%'),
             Student.username.ilike(f'%{q}%'),
