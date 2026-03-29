@@ -340,13 +340,18 @@ def send_grade_notification(grade_id):
         'grade_id':  str(record.id),
     })
 
-    if not success and not FCM_ENABLED:
-        return jsonify({'success': False, 'message': 'FCM غير مفعّل على الخادم'}), 503
-
     if success:
         record.notification_sent = True
         record.notified_at       = datetime.utcnow()
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم إرسال الإشعار بنجاح'})
+
+    # فشل ناعم: token منتهي أو FCM غير مفعّل — ليس خطأ server
+    if not FCM_ENABLED:
+        msg = 'FCM غير مفعّل على الخادم'
+    elif not getattr(student, 'fcm_token', None):
+        msg = 'الطالب لا يملك FCM token — يحتاج يفتح التطبيق مرة'
     else:
-        return jsonify({'success': False, 'message': 'فشل إرسال الإشعار — تحقق من FCM token الطالب'}), 500
+        msg = 'FCM token منتهي الصلاحية — سيُحدَّث عند فتح الطالب للتطبيق'
+
+    return jsonify({'success': False, 'message': msg})
