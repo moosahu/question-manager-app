@@ -45,14 +45,16 @@ semester_grades_bp = Blueprint('semester_grades', __name__, url_prefix='/api/adm
 # ─────────────────────────────────────────────
 # مساعد: إرسال FCM عبر Firebase Admin SDK
 # ─────────────────────────────────────────────
-def _send_fcm(student, title: str, body: str, data: dict) -> bool:
-    """إرسال إشعار واحد عبر Firebase Admin SDK"""
+def _send_fcm(student, title: str, body: str, data: dict):
+    """إرسال إشعار واحد عبر Firebase Admin SDK.
+    Returns: 'sent' | 'no_fcm' | 'no_token' | 'expired_token' | 'error'
+    """
     if not FCM_ENABLED:
         print("⚠️ FCM not enabled")
-        return False
+        return 'no_fcm'
     if not getattr(student, 'fcm_token', None):
         print(f"⚠️ الطالب {student.name} لا يملك FCM token")
-        return False
+        return 'no_token'
     try:
         # حساب badge (إشعارات غير مقروءة)
         try:
@@ -82,14 +84,18 @@ def _send_fcm(student, title: str, body: str, data: dict) -> bool:
         )
         messaging.send(msg)
         print(f"✅ FCM sent to {student.name}")
-        return True
+        return 'sent'
     except messaging.UnregisteredError:
-        print(f"⚠️ Invalid FCM token for {student.name}")
+        print(f"⚠️ Expired/invalid FCM token for {student.name} — clearing from DB")
         student.fcm_token = None
-        return False
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return 'expired_token'
     except Exception as e:
         print(f"❌ FCM error for {student.name}: {e}")
-        return False
+        return 'error'
 
 
 # ─────────────────────────────────────────────
@@ -255,10 +261,11 @@ def save_semester_grades_bulk():
         pct        = round((grade / max_grade) * 100, 1)
         title      = f'درجتك في اختبار الفترة {period_label} 📊'
         body       = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
-        notif_sent = _send_fcm(student, title, body, {
+        fcm_result = _send_fcm(student, title, body, {
             'type': 'semester_grade', 'period': str(period),
             'grade': str(grade), 'max_grade': str(max_grade),
         })
+        notif_sent = (fcm_result == 'sent')
 
         if notif_sent:
             record.notification_sent = True
@@ -272,6 +279,7 @@ def save_semester_grades_bulk():
             'percentage':   pct,
             'ai_message':   ai_message or '',
             'notif_sent':   notif_sent,
+            'fcm_status':   fcm_result,
         })
 
     db.session.commit()
@@ -332,7 +340,7 @@ def send_grade_notification(grade_id):
     title = f'درجتك في اختبار الفترة {period_label} 📊'
     body  = f'{record.grade}/{record.max_grade} ({pct}%)\n{body_text}'
 
-    success = _send_fcm(student, title, body, {
+    fcm_result = _send_fcm(student, title, body, {
         'type':      'semester_grade',
         'period':    str(record.period),
         'grade':     str(record.grade),
@@ -340,18 +348,20 @@ def send_grade_notification(grade_id):
         'grade_id':  str(record.id),
     })
 
-    if success:
+    if fcm_result == 'sent':
         record.notification_sent = True
         record.notified_at       = datetime.utcnow()
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم إرسال الإشعار بنجاح'})
 
     # فشل ناعم: token منتهي أو FCM غير مفعّل — ليس خطأ server
-    if not FCM_ENABLED:
+    if fcm_result == 'no_fcm':
         msg = 'FCM غير مفعّل على الخادم'
-    elif not getattr(student, 'fcm_token', None):
+    elif fcm_result == 'no_token':
         msg = 'الطالب لا يملك FCM token — يحتاج يفتح التطبيق مرة'
+    elif fcm_result == 'expired_token':
+        msg = 'FCM token منتهي الصلاحية وتم حذفه — سيُحدَّث عند فتح الطالب للتطبيق'
     else:
-        msg = 'FCM token منتهي الصلاحية — سيُحدَّث عند فتح الطالب للتطبيق'
+        msg = 'خطأ في إرسال الإشعار — راجع سجلات الخادم'
 
     return jsonify({'success': False, 'message': msg})
