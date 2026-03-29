@@ -1,9 +1,10 @@
 # src/routes/semester_grades.py
 """
 API درجات الفترة الفصلية
-POST /api/admin/semester-grades          → حفظ + توليد رسالة AI
+POST /api/admin/semester-grades               → حفظ + توليد رسالة AI (فردي)
+POST /api/admin/semester-grades/bulk          → حفظ + AI + إشعار لكل الطلاب دفعة
 GET  /api/admin/students/<id>/semester-grades → جلب الدرجات
-POST /api/admin/semester-grades/<id>/notify   → إرسال الإشعار
+POST /api/admin/semester-grades/<id>/notify   → إرسال الإشعار (فردي)
 """
 
 from flask import Blueprint, request, jsonify
@@ -119,6 +120,126 @@ def save_semester_grade():
         'grade_id':   record.id,
         'ai_message': ai_message or '',
         'percentage': record.percentage(),
+    })
+
+
+# ───────────────────────────────────────────
+# POST /api/admin/semester-grades/bulk
+# ───────────────────────────────────────────
+@semester_grades_bp.route('/semester-grades/bulk', methods=['POST'])
+@login_required
+def save_semester_grades_bulk():
+    """
+    حفظ درجات فترة لعدة طلاب دفعة واحدة + توليد رسائل AI + إرسال إشعارات
+    Body: {
+        "period": 1 | 2,
+        "max_grade": 50,
+        "grades": [{"student_id": 1, "grade": 45}, ...]
+    }
+    """
+    data      = request.get_json(silent=True) or {}
+    period    = data.get('period')
+    max_grade = data.get('max_grade')
+    entries   = data.get('grades', [])
+
+    if period not in (1, 2):
+        return jsonify({'success': False, 'message': 'الفترة يجب أن تكون 1 أو 2'}), 400
+    if not max_grade or max_grade <= 0:
+        return jsonify({'success': False, 'message': 'الدرجة الكاملة غير صحيحة'}), 400
+    if not entries:
+        return jsonify({'success': False, 'message': 'لا توجد درجات'}), 400
+
+    # تهيئة AI مرة واحدة للكل
+    ai_assistant._ensure_configured()
+
+    results = []
+    for entry in entries:
+        student_id = entry.get('student_id')
+        grade      = entry.get('grade')
+
+        if student_id is None or grade is None:
+            continue
+
+        student = Student.query.get(student_id)
+        if not student:
+            results.append({'student_id': student_id, 'success': False, 'message': 'طالب غير موجود'})
+            continue
+
+        # توليد رسالة AI
+        ai_message = None
+        try:
+            prompt     = _build_motivation_prompt(student.name, grade, max_grade, period)
+            ai_message = ai_assistant._generate(prompt)
+            if ai_message:
+                ai_message = ai_message.strip()
+        except Exception as e:
+            print(f'⚠️ AI error for student {student_id}: {e}')
+
+        # حفظ أو تحديث
+        existing = StudentSemesterGrade.get_grade(student_id, period)
+        if existing:
+            existing.grade             = grade
+            existing.max_grade         = max_grade
+            existing.ai_message        = ai_message
+            existing.notification_sent = False
+            existing.updated_at        = datetime.utcnow()
+            record = existing
+        else:
+            record = StudentSemesterGrade(
+                student_id=student_id,
+                period=period,
+                grade=grade,
+                max_grade=max_grade,
+                ai_message=ai_message,
+            )
+            db.session.add(record)
+
+        db.session.flush()  # للحصول على ID قبل الإرسال
+
+        # إرسال إشعار FCM
+        notif_sent = False
+        if student.fcm_token:
+            period_label = 'الأولى' if period == 1 else 'الثانية'
+            pct          = round((grade / max_grade) * 100, 1)
+            title        = f'درجتك في اختبار الفترة {period_label} 📊'
+            body         = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
+            notif_sent   = send_notification_to_student(
+                student=student,
+                title=title,
+                body=body,
+                data={
+                    'type':      'semester_grade',
+                    'period':    str(period),
+                    'grade':     str(grade),
+                    'max_grade': str(max_grade),
+                    'grade_id':  str(record.id),
+                }
+            )
+            if notif_sent:
+                record.notification_sent = True
+                record.notified_at       = datetime.utcnow()
+
+        results.append({
+            'student_id':   student_id,
+            'student_name': student.name,
+            'success':      True,
+            'grade_id':     record.id,
+            'percentage':   round((grade / max_grade) * 100, 1),
+            'ai_message':   ai_message or '',
+            'notif_sent':   notif_sent,
+        })
+
+    db.session.commit()
+
+    success_count = sum(1 for r in results if r.get('success'))
+    notif_count   = sum(1 for r in results if r.get('notif_sent'))
+
+    return jsonify({
+        'success':       True,
+        'total':         len(entries),
+        'saved':         success_count,
+        'notified':      notif_count,
+        'results':       results,
     })
 
 
