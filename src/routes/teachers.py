@@ -910,47 +910,43 @@ def api_search_unlinked_students():
     if len(q) < 2:
         return jsonify({'success': True, 'students': []})
 
-    # IDs المرتبطين بهذا الأدمن تحديداً (لا نعرضهم — موجودون بالفعل)
-    my_linked_ids = [
-        ts.student_id for ts in
-        TeacherStudent.query
-        .with_entities(TeacherStudent.student_id)
-        .filter_by(admin_id=current_user.id)
-        .all()
-    ]
-
-    filters = [
+    # جلب كل الطلاب المطابقين للاسم/اليوزرنيم
+    students = Student.query.filter(
         Student.is_active == True,
         db.or_(
             Student.name.ilike(f'%{q}%'),
             Student.username.ilike(f'%{q}%'),
         )
-    ]
-    if my_linked_ids:
-        filters.append(~Student.id.in_(my_linked_ids))
+    ).limit(20).all()
 
-    students = Student.query.filter(*filters).limit(20).all()
+    # جلب جميع روابط TeacherStudent دفعة واحدة
+    all_links = {
+        ts.student_id: ts
+        for ts in TeacherStudent.query.filter(
+            TeacherStudent.student_id.in_([s.id for s in students])
+        ).all()
+    } if students else {}
 
-    # لكل طالب: هل مرتبط بمعلم آخر؟ نوضّح للأدمن
-    linked_elsewhere = {
-        ts.student_id for ts in
-        TeacherStudent.query.with_entities(TeacherStudent.student_id).all()
-    }
+    result = []
+    for s in students:
+        link = all_links.get(s.id)
+        if link is None:
+            status = 'free'           # غير مرتبط بأحد
+        elif link.admin_id == current_user.id:
+            status = 'mine'           # في قائمة هذا الأدمن
+        else:
+            status = 'other'          # مرتبط بمعلم/أدمن آخر
 
-    return jsonify({
-        'success': True,
-        'students': [
-            {
-                'id':       s.id,
-                'name':     s.name,
-                'username': s.username,
-                'grade':    s.grade or '',
-                'school':   s.school or '',
-                'linked_to_other': s.id in linked_elsewhere,
-            }
-            for s in students
-        ],
-    })
+        result.append({
+            'id':       s.id,
+            'name':     s.name,
+            'username': s.username,
+            'grade':    s.grade or '',
+            'school':   s.school or '',
+            'status':   status,
+        })
+
+    return jsonify({'success': True, 'students': result})
 
 
 @teachers_bp.route('/api/mobile/admin/students/link', methods=['POST'])
