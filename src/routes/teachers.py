@@ -899,7 +899,6 @@ def api_remove_admin_student(student_id):
 
 @teachers_bp.route('/api/mobile/admin/students/search', methods=['GET'])
 @login_required
-@admin_required
 def api_search_unlinked_students():
     """
     بحث عن طلاب غير مرتبطين بأي قائمة
@@ -938,7 +937,6 @@ def api_search_unlinked_students():
 
 @teachers_bp.route('/api/mobile/admin/students/link', methods=['POST'])
 @login_required
-@admin_required
 def api_link_student_to_admin():
     """
     الأدمن يربط طالب موجود بقائمته يدوياً
