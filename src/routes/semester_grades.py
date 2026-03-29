@@ -15,6 +15,7 @@ import os
 from src.extensions import db
 from src.models.student import Student
 from src.models.student_semester_grade import StudentSemesterGrade
+from src.models.notification import Notification, StudentNotification
 from src.services.ai_assistant import ai_assistant
 
 # ── Firebase Admin SDK (نفس نمط notification_admin_routes.py) ──
@@ -96,6 +97,38 @@ def _send_fcm(student, title: str, body: str, data: dict):
     except Exception as e:
         print(f"❌ FCM error for {student.name}: {e}")
         return 'error'
+
+
+# ─────────────────────────────────────────────
+# مساعد: حفظ الإشعار في قاعدة البيانات
+# ─────────────────────────────────────────────
+def _save_db_notification(student, title: str, body: str, notif_data: dict) -> int | None:
+    """يحفظ Notification + StudentNotification ويرجع notification_id"""
+    try:
+        notif = Notification(
+            title=title,
+            message=body,
+            body=body,
+            student_id=student.id,
+            type='semester_grade',
+            notification_type='semester_grade',
+            is_read=False,
+            created_by_admin=True,
+            data=notif_data,
+        )
+        db.session.add(notif)
+        db.session.flush()  # نحتاج الـ ID
+
+        sn = StudentNotification(
+            student_id=student.id,
+            notification_id=notif.id,
+            is_read=False,
+        )
+        db.session.add(sn)
+        return notif.id
+    except Exception as e:
+        print(f'⚠️ DB notification error for {student.name}: {e}')
+        return None
 
 
 # ─────────────────────────────────────────────
@@ -257,19 +290,22 @@ def save_semester_grades_bulk():
 
         db.session.flush()
 
-        # إرسال FCM
-        pct        = round((grade / max_grade) * 100, 1)
-        title      = f'درجتك في اختبار الفترة {period_label} 📊'
-        body       = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
-        fcm_result = _send_fcm(student, title, body, {
+        pct   = round((grade / max_grade) * 100, 1)
+        title = f'درجتك في اختبار الفترة {period_label} 📊'
+        body  = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
+        notif_data = {
             'type': 'semester_grade', 'period': str(period),
             'grade': str(grade), 'max_grade': str(max_grade),
-        })
-        notif_sent = (fcm_result == 'sent')
+        }
 
-        if notif_sent:
-            record.notification_sent = True
-            record.notified_at       = datetime.utcnow()
+        # ① حفظ في DB دائماً
+        _save_db_notification(student, title, body, notif_data)
+
+        # ② FCM push (بونص)
+        fcm_result = _send_fcm(student, title, body, notif_data)
+
+        record.notification_sent = True
+        record.notified_at       = datetime.utcnow()
 
         results.append({
             'student_id':   student_id,
@@ -278,8 +314,8 @@ def save_semester_grades_bulk():
             'grade_id':     record.id,
             'percentage':   pct,
             'ai_message':   ai_message or '',
-            'notif_sent':   notif_sent,
-            'fcm_status':   fcm_result,
+            'notif_sent':   True,
+            'fcm_push':     (fcm_result == 'sent'),
         })
 
     db.session.commit()
@@ -340,28 +376,23 @@ def send_grade_notification(grade_id):
     title = f'درجتك في اختبار الفترة {period_label} 📊'
     body  = f'{record.grade}/{record.max_grade} ({pct}%)\n{body_text}'
 
-    fcm_result = _send_fcm(student, title, body, {
+    notif_data = {
         'type':      'semester_grade',
         'period':    str(record.period),
         'grade':     str(record.grade),
         'max_grade': str(record.max_grade),
         'grade_id':  str(record.id),
-    })
+    }
 
-    if fcm_result == 'sent':
-        record.notification_sent = True
-        record.notified_at       = datetime.utcnow()
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'تم إرسال الإشعار بنجاح'})
+    # ① حفظ في قاعدة البيانات (الطالب يشوفه لما يفتح التطبيق)
+    _save_db_notification(student, title, body, notif_data)
 
-    # فشل ناعم: token منتهي أو FCM غير مفعّل — ليس خطأ server
-    if fcm_result == 'no_fcm':
-        msg = 'FCM غير مفعّل على الخادم'
-    elif fcm_result == 'no_token':
-        msg = 'الطالب لا يملك FCM token — يحتاج يفتح التطبيق مرة'
-    elif fcm_result == 'expired_token':
-        msg = 'FCM token منتهي الصلاحية وتم حذفه — سيُحدَّث عند فتح الطالب للتطبيق'
-    else:
-        msg = 'خطأ في إرسال الإشعار — راجع سجلات الخادم'
+    # ② محاولة FCM push (بونص — لو فشل ما يأثر)
+    fcm_result = _send_fcm(student, title, body, notif_data)
 
-    return jsonify({'success': False, 'message': msg})
+    record.notification_sent = True
+    record.notified_at       = datetime.utcnow()
+    db.session.commit()
+
+    push_note = '' if fcm_result == 'sent' else ' (بدون push — سيراه عند فتح التطبيق)'
+    return jsonify({'success': True, 'message': f'تم إرسال الإشعار بنجاح{push_note}'})
