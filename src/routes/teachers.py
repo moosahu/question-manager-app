@@ -897,6 +897,76 @@ def api_remove_admin_student(student_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@teachers_bp.route('/api/mobile/admin/students/search', methods=['GET'])
+@login_required
+@admin_required
+def api_search_unlinked_students():
+    """
+    بحث عن طلاب غير مرتبطين بأي قائمة
+    GET /teachers/api/mobile/admin/students/search?q=اسم
+    """
+    from src.models.teacher_student import TeacherStudent
+
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return jsonify({'success': True, 'students': []})
+
+    # IDs المرتبطين بالفعل
+    linked_ids = {ts.student_id for ts in TeacherStudent.query.all()}
+
+    students = Student.query.filter(
+        Student.is_active == True,
+        ~Student.id.in_(linked_ids) if linked_ids else True,
+        db.or_(
+            Student.name.ilike(f'%{q}%'),
+            Student.username.ilike(f'%{q}%'),
+        )
+    ).limit(20).all()
+
+    return jsonify({
+        'success': True,
+        'students': [
+            {'id': s.id, 'name': s.name, 'username': s.username,
+             'grade': s.grade or '', 'school': s.school or ''}
+            for s in students
+        ],
+    })
+
+
+@teachers_bp.route('/api/mobile/admin/students/link', methods=['POST'])
+@login_required
+@admin_required
+def api_link_student_to_admin():
+    """
+    الأدمن يربط طالب موجود بقائمته يدوياً
+    Body: { student_id }
+    """
+    from src.models.teacher_student import TeacherStudent
+    from src.models.user import User
+
+    data       = request.get_json(silent=True) or {}
+    student_id = data.get('student_id')
+
+    if not student_id:
+        return jsonify({'success': False, 'message': 'student_id مطلوب'}), 400
+
+    student = Student.query.get(student_id)
+    if not student or not student.is_active:
+        return jsonify({'success': False, 'message': 'الطالب غير موجود أو معطّل'}), 404
+
+    # هل مرتبط بالفعل؟
+    existing = TeacherStudent.query.filter_by(student_id=student_id).first()
+    if existing:
+        return jsonify({'success': False, 'message': 'الطالب مرتبط بقائمة بالفعل'}), 409
+
+    admin = User.query.filter_by(is_admin=True).first_or_404()
+    link  = TeacherStudent(admin_id=admin.id, student_id=student_id)
+    db.session.add(link)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': f'تم ربط "{student.name}" بقائمتك'})
+
+
 # ==================== Teacher Self-Service Endpoints (توكن المعلم) ====================
 
 @teachers_bp.route('/api/my/class-code', methods=['GET'])
