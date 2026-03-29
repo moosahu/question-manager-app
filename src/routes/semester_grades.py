@@ -10,19 +10,91 @@ POST /api/admin/semester-grades/<id>/notify   → إرسال الإشعار (ف�
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
+import os
 
 from src.extensions import db
 from src.models.student import Student
 from src.models.student_semester_grade import StudentSemesterGrade
 from src.services.ai_assistant import ai_assistant
-from src.services.fcm_service import send_notification_to_student
+
+# ── Firebase Admin SDK (نفس نمط notification_admin_routes.py) ──
+FCM_ENABLED = False
+try:
+    import firebase_admin
+    from firebase_admin import messaging
+    try:
+        firebase_admin.get_app()
+        FCM_ENABLED = True
+    except ValueError:
+        import json
+        from firebase_admin import credentials
+        firebase_config = os.getenv('FIREBASE_CONFIG')
+        if firebase_config:
+            try:
+                cred = credentials.Certificate(json.loads(firebase_config))
+                firebase_admin.initialize_app(cred)
+                FCM_ENABLED = True
+            except Exception:
+                pass
+except ImportError:
+    pass
 
 semester_grades_bp = Blueprint('semester_grades', __name__, url_prefix='/api/admin')
 
 
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
+# مساعد: إرسال FCM عبر Firebase Admin SDK
+# ─────────────────────────────────────────────
+def _send_fcm(student, title: str, body: str, data: dict) -> bool:
+    """إرسال إشعار واحد عبر Firebase Admin SDK"""
+    if not FCM_ENABLED:
+        print("⚠️ FCM not enabled")
+        return False
+    if not getattr(student, 'fcm_token', None):
+        print(f"⚠️ الطالب {student.name} لا يملك FCM token")
+        return False
+    try:
+        # حساب badge (إشعارات غير مقروءة)
+        try:
+            from src.models.student_notification import StudentNotification
+            badge = StudentNotification.query.filter_by(
+                student_id=student.id, is_read=False
+            ).count() + 1
+        except Exception:
+            badge = 1
+
+        msg = messaging.Message(
+            notification=messaging.Notification(title=title, body=body),
+            token=student.fcm_token,
+            data={k: str(v) for k, v in data.items()},
+            android=messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    channel_id='chem_tahsili_channel',
+                    sound='default',
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound='default', badge=badge),
+                ),
+            ),
+        )
+        messaging.send(msg)
+        print(f"✅ FCM sent to {student.name}")
+        return True
+    except messaging.UnregisteredError:
+        print(f"⚠️ Invalid FCM token for {student.name}")
+        student.fcm_token = None
+        return False
+    except Exception as e:
+        print(f"❌ FCM error for {student.name}: {e}")
+        return False
+
+
+# ─────────────────────────────────────────────
 # مساعد: بناء prompt التحفيز
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 def _build_motivation_prompt(student_name: str, grade: float,
                               max_grade: float, period: int) -> str:
     pct = round((grade / max_grade) * 100, 1) if max_grade > 0 else 0
@@ -54,9 +126,9 @@ def _build_motivation_prompt(student_name: str, grade: float,
 اكتب الرسالة فقط بدون مقدمة أو تعليق."""
 
 
-# ───────────────────────────────────────────
-# POST /api/admin/semester-grades
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
+# POST /api/admin/semester-grades (فردي)
+# ─────────────────────────────────────────────
 @semester_grades_bp.route('/semester-grades', methods=['POST'])
 @login_required
 def save_semester_grade():
@@ -64,17 +136,14 @@ def save_semester_grade():
     data = request.get_json(silent=True) or {}
 
     student_id = data.get('student_id')
-    period     = data.get('period')      # 1 أو 2
+    period     = data.get('period')
     grade      = data.get('grade')
     max_grade  = data.get('max_grade')
 
-    # تحقق من المدخلات
     if not all([student_id, period, grade is not None, max_grade]):
         return jsonify({'success': False, 'message': 'بيانات ناقصة'}), 400
-
     if period not in (1, 2):
         return jsonify({'success': False, 'message': 'الفترة يجب أن تكون 1 أو 2'}), 400
-
     if max_grade <= 0:
         return jsonify({'success': False, 'message': 'الدرجة الكاملة يجب أن تكون أكبر من صفر'}), 400
 
@@ -82,33 +151,29 @@ def save_semester_grade():
     if not student:
         return jsonify({'success': False, 'message': 'الطالب غير موجود'}), 404
 
-    # توليد رسالة AI
     ai_message = None
     try:
-        prompt = _build_motivation_prompt(student.name, grade, max_grade, period)
         ai_assistant._ensure_configured()
-        ai_message = ai_assistant._generate(prompt)
+        ai_message = ai_assistant._generate(
+            _build_motivation_prompt(student.name, grade, max_grade, period)
+        )
         if ai_message:
             ai_message = ai_message.strip()
     except Exception as e:
-        print(f'⚠️ خطأ في توليد رسالة AI: {e}')
+        print(f'⚠️ AI error: {e}')
 
-    # حفظ أو تحديث الدرجة
     existing = StudentSemesterGrade.get_grade(student_id, period)
     if existing:
-        existing.grade      = grade
-        existing.max_grade  = max_grade
-        existing.ai_message = ai_message
-        existing.notification_sent = False   # إعادة تعيين ليرسل مجدداً
-        existing.updated_at = datetime.utcnow()
+        existing.grade             = grade
+        existing.max_grade         = max_grade
+        existing.ai_message        = ai_message
+        existing.notification_sent = False
+        existing.updated_at        = datetime.utcnow()
         record = existing
     else:
         record = StudentSemesterGrade(
-            student_id  = student_id,
-            period      = period,
-            grade       = grade,
-            max_grade   = max_grade,
-            ai_message  = ai_message,
+            student_id=student_id, period=period,
+            grade=grade, max_grade=max_grade, ai_message=ai_message,
         )
         db.session.add(record)
 
@@ -123,20 +188,13 @@ def save_semester_grade():
     })
 
 
-# ───────────────────────────────────────────
-# POST /api/admin/semester-grades/bulk
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
+# POST /api/admin/semester-grades/bulk (جماعي)
+# ─────────────────────────────────────────────
 @semester_grades_bp.route('/semester-grades/bulk', methods=['POST'])
 @login_required
 def save_semester_grades_bulk():
-    """
-    حفظ درجات فترة لعدة طلاب دفعة واحدة + توليد رسائل AI + إرسال إشعارات
-    Body: {
-        "period": 1 | 2,
-        "max_grade": 50,
-        "grades": [{"student_id": 1, "grade": 45}, ...]
-    }
-    """
+    """حفظ درجات عدة طلاب + AI + FCM دفعة واحدة"""
     data      = request.get_json(silent=True) or {}
     period    = data.get('period')
     max_grade = data.get('max_grade')
@@ -149,14 +207,13 @@ def save_semester_grades_bulk():
     if not entries:
         return jsonify({'success': False, 'message': 'لا توجد درجات'}), 400
 
-    # تهيئة AI مرة واحدة للكل
     ai_assistant._ensure_configured()
+    period_label = 'الأولى' if period == 1 else 'الثانية'
 
     results = []
     for entry in entries:
         student_id = entry.get('student_id')
         grade      = entry.get('grade')
-
         if student_id is None or grade is None:
             continue
 
@@ -168,12 +225,13 @@ def save_semester_grades_bulk():
         # توليد رسالة AI
         ai_message = None
         try:
-            prompt     = _build_motivation_prompt(student.name, grade, max_grade, period)
-            ai_message = ai_assistant._generate(prompt)
+            ai_message = ai_assistant._generate(
+                _build_motivation_prompt(student.name, grade, max_grade, period)
+            )
             if ai_message:
                 ai_message = ai_message.strip()
         except Exception as e:
-            print(f'⚠️ AI error for student {student_id}: {e}')
+            print(f'⚠️ AI error for {student.name}: {e}')
 
         # حفظ أو تحديث
         existing = StudentSemesterGrade.get_grade(student_id, period)
@@ -186,66 +244,53 @@ def save_semester_grades_bulk():
             record = existing
         else:
             record = StudentSemesterGrade(
-                student_id=student_id,
-                period=period,
-                grade=grade,
-                max_grade=max_grade,
-                ai_message=ai_message,
+                student_id=student_id, period=period,
+                grade=grade, max_grade=max_grade, ai_message=ai_message,
             )
             db.session.add(record)
 
-        db.session.flush()  # للحصول على ID قبل الإرسال
+        db.session.flush()
 
-        # إرسال إشعار FCM
-        notif_sent = False
-        if student.fcm_token:
-            period_label = 'الأولى' if period == 1 else 'الثانية'
-            pct          = round((grade / max_grade) * 100, 1)
-            title        = f'درجتك في اختبار الفترة {period_label} 📊'
-            body         = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
-            notif_sent   = send_notification_to_student(
-                student=student,
-                title=title,
-                body=body,
-                data={
-                    'type':      'semester_grade',
-                    'period':    str(period),
-                    'grade':     str(grade),
-                    'max_grade': str(max_grade),
-                    'grade_id':  str(record.id),
-                }
-            )
-            if notif_sent:
-                record.notification_sent = True
-                record.notified_at       = datetime.utcnow()
+        # إرسال FCM
+        pct        = round((grade / max_grade) * 100, 1)
+        title      = f'درجتك في اختبار الفترة {period_label} 📊'
+        body       = f'{grade}/{max_grade} ({pct}%)\n{ai_message or ""}'
+        notif_sent = _send_fcm(student, title, body, {
+            'type': 'semester_grade', 'period': str(period),
+            'grade': str(grade), 'max_grade': str(max_grade),
+        })
+
+        if notif_sent:
+            record.notification_sent = True
+            record.notified_at       = datetime.utcnow()
 
         results.append({
             'student_id':   student_id,
             'student_name': student.name,
             'success':      True,
             'grade_id':     record.id,
-            'percentage':   round((grade / max_grade) * 100, 1),
+            'percentage':   pct,
             'ai_message':   ai_message or '',
             'notif_sent':   notif_sent,
         })
 
     db.session.commit()
 
-    success_count = sum(1 for r in results if r.get('success'))
-    notif_count   = sum(1 for r in results if r.get('notif_sent'))
+    saved   = sum(1 for r in results if r.get('success'))
+    notified = sum(1 for r in results if r.get('notif_sent'))
 
     return jsonify({
-        'success':       True,
-        'total':         len(entries),
-        'saved':         success_count,
-        'notified':      notif_count,
-        'results':       results,
+        'success':  True,
+        'total':    len(entries),
+        'saved':    saved,
+        'notified': notified,
+        'results':  results,
     })
 
 
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 # GET /api/admin/students/<id>/semester-grades
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 @semester_grades_bp.route('/students/<int:student_id>/semester-grades', methods=['GET'])
 @login_required
 def get_semester_grades(student_id):
@@ -262,13 +307,13 @@ def get_semester_grades(student_id):
     })
 
 
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 # POST /api/admin/semester-grades/<id>/notify
-# ───────────────────────────────────────────
+# ─────────────────────────────────────────────
 @semester_grades_bp.route('/semester-grades/<int:grade_id>/notify', methods=['POST'])
 @login_required
 def send_grade_notification(grade_id):
-    """إرسال إشعار الدرجة للطالب"""
+    """إرسال إشعار الدرجة للطالب (فردي)"""
     data = request.get_json(silent=True) or {}
 
     record = StudentSemesterGrade.query.get(grade_id)
@@ -279,31 +324,24 @@ def send_grade_notification(grade_id):
     if not student:
         return jsonify({'success': False, 'message': 'الطالب غير موجود'}), 404
 
-    if not student.fcm_token:
-        return jsonify({'success': False, 'message': 'الطالب لا يملك FCM token'}), 400
-
-    period_label = 'الأولى' if record.period == 1 else 'الثانية'
-    pct          = record.percentage()
-
-    # يقبل رسالة معدّلة من الأدمن، وإلا يستخدم رسالة AI
+    period_label   = 'الأولى' if record.period == 1 else 'الثانية'
+    pct            = record.percentage()
     custom_message = data.get('message', '').strip()
     body_text      = custom_message if custom_message else (record.ai_message or '')
 
     title = f'درجتك في اختبار الفترة {period_label} 📊'
     body  = f'{record.grade}/{record.max_grade} ({pct}%)\n{body_text}'
 
-    success = send_notification_to_student(
-        student=student,
-        title=title,
-        body=body,
-        data={
-            'type':      'semester_grade',
-            'period':    str(record.period),
-            'grade':     str(record.grade),
-            'max_grade': str(record.max_grade),
-            'grade_id':  str(record.id),
-        }
-    )
+    success = _send_fcm(student, title, body, {
+        'type':      'semester_grade',
+        'period':    str(record.period),
+        'grade':     str(record.grade),
+        'max_grade': str(record.max_grade),
+        'grade_id':  str(record.id),
+    })
+
+    if not success and not FCM_ENABLED:
+        return jsonify({'success': False, 'message': 'FCM غير مفعّل على الخادم'}), 503
 
     if success:
         record.notification_sent = True
@@ -311,4 +349,4 @@ def send_grade_notification(grade_id):
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم إرسال الإشعار بنجاح'})
     else:
-        return jsonify({'success': False, 'message': 'فشل إرسال الإشعار'}), 500
+        return jsonify({'success': False, 'message': 'فشل إرسال الإشعار — تحقق من FCM token الطالب'}), 500
