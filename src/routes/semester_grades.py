@@ -333,6 +333,25 @@ def save_semester_grades_bulk():
 
 
 # ─────────────────────────────────────────────
+# GET /api/admin/semester-grades/bulk?period=1
+# ─────────────────────────────────────────────
+@semester_grades_bp.route('/semester-grades/bulk', methods=['GET'])
+@login_required
+def get_semester_grades_bulk():
+    """جلب درجات كل الطلاب لفترة معينة دفعة واحدة"""
+    period = request.args.get('period', type=int)
+    if period not in (1, 2):
+        return jsonify({'success': False, 'message': 'period يجب أن يكون 1 أو 2'}), 400
+
+    records = StudentSemesterGrade.query.filter_by(period=period).all()
+    return jsonify({
+        'success': True,
+        'period':  period,
+        'grades':  {r.student_id: r.to_dict() for r in records},
+    })
+
+
+# ─────────────────────────────────────────────
 # GET /api/admin/students/<id>/semester-grades
 # ─────────────────────────────────────────────
 @semester_grades_bp.route('/students/<int:student_id>/semester-grades', methods=['GET'])
