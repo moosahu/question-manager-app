@@ -4,6 +4,9 @@
 
 {% block head_extra %}
 <style>
+    /* اتجاه الحقول المختلطة (عربي + معادلات) */
+    .mathjax-input { text-align: right; }
+
     /* ==================== أنماط أزرار الصعوبة ==================== */
     .difficulty-selector .form-check-inline {
         margin: 0;
@@ -203,9 +206,9 @@
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) - اختياري إذا وجدت صورة</label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="auto">{{ question.question_text if question and question.question_text else "" }}</textarea>
+                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="ltr">{{ question.question_text if question and question.question_text else "" }}</textarea>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 50px;"></div>
+                        <div id="text-preview" class="mt-2 p-2 border bg-light" dir="ltr" style="min-height: 50px;"></div>
                     </div>
 
                     <div class="mb-3">
@@ -326,8 +329,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" dir="auto" value="{{ options[i].option_text if i < options|length else "" }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" dir="ltr" value="{{ options[i].option_text if i < options|length else "" }}">
+                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" dir="ltr" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
@@ -370,7 +373,7 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="explanation" class="form-label">الشرح المختصر <small class="text-muted">(يظهر للطالب)</small></label>
-                        <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
+                        <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input" dir="ltr">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
                         {% if question %}
                         <button type="button" id="btn-generate-explanation"
                                 class="btn btn-outline-primary btn-sm mt-2"
@@ -521,8 +524,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" dir="auto" value="">
-                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 40px;"></div>
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" dir="ltr" value="">
+                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" dir="ltr" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
@@ -770,8 +773,6 @@
                 
                 if (preview) {
                     // Initial render
-                    updateBidiDir(input);
-                    preview.dir = input.dir;
                     preview.innerHTML = input.value || "";
                     if (window.MathJax && window.MathJax.typesetPromise) {
                         MathJax.typesetPromise([preview]).catch(function(err) {
@@ -781,8 +782,6 @@
 
                     // Update on input
                     input.addEventListener("input", function() {
-                        updateBidiDir(this);
-                        preview.dir = this.dir;
                         preview.innerHTML = this.value || "";
                         if (window.MathJax && window.MathJax.typesetPromise) {
                             MathJax.typesetPromise([preview]).catch(function(err) {
@@ -989,28 +988,11 @@
                 }
             }
 
-            // تحديد اتجاه الحقل تلقائياً (عربي→RTL، لاتيني/أرقام→LTR)
-            function updateBidiDir(el) {
-                const text = el.value;
-                for (const char of text) {
-                    if (/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFEFF]/.test(char)) { el.dir = 'rtl'; return; }
-                    if (/[A-Za-z]/.test(char)) { el.dir = 'ltr'; return; }
-                }
-                el.dir = 'ltr'; // الأرقام الخالصة → LTR
-            }
-
             // Function to initialize MathJax preview for an element (original version)
             function initializeMathJaxPreviewOriginal(inputElement) {
                 const previewId = inputElement.id + "-preview";
-                const previewEl = document.getElementById(previewId);
-                updateBidiDir(inputElement);
-                if (previewEl) previewEl.dir = inputElement.dir;
                 updatePreview(inputElement.id, previewId);
-                inputElement.addEventListener("input", () => {
-                    updateBidiDir(inputElement);
-                    if (previewEl) previewEl.dir = inputElement.dir;
-                    updatePreview(inputElement.id, previewId);
-                });
+                inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
             }
 
             // Initialize MathJax preview function (enhanced version)
