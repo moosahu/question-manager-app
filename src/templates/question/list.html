@@ -1538,29 +1538,4 @@
     });
     </script>
 
-    <!-- إصلاح BiDi: لف الأرقام والوحدات بـ bdi ltr لمنع عكس الترتيب في النصوص العربية -->
-    <script>
-    (function() {
-        function fixBidiNode(node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                var text = node.textContent;
-                if (!/[^\u0600-\u06FF\s]/.test(text)) return;
-                var span = document.createElement('span');
-                span.innerHTML = text.replace(
-                    /([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)/g,
-                    '<bdi dir="ltr">$1</bdi>'
-                );
-                node.parentNode.replaceChild(span, node);
-            } else if (node.nodeType === Node.ELEMENT_NODE &&
-                       node.tagName !== 'BDI' && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
-                Array.from(node.childNodes).forEach(fixBidiNode);
-            }
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.question-text, .option-text').forEach(function(el) {
-                fixBidiNode(el);
-            });
-        });
-    })();
-    </script>
     {% endblock %}

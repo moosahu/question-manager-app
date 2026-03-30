@@ -1086,11 +1086,9 @@
                         if (window.MathJax) {
                             MathJax.typesetPromise([preview]);
                         }
-                        if (input.tagName === 'TEXTAREA') {
-                            clearTimeout(bidiTimer);
-                            var self = this;
-                            bidiTimer = setTimeout(function() { applyBidiToTextarea(self); }, 800);
-                        }
+                        clearTimeout(bidiTimer);
+                        var self = this;
+                        bidiTimer = setTimeout(function() { applyBidiToTextarea(self); }, 800);
                     });
                 }
             }
@@ -1288,14 +1286,14 @@
             updateMathJaxPreviews();
 
             // تطبيق BiDi Isolates على كل الـ textareas عند تحميل الصفحة
-            document.querySelectorAll('textarea.mathjax-input').forEach(applyBidiToTextarea);
+            document.querySelectorAll('.mathjax-input').forEach(applyBidiToTextarea);
 
             // Add form validation + مسح BiDi marks قبل الـ submit
             const form = document.getElementById("question-form");
             if (form) {
                 form.addEventListener("submit", function(event) {
                     // مسح BiDi Isolates أولاً لإبقاء DB نظيفة
-                    form.querySelectorAll('textarea.mathjax-input').forEach(function(ta) {
+                    form.querySelectorAll('.mathjax-input').forEach(function(ta) {
                         ta.value = ta.value.replace(BIDI_CLEAN_RE, '');
                     });
 
