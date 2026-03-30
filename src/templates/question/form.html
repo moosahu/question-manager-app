@@ -773,7 +773,7 @@
                 
                 if (preview) {
                     // Initial render
-                    preview.innerHTML = input.value || "";
+                    preview.innerHTML = fixBidiPreview(input.value || "");
                     if (window.MathJax && window.MathJax.typesetPromise) {
                         MathJax.typesetPromise([preview]).catch(function(err) {
                             console.log('MathJax error:', err);
@@ -782,7 +782,7 @@
 
                     // Update on input
                     input.addEventListener("input", function() {
-                        preview.innerHTML = this.value || "";
+                        preview.innerHTML = fixBidiPreview(this.value || "");
                         if (window.MathJax && window.MathJax.typesetPromise) {
                             MathJax.typesetPromise([preview]).catch(function(err) {
                                 console.log('MathJax error:', err);
@@ -815,12 +815,24 @@
             });
         }
 
+        // إصلاح BiDi: يلف الأرقام والوحدات بـ span ltr لمنع العكس في سياق RTL
+        function fixBidiPreview(text) {
+            // قسّم على محتوى MathJax لتجنب تعديله
+            const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]*?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/);
+            return parts.map(function(part, idx) {
+                if (idx % 2 === 1) return part; // محتوى MathJax — اتركه
+                // لف: رقم + (مسافة + وحدة)* في span ltr
+                return part.replace(/([-−+]?\d[\d.,]*(?:\s+[a-zA-Z°%][a-zA-Z°%\/\d.]*)*)/g,
+                    '<span dir="ltr" style="unicode-bidi:isolate">$1</span>');
+            }).join('');
+        }
+
         function updateMathJaxPreviews() {
             // تحديث معاينة السؤال
             const questionInput = document.getElementById('text');
             const questionPreview = document.getElementById('text-preview');
             if (questionInput && questionPreview) {
-                questionPreview.innerHTML = questionInput.value || '';
+                questionPreview.innerHTML = fixBidiPreview(questionInput.value || '');
                 if (window.MathJax && window.MathJax.typesetPromise) {
                     MathJax.typesetPromise([questionPreview]).catch(function(err) {
                         console.log('MathJax error:', err);
@@ -832,7 +844,7 @@
             const explanationInput = document.getElementById('explanation');
             const explanationPreview = document.getElementById('explanation-preview');
             if (explanationInput && explanationPreview) {
-                explanationPreview.innerHTML = explanationInput.value || '';
+                explanationPreview.innerHTML = fixBidiPreview(explanationInput.value || '');
                 if (window.MathJax && window.MathJax.typesetPromise) {
                     MathJax.typesetPromise([explanationPreview]).catch(function(err) {
                         console.log('MathJax error:', err);
@@ -845,7 +857,7 @@
                 const input = group.querySelector(`#option_text_${index}`);
                 const preview = group.querySelector(`#option_text_${index}-preview`);
                 if (input && preview) {
-                    preview.innerHTML = input.value || '';
+                    preview.innerHTML = fixBidiPreview(input.value || '');
                     if (window.MathJax && window.MathJax.typesetPromise) {
                         MathJax.typesetPromise([preview]).catch(function(err) {
                             console.log('MathJax error:', err);
