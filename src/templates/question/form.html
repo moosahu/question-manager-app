@@ -1289,26 +1289,20 @@
             // تطبيق BiDi Isolates على كل الـ textareas عند تحميل الصفحة
             document.querySelectorAll('textarea.mathjax-input').forEach(applyBidiToTextarea);
 
-            // مسح BiDi marks قبل الـ submit لإبقاء DB نظيفة
-            const form = document.getElementById('question-form');
-            if (form) {
-                form.addEventListener('submit', function() {
-                    form.querySelectorAll('textarea.mathjax-input').forEach(function(ta) {
-                        ta.value = ta.value.replace(BIDI_CLEAN_RE, '');
-                    });
-                }, true); // capture phase — قبل validation handler
-            }
-
-            // Add form validation
+            // Add form validation + مسح BiDi marks قبل الـ submit
             const form = document.getElementById("question-form");
             if (form) {
                 form.addEventListener("submit", function(event) {
+                    // مسح BiDi Isolates أولاً لإبقاء DB نظيفة
+                    form.querySelectorAll('textarea.mathjax-input').forEach(function(ta) {
+                        ta.value = ta.value.replace(BIDI_CLEAN_RE, '');
+                    });
+
                     const questionText = document.getElementById("text").value.trim();
                     const questionImage = document.getElementById("question_image").files.length > 0;
-                    const hasExistingImage = document.querySelector("#question_image_preview") && 
+                    const hasExistingImage = document.querySelector("#question_image_preview") &&
                                            document.querySelector("#question_image_preview").style.display !== "none";
-                    
-                    // Check if there's either text or image
+
                     if (!questionText && !questionImage && !hasExistingImage) {
                         event.preventDefault();
                         alert("يجب إدخال نص السؤال أو رفع صورة للسؤال على الأقل");
