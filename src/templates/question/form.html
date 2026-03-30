@@ -770,15 +770,19 @@
                 
                 if (preview) {
                     // Initial render
+                    updateBidiDir(input);
+                    preview.dir = input.dir;
                     preview.innerHTML = input.value || "";
                     if (window.MathJax && window.MathJax.typesetPromise) {
                         MathJax.typesetPromise([preview]).catch(function(err) {
                             console.log('MathJax error:', err);
                         });
                     }
-                    
+
                     // Update on input
                     input.addEventListener("input", function() {
+                        updateBidiDir(this);
+                        preview.dir = this.dir;
                         preview.innerHTML = this.value || "";
                         if (window.MathJax && window.MathJax.typesetPromise) {
                             MathJax.typesetPromise([preview]).catch(function(err) {
@@ -985,11 +989,28 @@
                 }
             }
 
+            // تحديد اتجاه الحقل تلقائياً (عربي→RTL، لاتيني/أرقام→LTR)
+            function updateBidiDir(el) {
+                const text = el.value;
+                for (const char of text) {
+                    if (/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFEFF]/.test(char)) { el.dir = 'rtl'; return; }
+                    if (/[A-Za-z]/.test(char)) { el.dir = 'ltr'; return; }
+                }
+                el.dir = 'ltr'; // الأرقام الخالصة → LTR
+            }
+
             // Function to initialize MathJax preview for an element (original version)
             function initializeMathJaxPreviewOriginal(inputElement) {
                 const previewId = inputElement.id + "-preview";
+                const previewEl = document.getElementById(previewId);
+                updateBidiDir(inputElement);
+                if (previewEl) previewEl.dir = inputElement.dir;
                 updatePreview(inputElement.id, previewId);
-                inputElement.addEventListener("input", () => updatePreview(inputElement.id, previewId));
+                inputElement.addEventListener("input", () => {
+                    updateBidiDir(inputElement);
+                    if (previewEl) previewEl.dir = inputElement.dir;
+                    updatePreview(inputElement.id, previewId);
+                });
             }
 
             // Initialize MathJax preview function (enhanced version)
