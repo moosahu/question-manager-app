@@ -815,15 +815,22 @@
             });
         }
 
-        // إصلاح BiDi: يلف الأرقام والوحدات بـ span ltr لمنع العكس في سياق RTL
+        // إصلاح BiDi الجذري:
+        // السبب: خوارزمية Unicode BiDi تُصنّف الأرقام (EN) والحروف اللاتينية (L)
+        // كنوعين مختلفين، فالمسافة بينهما تأخذ اتجاه الفقرة (RTL) وتفصلهما
+        // مما يُسبب عكس الترتيب (kJ 2270 بدل 2270 kJ).
+        // الحل: لف كل محتوى غير عربي بـ <bdi dir="ltr"> لعزله بالكامل.
         function fixBidiPreview(text) {
-            // قسّم على محتوى MathJax لتجنب تعديله
+            // احتفظ بمحتوى MathJax كما هو
             const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]*?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/);
             return parts.map(function(part, idx) {
                 if (idx % 2 === 1) return part; // محتوى MathJax — اتركه
-                // لف: رقم + (مسافة + وحدة)* في span ltr
-                return part.replace(/([-−+]?\d[\d.,]*(?:\s+[a-zA-Z°%][a-zA-Z°%\/\d.]*)*)/g,
-                    '<span dir="ltr" style="unicode-bidi:isolate">$1</span>');
+                // لف أي تسلسل من الأحرف غير العربية (مع المسافات بينها) بـ bdi ltr
+                // \u0600-\u06FF = نطاق Unicode للأحرف العربية
+                return part.replace(
+                    /([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)/g,
+                    '<bdi dir="ltr">$1</bdi>'
+                );
             }).join('');
         }
 
