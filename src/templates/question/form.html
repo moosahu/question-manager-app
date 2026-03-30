@@ -381,6 +381,7 @@
                     <div class="mb-3">
                         <label for="explanation" class="form-label">الشرح المختصر <small class="text-muted">(يظهر للطالب)</small></label>
                         <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input" dir="rtl">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
+                        <div id="explanation-preview" class="mt-2 p-2 border bg-light" dir="rtl" style="min-height: 40px;"></div>
                         {% if question %}
                         <button type="button" id="btn-generate-explanation"
                                 class="btn btn-outline-primary btn-sm mt-2"
