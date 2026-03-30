@@ -789,8 +789,7 @@
                         });
                     }
 
-                    // Update on input (debounced BiDi + preview)
-                    var bidiTimer;
+                    // تحديث المعاينة فوراً أثناء الكتابة (بدون تعديل textarea لتجنب قفز cursor)
                     input.addEventListener("input", function() {
                         preview.innerHTML = fixBidiPreview(this.value || "");
                         if (window.MathJax && window.MathJax.typesetPromise) {
@@ -798,11 +797,9 @@
                                 console.log('MathJax error:', err);
                             });
                         }
-                        // تطبيق BiDi بعد 800ms من توقف الكتابة (لتجنب قفز cursor)
-                        clearTimeout(bidiTimer);
-                        var self = this;
-                        bidiTimer = setTimeout(function() { applyBidiToTextarea(self); }, 800);
                     });
+                    // تطبيق BiDi على الـ textarea فقط عند مغادرة الحقل (بدون قفز cursor)
+                    input.addEventListener("blur", function() { applyBidiToTextarea(this); });
                 }
             });
             
@@ -1079,17 +1076,15 @@
                         MathJax.typesetPromise([preview]);
                     }
 
-                    // Update on input with BiDi fix + debounced textarea BiDi
-                    var bidiTimer;
+                    // تحديث المعاينة فوراً أثناء الكتابة
                     input.addEventListener("input", function() {
                         preview.innerHTML = fixBidiPreview(this.value || "");
                         if (window.MathJax) {
                             MathJax.typesetPromise([preview]);
                         }
-                        clearTimeout(bidiTimer);
-                        var self = this;
-                        bidiTimer = setTimeout(function() { applyBidiToTextarea(self); }, 800);
                     });
+                    // تطبيق BiDi على الـ textarea فقط عند مغادرة الحقل
+                    input.addEventListener("blur", function() { applyBidiToTextarea(this); });
                 }
             }
 
