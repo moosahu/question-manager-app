@@ -206,7 +206,7 @@
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) - اختياري إذا وجدت صورة</label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="ltr">{{ question.question_text if question and question.question_text else "" }}</textarea>
+                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="rtl">{{ question.question_text if question and question.question_text else "" }}</textarea>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
                         <div id="text-preview" class="mt-2 p-2 border bg-light" dir="rtl" style="min-height: 50px;"></div>
                     </div>
@@ -329,7 +329,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" dir="ltr" value="{{ options[i].option_text if i < options|length else "" }}">
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" dir="rtl" value="{{ options[i].option_text if i < options|length else "" }}">
                                     <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" dir="rtl" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
@@ -373,7 +373,7 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="explanation" class="form-label">الشرح المختصر <small class="text-muted">(يظهر للطالب)</small></label>
-                        <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input" dir="ltr">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
+                        <textarea name="explanation" id="explanation" rows="3" class="form-control mathjax-input" dir="rtl">{{ question.explanation if question else request.form.get("explanation", "") }}</textarea>
                         {% if question %}
                         <button type="button" id="btn-generate-explanation"
                                 class="btn btn-outline-primary btn-sm mt-2"
@@ -524,7 +524,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" dir="ltr" value="">
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" dir="rtl" value="">
                         <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" dir="rtl" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
