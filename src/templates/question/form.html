@@ -203,9 +203,9 @@
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) - اختياري إذا وجدت صورة</label>
-                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input">{{ question.question_text if question and question.question_text else "" }}</textarea>
+                        <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="auto">{{ question.question_text if question and question.question_text else "" }}</textarea>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
-                        <div id="text-preview" class="mt-2 p-2 border bg-light" style="min-height: 50px;"></div>
+                        <div id="text-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 50px;"></div>
                     </div>
 
                     <div class="mb-3">
@@ -326,8 +326,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_text_{{ i }}" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" value="{{ options[i].option_text if i < options|length else "" }}">
-                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
+                                    <input type="text" name="option_text_{{ i }}" id="option_text_{{ i }}" class="form-control mathjax-input" dir="auto" value="{{ options[i].option_text if i < options|length else "" }}">
+                                    <div id="option_text_{{ i }}-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 40px;">{{ options[i].option_text if i < options|length else "" }}</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="option_image_{{ i }}" class="form-label">صورة الخيار (اختياري)</label>
@@ -521,8 +521,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="option_text___INDEX__" class="form-label">نص الخيار (اختياري إذا وجدت صورة)</label>
-                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" value="">
-                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" style="min-height: 40px;"></div>
+                        <input type="text" name="option_text___INDEX__" id="option_text___INDEX__" class="form-control mathjax-input" dir="auto" value="">
+                        <div id="option_text___INDEX__-preview" class="mt-2 p-2 border bg-light" dir="auto" style="min-height: 40px;"></div>
                     </div>
                     <div class="mb-3">
                         <label for="option_image___INDEX__" class="form-label">صورة الخيار (اختياري)</label>
