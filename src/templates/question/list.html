@@ -1278,9 +1278,31 @@
             }, 1000);
         });
     </script>
-    <!-- ============================================
-         نهاية الحل الأمثل النهائي
-    ============================================ -->         
+    <!-- إصلاح BiDi: يلف فقط أنماط "رقم + وحدة كيميائية" بـ bdi ltr -->
+    <script>
+    (function() {
+        var unitRe = /([-−+]?\d+[\d.,]*\s*(?:kJ|KJ|kj|Kcal|kcal|KCAL|kPa|kpa|mol|g|kg|mg|L|mL|ml|J|cal|M|°C|K|atm)(?:\/(?:mol|kg|L|g|s))?)/g;
+
+        function fixNode(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                var text = node.textContent;
+                unitRe.lastIndex = 0;
+                if (!unitRe.test(text)) return;
+                unitRe.lastIndex = 0;
+                var span = document.createElement('span');
+                span.innerHTML = text.replace(unitRe, '<bdi dir="ltr">$1</bdi>');
+                node.parentNode.replaceChild(span, node);
+            } else if (node.nodeType === Node.ELEMENT_NODE &&
+                       node.tagName !== 'BDI' && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
+                Array.from(node.childNodes).forEach(fixNode);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.question-text').forEach(fixNode);
+        });
+    })();
+    </script>
     {% endblock %}
 
     {% block scripts %}
