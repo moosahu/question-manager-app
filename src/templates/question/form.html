@@ -206,6 +206,13 @@
 
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) - اختياري إذا وجدت صورة</label>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">للكتابة بالعربي: RTL | للأرقام والرموز: LTR</small>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary active" id="text-dir-rtl" onclick="setTextareaDir('text','rtl')">RTL ←</button>
+                                <button type="button" class="btn btn-outline-secondary" id="text-dir-ltr" onclick="setTextareaDir('text','ltr')">→ LTR</button>
+                            </div>
+                        </div>
                         <textarea name="text" id="text" rows="5" class="form-control mathjax-input" dir="rtl">{{ question.question_text if question and question.question_text else "" }}</textarea>
                         <div class="form-text">استخدم $...$ أو \(...\) للمعادلات المضمنة، و $$...$$ أو \[...\] للمعادلات المنفصلة. مثال كيميائي: $\ce{H2O}$</div>
                         <div id="text-preview" class="mt-2 p-2 border bg-light" dir="rtl" style="min-height: 50px;"></div>
@@ -815,6 +822,18 @@
             });
         }
 
+        // تبديل اتجاه الـ textarea يدوياً (حل مشكلة cursor عند الكتابة بالإنجليزي)
+        function setTextareaDir(textareaId, dir) {
+            const ta = document.getElementById(textareaId);
+            if (!ta) return;
+            ta.dir = dir;
+            // تحديث أزرار التبديل
+            const rtlBtn = document.getElementById(textareaId + '-dir-rtl');
+            const ltrBtn = document.getElementById(textareaId + '-dir-ltr');
+            if (rtlBtn) rtlBtn.classList.toggle('active', dir === 'rtl');
+            if (ltrBtn) ltrBtn.classList.toggle('active', dir === 'ltr');
+        }
+
         // إصلاح BiDi الجذري:
         // السبب: خوارزمية Unicode BiDi تُصنّف الأرقام (EN) والحروف اللاتينية (L)
         // كنوعين مختلفين، فالمسافة بينهما تأخذ اتجاه الفقرة (RTL) وتفصلهما
@@ -1000,7 +1019,7 @@
                 const inputElement = document.getElementById(inputId);
                 const previewElement = document.getElementById(previewId);
                 if (inputElement && previewElement) {
-                    previewElement.innerHTML = inputElement.value;
+                    previewElement.innerHTML = fixBidiPreview(inputElement.value || "");
                     if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
                         MathJax.typesetPromise([previewElement]).catch((err) => console.log("MathJax Typeset Error: ", err));
                     }
@@ -1018,17 +1037,17 @@
             function initializeMathJaxPreview(input) {
                 const previewId = input.id + "-preview";
                 const preview = document.getElementById(previewId);
-                
+
                 if (preview) {
-                    // Initial render
-                    preview.innerHTML = input.value || "";
+                    // Initial render with BiDi fix
+                    preview.innerHTML = fixBidiPreview(input.value || "");
                     if (window.MathJax) {
                         MathJax.typesetPromise([preview]);
                     }
-                    
-                    // Update on input
+
+                    // Update on input with BiDi fix
                     input.addEventListener("input", function() {
-                        preview.innerHTML = this.value || "";
+                        preview.innerHTML = fixBidiPreview(this.value || "");
                         if (window.MathJax) {
                             MathJax.typesetPromise([preview]);
                         }
@@ -1224,6 +1243,9 @@
 
             // Update indices on initial load
             updateOptionIndices();
+
+            // تهيئة كل الـ previews بإصلاح BiDi عند تحميل الصفحة
+            updateMathJaxPreviews();
 
             // Add form validation
             const form = document.getElementById("question-form");
