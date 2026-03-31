@@ -391,19 +391,19 @@
             margin-top: 5px;
         }
         
-        /* تنسيق شبكي 2×2 للخيارات النصية - جدول لضمان RTL صحيح */
+        /* تنسيق شبكي 2×2 للخيارات النصية */
         .options-grid-table {
             width: 100%;
             border-collapse: collapse;
             margin-right: 8px;
             margin-top: 5px;
-            direction: rtl;
         }
 
         .options-grid-table .opt-cell {
             width: 50%;
-            padding: 3px 2px;
+            padding: 3px 4px;
             vertical-align: middle;
+            white-space: nowrap;
         }
 
         .q-option { 
@@ -682,14 +682,12 @@
                 {% for i in range(0, q.options|length, 2) %}
                 <tr>
                     <td class="opt-cell">
-                        <span class="option-char">{{ letters[i] }})</span>
-                        <span class="option-content">{{ q.options[i].option_text if q.options[i] is defined else '' }}</span>
+                        {% if q.options[i+1] is defined %}
+                        <span class="option-char">{{ letters[i+1] }})</span> {{ q.options[i+1].option_text }}
+                        {% endif %}
                     </td>
                     <td class="opt-cell">
-                        {% if q.options[i+1] is defined %}
-                        <span class="option-char">{{ letters[i+1] }})</span>
-                        <span class="option-content">{{ q.options[i+1].option_text }}</span>
-                        {% endif %}
+                        <span class="option-char">{{ letters[i] }})</span> {{ q.options[i].option_text if q.options[i] is defined else '' }}
                     </td>
                 </tr>
                 {% endfor %}
