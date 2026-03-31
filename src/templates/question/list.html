@@ -399,7 +399,7 @@
                                                 {% if question.options %}
                                                 <div class="question-options" style="margin-top: 15px;">
 {% for option in question.options %}
-<div class="option-item {% if option.is_correct %}correct-option{% endif %}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #dee2e6; border-radius: 5px; {% if option.is_correct %}background-color: #d4edda; border-color: #c3e6cb;{% else %}background-color: white;{% endif %} transition: all 0.2s;">
+<div class="option-item {% if option.is_correct %}correct-option{% endif %}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #dee2e6; border-radius: 5px; text-align: right; {% if option.is_correct %}background-color: #d4edda; border-color: #c3e6cb;{% else %}background-color: white;{% endif %} transition: all 0.2s;">
     {% set is_img_link = option.option_text and option.option_text.startswith('http') and (option.option_text.endswith('.jpg') or option.option_text.endswith('.png') or option.option_text.endswith('.jpeg')) %}
     <span class="option-number" style="font-weight: bold; margin-left: 8px;">{{ loop.index }}.</span>
     <span class="option-text" dir="auto" style="{% if option.is_correct %}color: #155724; font-weight: 500;{% else %}color: #333;{% endif %}">
@@ -512,7 +512,7 @@
                                                         <h6 class="preview-section-title">الخيارات:</h6>
                                                         <div class="options-preview">
                                                             {% for option in question.options %}
-                                                            <div class="option-item {% if option.is_correct %}correct-option{% endif %}">
+                                                            <div class="option-item {% if option.is_correct %}correct-option{% endif %}" style="text-align: right;">
                                                                 {% if option.is_correct %}
                                                                 <span class="correct-indicator">
                                                                     <i class="fas fa-check"></i> الإجابة الصحيحة
