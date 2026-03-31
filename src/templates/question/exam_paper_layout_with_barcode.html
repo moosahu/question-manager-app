@@ -392,17 +392,23 @@
         }
         
         /* تنسيق شبكي 2×2 للخيارات النصية */
-        .options-grid-table {
-            width: 100%;
-            border-collapse: collapse;
+        .opts-grid {
             margin-right: 8px;
             margin-top: 5px;
         }
 
-        .options-grid-table .opt-cell {
+        .opts-row {
+            display: flex;
+            flex-direction: row-reverse;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+
+        .opt-item {
             width: 50%;
-            padding: 3px 4px;
-            vertical-align: middle;
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
 
         .q-option { 
@@ -677,20 +683,22 @@
             </div>
         {% else %}
             {% if opt_layout == 'grid' %}
-            <table class="options-grid-table">
+            <div class="opts-grid">
                 {% for i in range(0, q.options|length, 2) %}
-                <tr>
-                    <td class="opt-cell">
-                        {% if q.options[i+1] is defined %}
-                        <span class="option-char">{{ letters[i+1] }})</span> {{ q.options[i+1].option_text }}
-                        {% endif %}
-                    </td>
-                    <td class="opt-cell">
-                        <span class="option-char">{{ letters[i] }})</span> {{ q.options[i].option_text if q.options[i] is defined else '' }}
-                    </td>
-                </tr>
+                <div class="opts-row">
+                    <div class="opt-item">
+                        <span class="option-char">{{ letters[i] }})</span>
+                        <span>{{ q.options[i].option_text if q.options[i] is defined else '' }}</span>
+                    </div>
+                    {% if q.options[i+1] is defined %}
+                    <div class="opt-item">
+                        <span class="option-char">{{ letters[i+1] }})</span>
+                        <span>{{ q.options[i+1].option_text }}</span>
+                    </div>
+                    {% endif %}
+                </div>
                 {% endfor %}
-            </table>
+            </div>
             {% else %}
             <div class="options-container">
                 {% for opt in q.options %}
