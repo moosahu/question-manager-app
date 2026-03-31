@@ -391,17 +391,19 @@
             margin-top: 5px;
         }
         
-        /* تنسيق شبكي 2×2 للخيارات النصية */
-        .options-container.grid-layout {
-            display: flex;
-            flex-direction: row-reverse;
-            flex-wrap: wrap;
-            gap: 6px 15px;
+        /* تنسيق شبكي 2×2 للخيارات النصية - جدول لضمان RTL صحيح */
+        .options-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-right: 8px;
+            margin-top: 5px;
+            direction: rtl;
         }
 
-        .options-container.grid-layout .q-option {
-            width: calc(50% - 8px);
-            margin-bottom: 0;
+        .options-grid-table .opt-cell {
+            width: 50%;
+            padding: 3px 2px;
+            vertical-align: middle;
         }
 
         .q-option { 
@@ -675,7 +677,25 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="options-container{% if opt_layout == 'grid' %} grid-layout{% endif %}">
+            {% if opt_layout == 'grid' %}
+            <table class="options-grid-table">
+                {% for i in range(0, q.options|length, 2) %}
+                <tr>
+                    <td class="opt-cell">
+                        <span class="option-char">{{ letters[i] }})</span>
+                        <span class="option-content">{{ q.options[i].option_text if q.options[i] is defined else '' }}</span>
+                    </td>
+                    <td class="opt-cell">
+                        {% if q.options[i+1] is defined %}
+                        <span class="option-char">{{ letters[i+1] }})</span>
+                        <span class="option-content">{{ q.options[i+1].option_text }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <div class="options-container">
                 {% for opt in q.options %}
                     <div class="q-option">
                         <span class="option-char">{{ letters[loop.index0] }})</span>
@@ -685,6 +705,7 @@
                     </div>
                 {% endfor %}
             </div>
+            {% endif %}
         {% endif %}
 
     </div>
