@@ -212,7 +212,7 @@ class ExamGenerator:
         pdf  = page.pdf(
             format='A4',
             print_background=True,
-            margin={'top': '20mm', 'right': '15mm', 'bottom': '25mm', 'left': '15mm'},
+            margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
         )
         ctx.close()
         return pdf
