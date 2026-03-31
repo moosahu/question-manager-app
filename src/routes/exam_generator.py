@@ -154,7 +154,7 @@ class ExamGenerator:
             'model_letter':        kwargs.get('model_letter', ''),
             # إعدادات التنسيق (تُقرأ مباشرة من القالب)
             'font_size':           kwargs.get('font_size', 14),
-            'image_size':          kwargs.get('image_size', 100),
+            'image_size':          kwargs.get('image_size', 70),
             'columns':             kwargs.get('columns', 2),
             'spacing':             kwargs.get('spacing', 'normal'),
             'options_layout':      kwargs.get('options_layout', 'vertical'),
