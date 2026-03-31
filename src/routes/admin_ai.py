@@ -2216,10 +2216,10 @@ def get_app_settings():
         except Exception:
             pass
     return jsonify({
-        'success':              True,
-        'video_button_enabled': AISetting.get_setting('video_button_enabled', 'false') == 'true',
-        'tts_enabled':          AISetting.get_setting('tts_enabled', 'true') == 'true',
-        'machine_online':       machine_online,
+        'success':             True,
+        'video_button_mode':   _get_video_button_mode(),
+        'tts_enabled':         AISetting.get_setting('tts_enabled', 'true') == 'true',
+        'machine_online':      machine_online,
     })
 
 
@@ -2356,20 +2356,32 @@ def get_video_status(question_id):
 @admin_ai_bp.route('/video-button', methods=['GET'])
 @admin_required
 def get_video_button_setting():
-    """يُرجع حالة زر الفيديو للأدمن"""
-    enabled = AISetting.get_setting('video_button_enabled', 'false') == 'true'
-    return jsonify({'success': True, 'enabled': enabled})
+    """يُرجع وضع زر الفيديو للأدمن"""
+    mode = _get_video_button_mode()
+    return jsonify({'success': True, 'mode': mode})
 
 
 @admin_ai_bp.route('/video-button', methods=['POST'])
 @admin_required
 def save_video_button_setting():
-    """يحفظ حالة زر الفيديو"""
+    """يحفظ وضع زر الفيديو (available / all / off)"""
     data = request.get_json() or {}
-    enabled = bool(data.get('enabled', False))
-    AISetting.set_setting('video_button_enabled', 'true' if enabled else 'false',
-                          'string', description='إظهار زر الفيديو للطالب عند الإجابة الخاطئة')
-    return jsonify({'success': True, 'enabled': enabled})
+    mode = data.get('mode', 'off')
+    if mode not in ('available', 'all', 'off'):
+        mode = 'off'
+    AISetting.set_setting('video_button_mode', mode,
+                          'string', description='وضع زر الفيديو: available=للمتاحة فقط | all=للكل | off=مغلق')
+    return jsonify({'success': True, 'mode': mode})
+
+
+def _get_video_button_mode():
+    """يقرأ الوضع الحالي — مع backward compat مع الإعداد القديم true/false"""
+    mode = AISetting.get_setting('video_button_mode', None)
+    if mode in ('available', 'all', 'off'):
+        return mode
+    # backward compat: الإعداد القديم كان video_button_enabled = 'true'/'false'
+    old = AISetting.get_setting('video_button_enabled', 'false')
+    return 'available' if old == 'true' else 'off'
 
 
 @admin_ai_bp.route('/generate-video/question/<int:question_id>', methods=['POST'])
