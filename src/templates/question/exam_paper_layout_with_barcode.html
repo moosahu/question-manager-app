@@ -431,18 +431,23 @@
         }
 
         .options-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            direction: rtl;
-            gap: 8px 20px;
+            width: 100%;
+            border-collapse: collapse;
             margin-right: 8px;
             margin-top: 6px;
+            direction: ltr;
+        }
+
+        .options-grid td {
+            width: 50%;
+            padding: 4px 4px;
+            vertical-align: middle;
+            direction: rtl;
         }
 
         .options-grid .q-option {
             display: flex;
             align-items: center;
-            margin-bottom: 0;
         }
 
         .options-grid .option-content {
@@ -660,23 +665,34 @@
         {% endfor %}
 
         {% if has_img_opts|length > 0 %}
-            <div class="options-grid">
-                {% for opt in q.options %}
-                    <div class="q-option">
-                        <span class="option-char">{{ letters[loop.index0] }})</span>
-                        <div class="option-content">
-                            {% if opt.option_text and not opt.option_text.startswith('http') %}
-                                <span>{{ opt.option_text }}</span>
-                            {% endif %}
-                            {% if opt.image_url %}
-                                <img src="{{ opt.image_url }}" class="option-img">
-                            {% elif opt.option_text and opt.option_text.startswith('http') %}
-                                <img src="{{ opt.option_text }}" class="option-img">
-                            {% endif %}
+            <table class="options-grid">
+                {% for i in range(0, q.options|length, 2) %}
+                {% set opt_a = q.options[i] %}
+                {% set opt_b = q.options[i+1] if q.options[i+1] is defined else None %}
+                <tr>
+                    <td>
+                        {% if opt_b %}
+                        <div class="q-option">
+                            <span class="option-char">{{ letters[i+1] }})</span>
+                            <div class="option-content">
+                                {% if opt_b.option_text and not opt_b.option_text.startswith('http') %}<span>{{ opt_b.option_text }}</span>{% endif %}
+                                {% if opt_b.image_url %}<img src="{{ opt_b.image_url }}" class="option-img">{% elif opt_b.option_text and opt_b.option_text.startswith('http') %}<img src="{{ opt_b.option_text }}" class="option-img">{% endif %}
+                            </div>
                         </div>
-                    </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="q-option">
+                            <span class="option-char">{{ letters[i] }})</span>
+                            <div class="option-content">
+                                {% if opt_a.option_text and not opt_a.option_text.startswith('http') %}<span>{{ opt_a.option_text }}</span>{% endif %}
+                                {% if opt_a.image_url %}<img src="{{ opt_a.image_url }}" class="option-img">{% elif opt_a.option_text and opt_a.option_text.startswith('http') %}<img src="{{ opt_a.option_text }}" class="option-img">{% endif %}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
-            </div>
+            </table>
         {% else %}
             {% if opt_layout == 'grid' %}
             <table class="opts-grid">
