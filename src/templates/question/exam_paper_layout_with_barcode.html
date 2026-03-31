@@ -398,18 +398,13 @@
         }
 
         .opts-row {
-            display: flex;
-            flex-direction: row-reverse;
             width: 100%;
+            overflow: hidden;
             margin-bottom: 4px;
         }
 
-        .opt-item {
-            width: 50%;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
+        .opt-r { float: right; width: 50%; }
+        .opt-l { float: left;  width: 50%; }
 
         .q-option { 
             display: flex; 
@@ -686,14 +681,14 @@
             <div class="opts-grid">
                 {% for i in range(0, q.options|length, 2) %}
                 <div class="opts-row">
-                    <div class="opt-item">
+                    <div class="opt-r">
                         <span class="option-char">{{ letters[i] }})</span>
-                        <span>{{ q.options[i].option_text if q.options[i] is defined else '' }}</span>
+                        {{ q.options[i].option_text if q.options[i] is defined else '' }}
                     </div>
                     {% if q.options[i+1] is defined %}
-                    <div class="opt-item">
+                    <div class="opt-l">
                         <span class="option-char">{{ letters[i+1] }})</span>
-                        <span>{{ q.options[i+1].option_text }}</span>
+                        {{ q.options[i+1].option_text }}
                     </div>
                     {% endif %}
                 </div>
