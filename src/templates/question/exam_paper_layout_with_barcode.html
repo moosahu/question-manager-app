@@ -267,11 +267,13 @@
         /* تخطيط الأسئلة - جدول بدل column-count لضمان الفاصل في المنتصف */
         .questions-table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
         }
 
         .questions-col {
             vertical-align: top;
+            overflow: hidden;
             {% if col_count == 3 %}
             width: 33.33%;
             {% else %}
