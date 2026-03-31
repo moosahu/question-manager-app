@@ -393,18 +393,17 @@
         
         /* تنسيق شبكي 2×2 للخيارات النصية */
         .opts-grid {
+            width: 100%;
+            border-collapse: collapse;
             margin-right: 8px;
             margin-top: 5px;
         }
 
-        .opts-row {
-            display: flow-root;
-            width: 100%;
-            margin-bottom: 4px;
+        .opts-grid td {
+            width: 50%;
+            padding: 3px 2px;
+            vertical-align: middle;
         }
-
-        .opt-r { float: right; width: 50%; }
-        .opt-l { float: left;  width: 50%; }
 
         .q-option { 
             display: flex; 
@@ -678,22 +677,14 @@
             </div>
         {% else %}
             {% if opt_layout == 'grid' %}
-            <div class="opts-grid">
+            <table class="opts-grid">
                 {% for i in range(0, q.options|length, 2) %}
-                <div class="opts-row">
-                    <div class="opt-r">
-                        <span class="option-char">{{ letters[i] }})</span>
-                        {{ q.options[i].option_text if q.options[i] is defined else '' }}
-                    </div>
-                    {% if q.options[i+1] is defined %}
-                    <div class="opt-l">
-                        <span class="option-char">{{ letters[i+1] }})</span>
-                        {{ q.options[i+1].option_text }}
-                    </div>
-                    {% endif %}
-                </div>
+                <tr>
+                    <td><span class="option-char">{{ letters[i+1] }})</span> {{ q.options[i+1].option_text if q.options[i+1] is defined else '' }}</td>
+                    <td><span class="option-char">{{ letters[i] }})</span> {{ q.options[i].option_text if q.options[i] is defined else '' }}</td>
+                </tr>
                 {% endfor %}
-            </div>
+            </table>
             {% else %}
             <div class="options-container">
                 {% for opt in q.options %}
