@@ -393,13 +393,14 @@
         
         /* تنسيق شبكي 2×2 للخيارات النصية */
         .options-container.grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            direction: rtl;
+            display: flex;
+            flex-direction: row-reverse;
+            flex-wrap: wrap;
             gap: 6px 15px;
         }
-        
+
         .options-container.grid-layout .q-option {
+            width: calc(50% - 8px);
             margin-bottom: 0;
         }
 
