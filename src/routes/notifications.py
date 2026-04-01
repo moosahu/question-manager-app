@@ -195,8 +195,8 @@ def create_sample_notifications():
     sample_notifications.append({
         'id': 3,
         'title': 'تحديث النظام',
-        'message': 'تم تحديث نظام إدارة الأسئلة الكيميائية بميزات جديدة.',
-        'content': 'تم تحديث نظام إدارة الأسئلة الكيميائية بميزات جديدة.',
+        'message': 'تم تحديث نظام كيم تحصيلي — منصة الأسئلة الكيميائية بميزات جديدة.',
+        'content': 'تم تحديث نظام كيم تحصيلي — منصة الأسئلة الكيميائية بميزات جديدة.',
         'user_id': None,
         'is_read': True,
         'created_at': datetime.now(),

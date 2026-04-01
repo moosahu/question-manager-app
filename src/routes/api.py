@@ -2335,7 +2335,7 @@ def upload_backup_to_drive():
                     service = get_google_drive_service()
                     if service:
                         # إنشاء أو الحصول على مجلد النسخ الاحتياطية
-                        folder_name = "نسخ احتياطية - إدارة الأسئلة الكيميائية"
+                        folder_name = "نسخ احتياطية - كيم تحصيلي"
                         folder_id = get_or_create_backup_folder(service, folder_name)
                         
                         # إنشاء الملف في Google Drive
