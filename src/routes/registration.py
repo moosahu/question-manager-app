@@ -618,7 +618,12 @@ def verify_code():
                 
                 token = create_student_token(student_id=student.id, username=student.username)
                 print(f"🐞 Student created (inactive): phone='{verification.phone}', waiting for phone verification")
-                
+
+                notify_admin(
+                    '⏳ طالب سجّل - ينتظر تحقق الجوال',
+                    f'الاسم: {student.name}\nالإيميل: {student.email}\nالجوال: {student.phone}\nالحساب معطّل حتى يكمّل التحقق'
+                )
+
                 return jsonify({
                     'success': True,
                     'message': 'تم التحقق من الإيميل. يرجى التحقق من رقم الجوال.',
