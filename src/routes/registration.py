@@ -739,10 +739,16 @@ def verify_code():
             )
             
             # إشعار الأدمن
-            notify_admin(
-                '🎓 طالب جديد سجّل',
-                f'الاسم: {student.name}\nالإيميل: {student.email}\nالمدرسة: {student.school or "غير محدد"}'
-            )
+            if has_phone:
+                notify_admin(
+                    '⏳ طالب سجّل - ينتظر تحقق الجوال',
+                    f'الاسم: {student.name}\nالإيميل: {student.email}\nالجوال: {student.phone}\nالحساب معطّل حتى يكمّل التحقق'
+                )
+            else:
+                notify_admin(
+                    '🎓 طالب جديد سجّل',
+                    f'الاسم: {student.name}\nالإيميل: {student.email}\nالمدرسة: {student.school or "غير محدد"}'
+                )
 
             return jsonify({
                 'success': True,
@@ -861,8 +867,13 @@ def verify_phone_code():
             db.session.add(student)
             db.session.commit()
             student.update_last_login()
-            
+
             token = create_student_token(student_id=student.id, username=student.username)
+
+            notify_admin(
+                '🎓 طالب أكمل التسجيل',
+                f'الاسم: {student.name}\nالإيميل: {student.email}\nالجوال: {student.phone}\nالمدرسة: {student.school or "غير محدد"}'
+            )
 
             return jsonify({
                 'success': True,
