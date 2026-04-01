@@ -1429,7 +1429,7 @@ GOOGLE_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
 GOOGLE_DRIVE_CLIENT_SECRETS = {
     "web": {
         "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
-        "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
+        "client_secret": os.environ.get('GOOGLE_API_KEY', ''),
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "redirect_uris": ["http://localhost:5000/auth/google/callback"]
@@ -2490,7 +2490,7 @@ def get_user_google_credentials(user_id):
                 "refresh_token": "dummy_refresh_token",
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "client_id": "855709857820-i98phbba2d2mqajmp3eei7blah2cls5f.apps.googleusercontent.com",
-                "client_secret": "AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc",
+                "client_secret": os.environ.get('GOOGLE_API_KEY', ''),
                 "scopes": ["https://www.googleapis.com/auth/drive.file"]
             }
             

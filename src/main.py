@@ -2708,7 +2708,7 @@ def create_app():
             import os
             config = {
                 'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
-                'api_key': os.environ.get('GOOGLE_API_KEY', 'AIzaSyCcM3yO_m0xeItzlClPmb6ULkxwZlqIcjc'),
+                'api_key': os.environ.get('GOOGLE_API_KEY', ''),
                 'success': True
             }
             
