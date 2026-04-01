@@ -950,7 +950,12 @@ def activate_after_phone():
             )
         
         print(f"✅ تم تفعيل حساب {account_type}: {email} بعد التحقق من الجوال {phone}")
-        
+
+        notify_admin(
+            '🎓 طالب أكمل التسجيل',
+            f'الاسم: {user.name}\nالإيميل: {user.email}\nالجوال: {user.phone}\nالمدرسة: {getattr(user, "school", None) or "غير محدد"}'
+        )
+
         return jsonify({
             'success': True,
             'message': 'تم تفعيل الحساب بنجاح',
