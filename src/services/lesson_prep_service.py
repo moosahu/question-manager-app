@@ -920,6 +920,12 @@ class LessonPrepService:
             return text or ''
         # السهم
         text = text.replace('->', '→')
+        # 0. تنظيف الأرقام المتباعدة: "0 . 1 8 4" → "0.184", "1 0" → "10"
+        for _ in range(6):
+            text = re.sub(r'(\d) (\d)', r'\1\2', text)       # "1 0" → "10"
+            text = re.sub(r'(\d) \. (\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
+            text = re.sub(r'(\d)\. (\d)', r'\1.\2', text)    # "0. 1" → "0.1"
+            text = re.sub(r'(\d) \.(\d)', r'\1.\2', text)    # "0 .1" → "0.1"
         # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
