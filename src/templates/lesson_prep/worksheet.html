@@ -84,9 +84,15 @@
         .answer-box {
             border: 1px dashed #bdc3c7;
             border-radius: 4px;
-            min-height: 50px;
-            margin-top: 4px;
-            padding: 4px;
+            min-height: 80px;
+            margin-top: 6px;
+            padding: 6px;
+        }
+        .blank {
+            display: inline-block;
+            border-bottom: 1px solid #2c3e50;
+            min-width: 120px;
+            margin: 0 4px;
         }
         .answer-text {
             color: #27ae60;
@@ -133,9 +139,9 @@
         {% if show_answers %}<span class="badge teacher">نسخة المعلم</span>{% endif %}
         <h1>{{ data.get('worksheet_title', 'ورقة عمل') }}</h1>
         <div class="header-info">
-            <span>المقرر: {{ data.get('course_name', '') }}</span>
-            <span>الوحدة: {{ data.get('unit_name', '') }}</span>
-            <span>الدرس: {{ data.get('lesson_name', '') }}</span>
+            <span>المقرر: <strong>{{ data.get('course_name', '___________') }}</strong></span>
+            <span>الوحدة: <strong>{{ data.get('unit_name', '___________') }}</strong></span>
+            <span>الدرس: <strong>{{ data.get('lesson_name', '___________') }}</strong></span>
         </div>
         {% if not show_answers %}
         <div style="margin-top:8px; text-align:right; font-size:11px;">
@@ -199,7 +205,7 @@
             </div>
             <div class="answer-text">الإجابة: {{ q.get('answer', '') | chem }}</div>
             {% else %}
-            <div class="answer-box"></div>
+            <div class="answer-box" style="min-height:100px"></div>
             {% endif %}
         </div>
         {% endfor %}
