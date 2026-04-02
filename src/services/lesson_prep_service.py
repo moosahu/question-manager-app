@@ -936,7 +936,7 @@ class LessonPrepService:
         def _apply_chem_markup(m):
             inner = m.group(1)
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
-            inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
+            inner = re.sub(r'(?<=[A-Z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
             return f'<bdi dir="ltr">{inner}</bdi>'
         text = re.sub(r'<bdi dir="ltr">(.*?)</bdi>', _apply_chem_markup, text, flags=re.DOTALL)
         return text
