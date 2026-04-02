@@ -913,6 +913,21 @@ class LessonPrepService:
         return None
 
     @staticmethod
+    def _deep_apply_chem(data):
+        """تطبيق _chem_html على جميع النصوص في البنية (dict/list/str) بشكل متكرر"""
+        from markupsafe import Markup
+        if isinstance(data, str):
+            stripped = data.strip()
+            if stripped.startswith('<'):   # تخطي محتوى HTML/SVG جاهز
+                return data
+            return Markup(LessonPrepService._chem_html(data))
+        elif isinstance(data, dict):
+            return {k: LessonPrepService._deep_apply_chem(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [LessonPrepService._deep_apply_chem(item) for item in data]
+        return data
+
+    @staticmethod
     def _chem_html(text):
         """تحويل النص الكيميائي إلى HTML مع superscript/subscript وإصلاح BiDi"""
         import re
@@ -920,12 +935,14 @@ class LessonPrepService:
             return text or ''
         # السهم
         text = text.replace('->', '→')
-        # 0. تنظيف الأرقام المتباعدة: "0 . 1 8 4" → "0.184", "1 0" → "10"
-        for _ in range(6):
+        # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة
+        for _ in range(8):
             text = re.sub(r'(\d) (\d)', r'\1\2', text)       # "1 0" → "10"
             text = re.sub(r'(\d) \. (\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
             text = re.sub(r'(\d)\. (\d)', r'\1.\2', text)    # "0. 1" → "0.1"
             text = re.sub(r'(\d) \.(\d)', r'\1.\2', text)    # "0 .1" → "0.1"
+            text = re.sub(r'([A-Za-z]) (\d)', r'\1\2', text) # "H 2" → "H2", "CH 4" → "CH4"
+            text = re.sub(r'(\d) ([\+\-])', r'\1\2', text)   # "2 +" → "2+", "3 -" → "3-"
         # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
@@ -1149,6 +1166,8 @@ class LessonPrepService:
                 return result
             app.jinja_env.filters['chem'] = chem_filter
 
+            # تطبيق _chem_html على جميع النصوص في بيانات التحضير قبل الرندر
+            plan_data = LessonPrepService._deep_apply_chem(plan_data)
             lesson_info = plan_data.get('lesson_info', {})
             context = {
                 'plan_data': plan_data,
