@@ -9,19 +9,23 @@
     margin: 12mm 12mm 15mm 12mm;
     @bottom-center {
       content: "صفحة " counter(page) " من " counter(pages);
-      font-family: Tahoma, Arial, sans-serif;
+      font-family: 'Cairo', Arial, sans-serif;
       font-size: 8pt;
       color: #64748b;
     }
   }
 
   @font-face {
+    font-family: 'Cairo';
+    src: url('fonts/Cairo-Regular.ttf');
+  }
+  @font-face {
     font-family: 'NotoColorEmoji';
     src: url('fonts/NotoColorEmoji-Regular.ttf');
   }
 
   * {
-    font-family: Tahoma, Arial, 'Traditional Arabic', 'NotoColorEmoji', sans-serif;
+    font-family: 'Cairo', Arial, 'NotoColorEmoji', sans-serif;
     box-sizing: border-box;
     margin: 0; padding: 0;
   }
