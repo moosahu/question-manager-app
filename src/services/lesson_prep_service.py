@@ -935,14 +935,16 @@ class LessonPrepService:
             return text or ''
         # السهم
         text = text.replace('->', '→')
+        # توحيد أنواع المسافات (non-breaking space وغيرها) إلى مسافة عادية
+        text = re.sub(r'[\u00a0\u202f\u2009\u2007\u2008\u200b]', ' ', text)
         # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة
         for _ in range(8):
-            text = re.sub(r'(\d) (\d)', r'\1\2', text)       # "1 0" → "10"
-            text = re.sub(r'(\d) \. (\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
-            text = re.sub(r'(\d)\. (\d)', r'\1.\2', text)    # "0. 1" → "0.1"
-            text = re.sub(r'(\d) \.(\d)', r'\1.\2', text)    # "0 .1" → "0.1"
-            text = re.sub(r'([A-Za-z]) (\d)', r'\1\2', text) # "H 2" → "H2", "CH 4" → "CH4"
-            text = re.sub(r'(\d) ([\+\-])', r'\1\2', text)   # "2 +" → "2+", "3 -" → "3-"
+            text = re.sub(r'(\d) +(\d)', r'\1\2', text)        # "1 0" أو "1  0" → "10"
+            text = re.sub(r'(\d) +\. +(\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
+            text = re.sub(r'(\d)\. +(\d)', r'\1.\2', text)     # "0. 1" → "0.1"
+            text = re.sub(r'(\d) +\.(\d)', r'\1.\2', text)     # "0 .1" → "0.1"
+            text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)  # "H 2" → "H2", "CH 4" → "CH4"
+            text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)    # "2 +" → "2+", "3 -" → "3-"
         # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
