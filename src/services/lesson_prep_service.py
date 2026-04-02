@@ -920,23 +920,20 @@ class LessonPrepService:
             return text or ''
         # السهم
         text = text.replace('->', '→')
-        # Superscript: ^n, ^2, ^m, ^2+, ^1-
-        text = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', text)
-        # Subscript: رقم بعد حرف لاتيني أو ) أو ]
-        text = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', text)
-        # إصلاح BiDi: لف المحتوى غير العربي بـ <bdi dir="ltr"> (تجاهل HTML tags)
-        parts = re.split(r'(<[^>]+>)', text)
-        result = []
-        for i, part in enumerate(parts):
-            if i % 2 == 1:  # HTML tag — اتركه كما هو
-                result.append(part)
-            else:  # نص عادي — لف اللاتيني
-                result.append(re.sub(
-                    r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-                    r'<bdi dir="ltr">\1</bdi>',
-                    part
-                ))
-        return ''.join(result)
+        # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
+        text = re.sub(
+            r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
+            r'<bdi dir="ltr">\1</bdi>',
+            text
+        )
+        # 2. Superscript و Subscript داخل <bdi> فقط — يضمن بقاء المعادلة كاملة في LTR
+        def _apply_chem_markup(m):
+            inner = m.group(1)
+            inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
+            inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
+            return f'<bdi dir="ltr">{inner}</bdi>'
+        text = re.sub(r'<bdi dir="ltr">(.*?)</bdi>', _apply_chem_markup, text, flags=re.DOTALL)
+        return text
 
     # ─────────────────────────────────────────────────────────────
     # مولّد الرسوم البيانية SVG
