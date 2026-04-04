@@ -1950,7 +1950,13 @@ def edit_question(question_id):
             elif 'video_url' in request.form and not video_url_form:
                 question.video_url = None
                 question.video_status = 'none'
-            
+            r2_url_form = request.form.get("r2_video_url", "").strip()
+            if r2_url_form:
+                question.r2_video_url = r2_url_form
+                question.video_status = 'ready'
+            elif 'r2_video_url' in request.form and not r2_url_form:
+                question.r2_video_url = None
+
             # Track existing options to determine which to delete
             existing_option_ids = {opt.option_id for opt in question.options}
             updated_option_ids = set()
