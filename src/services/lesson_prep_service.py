@@ -951,17 +951,19 @@ class LessonPrepService:
             text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)       # "x 10" → "x10"
             text = re.sub(r'(\d) +([xX×])', r'\1\2', text)       # "1 x" → "1x"
 
-        # 1. لف كل محتوى غير عربي في span dir=ltr
-        _SPAN = 'direction:ltr;unicode-bidi:isolate;white-space:nowrap'
+        # 1. لف كل محتوى غير عربي في span dir=ltr مع LRI/PDI
+        # unicode-bidi CSS مرفوض من WeasyPrint، نستخدم أحرف Unicode مباشرة:
+        # U+2066 = LRI (Left-to-Right Isolate)، U+2069 = PDI (Pop Directional Isolate)
+        _SPAN = 'white-space:nowrap'
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
+            lambda m: f'<span dir="ltr" style="{_SPAN}">\u2066{m.group(1)}\u2069</span>',
             text
         )
 
         # 2. تطبيق superscript و subscript داخل كل span
         def _apply_chem_markup(m):
-            inner = m.group(1)
+            inner = m.group(1)  # يتضمن \u2066 في البداية و \u2069 في النهاية
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
             inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
             return f'<span dir="ltr" style="{_SPAN}">{inner}</span>'
