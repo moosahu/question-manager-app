@@ -73,13 +73,32 @@
         .q-text {
             font-size: 12px;
         }
+        /* أسئلة الاختيار: عمودان */
+        .mc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 12px;
+        }
+        .mc-question {
+            border: 1px solid #d5e8f7;
+            border-radius: 6px;
+            padding: 6px 8px;
+            background: #f8fbff;
+            break-inside: avoid;
+        }
+        /* الخيارات: شبكة 2×2 */
         .options {
             margin-top: 4px;
-            padding-right: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px 6px;
         }
         .option {
-            margin-bottom: 3px;
-            font-size: 11px;
+            font-size: 10.5px;
+            padding: 1px 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         bdi {
             white-space: nowrap;
@@ -176,15 +195,18 @@
     </div>
     {% endif %}
 
-    <!-- ثانياً: أسئلة الاختيار -->
+    <!-- ثانياً: أسئلة الاختيار - عمودان -->
     {% if data.get('multiple_choice') %}
     {% set ar_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
     <div class="section">
         <div class="section-title">السؤال الثاني: اختر الإجابة الصحيحة</div>
+        <div class="mc-grid">
         {% for q in data.get('multiple_choice', []) %}
-        <div class="question">
-            <span class="q-num">{{ loop.index }}.</span>
-            <span class="q-text">{{ q.get('question', '') | chem }}</span>
+        <div class="mc-question">
+            <div style="margin-bottom:3px;">
+                <span class="q-num">{{ loop.index }}.</span>
+                <span class="q-text">{{ q.get('question', '') | chem }}</span>
+            </div>
             <div class="options">
                 {% for opt in q.get('options', []) %}
                 {% set opt_clean = opt | string %}
@@ -196,6 +218,7 @@
             </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
 
