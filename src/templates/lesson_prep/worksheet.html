@@ -81,6 +81,10 @@
             margin-bottom: 3px;
             font-size: 11px;
         }
+        bdi {
+            white-space: nowrap;
+            unicode-bidi: isolate;
+        }
         .option.correct {
             color: #27ae60;
             font-weight: bold;
@@ -174,6 +178,7 @@
 
     <!-- ثانياً: أسئلة الاختيار -->
     {% if data.get('multiple_choice') %}
+    {% set ar_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
     <div class="section">
         <div class="section-title">السؤال الثاني: اختر الإجابة الصحيحة</div>
         {% for q in data.get('multiple_choice', []) %}
@@ -182,9 +187,10 @@
             <span class="q-text">{{ q.get('question', '') | chem }}</span>
             <div class="options">
                 {% for opt in q.get('options', []) %}
+                {% set opt_clean = opt | string %}
+                {% set has_label = opt_clean.startswith('أ)') or opt_clean.startswith('ب)') or opt_clean.startswith('ج)') or opt_clean.startswith('د)') %}
                 <div class="option{% if show_answers and loop.index0 == q.get('correct_index', -1) %} correct{% endif %}">
-                    {{ opt | chem }}
-                    {% if show_answers and loop.index0 == q.get('correct_index', -1) %} ✓{% endif %}
+                    {% if not has_label %}{{ ar_letters[loop.index0] if loop.index0 < ar_letters|length else loop.index }})&nbsp;{% endif %}{{ opt | chem }}{% if show_answers and loop.index0 == q.get('correct_index', -1) %} ✓{% endif %}
                 </div>
                 {% endfor %}
             </div>

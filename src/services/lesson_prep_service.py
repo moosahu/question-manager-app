@@ -945,6 +945,22 @@ class LessonPrepService:
             text = re.sub(r'(\d) +\.(\d)', r'\1.\2', text)     # "0 .1" → "0.1"
             text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)  # "H 2" → "H2", "CH 4" → "CH4"
             text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)    # "2 +" → "2+", "3 -" → "3-"
+            text = re.sub(r'(\d) +\^', r'\1^', text)           # "10 ^" → "10^"
+            text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)    # "^ -9" → "^-9"
+            text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)     # "x 10" → "x10"
+        # لف الترميز العلمي بالكامل في span واحد لمنع تفككه بسبب BiDi
+        # مثال: "3.4 x10^-9" أو "3.4×10^-9" أو "3.4 × 10^-9"
+        text = re.sub(
+            r'(\d+\.?\d*)\s*[xX×]\s*(10\^[\+\-]?\d+)',
+            lambda m: f'<span dir="ltr" style="white-space:nowrap">{m.group(1)}×{m.group(2)}</span>',
+            text
+        )
+        # لف "= X.Y" في السياق العلمي
+        text = re.sub(
+            r'(Ksp|Kc|Ka|Kb|Kw|Keq|Qsp)\s*=\s*([0-9][^،,\s<]{1,30})',
+            lambda m: f'<span dir="ltr" style="white-space:nowrap">{m.group(1)} = {m.group(2)}</span>',
+            text
+        )
         # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
