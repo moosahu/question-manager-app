@@ -5,7 +5,7 @@
     <style>
         @page {
             size: A4;
-            margin: 12mm 10mm;
+            margin: 10mm 8mm;
         }
         @font-face {
             font-family: 'Cairo';
@@ -18,16 +18,16 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', Arial, 'NotoColorEmoji', sans-serif;
-            font-size: 12px;
+            font-size: 11.5px;
             color: #1a1a2e;
             direction: rtl;
-            line-height: 1.6;
+            line-height: 1.4;
         }
         .header {
             border: 2px solid #1a5276;
             border-radius: 8px;
-            padding: 10px 16px;
-            margin-bottom: 12px;
+            padding: 7px 14px;
+            margin-bottom: 10px;
             text-align: center;
         }
         .header h1 {
@@ -49,21 +49,21 @@
             text-align: center;
         }
         .section {
-            margin-bottom: 14px;
+            margin-bottom: 10px;
         }
         .section-title {
             background: #1a5276;
             color: white;
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: inline-block;
         }
         .question {
-            margin-bottom: 10px;
-            padding-right: 8px;
+            margin-bottom: 7px;
+            padding-right: 6px;
         }
         .q-num {
             font-weight: bold;
@@ -80,13 +80,13 @@
             flex-wrap: wrap;
             flex-direction: row;
             direction: rtl;
-            gap: 8px;
+            gap: 5px;
         }
         .mc-question {
-            width: calc(50% - 4px);
+            width: calc(50% - 3px);
             border: 1px solid #d5e8f7;
             border-radius: 6px;
-            padding: 6px 8px;
+            padding: 4px 7px;
             background: #f8fbff;
             break-inside: avoid;
             box-sizing: border-box;
@@ -105,6 +105,17 @@
             font-size: 10.5px;
             padding: 1px 2px;
             box-sizing: border-box;
+            display: -webkit-flex;
+            display: flex;
+            flex-direction: row;
+            direction: rtl;
+            align-items: flex-start;
+        }
+        .opt-label {
+            flex-shrink: 0;
+            margin-left: 3px;
+            font-weight: bold;
+            color: #1a5276;
         }
         bdi {
             white-space: nowrap;
@@ -117,9 +128,9 @@
         .answer-box {
             border: 1px dashed #bdc3c7;
             border-radius: 4px;
-            min-height: 80px;
-            margin-top: 6px;
-            padding: 6px;
+            min-height: 60px;
+            margin-top: 4px;
+            padding: 4px;
         }
         .blank {
             display: inline-block;
@@ -218,7 +229,8 @@
                 {% set opt_clean = opt | string %}
                 {% set has_label = opt_clean.startswith('أ)') or opt_clean.startswith('ب)') or opt_clean.startswith('ج)') or opt_clean.startswith('د)') %}
                 <div class="option{% if show_answers and loop.index0 == q.get('correct_index', -1) %} correct{% endif %}">
-                    {% if not has_label %}{{ ar_letters[loop.index0] if loop.index0 < ar_letters|length else loop.index }})&nbsp;{% endif %}{{ opt | chem }}{% if show_answers and loop.index0 == q.get('correct_index', -1) %} ✓{% endif %}
+                    <span class="opt-label">{{ ar_letters[loop.index0] if loop.index0 < ar_letters|length else loop.index }})</span>
+                    <span>{% if has_label %}{{ opt | replace('أ)', '') | replace('ب)', '') | replace('ج)', '') | replace('د)', '') | trim | chem }}{% else %}{{ opt | chem }}{% endif %}{% if show_answers and loop.index0 == q.get('correct_index', -1) %} ✓{% endif %}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -234,7 +246,7 @@
         <div class="section-title">السؤال الثالث: حل المسائل التالية</div>
         {% for q in data.get('calculations', []) %}
         {% set steps_count = q.get('steps', []) | length %}
-        {% set box_height = [120, steps_count * 28 + 80] | max %}
+        {% set box_height = [80, steps_count * 22 + 50] | max %}
         <div class="question">
             <span class="q-num">{{ loop.index }}.</span>
             <span class="q-text">{{ q.get('question', '') | chem }}</span>
@@ -247,8 +259,8 @@
             <div class="answer-text">الإجابة: {{ q.get('answer', '') | chem }}</div>
             {% else %}
             <div class="answer-box" style="min-height:{{ box_height }}px">
-                {% for i in range(steps_count + 2) %}
-                <div style="border-bottom:1px solid #e8e8e8; height:26px; margin-bottom:2px;"></div>
+                {% for i in range(steps_count + 1) %}
+                <div style="border-bottom:1px solid #e8e8e8; height:22px; margin-bottom:2px;"></div>
                 {% endfor %}
             </div>
             {% endif %}
@@ -268,9 +280,9 @@
             {% if show_answers %}
             <div class="answer-text">{{ q.get('answer', '') | chem }}</div>
             {% else %}
-            <div class="answer-box" style="min-height:130px">
-                {% for i in range(4) %}
-                <div style="border-bottom:1px solid #e8e8e8; height:26px; margin-bottom:2px;"></div>
+            <div class="answer-box" style="min-height:90px">
+                {% for i in range(3) %}
+                <div style="border-bottom:1px solid #e8e8e8; height:22px; margin-bottom:2px;"></div>
                 {% endfor %}
             </div>
             {% endif %}
