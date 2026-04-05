@@ -2157,6 +2157,17 @@ class LessonPrepService:
             }
 
             html_string = render_template('lesson_prep/worksheet.html', **context)
+
+            # DEBUG: حفظ HTML مؤقتاً لفحص ما يصل لـ WeasyPrint
+            try:
+                import tempfile
+                debug_path = f'/tmp/worksheet_debug_{plan_id}.html'
+                with open(debug_path, 'w', encoding='utf-8') as f:
+                    f.write(html_string)
+                logger.info(f"🔍 DEBUG HTML saved: {debug_path}")
+            except Exception:
+                pass
+
             base_url = os.path.join(os.getcwd(), 'src', 'static')
             pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
             return pdf_bytes
