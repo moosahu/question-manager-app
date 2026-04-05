@@ -2141,9 +2141,8 @@ class LessonPrepService:
             return False
 
     def _generate_worksheet_pdf(self, worksheet_data, show_answers=False):
-        """توليد PDF لورقة العمل"""
+        """توليد PDF لورقة العمل — يستخدم Playwright (Chromium) مثل الاختبار"""
         try:
-            from weasyprint import HTML
             from flask import render_template
             from jinja2 import pass_eval_context
             from markupsafe import Markup
@@ -2163,20 +2162,29 @@ class LessonPrepService:
             }
 
             html_string = render_template('lesson_prep/worksheet.html', **context)
+            base_url = f"file://{os.path.abspath(os.path.join(os.getcwd(), 'src'))}/"
 
-            # DEBUG: حفظ HTML مؤقتاً لفحص ما يصل لـ WeasyPrint
+            # Playwright (Chromium) — يدعم BiDi CSS كاملاً بخلاف WeasyPrint
             try:
-                import tempfile
-                debug_path = f'/tmp/worksheet_debug_{plan_id}.html'
-                with open(debug_path, 'w', encoding='utf-8') as f:
-                    f.write(html_string)
-                logger.info(f"🔍 DEBUG HTML saved: {debug_path}")
-            except Exception:
-                pass
-
-            base_url = os.path.join(os.getcwd(), 'src', 'static')
-            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
-            return pdf_bytes
+                from src.routes.exam_generator import _get_browser
+                browser = _get_browser()
+                ctx  = browser.new_context()
+                page = ctx.new_page()
+                page.set_content(html_string, base_url=base_url, wait_until='load')
+                pdf_bytes = page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
+                )
+                ctx.close()
+                logger.info(f"✅ ورقة العمل: Playwright ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
+            except Exception as e:
+                logger.warning(f"⚠️ Playwright فشل، fallback لـ WeasyPrint: {e}")
+                from weasyprint import HTML
+                base_url_wp = os.path.join(os.getcwd(), 'src', 'static')
+                pdf_bytes = HTML(string=html_string, base_url=base_url_wp).write_pdf()
+                return pdf_bytes
 
         except Exception as e:
             logger.error(f"خطأ في توليد PDF ورقة العمل: {e}")
