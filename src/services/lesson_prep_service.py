@@ -937,45 +937,41 @@ class LessonPrepService:
         text = text.replace('->', '→')
         # توحيد أنواع المسافات (non-breaking space وغيرها) إلى مسافة عادية
         text = re.sub(r'[\u00a0\u202f\u2009\u2007\u2008\u200b]', ' ', text)
-        # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة
+        # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة (على النص الخام فقط — قبل أي HTML)
         for _ in range(8):
-            text = re.sub(r'(\d) +(\d)', r'\1\2', text)        # "1 0" أو "1  0" → "10"
+            text = re.sub(r'(\d) +(\d)', r'\1\2', text)        # "1 0" → "10"
             text = re.sub(r'(\d) +\. +(\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
             text = re.sub(r'(\d)\. +(\d)', r'\1.\2', text)     # "0. 1" → "0.1"
             text = re.sub(r'(\d) +\.(\d)', r'\1.\2', text)     # "0 .1" → "0.1"
-            text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)  # "H 2" → "H2", "CH 4" → "CH4"
-            text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)    # "2 +" → "2+", "3 -" → "3-"
+            text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)  # "H 2" → "H2"
+            text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)    # "2 +" → "2+"
             text = re.sub(r'(\d) +\^', r'\1^', text)           # "10 ^" → "10^"
             text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)    # "^ -9" → "^-9"
             text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)     # "x 10" → "x10"
-        # لف الترميز العلمي بالكامل في span واحد لمنع تفككه بسبب BiDi
-        # مثال: "3.4 x10^-9" أو "3.4×10^-9" أو "3.4 × 10^-9"
-        text = re.sub(
-            r'(\d+\.?\d*)\s*[xX×]\s*(10\^[\+\-]?\d+)',
-            lambda m: f'<span dir="ltr" style="white-space:nowrap">{m.group(1)}×{m.group(2)}</span>',
-            text
-        )
-        # لف "= X.Y" في السياق العلمي
-        text = re.sub(
-            r'(Ksp|Kc|Ka|Kb|Kw|Keq|Qsp)\s*=\s*([0-9][^،,\s<]{1,30})',
-            lambda m: f'<span dir="ltr" style="white-space:nowrap">{m.group(1)} = {m.group(2)}</span>',
-            text
-        )
-        # 1. إصلاح BiDi أولاً على النص الخام: لف المحتوى غير العربي بـ <bdi dir="ltr">
+
+        # 1. لف كل محتوى غير عربي في <span dir="ltr"> واحد متصل
+        #    يضمن أن كل رقم وصيغة ومعادلة تُعرض LTR بشكل صحيح في WeasyPrint
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            r'<bdi dir="ltr">\1</bdi>',
+            r'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">\1</span>',
             text
         )
-        # 2. Superscript و Subscript داخل <bdi> فقط — يضمن بقاء المعادلة كاملة في LTR
+
+        # 2. تطبيق superscript و subscript داخل كل span — بعد الـ wrapping
         def _apply_chem_markup(m):
             inner = m.group(1)
             # أسس: 10^-9 → 10<sup>-9</sup>
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
-            # أرقام سفلية: بعد أي حرف أو قوس — يشمل Na2، Ca3، Al(OH)3
+            # أرقام سفلية: بعد أي حرف أو قوس — Na2، CaCO3، Al(OH)3
             inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
-            return f'<bdi dir="ltr">{inner}</bdi>'
-        text = re.sub(r'<bdi dir="ltr">(.*?)</bdi>', _apply_chem_markup, text, flags=re.DOTALL)
+            return f'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">{inner}</span>'
+
+        text = re.sub(
+            r'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">(.*?)</span>',
+            _apply_chem_markup,
+            text,
+            flags=re.DOTALL
+        )
         return text
 
     # ─────────────────────────────────────────────────────────────
