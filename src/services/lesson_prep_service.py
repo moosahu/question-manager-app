@@ -949,11 +949,19 @@ class LessonPrepService:
             text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)    # "^ -9" → "^-9"
             text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)     # "x 10" → "x10"
 
-        # 1. لف كل محتوى غير عربي في <span dir="ltr"> واحد متصل
-        #    يضمن أن كل رقم وصيغة ومعادلة تُعرض LTR بشكل صحيح في WeasyPrint
+        # 1. لف كل محتوى غير عربي في span مع Unicode LTR characters مباشرةً
+        #    \u202a = LTR Embedding, \u202c = Pop Directional Formatting
+        #    هذه الحروف تعمل على مستوى Unicode مستقلة عن CSS وتضمن عرض صحيح في WeasyPrint
+        LTR_OPEN = '\u202a'
+        LTR_CLOSE = '\u202c'
+
+        def _wrap_ltr(m):
+            return (f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
+                    f'{LTR_OPEN}{m.group(1)}{LTR_CLOSE}</span>')
+
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">\1</span>',
+            _wrap_ltr,
             text
         )
 
@@ -964,10 +972,12 @@ class LessonPrepService:
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
             # أرقام سفلية: بعد أي حرف أو قوس — Na2، CaCO3، Al(OH)3
             inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
-            return f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">{inner}</span>'
+            return (f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
+                    f'{LTR_OPEN}{inner}{LTR_CLOSE}</span>')
 
         text = re.sub(
-            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">(.*?)</span>',
+            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
+            r'\u202a(.*?)\u202c</span>',
             _apply_chem_markup,
             text,
             flags=re.DOTALL
