@@ -970,8 +970,10 @@ class LessonPrepService:
         # 2. Superscript و Subscript داخل <bdi> فقط — يضمن بقاء المعادلة كاملة في LTR
         def _apply_chem_markup(m):
             inner = m.group(1)
+            # أسس: 10^-9 → 10<sup>-9</sup>
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
-            inner = re.sub(r'(?<=[A-Z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
+            # أرقام سفلية: بعد أي حرف أو قوس — يشمل Na2، Ca3، Al(OH)3
+            inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
             return f'<bdi dir="ltr">{inner}</bdi>'
         text = re.sub(r'<bdi dir="ltr">(.*?)</bdi>', _apply_chem_markup, text, flags=re.DOTALL)
         return text
@@ -1964,6 +1966,12 @@ class LessonPrepService:
 - الأسئلة متدرجة من السهل للصعب
 - استخدم مصطلحات كيميائية دقيقة
 - المسائل الحسابية تشمل خطوات الحل
+
+## قواعد كتابة الأرقام والصيغ الكيميائية (مهم جداً)
+- الأرقام العلوية (الأسس): استخدم ^ بدون مسافات، مثال: 10^-9 وليس 10 ^ -9
+- الترميز العلمي: اكتبه متصلاً بدون مسافات داخله، مثال: 3.4x10^-9
+- الصيغ الكيميائية: اكتب الأرقام السفلية مباشرة بعد الرمز بدون مسافة، مثال: CaCO3 وH2O وAl(OH)3 وليس CaCO₃
+- ثوابت الاتزان: اكتبها هكذا: Ksp = 3.4x10^-9 (متصلة بدون مسافات زائدة)
 """
 
             if is_unit:
