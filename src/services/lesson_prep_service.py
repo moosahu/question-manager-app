@@ -938,46 +938,36 @@ class LessonPrepService:
         # توحيد أنواع المسافات (non-breaking space وغيرها) إلى مسافة عادية
         text = re.sub(r'[\u00a0\u202f\u2009\u2007\u2008\u200b]', ' ', text)
         # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة (على النص الخام فقط — قبل أي HTML)
-        for _ in range(8):
-            text = re.sub(r'(\d) +(\d)', r'\1\2', text)        # "1 0" → "10"
-            text = re.sub(r'(\d) +\. +(\d)', r'\1.\2', text)   # "0 . 1" → "0.1"
-            text = re.sub(r'(\d)\. +(\d)', r'\1.\2', text)     # "0. 1" → "0.1"
-            text = re.sub(r'(\d) +\.(\d)', r'\1.\2', text)     # "0 .1" → "0.1"
-            text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)  # "H 2" → "H2"
-            text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)    # "2 +" → "2+"
-            text = re.sub(r'(\d) +\^', r'\1^', text)           # "10 ^" → "10^"
-            text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)    # "^ -9" → "^-9"
-            text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)     # "x 10" → "x10"
+        for _ in range(10):
+            text = re.sub(r'(\d) +(\d)', r'\1\2', text)          # "1 0" → "10"
+            text = re.sub(r'(\d) +\. +(\d)', r'\1.\2', text)     # "0 . 1" → "0.1"
+            text = re.sub(r'(\d)\. +(\d)', r'\1.\2', text)       # "0. 1" → "0.1"
+            text = re.sub(r'(\d) +\.(\d)', r'\1.\2', text)       # "0 .1" → "0.1"
+            text = re.sub(r'([A-Za-z]) +(\d)', r'\1\2', text)    # "H 2" → "H2"
+            text = re.sub(r'(\d) +([\+\-])', r'\1\2', text)      # "2 +" → "2+"
+            text = re.sub(r'([\+\-]) +(\d)', r'\1\2', text)      # "+ 9" → "+9" و "- 9" → "-9"
+            text = re.sub(r'(\d) +\^', r'\1^', text)             # "10 ^" → "10^"
+            text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)      # "^ -9" → "^-9"
+            text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)       # "x 10" → "x10"
+            text = re.sub(r'(\d) +([xX×])', r'\1\2', text)       # "1 x" → "1x"
 
-        # 1. لف كل محتوى غير عربي في span مع Unicode LTR characters مباشرةً
-        #    \u202a = LTR Embedding, \u202c = Pop Directional Formatting
-        #    هذه الحروف تعمل على مستوى Unicode مستقلة عن CSS وتضمن عرض صحيح في WeasyPrint
-        LTR_OPEN = '\u202a'
-        LTR_CLOSE = '\u202c'
-
-        def _wrap_ltr(m):
-            return (f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
-                    f'{LTR_OPEN}{m.group(1)}{LTR_CLOSE}</span>')
-
+        # 1. لف كل محتوى غير عربي في span dir=ltr
+        _SPAN = 'direction:ltr;unicode-bidi:bidi-override;white-space:nowrap'
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            _wrap_ltr,
+            lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
             text
         )
 
-        # 2. تطبيق superscript و subscript داخل كل span — بعد الـ wrapping
+        # 2. تطبيق superscript و subscript داخل كل span
         def _apply_chem_markup(m):
             inner = m.group(1)
-            # أسس: 10^-9 → 10<sup>-9</sup>
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
-            # أرقام سفلية: بعد أي حرف أو قوس — Na2، CaCO3، Al(OH)3
             inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
-            return (f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
-                    f'{LTR_OPEN}{inner}{LTR_CLOSE}</span>')
+            return f'<span dir="ltr" style="{_SPAN}">{inner}</span>'
 
         text = re.sub(
-            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">'
-            r'\u202a(.*?)\u202c</span>',
+            r'<span dir="ltr" style="' + re.escape(_SPAN) + r'">(.*?)</span>',
             _apply_chem_markup,
             text,
             flags=re.DOTALL
