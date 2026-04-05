@@ -937,6 +937,11 @@ class LessonPrepService:
         text = text.replace('->', '→')
         # توحيد أنواع المسافات (non-breaking space وغيرها) إلى مسافة عادية
         text = re.sub(r'[\u00a0\u202f\u2009\u2007\u2008\u200b]', ' ', text)
+
+        # أ. حوّل x/X المحاطة بأرقام إلى × (رمز الضرب) قبل أي معالجة
+        # هذا يمنع x من الالتصاق بـ 10 وتحويلها لـ subscript خطأ
+        text = re.sub(r'(?<=[\d.])\s*[xX]\s*(?=[\d])', '×', text)
+
         # 0. تنظيف الأرقام والصيغ الكيميائية المتباعدة (على النص الخام فقط — قبل أي HTML)
         for _ in range(10):
             text = re.sub(r'(\d) +(\d)', r'\1\2', text)          # "1 0" → "10"
@@ -948,24 +953,25 @@ class LessonPrepService:
             text = re.sub(r'([\+\-]) +(\d)', r'\1\2', text)      # "+ 9" → "+9" و "- 9" → "-9"
             text = re.sub(r'(\d) +\^', r'\1^', text)             # "10 ^" → "10^"
             text = re.sub(r'\^ +([\+\-]?\d)', r'^\1', text)      # "^ -9" → "^-9"
-            text = re.sub(r'([xX×]) +(\d)', r'\1\2', text)       # "x 10" → "x10"
-            text = re.sub(r'(\d) +([xX×])', r'\1\2', text)       # "1 x" → "1x"
+            text = re.sub(r'(×) +(\d)', r'\1\2', text)           # "× 10" → "×10"
+            text = re.sub(r'(\d) +(×)', r'\1\2', text)           # "1 ×" → "1×"
 
-        # 1. لف كل محتوى غير عربي في span dir=ltr مع LRI/PDI
-        # unicode-bidi CSS مرفوض من WeasyPrint، نستخدم أحرف Unicode مباشرة:
-        # U+2066 = LRI (Left-to-Right Isolate)، U+2069 = PDI (Pop Directional Isolate)
-        _SPAN = 'white-space:nowrap'
+        # 1. لف كل محتوى غير عربي في span inline-block dir=ltr
+        # display:inline-block مع direction:ltr يعمل في WeasyPrint لأنه block-level
+        # بخلاف inline الذي يحتاج unicode-bidi (غير مدعوم في WeasyPrint)
+        _SPAN = 'display:inline-block;direction:ltr;white-space:nowrap;vertical-align:baseline'
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            lambda m: f'<span dir="ltr" style="{_SPAN}">\u2066{m.group(1)}\u2069</span>',
+            lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
             text
         )
 
         # 2. تطبيق superscript و subscript داخل كل span
         def _apply_chem_markup(m):
-            inner = m.group(1)  # يتضمن \u2066 في البداية و \u2069 في النهاية
+            inner = m.group(1)
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
-            inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
+            # subscript: رقم بعد حرف كيميائي — نستثني × لأنه ليس حرفاً
+            inner = re.sub(r'(?<=[A-WYZa-wyz\)\]])([\d]+)', r'<sub>\1</sub>', inner)
             return f'<span dir="ltr" style="{_SPAN}">{inner}</span>'
 
         text = re.sub(
