@@ -953,7 +953,7 @@ class LessonPrepService:
         #    يضمن أن كل رقم وصيغة ومعادلة تُعرض LTR بشكل صحيح في WeasyPrint
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            r'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">\1</span>',
+            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">\1</span>',
             text
         )
 
@@ -964,10 +964,10 @@ class LessonPrepService:
             inner = re.sub(r'\^([\w\+\-]+)', r'<sup>\1</sup>', inner)
             # أرقام سفلية: بعد أي حرف أو قوس — Na2، CaCO3، Al(OH)3
             inner = re.sub(r'(?<=[A-Za-z\)\]])([\d]+)', r'<sub>\1</sub>', inner)
-            return f'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">{inner}</span>'
+            return f'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">{inner}</span>'
 
         text = re.sub(
-            r'<span dir="ltr" style="unicode-bidi:embed;white-space:nowrap;display:inline-block">(.*?)</span>',
+            r'<span dir="ltr" style="direction:ltr;unicode-bidi:bidi-override;white-space:nowrap">(.*?)</span>',
             _apply_chem_markup,
             text,
             flags=re.DOTALL

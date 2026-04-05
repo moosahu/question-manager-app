@@ -121,6 +121,12 @@
             white-space: nowrap;
             unicode-bidi: isolate;
         }
+        span[dir="ltr"] {
+            direction: ltr;
+            unicode-bidi: bidi-override;
+            white-space: nowrap;
+            display: inline;
+        }
         .option.correct {
             color: #27ae60;
             font-weight: bold;
