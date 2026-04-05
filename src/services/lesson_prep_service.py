@@ -952,7 +952,7 @@ class LessonPrepService:
             text = re.sub(r'(\d) +([xX×])', r'\1\2', text)       # "1 x" → "1x"
 
         # 1. لف كل محتوى غير عربي في span dir=ltr
-        _SPAN = 'direction:ltr;unicode-bidi:bidi-override;white-space:nowrap'
+        _SPAN = 'direction:ltr;unicode-bidi:isolate;white-space:nowrap'
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
             lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
