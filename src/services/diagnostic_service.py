@@ -310,7 +310,7 @@ class DiagnosticService:
         test_type: str = 'pre_test'
     ) -> List[Dict]:
         """توليد أسئلة بـ AI بناءً على منهج الكيمياء السعودي (آخر طبعة)"""
-        if not self.model:
+        if not self.client:
             return []
         
         try:
