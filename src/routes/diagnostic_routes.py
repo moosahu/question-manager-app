@@ -416,12 +416,15 @@ def export_pdf(test_id):
         include_answers = request.args.get('include_answers', 'false').lower() == 'true'
         columns = int(request.args.get('columns', 2))
         options_layout = request.args.get('layout', 'grid')
-        
+        font_family = request.args.get('font_family', 'cairo')
+
         # التحقق من القيم
         if columns not in [1, 2, 3]:
             columns = 2
         if options_layout not in ['vertical', 'horizontal', 'grid']:
             options_layout = 'grid'
+        if font_family not in ['traditional', 'cairo', 'tajawal', 'amiri', 'tahoma', 'scheherazade', 'noto']:
+            font_family = 'cairo'
         
         # جلب إعدادات الكليشة
         header_settings = {}
@@ -450,11 +453,12 @@ def export_pdf(test_id):
         
         # بناء HTML بالتنسيق المطلوب
         html_content = generate_diagnostic_html(
-            test, 
-            include_answers, 
+            test,
+            include_answers,
             header_settings,
             columns=columns,
-            options_layout=options_layout
+            options_layout=options_layout,
+            font_family=font_family,
         )
         
         # تحويل إلى PDF باستخدام WeasyPrint
@@ -485,7 +489,7 @@ def export_pdf(test_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def generate_diagnostic_html(test, include_answers=False, header_settings=None, columns=2, options_layout='grid'):
+def generate_diagnostic_html(test, include_answers=False, header_settings=None, columns=2, options_layout='grid', font_family='cairo'):
     """
     توليد HTML للاختبار التشخيصي بتنسيق احترافي
     
@@ -510,9 +514,26 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         column_width = "31%"
         questions_per_column = (len(questions) + 2) // 3
     
+    # تضمين الخط المختار بـ base64
+    from src.routes.exam_generator import _font_base64, _FONT_FILES
+    _FONT_CSS_NAMES = {
+        'traditional':  "'Traditional Arabic', Arial, sans-serif",
+        'cairo':        "'Cairo', Arial, sans-serif",
+        'tajawal':      "'Tajawal', Arial, sans-serif",
+        'amiri':        "'Amiri', Arial, sans-serif",
+        'tahoma':       "Tahoma, Arial, sans-serif",
+        'scheherazade': "'Scheherazade New', Arial, sans-serif",
+        'noto':         "'Noto Naskh Arabic', Arial, sans-serif",
+    }
+    font_css_name = _FONT_CSS_NAMES.get(font_family, _FONT_CSS_NAMES['cairo'])
+    font_filename = _FONT_FILES.get(font_family, _FONT_FILES['cairo'])[0]
+    font_b64 = _font_base64(font_filename)
+    font_face_css = f"@font-face {{ font-family: '{font_css_name.split(',')[0].strip(chr(39))}'; src: url('{font_b64}'); }}" if font_b64 else ''
+
     # CSS للتنسيق الاحترافي
     css = f"""
     <style>
+        {font_face_css}
         @page {{
             size: A4;
             margin: 1cm;
@@ -521,7 +542,7 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
             box-sizing: border-box;
         }}
         body {{
-            font-family: 'Traditional Arabic', 'Arial', 'Tahoma', sans-serif;
+            font-family: {font_css_name};
             direction: rtl;
             text-align: right;
             font-size: 12px;

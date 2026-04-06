@@ -813,7 +813,20 @@
                         <option value="">-- اختر اختبار --</option>
                     </select>
                 </div>
-                
+
+                <div class="form-group">
+                    <label>نوع الخط</label>
+                    <select class="form-control" id="export_font_family">
+                        <option value="cairo">Cairo (افتراضي)</option>
+                        <option value="traditional">Traditional Arabic</option>
+                        <option value="tajawal">Tajawal</option>
+                        <option value="amiri">Amiri</option>
+                        <option value="tahoma">Tahoma</option>
+                        <option value="scheherazade">Scheherazade</option>
+                        <option value="noto">Noto Naskh Arabic</option>
+                    </select>
+                </div>
+
                 <div style="display: flex; gap: 0.5rem;">
                     <button class="btn btn-success" style="flex: 1;" onclick="exportPDF(false)">
                         <span>📄</span> ورقة الأسئلة
@@ -1468,11 +1481,12 @@
     };
     
     // ===== Download PDF =====
-    window.downloadPDF = function(testId, includeAnswers) {
-        const url = `${API_BASE}/tests/${testId}/pdf?include_answers=${includeAnswers}`;
+    window.downloadPDF = function(testId, includeAnswers, fontFamily) {
+        const font = fontFamily || 'cairo';
+        const url = `${API_BASE}/tests/${testId}/pdf?include_answers=${includeAnswers}&font_family=${font}`;
         window.open(url, '_blank');
     };
-    
+
     // ===== Export PDF from dropdown =====
     window.exportPDF = function(includeAnswers) {
         const testId = document.getElementById('export_test_id').value;
@@ -1480,7 +1494,8 @@
             showAlert('يرجى اختيار اختبار أولاً', 'error');
             return;
         }
-        downloadPDF(testId, includeAnswers);
+        const fontFamily = document.getElementById('export_font_family').value;
+        downloadPDF(testId, includeAnswers, fontFamily);
     };
     
     // ===== Delete Test =====
