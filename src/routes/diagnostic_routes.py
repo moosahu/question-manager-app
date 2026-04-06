@@ -1403,8 +1403,8 @@ def assign_test():
         
         # تحديث الاختبار
         test.is_scheduled = True
-        test.scheduled_start = convert_saudi_to_utc(scheduled_start)
-        test.scheduled_end = convert_saudi_to_utc(scheduled_end)
+        test.scheduled_start = convert_saudi_to_utc(scheduled_start) if scheduled_start else None
+        test.scheduled_end = convert_saudi_to_utc(scheduled_end) if scheduled_end else None
         test.assigned_students = student_ids_list
         test.time_limit_minutes = time_limit
         test.schedule_status = 'pending'
