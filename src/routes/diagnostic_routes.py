@@ -1364,9 +1364,9 @@ def assign_test():
         
         # تحضير قائمة الطلاب
         student_ids_list = []
-        
+
         if grade:
-            # ✅ طلاب صف دراسي محدد (أولوية عليا)
+            # طلاب صف دراسي محدد (أولوية عليا)
             students = Student.query.filter_by(is_active=True, grade=grade).all()
             student_ids_list = [s.id for s in students]
             print(f"✅ تم اختيار {len(student_ids_list)} طالب من الصف {grade}")
@@ -1375,6 +1375,16 @@ def assign_test():
             students = Student.query.filter_by(is_active=True).all()
             student_ids_list = [s.id for s in students]
             print(f"✅ تم اختيار جميع الطلاب: {len(student_ids_list)} طالب")
+        elif student_ids == 'my_students':
+            # طلابي — الطلاب المرتبطين بالأدمن الحالي
+            try:
+                from src.models.teacher_student import TeacherStudent
+                links = TeacherStudent.query.filter_by(admin_id=current_user.id).all()
+                student_ids_list = [lnk.student_id for lnk in links]
+                print(f"✅ طلابي (أدمن {current_user.id}): {len(student_ids_list)} طالب")
+            except Exception as e:
+                print(f"⚠️ خطأ في جلب طلابي: {e}")
+                student_ids_list = []
         else:
             # طلاب محددين
             student_ids_list = student_ids if isinstance(student_ids, list) else [student_ids]
@@ -1530,6 +1540,95 @@ def assign_test():
         db.session.rollback()
         print(f"❌ Error assigning test: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/teacher/assign', methods=['POST'])
+def teacher_assign_test():
+    """تعيين اختبار تشخيصي لطلاب المعلم المرتبطين به — يستخدم JWT Token"""
+    from src.middleware.auth_middleware import verify_teacher_token as _vtt
+    from src.models.teacher_student import TeacherStudent
+
+    # التحقق من توكن المعلم يدوياً (لأننا لا نستخدم decorator هنا)
+    import jwt as _jwt
+    token = None
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        token = auth.split(' ', 1)[1]
+    if not token:
+        return jsonify({'success': False, 'error': 'رمز المصادقة مطلوب'}), 401
+    try:
+        from flask import current_app
+        data = _jwt.decode(token, current_app.config['JWT_SECRET_KEY'],
+                           algorithms=[current_app.config['JWT_ALGORITHM']])
+        if data.get('user_type') != 'teacher':
+            return jsonify({'success': False, 'error': 'مخصص للمعلمين فقط'}), 403
+        teacher_id = data.get('teacher_id')
+    except _jwt.ExpiredSignatureError:
+        return jsonify({'success': False, 'error': 'انتهت صلاحية الرمز'}), 401
+    except _jwt.InvalidTokenError as e:
+        return jsonify({'success': False, 'error': str(e)}), 401
+
+    try:
+        body = request.get_json() or {}
+        test_id          = body.get('test_id')
+        time_limit       = body.get('time_limit_minutes', 30)
+        send_notif       = body.get('send_notification', True)
+        scheduled_start  = body.get('scheduled_start')
+        scheduled_end    = body.get('scheduled_end')
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        # جلب طلاب المعلم
+        links = TeacherStudent.query.filter_by(teacher_id=teacher_id).all()
+        student_ids_list = [lnk.student_id for lnk in links]
+
+        if not student_ids_list:
+            return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون بك بعد'}), 400
+
+        test.is_scheduled     = True
+        test.assigned_students = student_ids_list
+        test.time_limit_minutes = time_limit
+        test.schedule_status  = 'pending'
+        if scheduled_start:
+            test.scheduled_start = convert_saudi_to_utc(scheduled_start)
+        if scheduled_end:
+            test.scheduled_end = convert_saudi_to_utc(scheduled_end)
+        if hasattr(test, 'update_schedule_status'):
+            test.update_schedule_status()
+
+        db.session.commit()
+
+        # إشعارات FCM
+        if send_notif:
+            try:
+                students = Student.query.filter(Student.id.in_(student_ids_list), Student.is_active == True).all()
+                for s in students:
+                    if getattr(s, 'fcm_token', None):
+                        try:
+                            from src.services.fcm_service import send_fcm_notification
+                            send_fcm_notification(
+                                token=s.fcm_token,
+                                title='اختبار تشخيصي جديد',
+                                body=f'تم تعيين اختبار: {test.title}',
+                                data={'type': 'diagnostic_test', 'test_id': str(test.id)},
+                            )
+                        except Exception:
+                            pass
+            except Exception as e:
+                print(f"⚠️ FCM error: {e}")
+
+        return jsonify({
+            'success': True,
+            'message': f'تم تعيين الاختبار لـ {len(student_ids_list)} طالب',
+            'students_count': len(student_ids_list),
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ teacher_assign_test error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @diagnostic_bp.route('/student/assigned', methods=['GET', 'POST'])

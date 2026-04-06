@@ -860,6 +860,7 @@
                         <label>طريقة الإرسال</label>
                         <select class="form-control" id="schedule_send_type" onchange="updateStudentOptions()">
                             <option value="all">🌐 جميع الطلاب</option>
+                            <option value="my_students">👨‍🏫 طلابي فقط</option>
                             <option value="grade">🏛️ صف دراسي محدد</option>
                             <option value="students">👥 طلاب محددين</option>
                         </select>
@@ -1798,7 +1799,9 @@
         let studentIds = 'all';
         let grade = null;
         
-        if (sendType === 'grade') {
+        if (sendType === 'my_students') {
+            studentIds = 'my_students';
+        } else if (sendType === 'grade') {
             grade = document.getElementById('schedule_grade').value;
             if (!grade) {
                 alert('⚠️ يرجى اختيار الصف الدراسي');
