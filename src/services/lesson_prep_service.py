@@ -2190,9 +2190,9 @@ class LessonPrepService:
             try:
                 from src.routes.exam_generator import _get_browser
                 browser = _get_browser()
-                ctx  = browser.new_context()
+                ctx  = browser.new_context(base_url=f'file://{base_url}/')
                 page = ctx.new_page()
-                page.set_content(html_string, base_url=base_url, wait_until='load')
+                page.set_content(html_string, wait_until='load')
                 pdf_bytes = page.pdf(
                     format='A4',
                     print_background=True,
