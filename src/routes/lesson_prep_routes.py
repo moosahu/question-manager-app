@@ -564,6 +564,7 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
             course = Course.query.get(unit.course_id) if unit else None
 
             show_answers = request.args.get('show_answers', '1') != '0'
+            period_idx = request.args.get('period', type=int)  # حصة واحدة للوحدة
 
             if plan.plan_type == 'semester_distribution':
                 course = Course.query.get(plan.course_id) if plan.course_id else None
@@ -572,8 +573,14 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                     course.name if course else '',
                 )
             elif plan.plan_type == 'unit_distribution':
+                plan_data = plan.plan_data or {}
+                # فلترة حصة واحدة إذا طُلب
+                if period_idx is not None:
+                    all_periods = plan_data.get('periods', [])
+                    single = [p for p in all_periods if p.get('period_number') == period_idx + 1]
+                    plan_data = {**plan_data, 'periods': single}
                 pdf_bytes = lesson_prep_service._generate_unit_pdf(
-                    plan.plan_data or {},
+                    plan_data,
                     unit.name if unit else '',
                     course.name if course else '',
                     show_answers=show_answers,
