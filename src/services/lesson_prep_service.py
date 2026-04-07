@@ -956,10 +956,10 @@ class LessonPrepService:
             text = re.sub(r'(×) +(\d)', r'\1\2', text)           # "× 10" → "×10"
             text = re.sub(r'(\d) +(×)', r'\1\2', text)           # "1 ×" → "1×"
 
-        # 1. لف كل محتوى غير عربي في span inline-block dir=ltr
-        # display:inline-block مع direction:ltr يعمل في WeasyPrint لأنه block-level
-        # بخلاف inline الذي يحتاج unicode-bidi (غير مدعوم في WeasyPrint)
-        _SPAN = 'display:inline-block;direction:ltr;white-space:nowrap;vertical-align:baseline'
+        # 1. لف كل محتوى غير عربي في span dir=ltr
+        # inline + unicode-bidi:isolate يعمل في Playwright/Chromium (المُستخدَم الآن)
+        # WeasyPrint يتجاهل unicode-bidi لكنه fallback مقبول
+        _SPAN = 'display:inline;direction:ltr;unicode-bidi:isolate;white-space:nowrap;vertical-align:baseline'
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
             lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
