@@ -2005,6 +2005,13 @@ class LessonPrepService:
                     if pm:
                         lesson_pages_map[idx] = pm
 
+                # تهيئة قائمة فارغة في DB فوراً — Flutter يبدأ يشوف الأوراق تباعاً
+                init_data = dict(plan.plan_data or {})
+                init_data['period_worksheets'] = []
+                init_data['worksheet'] = {'done': False, 'count': 0, 'total': len(periods)}
+                plan.plan_data = init_data
+                db.session.commit()
+
                 period_worksheets = []
                 for pidx, period in enumerate(periods):
                     period_title = period.get('title', period.get('lesson_name', f'الحصة {pidx + 1}'))
@@ -2012,6 +2019,8 @@ class LessonPrepService:
                     cog = objs.get('cognitive', []) if isinstance(objs, dict) else []
                     eqs = period.get('equations', [])
                     activities = period.get('activities', [])
+
+                    _update_progress(plan_id, f"جاري توليد ورقة عمل الحصة {pidx+1} من {len(periods)}...")
 
                     # صور الكتاب لهذه الحصة (أقصى 3 صور)
                     p_images = []
@@ -2063,16 +2072,29 @@ class LessonPrepService:
                         'student_pdf_url': student_url,
                         'teacher_pdf_url': teacher_url,
                     })
+
+                    # ✅ احفظ في DB فوراً بعد كل حصة — Flutter يشوفها مباشرة
+                    try:
+                        db.session.refresh(plan)
+                        live_data = dict(plan.plan_data or {})
+                        live_data['period_worksheets'] = period_worksheets
+                        live_data['worksheet'] = {'done': False, 'count': len(period_worksheets), 'total': len(periods)}
+                        plan.plan_data = live_data
+                        db.session.commit()
+                    except Exception as _e:
+                        db.session.rollback()
+                        logger.warning(f"⚠️ فشل حفظ ورقة عمل حصة {pidx+1}: {_e}")
+
                     gc.collect()
                     logger.info(f"✅ ورقة عمل الحصة {pidx+1}/{len(periods)}: {period_title}")
 
                 if not period_worksheets:
                     raise Exception("فشل توليد أي ورقة عمل للوحدة")
 
+                # تحديث نهائي — mark as done
                 updated_data = dict(plan.plan_data or {})
                 updated_data['period_worksheets'] = period_worksheets
-                # backward compat: علامة أن أوراق العمل جاهزة
-                updated_data['worksheet'] = {'done': True, 'count': len(period_worksheets)}
+                updated_data['worksheet'] = {'done': True, 'count': len(period_worksheets), 'total': len(periods)}
                 plan.plan_data = updated_data
                 db.session.commit()
                 logger.info(f"✅ اكتملت أوراق عمل الوحدة #{plan_id}: {len(period_worksheets)} ورقة")
