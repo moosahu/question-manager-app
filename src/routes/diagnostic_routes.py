@@ -536,7 +536,19 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         {font_face_css}
         @page {{
             size: A4;
-            margin: 1cm;
+            margin: 1cm 1cm 1.5cm 1cm;
+            @bottom-center {{
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: {font_css_name};
+                font-size: 7pt;
+                color: #94a3b8;
+            }}
+            @bottom-left {{
+                content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
+                font-family: {font_css_name};
+                font-size: 7pt;
+                color: #94a3b8;
+            }}
         }}
         * {{
             box-sizing: border-box;

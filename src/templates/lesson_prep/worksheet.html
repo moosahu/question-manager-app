@@ -5,7 +5,19 @@
     <style>
         @page {
             size: A4;
-            margin: 10mm 8mm;
+            margin: 10mm 8mm 15mm 8mm;
+            @bottom-center {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Cairo', Arial, sans-serif;
+                font-size: 7pt;
+                color: #94a3b8;
+            }
+            @bottom-left {
+                content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
+                font-family: 'Cairo', Arial, sans-serif;
+                font-size: 7pt;
+                color: #94a3b8;
+            }
         }
         @font-face {
             font-family: 'Cairo';
