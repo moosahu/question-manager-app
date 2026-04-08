@@ -554,7 +554,11 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
         if not plan:
             return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
 
-        if not plan.pdf_file_url:
+        show_answers = request.args.get('show_answers', '1') != '0'
+        period_idx = request.args.get('period', type=int)  # حصة واحدة للوحدة
+
+        # لما يطلب حصة معينة، نولّد دائماً on-the-fly بغض النظر عن الـ cache
+        if not plan.pdf_file_url or period_idx is not None:
             # توليد PDF on-the-fly
             from src.services.lesson_prep_service import lesson_prep_service
             from src.models.curriculum import Lesson, Unit, Course
@@ -562,9 +566,6 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
             lesson = Lesson.query.get(plan.lesson_id)
             unit = Unit.query.get(lesson.unit_id) if lesson else None
             course = Course.query.get(unit.course_id) if unit else None
-
-            show_answers = request.args.get('show_answers', '1') != '0'
-            period_idx = request.args.get('period', type=int)  # حصة واحدة للوحدة
 
             if plan.plan_type == 'semester_distribution':
                 course = Course.query.get(plan.course_id) if plan.course_id else None
