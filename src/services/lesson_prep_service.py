@@ -1206,7 +1206,7 @@ class LessonPrepService:
                         c['diagram']['svg'] = svg
         return plan_data
 
-    def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name, show_answers=True):
+    def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name, show_answers=True, font_family='cairo'):
         """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
             from weasyprint import HTML
@@ -1234,6 +1234,7 @@ class LessonPrepService:
                 'unit_name': unit_name,
                 'course_name': course_name,
                 'show_answers': show_answers,
+                'font_family': font_family,
             }
 
             html_string = render_template('lesson_prep/lesson_plan.html', **context)
@@ -1249,7 +1250,7 @@ class LessonPrepService:
             traceback.print_exc()
             return None
 
-    def _generate_unit_pdf(self, plan_data, unit_name, course_name, show_answers=True):
+    def _generate_unit_pdf(self, plan_data, unit_name, course_name, show_answers=True, font_family='tahoma'):
         """توليد PDF لتوزيع الوحدة"""
         try:
             from weasyprint import HTML
@@ -1271,6 +1272,7 @@ class LessonPrepService:
                 'unit_name': unit_name,
                 'course_name': course_name,
                 'show_answers': show_answers,
+                'font_family': font_family,
             }
 
             html_string = render_template('lesson_prep/unit_distribution.html', **context)
@@ -2239,7 +2241,7 @@ class LessonPrepService:
             traceback.print_exc()
             return False
 
-    def _generate_worksheet_pdf(self, worksheet_data, show_answers=False):
+    def _generate_worksheet_pdf(self, worksheet_data, show_answers=False, font_family='cairo'):
         """توليد PDF لورقة العمل — يستخدم Playwright (Chromium) مثل الاختبار"""
         try:
             from flask import render_template
@@ -2258,6 +2260,7 @@ class LessonPrepService:
             context = {
                 'data': worksheet_data,
                 'show_answers': show_answers,
+                'font_family': font_family,
             }
 
             html_string = render_template('lesson_prep/worksheet.html', **context)

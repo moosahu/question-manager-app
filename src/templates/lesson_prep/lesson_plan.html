@@ -4,34 +4,45 @@
 <meta charset="UTF-8">
 <title>تحضير درس: {{ lesson_info.get('title', lesson_name) }}</title>
 <style>
-  @page {
-    size: A4;
-    margin: 12mm 12mm 15mm 12mm;
-    @bottom-center {
-      content: "صفحة " counter(page) " من " counter(pages);
-      font-family: 'Cairo', Arial, sans-serif;
-      font-size: 8pt;
-      color: #64748b;
-    }
-    @bottom-left {
-      content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
-      font-family: 'Cairo', Arial, sans-serif;
-      font-size: 7pt;
-      color: #94a3b8;
-    }
-  }
-
-  @font-face {
-    font-family: 'Cairo';
-    src: url('fonts/Cairo-Regular.ttf');
-  }
+  {% set sel_font = font_family or 'cairo' %}
+  {% if sel_font == 'amiri' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Regular.ttf'); font-weight: normal; }
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Bold.ttf'); font-weight: bold; }
+  {% elif sel_font == 'tajawal' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Tajawal-Regular.ttf'); }
+  {% elif sel_font == 'scheherazade' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/ScheherazadeNew-Regular.ttf'); }
+  {% elif sel_font == 'traditional' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/TraditionalArabic-Regular.ttf'); }
+  {% elif sel_font == 'tahoma' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Tahoma-Regular.ttf'); }
+  {% else %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Cairo-Regular.ttf'); }
+  {% endif %}
   @font-face {
     font-family: 'NotoColorEmoji';
     src: url('fonts/NotoColorEmoji-Regular.ttf');
   }
 
+  @page {
+    size: A4;
+    margin: 12mm 12mm 15mm 12mm;
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: 'SelectedFont', Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+    @bottom-left {
+      content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
+      font-family: 'SelectedFont', Arial, sans-serif;
+      font-size: 7pt;
+      color: #94a3b8;
+    }
+  }
+
   * {
-    font-family: 'Cairo', Arial, 'NotoColorEmoji', sans-serif;
+    font-family: 'SelectedFont', Arial, 'NotoColorEmoji', sans-serif;
     box-sizing: border-box;
     margin: 0; padding: 0;
     font-variant-numeric: tabular-nums;

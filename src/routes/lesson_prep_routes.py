@@ -556,9 +556,10 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
 
         show_answers = request.args.get('show_answers', '1') != '0'
         period_idx = request.args.get('period', type=int)  # حصة واحدة للوحدة
+        font_family = request.args.get('font_family', 'cairo')
 
-        # لما يطلب حصة معينة، نولّد دائماً on-the-fly بغض النظر عن الـ cache
-        if not plan.pdf_file_url or period_idx is not None:
+        # لما يطلب حصة معينة أو خط مخصص، نولّد دائماً on-the-fly
+        if not plan.pdf_file_url or period_idx is not None or font_family != 'cairo':
             # توليد PDF on-the-fly
             from src.services.lesson_prep_service import lesson_prep_service
             from src.models.curriculum import Lesson, Unit, Course
@@ -585,6 +586,7 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                     unit.name if unit else '',
                     course.name if course else '',
                     show_answers=show_answers,
+                    font_family=font_family,
                 )
             else:
                 pdf_bytes = lesson_prep_service._generate_pdf(
@@ -593,6 +595,7 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                     unit.name if unit else '',
                     course.name if course else '',
                     show_answers=show_answers,
+                    font_family=font_family,
                 )
             if pdf_bytes:
                 return send_file(
@@ -1164,8 +1167,43 @@ def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
         plan_data = plan.plan_data or {}
         ws_type = request.args.get('type', 'student')  # student | teacher
         period_str = request.args.get('period')  # اختياري - للوحدات
+        font_family = request.args.get('font_family', '')  # خط مخصص → يولّد on-the-fly
 
-        # وحدة: أوراق عمل متعددة (period_worksheets)
+        show_answers = ws_type == 'teacher'
+
+        # إذا طُلب خط مخصص → ولّد PDF on-the-fly من البيانات المخزّنة
+        if font_family:
+            from src.services.lesson_prep_service import lesson_prep_service
+            if period_str is not None:
+                # وحدة: ابحث عن بيانات الحصة المخزّنة
+                try:
+                    period_idx = int(period_str)
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'رقم الحصة غير صالح'}), 400
+                period_worksheets = plan_data.get('period_worksheets', [])
+                entry = next((p for p in period_worksheets if p.get('period_index') == period_idx), None)
+                ws_data = entry.get('data') if entry else None
+                filename = f"worksheet_{ws_type}_p{period_idx}_{plan_id}.pdf"
+            else:
+                ws_data = plan_data.get('worksheet')
+                filename = f"worksheet_{ws_type}_{plan_id}.pdf"
+
+            if not ws_data:
+                return jsonify({'success': False, 'error': 'بيانات ورقة العمل غير موجودة'}), 404
+
+            pdf_bytes = lesson_prep_service._generate_worksheet_pdf(
+                ws_data, show_answers=show_answers, font_family=font_family
+            )
+            if pdf_bytes:
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=filename,
+                )
+            return jsonify({'success': False, 'error': 'فشل توليد PDF'}), 500
+
+        # المسار الافتراضي: استخدم الـ URL المخزّن
         if period_str is not None:
             try:
                 period_idx = int(period_str)

@@ -4,30 +4,45 @@
 <meta charset="UTF-8">
 <title>توزيع وحدة: {{ unit_name }}</title>
 <style>
-  @page {
-    size: A4;
-    margin: 12mm 12mm 15mm 12mm;
-    @bottom-center {
-      content: "صفحة " counter(page) " من " counter(pages);
-      font-family: Tahoma, Arial, sans-serif;
-      font-size: 8pt;
-      color: #64748b;
-    }
-    @bottom-left {
-      content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
-      font-family: Tahoma, Arial, sans-serif;
-      font-size: 7pt;
-      color: #94a3b8;
-    }
-  }
-
+  {% set sel_font = font_family or 'tahoma' %}
+  {% if sel_font == 'amiri' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Regular.ttf'); font-weight: normal; }
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Bold.ttf'); font-weight: bold; }
+  {% elif sel_font == 'tajawal' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Tajawal-Regular.ttf'); }
+  {% elif sel_font == 'scheherazade' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/ScheherazadeNew-Regular.ttf'); }
+  {% elif sel_font == 'traditional' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/TraditionalArabic-Regular.ttf'); }
+  {% elif sel_font == 'cairo' %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Cairo-Regular.ttf'); }
+  {% else %}
+  @font-face { font-family: 'SelectedFont'; src: url('fonts/Tahoma-Regular.ttf'); }
+  {% endif %}
   @font-face {
     font-family: 'NotoColorEmoji';
     src: url('fonts/NotoColorEmoji-Regular.ttf');
   }
 
+  @page {
+    size: A4;
+    margin: 12mm 12mm 15mm 12mm;
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: 'SelectedFont', Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+    @bottom-left {
+      content: "تم إنشاؤه بواسطة تطبيق كيم تحصيلي";
+      font-family: 'SelectedFont', Arial, sans-serif;
+      font-size: 7pt;
+      color: #94a3b8;
+    }
+  }
+
   * {
-    font-family: Tahoma, Arial, 'Traditional Arabic', 'NotoColorEmoji', sans-serif;
+    font-family: 'SelectedFont', Arial, 'NotoColorEmoji', sans-serif;
     box-sizing: border-box;
     margin: 0; padding: 0;
   }

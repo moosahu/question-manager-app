@@ -19,17 +19,28 @@
                 color: #94a3b8;
             }
         }
-        @font-face {
-            font-family: 'Cairo';
-            src: url('fonts/Cairo-Regular.ttf');
-        }
+        {% set sel_font = font_family or 'cairo' %}
+        {% if sel_font == 'amiri' %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Regular.ttf'); font-weight: normal; }
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/Amiri-Bold.ttf'); font-weight: bold; }
+        {% elif sel_font == 'tajawal' %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/Tajawal-Regular.ttf'); }
+        {% elif sel_font == 'scheherazade' %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/ScheherazadeNew-Regular.ttf'); }
+        {% elif sel_font == 'traditional' %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/TraditionalArabic-Regular.ttf'); }
+        {% elif sel_font == 'tahoma' %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/Tahoma-Regular.ttf'); }
+        {% else %}
+        @font-face { font-family: 'SelectedFont'; src: url('fonts/Cairo-Regular.ttf'); }
+        {% endif %}
         @font-face {
             font-family: 'NotoColorEmoji';
             src: url('fonts/NotoColorEmoji-Regular.ttf');
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Cairo', Arial, 'NotoColorEmoji', sans-serif;
+            font-family: 'SelectedFont', Arial, 'NotoColorEmoji', sans-serif;
             font-size: 11.5px;
             color: #1a1a2e;
             direction: rtl;
