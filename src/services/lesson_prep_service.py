@@ -325,8 +325,9 @@ class LessonPrepService:
             page_mapping = LessonPages.query.filter_by(lesson_id=lesson.id).first()
 
             images = []
+            textbook_text = ""
             if page_mapping:
-                images = self._extract_pages_as_images(
+                images, textbook_text = self._extract_pages_with_text(
                     page_mapping.textbook.pdf_url,
                     page_mapping.start_page,
                     page_mapping.end_page,
@@ -346,6 +347,7 @@ class LessonPrepService:
                     'focus_area': plan.focus_area or 'شامل',
                     'examples_count': plan.examples_count or 5,
                 },
+                textbook_text=textbook_text,
             )
 
             # 3. إرسال للـ AI
@@ -521,27 +523,21 @@ class LessonPrepService:
             logger.warning(f"⚠️ فشل توليد خطة الدعم #{plan_id}: {type(e).__name__} - سيُكمل بدون خطة الدعم")
         return None
 
-    def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
-        """استخراج صفحات PDF كصور JPEG بدقة منخفضة لتوفير الذاكرة"""
-        images = []
+    def _download_pdf(self, pdf_url):
+        """تحميل PDF من URL أو ملف محلي — يُرجع bytes أو None"""
         try:
-            import fitz  # PyMuPDF
-
-            # تحميل PDF
+            import re as _re
             if pdf_url.startswith('http'):
                 if 'drive.google.com' in pdf_url:
-                    import re as _re
                     if '/file/d/' in pdf_url:
                         file_id = _re.search(r'/file/d/([a-zA-Z0-9_-]+)', pdf_url).group(1)
                     else:
                         file_id = _re.search(r'[?&]id=([a-zA-Z0-9_-]+)', pdf_url).group(1)
-                    
-                    # تحميل Google Drive مع معالجة صفحة تحذير الفيروسات
+
                     session = requests.Session()
                     download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                     resp = session.get(download_url, timeout=120)
-                    
-                    # إذا رجع HTML (صفحة تحذير) — استخرج confirm token
+
                     if b'%PDF' not in resp.content[:10]:
                         confirm = _re.search(r'confirm=([0-9A-Za-z_]+)', resp.text)
                         uuid = _re.search(r'uuid=([0-9A-Za-z_-]+)', resp.text)
@@ -551,53 +547,73 @@ class LessonPrepService:
                             download_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
                         logger.info(f"✅ Drive confirm URL → {download_url}")
                         resp = session.get(download_url, timeout=120)
-                    
+
                     resp.raise_for_status()
                     if b'%PDF' not in resp.content[:10]:
                         logger.error(f"❌ فشل تحميل PDF من Drive! (size={len(resp.content)})")
-                        return []
-                    pdf_bytes = resp.content
-                    logger.info(f"✅ تم تحميل PDF من Drive ({len(pdf_bytes)//1024}KB)")
+                        return None
+                    logger.info(f"✅ تم تحميل PDF من Drive ({len(resp.content)//1024}KB)")
+                    return resp.content
                 else:
                     resp = requests.get(pdf_url, timeout=120)
                     resp.raise_for_status()
-                    pdf_bytes = resp.content
+                    return resp.content
             else:
-                # ملف محلي
-                if os.path.isabs(pdf_url):
-                    filepath = pdf_url
-                else:
-                    filepath = os.path.join(os.getcwd(), pdf_url.lstrip('/'))
+                filepath = pdf_url if os.path.isabs(pdf_url) else os.path.join(os.getcwd(), pdf_url.lstrip('/'))
                 with open(filepath, 'rb') as f:
-                    pdf_bytes = f.read()
+                    return f.read()
+        except Exception as e:
+            logger.error(f"خطأ في تحميل PDF: {e}")
+            return None
+
+    def _extract_pages_with_text(self, pdf_url, start_page, end_page, scale=1.0):
+        """استخراج صفحات PDF كصور + نص مباشر في تحميل واحد فقط
+        يُرجع (images: list[bytes], text: str)
+        """
+        images = []
+        text_content = ""
+        try:
+            import fitz
+
+            pdf_bytes = self._download_pdf(pdf_url)
+            if not pdf_bytes:
+                return [], ""
 
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             del pdf_bytes
             gc.collect()
 
-            # تحويل من 1-based إلى 0-based
             actual_end = min(end_page, len(doc))
             for page_num in range(start_page - 1, actual_end):
                 page = doc[page_num]
+
+                # استخراج النص مباشرة (دقة 100%)
+                text_content += f"\n--- صفحة {page_num + 1} ---\n"
+                text_content += page.get_text()
+
+                # استخراج الصورة (للأشكال والرسوم)
                 mat = fitz.Matrix(scale, scale)
                 pix = page.get_pixmap(matrix=mat)
-                # ضغط JPEG بجودة 60% لتقليل حجم الصورة والذاكرة
-                img_bytes = pix.tobytes("jpeg")
-                images.append(img_bytes)
+                images.append(pix.tobytes("jpeg"))
                 del pix
-                gc.collect()  # تحرير بعد كل صفحة
+                gc.collect()
 
             doc.close()
             gc.collect()
             total_size = sum(len(img) for img in images)
-            logger.info(f"تم استخراج {len(images)} صفحة من PDF (scale={scale}, total={total_size//1024}KB)")
+            logger.info(f"✅ استخراج {len(images)} صفحة (scale={scale}, {total_size//1024}KB صور, {len(text_content)} حرف نص)")
 
         except Exception as e:
             logger.error(f"خطأ في استخراج صفحات PDF: {e}")
 
+        return images, text_content
+
+    def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
+        """استخراج صفحات PDF كصور فقط (wrapper للتوافق)"""
+        images, _ = self._extract_pages_with_text(pdf_url, start_page, end_page, scale)
         return images
 
-    def _build_prompt(self, lesson_name, unit_name, course_name, teacher_options):
+    def _build_prompt(self, lesson_name, unit_name, course_name, teacher_options, textbook_text=""):
         """بناء البرومبت الاحترافي للتحضير"""
         student_level = teacher_options.get('student_level', 'متفاوت')
         student_count = teacher_options.get('student_count', 30)
@@ -606,21 +622,26 @@ class LessonPrepService:
         focus = teacher_options.get('focus_area', 'شامل')
         examples = teacher_options.get('examples_count', 5)
 
+        # حقن النص المستخرج مباشرة من PDF
+        textbook_section = ""
+        if textbook_text and textbook_text.strip():
+            textbook_section = f"""## ═══ النص الكامل لصفحات الكتاب المدرسي (مستخرج مباشرة بدقة 100%) ═══
+{textbook_text.strip()}
+## ═══ نهاية نص الكتاب ═══
+
+**تعليمات حاسمة**: ما سبق هو النص الكامل للكتاب بدقة 100%. يجب أن يكون كل ما تكتبه في التحضير مستنداً إليه بالضبط:
+- استخدم أرقام الأشكال كما هي (مثل: الشكل 4-4)
+- استخدم درجات الحرارة والأرقام كما هي
+- استخدم الصيغ الجزيئية كما هي
+- استخدم أسئلة الكتاب الداخلية كما هي
+- الصور المرفقة للأشكال والرسوم البيانية فقط (لا تعتمد على الصور لقراءة النص)
+
+"""
+
         prompt = f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في المملكة العربية السعودية.
 
-## الخطوة الأولى - تحليل شامل لصفحات الكتاب (إلزامي)
-قبل كتابة أي شيء، افحص كل صورة مرفقة بعناية واستخرج منها:
-- **كل المفاهيم والتعريفات** المذكورة في الصفحات
-- **كل الأمثلة المحلولة** (لا تتجاهل أي مثال حتى لو كان بسيطاً)
-- **كل المعادلات الكيميائية والرياضية**
-- **كل الجداول والرسوم البيانية والمخططات**
-- **كل التمارين والأسئلة** في نهاية الدرس أو داخله
-- **كل المصطلحات العلمية الجديدة** المظللة أو بالخط العريض
-- **كل الملاحظات والتنبيهات** (مثل: تذكر، انتبه، ملاحظة)
-استخدم هذا المحتوى المستخرج بالكامل عند بناء التحضير أدناه.
-
-## المطلوب
-حضّر درساً احترافياً كاملاً بناءً على صفحات الكتاب المرفقة.
+{textbook_section}## المطلوب
+حضّر درساً احترافياً كاملاً بناءً على محتوى الكتاب أعلاه والصور المرفقة.
 
 ## معلومات الدرس
 - **المقرر**: {course_name}
@@ -1266,30 +1287,32 @@ class LessonPrepService:
             return None
 
     def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
-                                     course_name, unit_name, all_lessons_text):
+                                     course_name, unit_name, all_lessons_text, textbook_text=""):
         """بناء برومت لحصة واحدة فقط"""
+        textbook_section = ""
+        if textbook_text and textbook_text.strip():
+            textbook_section = f"""## ═══ النص الكامل لصفحات الكتاب المدرسي (مستخرج مباشرة بدقة 100%) ═══
+{textbook_text.strip()}
+## ═══ نهاية نص الكتاب ═══
+
+**تعليمات حاسمة**: ما سبق هو النص الكامل للكتاب بدقة 100%. يجب أن يكون كل ما تكتبه مستنداً إليه:
+- استخدم أرقام الأشكال كما هي (مثل: الشكل 4-4)
+- استخدم الأرقام والصيغ الجزيئية ودرجات الحرارة كما هي بالضبط
+- الصور المرفقة للأشكال والرسوم البيانية فقط
+
+"""
+
         return f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في السعودية.
 
-## المقرر: {course_name}
+{textbook_section}## المقرر: {course_name}
 ## الوحدة: {unit_name}
 ## دروس الوحدة: {all_lessons_text}
 ## الحصة رقم: {period_num} من {total_periods}
 ## الدرس: {lesson_name}
 ## عنوان الحصة: {title}
 
-## الخطوة الأولى - تحليل شامل لصفحات الكتاب (إلزامي)
-قبل كتابة أي شيء، افحص كل صورة مرفقة بعناية واستخرج منها:
-- **كل المفاهيم والتعريفات** المذكورة في الصفحات
-- **كل الأمثلة المحلولة** (لا تتجاهل أي مثال حتى لو كان بسيطاً)
-- **كل المعادلات الكيميائية والرياضية**
-- **كل الجداول والرسوم البيانية والمخططات** مع بياناتها الكاملة
-- **كل التمارين والأسئلة** في نهاية الدرس أو داخله
-- **كل المصطلحات العلمية الجديدة** المظللة أو بالخط العريض
-- **كل الملاحظات والتنبيهات** (مثل: تذكر، انتبه، ملاحظة)
-استخدم هذا المحتوى المستخرج بالكامل عند بناء التحضير أدناه.
-
 ## المطلوب
-أعد تحضيراً تفصيلياً كاملاً لهذه الحصة الواحدة فقط، مستنداً إلى محتوى الصفحات المرفقة.
+أعد تحضيراً تفصيلياً كاملاً لهذه الحصة الواحدة فقط، مستنداً إلى محتوى الكتاب أعلاه والصور المرفقة.
 
 أعد الرد بصيغة JSON لحصة واحدة فقط:
 ```json
@@ -1447,28 +1470,31 @@ class LessonPrepService:
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
             course_name = course.name if course else ''
 
-            # ── تحميل صور الكتاب لكل درس (مرة واحدة لتوفير الذاكرة) ──
+            # ── تحميل صور ونص الكتاب لكل درس (مرة واحدة لتوفير الذاكرة) ──
             _update_progress(plan_id, "جاري تحليل الكتاب المدرسي...")
             lesson_images_map = {}  # lesson.name → list of image bytes
+            lesson_text_map = {}    # lesson.name → str (النص المستخرج مباشرة)
             for lesson in lessons:
                 page_mapping = LessonPages.query.filter_by(lesson_id=lesson.id).first()
                 if page_mapping and page_mapping.textbook and page_mapping.textbook.pdf_url:
                     try:
-                        imgs = self._extract_pages_as_images(
+                        imgs, txt = self._extract_pages_with_text(
                             page_mapping.textbook.pdf_url,
                             page_mapping.start_page,
                             page_mapping.end_page,
-                            scale=1.0,  # جودة كاملة لضمان قراءة كل المحتوى
+                            scale=1.0,
                         )
                         if imgs:
                             lesson_images_map[lesson.name] = imgs
-                            logger.info(f"الوحدة #{plan_id}: ✅ {len(imgs)} صفحة لدرس '{lesson.name}'")
+                        if txt:
+                            lesson_text_map[lesson.name] = txt
+                        logger.info(f"الوحدة #{plan_id}: ✅ {len(imgs)} صفحة + {len(txt)} حرف نص لدرس '{lesson.name}'")
                     except Exception as img_err:
-                        logger.warning(f"الوحدة #{plan_id}: فشل صور درس '{lesson.name}': {img_err}")
+                        logger.warning(f"الوحدة #{plan_id}: فشل استخراج درس '{lesson.name}': {img_err}")
             if lesson_images_map:
-                logger.info(f"الوحدة #{plan_id}: تم تحميل صور {len(lesson_images_map)}/{len(lessons)} درس من الكتاب")
+                logger.info(f"الوحدة #{plan_id}: تم تحميل {len(lesson_images_map)}/{len(lessons)} درس من الكتاب")
             else:
-                logger.info(f"الوحدة #{plan_id}: لا توجد صور للكتاب - سيتم التوليد بالأسماء فقط")
+                logger.info(f"الوحدة #{plan_id}: لا توجد بيانات للكتاب - سيتم التوليد بالأسماء فقط")
 
             # ── الخطوة 1: توليد خطة الحصص (عناوين وتوزيع فقط) ──
             plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
@@ -1523,20 +1549,25 @@ class LessonPrepService:
                 _update_progress(plan_id, f"جاري توليد الحصة {period_num} من {total_periods}...")
                 logger.info(f"الوحدة #{plan_id}: توليد الحصة {period_num}/{total_periods} - {title}")
 
-                period_prompt = self._build_single_period_prompt(
-                    period_num, total_periods, lesson_name, title,
-                    course_name, unit.name, lessons_text
-                )
-
-                # البحث عن صور الدرس في الخريطة (exact match أولاً ثم partial)
+                # البحث عن صور ونص الدرس في الخريطة (exact match أولاً ثم partial)
                 period_images = lesson_images_map.get(lesson_name)
-                if not period_images and lesson_name:
-                    for name, imgs in lesson_images_map.items():
+                period_text = lesson_text_map.get(lesson_name, "")
+                if (not period_images or not period_text) and lesson_name:
+                    for name in lesson_images_map:
                         if lesson_name in name or name in lesson_name:
-                            period_images = imgs
+                            if not period_images:
+                                period_images = lesson_images_map[name]
+                            if not period_text:
+                                period_text = lesson_text_map.get(name, "")
                             break
                 if period_images:
-                    logger.info(f"الوحدة #{plan_id}: الحصة {period_num} - ترسل {len(period_images)} صورة من الكتاب")
+                    logger.info(f"الوحدة #{plan_id}: الحصة {period_num} - {len(period_images)} صورة + {len(period_text)} حرف نص")
+
+                period_prompt = self._build_single_period_prompt(
+                    period_num, total_periods, lesson_name, title,
+                    course_name, unit.name, lessons_text,
+                    textbook_text=period_text,
+                )
 
                 # محاولة توليد الحصة مع retry عند 503/rate limit
                 period_text = None
