@@ -1188,20 +1188,19 @@ def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
                 ws_data = plan_data.get('worksheet')
                 filename = f"worksheet_{ws_type}_{plan_id}.pdf"
 
-            if not ws_data:
-                return jsonify({'success': False, 'error': 'بيانات ورقة العمل غير موجودة'}), 404
-
-            pdf_bytes = lesson_prep_service._generate_worksheet_pdf(
-                ws_data, show_answers=show_answers, font_family=font_family
-            )
-            if pdf_bytes:
-                return send_file(
-                    io.BytesIO(pdf_bytes),
-                    mimetype='application/pdf',
-                    as_attachment=True,
-                    download_name=filename,
+            if ws_data:
+                pdf_bytes = lesson_prep_service._generate_worksheet_pdf(
+                    ws_data, show_answers=show_answers, font_family=font_family
                 )
-            return jsonify({'success': False, 'error': 'فشل توليد PDF'}), 500
+                if pdf_bytes:
+                    return send_file(
+                        io.BytesIO(pdf_bytes),
+                        mimetype='application/pdf',
+                        as_attachment=True,
+                        download_name=filename,
+                    )
+            # fallback: البيانات مفقودة أو فشل التوليد → استخدم الـ URL المخزّن
+            # (الخط سيكون الأصلي بدل المطلوب)
 
         # المسار الافتراضي: استخدم الـ URL المخزّن
         if period_str is not None:

@@ -2150,6 +2150,7 @@ class LessonPrepService:
                         'period_title': period_title,
                         'student_pdf_url': student_url,
                         'teacher_pdf_url': teacher_url,
+                        'data': ws_data,  # للخطوط المخصصة on-the-fly
                     })
 
                     # ✅ احفظ في DB فوراً بعد كل حصة — Flutter يشوفها مباشرة
