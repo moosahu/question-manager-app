@@ -1538,15 +1538,43 @@ class LessonPrepService:
                 if period_images:
                     logger.info(f"الوحدة #{plan_id}: الحصة {period_num} - ترسل {len(period_images)} صورة من الكتاب")
 
-                try:
-                    period_text, _ = self._call_ai(
-                        period_prompt,
-                        images=period_images,
-                        label=f"وحدة #{plan_id} حصة {period_num}",
-                        plan_id=plan_id,
-                        teacher_id=plan.teacher_id,
-                        operation_type='unit_dist'
-                    )
+                # محاولة توليد الحصة مع retry عند 503/rate limit
+                period_text = None
+                for attempt in range(3):
+                    try:
+                        period_text, _ = self._call_ai(
+                            period_prompt,
+                            images=period_images,
+                            label=f"وحدة #{plan_id} حصة {period_num}",
+                            plan_id=plan_id,
+                            teacher_id=plan.teacher_id,
+                            operation_type='unit_dist'
+                        )
+                        break  # نجح - اخرج من حلقة retry
+                    except RateLimitError as re:
+                        if attempt < 2:
+                            wait_sec = 30 * (attempt + 1)  # 30s, 60s
+                            logger.warning(f"الوحدة #{plan_id}: حصة {period_num} - خطأ مؤقت (محاولة {attempt+1}/3)، انتظار {wait_sec}s: {re}")
+                            _time.sleep(wait_sec)
+                        else:
+                            logger.warning(f"الوحدة #{plan_id}: تخطي الحصة {period_num} بعد 3 محاولات فاشلة: {re}")
+                            generated_periods.append({
+                                'period_number': period_num,
+                                'lesson_name': lesson_name,
+                                'title': title,
+                                'error': f'فشل بعد 3 محاولات: {re}',
+                            })
+                    except Exception as pe:
+                        logger.warning(f"الوحدة #{plan_id}: خطأ في الحصة {period_num}: {pe}")
+                        generated_periods.append({
+                            'period_number': period_num,
+                            'lesson_name': lesson_name,
+                            'title': title,
+                            'error': str(pe),
+                        })
+                        break  # خطأ غير مؤقت - لا تعيد المحاولة
+
+                if period_text is not None:
                     period_data = self._extract_json(period_text)
                     if not period_data:
                         period_data = self._aggressive_json_fix(period_text)
@@ -1565,14 +1593,6 @@ class LessonPrepService:
                             'raw_text': period_text[:1000],
                         })
                         logger.warning(f"الوحدة #{plan_id}: فشل تحليل الحصة {period_num}")
-                except Exception as pe:
-                    logger.warning(f"الوحدة #{plan_id}: خطأ في الحصة {period_num}: {pe}")
-                    generated_periods.append({
-                        'period_number': period_num,
-                        'lesson_name': lesson_name,
-                        'title': title,
-                        'error': str(pe),
-                    })
 
             plan_data = {
                 'unit_name': unit.name,
