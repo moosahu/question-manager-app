@@ -1167,12 +1167,12 @@ def download_worksheet_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
         plan_data = plan.plan_data or {}
         ws_type = request.args.get('type', 'student')  # student | teacher
         period_str = request.args.get('period')  # اختياري - للوحدات
-        font_family = request.args.get('font_family', '')  # خط مخصص → يولّد on-the-fly
+        font_family = request.args.get('font_family', 'cairo')  # خط مخصص → يولّد on-the-fly
 
         show_answers = ws_type == 'teacher'
 
-        # إذا طُلب خط مخصص → ولّد PDF on-the-fly من البيانات المخزّنة
-        if font_family:
+        # إذا طُلب خط مخصص (غير cairo الافتراضي) → ولّد PDF on-the-fly من البيانات المخزّنة
+        if font_family and font_family != 'cairo':
             from src.services.lesson_prep_service import lesson_prep_service
             if period_str is not None:
                 # وحدة: ابحث عن بيانات الحصة المخزّنة
