@@ -243,7 +243,7 @@
     <!-- ثانياً: أسئلة الاختيار - عمودان -->
     {% if data.get('multiple_choice') %}
     {% set ar_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
-    <div class="section" style="page-break-before: always;">
+    <div class="section">
         <div class="section-title">السؤال الثاني: اختر الإجابة الصحيحة</div>
         <div class="mc-grid">
         {% for q in data.get('multiple_choice', []) %}
@@ -275,7 +275,7 @@
         {% for q in data.get('calculations', []) %}
         {% set steps_count = q.get('steps', []) | length %}
         {% set box_height = [80, steps_count * 22 + 50] | max %}
-        <div class="question">
+        <div class="question"{% if loop.index == 2 %} style="page-break-before: always;"{% endif %}>
             <span class="q-num">{{ loop.index }}.</span>
             <span class="q-text">{{ q.get('question', '') | chem }}</span>
             {% if show_answers %}
