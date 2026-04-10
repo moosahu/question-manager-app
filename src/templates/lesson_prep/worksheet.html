@@ -243,7 +243,7 @@
     <!-- ثانياً: أسئلة الاختيار - عمودان -->
     {% if data.get('multiple_choice') %}
     {% set ar_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'] %}
-    <div class="section">
+    <div class="section" style="page-break-before: always;">
         <div class="section-title">السؤال الثاني: اختر الإجابة الصحيحة</div>
         <div class="mc-grid">
         {% for q in data.get('multiple_choice', []) %}
