@@ -10,6 +10,7 @@ class Announcement(db.Model):
     body       = db.Column(db.Text, nullable=True)
     images     = db.Column(db.JSON, default=list)   # قائمة روابط Cloudinary
     is_active  = db.Column(db.Boolean, default=True, nullable=False)
+    target     = db.Column(db.String(20), default='all', nullable=False)  # all / students / teachers
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -20,5 +21,6 @@ class Announcement(db.Model):
             'body':       self.body or '',
             'images':     self.images or [],
             'is_active':  self.is_active,
+            'target':     self.target or 'all',
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }

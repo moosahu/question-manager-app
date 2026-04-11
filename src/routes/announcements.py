@@ -2,10 +2,10 @@
 نظام الإعلانات — admin web CRUD + student public API
 """
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from src.extensions import db
 from src.models.announcement import Announcement
-from src.middleware.auth_middleware import verify_student_token
+from src.middleware.auth_middleware import verify_student_token, verify_teacher_token
 
 announcements_bp = Blueprint('announcements', __name__)
 
@@ -17,7 +17,35 @@ announcements_bp = Blueprint('announcements', __name__)
 @announcements_bp.route('/api/announcements/active', methods=['GET'])
 @verify_student_token
 def api_get_active_announcement(student=None, student_id=None):
-    """الطالب يجلب الإعلان النشط عند فتح التطبيق"""
+    """الطالب يجلب الإعلان النشط — target: students أو all"""
+    ann = (Announcement.query
+           .filter_by(is_active=True)
+           .filter(Announcement.target.in_(['students', 'all']))
+           .order_by(Announcement.created_at.desc())
+           .first())
+    if not ann:
+        return jsonify({'success': True, 'announcement': None})
+    return jsonify({'success': True, 'announcement': ann.to_dict()})
+
+
+@announcements_bp.route('/api/announcements/active/teacher', methods=['GET'])
+@verify_teacher_token
+def api_get_active_announcement_teacher(teacher=None, teacher_id=None):
+    """المعلم يجلب الإعلان النشط — target: teachers أو all"""
+    ann = (Announcement.query
+           .filter_by(is_active=True)
+           .filter(Announcement.target.in_(['teachers', 'all']))
+           .order_by(Announcement.created_at.desc())
+           .first())
+    if not ann:
+        return jsonify({'success': True, 'announcement': None})
+    return jsonify({'success': True, 'announcement': ann.to_dict()})
+
+
+@announcements_bp.route('/api/announcements/active/admin', methods=['GET'])
+@login_required
+def api_get_active_announcement_admin():
+    """الأدمن يجلب الإعلان النشط — بغض النظر عن target"""
     ann = (Announcement.query
            .filter_by(is_active=True)
            .order_by(Announcement.created_at.desc())
@@ -74,7 +102,8 @@ def admin_announcements_create():
             flash('العنوان مطلوب', 'danger')
             return redirect(url_for('announcements.admin_announcements_create'))
 
-        ann = Announcement(title=title, body=body, images=images, is_active=True)
+        target = request.form.get('target', 'all')
+        ann = Announcement(title=title, body=body, images=images, is_active=True, target=target)
         db.session.add(ann)
         db.session.commit()
         flash('تم إنشاء الإعلان بنجاح', 'success')
@@ -91,6 +120,7 @@ def admin_announcements_edit(ann_id):
         ann.title  = request.form.get('title', ann.title).strip()
         ann.body   = request.form.get('body', '').strip()
         ann.images = request.form.getlist('images')
+        ann.target = request.form.get('target', ann.target or 'all')
         db.session.commit()
         flash('تم تحديث الإعلان', 'success')
         return redirect(url_for('announcements.admin_announcements_list'))
