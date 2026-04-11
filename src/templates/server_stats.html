@@ -48,6 +48,20 @@
   <div style="margin-top:20px;font-size:12px;color:#9ca3af;text-align:center">
     يتحدث تلقائياً كل 30 ثانية &nbsp;|&nbsp; آخر تحديث: <span id="last-update">الآن</span>
   </div>
+
+  <!-- تفاصيل الديسك -->
+  <div style="margin-top:24px;background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-weight:bold">🔍 تفاصيل مساحة التخزين</span>
+      <button onclick="loadDiskDetails()" id="disk-btn"
+              style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">
+        تحليل المساحة
+      </button>
+    </div>
+    <div id="disk-details" style="font-size:13px;color:#6b7280">
+      اضغط "تحليل المساحة" لمعرفة من يأكل التخزين (قد يأخذ بضع ثوانٍ)
+    </div>
+  </div>
 </div>
 
 <script>
@@ -79,5 +93,29 @@ async function refresh() {
 }
 
 setInterval(refresh, 30000);
+
+async function loadDiskDetails() {
+  const btn = document.getElementById('disk-btn');
+  const box = document.getElementById('disk-details');
+  btn.disabled = true;
+  btn.textContent = 'جاري التحليل...';
+  box.textContent = '';
+  try {
+    const r = await fetch('/api/admin/server-disk-details');
+    const d = await r.json();
+    if (!d.success) { box.textContent = 'فشل: ' + d.error; return; }
+    box.innerHTML = d.dirs.map(item =>
+      `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6">
+        <span>${item.label} <span style="color:#9ca3af;font-size:11px">(${item.path})</span></span>
+        <strong style="color:#1f2937">${item.size_mb} MB</strong>
+      </div>`
+    ).join('');
+  } catch(e) {
+    box.textContent = 'خطأ في الاتصال';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'تحليل المساحة';
+  }
+}
 </script>
 {% endblock %}

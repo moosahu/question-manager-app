@@ -2,6 +2,7 @@
 Server Stats - مراقبة موارد السيرفر (RAM, CPU, Uptime)
 """
 
+import os
 import time
 import psutil
 from datetime import timedelta
@@ -42,6 +43,44 @@ def api_server_stats():
     try:
         stats = _get_stats()
         return jsonify({'success': True, **stats}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@server_stats_bp.route('/api/admin/server-disk-details', methods=['GET'])
+@login_required
+def api_disk_details():
+    """أكبر المجلدات على السيرفر لمعرفة من يأكل المساحة"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'ليس لديك صلاحية'}), 403
+    try:
+        dirs_to_check = [
+            ('/', 'الجذر'),
+            ('/app', 'مجلد التطبيق'),
+            ('/usr', '/usr'),
+            ('/tmp', '/tmp'),
+            (os.path.expanduser('~'), 'Home'),
+        ]
+        results = []
+        for path, label in dirs_to_check:
+            if not os.path.exists(path):
+                continue
+            try:
+                total = 0
+                for dirpath, dirnames, filenames in os.walk(path):
+                    # تجنب venv و __pycache__ لتسريع البحث
+                    dirnames[:] = [d for d in dirnames if d not in ('venv', '__pycache__', '.git', 'node_modules')]
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        try:
+                            total += os.path.getsize(fp)
+                        except OSError:
+                            pass
+                results.append({'path': path, 'label': label, 'size_mb': round(total / 1024 / 1024, 1)})
+            except PermissionError:
+                pass
+        results.sort(key=lambda x: x['size_mb'], reverse=True)
+        return jsonify({'success': True, 'dirs': results}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
