@@ -1171,6 +1171,19 @@ def create_app():
     except Exception as e:
         print(f"❌ Video Views blueprint error: {e}")
 
+    try:
+        from src.routes.server_stats_routes import server_stats_bp
+        csrf.exempt(server_stats_bp)
+        app.register_blueprint(server_stats_bp)
+        print("✅ Server Stats blueprint registered successfully")
+        print("🖥️  Server Stats endpoints available at:")
+        print("   - GET /api/admin/server-stats")
+        print("   - GET /admin/server-stats")
+    except ImportError as e:
+        print(f"⚠️ Server Stats blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Server Stats blueprint error: {e}")
+
     @app.route("/download")
     def download_app():
         """يوجّه المستخدم لمتجر التطبيق المناسب حسب جهازه"""

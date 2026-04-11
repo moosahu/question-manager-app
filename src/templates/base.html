@@ -182,7 +182,7 @@
                     </li>
 
                     <!-- قائمة الإدارة -->
-                    <li class="nav-dropdown {% if request.endpoint in ['teachers.list_teachers', 'students.list_students', 'exam_dates.index', 'teacher_features.teacher_features_page', 'errors.errors_dashboard'] %}has-active{% endif %}">
+                    <li class="nav-dropdown {% if request.endpoint in ['teachers.list_teachers', 'students.list_students', 'exam_dates.index', 'teacher_features.teacher_features_page', 'errors.errors_dashboard', 'announcements.admin_announcements_list', 'server_stats.web_server_stats'] %}has-active{% endif %}">
                         <a href="#" class="nav-dropdown-toggle"><i class="fas fa-users-cog"></i> الإدارة <i class="fas fa-chevron-down dropdown-arrow"></i></a>
                         <ul class="nav-dropdown-menu">
                             <li><a href="{{ url_for('teachers.list_teachers') }}" {% if request.endpoint == 'teachers.list_teachers' %}class="active"{% endif %}><i class="fas fa-chalkboard-teacher"></i> إدارة المعلمين</a></li>
@@ -190,7 +190,10 @@
                             <li class="dropdown-divider"></li>
                             <li><a href="{{ url_for('exam_dates.index') }}" {% if request.endpoint == 'exam_dates.index' %}class="active"{% endif %}><i class="fas fa-calendar-alt"></i> مواعيد الاختبار</a></li>
                             <li><a href="{{ url_for('teacher_features.teacher_features_page') }}" {% if request.endpoint == 'teacher_features.teacher_features_page' %}class="active"{% endif %}><i class="fas fa-sliders-h"></i> مميزات المعلمين</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('announcements.admin_announcements_list') }}" {% if request.endpoint == 'announcements.admin_announcements_list' %}class="active"{% endif %}><i class="fas fa-bullhorn"></i> الإعلانات</a></li>
                             <li><a href="{{ url_for('errors.errors_dashboard') }}" {% if request.endpoint == 'errors.errors_dashboard' %}class="active"{% endif %}><i class="fas fa-bug"></i> مراقبة الأخطاء</a></li>
+                            <li><a href="{{ url_for('server_stats.web_server_stats') }}" {% if request.endpoint == 'server_stats.web_server_stats' %}class="active"{% endif %}><i class="fas fa-server"></i> مراقبة السيرفر</a></li>
                         </ul>
                     </li>
 

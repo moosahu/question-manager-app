@@ -95,3 +95,6 @@ simple-websocket>=0.10.0
 # Video Generation
 moviepy>=2.0.0
 imageio-ffmpeg>=0.4.9
+
+# Server Monitoring
+psutil>=5.9.0

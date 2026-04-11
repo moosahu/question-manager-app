@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}مراقبة السيرفر{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:30px auto;direction:rtl;padding:0 16px">
+  <h2 style="margin-bottom:24px">🖥️ مراقبة السيرفر</h2>
+
+  <div id="stats-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <!-- RAM -->
+    <div class="stat-card" style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:6px">الذاكرة (RAM)</div>
+      <div id="ram-val" style="font-size:28px;font-weight:bold;color:#2563eb">{{ stats.ram_percent }}%</div>
+      <div id="ram-sub" style="font-size:12px;color:#9ca3af;margin-top:4px">{{ stats.ram_used_mb }} / {{ stats.ram_total_mb }} MB</div>
+      <div style="margin-top:10px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+        <div id="ram-bar" style="height:100%;background:#2563eb;border-radius:4px;width:{{ stats.ram_percent }}%;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <!-- CPU -->
+    <div class="stat-card" style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:6px">المعالج (CPU)</div>
+      <div id="cpu-val" style="font-size:28px;font-weight:bold;color:#16a34a">{{ stats.cpu_percent }}%</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:4px">نسبة الاستخدام</div>
+      <div style="margin-top:10px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+        <div id="cpu-bar" style="height:100%;background:#16a34a;border-radius:4px;width:{{ stats.cpu_percent }}%;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <!-- Disk -->
+    <div class="stat-card" style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:6px">التخزين (Disk)</div>
+      <div id="disk-val" style="font-size:28px;font-weight:bold;color:#d97706">{{ stats.disk_percent }}%</div>
+      <div id="disk-sub" style="font-size:12px;color:#9ca3af;margin-top:4px">{{ stats.disk_used_gb }} / {{ stats.disk_total_gb }} GB</div>
+      <div style="margin-top:10px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+        <div id="disk-bar" style="height:100%;background:#d97706;border-radius:4px;width:{{ stats.disk_percent }}%;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <!-- Uptime -->
+    <div class="stat-card" style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:6px">وقت التشغيل</div>
+      <div id="uptime-val" style="font-size:22px;font-weight:bold;color:#7c3aed;word-break:break-all">{{ stats.uptime }}</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:4px">منذ آخر إعادة تشغيل</div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:20px;font-size:12px;color:#9ca3af;text-align:center">
+    يتحدث تلقائياً كل 30 ثانية &nbsp;|&nbsp; آخر تحديث: <span id="last-update">الآن</span>
+  </div>
+</div>
+
+<script>
+async function refresh() {
+  try {
+    const r = await fetch('/api/admin/server-stats');
+    const d = await r.json();
+    if (!d.success) return;
+
+    document.getElementById('ram-val').textContent  = d.ram_percent + '%';
+    document.getElementById('ram-sub').textContent  = d.ram_used_mb + ' / ' + d.ram_total_mb + ' MB';
+    document.getElementById('ram-bar').style.width  = d.ram_percent + '%';
+
+    document.getElementById('cpu-val').textContent  = d.cpu_percent + '%';
+    document.getElementById('cpu-bar').style.width  = d.cpu_percent + '%';
+
+    document.getElementById('disk-val').textContent = d.disk_percent + '%';
+    document.getElementById('disk-sub').textContent = d.disk_used_gb + ' / ' + d.disk_total_gb + ' GB';
+    document.getElementById('disk-bar').style.width = d.disk_percent + '%';
+
+    document.getElementById('uptime-val').textContent = d.uptime;
+
+    const now = new Date();
+    document.getElementById('last-update').textContent =
+      now.getHours().toString().padStart(2,'0') + ':' +
+      now.getMinutes().toString().padStart(2,'0') + ':' +
+      now.getSeconds().toString().padStart(2,'0');
+  } catch(e) {}
+}
+
+setInterval(refresh, 30000);
+</script>
+{% endblock %}
