@@ -16,53 +16,61 @@
     {% endfor %}
   {% endwith %}
 
+  <style>
+    .ann-table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .ann-table th { padding:12px 14px; background:#1e3a8a; color:#fff; font-weight:600; white-space:nowrap; }
+    .ann-table td { padding:12px 14px; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
+    .ann-table tr.active-row { background:#f0fdf4; }
+    .ann-btn { display:inline-block; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; border:none; white-space:nowrap; text-decoration:none; }
+    .ann-form { display:inline-block; margin:0; padding:0; }
+    .ann-form button { display:inline-block; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; border:none; white-space:nowrap; }
+  </style>
+
   {% if announcements %}
-  <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-    <thead style="background:#1e3a8a;color:#fff">
+  <table class="ann-table">
+    <thead>
       <tr>
-        <th style="padding:12px 16px;text-align:right">#</th>
-        <th style="padding:12px 16px;text-align:right">العنوان</th>
-        <th style="padding:12px 16px;text-align:center">الصور</th>
-        <th style="padding:12px 16px;text-align:center">الفئة</th>
-        <th style="padding:12px 16px;text-align:center">الحالة</th>
-        <th style="padding:12px 16px;text-align:center">التاريخ</th>
-        <th style="padding:12px 16px;text-align:center">إجراءات</th>
+        <th style="text-align:center;width:40px">#</th>
+        <th style="text-align:right">العنوان</th>
+        <th style="text-align:center;width:60px">صور</th>
+        <th style="text-align:center;width:80px">الفئة</th>
+        <th style="text-align:center;width:80px">الحالة</th>
+        <th style="text-align:center;width:100px">التاريخ</th>
+        <th style="text-align:center;width:200px">إجراءات</th>
       </tr>
     </thead>
     <tbody>
       {% for ann in announcements %}
-      <tr style="border-bottom:1px solid #e5e7eb;{{'background:#f0fdf4' if ann.is_active else ''}}">
-        <td style="padding:12px 16px">{{ ann.id }}</td>
-        <td style="padding:12px 16px;font-weight:bold">{{ ann.title }}</td>
-        <td style="padding:12px 16px;text-align:center">{{ (ann.images or [])|length }}</td>
-        <td style="padding:12px 16px;text-align:center">
+      <tr {% if ann.is_active %}class="active-row"{% endif %}>
+        <td style="text-align:center;color:#6b7280">{{ ann.id }}</td>
+        <td style="font-weight:bold;max-width:220px">{{ ann.title }}</td>
+        <td style="text-align:center;color:#6b7280">{{ (ann.images or [])|length }}</td>
+        <td style="text-align:center">
           {% set t = ann.target or 'all' %}
-          <span style="background:{{'#7c3aed' if t=='teachers' else '#0d9488' if t=='students' else '#2563eb'}};color:#fff;padding:4px 10px;border-radius:20px;font-size:12px">
+          <span style="background:{{'#7c3aed' if t=='teachers' else '#0d9488' if t=='students' else '#2563eb'}};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px">
             {{ 'معلمين' if t=='teachers' else 'طلاب' if t=='students' else 'الكل' }}
           </span>
         </td>
-        <td style="padding:12px 16px;text-align:center">
-          <span style="background:{{'#16a34a' if ann.is_active else '#9ca3af'}};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px">
+        <td style="text-align:center">
+          <span style="background:{{'#16a34a' if ann.is_active else '#9ca3af'}};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px">
             {{ 'نشط ✓' if ann.is_active else 'موقوف' }}
           </span>
         </td>
-        <td style="padding:12px 16px;text-align:center;font-size:13px;color:#6b7280">
+        <td style="text-align:center;font-size:12px;color:#6b7280">
           {{ ann._created_ast.strftime('%Y-%m-%d') if ann._created_ast else '' }}
         </td>
-        <td style="padding:8px 16px;text-align:center;white-space:nowrap">
-          <div style="display:flex;gap:6px;justify-content:center;align-items:center">
-            <a href="{{ url_for('announcements.admin_announcements_edit', ann_id=ann.id) }}"
-               style="background:#2563eb;color:#fff;padding:5px 12px;border-radius:6px;text-decoration:none;font-size:13px;white-space:nowrap">تعديل</a>
-            <form method="POST" action="{{ url_for('announcements.admin_announcements_toggle', ann_id=ann.id) }}" style="margin:0;padding:0">
-              <button type="submit" style="background:{{'#dc2626' if ann.is_active else '#16a34a'}};color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px;white-space:nowrap">
-                {{ 'إيقاف' if ann.is_active else 'تفعيل' }}
-              </button>
-            </form>
-            <form method="POST" action="{{ url_for('announcements.admin_announcements_delete', ann_id=ann.id) }}" style="margin:0;padding:0"
-                  onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
-              <button type="submit" style="background:#6b7280;color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px;white-space:nowrap">حذف</button>
-            </form>
-          </div>
+        <td style="text-align:center">
+          <a href="{{ url_for('announcements.admin_announcements_edit', ann_id=ann.id) }}"
+             class="ann-btn" style="background:#2563eb;color:#fff;margin:2px">تعديل</a>
+          <form class="ann-form" method="POST" action="{{ url_for('announcements.admin_announcements_toggle', ann_id=ann.id) }}">
+            <button type="submit" style="background:{{'#dc2626' if ann.is_active else '#16a34a'}};color:#fff;margin:2px">
+              {{ 'إيقاف' if ann.is_active else 'تفعيل' }}
+            </button>
+          </form>
+          <form class="ann-form" method="POST" action="{{ url_for('announcements.admin_announcements_delete', ann_id=ann.id) }}"
+                onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
+            <button type="submit" style="background:#6b7280;color:#fff;margin:2px">حذف</button>
+          </form>
         </td>
       </tr>
       {% endfor %}
