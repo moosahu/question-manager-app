@@ -112,11 +112,35 @@ def admin_announcements_toggle(ann_id):
     return redirect(url_for('announcements.admin_announcements_list'))
 
 
+def _delete_cloudinary_images(image_urls: list):
+    """حذف صور الإعلان من Cloudinary باستخدام public_id المستخرج من الـ URL"""
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        import os, re
+        cloudinary.config(
+            cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+            api_key=os.environ.get('CLOUDINARY_API_KEY'),
+            api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+        )
+        for url in image_urls:
+            # استخراج public_id من الـ URL: .../upload/v123/folder/name.ext
+            match = re.search(r'/upload/(?:v\d+/)?(.+?)(?:\.[a-zA-Z]{3,4})?$', url)
+            if match:
+                public_id = match.group(1)
+                cloudinary.uploader.destroy(public_id)
+    except Exception:
+        pass  # الحذف اختياري، لا يوقف العملية
+
+
 @announcements_bp.route('/admin/announcements/<int:ann_id>/delete', methods=['POST'])
 @login_required
 def admin_announcements_delete(ann_id):
     ann = Announcement.query.get_or_404(ann_id)
+    images = list(ann.images or [])
     db.session.delete(ann)
     db.session.commit()
-    flash('تم حذف الإعلان', 'success')
+    if images:
+        _delete_cloudinary_images(images)
+    flash('تم حذف الإعلان وصوره', 'success')
     return redirect(url_for('announcements.admin_announcements_list'))
