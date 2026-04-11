@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}إدارة الإعلانات{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;margin:30px auto;direction:rtl">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <h2 style="margin:0">📢 إدارة الإعلانات</h2>
+    <a href="{{ url_for('announcements.admin_announcements_create') }}"
+       style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">
+      + إعلان جديد
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="background:{{'#d1fae5' if cat=='success' else '#fee2e2'}};padding:12px;border-radius:8px;margin-bottom:16px">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if announcements %}
+  <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <thead style="background:#1e3a8a;color:#fff">
+      <tr>
+        <th style="padding:12px 16px;text-align:right">#</th>
+        <th style="padding:12px 16px;text-align:right">العنوان</th>
+        <th style="padding:12px 16px;text-align:center">الصور</th>
+        <th style="padding:12px 16px;text-align:center">الحالة</th>
+        <th style="padding:12px 16px;text-align:center">التاريخ</th>
+        <th style="padding:12px 16px;text-align:center">إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ann in announcements %}
+      <tr style="border-bottom:1px solid #e5e7eb;{{'background:#f0fdf4' if ann.is_active else ''}}">
+        <td style="padding:12px 16px">{{ ann.id }}</td>
+        <td style="padding:12px 16px;font-weight:bold">{{ ann.title }}</td>
+        <td style="padding:12px 16px;text-align:center">{{ (ann.images or [])|length }}</td>
+        <td style="padding:12px 16px;text-align:center">
+          <span style="background:{{'#16a34a' if ann.is_active else '#9ca3af'}};color:#fff;padding:4px 12px;border-radius:20px;font-size:13px">
+            {{ 'نشط ✓' if ann.is_active else 'موقوف' }}
+          </span>
+        </td>
+        <td style="padding:12px 16px;text-align:center;font-size:13px;color:#6b7280">
+          {{ ann.created_at.strftime('%Y-%m-%d') if ann.created_at else '' }}
+        </td>
+        <td style="padding:12px 16px;text-align:center">
+          <a href="{{ url_for('announcements.admin_announcements_edit', ann_id=ann.id) }}"
+             style="background:#2563eb;color:#fff;padding:5px 12px;border-radius:6px;text-decoration:none;margin-left:6px;font-size:13px">تعديل</a>
+          <form method="POST" action="{{ url_for('announcements.admin_announcements_toggle', ann_id=ann.id) }}" style="display:inline">
+            <button style="background:{{'#dc2626' if ann.is_active else '#16a34a'}};color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;margin-left:6px;font-size:13px">
+              {{ 'إيقاف' if ann.is_active else 'تفعيل' }}
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('announcements.admin_announcements_delete', ann_id=ann.id) }}" style="display:inline"
+                onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
+            <button style="background:#6b7280;color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px">حذف</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:40px;background:#fff;border-radius:10px;color:#6b7280">
+    لا توجد إعلانات حتى الآن
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

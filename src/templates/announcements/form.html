@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل إعلان' if ann else 'إعلان جديد' }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px;margin:30px auto;direction:rtl">
+  <h2>{{ '✏️ تعديل إعلان' if ann else '📢 إعلان جديد' }}</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="background:{{'#d1fae5' if cat=='success' else '#fee2e2'}};padding:12px;border-radius:8px;margin-bottom:16px">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" style="background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:6px">العنوان *</label>
+      <input name="title" type="text" value="{{ ann.title if ann else '' }}" required
+             style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:6px">النص</label>
+      <textarea name="body" rows="4"
+                style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;box-sizing:border-box">{{ ann.body if ann else '' }}</textarea>
+    </div>
+
+    <!-- قسم رفع الصور -->
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:8px">الصور</label>
+      <div id="images-container">
+        {% for img_url in (ann.images or []) %}
+        <div class="img-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <img src="{{ img_url }}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+          <input type="hidden" name="images" value="{{ img_url }}">
+          <span style="font-size:12px;color:#6b7280;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ img_url }}</span>
+          <button type="button" onclick="this.parentElement.remove()"
+                  style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+        <input type="file" id="img-upload" accept="image/*"
+               style="border:1px dashed #d1d5db;padding:8px;border-radius:8px;flex:1">
+        <button type="button" onclick="uploadImage()"
+                style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:bold">رفع</button>
+      </div>
+      <div id="upload-status" style="margin-top:6px;font-size:13px;color:#6b7280"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <a href="{{ url_for('announcements.admin_announcements_list') }}"
+         style="padding:10px 20px;border:1px solid #d1d5db;border-radius:8px;text-decoration:none;color:#374151">إلغاء</a>
+      <button type="submit"
+              style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-weight:bold;cursor:pointer;font-size:15px">
+        {{ 'حفظ التعديلات' if ann else 'إنشاء الإعلان' }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+async function uploadImage() {
+  const input = document.getElementById('img-upload');
+  const status = document.getElementById('upload-status');
+  if (!input.files.length) { status.textContent = 'اختر صورة أولاً'; return; }
+
+  status.textContent = 'جاري الرفع...';
+  const formData = new FormData();
+  formData.append('image', input.files[0]);
+
+  try {
+    const resp = await fetch('/admin/announcements/upload-image', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.success) {
+      addImageRow(data.url);
+      status.textContent = '✅ تم الرفع';
+      input.value = '';
+    } else {
+      status.textContent = '❌ ' + (data.error || 'فشل الرفع');
+    }
+  } catch(e) {
+    status.textContent = '❌ خطأ في الاتصال';
+  }
+}
+
+function addImageRow(url) {
+  const container = document.getElementById('images-container');
+  const div = document.createElement('div');
+  div.className = 'img-row';
+  div.style = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
+  div.innerHTML = `
+    <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+    <input type="hidden" name="images" value="${url}">
+    <span style="font-size:12px;color:#6b7280;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</span>
+    <button type="button" onclick="this.parentElement.remove()"
+            style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+  `;
+  container.appendChild(div);
+}
+</script>
+{% endblock %}

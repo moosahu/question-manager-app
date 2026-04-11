@@ -1140,6 +1140,21 @@ def create_app():
     except Exception as e:
         print(f"❌ Design Access blueprint error: {e}")
 
+    # ✅ تسجيل Announcements Blueprint — نظام الإعلانات للطلاب
+    try:
+        from src.models.announcement import Announcement  # noqa: F401
+        from src.routes.announcements import announcements_bp
+        csrf.exempt(announcements_bp)
+        app.register_blueprint(announcements_bp)
+        print("✅ Announcements blueprint registered successfully")
+        print("📢  Announcements endpoints available at:")
+        print("   - GET  /api/announcements/active")
+        print("   - GET  /admin/announcements")
+    except ImportError as e:
+        print(f"⚠️ Announcements blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Announcements blueprint error: {e}")
+
     # ✅ تسجيل Video Views Blueprint — تتبع مشاهدات فيديو الشرح
     try:
         from src.models.question_video_view import QuestionVideoView  # noqa: F401
