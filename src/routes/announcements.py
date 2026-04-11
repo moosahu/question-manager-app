@@ -45,14 +45,12 @@ def api_get_active_announcement_teacher(teacher=None, teacher_id=None):
 @announcements_bp.route('/api/announcements/active/admin', methods=['GET'])
 @login_required
 def api_get_active_announcement_admin():
-    """الأدمن يجلب الإعلان النشط — بغض النظر عن target"""
-    ann = (Announcement.query
-           .filter_by(is_active=True)
-           .order_by(Announcement.created_at.desc())
-           .first())
-    if not ann:
-        return jsonify({'success': True, 'announcement': None})
-    return jsonify({'success': True, 'announcement': ann.to_dict()})
+    """الأدمن يجلب جميع الإعلانات النشطة — بغض النظر عن target"""
+    anns = (Announcement.query
+            .filter_by(is_active=True)
+            .order_by(Announcement.created_at.desc())
+            .all())
+    return jsonify({'success': True, 'announcements': [a.to_dict() for a in anns]})
 
 
 # ──────────────────────────────────────────────────────
@@ -139,9 +137,12 @@ def admin_announcements_edit(ann_id):
 @login_required
 def admin_announcements_toggle(ann_id):
     ann = Announcement.query.get_or_404(ann_id)
-    # عند تفعيل إعلان → وقّف الباقين (إعلان نشط واحد فقط)
+    # عند تفعيل إعلان → وقّف فقط الإعلانات النشطة من نفس الفئة
     if not ann.is_active:
-        Announcement.query.update({'is_active': False})
+        (Announcement.query
+         .filter_by(is_active=True, target=ann.target)
+         .filter(Announcement.id != ann.id)
+         .update({'is_active': False}))
     ann.is_active = not ann.is_active
     db.session.commit()
     status = 'مفعّل' if ann.is_active else 'موقوف'
