@@ -1,5 +1,5 @@
 from src.extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Announcement(db.Model):
@@ -22,5 +22,5 @@ class Announcement(db.Model):
             'images':     self.images or [],
             'is_active':  self.is_active,
             'target':     self.target or 'all',
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': (self.created_at + timedelta(hours=3)).isoformat() if self.created_at else None,
         }

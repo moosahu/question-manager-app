@@ -47,22 +47,20 @@
           </span>
         </td>
         <td style="padding:12px 16px;text-align:center;font-size:13px;color:#6b7280">
-          {{ ann.created_at.strftime('%Y-%m-%d') if ann.created_at else '' }}
+          {{ ann._created_ast.strftime('%Y-%m-%d') if ann._created_ast else '' }}
         </td>
-        <td style="padding:12px 16px">
-          <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center">
-            <a href="{{ url_for('announcements.admin_announcements_edit', ann_id=ann.id) }}"
-               style="background:#2563eb;color:#fff;padding:5px 14px;border-radius:6px;text-decoration:none;font-size:13px;white-space:nowrap">تعديل</a>
-            <form method="POST" action="{{ url_for('announcements.admin_announcements_toggle', ann_id=ann.id) }}" style="margin:0">
-              <button style="background:{{'#dc2626' if ann.is_active else '#16a34a'}};color:#fff;padding:5px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;white-space:nowrap">
-                {{ 'إيقاف' if ann.is_active else 'تفعيل' }}
-              </button>
-            </form>
-            <form method="POST" action="{{ url_for('announcements.admin_announcements_delete', ann_id=ann.id) }}" style="margin:0"
-                  onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
-              <button style="background:#6b7280;color:#fff;padding:5px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;white-space:nowrap">حذف</button>
-            </form>
-          </div>
+        <td style="padding:12px 16px;text-align:center">
+          <a href="{{ url_for('announcements.admin_announcements_edit', ann_id=ann.id) }}"
+             style="display:inline-block;background:#2563eb;color:#fff;padding:5px 12px;border-radius:6px;text-decoration:none;font-size:13px;margin:2px">تعديل</a>
+          <form method="POST" action="{{ url_for('announcements.admin_announcements_toggle', ann_id=ann.id) }}" style="display:inline;margin:0">
+            <button style="background:{{'#dc2626' if ann.is_active else '#16a34a'}};color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px;margin:2px">
+              {{ 'إيقاف' if ann.is_active else 'تفعيل' }}
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('announcements.admin_announcements_delete', ann_id=ann.id) }}" style="display:inline;margin:0"
+                onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
+            <button style="background:#6b7280;color:#fff;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:13px;margin:2px">حذف</button>
+          </form>
         </td>
       </tr>
       {% endfor %}

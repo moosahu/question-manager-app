@@ -86,7 +86,14 @@ def admin_upload_announcement_image():
 @announcements_bp.route('/admin/announcements', methods=['GET'])
 @login_required
 def admin_announcements_list():
+    from datetime import timedelta
     announcements = Announcement.query.order_by(Announcement.created_at.desc()).all()
+    # تحويل التواريخ لتوقيت السعودية (UTC+3) للعرض فقط
+    for ann in announcements:
+        if ann.created_at:
+            ann._created_ast = ann.created_at + timedelta(hours=3)
+        else:
+            ann._created_ast = None
     return render_template('announcements/list.html', announcements=announcements)
 
 
