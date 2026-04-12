@@ -900,6 +900,22 @@ def api_admin_send_grades():
 
 
 # ══════════════════════════════════════════════════════
+#  ADMIN: قائمة الشُّعَب
+# ══════════════════════════════════════════════════════
+
+@grades_bp.route('/api/admin/grade-sections', methods=['GET'])
+@login_required
+def api_admin_grade_sections():
+    rows = db.session.query(TeacherStudent.section)\
+                     .filter(TeacherStudent.section.isnot(None),
+                             TeacherStudent.section != '')\
+                     .distinct()\
+                     .order_by(TeacherStudent.section).all()
+    sections = [r[0] for r in rows]
+    return jsonify({'success': True, 'sections': sections})
+
+
+# ══════════════════════════════════════════════════════
 #  ADMIN: تحميل قالب الدرجات (Excel)
 # ══════════════════════════════════════════════════════
 
@@ -925,8 +941,17 @@ def api_admin_grade_template():
     if not cats:
         return jsonify({'success': False, 'error': 'لا توجد فئات لهذه الفترة'}), 404
 
-    students = Student.query.filter(Student.is_active != False)\
-                            .order_by(Student.name).all()
+    section = request.args.get('section', '').strip()
+    if section:
+        student_ids = db.session.query(TeacherStudent.student_id)\
+                                .filter_by(section=section).subquery()
+        students = Student.query.filter(
+            Student.is_active != False,
+            Student.id.in_(student_ids)
+        ).order_by(Student.name).all()
+    else:
+        students = Student.query.filter(Student.is_active != False)\
+                                .order_by(Student.name).all()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1033,6 +1058,13 @@ def api_admin_import_grades_excel():
     if not cats:
         return jsonify({'success': False, 'error': 'لا توجد فئات'}), 404
 
+    section = request.form.get('section', '').strip()
+    if section:
+        allowed_ids = {r[0] for r in db.session.query(TeacherStudent.student_id)
+                                                .filter_by(section=section).all()}
+    else:
+        allowed_ids = None  # كل الطلاب مسموح
+
     file = request.files['file']
     try:
         wb = openpyxl.load_workbook(BytesIO(file.read()), data_only=True)
@@ -1050,6 +1082,8 @@ def api_admin_import_grades_excel():
         if not student:
             errors.append(f'طالب ID {student_id} غير موجود')
             continue
+        if allowed_ids is not None and student.id not in allowed_ids:
+            continue  # طالب من شعبة أخرى — تجاهل
 
         for i, cat in enumerate(cats):
             raw = row[2 + i] if (2 + i) < len(row) else None
