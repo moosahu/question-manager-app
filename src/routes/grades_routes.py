@@ -477,8 +477,17 @@ def api_student_my_grades():
 def api_admin_student_grades(student_id):
     """الأدمن يجلب درجات طالبه — يستخدم admin_id من الجلسة"""
     from flask_login import current_user
-    grades = _build_student_grades(student_id, admin_id=current_user.id)
-    return jsonify({'success': True, 'grades': grades})
+    try:
+        grades = _build_student_grades(student_id, admin_id=current_user.id)
+        # تحويل المفاتيح الرقمية إلى نصوص لضمان JSON صحيح
+        grades_str = {str(k): v for k, v in grades.items()}
+        for pdata in grades_str.values():
+            pdata['categories'] = {str(k): v for k, v in pdata['categories'].items()}
+        return jsonify({'success': True, 'grades': grades_str})
+    except Exception as e:
+        import traceback
+        print(f"❌ api_admin_student_grades error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @grades_bp.route('/api/admin/grade-entries', methods=['POST'])
