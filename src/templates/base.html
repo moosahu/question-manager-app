@@ -192,6 +192,7 @@
                             <li><a href="{{ url_for('teacher_features.teacher_features_page') }}" {% if request.endpoint == 'teacher_features.teacher_features_page' %}class="active"{% endif %}><i class="fas fa-sliders-h"></i> مميزات المعلمين</a></li>
                             <li class="dropdown-divider"></li>
                             <li><a href="{{ url_for('announcements.admin_announcements_list') }}" {% if request.endpoint == 'announcements.admin_announcements_list' %}class="active"{% endif %}><i class="fas fa-bullhorn"></i> الإعلانات</a></li>
+                            <li><a href="{{ url_for('grades.admin_grade_config') }}" {% if request.endpoint == 'grades.admin_grade_config' %}class="active"{% endif %}><i class="fas fa-chart-bar"></i> تقسيمة الدرجات</a></li>
                             <li><a href="{{ url_for('errors.errors_dashboard') }}" {% if request.endpoint == 'errors.errors_dashboard' %}class="active"{% endif %}><i class="fas fa-bug"></i> مراقبة الأخطاء</a></li>
                             <li><a href="{{ url_for('server_stats.web_server_stats') }}" {% if request.endpoint == 'server_stats.web_server_stats' %}class="active"{% endif %}><i class="fas fa-server"></i> مراقبة السيرفر</a></li>
                         </ul>

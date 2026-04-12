@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}إدارة تقسيمة الدرجات{% endblock %}
+{% block content %}
+<div style="max-width:960px;margin:30px auto;direction:rtl;padding:0 16px">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <h2 style="margin:0">📊 إدارة تقسيمة الدرجات</h2>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="background:{{'#d1fae5' if cat=='success' else '#fee2e2'}};padding:12px;border-radius:8px;margin-bottom:16px">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <style>
+    .gc-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:28px; overflow:hidden; }
+    .gc-card-head { background:#1e3a8a; color:#fff; padding:14px 20px; font-weight:700; font-size:16px; display:flex; justify-content:space-between; align-items:center; }
+    .gc-table { width:100%; border-collapse:collapse; }
+    .gc-table th { padding:10px 14px; background:#f1f5f9; font-size:13px; color:#475569; font-weight:600; text-align:right; }
+    .gc-table td { padding:10px 14px; border-bottom:1px solid #f1f5f9; vertical-align:middle; font-size:14px; }
+    .gc-btn { display:inline-block; padding:5px 14px; border-radius:6px; font-size:13px; cursor:pointer; border:none; text-decoration:none; white-space:nowrap; }
+    .gc-form-inline { display:inline; margin:0; }
+    .gc-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; }
+    .add-form { background:#f8fafc; border-radius:10px; padding:16px 20px; margin-bottom:20px; border:1px dashed #cbd5e1; }
+    .add-form label { font-size:13px; color:#475569; font-weight:600; display:block; margin-bottom:4px; }
+    .add-form input, .add-form select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; direction:rtl; }
+    .add-form button { background:#2563eb; color:#fff; padding:8px 20px; border:none; border-radius:6px; font-size:14px; cursor:pointer; }
+  </style>
+
+  <!-- إضافة فترة جديدة -->
+  <div class="add-form" style="margin-bottom:24px">
+    <strong style="display:block;margin-bottom:10px;font-size:15px">➕ إضافة فترة دراسية جديدة</strong>
+    <form method="POST" action="{{ url_for('grades.admin_add_period') }}" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <label>اسم الفترة</label>
+        <input name="period_name" required placeholder="مثال: الفترة الثالثة" style="width:200px">
+      </div>
+      <div>
+        <label>الترتيب</label>
+        <input name="sort_order" type="number" value="{{ periods|length + 1 }}" style="width:80px">
+      </div>
+      <button type="submit">إضافة</button>
+    </form>
+  </div>
+
+  <!-- فترة بفترة -->
+  {% for period in periods %}
+  <div class="gc-card">
+    <div class="gc-card-head">
+      <span>{{ period.period_name }}</span>
+      <span style="font-size:13px;font-weight:400;opacity:.8">
+        {{ period.categories|selectattr('is_active')|list|length }} فئة نشطة
+      </span>
+    </div>
+
+    <!-- نموذج إضافة فئة -->
+    <div style="padding:16px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
+      <form method="POST" action="{{ url_for('grades.admin_add_category') }}" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <input type="hidden" name="period_id" value="{{ period.id }}">
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:3px">اسم الفئة</label>
+          <input name="category_name" required placeholder="مثال: واجبات" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;direction:rtl;width:160px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:3px">الدرجة القصوى</label>
+          <input name="max_score" type="number" step="0.5" value="10" required style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;width:80px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:3px">الترتيب</label>
+          <input name="sort_order" type="number" value="{{ period.categories|length + 1 }}" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;width:70px">
+        </div>
+        <button type="submit" style="background:#16a34a;color:#fff;padding:8px 18px;border:none;border-radius:6px;font-size:13px;cursor:pointer">+ إضافة فئة</button>
+      </form>
+    </div>
+
+    <!-- جدول الفئات -->
+    {% set period_cats = configs | selectattr('period_id', 'equalto', period.id) | list %}
+    {% if period_cats %}
+    <table class="gc-table">
+      <thead>
+        <tr>
+          <th style="width:40px;text-align:center">#</th>
+          <th>اسم الفئة</th>
+          <th style="width:100px;text-align:center">الدرجة القصوى</th>
+          <th style="width:80px;text-align:center">الترتيب</th>
+          <th style="width:80px;text-align:center">الحالة</th>
+          <th style="width:200px;text-align:center">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cat in period_cats %}
+        <tr style="{{ 'background:#f0fdf4' if cat.is_active else 'background:#fafafa;opacity:.7' }}">
+          <td style="text-align:center;color:#94a3b8">{{ cat.id }}</td>
+          <td style="font-weight:600">{{ cat.category_name }}</td>
+          <td style="text-align:center">
+            <span style="background:#eff6ff;color:#2563eb;padding:3px 10px;border-radius:12px;font-weight:700">{{ cat.max_score }}</span>
+          </td>
+          <td style="text-align:center;color:#64748b">{{ cat.sort_order }}</td>
+          <td style="text-align:center">
+            <span class="gc-badge" style="background:{{'#16a34a' if cat.is_active else '#94a3b8'}};color:#fff">
+              {{ 'نشط' if cat.is_active else 'موقوف' }}
+            </span>
+          </td>
+          <td style="text-align:center">
+            <!-- تعديل -->
+            <button onclick="openEdit({{ cat.id }}, '{{ cat.category_name }}', {{ cat.max_score }}, {{ cat.sort_order }})"
+                    class="gc-btn" style="background:#2563eb;color:#fff;margin:2px">تعديل</button>
+            <!-- تفعيل/إيقاف -->
+            <form class="gc-form-inline" method="POST" action="{{ url_for('grades.admin_toggle_category', cat_id=cat.id) }}">
+              <button type="submit" class="gc-btn" style="background:{{'#dc2626' if cat.is_active else '#16a34a'}};color:#fff;margin:2px">
+                {{ 'إيقاف' if cat.is_active else 'تفعيل' }}
+              </button>
+            </form>
+            <!-- حذف -->
+            <form class="gc-form-inline" method="POST" action="{{ url_for('grades.admin_delete_category', cat_id=cat.id) }}"
+                  onsubmit="return confirm('حذف هذه الفئة وكل درجاتها؟')">
+              <button type="submit" class="gc-btn" style="background:#6b7280;color:#fff;margin:2px">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:20px;text-align:center;color:#94a3b8">لا توجد فئات لهذه الفترة</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if not periods %}
+  <div style="text-align:center;padding:40px;background:#fff;border-radius:10px;color:#94a3b8">
+    لا توجد فترات دراسية — أضف فترة من الأعلى
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Modal تعديل فئة -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:360px;direction:rtl">
+    <h3 style="margin:0 0 20px">تعديل الفئة</h3>
+    <form id="edit-form" method="POST">
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:5px">اسم الفئة</label>
+        <input id="edit-name" name="category_name" required style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;direction:rtl;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:5px">الدرجة القصوى</label>
+        <input id="edit-max" name="max_score" type="number" step="0.5" required style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:5px">الترتيب</label>
+        <input id="edit-order" name="sort_order" type="number" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" onclick="closeEdit()" style="padding:9px 20px;background:#e2e8f0;border:none;border-radius:8px;cursor:pointer">إلغاء</button>
+        <button type="submit" style="padding:9px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEdit(id, name, max, order) {
+  document.getElementById('edit-name').value  = name;
+  document.getElementById('edit-max').value   = max;
+  document.getElementById('edit-order').value = order;
+  document.getElementById('edit-form').action = '/admin/grade-config/' + id + '/edit';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+</script>
+{% endblock %}

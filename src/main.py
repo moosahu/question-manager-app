@@ -1184,6 +1184,29 @@ def create_app():
     except Exception as e:
         print(f"❌ Server Stats blueprint error: {e}")
 
+    # ✅ نظام الدرجات والحضور
+    try:
+        from src.models.grade_period import GradePeriod          # noqa: F401
+        from src.models.grade_config import GradeConfig          # noqa: F401
+        from src.models.grade_entry import GradeEntry            # noqa: F401
+        from src.models.student_attendance import StudentAttendance        # noqa: F401
+        from src.models.student_grade_release import StudentGradeRelease  # noqa: F401
+        from src.routes.grades_routes import grades_bp
+        csrf.exempt(grades_bp)
+        app.register_blueprint(grades_bp)
+        print("✅ Grades blueprint registered successfully")
+        print("📊  Grades endpoints available at:")
+        print("   - GET  /admin/grade-config")
+        print("   - GET  /api/teacher/grade-config")
+        print("   - POST /api/teacher/grade-entries")
+        print("   - POST /api/teacher/attendance")
+        print("   - POST /api/teacher/send-grades")
+        print("   - GET  /api/student/my-grades")
+    except ImportError as e:
+        print(f"⚠️ Grades blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Grades blueprint error: {e}")
+
     @app.route("/download")
     def download_app():
         """يوجّه المستخدم لمتجر التطبيق المناسب حسب جهازه"""
