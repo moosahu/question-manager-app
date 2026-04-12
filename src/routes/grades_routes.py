@@ -373,6 +373,27 @@ def api_send_grades():
         db.session.add(rel)
 
     db.session.commit()
+
+    # ── إشعار FCM للطالب ──────────────────────────────
+    try:
+        from src.services.notification_service import NotificationService
+        student = Student.query.get(student_id)
+        period  = GradePeriod.query.get(period_id)
+        if student and student.fcm_token:
+            type_label = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
+            period_name = period.period_name if period else ''
+            notif_body  = f'أرسل معلمك {type_label} - {period_name}'
+            if custom_message:
+                notif_body += f'\n{custom_message}'
+            NotificationService.send_fcm_notification(
+                student.fcm_token,
+                '📊 درجاتك الجديدة',
+                notif_body,
+                {'type': 'grades_released', 'period_id': str(period_id)},
+            )
+    except Exception as e:
+        print(f"⚠️ grades FCM error: {e}")
+
     return jsonify({'success': True, 'release': rel.to_dict()})
 
 
