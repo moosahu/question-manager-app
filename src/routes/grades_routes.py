@@ -328,6 +328,7 @@ def api_bulk_add_grade_entries():
         return jsonify({'success': False, 'error': 'الفئة غير موجودة'}), 404
 
     saved, failed = 0, 0
+    errors = []
     for item in entries:
         sid   = item.get('student_id')
         score = item.get('score')
@@ -338,7 +339,14 @@ def api_bulk_add_grade_entries():
         if not link:
             failed += 1
             continue
-        ratio = max(0.0, min(1.0, float(score) / cat.max_score))
+        score_val = float(score)
+        if score_val < 0 or score_val > cat.max_score:
+            student = Student.query.get(sid)
+            name = student.name if student else f'ID {sid}'
+            errors.append(f'{name}: الدرجة {score_val} خارج النطاق (0 - {cat.max_score})')
+            failed += 1
+            continue
+        ratio = score_val / cat.max_score
         db.session.add(GradeEntry(
             student_id=sid, teacher_id=teacher_id,
             category_id=category_id, entry_label=entry_label,
@@ -352,7 +360,7 @@ def api_bulk_add_grade_entries():
         if sid:
             _sync_to_old_system(sid, category_id, teacher_id=teacher_id)
     db.session.commit()
-    return jsonify({'success': True, 'saved': saved, 'failed': failed})
+    return jsonify({'success': True, 'saved': saved, 'failed': failed, 'errors': errors})
 
 
 @grades_bp.route('/api/teacher/grade-entries/<int:entry_id>', methods=['DELETE'])
@@ -749,13 +757,21 @@ def api_admin_bulk_add_grade_entries():
         return jsonify({'success': False, 'error': 'الفئة غير موجودة'}), 404
 
     saved, failed = 0, 0
+    errors = []
     for item in entries:
         sid   = item.get('student_id')
         score = item.get('score')
         if sid is None or score is None:
             failed += 1
             continue
-        ratio = max(0.0, min(1.0, float(score) / cat.max_score))
+        score_val = float(score)
+        if score_val < 0 or score_val > cat.max_score:
+            student = Student.query.get(sid)
+            name = student.name if student else f'ID {sid}'
+            errors.append(f'{name}: الدرجة {score_val} خارج النطاق (0 - {cat.max_score})')
+            failed += 1
+            continue
+        ratio = score_val / cat.max_score
         db.session.add(GradeEntry(
             student_id=sid, admin_id=current_user.id,
             category_id=category_id, entry_label=entry_label,
@@ -769,7 +785,7 @@ def api_admin_bulk_add_grade_entries():
         if sid:
             _sync_to_old_system(sid, category_id, admin_id=current_user.id)
     db.session.commit()
-    return jsonify({'success': True, 'saved': saved, 'failed': failed})
+    return jsonify({'success': True, 'saved': saved, 'failed': failed, 'errors': errors})
 
 
 @grades_bp.route('/api/admin/sync-grades', methods=['POST'])
