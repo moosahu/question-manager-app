@@ -478,12 +478,16 @@ def api_student_login():
         print(f"✅ تم تسجيل دخول الطالب: {username} من جهاز: {device_name}")
         print(f"========== End Student Login ==========\n")
         
+        from src.models.teacher_student import TeacherStudent
+        has_teacher = TeacherStudent.query.filter_by(student_id=student.id).first() is not None
+
         return jsonify({
             'success': True,
             'message': 'تم تسجيل الدخول بنجاح',
             'token': token,
             'session_token': session_token,  # ✅ جديد
-            'student': student.to_dict()
+            'student': student.to_dict(),
+            'has_teacher': has_teacher,
         })
         
     except Exception as e:
