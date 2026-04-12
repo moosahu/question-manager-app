@@ -7,9 +7,10 @@ class StudentGradeRelease(db.Model):
 
     id             = db.Column(db.Integer, primary_key=True)
     student_id     = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
-    teacher_id     = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    teacher_id     = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True)
+    admin_id       = db.Column(db.Integer, db.ForeignKey('user.id'),     nullable=True)
     period_id      = db.Column(db.Integer, db.ForeignKey('grade_periods.id'), nullable=False)
-    release_type   = db.Column(db.String(20), nullable=False, default='both')  # test/yearly/both
+    release_type   = db.Column(db.String(20), nullable=False, default='both')
     custom_message = db.Column(db.Text, nullable=True)
     released_at    = db.Column(db.DateTime, default=datetime.utcnow)
 

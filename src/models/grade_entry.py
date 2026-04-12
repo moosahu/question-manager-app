@@ -7,9 +7,10 @@ class GradeEntry(db.Model):
 
     id          = db.Column(db.Integer, primary_key=True)
     student_id  = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
-    teacher_id  = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    teacher_id  = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True)
+    admin_id    = db.Column(db.Integer, db.ForeignKey('user.id'),     nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('grade_config.id'), nullable=False)
-    entry_label = db.Column(db.String(100), nullable=False)   # واجب 1، واجب 2، ...
+    entry_label = db.Column(db.String(100), nullable=False)
     score       = db.Column(db.Float, nullable=False)         # 0.0 – 1.0 نسبة
     entry_date  = db.Column(db.Date, default=datetime.utcnow)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)

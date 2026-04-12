@@ -34,17 +34,8 @@ def _calc_category_score(entries):
     return round(avg * entries[0].category.max_score, 2)
 
 
-def _build_student_grades(student_id, teacher_id):
-    """
-    يبني هيكل درجات الطالب الكامل:
-    {
-      period_id: {
-        period_name, categories: {
-          cat_id: {category_name, max_score, entries: [...], avg_score}
-        }
-      }
-    }
-    """
+def _build_student_grades(student_id, teacher_id=None, admin_id=None):
+    """يبني هيكل درجات الطالب — يدعم teacher_id أو admin_id"""
     periods = GradePeriod.query.filter_by(is_active=True).order_by(GradePeriod.sort_order).all()
     result = {}
     for period in periods:
@@ -52,11 +43,12 @@ def _build_student_grades(student_id, teacher_id):
                                 .order_by(GradeConfig.sort_order).all()
         period_data = {'period_name': period.period_name, 'categories': {}}
         for cat in cats:
-            entries = GradeEntry.query.filter_by(
-                student_id=student_id,
-                teacher_id=teacher_id,
-                category_id=cat.id
-            ).order_by(GradeEntry.entry_date).all()
+            q = GradeEntry.query.filter_by(student_id=student_id, category_id=cat.id)
+            if teacher_id:
+                q = q.filter_by(teacher_id=teacher_id)
+            elif admin_id:
+                q = q.filter_by(admin_id=admin_id)
+            entries = q.order_by(GradeEntry.entry_date).all()
             avg = _calc_category_score(entries) if entries else None
             period_data['categories'][cat.id] = {
                 'category_name': cat.category_name,
@@ -466,24 +458,23 @@ def api_student_my_grades():
 @grades_bp.route('/api/admin/students/<int:student_id>/grades', methods=['GET'])
 @login_required
 def api_admin_student_grades(student_id):
-    teacher_id = request.args.get('teacher_id', type=int)
-    if not teacher_id:
-        return jsonify({'success': False, 'error': 'teacher_id مطلوب'}), 400
-    grades = _build_student_grades(student_id, teacher_id)
+    """الأدمن يجلب درجات طالبه — يستخدم admin_id من الجلسة"""
+    from flask_login import current_user
+    grades = _build_student_grades(student_id, admin_id=current_user.id)
     return jsonify({'success': True, 'grades': grades})
 
 
 @grades_bp.route('/api/admin/grade-entries', methods=['POST'])
 @login_required
 def api_admin_add_grade_entry():
-    data = request.get_json() or {}
-    teacher_id  = data.get('teacher_id')
+    from flask_login import current_user
+    data        = request.get_json() or {}
     student_id  = data.get('student_id')
     category_id = data.get('category_id')
     entry_label = data.get('entry_label', '').strip()
     score       = data.get('score')
 
-    if not all([teacher_id, student_id, category_id, entry_label, score is not None]):
+    if not all([student_id, category_id, entry_label, score is not None]):
         return jsonify({'success': False, 'error': 'البيانات ناقصة'}), 400
 
     cat = GradeConfig.query.get(category_id)
@@ -492,7 +483,7 @@ def api_admin_add_grade_entry():
 
     score_ratio = max(0.0, min(1.0, float(score) / cat.max_score))
     entry = GradeEntry(
-        student_id=student_id, teacher_id=teacher_id,
+        student_id=student_id, admin_id=current_user.id,
         category_id=category_id, entry_label=entry_label,
         score=score_ratio, entry_date=date.today(),
     )
@@ -513,15 +504,15 @@ def api_admin_delete_grade_entry(entry_id):
 @grades_bp.route('/api/admin/attendance', methods=['POST'])
 @login_required
 def api_admin_record_attendance():
-    data = request.get_json() or {}
-    teacher_id      = data.get('teacher_id')
+    from flask_login import current_user
+    data            = request.get_json() or {}
     student_id      = data.get('student_id')
     attendance_date = data.get('attendance_date')
     period_number   = data.get('period_number', 1)
     status          = data.get('status', 'present')
     notes           = data.get('notes', '')
 
-    if not all([teacher_id, student_id, attendance_date]):
+    if not all([student_id, attendance_date]):
         return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
     if status not in ('present', 'absent', 'late', 'sleeping'):
         return jsonify({'success': False, 'error': 'status غير صحيح'}), 400
@@ -531,7 +522,7 @@ def api_admin_record_attendance():
         return jsonify({'success': False, 'error': 'تنسيق التاريخ غير صحيح'}), 400
 
     existing = StudentAttendance.query.filter_by(
-        student_id=student_id, teacher_id=teacher_id,
+        student_id=student_id, admin_id=current_user.id,
         attendance_date=att_date, period_number=period_number,
     ).first()
     if existing:
@@ -540,7 +531,7 @@ def api_admin_record_attendance():
         att = existing
     else:
         att = StudentAttendance(
-            student_id=student_id, teacher_id=teacher_id,
+            student_id=student_id, admin_id=current_user.id,
             attendance_date=att_date, period_number=period_number,
             status=status, notes=notes,
         )
@@ -552,12 +543,10 @@ def api_admin_record_attendance():
 @grades_bp.route('/api/admin/attendance', methods=['GET'])
 @login_required
 def api_admin_get_attendance():
-    teacher_id = request.args.get('teacher_id', type=int)
+    from flask_login import current_user
     student_id = request.args.get('student_id', type=int)
     date_str   = request.args.get('date')
-    if not teacher_id:
-        return jsonify({'success': False, 'error': 'teacher_id مطلوب'}), 400
-    q = StudentAttendance.query.filter_by(teacher_id=teacher_id)
+    q = StudentAttendance.query.filter_by(admin_id=current_user.id)
     if student_id:
         q = q.filter_by(student_id=student_id)
     if date_str:
@@ -574,20 +563,20 @@ def api_admin_get_attendance():
 @grades_bp.route('/api/admin/send-grades', methods=['POST'])
 @login_required
 def api_admin_send_grades():
-    data = request.get_json() or {}
-    teacher_id     = data.get('teacher_id')
+    from flask_login import current_user
+    data           = request.get_json() or {}
     student_id     = data.get('student_id')
     period_id      = data.get('period_id')
     release_type   = data.get('release_type', 'both')
     custom_message = data.get('custom_message', '')
 
-    if not all([teacher_id, student_id, period_id]):
+    if not all([student_id, period_id]):
         return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
     if release_type not in ('test', 'yearly', 'both'):
         return jsonify({'success': False, 'error': 'release_type غير صحيح'}), 400
 
     existing = StudentGradeRelease.query.filter_by(
-        student_id=student_id, teacher_id=teacher_id, period_id=period_id,
+        student_id=student_id, admin_id=current_user.id, period_id=period_id,
     ).first()
     if existing:
         existing.release_type   = release_type
@@ -596,7 +585,7 @@ def api_admin_send_grades():
         rel = existing
     else:
         rel = StudentGradeRelease(
-            student_id=student_id, teacher_id=teacher_id,
+            student_id=student_id, admin_id=current_user.id,
             period_id=period_id, release_type=release_type,
             custom_message=custom_message,
         )
@@ -611,7 +600,7 @@ def api_admin_send_grades():
         if student and student.fcm_token:
             type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
             period_name = period.period_name if period else ''
-            notif_body  = f'أرسل معلمك {type_label} - {period_name}'
+            notif_body  = f'أُرسلت لك {type_label} - {period_name}'
             if custom_message:
                 notif_body += f'\n{custom_message}'
             NotificationService.send_fcm_notification(
