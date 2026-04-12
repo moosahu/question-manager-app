@@ -227,6 +227,47 @@ def api_add_grade_entry():
     return jsonify({'success': True, 'entry': entry.to_dict()})
 
 
+@grades_bp.route('/api/teacher/grade-entries/bulk', methods=['POST'])
+@verify_teacher_token
+def api_bulk_add_grade_entries():
+    """إدخال درجة واجب/اختبار لعدة طلاب دفعة واحدة"""
+    teacher_id = request.teacher_id
+    data = request.get_json() or {}
+
+    category_id = data.get('category_id')
+    entry_label = data.get('entry_label', '').strip()
+    entries     = data.get('entries', [])   # [{student_id, score}, ...]
+
+    if not all([category_id, entry_label, entries]):
+        return jsonify({'success': False, 'error': 'البيانات ناقصة'}), 400
+
+    cat = GradeConfig.query.get(category_id)
+    if not cat:
+        return jsonify({'success': False, 'error': 'الفئة غير موجودة'}), 404
+
+    saved, failed = 0, 0
+    for item in entries:
+        sid   = item.get('student_id')
+        score = item.get('score')
+        if sid is None or score is None:
+            failed += 1
+            continue
+        link = TeacherStudent.query.filter_by(teacher_id=teacher_id, student_id=sid).first()
+        if not link:
+            failed += 1
+            continue
+        ratio = max(0.0, min(1.0, float(score) / cat.max_score))
+        db.session.add(GradeEntry(
+            student_id=sid, teacher_id=teacher_id,
+            category_id=category_id, entry_label=entry_label,
+            score=ratio, entry_date=date.today(),
+        ))
+        saved += 1
+
+    db.session.commit()
+    return jsonify({'success': True, 'saved': saved, 'failed': failed})
+
+
 @grades_bp.route('/api/teacher/grade-entries/<int:entry_id>', methods=['DELETE'])
 @verify_teacher_token
 def api_delete_grade_entry(entry_id):
@@ -516,6 +557,43 @@ def api_admin_add_grade_entry():
     db.session.add(entry)
     db.session.commit()
     return jsonify({'success': True, 'entry': entry.to_dict()})
+
+
+@grades_bp.route('/api/admin/grade-entries/bulk', methods=['POST'])
+@login_required
+def api_admin_bulk_add_grade_entries():
+    """إدخال درجات جماعية — الأدمن"""
+    from flask_login import current_user
+    data = request.get_json() or {}
+
+    category_id = data.get('category_id')
+    entry_label = data.get('entry_label', '').strip()
+    entries     = data.get('entries', [])
+
+    if not all([category_id, entry_label, entries]):
+        return jsonify({'success': False, 'error': 'البيانات ناقصة'}), 400
+
+    cat = GradeConfig.query.get(category_id)
+    if not cat:
+        return jsonify({'success': False, 'error': 'الفئة غير موجودة'}), 404
+
+    saved, failed = 0, 0
+    for item in entries:
+        sid   = item.get('student_id')
+        score = item.get('score')
+        if sid is None or score is None:
+            failed += 1
+            continue
+        ratio = max(0.0, min(1.0, float(score) / cat.max_score))
+        db.session.add(GradeEntry(
+            student_id=sid, admin_id=current_user.id,
+            category_id=category_id, entry_label=entry_label,
+            score=ratio, entry_date=date.today(),
+        ))
+        saved += 1
+
+    db.session.commit()
+    return jsonify({'success': True, 'saved': saved, 'failed': failed})
 
 
 @grades_bp.route('/api/admin/grade-entries/<int:entry_id>', methods=['DELETE'])
