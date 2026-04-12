@@ -636,6 +636,7 @@ def api_student_my_grades():
     output = []
     for rel in releases:
         teacher_id    = rel.teacher_id
+        admin_id      = rel.admin_id
         period_id     = rel.period_id
         release_type  = rel.release_type
 
@@ -653,11 +654,16 @@ def api_student_my_grades():
             if release_type == 'yearly' and is_test_cat:
                 continue
 
-            entries = GradeEntry.query.filter_by(
+            # إذا الإرسال من أدمن → نفلتر بـ admin_id، وإلا بـ teacher_id
+            q = GradeEntry.query.filter_by(
                 student_id=student_id,
-                teacher_id=teacher_id,
                 category_id=cat.id,
-            ).order_by(GradeEntry.entry_date).all()
+            )
+            if teacher_id:
+                q = q.filter_by(teacher_id=teacher_id)
+            else:
+                q = q.filter_by(admin_id=admin_id)
+            entries = q.order_by(GradeEntry.entry_date).all()
 
             avg = _calc_category_score(entries) if entries else None
             categories_data.append({
