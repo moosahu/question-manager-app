@@ -774,6 +774,24 @@ def api_admin_bulk_add_grade_entries():
     return jsonify({'success': True, 'saved': saved, 'failed': failed})
 
 
+@grades_bp.route('/api/admin/sync-grades', methods=['POST'])
+@login_required
+def api_admin_sync_grades():
+    """إعادة مزامنة كل إدخالات الاختبار (أعلى max_score) مع النظام القديم"""
+    from flask_login import current_user
+    synced = 0
+    entries = GradeEntry.query.filter_by(admin_id=current_user.id).all()
+    for entry in entries:
+        try:
+            _sync_to_old_system(entry.student_id, entry.category_id,
+                                admin_id=current_user.id)
+            synced += 1
+        except Exception:
+            pass
+    db.session.commit()
+    return jsonify({'success': True, 'synced': synced})
+
+
 @grades_bp.route('/api/admin/grade-entries/<int:entry_id>', methods=['DELETE'])
 @login_required
 def api_admin_delete_grade_entry(entry_id):
