@@ -32,11 +32,10 @@ def _sync_to_new_system(student_id, semester_number, grade, max_grade, admin_id=
         if not period:
             return
 
-        exam_cat = GradeConfig.query.filter(
-            GradeConfig.period_id == period.id,
-            GradeConfig.category_name.ilike('%اختبار%'),
-            GradeConfig.is_active == True,
-        ).first()
+        # فئة الاختبار = الفئة ذات أعلى درجة في الفترة
+        exam_cat = GradeConfig.query.filter_by(
+            period_id=period.id, is_active=True
+        ).order_by(GradeConfig.max_score.desc()).first()
         if not exam_cat:
             return
 

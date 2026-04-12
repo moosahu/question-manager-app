@@ -576,6 +576,14 @@ def create_app():
     
     login_manager.login_view = "auth.login" # Set the login view
 
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        """API endpoints ترجع JSON بدل redirect لصفحة login"""
+        from flask import request, jsonify, redirect, url_for
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'غير مسجل الدخول — يرجى إعادة تسجيل الدخول'}), 401
+        return redirect(url_for('auth.login'))
+
     # ===== إضافة CORS Middleware =====
     @app.after_request
     def add_cors_headers(response):

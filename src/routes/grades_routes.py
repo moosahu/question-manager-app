@@ -31,10 +31,17 @@ def _sync_to_old_system(student_id, category_id, teacher_id=None, admin_id=None)
     try:
         from src.models.student_semester_grade import StudentSemesterGrade
         cat = GradeConfig.query.get(category_id)
-        if not cat or 'اختبار' not in (cat.category_name or ''):
+        if not cat:
             return
         period = GradePeriod.query.get(cat.period_id)
         if not period or not period.semester_number:
+            return
+
+        # فقط نزامن إذا كانت هذه الفئة هي الأعلى درجة في الفترة (= فئة الاختبار)
+        top_cat = GradeConfig.query.filter_by(
+            period_id=cat.period_id, is_active=True
+        ).order_by(GradeConfig.max_score.desc()).first()
+        if not top_cat or top_cat.id != cat.id:
             return
 
         # متوسط جميع إدخالات الطالب في هذه الفئة
