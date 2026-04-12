@@ -37,6 +37,7 @@ class TeacherStudent(db.Model):
         index=True,
     )
     joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    section   = db.Column(db.String(50), nullable=True)   # الشعبة (أ، ب، ج ...)
 
     # العلاقات
     teacher = db.relationship('Teacher', backref=db.backref('linked_students', lazy='dynamic'))

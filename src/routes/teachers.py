@@ -522,6 +522,7 @@ def api_get_teacher_students(teacher_id):
             'username': s.username,
             'grade': s.grade or '',
             'school': s.school or '',
+            'section': link.section or '',
             'is_active': s.is_active,
             'last_login': s.last_login.isoformat() if s.last_login else '',
             'joined_at': link.joined_at.isoformat() if link.joined_at else '',
@@ -850,6 +851,7 @@ def api_get_admin_students():
             'username': s.username,
             'grade': s.grade or '',
             'school': s.school or '',
+            'section': link.section or '',
             'is_active': s.is_active,
             'last_login': s.last_login.isoformat() if s.last_login else '',
             'joined_at': link.joined_at.isoformat() if link.joined_at else '',
@@ -877,6 +879,38 @@ def api_get_admin_student_results(student_id):
         admin_id=admin.id, student_id=student_id).first_or_404()
 
     return jsonify(_build_student_results_response(student_id))
+
+
+@teachers_bp.route('/api/mobile/admin/students/<int:student_id>/section', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_update_student_section(student_id):
+    """تحديث شعبة طالب (الأدمن)"""
+    from src.models.teacher_student import TeacherStudent
+    data    = request.get_json() or {}
+    section = data.get('section', '').strip()
+    link = TeacherStudent.query.filter_by(student_id=student_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'الطالب غير موجود في قائمتك'}), 404
+    link.section = section or None
+    db.session.commit()
+    return jsonify({'success': True, 'section': link.section or ''})
+
+
+@teachers_bp.route('/api/mobile/<int:teacher_id>/students/<int:student_id>/section', methods=['POST'])
+@login_required
+@admin_required
+def api_teacher_update_student_section(teacher_id, student_id):
+    """تحديث شعبة طالب (المعلم — يُستدعى من الأدمن)"""
+    from src.models.teacher_student import TeacherStudent
+    data    = request.get_json() or {}
+    section = data.get('section', '').strip()
+    link = TeacherStudent.query.filter_by(teacher_id=teacher_id, student_id=student_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'الطالب غير موجود في قائمة المعلم'}), 404
+    link.section = section or None
+    db.session.commit()
+    return jsonify({'success': True, 'section': link.section or ''})
 
 
 @teachers_bp.route('/api/mobile/admin/students/<int:student_id>/remove', methods=['POST'])
@@ -1034,6 +1068,7 @@ def api_teacher_my_students():
             'name': s.name,
             'grade': s.grade or '',
             'school': s.school or '',
+            'section': link.section or '',
             'is_active': s.is_active,
             'last_login': s.last_login.isoformat() if s.last_login else '',
             'joined_at': link.joined_at.isoformat() if link.joined_at else '',
