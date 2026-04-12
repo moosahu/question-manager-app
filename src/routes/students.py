@@ -2856,3 +2856,32 @@ def api_student_leave_class():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/student/has-teacher', methods=['GET'])
+def api_student_has_teacher():
+    """تحقق سريع: هل الطالب مرتبط بمعلم أو أدمن؟"""
+    from src.middleware.auth_middleware import verify_student_token
+    from src.models.teacher_student import TeacherStudent
+    from src.models.grade_entry import GradeEntry
+    from flask import request as _req
+    import jwt, os
+
+    auth = _req.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        return jsonify({'success': False, 'has_teacher': False}), 401
+    try:
+        payload = jwt.decode(
+            auth.split(' ')[1],
+            os.environ.get('JWT_SECRET_KEY', 'your-secret-key'),
+            algorithms=['HS256']
+        )
+        student_id = payload.get('student_id')
+    except Exception:
+        return jsonify({'success': False, 'has_teacher': False}), 401
+
+    has = (
+        TeacherStudent.query.filter_by(student_id=student_id).first() is not None
+        or GradeEntry.query.filter_by(student_id=student_id).first() is not None
+    )
+    return jsonify({'success': True, 'has_teacher': has})
