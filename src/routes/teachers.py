@@ -504,7 +504,9 @@ def api_get_teacher_students(teacher_id):
     from sqlalchemy import func
 
     teacher = Teacher.query.get_or_404(teacher_id)
-    links = TeacherStudent.query.filter_by(teacher_id=teacher_id).all()
+    links = TeacherStudent.query.join(TeacherStudent.student)\
+        .filter(TeacherStudent.teacher_id == teacher_id)\
+        .order_by(Student.name).all()
 
     result = []
     for link in links:
@@ -1053,7 +1055,9 @@ def api_teacher_my_students():
     from sqlalchemy import func
 
     teacher = Teacher.query.get_or_404(request.teacher_id)
-    links = TeacherStudent.query.filter_by(teacher_id=teacher.id).all()
+    links = TeacherStudent.query.join(TeacherStudent.student)\
+        .filter(TeacherStudent.teacher_id == teacher.id)\
+        .order_by(Student.name).all()
 
     result = []
     for link in links:
