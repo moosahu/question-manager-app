@@ -479,7 +479,11 @@ def api_student_login():
         print(f"========== End Student Login ==========\n")
         
         from src.models.teacher_student import TeacherStudent
-        has_teacher = TeacherStudent.query.filter_by(student_id=student.id).first() is not None
+        from src.models.grade_entry import GradeEntry
+        has_teacher = (
+            TeacherStudent.query.filter_by(student_id=student.id).first() is not None
+            or GradeEntry.query.filter_by(student_id=student.id).first() is not None
+        )
 
         return jsonify({
             'success': True,
