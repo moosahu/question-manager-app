@@ -4,7 +4,7 @@ video_generator.py — نسخة السيرفر من generate_video.py
 يحفظ الفيديو في /tmp/question_<id>.mp4
 """
 
-import os, json, math, tempfile, requests
+import os, json, math, tempfile, requests, re
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
@@ -47,6 +47,26 @@ ELEVENLABS_VOICE_ID = os.environ.get('ELEVENLABS_VOICE_ID', 'CwhRBWXzGAHq8TQ4Fs1
 # ============================================================
 # أدوات الرسم
 # ============================================================
+
+_BIDI_MARKS = str.maketrans('', '', '\u2066\u2069\u202A\u202C\u200E\u200F\u202B\u200F')
+_LTR_RUN    = re.compile(r'[^\u0600-\u06FF\s]+(?:[ \t]+[^\u0600-\u06FF\s]+)*')
+
+def clean_for_video(text: str) -> str:
+    """
+    1. يحذف BiDi control chars المخزّنة في DB (من applyBidiToTextarea)
+    2. يلف كل تسلسل غير-عربي يحتوي حروف/أرقام بـ LRE+PDF
+       حتى يعاملها python-bidi كـ LTR داخل الفقرة العربية RTL
+       → يمنع عكس "12 g" إلى "g 12"
+    """
+    text = str(text).translate(_BIDI_MARKS)
+
+    def wrap(m):
+        s = m.group(0)
+        if re.search(r'[A-Za-z0-9]', s):
+            return '\u202A' + s + '\u202C'   # LRE + text + PDF
+        return s
+
+    return _LTR_RUN.sub(wrap, text)
 
 def ar(text):
     return get_display(arabic_reshaper.reshape(str(text)))
@@ -172,7 +192,7 @@ def slide_question(sub, question_text, options, unit, lesson):
 
     card(draw, 50, HEADER_H + 18, W - 50, HEADER_H + 100,
          fill=CARD_WHITE, outline=BORDER, r=16)
-    draw_ar_center(draw, question_text, HEADER_H + 36, FA(34), TEXT_DARK)
+    draw_ar_center(draw, clean_for_video(question_text), HEADER_H + 36, FA(34), TEXT_DARK)
 
     y = HEADER_H + 118
     for letter, opt_text, _ in options:

@@ -911,3 +911,196 @@ def api_admin_send_grades():
         print(f"⚠️ grades FCM error: {e}")
 
     return jsonify({'success': True, 'release': rel.to_dict()})
+
+
+# ══════════════════════════════════════════════════════
+#  ADMIN: تحميل قالب الدرجات (Excel)
+# ══════════════════════════════════════════════════════
+
+@grades_bp.route('/api/admin/grade-template', methods=['GET'])
+@login_required
+def api_admin_grade_template():
+    from flask_login import current_user
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from flask import send_file
+
+    period_id = request.args.get('period_id', type=int)
+    if not period_id:
+        return jsonify({'success': False, 'error': 'period_id مطلوب'}), 400
+
+    period = GradePeriod.query.get(period_id)
+    if not period:
+        return jsonify({'success': False, 'error': 'الفترة غير موجودة'}), 404
+
+    cats = GradeConfig.query.filter_by(period_id=period_id, is_active=True)\
+                            .order_by(GradeConfig.sort_order).all()
+    if not cats:
+        return jsonify({'success': False, 'error': 'لا توجد فئات لهذه الفترة'}), 404
+
+    students = Student.query.filter(Student.is_active != False)\
+                            .order_by(Student.name).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = period.period_name
+    ws.sheet_view.rightToLeft = True
+
+    blue_fill   = PatternFill('solid', fgColor='1e3a8a')
+    gray_fill   = PatternFill('solid', fgColor='F1F5F9')
+    yellow_fill = PatternFill('solid', fgColor='FEF9C3')
+    thin   = Side(style='thin', color='CBD5E1')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    total_cols = 2 + len(cats)
+
+    # الصف 1: عنوان
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+    tc = ws.cell(1, 1, value=f'قالب درجات — {period.period_name}  |  يُرفع في التطبيق بعد التعبئة')
+    tc.font      = Font(bold=True, color='FFFFFF', size=13)
+    tc.fill      = blue_fill
+    tc.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+    ws.row_dimensions[1].height = 28
+
+    # الصف 2: رؤوس
+    headers = ['student_id', 'اسم الطالب'] + \
+              [f"{c.category_name}\n/{int(c.max_score)}" for c in cats]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(2, col, value=h)
+        cell.font      = Font(bold=True, color='FFFFFF', size=11)
+        cell.fill      = blue_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center',
+                                   wrap_text=True, readingOrder=2)
+        cell.border = border
+    ws.row_dimensions[2].height = 40
+    ws.column_dimensions['A'].hidden = True
+
+    # بيانات الطلاب
+    for r, student in enumerate(students, 3):
+        ws.cell(r, 1, value=student.id)
+        nc = ws.cell(r, 2, value=student.name)
+        nc.fill      = gray_fill
+        nc.font      = Font(bold=True, size=11)
+        nc.alignment = Alignment(horizontal='right', vertical='center', readingOrder=2)
+        nc.border    = border
+        for col in range(3, total_cols + 1):
+            cell = ws.cell(r, col)
+            cell.fill      = yellow_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border    = border
+        ws.row_dimensions[r].height = 22
+
+    ws.column_dimensions['B'].width = 28
+    for col in range(3, total_cols + 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 14
+
+    # صفحة تعليمات
+    ws2 = wb.create_sheet('تعليمات')
+    ws2.sheet_view.rightToLeft = True
+    ws2['A1'] = 'تعليمات الاستخدام'
+    ws2['A1'].font = Font(bold=True, size=14, color='1e3a8a')
+    for i, txt in enumerate([
+        '١. لا تغيّر أسماء الطلاب أو ترتيبهم',
+        '٢. لا تغيّر رؤوس الأعمدة',
+        '٣. أدخل الدرجة في الخلايا الصفراء فقط',
+        '٤. الخلية الفارغة = لا يُضاف شيء لهذا الطالب',
+        '٥. بعد التعبئة، ارفع الملف من زر "استيراد درجات" في التطبيق',
+        f'٦. هذا القالب خاص بـ: {period.period_name}',
+    ], 2):
+        ws2[f'A{i}'] = txt
+        ws2[f'A{i}'].font = Font(size=12)
+    ws2.column_dimensions['A'].width = 55
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(output,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True,
+                     download_name=f'درجات_{period.period_name}.xlsx')
+
+
+# ══════════════════════════════════════════════════════
+#  ADMIN: استيراد درجات من Excel
+# ══════════════════════════════════════════════════════
+
+@grades_bp.route('/api/admin/import-grades-excel', methods=['POST'])
+@login_required
+def api_admin_import_grades_excel():
+    from flask_login import current_user
+    from io import BytesIO
+    import openpyxl
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'لم يُرسَل ملف'}), 400
+
+    period_id = request.form.get('period_id', type=int)
+    if not period_id:
+        return jsonify({'success': False, 'error': 'period_id مطلوب'}), 400
+
+    period = GradePeriod.query.get(period_id)
+    if not period:
+        return jsonify({'success': False, 'error': 'الفترة غير موجودة'}), 404
+
+    cats = GradeConfig.query.filter_by(period_id=period_id, is_active=True)\
+                            .order_by(GradeConfig.sort_order).all()
+    if not cats:
+        return jsonify({'success': False, 'error': 'لا توجد فئات'}), 404
+
+    file = request.files['file']
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file.read()), data_only=True)
+        ws = wb.worksheets[0]
+    except Exception:
+        return jsonify({'success': False, 'error': 'الملف تالف أو غير صالح'}), 400
+
+    saved, errors = 0, []
+
+    for row in ws.iter_rows(min_row=3, values_only=True):
+        student_id = row[0]
+        if not student_id:
+            continue
+        student = Student.query.get(int(student_id))
+        if not student:
+            errors.append(f'طالب ID {student_id} غير موجود')
+            continue
+
+        for i, cat in enumerate(cats):
+            raw = row[2 + i] if (2 + i) < len(row) else None
+            if raw is None or str(raw).strip() == '':
+                continue
+            try:
+                score_val = float(raw)
+            except (ValueError, TypeError):
+                errors.append(f'{student.name} — {cat.category_name}: قيمة غير صالحة ({raw})')
+                continue
+            if score_val < 0 or score_val > cat.max_score:
+                errors.append(f'{student.name} — {cat.category_name}: خارج النطاق ({score_val}/{cat.max_score})')
+                continue
+
+            label = f'استيراد {period.period_name}'
+            GradeEntry.query.filter_by(
+                student_id=student.id, category_id=cat.id, entry_label=label).delete()
+            db.session.add(GradeEntry(
+                student_id=student.id,
+                category_id=cat.id,
+                admin_id=current_user.id,
+                entry_label=label,
+                score=score_val / cat.max_score,
+            ))
+            db.session.flush()
+            _sync_to_old_system(student.id, cat.id, admin_id=current_user.id)
+            saved += 1
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'خطأ في الحفظ: {str(e)}'}), 500
+
+    return jsonify({
+        'success': True,
+        'saved':   saved,
+        'errors':  errors[:20],
+        'message': f'تم حفظ {saved} درجة' + (f' — {len(errors)} تحذير' if errors else ''),
+    })
