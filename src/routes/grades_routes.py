@@ -165,6 +165,23 @@ def api_teacher_grade_config():
     return jsonify({'success': True, 'periods': data})
 
 
+@grades_bp.route('/api/admin/grade-config', methods=['GET'])
+@login_required
+def api_admin_grade_config():
+    """الأدمن يجلب التقسيمة — session cookie"""
+    periods = GradePeriod.query.filter_by(is_active=True).order_by(GradePeriod.sort_order).all()
+    data = []
+    for p in periods:
+        cats = GradeConfig.query.filter_by(period_id=p.id, is_active=True)\
+                                .order_by(GradeConfig.sort_order).all()
+        data.append({
+            'period_id':   p.id,
+            'period_name': p.period_name,
+            'categories':  [c.to_dict() for c in cats],
+        })
+    return jsonify({'success': True, 'periods': data})
+
+
 # ══════════════════════════════════════════════════════
 #  TEACHER API: إدخال درجات
 # ══════════════════════════════════════════════════════
