@@ -73,6 +73,39 @@ def _sync_to_old_system(student_id, category_id, teacher_id=None, admin_id=None)
         print(f"⚠️ _sync_to_old_system error: {e}")
 
 
+def _send_grade_notification(student, period, release_type, custom_message=''):
+    """يرسل FCM ويحفظ الإشعار في DB"""
+    try:
+        from src.services.notification_service import NotificationService
+        from src.models.notification import Notification
+        type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
+        period_name = period.period_name if period else ''
+        notif_body  = f'أُرسلت لك {type_label} - {period_name}'
+        if custom_message:
+            notif_body += f'\n{custom_message}'
+        # FCM
+        if student.fcm_token:
+            NotificationService.send_fcm_notification(
+                student.fcm_token,
+                '📊 درجاتك الجديدة',
+                notif_body,
+                {'type': 'grades_released', 'period_id': str(period.id if period else 0)},
+            )
+        # حفظ في DB
+        notif = Notification(
+            title='📊 درجاتك الجديدة',
+            message=notif_body,
+            student_id=student.id,
+            notification_type='grades_released',
+            type='info',
+            is_read=False,
+        )
+        db.session.add(notif)
+        db.session.flush()
+    except Exception as e:
+        print(f"⚠️ grade notification error: {e}")
+
+
 def _calc_category_score(entries):
     """متوسط الإدخالات (score بين 0-1) × max_score"""
     if not entries:
@@ -478,25 +511,11 @@ def api_send_grades():
 
     db.session.commit()
 
-    # ── إشعار FCM للطالب ──────────────────────────────
-    try:
-        from src.services.notification_service import NotificationService
-        student = Student.query.get(student_id)
-        period  = GradePeriod.query.get(period_id)
-        if student and student.fcm_token:
-            type_label = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
-            period_name = period.period_name if period else ''
-            notif_body  = f'أرسل معلمك {type_label} - {period_name}'
-            if custom_message:
-                notif_body += f'\n{custom_message}'
-            NotificationService.send_fcm_notification(
-                student.fcm_token,
-                '📊 درجاتك الجديدة',
-                notif_body,
-                {'type': 'grades_released', 'period_id': str(period_id)},
-            )
-    except Exception as e:
-        print(f"⚠️ grades FCM error: {e}")
+    # إشعار + حفظ في DB
+    student = Student.query.get(student_id)
+    period  = GradePeriod.query.get(period_id)
+    _send_grade_notification(student, period, release_type, custom_message)
+    db.session.commit()
 
     return jsonify({'success': True, 'release': rel.to_dict()})
 
@@ -543,22 +562,8 @@ def api_bulk_send_grades():
                 custom_message=custom_message,
             ))
         saved += 1
-
-        # FCM
-        try:
-            from src.services.notification_service import NotificationService
-            student = Student.query.get(sid)
-            if student and student.fcm_token:
-                type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
-                period_name = period.period_name if period else ''
-                body = f'أرسل معلمك {type_label} - {period_name}'
-                if custom_message:
-                    body += f'\n{custom_message}'
-                NotificationService.send_fcm_notification(
-                    student.fcm_token, '📊 درجاتك الجديدة', body,
-                    {'type': 'grades_released', 'period_id': str(period_id)})
-        except Exception as e:
-            print(f"⚠️ bulk FCM error: {e}")
+        student = Student.query.get(sid)
+        _send_grade_notification(student, period, release_type, custom_message)
 
     db.session.commit()
     return jsonify({'success': True, 'sent': saved, 'failed': failed})
@@ -598,21 +603,8 @@ def api_admin_bulk_send_grades():
                 custom_message=custom_message,
             ))
         saved += 1
-
-        try:
-            from src.services.notification_service import NotificationService
-            student = Student.query.get(sid)
-            if student and student.fcm_token:
-                type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
-                period_name = period.period_name if period else ''
-                body = f'أُرسلت لك {type_label} - {period_name}'
-                if custom_message:
-                    body += f'\n{custom_message}'
-                NotificationService.send_fcm_notification(
-                    student.fcm_token, '📊 درجاتك الجديدة', body,
-                    {'type': 'grades_released', 'period_id': str(period_id)})
-        except Exception as e:
-            print(f"⚠️ bulk FCM error: {e}")
+        student = Student.query.get(sid)
+        _send_grade_notification(student, period, release_type, custom_message)
 
     db.session.commit()
     return jsonify({'success': True, 'sent': saved, 'failed': failed})
@@ -898,23 +890,11 @@ def api_admin_send_grades():
         db.session.add(rel)
     db.session.commit()
 
-    # إشعار FCM
-    try:
-        from src.services.notification_service import NotificationService
-        student = Student.query.get(student_id)
-        period  = GradePeriod.query.get(period_id)
-        if student and student.fcm_token:
-            type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
-            period_name = period.period_name if period else ''
-            notif_body  = f'أُرسلت لك {type_label} - {period_name}'
-            if custom_message:
-                notif_body += f'\n{custom_message}'
-            NotificationService.send_fcm_notification(
-                student.fcm_token, '📊 درجاتك الجديدة', notif_body,
-                {'type': 'grades_released', 'period_id': str(period_id)},
-            )
-    except Exception as e:
-        print(f"⚠️ grades FCM error: {e}")
+    # إشعار + حفظ في DB
+    student = Student.query.get(student_id)
+    period  = GradePeriod.query.get(period_id)
+    _send_grade_notification(student, period, release_type, custom_message)
+    db.session.commit()
 
     return jsonify({'success': True, 'release': rel.to_dict()})
 
