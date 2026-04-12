@@ -456,3 +456,169 @@ def api_student_my_grades():
         })
 
     return jsonify({'success': True, 'data': output})
+
+
+# ══════════════════════════════════════════════════════
+#  ADMIN API: إدارة درجات وحضور (session cookie)
+#  نفس منطق المعلم لكن teacher_id يأتي من الـ body/params
+# ══════════════════════════════════════════════════════
+
+@grades_bp.route('/api/admin/students/<int:student_id>/grades', methods=['GET'])
+@login_required
+def api_admin_student_grades(student_id):
+    teacher_id = request.args.get('teacher_id', type=int)
+    if not teacher_id:
+        return jsonify({'success': False, 'error': 'teacher_id مطلوب'}), 400
+    grades = _build_student_grades(student_id, teacher_id)
+    return jsonify({'success': True, 'grades': grades})
+
+
+@grades_bp.route('/api/admin/grade-entries', methods=['POST'])
+@login_required
+def api_admin_add_grade_entry():
+    data = request.get_json() or {}
+    teacher_id  = data.get('teacher_id')
+    student_id  = data.get('student_id')
+    category_id = data.get('category_id')
+    entry_label = data.get('entry_label', '').strip()
+    score       = data.get('score')
+
+    if not all([teacher_id, student_id, category_id, entry_label, score is not None]):
+        return jsonify({'success': False, 'error': 'البيانات ناقصة'}), 400
+
+    cat = GradeConfig.query.get(category_id)
+    if not cat:
+        return jsonify({'success': False, 'error': 'الفئة غير موجودة'}), 404
+
+    score_ratio = max(0.0, min(1.0, float(score) / cat.max_score))
+    entry = GradeEntry(
+        student_id=student_id, teacher_id=teacher_id,
+        category_id=category_id, entry_label=entry_label,
+        score=score_ratio, entry_date=date.today(),
+    )
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify({'success': True, 'entry': entry.to_dict()})
+
+
+@grades_bp.route('/api/admin/grade-entries/<int:entry_id>', methods=['DELETE'])
+@login_required
+def api_admin_delete_grade_entry(entry_id):
+    entry = GradeEntry.query.get_or_404(entry_id)
+    db.session.delete(entry)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@grades_bp.route('/api/admin/attendance', methods=['POST'])
+@login_required
+def api_admin_record_attendance():
+    data = request.get_json() or {}
+    teacher_id      = data.get('teacher_id')
+    student_id      = data.get('student_id')
+    attendance_date = data.get('attendance_date')
+    period_number   = data.get('period_number', 1)
+    status          = data.get('status', 'present')
+    notes           = data.get('notes', '')
+
+    if not all([teacher_id, student_id, attendance_date]):
+        return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
+    if status not in ('present', 'absent', 'late', 'sleeping'):
+        return jsonify({'success': False, 'error': 'status غير صحيح'}), 400
+    try:
+        att_date = datetime.strptime(attendance_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'error': 'تنسيق التاريخ غير صحيح'}), 400
+
+    existing = StudentAttendance.query.filter_by(
+        student_id=student_id, teacher_id=teacher_id,
+        attendance_date=att_date, period_number=period_number,
+    ).first()
+    if existing:
+        existing.status = status
+        existing.notes  = notes
+        att = existing
+    else:
+        att = StudentAttendance(
+            student_id=student_id, teacher_id=teacher_id,
+            attendance_date=att_date, period_number=period_number,
+            status=status, notes=notes,
+        )
+        db.session.add(att)
+    db.session.commit()
+    return jsonify({'success': True, 'attendance': att.to_dict()})
+
+
+@grades_bp.route('/api/admin/attendance', methods=['GET'])
+@login_required
+def api_admin_get_attendance():
+    teacher_id = request.args.get('teacher_id', type=int)
+    student_id = request.args.get('student_id', type=int)
+    date_str   = request.args.get('date')
+    if not teacher_id:
+        return jsonify({'success': False, 'error': 'teacher_id مطلوب'}), 400
+    q = StudentAttendance.query.filter_by(teacher_id=teacher_id)
+    if student_id:
+        q = q.filter_by(student_id=student_id)
+    if date_str:
+        try:
+            d = datetime.strptime(date_str, '%Y-%m-%d').date()
+            q = q.filter_by(attendance_date=d)
+        except ValueError:
+            pass
+    records = q.order_by(StudentAttendance.attendance_date.desc(),
+                         StudentAttendance.period_number).all()
+    return jsonify({'success': True, 'attendance': [r.to_dict() for r in records]})
+
+
+@grades_bp.route('/api/admin/send-grades', methods=['POST'])
+@login_required
+def api_admin_send_grades():
+    data = request.get_json() or {}
+    teacher_id     = data.get('teacher_id')
+    student_id     = data.get('student_id')
+    period_id      = data.get('period_id')
+    release_type   = data.get('release_type', 'both')
+    custom_message = data.get('custom_message', '')
+
+    if not all([teacher_id, student_id, period_id]):
+        return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
+    if release_type not in ('test', 'yearly', 'both'):
+        return jsonify({'success': False, 'error': 'release_type غير صحيح'}), 400
+
+    existing = StudentGradeRelease.query.filter_by(
+        student_id=student_id, teacher_id=teacher_id, period_id=period_id,
+    ).first()
+    if existing:
+        existing.release_type   = release_type
+        existing.custom_message = custom_message
+        existing.released_at    = datetime.utcnow()
+        rel = existing
+    else:
+        rel = StudentGradeRelease(
+            student_id=student_id, teacher_id=teacher_id,
+            period_id=period_id, release_type=release_type,
+            custom_message=custom_message,
+        )
+        db.session.add(rel)
+    db.session.commit()
+
+    # إشعار FCM
+    try:
+        from src.services.notification_service import NotificationService
+        student = Student.query.get(student_id)
+        period  = GradePeriod.query.get(period_id)
+        if student and student.fcm_token:
+            type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
+            period_name = period.period_name if period else ''
+            notif_body  = f'أرسل معلمك {type_label} - {period_name}'
+            if custom_message:
+                notif_body += f'\n{custom_message}'
+            NotificationService.send_fcm_notification(
+                student.fcm_token, '📊 درجاتك الجديدة', notif_body,
+                {'type': 'grades_released', 'period_id': str(period_id)},
+            )
+    except Exception as e:
+        print(f"⚠️ grades FCM error: {e}")
+
+    return jsonify({'success': True, 'release': rel.to_dict()})
