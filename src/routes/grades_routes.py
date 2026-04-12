@@ -448,6 +448,123 @@ def api_send_grades():
 
 
 # ══════════════════════════════════════════════════════
+#  TEACHER API: إرسال جماعي
+# ══════════════════════════════════════════════════════
+
+@grades_bp.route('/api/teacher/send-grades/bulk', methods=['POST'])
+@verify_teacher_token
+def api_bulk_send_grades():
+    """المعلم يرسل الدرجات لمجموعة طلاب دفعة واحدة"""
+    teacher_id = request.teacher_id
+    data = request.get_json() or {}
+
+    period_id      = data.get('period_id')
+    release_type   = data.get('release_type', 'both')
+    student_ids    = data.get('student_ids', [])
+    custom_message = data.get('custom_message', '')
+
+    if not period_id or not student_ids:
+        return jsonify({'success': False, 'error': 'period_id و student_ids مطلوبان'}), 400
+    if release_type not in ('test', 'yearly', 'both'):
+        return jsonify({'success': False, 'error': 'release_type غير صحيح'}), 400
+
+    period = GradePeriod.query.get(period_id)
+    saved, failed = 0, 0
+
+    for sid in student_ids:
+        link = TeacherStudent.query.filter_by(teacher_id=teacher_id, student_id=sid).first()
+        if not link:
+            failed += 1
+            continue
+        existing = StudentGradeRelease.query.filter_by(
+            student_id=sid, teacher_id=teacher_id, period_id=period_id).first()
+        if existing:
+            existing.release_type   = release_type
+            existing.custom_message = custom_message
+            existing.released_at    = datetime.utcnow()
+        else:
+            db.session.add(StudentGradeRelease(
+                student_id=sid, teacher_id=teacher_id,
+                period_id=period_id, release_type=release_type,
+                custom_message=custom_message,
+            ))
+        saved += 1
+
+        # FCM
+        try:
+            from src.services.notification_service import NotificationService
+            student = Student.query.get(sid)
+            if student and student.fcm_token:
+                type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
+                period_name = period.period_name if period else ''
+                body = f'أرسل معلمك {type_label} - {period_name}'
+                if custom_message:
+                    body += f'\n{custom_message}'
+                NotificationService.send_fcm_notification(
+                    student.fcm_token, '📊 درجاتك الجديدة', body,
+                    {'type': 'grades_released', 'period_id': str(period_id)})
+        except Exception as e:
+            print(f"⚠️ bulk FCM error: {e}")
+
+    db.session.commit()
+    return jsonify({'success': True, 'sent': saved, 'failed': failed})
+
+
+@grades_bp.route('/api/admin/send-grades/bulk', methods=['POST'])
+@login_required
+def api_admin_bulk_send_grades():
+    """الأدمن يرسل الدرجات لمجموعة طلاب دفعة واحدة"""
+    from flask_login import current_user
+    data = request.get_json() or {}
+
+    period_id      = data.get('period_id')
+    release_type   = data.get('release_type', 'both')
+    student_ids    = data.get('student_ids', [])
+    custom_message = data.get('custom_message', '')
+
+    if not period_id or not student_ids:
+        return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
+    if release_type not in ('test', 'yearly', 'both'):
+        return jsonify({'success': False, 'error': 'release_type غير صحيح'}), 400
+
+    period = GradePeriod.query.get(period_id)
+    saved, failed = 0, 0
+
+    for sid in student_ids:
+        existing = StudentGradeRelease.query.filter_by(
+            student_id=sid, admin_id=current_user.id, period_id=period_id).first()
+        if existing:
+            existing.release_type   = release_type
+            existing.custom_message = custom_message
+            existing.released_at    = datetime.utcnow()
+        else:
+            db.session.add(StudentGradeRelease(
+                student_id=sid, admin_id=current_user.id,
+                period_id=period_id, release_type=release_type,
+                custom_message=custom_message,
+            ))
+        saved += 1
+
+        try:
+            from src.services.notification_service import NotificationService
+            student = Student.query.get(sid)
+            if student and student.fcm_token:
+                type_label  = {'test': 'الاختبار', 'yearly': 'أعمال السنة', 'both': 'الدرجات'}.get(release_type, 'الدرجات')
+                period_name = period.period_name if period else ''
+                body = f'أُرسلت لك {type_label} - {period_name}'
+                if custom_message:
+                    body += f'\n{custom_message}'
+                NotificationService.send_fcm_notification(
+                    student.fcm_token, '📊 درجاتك الجديدة', body,
+                    {'type': 'grades_released', 'period_id': str(period_id)})
+        except Exception as e:
+            print(f"⚠️ bulk FCM error: {e}")
+
+    db.session.commit()
+    return jsonify({'success': True, 'sent': saved, 'failed': failed})
+
+
+# ══════════════════════════════════════════════════════
 #  STUDENT API: عرض الدرجات المُرسلة
 # ══════════════════════════════════════════════════════
 
