@@ -26,6 +26,46 @@ grades_bp = Blueprint('grades', __name__)
 #  دوال مساعدة
 # ──────────────────────────────────────────────────────
 
+def _sync_to_old_system(student_id, category_id, teacher_id=None, admin_id=None):
+    """مزامنة: لما يُدخَل GradeEntry في فئة اختبار → يُحدَّث StudentSemesterGrade تلقائياً"""
+    try:
+        from src.models.student_semester_grade import StudentSemesterGrade
+        cat = GradeConfig.query.get(category_id)
+        if not cat or 'اختبار' not in (cat.category_name or ''):
+            return
+        period = GradePeriod.query.get(cat.period_id)
+        if not period or not period.semester_number:
+            return
+
+        # متوسط جميع إدخالات الطالب في هذه الفئة
+        q = GradeEntry.query.filter_by(student_id=student_id, category_id=category_id)
+        if teacher_id:
+            q = q.filter_by(teacher_id=teacher_id)
+        elif admin_id:
+            q = q.filter_by(admin_id=admin_id)
+        entries = q.all()
+        if not entries:
+            return
+
+        avg_ratio = sum(e.score for e in entries) / len(entries)
+        grade     = round(avg_ratio * cat.max_score, 2)
+
+        existing = StudentSemesterGrade.get_grade(student_id, period.semester_number)
+        if existing:
+            existing.grade     = grade
+            existing.max_grade = cat.max_score
+            existing.updated_at = datetime.utcnow()
+        else:
+            db.session.add(StudentSemesterGrade(
+                student_id=student_id,
+                period=period.semester_number,
+                grade=grade,
+                max_grade=cat.max_score,
+            ))
+    except Exception as e:
+        print(f"⚠️ _sync_to_old_system error: {e}")
+
+
 def _calc_category_score(entries):
     """متوسط الإدخالات (score بين 0-1) × max_score"""
     if not entries:
@@ -223,6 +263,8 @@ def api_add_grade_entry():
         entry_date=date.today(),
     )
     db.session.add(entry)
+    db.session.flush()
+    _sync_to_old_system(student_id, category_id, teacher_id=teacher_id)
     db.session.commit()
     return jsonify({'success': True, 'entry': entry.to_dict()})
 
@@ -264,6 +306,11 @@ def api_bulk_add_grade_entries():
         ))
         saved += 1
 
+    db.session.flush()
+    for item in entries:
+        sid = item.get('student_id')
+        if sid:
+            _sync_to_old_system(sid, category_id, teacher_id=teacher_id)
     db.session.commit()
     return jsonify({'success': True, 'saved': saved, 'failed': failed})
 
@@ -672,6 +719,8 @@ def api_admin_add_grade_entry():
         score=score_ratio, entry_date=date.today(),
     )
     db.session.add(entry)
+    db.session.flush()
+    _sync_to_old_system(student_id, category_id, admin_id=current_user.id)
     db.session.commit()
     return jsonify({'success': True, 'entry': entry.to_dict()})
 
@@ -709,6 +758,11 @@ def api_admin_bulk_add_grade_entries():
         ))
         saved += 1
 
+    db.session.flush()
+    for item in entries:
+        sid = item.get('student_id')
+        if sid:
+            _sync_to_old_system(sid, category_id, admin_id=current_user.id)
     db.session.commit()
     return jsonify({'success': True, 'saved': saved, 'failed': failed})
 

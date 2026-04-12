@@ -9,7 +9,7 @@ POST /api/admin/semester-grades/<id>/notify   → إرسال الإشعار (ف�
 
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from datetime import datetime
+from datetime import datetime, date
 import os
 
 from src.extensions import db
@@ -17,6 +17,51 @@ from src.models.student import Student
 from src.models.student_semester_grade import StudentSemesterGrade
 from src.models.notification import Notification, StudentNotification
 from src.services.ai_assistant import ai_assistant
+
+
+def _sync_to_new_system(student_id, semester_number, grade, max_grade, admin_id=None):
+    """مزامنة: لما يُحفظ StudentSemesterGrade → يُنشأ/يُحدَّث GradeEntry في فئة الاختبار"""
+    try:
+        from src.models.grade_period import GradePeriod
+        from src.models.grade_config import GradeConfig
+        from src.models.grade_entry import GradeEntry
+
+        period = GradePeriod.query.filter_by(
+            semester_number=semester_number, is_active=True
+        ).first()
+        if not period:
+            return
+
+        exam_cat = GradeConfig.query.filter(
+            GradeConfig.period_id == period.id,
+            GradeConfig.category_name.ilike('%اختبار%'),
+            GradeConfig.is_active == True,
+        ).first()
+        if not exam_cat:
+            return
+
+        score_ratio = max(0.0, min(1.0, grade / max_grade)) if max_grade > 0 else 0.0
+        label = f"اختبار الفترة {'الأولى' if semester_number == 1 else 'الثانية'}"
+
+        existing = GradeEntry.query.filter_by(
+            student_id=student_id,
+            category_id=exam_cat.id,
+            entry_label=label,
+        ).first()
+
+        if existing:
+            existing.score = score_ratio
+        else:
+            db.session.add(GradeEntry(
+                student_id=student_id,
+                admin_id=admin_id,
+                category_id=exam_cat.id,
+                entry_label=label,
+                score=score_ratio,
+                entry_date=date.today(),
+            ))
+    except Exception as e:
+        print(f"⚠️ _sync_to_new_system error: {e}")
 
 # ── Firebase Admin SDK (نفس نمط notification_admin_routes.py) ──
 FCM_ENABLED = False
@@ -242,6 +287,7 @@ def save_semester_grade():
         )
         db.session.add(record)
 
+    _sync_to_new_system(student_id, period, grade, max_grade, admin_id=current_user.id)
     db.session.commit()
 
     return jsonify({
@@ -343,6 +389,8 @@ def save_semester_grades_bulk():
 
         record.notification_sent = True
         record.notified_at       = datetime.utcnow()
+
+        _sync_to_new_system(student_id, period, grade, max_grade, admin_id=current_user.id)
 
         results.append({
             'student_id':   student_id,
