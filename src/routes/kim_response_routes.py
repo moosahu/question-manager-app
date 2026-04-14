@@ -267,33 +267,37 @@ def generate_cards(session_id):
 
         return card
 
-    # ── دالة مساعدة: شريط الاسم كصورة PIL (layout_engine=0 = بدون libraqm) ──────
-    NAME_PX_W = 900    # عرض صورة الاسم بالبكسل
-    NAME_PX_H = 72     # ارتفاع صورة الاسم بالبكسل
+    # ── دالة مساعدة: شريط الاسم كصورة PIL ────────────────────────────────────
+    # المنهج الصحيح: PIL + libraqm (layout_engine=1) + نص عربي خام
+    # libraqm يتولى التشكيل والـ bidi — لا نستخدم arabic_reshaper هنا
+    NAME_PX_W = 900
+    NAME_PX_H = 72
+
+    def _draw_arabic(draw_obj, xy, text, fill, font):
+        """يرسم نص عربي باستخدام libraqm إذا متاح، وإلا arabic_reshaper."""
+        try:
+            draw_obj.text(xy, text, fill=fill, font=font,
+                          anchor='mm', direction='rtl', language='ar')
+        except Exception:
+            # fallback: arabic_reshaper + bidi + basic layout
+            draw_obj.text(xy, ar(text), fill=fill, font=font, anchor='mm')
 
     def make_name_image(name, aruco_id):
-        img  = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
+        img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
         draw_n = ImageDraw.Draw(img)
 
-        # تحميل خطوط مع layout_engine=0 (يمنع libraqm من إعادة التشكيل)
+        # layout_engine=1 → libraqm (تشكيل صحيح للعربية عبر OpenType)
         try:
-            fn_big   = ImageFont.truetype(font_path, 26, layout_engine=0)
-            fn_small = ImageFont.truetype(font_path, 13, layout_engine=0)
-        except TypeError:
-            # Pillow أقدم من 8.2 — بدون layout_engine
-            fn_big   = ImageFont.truetype(font_path, 26) if os.path.exists(font_path) else ImageFont.load_default()
-            fn_small = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
+            fn_big   = ImageFont.truetype(font_path, 26, layout_engine=1)
+            fn_small = ImageFont.truetype(font_path, 13, layout_engine=1)
         except Exception:
             fn_big   = ImageFont.load_default()
             fn_small = ImageFont.load_default()
 
         cx = NAME_PX_W // 2
-        # اسم الطالب
-        draw_n.text((cx, 26), ar(name), fill='white',   font=fn_big,   anchor='mm')
-        # شعار التطبيق + رقم البطاقة
-        sub = ar('تطبيق كيم تحصيلي') + f'  |  #{aruco_id}'
-        draw_n.text((cx, 56), sub,       fill='#93c5fd', font=fn_small, anchor='mm')
-
+        _draw_arabic(draw_n, (cx, 26), name,                   'white',   fn_big)
+        _draw_arabic(draw_n, (cx, 56), f'تطبيق كيم تحصيلي  |  #{aruco_id}',
+                                                                '#93c5fd', fn_small)
         return img
 
     # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
