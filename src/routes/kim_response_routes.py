@@ -151,22 +151,26 @@ def generate_cards(session_id):
     if not session:
         return jsonify({'success': False, 'error': 'غير مصرح'}), 403
 
-    section    = request.args.get('section')   # None = كل الطلاب
+    grade             = request.args.get('grade')        # فلتر المرحلة (Student.grade)
+    section           = request.args.get('section')      # فلتر الشعبة (TeacherStudent.section)
+    student_ids_param = request.args.get('student_ids')  # "1,2,3"
     teacher_id, admin_id = _get_caller_ids()
 
-    links = TeacherStudent.query.filter(
+    links_q = TeacherStudent.query.filter(
         (TeacherStudent.teacher_id == teacher_id) if teacher_id
         else (TeacherStudent.admin_id == admin_id)
-    ).all()
+    )
+    if section:
+        links_q = links_q.filter(TeacherStudent.section == section)
+    links = links_q.all()
 
     if not links:
         return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون'}), 400
 
     students = [Student.query.get(l.student_id) for l in links]
     students = [s for s in students if s and s.is_active]
-    if section:
-        students = [s for s in students if s.grade == section]
-    student_ids_param = request.args.get('student_ids')  # "1,2,3"
+    if grade:
+        students = [s for s in students if s.grade == grade]
     if student_ids_param:
         ids = {int(x) for x in student_ids_param.split(',') if x.strip().isdigit()}
         students = [s for s in students if s.id in ids]
@@ -379,8 +383,9 @@ def get_aruco_map(session_id):
     students = [s for s in students if s and s.is_active]
     students.sort(key=lambda s: s.name)
 
-    # الفصول المتاحة من Student.grade (مرتّبة، بدون null/فارغ)
-    sections = sorted({s.grade for s in students if s.grade})
+    # المراحل من Student.grade + الشعب من TeacherStudent.section
+    grades   = sorted({s.grade    for s in students if s.grade})
+    sections = sorted({l.section  for l in links    if l.section})
 
     import random
 
@@ -406,6 +411,7 @@ def get_aruco_map(session_id):
         'aruco_map': aruco_map,
         'students':  students_info,
         'total':     len(students),
+        'grades':    grades,
         'sections':  sections,
     })
 
