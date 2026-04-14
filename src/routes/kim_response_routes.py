@@ -94,6 +94,43 @@ def create_session():
     return jsonify({'success': True, 'session': session.to_dict()}), 201
 
 
+# ── 1b. جلب الأسئلة لكيم ريسبونس (بدون تصفية is_bank) ────────────────────────
+
+@kim_response_bp.route('/api/kim-response/questions', methods=['GET'])
+@login_required
+def get_kim_questions():
+    """
+    جلب الأسئلة لشاشة إعداد كيم ريسبونس.
+    يرجع كل الأسئلة بغض النظر عن is_bank.
+    """
+    from src.models.lesson import Lesson
+    from src.models.unit import Unit
+
+    course_id = request.args.get('course_id', type=int)
+    unit_id   = request.args.get('unit_id',   type=int)
+    lesson_id = request.args.get('lesson_id', type=int)
+    per_page  = request.args.get('per_page',  50, type=int)
+
+    from sqlalchemy.orm import joinedload
+    query = Question.query.options(joinedload(Question.options))
+
+    if lesson_id:
+        query = query.filter(Question.lesson_id == lesson_id)
+    elif unit_id:
+        query = query.filter(Question.lesson.has(Lesson.unit_id == unit_id))
+    elif course_id:
+        query = query.filter(Question.lesson.has(Lesson.unit.has(Unit.course_id == course_id)))
+
+    total     = query.count()
+    questions = query.order_by(Question.question_id.desc()).limit(per_page).all()
+
+    return jsonify({
+        'success':    True,
+        'questions':  [_question_to_dict(q.question_id) for q in questions],
+        'total':      total,
+    })
+
+
 # ── 2. توليد PDF بطاقات ArUco ─────────────────────────────────────────────────
 
 @kim_response_bp.route('/api/kim-response/session/<int:session_id>/cards', methods=['GET'])
