@@ -151,15 +151,19 @@ def generate_cards(session_id):
     if not session:
         return jsonify({'success': False, 'error': 'غير مصرح'}), 403
 
+    section    = request.args.get('section')   # None = كل الطلاب
     teacher_id, admin_id = _get_caller_ids()
 
-    links = TeacherStudent.query.filter(
+    links_q = TeacherStudent.query.filter(
         (TeacherStudent.teacher_id == teacher_id) if teacher_id
         else (TeacherStudent.admin_id == admin_id)
-    ).all()
+    )
+    if section:
+        links_q = links_q.filter(TeacherStudent.section == section)
+    links = links_q.all()
 
     if not links:
-        return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون'}), 400
+        return jsonify({'success': False, 'error': 'لا يوجد طلاب في هذه الشعبة'}), 400
 
     students = [Student.query.get(l.student_id) for l in links]
     students = [s for s in students if s and s.is_active]
@@ -370,6 +374,9 @@ def get_aruco_map(session_id):
     students = [s for s in students if s and s.is_active]
     students.sort(key=lambda s: s.name)
 
+    # الشعب المتاحة (مرتّبة، بدون null/فارغ)
+    sections = sorted({l.section for l in links if l.section})
+
     import random
 
     def _card_positions_map(aruco_id):
@@ -390,10 +397,11 @@ def get_aruco_map(session_id):
     ]
 
     return jsonify({
-        'success':  True,
+        'success':   True,
         'aruco_map': aruco_map,
-        'students': students_info,
-        'total':    len(students),
+        'students':  students_info,
+        'total':     len(students),
+        'sections':  sections,
     })
 
 
