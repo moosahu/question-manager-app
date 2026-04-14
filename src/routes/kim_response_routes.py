@@ -184,9 +184,9 @@ def generate_cards(session_id):
 
     def make_card_image(student, aruco_id):
         """توليد صورة PIL للبطاقة — CARD×(CARD+STRIP) بكسل."""
-        CARD   = 600   # منطقة الـ marker (مربعة)
-        MARKER = 400   # حجم الـ ArUco marker (أصغر من الكارت ليترك هامش للحروف)
-        STRIP  = 90    # شريط اسم الطالب
+        CARD   = 350   # منطقة الـ marker (مربعة) — مصغّر لتسريع التوليد
+        MARKER = 240   # حجم الـ ArUco marker
+        STRIP  = 60    # شريط اسم الطالب
         TOTAL  = CARD + STRIP
 
         # ── توليد marker ──────────────────────────────────────
@@ -205,8 +205,8 @@ def generate_cards(session_id):
         # إطار خارجي
         draw.rectangle([0, 0, CARD - 1, CARD - 1], outline='black', width=4)
 
-        # حروف الإجابة داخل هامش الـ 100 بكسل (خارج الـ marker)
-        LBL = 60
+        # حروف الإجابة داخل هامش الـ 55 بكسل (خارج الـ marker)
+        LBL = 36
         try:
             font_lbl = ImageFont.truetype(font_path, LBL) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
@@ -222,7 +222,7 @@ def generate_cards(session_id):
 
         # رقم البطاقة في الأركان (صغير)
         try:
-            font_num = ImageFont.truetype(font_path, 18) if os.path.exists(font_path) else ImageFont.load_default()
+            font_num = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
             font_num = ImageFont.load_default()
 
@@ -236,13 +236,13 @@ def generate_cards(session_id):
         draw.rectangle([0, CARD, CARD, TOTAL], fill='#1e3a8a')
 
         try:
-            font_name = ImageFont.truetype(font_path, 30) if os.path.exists(font_path) else ImageFont.load_default()
+            font_name = ImageFont.truetype(font_path, 20) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
             font_name = ImageFont.load_default()
 
         name_display = ar(student.name)
-        draw.text((CARD // 2, CARD + 14), name_display,       fill='white',   font=font_name, anchor='mt')
-        draw.text((CARD // 2, CARD + 54), f'#{aruco_id}',     fill='#93c5fd', font=font_name, anchor='mt')
+        draw.text((CARD // 2, CARD + 8),  name_display,    fill='white',   font=font_name, anchor='mt')
+        draw.text((CARD // 2, CARD + 36), f'#{aruco_id}',  fill='#93c5fd', font=font_name, anchor='mt')
 
         return card
 
