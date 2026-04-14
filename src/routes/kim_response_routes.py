@@ -451,8 +451,10 @@ def get_aruco_map(session_id):
             'student_id':  s.id,
             'student_name': s.name,
             'positions':   _card_positions_map(aid),
+            'grade':       s.grade or '',
+            'section':     l.section or '',
         }
-        for aid, (s, _) in sorted(students_map.items())
+        for aid, (s, l) in sorted(students_map.items())
     ]
 
     return jsonify({
