@@ -178,7 +178,10 @@ def generate_cards(session_id):
 
     def ar(text):
         try:
-            return get_display(arabic_reshaper.reshape(text))
+            reshaped = arabic_reshaper.reshape(text)
+            # احذف zero-width chars (ZWNJ/ZWJ) — ReportLab يُظهرها كمربعات
+            reshaped = reshaped.replace('\u200c', '').replace('\u200d', '')
+            return get_display(reshaped)
         except Exception:
             return text
 
