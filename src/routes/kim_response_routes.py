@@ -174,18 +174,22 @@ def generate_cards(session_id):
     student_ids_param = request.args.get('student_ids')  # "1,2,3"
     teacher_id, admin_id = _get_caller_ids()
 
-    links_q = TeacherStudent.query.filter(
+    # جلب كل الطلاب أولاً لضمان تعيين aruco_id للجميع
+    all_links = TeacherStudent.query.filter(
         (TeacherStudent.teacher_id == teacher_id) if teacher_id
         else (TeacherStudent.admin_id == admin_id)
-    )
-    if section:
-        links_q = links_q.filter(TeacherStudent.section == section)
-    links = links_q.all()
+    ).all()
 
-    if not links:
+    if not all_links:
         return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون'}), 400
 
-    _ensure_aruco_ids(links)   # يعيّن تلقائياً للسجلات القديمة
+    _ensure_aruco_ids(all_links)   # يعيّن aruco_id للجميع قبل الفلتر
+
+    # الآن نطبّق فلتر الشعبة إن وُجد
+    if section:
+        links = [l for l in all_links if l.section == section]
+    else:
+        links = all_links
 
     # بناء قائمة (student, aruco_id)
     pairs = []
