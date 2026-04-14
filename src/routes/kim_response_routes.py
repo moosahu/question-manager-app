@@ -103,16 +103,23 @@ def get_kim_questions():
     جلب الأسئلة لشاشة إعداد كيم ريسبونس.
     يرجع كل الأسئلة بغض النظر عن is_bank.
     """
-    from src.models.lesson import Lesson
-    from src.models.unit import Unit
+    from src.models.curriculum import Lesson, Unit
 
     course_id = request.args.get('course_id', type=int)
     unit_id   = request.args.get('unit_id',   type=int)
     lesson_id = request.args.get('lesson_id', type=int)
     per_page  = request.args.get('per_page',  50, type=int)
+    source    = request.args.get('source', 'both')  # regular | bank | both
 
     from sqlalchemy.orm import joinedload
     query = Question.query.options(joinedload(Question.options))
+
+    # فلتر مصدر الأسئلة
+    if source == 'bank':
+        query = query.filter(Question.is_bank == True)
+    elif source == 'regular':
+        query = query.filter(Question.is_bank == False)
+    # both = بدون فلتر
 
     if lesson_id:
         query = query.filter(Question.lesson_id == lesson_id)
@@ -194,8 +201,18 @@ def generate_cards(session_id):
         except Exception:
             pass
 
+    import random
+
+    def _card_positions(aruco_id):
+        """ترتيب حروف A/B/C/D لكل بطاقة بشكل عشوائي ثابت حسب aruco_id."""
+        rng = random.Random(aruco_id * 1337)
+        positions = ['A', 'B', 'C', 'D']
+        rng.shuffle(positions)
+        return positions  # [top, right, bottom, left]
+
     def make_marker_image(aruco_id):
-        """توليد صورة PIL للـ marker فقط (بدون اسم) — مربع CARD×CARD."""
+        """توليد صورة PIL للـ marker فقط (بدون اسم) — مربع CARD×CARD.
+        ترتيب الحروف عشوائي ثابت لكل بطاقة لمنع الغش."""
         CARD   = 350
         MARKER = 240
 
@@ -213,19 +230,20 @@ def generate_cards(session_id):
         # إطار خارجي
         draw.rectangle([0, 0, CARD - 1, CARD - 1], outline='black', width=4)
 
-        # حروف الإجابة (A/B/C/D) — لاتينية بسيطة لا تحتاج bidi
+        # حروف الإجابة — عشوائية لكل بطاقة
         LBL = 36
         try:
             font_lbl = ImageFont.truetype(font_path, LBL) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
             font_lbl = ImageFont.load_default()
 
+        positions = _card_positions(aruco_id)  # [top, right, bottom, left]
         mid  = CARD // 2
         edge = 12
-        draw.text((mid, edge),        'A', fill='black', font=font_lbl, anchor='mt')
-        draw.text((CARD - edge, mid), 'B', fill='black', font=font_lbl, anchor='rm')
-        draw.text((mid, CARD - edge), 'C', fill='black', font=font_lbl, anchor='mb')
-        draw.text((edge, mid),        'D', fill='black', font=font_lbl, anchor='lm')
+        draw.text((mid, edge),        positions[0], fill='black', font=font_lbl, anchor='mt')
+        draw.text((CARD - edge, mid), positions[1], fill='black', font=font_lbl, anchor='rm')
+        draw.text((mid, CARD - edge), positions[2], fill='black', font=font_lbl, anchor='mb')
+        draw.text((edge, mid),        positions[3], fill='black', font=font_lbl, anchor='lm')
 
         # رقم البطاقة في الأركان
         try:
@@ -316,9 +334,22 @@ def get_aruco_map(session_id):
     students = [s for s in students if s and s.is_active]
     students.sort(key=lambda s: s.name)
 
+    import random
+
+    def _card_positions_map(aruco_id):
+        rng = random.Random(aruco_id * 1337)
+        positions = ['A', 'B', 'C', 'D']
+        rng.shuffle(positions)
+        return positions  # [top, right, bottom, left]
+
     aruco_map   = {str(i): s.id   for i, s in enumerate(students)}
     students_info = [
-        {'aruco_id': i, 'student_id': s.id, 'student_name': s.name}
+        {
+            'aruco_id':    i,
+            'student_id':  s.id,
+            'student_name': s.name,
+            'positions':   _card_positions_map(i),   # [top, right, bottom, left]
+        }
         for i, s in enumerate(students)
     ]
 
