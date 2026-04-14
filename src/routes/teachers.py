@@ -83,11 +83,18 @@ def add_teacher():
             flash('اسم المستخدم موجود مسبقاً', 'danger')
             return render_template('teachers/add.html')
         
+        # التحقق من إيميل منصة التعليم
+        if email:
+            local = email.split('@')[0]
+            if not (email.lower().endswith('moe.gov.sa') and local.upper().startswith('T')):
+                flash('يجب استخدام إيميل منصة التعليم (مثال: T123456@estb.moe.gov.sa)', 'danger')
+                return render_template('teachers/add.html')
+
         # التحقق من عدم تكرار البريد
         if email and Teacher.query.filter_by(email=email).first():
             flash('البريد الإلكتروني موجود مسبقاً', 'danger')
             return render_template('teachers/add.html')
-        
+
         # إنشاء المعلم
         teacher = Teacher(
             name=name,
@@ -313,6 +320,11 @@ def api_mobile_add_teacher():
 
     if not name or not username or not password:
         return jsonify({'success': False, 'error': 'الاسم واسم المستخدم وكلمة المرور مطلوبة'}), 400
+
+    if email:
+        local = email.split('@')[0]
+        if not (email.lower().endswith('moe.gov.sa') and local.upper().startswith('T')):
+            return jsonify({'success': False, 'error': 'يجب استخدام إيميل منصة التعليم (مثال: T123456@estb.moe.gov.sa)'}), 400
 
     if Teacher.query.filter_by(username=username).first():
         return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
