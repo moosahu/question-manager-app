@@ -105,7 +105,10 @@ def create_session():
         title        = title,
         status       = 'waiting',
     )
-    session.question_ids = question_ids
+    import random
+    shuffled = list(question_ids)
+    random.shuffle(shuffled)
+    session.question_ids = shuffled
     db.session.add(session)
     db.session.commit()
 
@@ -505,9 +508,9 @@ def record_scan(session_id):
     if not question_id:
         return jsonify({'success': False, 'error': 'لا يوجد سؤال نشط'}), 400
 
-    # تحقق من الإجابة الصحيحة
+    # تحقق من الإجابة الصحيحة (مع مراعاة خلط الخيارات)
     question = Question.query.get(question_id)
-    correct_letter = _get_correct_option_letter(question) if question else 'A'
+    correct_letter = _correct_letter_after_shuffle(question, session_id) if question else 'A'
     is_correct = (answer == correct_letter)
 
     # احفظ أو حدّث الإجابة
@@ -575,7 +578,7 @@ def get_results(session_id):
     return jsonify({
         'success':           True,
         'session':           session.to_dict(),
-        'current_question':  _question_to_dict(question_id),
+        'current_question':  _question_to_dict(question_id, session_id=session_id),
         'total_answers':     total,
         'total_students':    total_students,
         'correct_count':     correct,
@@ -756,12 +759,20 @@ def list_sessions():
 
 # ── مساعد: بيانات السؤال ─────────────────────────────────────────────────────
 
-def _question_to_dict(question_id):
+def _question_to_dict(question_id, session_id=None):
     if not question_id:
         return None
     q = Question.query.get(question_id)
     if not q:
         return None
+
+    opts = list(q.options[:4])
+    if session_id:
+        import random
+        indices = list(range(len(opts)))
+        random.Random(session_id * 10007 + question_id).shuffle(indices)
+        opts = [opts[i] for i in indices]
+
     return {
         'id':          q.question_id,
         'text':        q.question_text or '',
@@ -773,6 +784,18 @@ def _question_to_dict(question_id):
                 'image_url':  opt.image_url or '',
                 'is_correct': opt.is_correct,
             }
-            for i, opt in enumerate(q.options[:4])
+            for i, opt in enumerate(opts)
         ],
     }
+
+
+def _correct_letter_after_shuffle(question, session_id):
+    """يرجع حرف الإجابة الصحيحة بعد خلط الخيارات بناءً على session_id"""
+    import random
+    opts = list(question.options[:4])
+    indices = list(range(len(opts)))
+    random.Random(session_id * 10007 + question.question_id).shuffle(indices)
+    for display_pos, orig_idx in enumerate(indices):
+        if opts[orig_idx].is_correct:
+            return chr(65 + display_pos)
+    return 'A'
