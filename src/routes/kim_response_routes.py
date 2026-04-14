@@ -175,18 +175,26 @@ def generate_cards(session_id):
     except ImportError as e:
         return jsonify({'success': False, 'error': f'مكتبات مفقودة: {e}'}), 500
 
-    font_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'Cairo-Regular.ttf')
-    font_path = os.path.normpath(font_path)
+    # جرّب الخطوط بالترتيب — Tajawal أولاً ثم Cairo كـ fallback
+    _fonts_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts'))
+    font_path = os.path.join(_fonts_dir, 'Tajawal-Regular.ttf')
+    if not os.path.exists(font_path):
+        font_path = os.path.join(_fonts_dir, 'Cairo-Regular.ttf')
 
     aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
 
     from bidi.algorithm import get_display
     import arabic_reshaper
 
+    # إيقاف الـ ligatures — يمنع استخدام Unicode range FB50-FDFF التي بعض الخطوط ما تدعمها
+    _reshaper = arabic_reshaper.ArabicReshaper(configuration={
+        'support_ligatures': False,
+        'delete_tatweel':    False,
+    })
+
     def ar(text):
         try:
-            reshaped = arabic_reshaper.reshape(text)
-            # احذف zero-width chars (ZWNJ/ZWJ) — ReportLab يُظهرها كمربعات
+            reshaped = _reshaper.reshape(text)
             reshaped = reshaped.replace('\u200c', '').replace('\u200d', '')
             return get_display(reshaped)
         except Exception:
