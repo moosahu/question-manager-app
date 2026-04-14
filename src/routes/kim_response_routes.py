@@ -31,10 +31,28 @@ def _get_caller_ids():
     """يرجع (teacher_id, admin_id) حسب نوع المستخدم الحالي"""
     if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return None, current_user.id
-    # المعلم — نجيب teacher_id من الـ prefs
     from src.models.teacher import Teacher
     teacher = Teacher.query.filter_by(username=current_user.username).first()
     return (teacher.id if teacher else None), None
+
+
+def _ensure_aruco_ids(links):
+    """يعيّن aruco_id لأي سجل فيه NULL — يحفظ في DB."""
+    null_links = [l for l in links if l.aruco_id is None]
+    if not null_links:
+        return
+    used = {l.aruco_id for l in links if l.aruco_id is not None}
+    # ترتيب أبجدي للتوافق مع الكروت المطبوعة قبل التحديث
+    null_links.sort(key=lambda l: (
+        Student.query.get(l.student_id).name
+        if Student.query.get(l.student_id) else ''))
+    for lnk in null_links:
+        for i in range(250):
+            if i not in used:
+                lnk.aruco_id = i
+                used.add(i)
+                break
+    db.session.commit()
 
 
 def _get_session_or_404(session_id):
@@ -167,7 +185,9 @@ def generate_cards(session_id):
     if not links:
         return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون'}), 400
 
-    # بناء قائمة (student, aruco_id) — يعتمد على aruco_id المحفوظ
+    _ensure_aruco_ids(links)   # يعيّن تلقائياً للسجلات القديمة
+
+    # بناء قائمة (student, aruco_id)
     pairs = []
     for l in links:
         s = Student.query.get(l.student_id)
@@ -382,20 +402,7 @@ def get_aruco_map(session_id):
         else (TeacherStudent.admin_id == admin_id)
     ).all()
 
-    # ── تعيين aruco_id للسجلات القديمة (NULL) ────────────────────────────────
-    null_links = [l for l in links if l.aruco_id is None]
-    if null_links:
-        used = {l.aruco_id for l in links if l.aruco_id is not None}
-        # رتّب أبجدياً للتوافق مع الكروت المطبوعة قبل هذا التحديث
-        null_links.sort(key=lambda l: (Student.query.get(l.student_id).name
-                                       if Student.query.get(l.student_id) else ''))
-        for lnk in null_links:
-            for i in range(250):
-                if i not in used:
-                    lnk.aruco_id = i
-                    used.add(i)
-                    break
-        db.session.commit()
+    _ensure_aruco_ids(links)   # يعيّن تلقائياً للسجلات القديمة
 
     students_map = {}   # aruco_id → (student, link)
     for l in links:
