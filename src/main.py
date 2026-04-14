@@ -1215,6 +1215,18 @@ def create_app():
     except Exception as e:
         print(f"❌ Grades blueprint error: {e}")
 
+    # ✅ كيم ريسبونس (Plickers-like)
+    try:
+        from src.models.kim_response import KimResponseSession, KimResponseAnswer  # noqa: F401
+        from src.routes.kim_response_routes import kim_response_bp
+        csrf.exempt(kim_response_bp)
+        app.register_blueprint(kim_response_bp)
+        print("✅ Kim Response blueprint registered successfully")
+    except ImportError as e:
+        print(f"⚠️ Kim Response blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Kim Response blueprint error: {e}")
+
     @app.route("/download")
     def download_app():
         """يوجّه المستخدم لمتجر التطبيق المناسب حسب جهازه"""
