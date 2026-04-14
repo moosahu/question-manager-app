@@ -98,3 +98,6 @@ imageio-ffmpeg>=0.4.9
 
 # Server Monitoring
 psutil>=5.9.0
+
+# ArUco Card Generation (كيم ريسبونس)
+opencv-python-headless>=4.8.0

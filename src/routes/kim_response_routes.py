@@ -4,8 +4,6 @@
 ويمسح إجاباتهم بالكاميرا مباشرة في الفصل.
 """
 
-import json
-import qrcode
 import io
 from datetime import datetime
 from flask import Blueprint, jsonify, request, send_file
@@ -17,12 +15,9 @@ from src.models.student import Student
 from src.models.student_result import StudentResult
 from src.models.teacher_student import TeacherStudent
 
+from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
@@ -62,22 +57,6 @@ def _get_correct_option_letter(question):
     return 'A'
 
 
-def _generate_qr_image(data: str, size: int = 120):
-    """يولّد صورة QR ويرجعها كـ BytesIO"""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=3,
-        border=2,
-    )
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color='black', back_color='white')
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    return buf
-
 
 # ── 1. إنشاء جلسة ─────────────────────────────────────────────────────────────
 
@@ -115,14 +94,14 @@ def create_session():
     return jsonify({'success': True, 'session': session.to_dict()}), 201
 
 
-# ── 2. توليد PDF البطاقات ──────────────────────────────────────────────────────
+# ── 2. توليد PDF بطاقات ArUco ─────────────────────────────────────────────────
 
 @kim_response_bp.route('/api/kim-response/session/<int:session_id>/cards', methods=['GET'])
 @login_required
 def generate_cards(session_id):
     """
-    يولّد PDF فيه بطاقة لكل طالب تابع للمعلم/الأدمن.
-    كل بطاقة تحتوي 4 QR codes (A, B, C, D).
+    يولّد PDF فيه بطاقة ArUco لكل طالب (نمط Plickers).
+    كل بطاقة تحمل marker فريد — الإجابة تُحدَّد بالاتجاه (A=أعلى، B=يمين، C=أسفل، D=يسار).
     """
     session = _get_session_or_404(session_id)
     if not session:
@@ -130,7 +109,6 @@ def generate_cards(session_id):
 
     teacher_id, admin_id = _get_caller_ids()
 
-    # جلب الطلاب
     links = TeacherStudent.query.filter(
         (TeacherStudent.teacher_id == teacher_id) if teacher_id
         else (TeacherStudent.admin_id == admin_id)
@@ -143,137 +121,164 @@ def generate_cards(session_id):
     students = [s for s in students if s and s.is_active]
     students.sort(key=lambda s: s.name)
 
-    # تسجيل خط عربي
+    if len(students) > 250:
+        return jsonify({'success': False, 'error': 'الحد الأقصى 250 طالباً لبطاقات ArUco'}), 400
+
+    try:
+        import cv2
+        import numpy as np
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError as e:
+        return jsonify({'success': False, 'error': f'مكتبات مفقودة: {e}'}), 500
+
     font_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'Cairo-Regular.ttf')
     font_path = os.path.normpath(font_path)
-    arabic_font = 'Helvetica'
-    if os.path.exists(font_path):
-        try:
-            pdfmetrics.registerFont(TTFont('Cairo', font_path))
-            arabic_font = 'Cairo'
-        except Exception:
-            pass
 
-    ANSWERS     = ['A', 'B', 'C', 'D']
-    BG_COLORS   = [
-        colors.HexColor('#dcfce7'),  # A — أخضر فاتح
-        colors.HexColor('#dbeafe'),  # B — أزرق فاتح
-        colors.HexColor('#fee2e2'),  # C — أحمر فاتح
-        colors.HexColor('#fef9c3'),  # D — أصفر فاتح
-    ]
-    FG_COLORS   = [
-        colors.HexColor('#16a34a'),  # A
-        colors.HexColor('#2563eb'),  # B
-        colors.HexColor('#dc2626'),  # C
-        colors.HexColor('#d97706'),  # D
-    ]
-    PAGE_W, PAGE_H = A4  # 595 × 842 pts
+    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
+
+    from bidi.algorithm import get_display
+    import arabic_reshaper
+
+    def ar(text):
+        try:
+            return get_display(arabic_reshaper.reshape(text))
+        except Exception:
+            return text
+
+    def make_card_image(student, aruco_id):
+        """توليد صورة PIL للبطاقة — CARD×(CARD+STRIP) بكسل."""
+        CARD   = 600   # منطقة الـ marker (مربعة)
+        MARKER = 400   # حجم الـ ArUco marker (أصغر من الكارت ليترك هامش للحروف)
+        STRIP  = 90    # شريط اسم الطالب
+        TOTAL  = CARD + STRIP
+
+        # ── توليد marker ──────────────────────────────────────
+        marker_np = np.zeros((MARKER, MARKER), dtype=np.uint8)
+        cv2.aruco.generateImageMarker(aruco_dict, int(aruco_id), MARKER, marker_np, 1)
+        marker_pil = Image.fromarray(marker_np).convert('RGB')
+
+        # ── كانفاس أبيض ───────────────────────────────────────
+        card = Image.new('RGB', (CARD, TOTAL), 'white')
+        draw = ImageDraw.Draw(card)
+
+        # لصق الـ marker في مركز منطقة CARD
+        offset = (CARD - MARKER) // 2   # = 100 بكسل على كل جانب
+        card.paste(marker_pil, (offset, offset))
+
+        # إطار خارجي
+        draw.rectangle([0, 0, CARD - 1, CARD - 1], outline='black', width=4)
+
+        # حروف الإجابة داخل هامش الـ 100 بكسل (خارج الـ marker)
+        LBL = 60
+        try:
+            font_lbl = ImageFont.truetype(font_path, LBL) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            font_lbl = ImageFont.load_default()
+
+        mid  = CARD // 2
+        edge = 12
+
+        draw.text((mid, edge),         'A', fill='black', font=font_lbl, anchor='mt')
+        draw.text((CARD - edge, mid),  'B', fill='black', font=font_lbl, anchor='rm')
+        draw.text((mid, CARD - edge),  'C', fill='black', font=font_lbl, anchor='mb')
+        draw.text((edge, mid),         'D', fill='black', font=font_lbl, anchor='lm')
+
+        # رقم البطاقة في الأركان (صغير)
+        try:
+            font_num = ImageFont.truetype(font_path, 18) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            font_num = ImageFont.load_default()
+
+        num = str(aruco_id)
+        draw.text((6, 6),                fill='#9ca3af', text=num, font=font_num, anchor='lt')
+        draw.text((CARD - 6, 6),         fill='#9ca3af', text=num, font=font_num, anchor='rt')
+        draw.text((6, CARD - 6),         fill='#9ca3af', text=num, font=font_num, anchor='lb')
+        draw.text((CARD - 6, CARD - 6),  fill='#9ca3af', text=num, font=font_num, anchor='rb')
+
+        # ── شريط الاسم ─────────────────────────────────────────
+        draw.rectangle([0, CARD, CARD, TOTAL], fill='#1e3a8a')
+
+        try:
+            font_name = ImageFont.truetype(font_path, 30) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            font_name = ImageFont.load_default()
+
+        name_display = ar(student.name)
+        draw.text((CARD // 2, CARD + 14), name_display,       fill='white',   font=font_name, anchor='mt')
+        draw.text((CARD // 2, CARD + 54), f'#{aruco_id}',     fill='#93c5fd', font=font_name, anchor='mt')
+
+        return card
+
+    # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
+    PAGE_W, PAGE_H = A4
+    MARGIN   = 20   # pts
+    CARD_AREA_H = (PAGE_H - 3 * MARGIN) / 2
 
     buf = io.BytesIO()
-
-    from reportlab.pdfgen import canvas as rl_canvas
-    from reportlab.lib.utils import ImageReader
-
     c = rl_canvas.Canvas(buf, pagesize=A4)
 
-    MARGIN     = 0.8 * cm
-    CARD_W     = (PAGE_W - 2 * MARGIN) / 2      # بطاقتان في كل صف
-    CARD_H     = (PAGE_H - 2 * MARGIN) / 2      # صفّان في كل صفحة
-    QR_SIZE    = 3.2 * cm
-
-    def draw_card(cx, cy, student_obj):
-        """يرسم بطاقة كاملة — cx,cy هو الركن السفلي الأيسر"""
-        # إطار البطاقة
-        c.setStrokeColor(colors.HexColor('#1e3a8a'))
-        c.setLineWidth(1.5)
-        c.rect(cx, cy, CARD_W, CARD_H)
-
-        # شريط الاسم
-        name_h = 1.1 * cm
-        c.setFillColor(colors.HexColor('#1e3a8a'))
-        c.rect(cx, cy + CARD_H - name_h, CARD_W, name_h, fill=1, stroke=0)
-        c.setFillColor(colors.white)
-        c.setFont(arabic_font, 11)
-        # عكس النص للعربي
-        from bidi.algorithm import get_display
-        import arabic_reshaper
-        def ar(text):
-            try:
-                return get_display(arabic_reshaper.reshape(text))
-            except Exception:
-                return text
-
-        c.drawCentredString(cx + CARD_W / 2, cy + CARD_H - name_h + 0.3 * cm, ar(student_obj.name))
-
-        # تعليمات
-        instr_h = 0.7 * cm
-        c.setFillColor(colors.HexColor('#f1f5f9'))
-        c.rect(cx, cy + CARD_H - name_h - instr_h, CARD_W, instr_h, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor('#475569'))
-        c.setFont(arabic_font, 7.5)
-        c.drawCentredString(cx + CARD_W / 2, cy + CARD_H - name_h - instr_h + 0.15 * cm,
-                            ar('أظهر رمز إجابتك للمعلم واحجب الباقي'))
-
-        # منطقة الـ QR — 4 أرباع
-        content_y      = cy
-        content_h      = CARD_H - name_h - instr_h
-        half_w         = CARD_W / 2
-        half_h         = content_h / 2
-
-        positions = [
-            (cx,          cy + half_h, 0),   # A — أعلى يسار
-            (cx + half_w, cy + half_h, 1),   # B — أعلى يمين
-            (cx,          cy,          2),   # C — أسفل يسار
-            (cx + half_w, cy,          3),   # D — أسفل يمين
-        ]
-
-        for qx, qy, j in positions:
-            answer = ANSWERS[j]
-            # خلفية ملوّنة
-            c.setFillColor(BG_COLORS[j])
-            c.rect(qx, qy, half_w, half_h, fill=1, stroke=0)
-            # خط فاصل داخلي
-            c.setStrokeColor(colors.HexColor('#cbd5e1'))
-            c.setLineWidth(0.5)
-            c.rect(qx, qy, half_w, half_h, fill=0, stroke=1)
-
-            # حرف الإجابة (كبير - في الزاوية)
-            c.setFont('Helvetica-Bold', 20)
-            c.setFillColor(FG_COLORS[j])
-            c.drawCentredString(qx + half_w / 2, qy + half_h - 0.75 * cm, answer)
-
-            # QR code
-            qr_data = json.dumps({'s': student_obj.id, 'a': answer}, separators=(',', ':'))
-            qr_buf  = _generate_qr_image(qr_data)
-            qr_buf.seek(0)
-            qr_reader = ImageReader(qr_buf)
-            qr_x = qx + (half_w - QR_SIZE) / 2
-            qr_y = qy + (half_h - QR_SIZE) / 2 - 0.2 * cm
-            c.drawImage(qr_reader, qr_x, qr_y, width=QR_SIZE, height=QR_SIZE)
-
-    # رسم البطاقات — 4 في كل صفحة
-    cards_per_page = 4
-    for i, student in enumerate(students):
-        if i > 0 and i % cards_per_page == 0:
+    for idx, student in enumerate(students):
+        if idx > 0 and idx % 2 == 0:
             c.showPage()
 
-        pos_in_page = i % cards_per_page
-        col = pos_in_page % 2          # 0=يسار، 1=يمين
-        row = 1 - (pos_in_page // 2)   # 0=أسفل، 1=أعلى
+        pos     = idx % 2                          # 0=أعلى، 1=أسفل
+        card_x  = MARGIN
+        card_y  = PAGE_H - MARGIN - (pos + 1) * CARD_AREA_H - pos * MARGIN
 
-        card_x = MARGIN + col * CARD_W
-        card_y = MARGIN + row * CARD_H
-        draw_card(card_x, card_y, student)
+        card_img = make_card_image(student, idx)
+
+        cbuf = io.BytesIO()
+        card_img.save(cbuf, format='PNG')
+        cbuf.seek(0)
+
+        draw_w = PAGE_W - 2 * MARGIN
+        c.drawImage(ImageReader(cbuf), card_x, card_y,
+                    width=draw_w, height=CARD_AREA_H,
+                    preserveAspectRatio=True, anchor='c')
 
     c.save()
     buf.seek(0)
 
-    return send_file(
-        buf,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f'kim_response_cards_{session_id}.pdf'
-    )
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'kim_aruco_cards_{session_id}.pdf')
+
+
+# ── 2b. خريطة ArUco → Student ─────────────────────────────────────────────────
+
+@kim_response_bp.route('/api/kim-response/session/<int:session_id>/aruco-map', methods=['GET'])
+@login_required
+def get_aruco_map(session_id):
+    """
+    يرجع الخريطة aruco_id → student_id مرتّبة أبجدياً.
+    تُستخدَم في شاشة المسح لمعرفة الطالب بعد اكتشاف الـ marker.
+    """
+    session = _get_session_or_404(session_id)
+    if not session:
+        return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
+    teacher_id, admin_id = _get_caller_ids()
+
+    links = TeacherStudent.query.filter(
+        (TeacherStudent.teacher_id == teacher_id) if teacher_id
+        else (TeacherStudent.admin_id == admin_id)
+    ).all()
+
+    students = [Student.query.get(l.student_id) for l in links]
+    students = [s for s in students if s and s.is_active]
+    students.sort(key=lambda s: s.name)
+
+    aruco_map   = {str(i): s.id   for i, s in enumerate(students)}
+    students_info = [
+        {'aruco_id': i, 'student_id': s.id, 'student_name': s.name}
+        for i, s in enumerate(students)
+    ]
+
+    return jsonify({
+        'success':  True,
+        'aruco_map': aruco_map,
+        'students': students_info,
+        'total':    len(students),
+    })
 
 
 # ── 3. تسجيل إجابة ممسوحة ─────────────────────────────────────────────────────
