@@ -143,103 +143,129 @@ def generate_cards(session_id):
     students = [s for s in students if s and s.is_active]
     students.sort(key=lambda s: s.name)
 
-    # توليد PDF
+    # تسجيل خط عربي
+    font_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'Cairo-Regular.ttf')
+    font_path = os.path.normpath(font_path)
+    arabic_font = 'Helvetica'
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('Cairo', font_path))
+            arabic_font = 'Cairo'
+        except Exception:
+            pass
+
+    ANSWERS     = ['A', 'B', 'C', 'D']
+    BG_COLORS   = [
+        colors.HexColor('#dcfce7'),  # A — أخضر فاتح
+        colors.HexColor('#dbeafe'),  # B — أزرق فاتح
+        colors.HexColor('#fee2e2'),  # C — أحمر فاتح
+        colors.HexColor('#fef9c3'),  # D — أصفر فاتح
+    ]
+    FG_COLORS   = [
+        colors.HexColor('#16a34a'),  # A
+        colors.HexColor('#2563eb'),  # B
+        colors.HexColor('#dc2626'),  # C
+        colors.HexColor('#d97706'),  # D
+    ]
+    PAGE_W, PAGE_H = A4  # 595 × 842 pts
+
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4,
-                            rightMargin=1*cm, leftMargin=1*cm,
-                            topMargin=1*cm, bottomMargin=1*cm)
 
-    story = []
-    styles = getSampleStyleSheet()
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.utils import ImageReader
 
-    name_style = ParagraphStyle(
-        'name', fontSize=12, fontName='Helvetica-Bold',
-        alignment=TA_CENTER, spaceAfter=4
-    )
-    letter_style = ParagraphStyle(
-        'letter', fontSize=14, fontName='Helvetica-Bold',
-        alignment=TA_CENTER, textColor=colors.HexColor('#1e3a8a')
-    )
+    c = rl_canvas.Canvas(buf, pagesize=A4)
 
-    ANSWERS = ['A', 'B', 'C', 'D']
-    COLORS  = ['#16a34a', '#2563eb', '#dc2626', '#d97706']  # أخضر، أزرق، أحمر، برتقالي
+    MARGIN     = 0.8 * cm
+    CARD_W     = (PAGE_W - 2 * MARGIN) / 2      # بطاقتان في كل صف
+    CARD_H     = (PAGE_H - 2 * MARGIN) / 2      # صفّان في كل صفحة
+    QR_SIZE    = 3.2 * cm
 
-    cards_per_row = 2
-    card_w = 8.5 * cm
-    card_h = 9.5 * cm
+    def draw_card(cx, cy, student_obj):
+        """يرسم بطاقة كاملة — cx,cy هو الركن السفلي الأيسر"""
+        # إطار البطاقة
+        c.setStrokeColor(colors.HexColor('#1e3a8a'))
+        c.setLineWidth(1.5)
+        c.rect(cx, cy, CARD_W, CARD_H)
 
-    # 2 بطاقات في كل صف
-    row_data = []
+        # شريط الاسم
+        name_h = 1.1 * cm
+        c.setFillColor(colors.HexColor('#1e3a8a'))
+        c.rect(cx, cy + CARD_H - name_h, CARD_W, name_h, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont(arabic_font, 11)
+        # عكس النص للعربي
+        from bidi.algorithm import get_display
+        import arabic_reshaper
+        def ar(text):
+            try:
+                return get_display(arabic_reshaper.reshape(text))
+            except Exception:
+                return text
+
+        c.drawCentredString(cx + CARD_W / 2, cy + CARD_H - name_h + 0.3 * cm, ar(student_obj.name))
+
+        # تعليمات
+        instr_h = 0.7 * cm
+        c.setFillColor(colors.HexColor('#f1f5f9'))
+        c.rect(cx, cy + CARD_H - name_h - instr_h, CARD_W, instr_h, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor('#475569'))
+        c.setFont(arabic_font, 7.5)
+        c.drawCentredString(cx + CARD_W / 2, cy + CARD_H - name_h - instr_h + 0.15 * cm,
+                            ar('أظهر رمز إجابتك للمعلم واحجب الباقي'))
+
+        # منطقة الـ QR — 4 أرباع
+        content_y      = cy
+        content_h      = CARD_H - name_h - instr_h
+        half_w         = CARD_W / 2
+        half_h         = content_h / 2
+
+        positions = [
+            (cx,          cy + half_h, 0),   # A — أعلى يسار
+            (cx + half_w, cy + half_h, 1),   # B — أعلى يمين
+            (cx,          cy,          2),   # C — أسفل يسار
+            (cx + half_w, cy,          3),   # D — أسفل يمين
+        ]
+
+        for qx, qy, j in positions:
+            answer = ANSWERS[j]
+            # خلفية ملوّنة
+            c.setFillColor(BG_COLORS[j])
+            c.rect(qx, qy, half_w, half_h, fill=1, stroke=0)
+            # خط فاصل داخلي
+            c.setStrokeColor(colors.HexColor('#cbd5e1'))
+            c.setLineWidth(0.5)
+            c.rect(qx, qy, half_w, half_h, fill=0, stroke=1)
+
+            # حرف الإجابة (كبير - في الزاوية)
+            c.setFont('Helvetica-Bold', 20)
+            c.setFillColor(FG_COLORS[j])
+            c.drawCentredString(qx + half_w / 2, qy + half_h - 0.75 * cm, answer)
+
+            # QR code
+            qr_data = json.dumps({'s': student_obj.id, 'a': answer}, separators=(',', ':'))
+            qr_buf  = _generate_qr_image(qr_data)
+            qr_buf.seek(0)
+            qr_reader = ImageReader(qr_buf)
+            qr_x = qx + (half_w - QR_SIZE) / 2
+            qr_y = qy + (half_h - QR_SIZE) / 2 - 0.2 * cm
+            c.drawImage(qr_reader, qr_x, qr_y, width=QR_SIZE, height=QR_SIZE)
+
+    # رسم البطاقات — 4 في كل صفحة
+    cards_per_page = 4
     for i, student in enumerate(students):
-        # بناء بطاقة الطالب
-        card_elements = []
+        if i > 0 and i % cards_per_page == 0:
+            c.showPage()
 
-        # اسم الطالب
-        card_elements.append(Paragraph(student.name, name_style))
-        card_elements.append(Spacer(1, 0.2*cm))
+        pos_in_page = i % cards_per_page
+        col = pos_in_page % 2          # 0=يسار، 1=يمين
+        row = 1 - (pos_in_page // 2)   # 0=أسفل، 1=أعلى
 
-        # 4 QR codes في شبكة 2×2
-        qr_cells = []
-        for j, answer in enumerate(ANSWERS):
-            qr_data = json.dumps({'s': student.id, 'a': answer}, separators=(',', ':'))
-            qr_buf  = _generate_qr_image(qr_data, size=100)
-            qr_img  = RLImage(qr_buf, width=3*cm, height=3*cm)
+        card_x = MARGIN + col * CARD_W
+        card_y = MARGIN + row * CARD_H
+        draw_card(card_x, card_y, student)
 
-            letter_p = Paragraph(
-                f'<font color="{COLORS[j]}"><b>{answer}</b></font>',
-                letter_style
-            )
-            qr_cells.append([qr_img, letter_p])
-
-        qr_table = Table(
-            [[qr_cells[0][0], qr_cells[1][0]],
-             [qr_cells[0][1], qr_cells[1][1]],
-             [qr_cells[2][0], qr_cells[3][0]],
-             [qr_cells[2][1], qr_cells[3][1]]],
-            colWidths=[3.5*cm, 3.5*cm]
-        )
-        qr_table.setStyle(TableStyle([
-            ('ALIGN',    (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN',   (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white]),
-        ]))
-        card_elements.append(qr_table)
-
-        # تجميع البطاقة في جدول بإطار
-        card_table = Table([[card_elements]], colWidths=[card_w], rowHeights=[card_h])
-        card_table.setStyle(TableStyle([
-            ('BOX',      (0, 0), (-1, -1), 1.5, colors.HexColor('#1e3a8a')),
-            ('VALIGN',   (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN',    (0, 0), (-1, -1), 'CENTER'),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING',   (0, 0), (-1, -1), 8),
-        ]))
-
-        row_data.append(card_table)
-
-        if len(row_data) == cards_per_row:
-            row_table = Table([row_data], colWidths=[card_w + 0.5*cm] * cards_per_row)
-            row_table.setStyle(TableStyle([
-                ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING',  (0, 0), (-1, -1), 4),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING',(0, 0), (-1, -1), 10),
-            ]))
-            story.append(row_table)
-            row_data = []
-
-    # بطاقة يتيمة
-    if row_data:
-        row_table = Table([row_data + ['']], colWidths=[card_w + 0.5*cm] * cards_per_row)
-        row_table.setStyle(TableStyle([
-            ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        story.append(row_table)
-
-    doc.build(story)
+    c.save()
     buf.seek(0)
 
     return send_file(
