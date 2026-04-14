@@ -182,30 +182,35 @@ def generate_cards(session_id):
         except Exception:
             return text
 
-    def make_card_image(student, aruco_id):
-        """توليد صورة PIL للبطاقة — CARD×(CARD+STRIP) بكسل."""
-        CARD   = 350   # منطقة الـ marker (مربعة) — مصغّر لتسريع التوليد
-        MARKER = 240   # حجم الـ ArUco marker
-        STRIP  = 60    # شريط اسم الطالب
-        TOTAL  = CARD + STRIP
+    # تسجيل خط عربي في ReportLab
+    arabic_font = 'Helvetica'
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('Cairo', font_path))
+            arabic_font = 'Cairo'
+        except Exception:
+            pass
 
-        # ── توليد marker ──────────────────────────────────────
+    def make_marker_image(aruco_id):
+        """توليد صورة PIL للـ marker فقط (بدون اسم) — مربع CARD×CARD."""
+        CARD   = 350
+        MARKER = 240
+
         marker_np = np.zeros((MARKER, MARKER), dtype=np.uint8)
         cv2.aruco.generateImageMarker(aruco_dict, int(aruco_id), MARKER, marker_np, 1)
         marker_pil = Image.fromarray(marker_np).convert('RGB')
 
-        # ── كانفاس أبيض ───────────────────────────────────────
-        card = Image.new('RGB', (CARD, TOTAL), 'white')
+        card = Image.new('RGB', (CARD, CARD), 'white')
         draw = ImageDraw.Draw(card)
 
-        # لصق الـ marker في مركز منطقة CARD
-        offset = (CARD - MARKER) // 2   # = 100 بكسل على كل جانب
+        # لصق الـ marker في المنتصف
+        offset = (CARD - MARKER) // 2
         card.paste(marker_pil, (offset, offset))
 
         # إطار خارجي
         draw.rectangle([0, 0, CARD - 1, CARD - 1], outline='black', width=4)
 
-        # حروف الإجابة داخل هامش الـ 55 بكسل (خارج الـ marker)
+        # حروف الإجابة (A/B/C/D) — لاتينية بسيطة لا تحتاج bidi
         LBL = 36
         try:
             font_lbl = ImageFont.truetype(font_path, LBL) if os.path.exists(font_path) else ImageFont.load_default()
@@ -214,42 +219,32 @@ def generate_cards(session_id):
 
         mid  = CARD // 2
         edge = 12
+        draw.text((mid, edge),        'A', fill='black', font=font_lbl, anchor='mt')
+        draw.text((CARD - edge, mid), 'B', fill='black', font=font_lbl, anchor='rm')
+        draw.text((mid, CARD - edge), 'C', fill='black', font=font_lbl, anchor='mb')
+        draw.text((edge, mid),        'D', fill='black', font=font_lbl, anchor='lm')
 
-        draw.text((mid, edge),         'A', fill='black', font=font_lbl, anchor='mt')
-        draw.text((CARD - edge, mid),  'B', fill='black', font=font_lbl, anchor='rm')
-        draw.text((mid, CARD - edge),  'C', fill='black', font=font_lbl, anchor='mb')
-        draw.text((edge, mid),         'D', fill='black', font=font_lbl, anchor='lm')
-
-        # رقم البطاقة في الأركان (صغير)
+        # رقم البطاقة في الأركان
         try:
             font_num = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
             font_num = ImageFont.load_default()
 
         num = str(aruco_id)
-        draw.text((6, 6),                fill='#9ca3af', text=num, font=font_num, anchor='lt')
-        draw.text((CARD - 6, 6),         fill='#9ca3af', text=num, font=font_num, anchor='rt')
-        draw.text((6, CARD - 6),         fill='#9ca3af', text=num, font=font_num, anchor='lb')
-        draw.text((CARD - 6, CARD - 6),  fill='#9ca3af', text=num, font=font_num, anchor='rb')
-
-        # ── شريط الاسم ─────────────────────────────────────────
-        draw.rectangle([0, CARD, CARD, TOTAL], fill='#1e3a8a')
-
-        try:
-            font_name = ImageFont.truetype(font_path, 20) if os.path.exists(font_path) else ImageFont.load_default()
-        except Exception:
-            font_name = ImageFont.load_default()
-
-        name_display = ar(student.name)
-        draw.text((CARD // 2, CARD + 8),  name_display,    fill='white',   font=font_name, anchor='mt')
-        draw.text((CARD // 2, CARD + 36), f'#{aruco_id}',  fill='#93c5fd', font=font_name, anchor='mt')
+        draw.text((6, 6),               fill='#9ca3af', text=num, font=font_num, anchor='lt')
+        draw.text((CARD - 6, 6),        fill='#9ca3af', text=num, font=font_num, anchor='rt')
+        draw.text((6, CARD - 6),        fill='#9ca3af', text=num, font=font_num, anchor='lb')
+        draw.text((CARD - 6, CARD - 6), fill='#9ca3af', text=num, font=font_num, anchor='rb')
 
         return card
 
     # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
+    from reportlab.lib import colors as rl_colors
     PAGE_W, PAGE_H = A4
-    MARGIN   = 20   # pts
-    CARD_AREA_H = (PAGE_H - 3 * MARGIN) / 2
+    MARGIN    = 20          # pts
+    NAME_H    = 34          # ارتفاع شريط الاسم بالـ pts
+    SLOT_H    = (PAGE_H - 3 * MARGIN) / 2   # المساحة الكاملة لكل بطاقة
+    IMG_H     = SLOT_H - NAME_H             # ارتفاع صورة الـ marker
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
@@ -258,20 +253,34 @@ def generate_cards(session_id):
         if idx > 0 and idx % 2 == 0:
             c.showPage()
 
-        pos     = idx % 2                          # 0=أعلى، 1=أسفل
+        pos    = idx % 2      # 0=أعلى، 1=أسفل
+        slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
+
         card_x  = MARGIN
-        card_y  = PAGE_H - MARGIN - (pos + 1) * CARD_AREA_H - pos * MARGIN
+        img_y   = slot_y + NAME_H          # الصورة فوق شريط الاسم
+        draw_w  = PAGE_W - 2 * MARGIN
 
-        card_img = make_card_image(student, idx)
-
+        # رسم صورة الـ marker
+        marker_img = make_marker_image(idx)
         cbuf = io.BytesIO()
-        card_img.save(cbuf, format='PNG')
+        marker_img.save(cbuf, format='PNG')
         cbuf.seek(0)
-
-        draw_w = PAGE_W - 2 * MARGIN
-        c.drawImage(ImageReader(cbuf), card_x, card_y,
-                    width=draw_w, height=CARD_AREA_H,
+        c.drawImage(ImageReader(cbuf), card_x, img_y,
+                    width=draw_w, height=IMG_H,
                     preserveAspectRatio=True, anchor='c')
+
+        # ── شريط الاسم بـ ReportLab (عربي صحيح) ──────────────
+        c.setFillColor(rl_colors.HexColor('#1e3a8a'))
+        c.rect(card_x, slot_y, draw_w, NAME_H, fill=1, stroke=0)
+
+        name_display = ar(student.name)
+        c.setFillColor(rl_colors.white)
+        c.setFont(arabic_font, 13)
+        c.drawCentredString(card_x + draw_w / 2, slot_y + NAME_H - 14, name_display)
+
+        c.setFillColor(rl_colors.HexColor('#93c5fd'))
+        c.setFont(arabic_font, 10)
+        c.drawCentredString(card_x + draw_w / 2, slot_y + 5, f'#{idx}')
 
     c.save()
     buf.seek(0)
