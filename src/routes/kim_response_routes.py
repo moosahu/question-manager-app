@@ -324,9 +324,26 @@ def generate_cards(session_id):
             # fallback: arabic_reshaper + bidi + basic layout
             draw_obj.text(xy, ar(text), fill=fill, font=font, anchor='mm')
 
+    _logo_path = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), '..', 'static', 'images', 'logo.png'))
+
     def make_name_image(name, aruco_id):
         img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
         draw_n = ImageDraw.Draw(img)
+
+        # لوجو التطبيق على اليمين
+        LOGO_SIZE = 56
+        LOGO_PAD  = 8
+        if os.path.exists(_logo_path):
+            try:
+                logo = Image.open(_logo_path).convert('RGBA')
+                logo.thumbnail((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+                # توسيط عمودي
+                ly = (NAME_PX_H - logo.height) // 2
+                lx = NAME_PX_W - logo.width - LOGO_PAD
+                img.paste(logo, (lx, ly), logo)
+            except Exception:
+                pass
 
         # layout_engine=1 → libraqm (تشكيل صحيح للعربية عبر OpenType)
         try:
@@ -336,10 +353,11 @@ def generate_cards(session_id):
             fn_big   = ImageFont.load_default()
             fn_small = ImageFont.load_default()
 
-        cx = NAME_PX_W // 2
-        _draw_arabic(draw_n, (cx, 26), name,                   'white',   fn_big)
+        # نص في المنتصف (مع مراعاة مساحة اللوجو)
+        cx = (NAME_PX_W - LOGO_SIZE - LOGO_PAD) // 2
+        _draw_arabic(draw_n, (cx, 26), name,                        'white',   fn_big)
         _draw_arabic(draw_n, (cx, 56), f'تطبيق كيم تحصيلي  |  #{aruco_id}',
-                                                                '#93c5fd', fn_small)
+                                                                     '#93c5fd', fn_small)
         return img
 
     # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
