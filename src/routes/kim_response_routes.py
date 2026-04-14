@@ -259,13 +259,41 @@ def generate_cards(session_id):
 
         return card
 
+    # ── دالة مساعدة: شريط الاسم كصورة PIL (layout_engine=0 = بدون libraqm) ──────
+    NAME_PX_W = 900    # عرض صورة الاسم بالبكسل
+    NAME_PX_H = 72     # ارتفاع صورة الاسم بالبكسل
+
+    def make_name_image(name, aruco_id):
+        img  = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
+        draw_n = ImageDraw.Draw(img)
+
+        # تحميل خطوط مع layout_engine=0 (يمنع libraqm من إعادة التشكيل)
+        try:
+            fn_big   = ImageFont.truetype(font_path, 26, layout_engine=0)
+            fn_small = ImageFont.truetype(font_path, 13, layout_engine=0)
+        except TypeError:
+            # Pillow أقدم من 8.2 — بدون layout_engine
+            fn_big   = ImageFont.truetype(font_path, 26) if os.path.exists(font_path) else ImageFont.load_default()
+            fn_small = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            fn_big   = ImageFont.load_default()
+            fn_small = ImageFont.load_default()
+
+        cx = NAME_PX_W // 2
+        # اسم الطالب
+        draw_n.text((cx, 26), ar(name), fill='white',   font=fn_big,   anchor='mm')
+        # شعار التطبيق + رقم البطاقة
+        sub = ar('تطبيق كيم تحصيلي') + f'  |  #{aruco_id}'
+        draw_n.text((cx, 56), sub,       fill='#93c5fd', font=fn_small, anchor='mm')
+
+        return img
+
     # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
-    from reportlab.lib import colors as rl_colors
     PAGE_W, PAGE_H = A4
     MARGIN    = 20          # pts
-    NAME_H    = 34          # ارتفاع شريط الاسم بالـ pts
-    SLOT_H    = (PAGE_H - 3 * MARGIN) / 2   # المساحة الكاملة لكل بطاقة
-    IMG_H     = SLOT_H - NAME_H             # ارتفاع صورة الـ marker
+    NAME_H    = 48          # ارتفاع شريط الاسم بالـ pts
+    SLOT_H    = (PAGE_H - 3 * MARGIN) / 2
+    IMG_H     = SLOT_H - NAME_H
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
@@ -274,12 +302,12 @@ def generate_cards(session_id):
         if idx > 0 and idx % 2 == 0:
             c.showPage()
 
-        pos    = idx % 2      # 0=أعلى، 1=أسفل
+        pos    = idx % 2
         slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
 
-        card_x  = MARGIN
-        img_y   = slot_y + NAME_H          # الصورة فوق شريط الاسم
-        draw_w  = PAGE_W - 2 * MARGIN
+        card_x = MARGIN
+        img_y  = slot_y + NAME_H
+        draw_w = PAGE_W - 2 * MARGIN
 
         # رسم صورة الـ marker
         marker_img = make_marker_image(idx)
@@ -290,18 +318,14 @@ def generate_cards(session_id):
                     width=draw_w, height=IMG_H,
                     preserveAspectRatio=True, anchor='c')
 
-        # ── شريط الاسم بـ ReportLab (عربي صحيح) ──────────────
-        c.setFillColor(rl_colors.HexColor('#1e3a8a'))
-        c.rect(card_x, slot_y, draw_w, NAME_H, fill=1, stroke=0)
-
-        name_display = ar(student.name)
-        c.setFillColor(rl_colors.white)
-        c.setFont(arabic_font, 13)
-        c.drawCentredString(card_x + draw_w / 2, slot_y + NAME_H - 14, name_display)
-
-        c.setFillColor(rl_colors.HexColor('#93c5fd'))
-        c.setFont(arabic_font, 10)
-        c.drawCentredString(card_x + draw_w / 2, slot_y + 5, f'#{idx}')
+        # ── شريط الاسم كصورة PIL (يحل مشكلة الحروف المشوهة) ──
+        name_img = make_name_image(student.name, idx)
+        nbuf = io.BytesIO()
+        name_img.save(nbuf, format='PNG')
+        nbuf.seek(0)
+        c.drawImage(ImageReader(nbuf), card_x, slot_y,
+                    width=draw_w, height=NAME_H,
+                    preserveAspectRatio=False)
 
     c.save()
     buf.seek(0)
