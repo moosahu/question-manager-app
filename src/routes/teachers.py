@@ -733,10 +733,13 @@ def api_admin_assign_by_code():
             db.session.rollback()
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    _tid = teacher.id if teacher else None
+    _aid = admin_owner.id if admin_owner else None
     link = TeacherStudent(
-        teacher_id=teacher.id if teacher else None,
-        admin_id=admin_owner.id if admin_owner else None,
+        teacher_id=_tid,
+        admin_id=_aid,
         student_id=student_id,
+        aruco_id=TeacherStudent.next_aruco_id(_tid, _aid),
     )
     try:
         db.session.add(link)
@@ -792,7 +795,11 @@ def api_admin_assign_student(teacher_id):
             db.session.rollback()
             return jsonify({'success': False, 'error': str(e)}), 500
 
-    link = TeacherStudent(teacher_id=teacher_id, student_id=student_id)
+    link = TeacherStudent(
+        teacher_id=teacher_id,
+        student_id=student_id,
+        aruco_id=TeacherStudent.next_aruco_id(teacher_id, None),
+    )
     try:
         db.session.add(link)
         db.session.commit()
@@ -1020,7 +1027,11 @@ def api_link_student_to_admin():
         db.session.delete(existing)
         db.session.flush()
 
-    link = TeacherStudent(admin_id=current_user.id, student_id=student_id)
+    link = TeacherStudent(
+        admin_id=current_user.id,
+        student_id=student_id,
+        aruco_id=TeacherStudent.next_aruco_id(None, current_user.id),
+    )
     db.session.add(link)
     db.session.commit()
 

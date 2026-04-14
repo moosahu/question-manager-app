@@ -167,18 +167,23 @@ def generate_cards(session_id):
     if not links:
         return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون'}), 400
 
-    students = [Student.query.get(l.student_id) for l in links]
-    students = [s for s in students if s and s.is_active]
+    # بناء قائمة (student, aruco_id) — يعتمد على aruco_id المحفوظ
+    pairs = []
+    for l in links:
+        s = Student.query.get(l.student_id)
+        if s and s.is_active and l.aruco_id is not None:
+            pairs.append((s, l.aruco_id))
+
     if grade:
-        students = [s for s in students if s.grade == grade]
+        pairs = [(s, a) for s, a in pairs if s.grade == grade]
     if student_ids_param:
         ids = {int(x) for x in student_ids_param.split(',') if x.strip().isdigit()}
-        students = [s for s in students if s.id in ids]
-    if not students:
+        pairs = [(s, a) for s, a in pairs if s.id in ids]
+    if not pairs:
         return jsonify({'success': False, 'error': 'لا يوجد طلاب في هذا الاختيار'}), 400
-    students.sort(key=lambda s: s.name)
+    pairs.sort(key=lambda p: p[0].name)
 
-    if len(students) > 250:
+    if len(pairs) > 250:
         return jsonify({'success': False, 'error': 'الحد الأقصى 250 طالباً لبطاقات ArUco'}), 400
 
     try:
@@ -326,16 +331,15 @@ def generate_cards(session_id):
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
 
-    for idx, student in enumerate(students):
-        if idx > 0 and idx % 2 == 0:
+    for page_idx, (student, aruco_id) in enumerate(pairs):
+        if page_idx > 0 and page_idx % 2 == 0:
             c.showPage()
 
-        pos    = idx % 2
+        pos    = page_idx % 2
         slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
         img_y  = slot_y + NAME_H
 
-        # رسم صورة الـ marker (مربع — عرض وارتفاع متساويان)
-        marker_img = make_marker_image(idx)
+        marker_img = make_marker_image(aruco_id)
         cbuf = io.BytesIO()
         marker_img.save(cbuf, format='PNG')
         cbuf.seek(0)
@@ -343,8 +347,7 @@ def generate_cards(session_id):
                     width=CARD_W, height=IMG_H,
                     preserveAspectRatio=True, anchor='c')
 
-        # ── شريط الاسم بنفس عرض الكرت ──
-        name_img = make_name_image(student.name, idx)
+        name_img = make_name_image(student.name, aruco_id)
         nbuf = io.BytesIO()
         name_img.save(nbuf, format='PNG')
         nbuf.seek(0)
@@ -379,13 +382,30 @@ def get_aruco_map(session_id):
         else (TeacherStudent.admin_id == admin_id)
     ).all()
 
-    students = [Student.query.get(l.student_id) for l in links]
-    students = [s for s in students if s and s.is_active]
-    students.sort(key=lambda s: s.name)
+    # ── تعيين aruco_id للسجلات القديمة (NULL) ────────────────────────────────
+    null_links = [l for l in links if l.aruco_id is None]
+    if null_links:
+        used = {l.aruco_id for l in links if l.aruco_id is not None}
+        # رتّب أبجدياً للتوافق مع الكروت المطبوعة قبل هذا التحديث
+        null_links.sort(key=lambda l: (Student.query.get(l.student_id).name
+                                       if Student.query.get(l.student_id) else ''))
+        for lnk in null_links:
+            for i in range(250):
+                if i not in used:
+                    lnk.aruco_id = i
+                    used.add(i)
+                    break
+        db.session.commit()
+
+    students_map = {}   # aruco_id → (student, link)
+    for l in links:
+        s = Student.query.get(l.student_id)
+        if s and s.is_active and l.aruco_id is not None:
+            students_map[l.aruco_id] = (s, l)
 
     # المراحل من Student.grade + الشعب من TeacherStudent.section
-    grades   = sorted({s.grade    for s in students if s.grade})
-    sections = sorted({l.section  for l in links    if l.section})
+    grades   = sorted({s.grade   for s, _ in students_map.values() if s.grade})
+    sections = sorted({l.section for _, l in students_map.values() if l.section})
 
     import random
 
@@ -393,24 +413,24 @@ def get_aruco_map(session_id):
         rng = random.Random(aruco_id * 1337)
         positions = ['A', 'B', 'C', 'D']
         rng.shuffle(positions)
-        return positions  # [top, right, bottom, left]
+        return positions
 
-    aruco_map   = {str(i): s.id   for i, s in enumerate(students)}
+    aruco_map     = {str(aid): s.id for aid, (s, _) in students_map.items()}
     students_info = [
         {
-            'aruco_id':    i,
+            'aruco_id':    aid,
             'student_id':  s.id,
             'student_name': s.name,
-            'positions':   _card_positions_map(i),   # [top, right, bottom, left]
+            'positions':   _card_positions_map(aid),
         }
-        for i, s in enumerate(students)
+        for aid, (s, _) in sorted(students_map.items())
     ]
 
     return jsonify({
         'success':   True,
         'aruco_map': aruco_map,
         'students':  students_info,
-        'total':     len(students),
+        'total':     len(students_info),
         'grades':    grades,
         'sections':  sections,
     })

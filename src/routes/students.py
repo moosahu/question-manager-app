@@ -2713,10 +2713,13 @@ def api_student_join_class():
             return jsonify({'success': False, 'error': 'أنت مرتبط بهذا الكود بالفعل'}), 409
         return jsonify({'success': False, 'error': 'أنت مرتبط بقائمة أخرى بالفعل. اطلب الإزالة أولاً'}), 409
 
+    _tid = teacher.id if teacher else None
+    _aid = admin_owner.id if admin_owner else None
     link = TeacherStudent(
-        teacher_id=teacher.id if teacher else None,
-        admin_id=admin_owner.id if admin_owner else None,
+        teacher_id=_tid,
+        admin_id=_aid,
         student_id=student_id,
+        aruco_id=TeacherStudent.next_aruco_id(_tid, _aid),
     )
     try:
         db.session.add(link)
