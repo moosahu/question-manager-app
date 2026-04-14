@@ -310,6 +310,9 @@ def generate_cards(session_id):
     NAME_H    = 48          # ارتفاع شريط الاسم بالـ pts
     SLOT_H    = (PAGE_H - 3 * MARGIN) / 2
     IMG_H     = SLOT_H - NAME_H
+    # الكرت مربع → عرضه الفعلي = min(عرض الصفحة, الارتفاع المتاح)
+    CARD_W    = min(PAGE_W - 2 * MARGIN, IMG_H)
+    CARD_X    = (PAGE_W - CARD_W) / 2   # توسيط أفقي
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
@@ -320,27 +323,24 @@ def generate_cards(session_id):
 
         pos    = idx % 2
         slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
-
-        card_x = MARGIN
         img_y  = slot_y + NAME_H
-        draw_w = PAGE_W - 2 * MARGIN
 
-        # رسم صورة الـ marker
+        # رسم صورة الـ marker (مربع — عرض وارتفاع متساويان)
         marker_img = make_marker_image(idx)
         cbuf = io.BytesIO()
         marker_img.save(cbuf, format='PNG')
         cbuf.seek(0)
-        c.drawImage(ImageReader(cbuf), card_x, img_y,
-                    width=draw_w, height=IMG_H,
+        c.drawImage(ImageReader(cbuf), CARD_X, img_y,
+                    width=CARD_W, height=IMG_H,
                     preserveAspectRatio=True, anchor='c')
 
-        # ── شريط الاسم كصورة PIL (يحل مشكلة الحروف المشوهة) ──
+        # ── شريط الاسم بنفس عرض الكرت ──
         name_img = make_name_image(student.name, idx)
         nbuf = io.BytesIO()
         name_img.save(nbuf, format='PNG')
         nbuf.seek(0)
-        c.drawImage(ImageReader(nbuf), card_x, slot_y,
-                    width=draw_w, height=NAME_H,
+        c.drawImage(ImageReader(nbuf), CARD_X, slot_y,
+                    width=CARD_W, height=NAME_H,
                     preserveAspectRatio=False)
 
     c.save()
