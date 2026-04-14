@@ -166,8 +166,12 @@ def generate_cards(session_id):
     students = [s for s in students if s and s.is_active]
     if section:
         students = [s for s in students if s.grade == section]
+    student_ids_param = request.args.get('student_ids')  # "1,2,3"
+    if student_ids_param:
+        ids = {int(x) for x in student_ids_param.split(',') if x.strip().isdigit()}
+        students = [s for s in students if s.id in ids]
     if not students:
-        return jsonify({'success': False, 'error': 'لا يوجد طلاب في هذا الفصل'}), 400
+        return jsonify({'success': False, 'error': 'لا يوجد طلاب في هذا الاختيار'}), 400
     students.sort(key=lambda s: s.name)
 
     if len(students) > 250:
