@@ -525,6 +525,79 @@ def get_results(session_id):
     })
 
 
+# ── 4b. النتائج النهائية للجلسة كاملة ───────────────────────────────────────
+
+@kim_response_bp.route('/api/kim-response/session/<int:session_id>/final-results', methods=['GET'])
+@login_required
+def get_final_results(session_id):
+    """
+    ملخص نهائي لكل الجلسة (تُستخدم في شاشة النتائج النهائية).
+    يجمع إجابات كل الأسئلة — لكل طالب: كم أجاب صح وكم أخطأ.
+    """
+    session = _get_session_or_404(session_id)
+    if not session:
+        return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
+    teacher_id, admin_id = _get_caller_ids()
+
+    # كل الطلاب المرتبطين
+    links = TeacherStudent.query.filter(
+        (TeacherStudent.teacher_id == teacher_id) if teacher_id
+        else (TeacherStudent.admin_id == admin_id)
+    ).all()
+    total_students = len(links)
+    student_ids    = {l.student_id for l in links}
+
+    # كل الإجابات في هذه الجلسة
+    all_answers = KimResponseAnswer.query.filter_by(session_id=session_id).all()
+
+    # تجميع per-student
+    from collections import defaultdict
+    per_student = defaultdict(lambda: {'correct': 0, 'wrong': 0, 'answers': []})
+    for a in all_answers:
+        if a.is_correct:
+            per_student[a.student_id]['correct'] += 1
+        else:
+            per_student[a.student_id]['wrong'] += 1
+        per_student[a.student_id]['answers'].append(a.to_dict())
+
+    answered_ids   = set(per_student.keys())
+    total_answered = len(answered_ids)
+    total_correct  = sum(v['correct'] for v in per_student.values())
+    total_wrong    = sum(v['wrong']   for v in per_student.values())
+    not_answered   = total_students - total_answered
+
+    # قائمة مفصّلة لكل طالب
+    student_rows = []
+    for sid in answered_ids:
+        s = Student.query.get(sid)
+        v = per_student[sid]
+        student_rows.append({
+            'student_id':   sid,
+            'student_name': s.name if s else '',
+            'correct':      v['correct'],
+            'wrong':        v['wrong'],
+            'total':        v['correct'] + v['wrong'],
+            'answers':      v['answers'],
+        })
+    student_rows.sort(key=lambda r: r['student_name'])
+
+    pct = round(total_correct / (total_answered * session.total_questions) * 100, 1) \
+          if total_answered > 0 and session.total_questions > 0 else 0.0
+
+    return jsonify({
+        'success':        True,
+        'session':        session.to_dict(),
+        'total_students': total_students,
+        'total_answered': total_answered,
+        'total_correct':  total_correct,
+        'total_wrong':    total_wrong,
+        'not_answered':   not_answered,
+        'score_pct':      pct,
+        'students':       student_rows,
+    })
+
+
 # ── 5. السؤال التالي ──────────────────────────────────────────────────────────
 
 @kim_response_bp.route('/api/kim-response/session/<int:session_id>/next', methods=['POST'])
