@@ -634,5 +634,56 @@ class EmailService:
             return False, str(e)
 
 
+    def send_teacher_activation(self, to_email, teacher_name):
+        """إرسال إشعار تفعيل الحساب للمعلم"""
+        try:
+            subject = 'تم تفعيل حسابك - كيم تحصيلي'
+            html_content = f'''
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head><meta charset="UTF-8">
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; direction:rtl; }}
+                .container {{ max-width:500px; margin:0 auto; background:white; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.1); }}
+                .header {{ background:linear-gradient(135deg,#4ECDC4 0%,#2563EB 100%); color:white; padding:25px; text-align:center; }}
+                .header h1 {{ margin:0; font-size:22px; }}
+                .content {{ padding:25px; text-align:right; }}
+                .greeting {{ font-size:16px; color:#333; margin-bottom:16px; }}
+                .box {{ background:#F0FDF4; border-right:4px solid #059669; border-radius:10px; padding:16px; font-size:15px; color:#065F46; line-height:1.8; }}
+                .footer {{ background:#f8f9fa; padding:15px; text-align:center; color:#999; font-size:12px; }}
+            </style></head>
+            <body>
+            <div class="container">
+              <div class="header"><h1>✅ تم تفعيل حسابك</h1></div>
+              <div class="content">
+                <p class="greeting">أهلاً {teacher_name}،</p>
+                <div class="box">
+                  تم تفعيل حسابك في تطبيق <strong>كيم تحصيلي</strong> من قِبل إدارة التطبيق.<br>
+                  يمكنك الآن تسجيل الدخول والبدء باستخدام التطبيق.
+                </div>
+              </div>
+              <div class="footer">كيم تحصيلي &copy; {datetime.utcnow().year}</div>
+            </div>
+            </body></html>'''
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f'{self.mail_sender_name} <{self.mail_sender_email}>'
+            msg['To'] = to_email
+            msg.attach(MIMEText('تم تفعيل حسابك في كيم تحصيلي، يمكنك الآن تسجيل الدخول.', 'plain', 'utf-8'))
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+            with smtplib.SMTP(self.mail_server, self.mail_port) as server:
+                server.starttls()
+                server.login(self.mail_username, self.mail_password)
+                server.sendmail(self.mail_sender_email, to_email, msg.as_string())
+
+            print(f"✅ إيميل تفعيل أُرسل إلى: {to_email}")
+            return True, 'تم الإرسال'
+        except Exception as e:
+            print(f"❌ خطأ في إرسال إيميل التفعيل: {e}")
+            return False, str(e)
+
+
 # إنشاء instance عام
 email_service = EmailService()

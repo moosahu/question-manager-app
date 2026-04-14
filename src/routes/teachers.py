@@ -460,6 +460,7 @@ def api_mobile_toggle_teacher(teacher_id):
     """تفعيل/تعطيل حساب معلم عبر الموبايل"""
     from src.models.teacher import Teacher
     teacher = Teacher.query.get_or_404(teacher_id)
+    was_inactive = not teacher.is_active
     teacher.is_active = not teacher.is_active
     try:
         db.session.commit()
@@ -476,6 +477,13 @@ def api_mobile_toggle_teacher(teacher_id):
             db.session.commit()
         except Exception:
             pass
+        # إرسال إيميل التفعيل فقط عند التفعيل (من معطل → مفعّل)
+        if teacher.is_active and was_inactive and teacher.email:
+            try:
+                from src.services.email_service import email_service
+                email_service.send_teacher_activation(teacher.email, teacher.name)
+            except Exception:
+                pass
         return jsonify({'success': True, 'message': f'تم تغيير حالة المعلم "{teacher.name}" إلى {status}',
                         'is_active': teacher.is_active})
     except Exception as e:
