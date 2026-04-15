@@ -331,8 +331,10 @@ def generate_cards(session_id):
         os.path.dirname(__file__), '..', 'static', 'images', 'app_logo.png'))
 
     def make_name_image(name, aruco_id):
-        img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), 'white')
+        img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#F3F4F6')
         draw_n = ImageDraw.Draw(img)
+        # إطار خفيف حول الشريط
+        draw_n.rectangle([0, 0, NAME_PX_W-1, NAME_PX_H-1], outline='#D1D5DB', width=2)
 
         LOGO_SIZE = 56
         LOGO_PAD  = 8
@@ -368,12 +370,13 @@ def generate_cards(session_id):
                                                                      '#374151', fn_small)
         return img
 
-    # ── تجميع PDF — بطاقتان لكل صفحة (مربع — الشريط داخل الكرت) ────────────
+    # ── تجميع PDF — بطاقتان لكل صفحة ────────────────────────────────────────
     PAGE_W, PAGE_H = A4
     MARGIN = 20
     NAME_H = 48
-    SLOT_H = (PAGE_H - 3 * MARGIN) / 2        # ارتفاع كل slot
-    CARD_W = min(PAGE_W - 2 * MARGIN, SLOT_H) # الكرت مربع = SLOT_H × SLOT_H
+    SLOT_H = (PAGE_H - 3 * MARGIN) / 2
+    IMG_H  = SLOT_H - NAME_H
+    CARD_W = min(PAGE_W - 2 * MARGIN, IMG_H)
     CARD_X = (PAGE_W - CARD_W) / 2
 
     buf = io.BytesIO()
@@ -385,17 +388,18 @@ def generate_cards(session_id):
 
         pos    = page_idx % 2
         slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
+        img_y  = slot_y + NAME_H
 
-        # ArUco يملأ المربع كاملاً
+        # ArUco
         marker_img = make_marker_image(aruco_id)
         cbuf = io.BytesIO()
         marker_img.save(cbuf, format='PNG')
         cbuf.seek(0)
-        c.drawImage(ImageReader(cbuf), CARD_X, slot_y,
-                    width=CARD_W, height=CARD_W,
+        c.drawImage(ImageReader(cbuf), CARD_X, img_y,
+                    width=CARD_W, height=IMG_H,
                     preserveAspectRatio=True, anchor='c')
 
-        # شريط الاسم داخل الكرت — أسفله مباشرة
+        # شريط الاسم — تحت الكرت
         name_img = make_name_image(student.name, aruco_id)
         nbuf = io.BytesIO()
         name_img.save(nbuf, format='PNG')
