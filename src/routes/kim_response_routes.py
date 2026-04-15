@@ -331,7 +331,7 @@ def generate_cards(session_id):
         os.path.dirname(__file__), '..', 'static', 'images', 'app_logo.png'))
 
     def make_name_image(name, aruco_id):
-        img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
+        img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), 'white')
         draw_n = ImageDraw.Draw(img)
 
         LOGO_SIZE = 56
@@ -363,9 +363,9 @@ def generate_cards(session_id):
 
         # نص في المنتصف (مع مراعاة مساحة اللوجو)
         cx = (NAME_PX_W - LOGO_SIZE - LOGO_PAD) // 2
-        _draw_arabic(draw_n, (cx, 26), name,                        'white',   fn_big)
+        _draw_arabic(draw_n, (cx, 26), name,                        'black',   fn_big)
         _draw_arabic(draw_n, (cx, 56), f'تطبيق كيم تحصيلي  |  #{aruco_id}',
-                                                                     '#93c5fd', fn_small)
+                                                                     '#374151', fn_small)
         return img
 
     # ── تجميع PDF — بطاقتان لكل صفحة (مربع — الشريط داخل الكرت) ────────────
