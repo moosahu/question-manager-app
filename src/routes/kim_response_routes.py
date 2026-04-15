@@ -337,20 +337,16 @@ def generate_cards(session_id):
         LOGO_SIZE = 56
         LOGO_PAD  = 8
 
-        # لوجو كيم تحصيلي — يمين (بدون خلفية بيضاء)
+        # لوجو كيم تحصيلي — يمين (دائري بدون خلفية)
         if os.path.exists(_logo_app_path):
             try:
                 logo_app = Image.open(_logo_app_path).convert('RGBA')
-                # حذف الخلفية البيضاء: R>230 و G>230 و B>230 → شفاف
-                data = logo_app.getdata()
-                new_data = []
-                for r, g, b, a in data:
-                    if r > 230 and g > 230 and b > 230:
-                        new_data.append((r, g, b, 0))
-                    else:
-                        new_data.append((r, g, b, a))
-                logo_app.putdata(new_data)
-                logo_app.thumbnail((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+                logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+                # قناع دائري يحذف كل خلفية
+                circle_mask = Image.new('L', (LOGO_SIZE, LOGO_SIZE), 0)
+                ImageDraw.Draw(circle_mask).ellipse(
+                    [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1], fill=255)
+                logo_app.putalpha(circle_mask)
                 ly = (NAME_PX_H - logo_app.height) // 2
                 lx = NAME_PX_W - logo_app.width - LOGO_PAD
                 img.paste(logo_app, (lx, ly), logo_app)
