@@ -315,8 +315,9 @@ def generate_cards(session_id):
     # ── دالة مساعدة: شريط الاسم كصورة PIL ────────────────────────────────────
     # المنهج الصحيح: PIL + libraqm (layout_engine=1) + نص عربي خام
     # libraqm يتولى التشكيل والـ bidi — لا نستخدم arabic_reshaper هنا
-    NAME_PX_W = 900
+    # النسبة تطابق CARD_W/NAME_H في الـ PDF (343/48 ≈ 7.14) → لوجو مربع بدون تشويه
     NAME_PX_H = 72
+    NAME_PX_W = int(NAME_PX_H * 343 / 48)  # = 514
 
     def _draw_arabic(draw_obj, xy, text, fill, font):
         """يرسم نص عربي باستخدام libraqm إذا متاح، وإلا arabic_reshaper."""
@@ -339,14 +340,25 @@ def generate_cards(session_id):
         LOGO_SIZE = 56
         LOGO_PAD  = 8
 
-        # لوجو كيم تحصيلي — يمين (مربع كامل بدون mask)
+        # لوجو كيم تحصيلي — يمين (مربع بزوايا دائرية)
         if os.path.exists(_logo_app_path):
             try:
-                logo_app = Image.open(_logo_app_path).convert('RGB')
+                logo_app = Image.open(_logo_app_path).convert('RGBA')
                 logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-                ly = (NAME_PX_H - logo_app.height) // 2
-                lx = NAME_PX_W - logo_app.width - LOGO_PAD
-                img.paste(logo_app, (lx, ly))
+                r = int(LOGO_SIZE * 0.22)
+                S = LOGO_SIZE
+                m = Image.new('L', (S, S), 0)
+                d = ImageDraw.Draw(m)
+                d.rectangle([r, 0, S-r, S], fill=255)
+                d.rectangle([0, r, S, S-r], fill=255)
+                d.ellipse([0, 0, r*2, r*2], fill=255)
+                d.ellipse([S-r*2, 0, S, r*2], fill=255)
+                d.ellipse([0, S-r*2, r*2, S], fill=255)
+                d.ellipse([S-r*2, S-r*2, S, S], fill=255)
+                logo_app.putalpha(m)
+                ly = (NAME_PX_H - LOGO_SIZE) // 2
+                lx = NAME_PX_W - LOGO_SIZE - LOGO_PAD
+                img.paste(logo_app, (lx, ly), logo_app)
             except Exception:
                 pass
 
