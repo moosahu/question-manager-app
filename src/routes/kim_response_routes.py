@@ -327,28 +327,28 @@ def generate_cards(session_id):
             # fallback: arabic_reshaper + bidi + basic layout
             draw_obj.text(xy, ar(text), fill=fill, font=font, anchor='mm')
 
-    _logo_path = os.path.normpath(os.path.join(
-        os.path.dirname(__file__), '..', 'static', 'images', 'logo.png'))
+    _logo_app_path = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), '..', 'static', 'images', 'app_logo.png'))
 
     def make_name_image(name, aruco_id):
         img    = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#1e3a8a')
         draw_n = ImageDraw.Draw(img)
 
-        # لوجو التطبيق على اليمين
         LOGO_SIZE = 56
         LOGO_PAD  = 8
-        if os.path.exists(_logo_path):
+
+        # لوجو كيم تحصيلي — يمين
+        if os.path.exists(_logo_app_path):
             try:
-                logo = Image.open(_logo_path).convert('RGBA')
-                logo.thumbnail((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-                # توسيط عمودي
-                ly = (NAME_PX_H - logo.height) // 2
-                lx = NAME_PX_W - logo.width - LOGO_PAD
-                img.paste(logo, (lx, ly), logo)
+                logo_app = Image.open(_logo_app_path).convert('RGBA')
+                logo_app.thumbnail((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+                ly = (NAME_PX_H - logo_app.height) // 2
+                lx = NAME_PX_W - logo_app.width - LOGO_PAD
+                img.paste(logo_app, (lx, ly), logo_app)
             except Exception:
                 pass
 
-        # layout_engine=1 → libraqm (تشكيل صحيح للعربية عبر OpenType)
+        # layout_engine=1 → libraqm
         try:
             fn_big   = ImageFont.truetype(font_path, 26, layout_engine=1)
             fn_small = ImageFont.truetype(font_path, 13, layout_engine=1)
