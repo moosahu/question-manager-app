@@ -657,25 +657,9 @@ def start_automation_scheduler(app):
             replace_existing=True
         )
 
-        # ✅ إضافة job فحص طلبات التحليل اليدوية (كل 20 ثانية)
-        automation_scheduler.add_job(
-            func=check_manual_analysis_job,
-            trigger=IntervalTrigger(seconds=20),
-            id='check_manual_analysis',
-            name='فحص طلبات التحليل اليدوية',
-            replace_existing=True
-        )
-
-        # ✅ إضافة job فحص تحليل طالب واحد (كل 10 ثواني)
-        automation_scheduler.add_job(
-            func=check_single_student_analysis_job,
-            trigger=IntervalTrigger(seconds=10),
-            id='check_single_analysis',
-            name='فحص تحليل طالب واحد',
-            replace_existing=True
-        )
-
         # ✅ فحص طلبات تحضير الدروس (كل 30 ثانية)
+        # ملاحظة: check_manual_analysis و check_single_analysis حُذفا —
+        # التحليل الآن يشتغل بـ direct thread من admin_ai.py فوراً عند الطلب
         automation_scheduler.add_job(
             func=check_lesson_prep_job,
             trigger=IntervalTrigger(seconds=30),

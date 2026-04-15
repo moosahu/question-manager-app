@@ -4,13 +4,14 @@ Admin AI Routes - واجهات API للأدمن للتحكم في نظام AI
 مع التحسينات: Validation, Export/Import, Testing, Presets, Analytics
 """
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_login import current_user
 from functools import wraps
 from datetime import datetime, timedelta
 import json
 import io
 import os
+import threading
 
 from src.services.ai_assistant import ai_assistant
 from src.services.smart_notifications import smart_notifications
@@ -249,6 +250,30 @@ def analyze_single_student(student_id):
             'started_at': datetime.utcnow().isoformat()
         }), 'json')
 
+        # شغّل التحليل فوراً في thread منفصل
+        app = current_app._get_current_object()
+        def _run_single_analysis():
+            with app.app_context():
+                try:
+                    analysis_result = ai_assistant.analyze_student(
+                        student_id=student_id,
+                        analysis_type='manual'
+                    )
+                    latest_analysis = AIAnalysis.query.filter_by(
+                        student_id=student_id
+                    ).order_by(AIAnalysis.created_at.desc()).first()
+                    if latest_analysis:
+                        smart_notifications.process_analysis_result(latest_analysis)
+                    AISetting.set_setting('single_analysis_job_status', 'completed', 'string')
+                    AISetting.set_setting('single_analysis_job_data', json.dumps(
+                        analysis_result if analysis_result else {'error': 'no result'}
+                    ), 'json')
+                except Exception as e:
+                    AISetting.set_setting('single_analysis_job_status', 'failed', 'string')
+                    AISetting.set_setting('single_analysis_job_data', json.dumps({'error': str(e)}), 'json')
+
+        threading.Thread(target=_run_single_analysis, daemon=True).start()
+
         return jsonify({
             'success': True,
             'message': 'بدأ التحليل',
@@ -313,13 +338,28 @@ def analyze_all():
                     'data': {'status': 'already_running'}
                 })
 
-        # سجل طلب التحليل في DB - الـ Scheduler يلتقطه كل 10 ثواني
+        # سجل طلب التحليل في DB
         AISetting.set_setting('analysis_job_status', 'running', 'string')
         AISetting.set_setting('analysis_job_progress', json.dumps({
             'total': 0, 'analyzed': 0, 'failed': 0,
             'actions_taken': 0, 'started_at': datetime.utcnow().isoformat()
         }), 'json')
-        print(f"📋 [API] تم تسجيل طلب تحليل يدوي - ينتظر الـ Scheduler")
+
+        # شغّل التحليل فوراً في thread منفصل
+        app = current_app._get_current_object()
+        def _run_all_analysis():
+            with app.app_context():
+                try:
+                    student_analyzer.is_running = False
+                    result = student_analyzer.analyze_all_students()
+                    AISetting.set_setting('analysis_job_status', 'completed', 'string')
+                    AISetting.set_setting('analysis_job_progress', json.dumps(result), 'json')
+                except Exception as e:
+                    AISetting.set_setting('analysis_job_status', 'failed', 'string')
+                    AISetting.set_setting('analysis_job_progress', json.dumps({'error': str(e)}), 'json')
+
+        threading.Thread(target=_run_all_analysis, daemon=True).start()
+        print(f"📋 [API] بدأ تحليل يدوي مباشرة في thread")
 
         return jsonify({
             'success': True,
