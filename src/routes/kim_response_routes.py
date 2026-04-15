@@ -344,17 +344,17 @@ def generate_cards(session_id):
             try:
                 logo_app = Image.open(_logo_app_path).convert('RGBA')
                 logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-                # قناع مربع مدور الزوايا — نسبة iOS (~22%)
-                radius = int(LOGO_SIZE * 0.22)
-                rounded_mask = Image.new('L', (LOGO_SIZE, LOGO_SIZE), 0)
-                try:
-                    ImageDraw.Draw(rounded_mask).rounded_rectangle(
-                        [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1],
-                        radius=radius, fill=255)
-                except AttributeError:
-                    # Pillow قديم — fallback دائري
-                    ImageDraw.Draw(rounded_mask).ellipse(
-                        [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1], fill=255)
+                # قناع مربع مدور الزوايا — يدوي (يعمل على كل إصدارات Pillow)
+                r = int(LOGO_SIZE * 0.22)
+                S = LOGO_SIZE
+                rounded_mask = Image.new('L', (S, S), 0)
+                d = ImageDraw.Draw(rounded_mask)
+                d.rectangle([r, 0, S - r, S], fill=255)
+                d.rectangle([0, r, S, S - r], fill=255)
+                d.ellipse([0, 0, r * 2, r * 2], fill=255)
+                d.ellipse([S - r * 2, 0, S, r * 2], fill=255)
+                d.ellipse([0, S - r * 2, r * 2, S], fill=255)
+                d.ellipse([S - r * 2, S - r * 2, S, S], fill=255)
                 logo_app.putalpha(rounded_mask)
                 ly = (NAME_PX_H - logo_app.height) // 2
                 lx = NAME_PX_W - logo_app.width - LOGO_PAD
