@@ -368,14 +368,13 @@ def generate_cards(session_id):
                                                                      '#93c5fd', fn_small)
         return img
 
-    # ── تجميع PDF — بطاقتان لكل صفحة ────────────────────────────────────────
+    # ── تجميع PDF — بطاقتان لكل صفحة (مربع — الشريط داخل الكرت) ────────────
     PAGE_W, PAGE_H = A4
-    MARGIN    = 20
-    NAME_H    = 48
-    SLOT_H    = (PAGE_H - 3 * MARGIN) / 2
-    IMG_H     = SLOT_H - NAME_H
-    CARD_W    = min(PAGE_W - 2 * MARGIN, IMG_H)
-    CARD_X    = (PAGE_W - CARD_W) / 2
+    MARGIN = 20
+    NAME_H = 48
+    SLOT_H = (PAGE_H - 3 * MARGIN) / 2        # ارتفاع كل slot
+    CARD_W = min(PAGE_W - 2 * MARGIN, SLOT_H) # الكرت مربع = SLOT_H × SLOT_H
+    CARD_X = (PAGE_W - CARD_W) / 2
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
@@ -386,16 +385,17 @@ def generate_cards(session_id):
 
         pos    = page_idx % 2
         slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
-        img_y  = slot_y + NAME_H
 
+        # ArUco يملأ المربع كاملاً
         marker_img = make_marker_image(aruco_id)
         cbuf = io.BytesIO()
         marker_img.save(cbuf, format='PNG')
         cbuf.seek(0)
-        c.drawImage(ImageReader(cbuf), CARD_X, img_y,
-                    width=CARD_W, height=IMG_H,
+        c.drawImage(ImageReader(cbuf), CARD_X, slot_y,
+                    width=CARD_W, height=CARD_W,
                     preserveAspectRatio=True, anchor='c')
 
+        # شريط الاسم داخل الكرت — أسفله مباشرة
         name_img = make_name_image(student.name, aruco_id)
         nbuf = io.BytesIO()
         name_img.save(nbuf, format='PNG')
