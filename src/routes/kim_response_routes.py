@@ -363,26 +363,25 @@ def generate_cards(session_id):
                                                                      '#93c5fd', fn_small)
         return img
 
-    # ── تجميع PDF — بطاقتان لكل صفحة ─────────────────────────────────────────
+    # ── تجميع PDF — بطاقة واحدة لكل صفحة (مربع كامل) ────────────────────────
     PAGE_W, PAGE_H = A4
-    MARGIN    = 20          # pts
-    NAME_H    = 48          # ارتفاع شريط الاسم بالـ pts
-    SLOT_H    = (PAGE_H - 3 * MARGIN) / 2
-    IMG_H     = SLOT_H - NAME_H
-    # الكرت مربع → عرضه الفعلي = min(عرض الصفحة, الارتفاع المتاح)
-    CARD_W    = min(PAGE_W - 2 * MARGIN, IMG_H)
-    CARD_X    = (PAGE_W - CARD_W) / 2   # توسيط أفقي
+    MARGIN = 20
+    NAME_H = 48
+    CARD_W = PAGE_W - 2 * MARGIN          # يملأ العرض كاملاً = 555 pts
+    IMG_H  = CARD_W                        # مربع تماماً
+    SLOT_H = CARD_W + NAME_H              # ارتفاع الكرت الكلي
+    CARD_X = MARGIN
+    CARD_Y = (PAGE_H - SLOT_H) / 2        # توسيط عمودي في الصفحة
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
 
     for page_idx, (student, aruco_id) in enumerate(pairs):
-        if page_idx > 0 and page_idx % 2 == 0:
+        if page_idx > 0:
             c.showPage()
 
-        pos    = page_idx % 2
-        slot_y = PAGE_H - MARGIN - (pos + 1) * SLOT_H - pos * MARGIN
-        img_y  = slot_y + NAME_H
+        slot_y = CARD_Y
+        img_y  = CARD_Y + NAME_H
 
         marker_img = make_marker_image(aruco_id)
         cbuf = io.BytesIO()
