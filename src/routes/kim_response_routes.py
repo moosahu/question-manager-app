@@ -339,16 +339,23 @@ def generate_cards(session_id):
         LOGO_SIZE = 56
         LOGO_PAD  = 8
 
-        # لوجو كيم تحصيلي — يمين (دائري بدون خلفية)
+        # لوجو كيم تحصيلي — يمين (مربع مدور الزوايا مثل iOS)
         if os.path.exists(_logo_app_path):
             try:
                 logo_app = Image.open(_logo_app_path).convert('RGBA')
                 logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-                # قناع دائري يحذف كل خلفية
-                circle_mask = Image.new('L', (LOGO_SIZE, LOGO_SIZE), 0)
-                ImageDraw.Draw(circle_mask).ellipse(
-                    [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1], fill=255)
-                logo_app.putalpha(circle_mask)
+                # قناع مربع مدور الزوايا — نسبة iOS (~22%)
+                radius = int(LOGO_SIZE * 0.22)
+                rounded_mask = Image.new('L', (LOGO_SIZE, LOGO_SIZE), 0)
+                try:
+                    ImageDraw.Draw(rounded_mask).rounded_rectangle(
+                        [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1],
+                        radius=radius, fill=255)
+                except AttributeError:
+                    # Pillow قديم — fallback دائري
+                    ImageDraw.Draw(rounded_mask).ellipse(
+                        [0, 0, LOGO_SIZE - 1, LOGO_SIZE - 1], fill=255)
+                logo_app.putalpha(rounded_mask)
                 ly = (NAME_PX_H - logo_app.height) // 2
                 lx = NAME_PX_W - logo_app.width - LOGO_PAD
                 img.paste(logo_app, (lx, ly), logo_app)
