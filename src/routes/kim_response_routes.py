@@ -339,26 +339,14 @@ def generate_cards(session_id):
         LOGO_SIZE = 56
         LOGO_PAD  = 8
 
-        # لوجو كيم تحصيلي — يمين (مربع مدور الزوايا مثل iOS)
+        # لوجو كيم تحصيلي — يمين (مربع كامل بدون mask)
         if os.path.exists(_logo_app_path):
             try:
-                logo_app = Image.open(_logo_app_path).convert('RGBA')
+                logo_app = Image.open(_logo_app_path).convert('RGB')
                 logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-                # قناع مربع مدور الزوايا — يدوي (يعمل على كل إصدارات Pillow)
-                r = int(LOGO_SIZE * 0.22)
-                S = LOGO_SIZE
-                rounded_mask = Image.new('L', (S, S), 0)
-                d = ImageDraw.Draw(rounded_mask)
-                d.rectangle([r, 0, S - r, S], fill=255)
-                d.rectangle([0, r, S, S - r], fill=255)
-                d.ellipse([0, 0, r * 2, r * 2], fill=255)
-                d.ellipse([S - r * 2, 0, S, r * 2], fill=255)
-                d.ellipse([0, S - r * 2, r * 2, S], fill=255)
-                d.ellipse([S - r * 2, S - r * 2, S, S], fill=255)
-                logo_app.putalpha(rounded_mask)
                 ly = (NAME_PX_H - logo_app.height) // 2
                 lx = NAME_PX_W - logo_app.width - LOGO_PAD
-                img.paste(logo_app, (lx, ly), logo_app)
+                img.paste(logo_app, (lx, ly))
             except Exception:
                 pass
 
