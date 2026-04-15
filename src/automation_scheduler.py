@@ -657,19 +657,19 @@ def start_automation_scheduler(app):
             replace_existing=True
         )
 
-        # ✅ إضافة job فحص طلبات التحليل اليدوية (كل 30 ثانية)
+        # ✅ إضافة job فحص طلبات التحليل اليدوية (كل 20 ثانية)
         automation_scheduler.add_job(
             func=check_manual_analysis_job,
-            trigger=IntervalTrigger(seconds=30),
+            trigger=IntervalTrigger(seconds=20),
             id='check_manual_analysis',
             name='فحص طلبات التحليل اليدوية',
             replace_existing=True
         )
 
-        # ✅ إضافة job فحص تحليل طالب واحد (كل 30 ثانية)
+        # ✅ إضافة job فحص تحليل طالب واحد (كل 10 ثواني)
         automation_scheduler.add_job(
             func=check_single_student_analysis_job,
-            trigger=IntervalTrigger(seconds=30),
+            trigger=IntervalTrigger(seconds=10),
             id='check_single_analysis',
             name='فحص تحليل طالب واحد',
             replace_existing=True
