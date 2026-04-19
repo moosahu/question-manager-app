@@ -153,6 +153,8 @@ def update_formula_key(question_id):
     try:
         q = Question.query.get_or_404(question_id)
         q.formula_key = key
+        # أي تعديل يدوي (ربط أو حذف) → يحمي السؤال من إعادة التصنيف التلقائي
+        q.human_verified = True
         db.session.commit()
         return jsonify({'success': True, 'question_id': question_id, 'formula_key': key})
     except Exception as e:
@@ -177,7 +179,7 @@ def auto_tag_formulas():
     retag_all = data.get('retag_all', False)  # إعادة تصنيف المصنّف مسبقاً
 
     # جلب الأسئلة
-    query = Question.query.filter_by(is_blocked=False)
+    query = Question.query.filter_by(is_blocked=False, human_verified=False)
     if not retag_all:
         query = query.filter(
             (Question.formula_key == None) | (Question.formula_key == '')
