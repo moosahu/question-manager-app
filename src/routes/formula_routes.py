@@ -186,13 +186,16 @@ def auto_tag_formulas():
     if not questions:
         return jsonify({'success': True, 'message': 'لا توجد أسئلة تحتاج تصنيف', 'count': 0})
 
-    # شغّل في خلفية
+    # شغّل في خلفية — نمرر app مباشرة لتجنب مشكلة app context في thread
+    from flask import current_app
+    app = current_app._get_current_object()
+
     _auto_tag_status.update({'running': True, 'progress': 0,
                               'total': len(questions), 'done': 0, 'errors': 0})
 
     thread = threading.Thread(
         target=_run_auto_tag,
-        args=(questions,),
+        args=(questions, app),
         daemon=True
     )
     thread.start()
@@ -210,8 +213,8 @@ def auto_tag_status():
     return jsonify({'success': True, 'status': _auto_tag_status})
 
 
-def _run_auto_tag(questions):
-    """دالة AI تعمل في thread منفصل"""
+def _run_auto_tag(questions, app):
+    """دالة AI تعمل في thread منفصل — app يُمرَّر من الـ route"""
     global _auto_tag_status
     try:
         from src.services.gemini_client import gemini_key_manager
@@ -223,18 +226,7 @@ def _run_auto_tag(questions):
         return
 
     keys_list = '\n'.join(f'- {k}' for k in VALID_FORMULA_KEYS)
-
-    from src.main import create_app
-    # نحتاج app context للوصول لقاعدة البيانات
-    try:
-        from src.extensions import db as _db
-        # استخدم current_app إذا كنا في context، وإلا أنشئ واحداً
-        from flask import current_app
-        app = current_app._get_current_object()
-    except RuntimeError:
-        logger.error('❌ لا يوجد Flask app context')
-        _auto_tag_status['running'] = False
-        return
+    from src.extensions import db as _db
 
     with app.app_context():
         for i, q in enumerate(questions):
