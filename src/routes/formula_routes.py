@@ -217,14 +217,6 @@ def auto_tag_status():
 def _run_auto_tag(question_ids, app):
     """دالة AI تعمل في thread منفصل — تأخذ IDs وتحمّل الأسئلة داخل session جديدة"""
     global _auto_tag_status
-    try:
-        from src.services.gemini_client import gemini_key_manager
-        client = gemini_key_manager.get_client()
-    except Exception as e:
-        logger.error(f'❌ لا يمكن تهيئة Gemini: {e}')
-        _auto_tag_status['running'] = False
-        return
-
     keys_list = '\n'.join(f'- {k}' for k in VALID_FORMULA_KEYS)
     from src.extensions import db as _db
     from sqlalchemy.orm import joinedload
@@ -232,8 +224,15 @@ def _run_auto_tag(question_ids, app):
     consecutive_errors = 0
 
     with app.app_context():
-        from src.models.ai_analysis import AISetting
-        model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+        try:
+            from src.services.gemini_client import gemini_key_manager
+            from src.models.ai_analysis import AISetting
+            client = gemini_key_manager.get_client()
+            model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
+        except Exception as e:
+            logger.error(f'❌ لا يمكن تهيئة Gemini: {e}')
+            _auto_tag_status['running'] = False
+            return
         for i, qid in enumerate(question_ids):
             try:
                 _auto_tag_status['progress'] = i + 1
