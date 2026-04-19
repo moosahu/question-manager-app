@@ -219,9 +219,7 @@ def _run_auto_tag(question_ids, app):
     global _auto_tag_status
     try:
         from src.services.gemini_client import gemini_key_manager
-        from src.models.ai_analysis import AISetting
         client = gemini_key_manager.get_client()
-        model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
     except Exception as e:
         logger.error(f'❌ لا يمكن تهيئة Gemini: {e}')
         _auto_tag_status['running'] = False
@@ -234,6 +232,8 @@ def _run_auto_tag(question_ids, app):
     consecutive_errors = 0
 
     with app.app_context():
+        from src.models.ai_analysis import AISetting
+        model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
         for i, qid in enumerate(question_ids):
             try:
                 _auto_tag_status['progress'] = i + 1
