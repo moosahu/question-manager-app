@@ -186,16 +186,17 @@ def auto_tag_formulas():
     if not questions:
         return jsonify({'success': True, 'message': 'لا توجد أسئلة تحتاج تصنيف', 'count': 0})
 
-    # شغّل في خلفية — نمرر app مباشرة لتجنب مشكلة app context في thread
+    # نمرر IDs فقط للـ thread — نتجنب detached instance بعد انتهاء الـ session
     from flask import current_app
     app = current_app._get_current_object()
+    question_ids = [q.question_id for q in questions]
 
     _auto_tag_status.update({'running': True, 'progress': 0,
-                              'total': len(questions), 'done': 0, 'errors': 0})
+                              'total': len(question_ids), 'done': 0, 'errors': 0})
 
     thread = threading.Thread(
         target=_run_auto_tag,
-        args=(questions, app),
+        args=(question_ids, app),
         daemon=True
     )
     thread.start()
@@ -213,8 +214,8 @@ def auto_tag_status():
     return jsonify({'success': True, 'status': _auto_tag_status})
 
 
-def _run_auto_tag(questions, app):
-    """دالة AI تعمل في thread منفصل — app يُمرَّر من الـ route"""
+def _run_auto_tag(question_ids, app):
+    """دالة AI تعمل في thread منفصل — تأخذ IDs وتحمّل الأسئلة داخل session جديدة"""
     global _auto_tag_status
     try:
         from src.services.gemini_client import gemini_key_manager
@@ -227,11 +228,18 @@ def _run_auto_tag(questions, app):
 
     keys_list = '\n'.join(f'- {k}' for k in VALID_FORMULA_KEYS)
     from src.extensions import db as _db
+    from sqlalchemy.orm import joinedload
 
     with app.app_context():
-        for i, q in enumerate(questions):
+        for i, qid in enumerate(question_ids):
             try:
                 _auto_tag_status['progress'] = i + 1
+
+                # تحميل السؤال مع خياراته في session جديدة
+                q = Question.query.options(joinedload(Question.options)).get(qid)
+                if not q:
+                    _auto_tag_status['done'] += 1
+                    continue
 
                 question_text = q.question_text or ''
                 options_text = ''
@@ -284,7 +292,7 @@ def _run_auto_tag(questions, app):
                 _auto_tag_status['done'] += 1
 
             except Exception as e:
-                logger.error(f'❌ خطأ سؤال {q.question_id}: {e}')
+                logger.error(f'❌ خطأ سؤال {qid}: {e}')
                 _db.session.rollback()
                 _auto_tag_status['errors'] += 1
 
