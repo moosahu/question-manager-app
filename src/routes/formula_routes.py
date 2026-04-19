@@ -219,8 +219,9 @@ def _run_auto_tag(question_ids, app):
     global _auto_tag_status
     try:
         from src.services.gemini_client import gemini_key_manager
+        from src.models.ai_analysis import AISetting
         client = gemini_key_manager.get_client()
-        model = 'gemini-2.0-flash'
+        model = AISetting.get_setting('explanation_ai_model', 'gemini-2.0-flash')
     except Exception as e:
         logger.error(f'❌ لا يمكن تهيئة Gemini: {e}')
         _auto_tag_status['running'] = False
@@ -229,6 +230,8 @@ def _run_auto_tag(question_ids, app):
     keys_list = '\n'.join(f'- {k}' for k in VALID_FORMULA_KEYS)
     from src.extensions import db as _db
     from sqlalchemy.orm import joinedload
+
+    consecutive_errors = 0
 
     with app.app_context():
         for i, qid in enumerate(question_ids):
@@ -270,10 +273,25 @@ def _run_auto_tag(question_ids, app):
                 try:
                     resp = client.models.generate_content(model=model, contents=prompt)
                     raw = resp.text.strip().replace('\n', '').strip()
+                    consecutive_errors = 0  # ريست عند النجاح
                 except Exception as api_err:
-                    if '429' in str(api_err) or 'quota' in str(api_err).lower():
-                        if gemini_key_manager.rotate_key():
+                    err_str = str(api_err)
+                    consecutive_errors += 1
+                    logger.warning(f'⚠️ خطأ API سؤال {qid}: {err_str[:120]} (متتالية: {consecutive_errors})')
+                    if '429' in err_str or 'quota' in err_str.lower() or '404' in err_str:
+                        rotated = gemini_key_manager.rotate_key()
+                        if rotated:
                             client = gemini_key_manager.get_client()
+                            consecutive_errors = 0
+                            logger.info('🔄 تم تدوير مفتاح Gemini')
+                        else:
+                            logger.error('❌ لا يوجد مفتاح Gemini صالح — إيقاف التصنيف')
+                            _auto_tag_status['errors'] += 1
+                            break
+                    if consecutive_errors >= 5:
+                        logger.error('❌ أوقف التصنيف: 5 أخطاء متتالية')
+                        _auto_tag_status['errors'] += 1
+                        break
                     _auto_tag_status['errors'] += 1
                     continue
 
