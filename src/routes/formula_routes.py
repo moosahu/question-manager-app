@@ -392,6 +392,49 @@ _ADMIN_PAGE = '''<!DOCTYPE html>
 
   .spin { display: inline-block; animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* صفوف الجدول قابلة للضغط */
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: #dbeafe !important; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                   z-index: 9999; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px; width: min(95vw, 820px);
+           max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  .modal-head { padding: 18px 22px; border-bottom: 1px solid #e2e8f0; display: flex;
+                align-items: center; justify-content: space-between; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; color: #1e3a5f; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #64748b; }
+  .modal-body { flex: 1; overflow-y: auto; padding: 16px 22px; }
+  .modal-foot { padding: 14px 22px; border-top: 1px solid #e2e8f0; display: flex;
+                gap: 10px; align-items: center; }
+
+  /* بطاقة سؤال */
+  .q-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px;
+            padding: 14px 16px; background: #f8fafc; }
+  .q-card .q-id { font-size: 11px; color: #94a3b8; margin-bottom: 6px; }
+  .q-card .q-text { font-size: 14px; color: #1e293b; margin-bottom: 10px; line-height: 1.6; }
+  .q-card .q-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .q-card .q-opt { font-size: 12px; padding: 3px 10px; border-radius: 6px;
+                   background: #e2e8f0; color: #475569; }
+  .q-card .q-opt.correct { background: #dcfce7; color: #166534; font-weight: 700; }
+  .q-card .q-row { display: flex; align-items: center; gap: 10px; }
+  .q-card select { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 7px;
+                   font-size: 13px; background: #fff; }
+  .q-card .save-btn { padding: 6px 16px; background: #2563eb; color: #fff; border: none;
+                      border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .q-card .save-btn:hover { background: #1d4ed8; }
+  .q-card .save-btn.saved { background: #059669; }
+  .q-card .save-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* pagination */
+  .pag { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .pag button { padding: 5px 14px; border: 1px solid #cbd5e1; border-radius: 6px;
+                background: #fff; cursor: pointer; font-size: 12px; }
+  .pag button:disabled { opacity: .4; cursor: not-allowed; }
+  .pag .pag-info { font-size: 12px; color: #64748b; }
 </style>
 </head>
 <body>
@@ -466,7 +509,7 @@ _ADMIN_PAGE = '''<!DOCTYPE html>
 
   <!-- توزيع التصنيف -->
   <div class="card">
-    <h2>📋 توزيع الأسئلة حسب القانون</h2>
+    <h2>📋 توزيع الأسئلة حسب القانون <span style="font-size:12px;font-weight:400;color:#64748b">— اضغط على صف لعرض الأسئلة</span></h2>
     <div id="dist-table">
       <p style="color:#94a3b8;font-size:13px">اضغط "تحديث" لتحميل البيانات</p>
     </div>
@@ -474,6 +517,24 @@ _ADMIN_PAGE = '''<!DOCTYPE html>
             onclick="loadStats()">🔄 تحديث الجدول</button>
   </div>
 
+</div>
+
+<!-- Modal عرض الأسئلة -->
+<div class="modal-overlay" id="q-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">أسئلة القانون</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <p style="color:#94a3b8;text-align:center;padding:40px">جارٍ التحميل...</p>
+    </div>
+    <div class="modal-foot">
+      <div class="pag" id="modal-pag"></div>
+      <div style="flex:1"></div>
+      <span id="modal-info" style="font-size:12px;color:#64748b"></span>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -495,9 +556,10 @@ async function loadStats() {
     if (d.distribution && d.distribution.length) {
       let html = '<table><thead><tr><th>#</th><th>القانون</th><th>عدد الأسئلة</th></tr></thead><tbody>';
       d.distribution.forEach((row, i) => {
-        html += `<tr>
+        const ek = row.key.replace(/'/g, "\\'");
+        html += `<tr onclick="openModal('${ek}', ${row.count})">
           <td>${i+1}</td>
-          <td>${row.key}</td>
+          <td>🔗 ${row.key}</td>
           <td><span class="badge">${row.count}</span></td>
         </tr>`;
       });
@@ -585,6 +647,107 @@ function showStatus(type, icon, text, detail='') {
     ? `<div style="font-size:12px;margin-top:4px;opacity:.85">${detail}</div>` : '';
 }
 
+// ── Modal ──
+let _modalKey = '';
+let _modalPage = 1;
+let _validKeys = [];
+
+async function openModal(key, count) {
+  _modalKey = key;
+  _modalPage = 1;
+  document.getElementById('modal-title').textContent = `📋 ${key} — ${count} سؤال`;
+  document.getElementById('modal-body').innerHTML =
+    '<p style="color:#94a3b8;text-align:center;padding:40px">جارٍ التحميل...</p>';
+  document.getElementById('q-modal').classList.add('open');
+  await loadModalPage(1);
+}
+
+function closeModal() {
+  document.getElementById('q-modal').classList.remove('open');
+}
+document.getElementById('q-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+async function loadModalPage(page) {
+  _modalPage = page;
+  try {
+    const r = await fetch(`/api/formulas/admin-questions?key=${encodeURIComponent(_modalKey)}&page=${page}&per_page=10`);
+    const d = await r.json();
+    if (!d.success) { document.getElementById('modal-body').innerHTML = `<p style="color:red">${d.error}</p>`; return; }
+    _validKeys = d.valid_keys || [];
+
+    const body = document.getElementById('modal-body');
+    if (!d.questions.length) { body.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">لا توجد أسئلة</p>'; return; }
+
+    body.innerHTML = d.questions.map(q => `
+      <div class="q-card" id="qcard-${q.id}">
+        <div class="q-id">سؤال #${q.id}${q.is_blocked ? ' 🚫 محظور' : ''} · ${q.difficulty}</div>
+        <div class="q-text">${q.image_url ? '<span style="color:#7c3aed">📷 سؤال بصورة</span><br>' : ''}${escHtml(q.text || '(بدون نص)')}</div>
+        <div class="q-options">
+          ${q.options.map(o => `<span class="q-opt${o.is_correct?' correct':''}">${o.is_correct?'✓ ':''}${escHtml(o.text||'صورة')}</span>`).join('')}
+        </div>
+        <div class="q-row">
+          <select id="sel-${q.id}" onchange="markChanged(${q.id})">
+            <option value="">— بدون قانون —</option>
+            ${_validKeys.map(k => `<option value="${escHtml(k)}"${k===q.formula_key?' selected':''}>${escHtml(k)}</option>`).join('')}
+          </select>
+          <button class="save-btn" id="savebtn-${q.id}" onclick="saveKey(${q.id})" disabled>حفظ</button>
+        </div>
+      </div>`).join('');
+
+    // pagination
+    const pag = document.getElementById('modal-pag');
+    if (d.pages > 1) {
+      pag.innerHTML = `
+        <button onclick="loadModalPage(${page-1})" ${page<=1?'disabled':''}>◀ السابق</button>
+        <span class="pag-info">صفحة ${page} من ${d.pages}</span>
+        <button onclick="loadModalPage(${page+1})" ${page>=d.pages?'disabled':''}>التالي ▶</button>`;
+    } else { pag.innerHTML = ''; }
+    document.getElementById('modal-info').textContent = `إجمالي: ${d.total} سؤال`;
+
+  } catch(e) {
+    document.getElementById('modal-body').innerHTML = '<p style="color:red">فشل التحميل</p>';
+  }
+}
+
+function markChanged(qid) {
+  const btn = document.getElementById('savebtn-' + qid);
+  btn.disabled = false;
+  btn.textContent = 'حفظ';
+  btn.className = 'save-btn';
+}
+
+async function saveKey(qid) {
+  const sel = document.getElementById('sel-' + qid);
+  const btn = document.getElementById('savebtn-' + qid);
+  const key = sel.value || null;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch(`/api/formulas/questions/${qid}/key`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({formula_key: key})
+    });
+    const d = await r.json();
+    if (d.success) {
+      btn.textContent = '✓ محفوظ';
+      btn.className = 'save-btn saved';
+    } else {
+      btn.textContent = '✕ خطأ';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = '✕ فشل';
+    btn.disabled = false;
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // تحميل البيانات عند فتح الصفحة
 loadStats();
 checkStatus();
@@ -597,3 +760,53 @@ checkStatus();
 def formula_admin_page():
     """صفحة الأدمن لإدارة تصنيف القوانين"""
     return render_template_string(_ADMIN_PAGE)
+
+
+# ──────────────────────────────────────────────
+# 6. GET /api/formulas/admin-questions — أدمن: أسئلة قانون مع تفاصيل كاملة
+# ──────────────────────────────────────────────
+@formula_bp.route('/admin-questions', methods=['GET'])
+def admin_get_questions():
+    """جلب الأسئلة المرتبطة بقانون — للأدمن مع إمكانية التعديل"""
+    key = request.args.get('key', '').strip()
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = min(int(request.args.get('per_page', 20)), 50)
+
+    if not key:
+        return jsonify({'success': False, 'error': 'key مطلوب'}), 400
+
+    try:
+        from sqlalchemy.orm import joinedload
+        q_query = Question.query.options(joinedload(Question.options))\
+            .filter_by(formula_key=key)\
+            .order_by(Question.question_id.desc())
+
+        total = q_query.count()
+        questions = q_query.offset((page - 1) * per_page).limit(per_page).all()
+
+        result = []
+        for q in questions:
+            options = [{'id': o.option_id, 'text': o.option_text or '',
+                        'is_correct': o.is_correct} for o in q.options]
+            result.append({
+                'id': q.question_id,
+                'text': q.question_text or '',
+                'image_url': q.image_url,
+                'formula_key': q.formula_key,
+                'difficulty': q.difficulty or 'medium',
+                'is_blocked': q.is_blocked,
+                'options': options,
+            })
+
+        return jsonify({
+            'success': True,
+            'questions': result,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page,
+            'valid_keys': VALID_FORMULA_KEYS,
+        })
+    except Exception as e:
+        logger.error(f'❌ admin_get_questions: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
