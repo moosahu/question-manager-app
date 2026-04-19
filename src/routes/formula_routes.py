@@ -428,6 +428,10 @@ _ADMIN_PAGE = '''<!DOCTYPE html>
   .q-card .save-btn:hover { background: #1d4ed8; }
   .q-card .save-btn.saved { background: #059669; }
   .q-card .save-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .q-card .unlink-btn { padding: 6px 10px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;
+                        border-radius: 7px; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+  .q-card .unlink-btn:hover { background: #fecaca; }
+  .q-card .unlink-btn:disabled { opacity: .4; cursor: not-allowed; }
 
   /* pagination */
   .pag { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
@@ -693,6 +697,7 @@ async function loadModalPage(page) {
             ${_validKeys.map(k => `<option value="${escHtml(k)}"${k===q.formula_key?' selected':''}>${escHtml(k)}</option>`).join('')}
           </select>
           <button class="save-btn" id="savebtn-${q.id}" onclick="saveKey(${q.id})" disabled>حفظ</button>
+          <button class="unlink-btn" id="unlinkbtn-${q.id}" onclick="unlinkKey(${q.id})" title="إزالة الربط">🗑️</button>
         </div>
       </div>`).join('');
 
@@ -740,6 +745,38 @@ async function saveKey(qid) {
     }
   } catch(e) {
     btn.textContent = '✕ فشل';
+    btn.disabled = false;
+  }
+}
+
+async function unlinkKey(qid) {
+  const btn = document.getElementById('unlinkbtn-' + qid);
+  if (!confirm('إزالة ربط هذا السؤال بالقانون؟')) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch(`/api/formulas/questions/${qid}/key`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({formula_key: null})
+    });
+    const d = await r.json();
+    if (d.success) {
+      // إزالة الكارد من الواجهة مباشرة
+      const card = document.getElementById('qcard-' + qid);
+      card.style.transition = 'opacity .3s';
+      card.style.opacity = '0';
+      setTimeout(() => card.remove(), 300);
+      // تحديث العداد
+      const info = document.getElementById('modal-info');
+      const cur = parseInt(info.textContent.match(/\d+/)?.[0] || '0');
+      if (cur > 0) info.textContent = `إجمالي: ${cur - 1} سؤال`;
+    } else {
+      btn.textContent = '🗑️';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = '🗑️';
     btn.disabled = false;
   }
 }
