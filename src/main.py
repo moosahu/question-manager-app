@@ -873,6 +873,15 @@ def create_app():
     app.register_blueprint(question_bp, url_prefix="/questions")
     app.register_blueprint(curriculum_bp, url_prefix="/curriculum")
     app.register_blueprint(api_bp)  # url_prefix="/api/v1" معرَّف في Blueprint نفسه
+
+    # ✅ ربط القوانين بالأسئلة
+    try:
+        from src.routes.formula_routes import formula_bp
+        csrf.exempt(formula_bp)
+        app.register_blueprint(formula_bp)
+        print("✅ Formula routes registered: /api/formulas/*")
+    except Exception as e:
+        print(f"⚠️ Formula routes غير متاحة: {e}")
     
     # تسجيل students blueprint
     if students_available:
@@ -1191,6 +1200,19 @@ def create_app():
         print(f"⚠️ Server Stats blueprint not available: {e}")
     except Exception as e:
         print(f"❌ Server Stats blueprint error: {e}")
+
+    # ✅ قوانين التحصيلي
+    try:
+        from src.routes.formulas_routes import formulas_bp
+        csrf.exempt(formulas_bp)
+        app.register_blueprint(formulas_bp)
+        print("✅ Formulas blueprint registered successfully")
+        print("   - GET  /api/formulas")
+        print("   - POST /api/admin/formulas/seed")
+    except ImportError as e:
+        print(f"⚠️ Formulas blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Formulas blueprint error: {e}")
 
     # ✅ نظام الدرجات والحضور
     try:
