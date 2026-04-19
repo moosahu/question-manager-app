@@ -52,6 +52,9 @@ class Question(db.Model):
 
     # مراجعة التصنيف من قِبل المعلم: True = تأكّد المعلم، False = لم يُراجَع بعد
     human_verified = db.Column(db.Boolean, default=False, nullable=False, index=True)
+
+    # القانون الكيميائي المرتبط بالسؤال — يُعبأ بالذكاء الاصطناعي أو يدوياً
+    formula_key = db.Column(db.String(120), nullable=True, index=True)
     # =========================================================
 
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False)
