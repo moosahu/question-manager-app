@@ -146,7 +146,7 @@
                     <li><a href="{{ url_for('curriculum.list_courses') }}" {% if request.endpoint == 'curriculum.list_courses' %}class="active"{% endif %}><i class="fas fa-flask"></i> إدارة المنهج</a></li>
                     
                     <!-- قائمة الأسئلة والاختبارات -->
-                    <li class="nav-dropdown {% if request.endpoint in ['question.list_questions', 'question.import_questions', 'question.quiz', 'diagnostic.admin_page', 'question.export_exam', 'question.header_settings'] %}has-active{% endif %}">
+                    <li class="nav-dropdown {% if request.endpoint in ['question.list_questions', 'question.import_questions', 'question.quiz', 'diagnostic.admin_page', 'question.export_exam', 'question.header_settings', 'formula.formula_admin_page'] %}has-active{% endif %}">
                         <a href="#" class="nav-dropdown-toggle"><i class="fas fa-question-circle"></i> الأسئلة والاختبارات <i class="fas fa-chevron-down dropdown-arrow"></i></a>
                         <ul class="nav-dropdown-menu">
                             <li><a href="{{ url_for('question.list_questions') }}" {% if request.endpoint == 'question.list_questions' %}class="active"{% endif %}><i class="fas fa-list"></i> إدارة الأسئلة</a></li>
@@ -154,6 +154,8 @@
                             <li><a href="{{ url_for('question.import_questions') }}" {% if request.endpoint == 'question.import_questions' %}class="active"{% endif %}><i class="fas fa-file-import"></i> استيراد الأسئلة</a></li>
                             <li><a href="{{ url_for('question.quiz') }}" {% if request.endpoint == 'question.quiz' %}class="active"{% endif %}><i class="fas fa-graduation-cap"></i> الاختبار التفاعلي</a></li>
                             <li><a href="{{ url_for('diagnostic.admin_page') }}" {% if request.endpoint == 'diagnostic.admin_page' %}class="active"{% endif %}><i class="fas fa-stethoscope"></i> الاختبارات التشخيصية</a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('formula.formula_admin_page') }}" {% if request.endpoint == 'formula.formula_admin_page' %}class="active"{% endif %}><i class="fas fa-link"></i> ربط القوانين بالأسئلة</a></li>
                             <li class="dropdown-divider"></li>
                             <li><a href="{{ url_for('question.export_exam') }}" {% if request.endpoint == 'question.export_exam' %}class="active"{% endif %}><i class="fas fa-file-export"></i> استخراج نماذج الاختبار</a></li>
                             <li><a href="{{ url_for('question.header_settings') }}" {% if request.endpoint == 'question.header_settings' %}class="active"{% endif %}><i class="fas fa-stamp"></i> إعدادات الكليشة</a></li>
