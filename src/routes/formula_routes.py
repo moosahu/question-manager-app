@@ -141,7 +141,8 @@ def get_tagging_stats():
 def update_formula_key(question_id):
     """تعديل formula_key يدوياً"""
     data = request.get_json() or {}
-    key = data.get('formula_key', '').strip() or None  # '' → None
+    raw = data.get('formula_key')
+    key = (raw.strip() or None) if isinstance(raw, str) else None  # null/None/'' → None
 
     if key and key not in VALID_FORMULA_KEYS:
         return jsonify({
