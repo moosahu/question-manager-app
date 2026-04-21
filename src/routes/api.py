@@ -4026,7 +4026,6 @@ def generate_exam():
             # regular (الافتراضي)
             base_query = base_query.filter(Question.is_bank == False)
 
-        logger.info(f"DEBUG generate_exam: lesson_ids={lesson_ids} unit_ids={unit_ids} course_ids={course_ids}")
         if lesson_ids:
             base_query = base_query.filter(Question.lesson_id.in_(lesson_ids))
         elif unit_ids:
@@ -4046,7 +4045,6 @@ def generate_exam():
             base_query = base_query.filter(Question.bloom_level.in_(bloom_filter))
 
         available = base_query.all()
-        logger.info(f"DEBUG generate_exam: available={len(available)} questions, lesson_ids_in_result={list(set(q.lesson_id for q in available))}")
 
         # ── الوضع اليدوي: استخدم question_ids مباشرةً ──────────────
         if manual_question_ids:
