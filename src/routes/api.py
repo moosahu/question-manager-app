@@ -3963,7 +3963,13 @@ def generate_exam():
         if course_id and course_id not in course_ids:
             course_ids.insert(0, course_id)
         unit_id     = data.get("unit_id")
+        unit_ids    = list(data.get("unit_ids") or [])
+        if unit_id and unit_id not in unit_ids:
+            unit_ids.insert(0, unit_id)
         lesson_id   = data.get("lesson_id")
+        lesson_ids  = list(data.get("lesson_ids") or [])
+        if lesson_id and lesson_id not in lesson_ids:
+            lesson_ids.insert(0, lesson_id)
 
         if not course_ids:
             return jsonify({'success': False, 'error': 'يجب تحديد منهج واحد على الأقل'}), 400
@@ -4020,10 +4026,11 @@ def generate_exam():
             # regular (الافتراضي)
             base_query = base_query.filter(Question.is_bank == False)
 
-        if lesson_id:
-            base_query = base_query.filter(Question.lesson_id == lesson_id)
-        elif unit_id:
-            lid_list = [l.id for l in Lesson.query.filter(Lesson.unit_id == unit_id).all()]
+        logger.info(f"DEBUG generate_exam: lesson_ids={lesson_ids} unit_ids={unit_ids} course_ids={course_ids}")
+        if lesson_ids:
+            base_query = base_query.filter(Question.lesson_id.in_(lesson_ids))
+        elif unit_ids:
+            lid_list = [l.id for l in Lesson.query.filter(Lesson.unit_id.in_(unit_ids)).all()]
             base_query = base_query.filter(Question.lesson_id.in_(lid_list))
         else:
             all_lid = [
@@ -4039,6 +4046,7 @@ def generate_exam():
             base_query = base_query.filter(Question.bloom_level.in_(bloom_filter))
 
         available = base_query.all()
+        logger.info(f"DEBUG generate_exam: available={len(available)} questions, lesson_ids_in_result={list(set(q.lesson_id for q in available))}")
 
         # ── الوضع اليدوي: استخدم question_ids مباشرةً ──────────────
         if manual_question_ids:
