@@ -1979,6 +1979,7 @@ def api_save_result():
         )
 
         db.session.add(result)
+        student.last_login = get_utc_time()
         db.session.commit()
 
         print(f"✅ تم حفظ النتيجة بنجاح!")
