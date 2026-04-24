@@ -743,7 +743,7 @@ def save_results(session_id):
             student_id       = student_id,
             quiz_type        = 'kim_response',
             quiz_name        = session.title,
-            quiz_id          = session_id,
+            quiz_id          = None,
             total_questions  = total_q,
             correct_answers  = correct_q,
             wrong_answers    = wrong_q,
