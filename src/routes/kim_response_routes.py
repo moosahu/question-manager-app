@@ -633,12 +633,32 @@ def get_final_results(session_id):
     # تجميع per-student
     from collections import defaultdict
     per_student = defaultdict(lambda: {'correct': 0, 'wrong': 0, 'answers': []})
+
+    # نحمّل الأسئلة مرة واحدة لتجنب N+1 queries
+    q_cache = {}
     for a in all_answers:
+        if a.question_id not in q_cache:
+            q = Question.query.get(a.question_id)
+            correct_ltr = _correct_letter_after_shuffle(q, session_id) if q else '?'
+            q_cache[a.question_id] = {
+                'text':    (q.question_text or '')[:80] if q else '',
+                'image':   q.image_url or '' if q else '',
+                'correct': correct_ltr,
+                'idx':     session.question_ids.index(a.question_id) + 1
+                           if a.question_id in session.question_ids else 0,
+            }
+        qinfo = q_cache[a.question_id]
         if a.is_correct:
             per_student[a.student_id]['correct'] += 1
         else:
             per_student[a.student_id]['wrong'] += 1
-        per_student[a.student_id]['answers'].append(a.to_dict())
+        per_student[a.student_id]['answers'].append({
+            **a.to_dict(),
+            'question_text':  qinfo['text'],
+            'question_image': qinfo['image'],
+            'correct_answer': qinfo['correct'],
+            'question_num':   qinfo['idx'],
+        })
 
     answered_ids   = set(per_student.keys())
     total_answered = len(answered_ids)
