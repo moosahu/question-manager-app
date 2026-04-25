@@ -792,6 +792,23 @@ def list_sessions():
     return jsonify({'success': True, 'sessions': [s.to_dict() for s in sessions]})
 
 
+# ── 8. حذف جلسة ──────────────────────────────────────────────────────────────
+
+@kim_response_bp.route('/api/kim-response/session/<int:session_id>', methods=['DELETE'])
+@login_required
+def delete_session(session_id):
+    """حذف جلسة مع كل إجاباتها"""
+    session = _get_session_or_404(session_id)
+    if not session:
+        return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+
+    KimResponseAnswer.query.filter_by(session_id=session_id).delete()
+    db.session.delete(session)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
 # ── مساعد: بيانات السؤال ─────────────────────────────────────────────────────
 
 def _question_to_dict(question_id, session_id=None):
