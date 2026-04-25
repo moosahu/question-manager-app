@@ -519,7 +519,8 @@ def record_scan(session_id):
     if not student_id or answer not in ['A', 'B', 'C', 'D']:
         return jsonify({'success': False, 'error': 'بيانات غير صالحة'}), 400
 
-    question_id = session.current_question_id
+    # دعم إعادة المحاولة: إذا أُرسل question_id صراحةً، استخدمه
+    question_id = data.get('question_id') or session.current_question_id
     if not question_id:
         return jsonify({'success': False, 'error': 'لا يوجد سؤال نشط'}), 400
 
@@ -790,6 +791,145 @@ def list_sessions():
     ).order_by(KimResponseSession.created_at.desc()).limit(20).all()
 
     return jsonify({'success': True, 'sessions': [s.to_dict() for s in sessions]})
+
+
+# ── 9. تحليل إحصائي شامل ──────────────────────────────────────────────────
+
+@kim_response_bp.route('/api/kim-response/analytics', methods=['GET'])
+@login_required
+def get_analytics():
+    """
+    تحليل شامل لكل جلسات المعلم/الأدمن:
+    - أصعب الأسئلة (نسبة الخطأ + توزيع الإجابات الخاطئة)
+    - أداء الطلاب عبر الجلسات (trend)
+    - ملخص الجلسات
+    """
+    teacher_id, admin_id = _get_caller_ids()
+
+    # جلب كل الجلسات المنتهية
+    sessions = KimResponseSession.query.filter(
+        ((KimResponseSession.teacher_id == teacher_id) if teacher_id
+         else (KimResponseSession.admin_id == admin_id)),
+        KimResponseSession.status == 'finished'
+    ).order_by(KimResponseSession.created_at.asc()).all()
+
+    if not sessions:
+        return jsonify({'success': True, 'question_stats': [],
+                        'student_trends': [], 'session_overview': []})
+
+    session_ids = [s.id for s in sessions]
+
+    # كل الإجابات
+    all_answers = KimResponseAnswer.query.filter(
+        KimResponseAnswer.session_id.in_(session_ids)
+    ).all()
+
+    # ── إحصاء الأسئلة ────────────────────────────────────────────────────────
+    from collections import defaultdict
+    q_stats = defaultdict(lambda: {
+        'total': 0, 'correct': 0,
+        'wrong_choices': {'A': 0, 'B': 0, 'C': 0, 'D': 0},
+        'sessions': set(),
+    })
+    for a in all_answers:
+        qs = q_stats[a.question_id]
+        qs['total'] += 1
+        qs['sessions'].add(a.session_id)
+        if a.is_correct:
+            qs['correct'] += 1
+        else:
+            qs['wrong_choices'][a.answer] = qs['wrong_choices'].get(a.answer, 0) + 1
+
+    question_stats = []
+    for qid, qs in q_stats.items():
+        q = Question.query.get(qid)
+        wrong = qs['total'] - qs['correct']
+        diff_pct = round(wrong / qs['total'] * 100) if qs['total'] > 0 else 0
+        question_stats.append({
+            'question_id':    qid,
+            'question_text':  (q.question_text or '')[:80] if q else '',
+            'question_image': q.image_url or '' if q else '',
+            'sessions_count': len(qs['sessions']),
+            'total_answers':  qs['total'],
+            'correct_count':  qs['correct'],
+            'wrong_count':    wrong,
+            'difficulty_pct': diff_pct,
+            'wrong_choices':  qs['wrong_choices'],
+        })
+    # ترتيب من الأصعب للأسهل
+    question_stats.sort(key=lambda x: x['difficulty_pct'], reverse=True)
+
+    # ── أداء الطلاب عبر الجلسات ──────────────────────────────────────────────
+    # جمع الطلاب المرتبطين
+    links = TeacherStudent.query.filter(
+        (TeacherStudent.teacher_id == teacher_id) if teacher_id
+        else (TeacherStudent.admin_id == admin_id)
+    ).all()
+    linked_student_ids = {l.student_id for l in links}
+
+    student_session_scores = defaultdict(list)
+    for s in sessions:
+        # إجابات هذه الجلسة
+        sess_answers = [a for a in all_answers if a.session_id == s.id]
+        per_stu = defaultdict(lambda: {'correct': 0, 'total': 0})
+        for a in sess_answers:
+            per_stu[a.student_id]['total'] += 1
+            if a.is_correct:
+                per_stu[a.student_id]['correct'] += 1
+        total_q = s.total_questions or 1
+        for sid, sc in per_stu.items():
+            if sid in linked_student_ids:
+                pct = round(sc['correct'] / total_q * 100, 1)
+                student_session_scores[sid].append({
+                    'session_id':    s.id,
+                    'session_title': s.title,
+                    'date':          s.created_at.isoformat() + 'Z',
+                    'score_pct':     pct,
+                    'correct':       sc['correct'],
+                    'total':         total_q,
+                })
+
+    student_trends = []
+    for sid, scores in student_session_scores.items():
+        if len(scores) < 2:
+            continue  # نحتاج جلستين على الأقل للـ trend
+        stu = Student.query.get(sid)
+        first = scores[0]['score_pct']
+        last  = scores[-1]['score_pct']
+        trend = 'up' if last > first else ('down' if last < first else 'stable')
+        student_trends.append({
+            'student_id':   sid,
+            'student_name': stu.name if stu else '',
+            'sessions':     scores,
+            'trend':        trend,
+            'first_score':  first,
+            'last_score':   last,
+        })
+    student_trends.sort(key=lambda x: x['student_name'])
+
+    # ── ملخص الجلسات ─────────────────────────────────────────────────────────
+    session_overview = []
+    for s in reversed(sessions):  # من الأحدث للأقدم
+        sess_answers = [a for a in all_answers if a.session_id == s.id]
+        answered_students = len({a.student_id for a in sess_answers})
+        correct = sum(1 for a in sess_answers if a.is_correct)
+        total   = len(sess_answers)
+        avg_pct = round(correct / total * 100, 1) if total > 0 else 0.0
+        session_overview.append({
+            'session_id':       s.id,
+            'title':            s.title,
+            'date':             s.created_at.isoformat() + 'Z',
+            'total_questions':  s.total_questions,
+            'answered_students': answered_students,
+            'avg_score':        avg_pct,
+        })
+
+    return jsonify({
+        'success':          True,
+        'question_stats':   question_stats,
+        'student_trends':   student_trends,
+        'session_overview': session_overview,
+    })
 
 
 # ── 8. حذف جلسة ──────────────────────────────────────────────────────────────
