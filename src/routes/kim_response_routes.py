@@ -494,18 +494,47 @@ def generate_guest_cards():
         draw.text((CARD-6, CARD-6),     fill='#9ca3af', text=num, font=font_num, anchor='rb')
         return card
 
+    _logo_app_path_g = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), '..', 'static', 'images', 'app_logo.png'))
+
     def make_guest_name_image(guest_num, aruco_id):
         NAME_PX_H = 72
         NAME_PX_W = int(NAME_PX_H * 343 / 48)
         img = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#EFF6FF')
         draw_n = ImageDraw.Draw(img)
         draw_n.rectangle([0, 0, NAME_PX_W-1, NAME_PX_H-1], outline='#3B82F6', width=2)
+
+        LOGO_SIZE = 56
+        LOGO_PAD  = 8
+
+        if os.path.exists(_logo_app_path_g):
+            try:
+                logo_app = Image.open(_logo_app_path_g).convert('RGBA')
+                logo_app = logo_app.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+                r = int(LOGO_SIZE * 0.22)
+                S = LOGO_SIZE
+                m = Image.new('L', (S, S), 0)
+                d = ImageDraw.Draw(m)
+                d.rectangle([r, 0, S-r, S], fill=255)
+                d.rectangle([0, r, S, S-r], fill=255)
+                d.ellipse([0, 0, r*2, r*2], fill=255)
+                d.ellipse([S-r*2, 0, S, r*2], fill=255)
+                d.ellipse([0, S-r*2, r*2, S], fill=255)
+                d.ellipse([S-r*2, S-r*2, S, S], fill=255)
+                logo_app.putalpha(m)
+                ly = (NAME_PX_H - LOGO_SIZE) // 2
+                lx = NAME_PX_W - LOGO_SIZE - LOGO_PAD
+                img.paste(logo_app, (lx, ly), logo_app)
+            except Exception:
+                pass
+
         try:
-            fn_big   = ImageFont.truetype(font_path, 26) if os.path.exists(font_path) else ImageFont.load_default()
-            fn_small = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
+            fn_big   = ImageFont.truetype(font_path, 26, layout_engine=1) if os.path.exists(font_path) else ImageFont.load_default()
+            fn_small = ImageFont.truetype(font_path, 13, layout_engine=1) if os.path.exists(font_path) else ImageFont.load_default()
         except Exception:
             fn_big = fn_small = ImageFont.load_default()
-        cx = NAME_PX_W // 2
+
+        cx = (NAME_PX_W - LOGO_SIZE - LOGO_PAD) // 2
         draw_n.text((cx, 26), _guest_label(guest_num), fill='#1D4ED8', font=fn_big,   anchor='mm')
         draw_n.text((cx, 56), f'كيم تحصيلي — بطاقة ضيف  |  #{aruco_id}',
                     fill='#374151', font=fn_small, anchor='mm')
