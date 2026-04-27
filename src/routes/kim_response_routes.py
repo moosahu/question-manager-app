@@ -36,23 +36,32 @@ def _get_caller_ids():
     return (teacher.id if teacher else None), None
 
 
+GUEST_ID_START = 200   # IDs 200-249 محجوزة للضيوف
+GUEST_ID_END   = 249
+STUDENT_ID_MAX = 199   # IDs 0-199 للطلاب المسجلين
+
+
 def _ensure_aruco_ids(links):
-    """يعيّن aruco_id لأي سجل فيه NULL — يحفظ في DB."""
+    """يعيّن aruco_id لأي سجل فيه NULL — يحفظ في DB. IDs 0-199 فقط."""
     null_links = [l for l in links if l.aruco_id is None]
     if not null_links:
         return
     used = {l.aruco_id for l in links if l.aruco_id is not None}
-    # ترتيب أبجدي للتوافق مع الكروت المطبوعة قبل التحديث
     null_links.sort(key=lambda l: (
         Student.query.get(l.student_id).name
         if Student.query.get(l.student_id) else ''))
     for lnk in null_links:
-        for i in range(250):
+        for i in range(STUDENT_ID_MAX + 1):
             if i not in used:
                 lnk.aruco_id = i
                 used.add(i)
                 break
     db.session.commit()
+
+
+def _guest_label(guest_num):
+    """اسم بطاقة الضيف — # 1، # 2 ..."""
+    return f'# {guest_num}'
 
 
 def _get_session_or_404(session_id):
@@ -422,7 +431,121 @@ def generate_cards(session_id):
                      download_name=f'kim_aruco_cards_{session_id}.pdf')
 
 
-# ── 2b. خريطة ArUco → Student ─────────────────────────────────────────────────
+# ── 2b. بطاقات الضيوف (ثابتة — تُطبع مرة واحدة) ──────────────────────────────
+
+@kim_response_bp.route('/api/kim-response/guest-cards', methods=['GET'])
+@login_required
+def generate_guest_cards():
+    """
+    يولّد PDF لبطاقات الضيوف (IDs 200-249).
+    لا يحتاج session — تُطبع مرة وتُستخدم في أي جلسة.
+    param: count (1-50، افتراضي 20)
+    """
+    count = max(1, min(int(request.args.get('count', 20)), 50))
+
+    try:
+        import cv2
+        import numpy as np
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError as e:
+        return jsonify({'success': False, 'error': f'مكتبات مفقودة: {e}'}), 500
+
+    _fonts_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts'))
+    font_path = os.path.join(_fonts_dir, 'Tajawal-Regular.ttf')
+    if not os.path.exists(font_path):
+        font_path = os.path.join(_fonts_dir, 'Cairo-Regular.ttf')
+
+    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
+
+    import random
+
+    def _card_positions(aruco_id):
+        rng = random.Random(aruco_id * 1337)
+        positions = ['A', 'B', 'C', 'D']
+        rng.shuffle(positions)
+        return positions
+
+    def make_marker_image(aruco_id):
+        CARD = 350; MARKER = 240
+        marker_np = np.zeros((MARKER, MARKER), dtype=np.uint8)
+        cv2.aruco.generateImageMarker(aruco_dict, int(aruco_id), MARKER, marker_np, 1)
+        marker_pil = Image.fromarray(marker_np).convert('RGB')
+        card = Image.new('RGB', (CARD, CARD), 'white')
+        draw = ImageDraw.Draw(card)
+        offset = (CARD - MARKER) // 2
+        card.paste(marker_pil, (offset, offset))
+        draw.rectangle([0, 0, CARD-1, CARD-1], outline='black', width=4)
+        LBL = 36
+        try:
+            font_lbl = ImageFont.truetype(font_path, LBL) if os.path.exists(font_path) else ImageFont.load_default()
+            font_num = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            font_lbl = font_num = ImageFont.load_default()
+        positions = _card_positions(aruco_id)
+        mid = CARD // 2; edge = 12
+        draw.text((mid, edge),        positions[0], fill='black', font=font_lbl, anchor='mt')
+        draw.text((CARD-edge, mid),   positions[1], fill='black', font=font_lbl, anchor='rm')
+        draw.text((mid, CARD-edge),   positions[2], fill='black', font=font_lbl, anchor='mb')
+        draw.text((edge, mid),        positions[3], fill='black', font=font_lbl, anchor='lm')
+        num = str(aruco_id)
+        draw.text((6, 6),               fill='#9ca3af', text=num, font=font_num, anchor='lt')
+        draw.text((CARD-6, 6),          fill='#9ca3af', text=num, font=font_num, anchor='rt')
+        draw.text((6, CARD-6),          fill='#9ca3af', text=num, font=font_num, anchor='lb')
+        draw.text((CARD-6, CARD-6),     fill='#9ca3af', text=num, font=font_num, anchor='rb')
+        return card
+
+    def make_guest_name_image(guest_num, aruco_id):
+        NAME_PX_H = 72
+        NAME_PX_W = int(NAME_PX_H * 343 / 48)
+        img = Image.new('RGB', (NAME_PX_W, NAME_PX_H), '#EFF6FF')
+        draw_n = ImageDraw.Draw(img)
+        draw_n.rectangle([0, 0, NAME_PX_W-1, NAME_PX_H-1], outline='#3B82F6', width=2)
+        try:
+            fn_big   = ImageFont.truetype(font_path, 26) if os.path.exists(font_path) else ImageFont.load_default()
+            fn_small = ImageFont.truetype(font_path, 13) if os.path.exists(font_path) else ImageFont.load_default()
+        except Exception:
+            fn_big = fn_small = ImageFont.load_default()
+        cx = NAME_PX_W // 2
+        draw_n.text((cx, 26), _guest_label(guest_num), fill='#1D4ED8', font=fn_big,   anchor='mm')
+        draw_n.text((cx, 56), f'كيم تحصيلي — بطاقة ضيف  |  #{aruco_id}',
+                    fill='#374151', font=fn_small, anchor='mm')
+        return img
+
+    PAGE_W, PAGE_H = A4
+    MARGIN = 20; NAME_H = 48
+    SLOT_H = (PAGE_H - 3*MARGIN) / 2
+    IMG_H  = SLOT_H - NAME_H
+    CARD_W = min(PAGE_W - 2*MARGIN, IMG_H)
+    CARD_X = (PAGE_W - CARD_W) / 2
+
+    buf = io.BytesIO()
+    c = rl_canvas.Canvas(buf, pagesize=A4)
+
+    for idx in range(count):
+        aruco_id  = GUEST_ID_START + idx
+        guest_num = idx + 1
+        if idx > 0 and idx % 2 == 0:
+            c.showPage()
+        pos    = idx % 2
+        slot_y = PAGE_H - MARGIN - (pos+1)*SLOT_H - pos*MARGIN
+        img_y  = slot_y + NAME_H
+
+        marker_img = make_marker_image(aruco_id)
+        cbuf = io.BytesIO(); marker_img.save(cbuf, format='PNG'); cbuf.seek(0)
+        c.drawImage(ImageReader(cbuf), CARD_X, img_y,
+                    width=CARD_W, height=IMG_H, preserveAspectRatio=True, anchor='c')
+
+        name_img = make_guest_name_image(guest_num, aruco_id)
+        nbuf = io.BytesIO(); name_img.save(nbuf, format='PNG'); nbuf.seek(0)
+        c.drawImage(ImageReader(nbuf), CARD_X, slot_y,
+                    width=CARD_W, height=NAME_H, preserveAspectRatio=False)
+
+    c.save(); buf.seek(0)
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name='kim_guest_cards.pdf')
+
+
+# ── 2c. خريطة ArUco → Student ─────────────────────────────────────────────────
 
 @kim_response_bp.route('/api/kim-response/session/<int:session_id>/aruco-map', methods=['GET'])
 @login_required
@@ -471,17 +594,34 @@ def get_aruco_map(session_id):
             'positions':   _card_positions_map(aid),
             'grade':       s.grade or '',
             'section':     l.section or '',
+            'is_guest':    False,
         }
         for aid, (s, l) in sorted(students_map.items())
     ]
 
+    # إضافة بطاقات الضيوف إذا طلبها المعلم
+    guests_count = max(0, min(int(request.args.get('guests', 0)), 50))
+    for i in range(guests_count):
+        aid = GUEST_ID_START + i
+        aruco_map[str(aid)] = None
+        students_info.append({
+            'aruco_id':    aid,
+            'student_id':  None,
+            'student_name': _guest_label(i + 1),
+            'positions':   _card_positions_map(aid),
+            'grade':       '',
+            'section':     '',
+            'is_guest':    True,
+        })
+
     return jsonify({
-        'success':   True,
-        'aruco_map': aruco_map,
-        'students':  students_info,
-        'total':     len(students_info),
-        'grades':    grades,
-        'sections':  sections,
+        'success':      True,
+        'aruco_map':    aruco_map,
+        'students':     students_info,
+        'total':        len(students_info),
+        'grades':       grades,
+        'sections':     sections,
+        'guests_count': guests_count,
     })
 
 
