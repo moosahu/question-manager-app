@@ -253,15 +253,17 @@ def generate_test_pair():
         
         lesson_id = data.get('lesson_id')
         unit_id = data.get('unit_id')
+        course_id = data.get('course_id')
         questions_count = data.get('questions_count', 5)
-        
-        if not any([lesson_id, unit_id]):
-            return jsonify({'success': False, 'error': 'يجب تحديد درس أو وحدة'}), 400
-        
+
+        if not any([lesson_id, unit_id, course_id]):
+            return jsonify({'success': False, 'error': 'يجب تحديد درس أو وحدة أو منهج'}), 400
+
         # توليد القبلي
         pre_result = diagnostic_service.generate_test(
             lesson_id=lesson_id,
             unit_id=unit_id,
+            course_id=course_id,
             test_type='pre_test',
             questions_count=questions_count
         )
@@ -273,8 +275,8 @@ def generate_test_pair():
         context = pre_result.get('context', {})
         lesson_name = context.get('name') if context.get('type') == 'lesson' else None
         unit_name = context.get('name') if context.get('type') == 'unit' else context.get('unit_name')
-        course_name = context.get('course_name')
-        
+        course_name = context.get('course_name') or (context.get('name') if context.get('type') == 'course' else None)
+
         # حفظ القبلي
         pre_test = DiagnosticTest(
             title=pre_result['title'],
@@ -282,6 +284,7 @@ def generate_test_pair():
             test_type='pre_test',
             lesson_id=lesson_id,
             unit_id=unit_id,
+            course_id=course_id,
             lesson_name=lesson_name,
             unit_name=unit_name,
             course_name=course_name,
@@ -292,15 +295,16 @@ def generate_test_pair():
         )
         db.session.add(pre_test)
         db.session.flush()  # للحصول على ID
-        
+
         # توليد البعدي (نفس الأسئلة أو مختلفة)
         post_result = diagnostic_service.generate_test(
             lesson_id=lesson_id,
             unit_id=unit_id,
+            course_id=course_id,
             test_type='post_test',
             questions_count=questions_count
         )
-        
+
         # حفظ البعدي
         post_test = DiagnosticTest(
             title=post_result['title'],
@@ -308,6 +312,7 @@ def generate_test_pair():
             test_type='post_test',
             lesson_id=lesson_id,
             unit_id=unit_id,
+            course_id=course_id,
             lesson_name=lesson_name,
             unit_name=unit_name,
             course_name=course_name,

@@ -1183,14 +1183,15 @@
         
         const lessonId = document.getElementById('diag_lesson_id').value;
         const unitId = document.getElementById('diag_unit_id').value;
-        
-        if (!lessonId && !unitId) {
-            showAlert('يرجى اختيار درس أو وحدة على الأقل', 'error');
+        const courseId = document.getElementById('diag_course_id').value;
+
+        if (!lessonId && !unitId && !courseId) {
+            showAlert('يرجى اختيار درس أو وحدة أو منهج على الأقل', 'error');
             return;
         }
-        
+
         showLoading(true);
-        
+
         try {
             const body = {
                 test_type: document.getElementById('test_type').value,
@@ -1201,9 +1202,10 @@
                     hard: parseInt(document.getElementById('diff_hard').value)
                 }
             };
-            
+
             if (lessonId) body.lesson_id = parseInt(lessonId);
-            if (unitId) body.unit_id = parseInt(unitId);
+            else if (unitId) body.unit_id = parseInt(unitId);
+            else if (courseId) body.course_id = parseInt(courseId);
             
             const res = await fetch(`${API_BASE}/generate`, {
                 method: 'POST',
@@ -1231,21 +1233,23 @@
     window.generatePair = async function() {
         const lessonId = document.getElementById('diag_lesson_id').value;
         const unitId = document.getElementById('diag_unit_id').value;
-        
-        if (!lessonId && !unitId) {
-            showAlert('يرجى اختيار درس أو وحدة أولاً', 'error');
+        const courseId = document.getElementById('diag_course_id').value;
+
+        if (!lessonId && !unitId && !courseId) {
+            showAlert('يرجى اختيار درس أو وحدة أو منهج أولاً', 'error');
             return;
         }
-        
+
         showLoading(true);
-        
+
         try {
             const body = {
                 questions_count: parseInt(document.getElementById('questions_count').value)
             };
-            
+
             if (lessonId) body.lesson_id = parseInt(lessonId);
-            if (unitId) body.unit_id = parseInt(unitId);
+            else if (unitId) body.unit_id = parseInt(unitId);
+            else if (courseId) body.course_id = parseInt(courseId);
             
             const res = await fetch(`${API_BASE}/generate-pair`, {
                 method: 'POST',
