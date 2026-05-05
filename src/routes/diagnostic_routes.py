@@ -618,16 +618,15 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         }}
         
         /* === الأعمدة === */
-        .questions-container {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2%;
-            justify-content: space-between;
+        .questions-table {{
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 8px 0;
         }}
-        .questions-column {{
+        .questions-table td {{
             width: {column_width};
-            display: flex;
-            flex-direction: column;
+            vertical-align: top;
+            padding: 0;
         }}
         
         /* === السؤال === */
@@ -851,27 +850,25 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
         </div>
         '''
     
-    # === توزيع الأسئلة على الأعمدة ===
-    questions_html = '<div class="questions-container">'
-    
+    # === توزيع الأسئلة ===
     if columns == 1:
-        questions_html += '<div class="questions-column">'
+        questions_html = '<div>'
         for i, q in enumerate(questions, 1):
             questions_html += build_question_html(q, i)
         questions_html += '</div>'
     else:
-        # توزيع على أعمدة متعددة
-        for col in range(columns):
-            questions_html += '<div class="questions-column">'
-            start_idx = col * questions_per_column
-            end_idx = min(start_idx + questions_per_column, len(questions))
-            
-            for i in range(start_idx, end_idx):
-                questions_html += build_question_html(questions[i], i + 1)
-            
-            questions_html += '</div>'
-    
-    questions_html += '</div>'
+        # توزيع على جدول: كل صف يحمل (columns) أسئلة متجاورة
+        questions_html = '<table class="questions-table">'
+        for row_start in range(0, len(questions), columns):
+            questions_html += '<tr>'
+            for col in range(columns):
+                idx = row_start + col
+                if idx < len(questions):
+                    questions_html += f'<td>{build_question_html(questions[idx], idx + 1)}</td>'
+                else:
+                    questions_html += '<td></td>'
+            questions_html += '</tr>'
+        questions_html += '</table>'
     
     # === نموذج الإجابة ===
     answer_key_html = ""
