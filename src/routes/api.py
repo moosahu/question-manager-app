@@ -4211,7 +4211,9 @@ def generate_exam():
                 import fitz  # PyMuPDF موجود في requirements
                 merged = fitz.open()
                 for i in range(models_count):
-                    gen_questions_i = to_gen_questions(format_selected(select_questions(available)))
+                    selected_i = select_questions(available)
+                    _random.shuffle(selected_i)  # ترتيب مختلف لكل نموذج
+                    gen_questions_i = to_gen_questions(format_selected(selected_i))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
                         exam_title=exam_title,
