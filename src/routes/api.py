@@ -793,12 +793,13 @@ def get_lesson_questions(lesson_id):
         if not lesson:
             logger.warning(f"Lesson with id {lesson_id} not found.")
             return jsonify({"error": "Lesson not found"}), 404
+        is_bank = bool(lesson.unit.course.is_bank) if lesson.unit and lesson.unit.course else False
         questions = (
             Question.query
             .options(joinedload(Question.options))
             .filter(Question.lesson_id == lesson_id)
-            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
+            .filter(Question.is_blocked == False)
+            .filter(Question.is_bank == is_bank)
             .order_by(Question.question_id)
             .all()
         )
@@ -822,10 +823,11 @@ def get_unit_questions_direct(unit_id):
         if not unit:
             logger.warning(f"Unit with id {unit_id} not found.")
             return jsonify({"error": "Unit not found"}), 404
-        
+
         # التحقق من show_all parameter
         show_all = request.args.get('show_all', 'false').lower() == 'true'
-        
+        is_bank = bool(unit.course.is_bank) if unit.course else False
+
         # بناء الاستعلام
         query = (
             Question.query
@@ -834,8 +836,8 @@ def get_unit_questions_direct(unit_id):
             .join(Unit.course)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
-            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
+            .filter(Question.is_blocked == False)
+            .filter(Question.is_bank == is_bank)
         )
 
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
@@ -867,7 +869,8 @@ def get_course_questions_direct(course_id):
         
         # التحقق من show_all parameter
         show_all = request.args.get('show_all', 'false').lower() == 'true'
-        
+        is_bank = bool(course.is_bank)
+
         # بناء الاستعلام
         query = (
             Question.query
@@ -876,8 +879,8 @@ def get_course_questions_direct(course_id):
             .join(Unit.course)
             .options(joinedload(Question.options))
             .filter(Unit.course_id == course_id)
-            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
+            .filter(Question.is_blocked == False)
+            .filter(Question.is_bank == is_bank)
         )
 
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
@@ -916,13 +919,14 @@ def get_course_unit_questions(course_id, unit_id):
             else:
                 return jsonify({"error": f"Unit {unit_id} not found"}), 404
 
+        is_bank = bool(course.is_bank)
         questions = (
             Question.query
             .join(Question.lesson)
             .options(joinedload(Question.options))
             .filter(Lesson.unit_id == unit_id)
-            .filter(Question.is_blocked == False)  # منع الأسئلة الممنوعة
-            .filter(Question.is_bank == False)      # استبعاد أسئلة البنك
+            .filter(Question.is_blocked == False)
+            .filter(Question.is_bank == is_bank)
             .order_by(Question.question_id)
             .all()
         )
