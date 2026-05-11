@@ -4108,9 +4108,7 @@ def generate_exam():
                 return selected[:question_count]
 
             elif mode == "manual":
-                result = list(pool)
-                if shuffle_questions: _random.shuffle(result)
-                return result  # كل الأسئلة المختارة يدوياً
+                return list(pool)  # حافظ على الترتيب المُمرَّر في question_ids
 
             else:  # normal
                 result = list(pool)
