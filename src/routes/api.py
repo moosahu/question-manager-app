@@ -4192,9 +4192,15 @@ def generate_exam():
                 font_family=font_family,
             )
 
+            # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة
+            _stable_seed = sum(manual_question_ids) if manual_question_ids else None
+
             if models_count <= 1:
-                # نموذج واحد
-                gen_questions = to_gen_questions(format_selected(select_questions(available)))
+                # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
+                selected = select_questions(available)
+                if _stable_seed is None and shuffle_questions:
+                    _random.shuffle(selected)
+                gen_questions = to_gen_questions(format_selected(selected))
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
                     exam_title=exam_title,
@@ -4207,12 +4213,13 @@ def generate_exam():
                     len(gen_questions), include_answers, shuffle_questions, shuffle_options, header
                 )
             else:
-                # نماذج متعددة — كل نموذج يُولَّد بترتيب مختلف ثم تُدمج الـ PDFs
+                # نماذج متعددة — كل نموذج بترتيب مختلف لكن ثابت عبر التصديرات
                 import fitz  # PyMuPDF موجود في requirements
                 merged = fitz.open()
                 for i in range(models_count):
                     selected_i = select_questions(available)
-                    _random.shuffle(selected_i)  # ترتيب مختلف لكل نموذج
+                    rng = _random.Random(_stable_seed + i * 31337 if _stable_seed is not None else None)
+                    rng.shuffle(selected_i)
                     gen_questions_i = to_gen_questions(format_selected(selected_i))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
