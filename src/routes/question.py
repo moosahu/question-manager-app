@@ -18,6 +18,10 @@ from flask import (
     send_file, jsonify # Added for sending generated files
 )
 from flask_login import login_required, current_user
+try:
+    from src.routes.api import teacher_or_admin_required
+except ImportError:
+    from routes.api import teacher_or_admin_required
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError, DBAPIError
@@ -3125,7 +3129,7 @@ if (window.opener && !window.opener.closed) {{
 
 # 1. دالة المعاينة: قراءة ملف الإكسل وتمرير البيانات للواجهة
 @question_bp.route('/preview-students', methods=['POST'])
-@login_required
+@teacher_or_admin_required
 def preview_students():
     # تعريف القائمة في البداية لتجنب خطأ التعريف "not defined"
     final_students = [] 
