@@ -272,27 +272,30 @@
         .questions-wrapper::after {
             content: '';
             position: absolute;
-            top: 0; bottom: 0;
+            top: 0;
+            height: 100%;
             left: 50%;
-            width: 1px;
-            background: #000;
+            width: 0;
+            border-left: 1px solid #000;
         }
         {% elif col_count == 3 %}
         .questions-wrapper::before {
             content: '';
             position: absolute;
-            top: 0; bottom: 0;
+            top: 0;
+            height: 100%;
             left: 33.33%;
-            width: 1px;
-            background: #000;
+            width: 0;
+            border-left: 1px solid #000;
         }
         .questions-wrapper::after {
             content: '';
             position: absolute;
-            top: 0; bottom: 0;
+            top: 0;
+            height: 100%;
             left: 66.66%;
-            width: 1px;
-            background: #000;
+            width: 0;
+            border-left: 1px solid #000;
         }
         {% endif %}
         .questions-flow {
