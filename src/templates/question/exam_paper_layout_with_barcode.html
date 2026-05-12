@@ -289,8 +289,6 @@
 
         .question-box {
             width: 100%;
-            max-width: 100%;
-            overflow: hidden;
             margin-bottom: {{ q_margin }}px;
             font-size: {{ font_size|default(14, true) }}px;
             break-inside: avoid;
@@ -715,12 +713,16 @@
     {% endmacro %}
 
     {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
-    {% set col_size = (questions|length / col_count)|round(0, 'ceil')|int %}
+    {# qcpp = عدد الأسئلة لكل عمود لكل صفحة — يستهدف صفحتين تقريباً #}
+    {% set qcpp = [(questions|length / col_count / 2)|round(0, 'ceil')|int, 1]|max %}
+    {% set qpp  = qcpp * col_count %}
+    {% set num_rows = [(questions|length / qpp)|round(0, 'ceil')|int, 1]|max %}
     <table class="questions-table">
+        {% for row in range(num_rows) %}
         <tr>
             {% for c in range(col_count) %}
-                {% set start = c * col_size %}
-                {% set end = start + col_size %}
+                {% set start = row * qpp + c * qcpp %}
+                {% set end   = start + qcpp %}
                 <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
                     {% for question in questions[start:end] %}
                         {{ render_question(question, start + loop.index) }}
@@ -728,6 +730,7 @@
                 </td>
             {% endfor %}
         </tr>
+        {% endfor %}
     </table>
 
     <div class="exam-end">
