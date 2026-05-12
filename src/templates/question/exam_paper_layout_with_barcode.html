@@ -265,23 +265,45 @@
         {% endif %}
         
         /* تخطيط الأسئلة - CSS columns لضمان تدفق الترقيم يمين←يسار في نفس الصفحة */
+        .questions-wrapper {
+            position: relative;
+        }
+        {% if col_count == 2 %}
+        .questions-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 50%;
+            width: 1px;
+            background: #000;
+        }
+        {% elif col_count == 3 %}
+        .questions-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 33.33%;
+            width: 1px;
+            background: #000;
+        }
+        .questions-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 66.66%;
+            width: 1px;
+            background: #000;
+        }
+        {% endif %}
         .questions-flow {
             {% if col_count == 2 %}
             column-count: 2;
             column-fill: auto;
             column-gap: 16px;
-            background-image: linear-gradient(to bottom, #000, #000);
-            background-size: 1px 100%;
-            background-position: 50% 0;
-            background-repeat: no-repeat;
             {% elif col_count == 3 %}
             column-count: 3;
             column-fill: auto;
             column-gap: 10px;
-            background-image: linear-gradient(to bottom, #000, #000), linear-gradient(to bottom, #000, #000);
-            background-size: 1px 100%, 1px 100%;
-            background-position: 33.33% 0, 66.66% 0;
-            background-repeat: no-repeat, no-repeat;
             {% endif %}
         }
 
@@ -712,10 +734,12 @@
     {% endmacro %}
 
     {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
-    <div class="questions-flow">
-        {% for question in questions %}
-            {{ render_question(question, loop.index) }}
-        {% endfor %}
+    <div class="questions-wrapper">
+        <div class="questions-flow">
+            {% for question in questions %}
+                {{ render_question(question, loop.index) }}
+            {% endfor %}
+        </div>
     </div>
 
     <div class="exam-end">
