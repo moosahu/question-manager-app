@@ -264,39 +264,17 @@
             {% set q_margin = 12 %}
         {% endif %}
         
-        /* تخطيط الأسئلة - جدول بدل column-count لضمان الفاصل في المنتصف */
-        .questions-table {
-            width: 100%;
-            table-layout: fixed;
-            border-collapse: collapse;
-        }
-
-        .questions-col {
-            vertical-align: top;
-            overflow: hidden;
+        /* تخطيط الأسئلة - CSS columns لضمان تدفق الترقيم يمين←يسار في نفس الصفحة */
+        .questions-flow {
+            {% if col_count > 1 %}
+            column-count: {{ col_count }};
+            column-fill: auto;
             {% if col_count == 3 %}
-            width: 33.33%;
+            column-gap: 6px;
             {% else %}
-            width: 50%;
+            column-gap: 10px;
             {% endif %}
-        }
-
-        .col-divider {
-            border-left: 1px solid #999;
-            {% if col_count == 3 %}
-            padding-left: 8px;
-            padding-right: 8px;
-            {% else %}
-            padding-left: 10px;
-            padding-right: 10px;
-            {% endif %}
-        }
-
-        .col-last {
-            {% if col_count == 3 %}
-            padding-right: 8px;
-            {% else %}
-            padding-right: 10px;
+            column-rule: 1px solid #999;
             {% endif %}
         }
 
@@ -727,32 +705,11 @@
     {% endmacro %}
 
     {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
-    {% if col_count == 1 %}
-
-    <div>
+    <div class="questions-flow">
         {% for question in questions %}
             {{ render_question(question, loop.index) }}
         {% endfor %}
     </div>
-
-    {% else %}
-
-    {% set col_size = (questions|length / col_count)|round(0, 'ceil')|int %}
-    <table class="questions-table">
-        <tr>
-            {% for c in range(col_count) %}
-                {% set start = c * col_size %}
-                {% set end = start + col_size %}
-                <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
-                    {% for question in questions[start:end] %}
-                        {{ render_question(question, start + loop.index) }}
-                    {% endfor %}
-                </td>
-            {% endfor %}
-        </tr>
-    </table>
-
-    {% endif %}
 
     <div class="exam-end">
         <div class="end-text">
