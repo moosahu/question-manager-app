@@ -2761,7 +2761,7 @@ def generate_multi_models():
             # استخدام أرقام أولية ضخمة جداً لضمان اختلاف كبير بين النماذج
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][i % 4]  # أرقام أولية ضخمة
-            seed = (hash(question_ids_str + model_letter) + i * 7919 + random_offset) % (2**31)
+            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + i * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data, 
                 shuffle_questions=True, 
@@ -2978,7 +2978,7 @@ def preview_multi_models():
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             
             # التحقق من وجود ترتيب محفوظ (للنموذج الأول فقط)
             has_saved_order = saved_options_order and len(saved_options_order) > 0 and idx == 0
@@ -3098,7 +3098,7 @@ def preview_multi_models():
                 questions_data,
                 shuffle_questions=True if not saved_options_order else False,
                 shuffle_options=shuffle_options,
-                seed=(hash(''.join(str(q['question_id']) for q in questions_data) + models[0]) + 15485863) % (2**31) if not saved_options_order else None,
+                seed=(sum(q['question_id'] for q in questions_data) * (ord(models[0][0]) + 1) + 15485863) % (2**31) if not saved_options_order else None,
                 saved_options_order=saved_options_order if saved_options_order else None
             )
             for q in first_shuffled:
@@ -3485,7 +3485,7 @@ def print_remark_sheets_multi_models():
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -3728,7 +3728,7 @@ def generate_all_models_answer_keys():
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
             question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (hash(question_ids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled_questions = shuffle_exam(
                 questions_data,
                 shuffle_questions=True,
@@ -4232,7 +4232,7 @@ def remark_answer_key_pdf():
         for idx, model_letter in enumerate(models):
             qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
 
             answers = {}
@@ -4326,7 +4326,7 @@ def remark_students_pdf():
         for idx, model_letter in enumerate(models):
             qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
             model_answers = {}
             for q_num, q in enumerate(shuffled, 1):
@@ -4521,7 +4521,7 @@ def remark_answer_key_html():
         for idx, model_letter in enumerate(models):
             qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
 
             answers = {}
@@ -4614,7 +4614,7 @@ def remark_students_html():
         for idx, model_letter in enumerate(models):
             qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (hash(qids_str + model_letter) + idx * 7919 + random_offset) % (2**31)
+            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
             shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
             answers = {}
             for q_num, q in enumerate(shuffled, 1):
