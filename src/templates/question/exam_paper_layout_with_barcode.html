@@ -264,50 +264,27 @@
             {% set q_margin = 12 %}
         {% endif %}
         
-        /* تخطيط الأسئلة - CSS columns لضمان تدفق الترقيم يمين←يسار في نفس الصفحة */
-        .questions-wrapper {
-            position: relative;
+        /* تخطيط الأسئلة — جدول لضمان الفاصل المرئي والتوزيع المتساوي */
+        .questions-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
         }
-        {% if col_count == 2 %}
-        .questions-wrapper::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            height: 100%;
-            left: 50%;
-            width: 0;
-            border-left: 1px solid #000;
-        }
-        {% elif col_count == 3 %}
-        .questions-wrapper::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            height: 100%;
-            left: 33.33%;
-            width: 0;
-            border-left: 1px solid #000;
-        }
-        .questions-wrapper::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            height: 100%;
-            left: 66.66%;
-            width: 0;
-            border-left: 1px solid #000;
-        }
-        {% endif %}
-        .questions-flow {
-            {% if col_count == 2 %}
-            column-count: 2;
-            column-fill: auto;
-            column-gap: 16px;
-            {% elif col_count == 3 %}
-            column-count: 3;
-            column-fill: auto;
-            column-gap: 10px;
+        .questions-col {
+            vertical-align: top;
+            {% if col_count == 3 %}
+            width: 33.33%;
+            {% else %}
+            width: 50%;
             {% endif %}
+        }
+        .col-divider {
+            border-left: 1px solid #000;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+        .col-last {
+            padding-right: 8px;
         }
 
         .question-box {
@@ -422,11 +399,12 @@
             direction: rtl;
         }
 
-        .q-option { 
-            display: flex; 
-            align-items: center; 
+        .q-option {
+            display: flex;
+            align-items: center;
             margin-bottom: 5px;
             break-inside: avoid;
+            page-break-inside: avoid;
             min-height: 24px;
         }
         
@@ -737,13 +715,20 @@
     {% endmacro %}
 
     {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
-    <div class="questions-wrapper">
-        <div class="questions-flow">
-            {% for question in questions %}
-                {{ render_question(question, loop.index) }}
+    {% set col_size = (questions|length / col_count)|round(0, 'ceil')|int %}
+    <table class="questions-table">
+        <tr>
+            {% for c in range(col_count) %}
+                {% set start = c * col_size %}
+                {% set end = start + col_size %}
+                <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
+                    {% for question in questions[start:end] %}
+                        {{ render_question(question, start + loop.index) }}
+                    {% endfor %}
+                </td>
             {% endfor %}
-        </div>
-    </div>
+        </tr>
+    </table>
 
     <div class="exam-end">
         <div class="end-text">
