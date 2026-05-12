@@ -1054,7 +1054,24 @@ def create_app():
                 print(f"Warning: Could not calculate unread count: {e}")
                 return {'unread_count': 0}
         return {'unread_count': 0}
-    
+
+    # فلتر BiDi: يلف كل محتوى غير عربي في span dir=ltr لحماية الصيغ الكيميائية في PDF
+    import re as _re
+    from markupsafe import Markup as _Markup
+    _BIDI_SPAN = 'display:inline;direction:ltr;unicode-bidi:isolate;white-space:nowrap;vertical-align:baseline'
+    _NON_AR = _re.compile(r'([^؀-ۿ\s]+(?:\s+[^؀-ۿ\s]+)*)')
+
+    @app.template_filter('bidi_ltr')
+    def bidi_ltr_filter(text):
+        if not text:
+            return ''
+        escaped = str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        result = _NON_AR.sub(
+            lambda m: f'<span dir="ltr" style="{_BIDI_SPAN}">{m.group(1)}</span>',
+            escaped
+        )
+        return _Markup(result)
+
     # تسجيل blueprint الإشعارات - ✅ تسجيل واحد فقط
     try:
         from src.routes.notifications import notifications_bp
@@ -3418,7 +3435,17 @@ def api_send_notification():
                 }), 400
             target_students = Student.query.filter_by(grade=level, is_active=True).all()
             print(f"🔍 إرسال للمستوى {level}: {len(target_students)} طالب")
-        
+
+        elif recipient_type == 'multiple':
+            student_ids_raw = data.get('student_ids', '')
+            if not student_ids_raw:
+                return jsonify({'success': False, 'error': 'student_ids مطلوب'}), 400
+            id_list = [int(x) for x in str(student_ids_raw).split(',') if x.strip().isdigit()]
+            if not id_list:
+                return jsonify({'success': False, 'error': 'معرفات الطلاب غير صحيحة'}), 400
+            target_students = Student.query.filter(Student.id.in_(id_list), Student.is_active == True).all()
+            print(f"🔍 إرسال لقائمة محددة: {len(target_students)} طالب")
+
         if not target_students:
             return jsonify({
                 'success': False,

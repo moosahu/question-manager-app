@@ -681,7 +681,7 @@
                         <div class="q-option">
                             <span class="option-char">{{ letters[i+1] }})</span>
                             <div class="option-content">
-                                {% if opt_b.option_text and not opt_b.option_text.startswith('http') %}<span>{{ opt_b.option_text | replace('/', '⁠/⁠') }}</span>{% endif %}
+                                {% if opt_b.option_text and not opt_b.option_text.startswith('http') %}<span>{{ opt_b.option_text | replace('/', '⁠/⁠') | bidi_ltr }}</span>{% endif %}
                                 {% if opt_b.image_url %}<img src="{{ opt_b.image_url }}" class="option-img">{% elif opt_b.option_text and opt_b.option_text.startswith('http') %}<img src="{{ opt_b.option_text }}" class="option-img">{% endif %}
                             </div>
                         </div>
@@ -691,7 +691,7 @@
                         <div class="q-option">
                             <span class="option-char">{{ letters[i] }})</span>
                             <div class="option-content">
-                                {% if opt_a.option_text and not opt_a.option_text.startswith('http') %}<span>{{ opt_a.option_text | replace('/', '⁠/⁠') }}</span>{% endif %}
+                                {% if opt_a.option_text and not opt_a.option_text.startswith('http') %}<span>{{ opt_a.option_text | replace('/', '⁠/⁠') | bidi_ltr }}</span>{% endif %}
                                 {% if opt_a.image_url %}<img src="{{ opt_a.image_url }}" class="option-img">{% elif opt_a.option_text and opt_a.option_text.startswith('http') %}<img src="{{ opt_a.option_text }}" class="option-img">{% endif %}
                             </div>
                         </div>
@@ -704,8 +704,8 @@
             <table class="opts-grid">
                 {% for i in range(0, q.options|length, 2) %}
                 <tr>
-                    <td><span class="option-char">{{ letters[i+1] }})</span> {{ (q.options[i+1].option_text if q.options[i+1] is defined else '') | replace('/', '⁠/⁠') }}</td>
-                    <td><span class="option-char">{{ letters[i] }})</span> {{ q.options[i].option_text | replace('/', '⁠/⁠') if q.options[i] is defined else '' }}</td>
+                    <td><span class="option-char">{{ letters[i+1] }})</span> {{ (q.options[i+1].option_text if q.options[i+1] is defined else '') | replace('/', '⁠/⁠') | bidi_ltr }}</td>
+                    <td><span class="option-char">{{ letters[i] }})</span> {{ (q.options[i].option_text | replace('/', '⁠/⁠') | bidi_ltr) if q.options[i] is defined else '' }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -715,7 +715,7 @@
                     <div class="q-option">
                         <span class="option-char">{{ letters[loop.index0] }})</span>
                         <div class="option-content">
-                            {% if opt.option_text %}{{ opt.option_text | replace('/', '⁠/⁠') }}{% endif %}
+                            {% if opt.option_text %}{{ opt.option_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
                         </div>
                     </div>
                 {% endfor %}
