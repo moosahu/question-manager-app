@@ -947,14 +947,85 @@ def formula_usage_stats():
             GROUP BY event_type
         """)).fetchall()
 
+        # ① تقدم كل طالب — عدد القوانين المراجعة + نسبة الإتقان
+        total_formulas = db.session.execute(db.text("""
+            SELECT COUNT(*) FROM formulas WHERE is_active = TRUE
+        """)).scalar() or 1
+
+        student_progress = db.session.execute(db.text("""
+            SELECT s.id, s.name,
+                   COUNT(DISTINCT fue.formula_key) AS reviewed,
+                   MAX(fue.created_at)             AS last_active
+            FROM students s
+            JOIN formula_usage_events fue
+              ON fue.student_id = s.id AND fue.event_type = 'review'
+            GROUP BY s.id, s.name
+            ORDER BY reviewed DESC
+        """)).fetchall()
+
+        # ② القوانين المهملة — لم يراجعها أي طالب
+        reviewed_keys = db.session.execute(db.text("""
+            SELECT DISTINCT formula_key FROM formula_usage_events
+            WHERE event_type = 'review' AND formula_key IS NOT NULL
+        """)).fetchall()
+        reviewed_set = {r[0] for r in reviewed_keys}
+
+        all_formula_keys = db.session.execute(db.text("""
+            SELECT course_name, title FROM formulas WHERE is_active = TRUE
+            ORDER BY course_name, sort_order
+        """)).fetchall()
+
+        neglected = [
+            {'key': f'{r[0]}|{r[1]}', 'course': r[0], 'title': r[1]}
+            for r in all_formula_keys
+            if f'{r[0]}|{r[1]}' not in reviewed_set
+        ]
+
+        # ③ تحليل حسب الكورس — مراجعات + مفضلة + فلاش كارد
+        course_breakdown = db.session.execute(db.text("""
+            SELECT
+                SPLIT_PART(formula_key, '|', 1) AS course,
+                SUM(CASE WHEN event_type = 'review'    THEN 1 ELSE 0 END) AS reviews,
+                SUM(CASE WHEN event_type = 'favorite'  THEN 1 ELSE 0 END) AS favorites,
+                SUM(CASE WHEN event_type = 'flashcard' THEN 1 ELSE 0 END) AS flashcards,
+                COUNT(DISTINCT student_id)                                  AS students
+            FROM formula_usage_events
+            WHERE formula_key IS NOT NULL
+            GROUP BY course
+            ORDER BY reviews DESC
+        """)).fetchall()
+
         return jsonify({
             'success': True,
-            'openers_total': total_openers,
-            'openers_today': openers_today,
-            'top_reviewed':  [{'key': r[0], 'count': r[1]} for r in top_reviewed],
-            'top_favorites': [{'key': r[0], 'count': r[1]} for r in top_favorites],
-            'top_flashcard': [{'key': r[0], 'count': r[1]} for r in top_flashcard],
-            'event_totals':  {r[0]: r[1] for r in event_totals},
+            'openers_total':    total_openers,
+            'openers_today':    openers_today,
+            'top_reviewed':     [{'key': r[0], 'count': r[1]} for r in top_reviewed],
+            'top_favorites':    [{'key': r[0], 'count': r[1]} for r in top_favorites],
+            'top_flashcard':    [{'key': r[0], 'count': r[1]} for r in top_flashcard],
+            'event_totals':     {r[0]: r[1] for r in event_totals},
+            'total_formulas':   total_formulas,
+            'student_progress': [
+                {
+                    'id':          r[0],
+                    'name':        r[1],
+                    'reviewed':    r[2],
+                    'pct':         round(r[2] / total_formulas * 100, 1),
+                    'last_active': r[3].isoformat() if r[3] else None,
+                }
+                for r in student_progress
+            ],
+            'neglected':        neglected[:30],  # أول 30 فقط
+            'neglected_count':  len(neglected),
+            'course_breakdown': [
+                {
+                    'course':     r[0],
+                    'reviews':    r[1],
+                    'favorites':  r[2],
+                    'flashcards': r[3],
+                    'students':   r[4],
+                }
+                for r in course_breakdown
+            ],
         })
 
     except Exception as e:
