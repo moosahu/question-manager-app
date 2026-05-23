@@ -850,3 +850,113 @@ def admin_get_questions():
     except Exception as e:
         logger.error(f'❌ admin_get_questions: {e}')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# إحصائيات استخدام شاشة القوانين
+# POST /api/formulas/usage/track   ← Flutter يرسل الحدث
+# GET  /api/formulas/usage/stats   ← أدمن يجلب الإحصائيات
+# ──────────────────────────────────────────────
+
+VALID_EVENTS = {'screen_open', 'review', 'unreviewed', 'favorite', 'unfavorite', 'flashcard'}
+
+@formula_bp.route('/usage/track', methods=['POST'])
+def track_formula_usage():
+    """تسجيل حدث استخدام قانون — يُستدعى من Flutter"""
+    try:
+        data = request.get_json() or {}
+        student_id  = data.get('student_id')
+        event_type  = data.get('event_type', '').strip()
+        formula_key = data.get('formula_key')  # None مسموح لـ screen_open
+
+        if not student_id or not event_type:
+            return jsonify({'success': False, 'error': 'student_id و event_type مطلوبان'}), 400
+
+        if event_type not in VALID_EVENTS:
+            return jsonify({'success': False, 'error': f'event_type غير صالح: {event_type}'}), 400
+
+        db.session.execute(
+            db.text("""
+                INSERT INTO formula_usage_events (student_id, event_type, formula_key, created_at)
+                VALUES (:sid, :etype, :fkey, NOW())
+            """),
+            {'sid': student_id, 'etype': event_type, 'fkey': formula_key}
+        )
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'❌ track_formula_usage: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@formula_bp.route('/usage/stats', methods=['GET'])
+def formula_usage_stats():
+    """إحصائيات استخدام القوانين — للأدمن"""
+    try:
+        # إجمالي الطلاب الذين فتحوا الشاشة (فريدون)
+        total_openers = db.session.execute(db.text("""
+            SELECT COUNT(DISTINCT student_id)
+            FROM formula_usage_events
+            WHERE event_type = 'screen_open'
+        """)).scalar() or 0
+
+        # فتح الشاشة اليوم
+        openers_today = db.session.execute(db.text("""
+            SELECT COUNT(DISTINCT student_id)
+            FROM formula_usage_events
+            WHERE event_type = 'screen_open'
+              AND created_at >= NOW() - INTERVAL '1 day'
+        """)).scalar() or 0
+
+        # أكثر القوانين مراجعةً (Top 10)
+        top_reviewed = db.session.execute(db.text("""
+            SELECT formula_key, COUNT(*) as cnt
+            FROM formula_usage_events
+            WHERE event_type = 'review' AND formula_key IS NOT NULL
+            GROUP BY formula_key
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)).fetchall()
+
+        # أكثر القوانين إضافةً للمفضلة (Top 10)
+        top_favorites = db.session.execute(db.text("""
+            SELECT formula_key, COUNT(*) as cnt
+            FROM formula_usage_events
+            WHERE event_type = 'favorite' AND formula_key IS NOT NULL
+            GROUP BY formula_key
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)).fetchall()
+
+        # أكثر القوانين استخداماً في الفلاش كارد (Top 10)
+        top_flashcard = db.session.execute(db.text("""
+            SELECT formula_key, COUNT(*) as cnt
+            FROM formula_usage_events
+            WHERE event_type = 'flashcard' AND formula_key IS NOT NULL
+            GROUP BY formula_key
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)).fetchall()
+
+        # إجمالي أحداث كل نوع
+        event_totals = db.session.execute(db.text("""
+            SELECT event_type, COUNT(*) as cnt
+            FROM formula_usage_events
+            GROUP BY event_type
+        """)).fetchall()
+
+        return jsonify({
+            'success': True,
+            'openers_total': total_openers,
+            'openers_today': openers_today,
+            'top_reviewed':  [{'key': r[0], 'count': r[1]} for r in top_reviewed],
+            'top_favorites': [{'key': r[0], 'count': r[1]} for r in top_favorites],
+            'top_flashcard': [{'key': r[0], 'count': r[1]} for r in top_flashcard],
+            'event_totals':  {r[0]: r[1] for r in event_totals},
+        })
+
+    except Exception as e:
+        logger.error(f'❌ formula_usage_stats: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
