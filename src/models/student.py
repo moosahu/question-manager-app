@@ -42,10 +42,10 @@ class Student(db.Model, UserMixin):
     allowed_designs = db.Column(db.String(100), nullable=True) # "1,3,5" أو null=الكل
 
     # ✅ جديد: بيانات الجهاز للتسجيل من جهاز واحد
-    device_id = db.Column(EncryptedString(500), nullable=True)
+    device_id = db.Column(db.String(500), nullable=True)
     device_name = db.Column(db.String(255), nullable=True)
     last_device_login = db.Column(db.DateTime, nullable=True)
-    session_token = db.Column(EncryptedString(1000), nullable=True)
+    session_token = db.Column(db.String(1000), nullable=True)
 
     def set_email(self, email):
         """يحفظ الإيميل مشفراً ويحدّث الـ hash للبحث"""
@@ -112,7 +112,6 @@ class Student(db.Model, UserMixin):
             db.or_(
                 Student.name.ilike(search),
                 Student.username.ilike(search),
-                Student.phone.ilike(search),
                 Student.school.ilike(search)
             )
         ).all()

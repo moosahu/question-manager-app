@@ -20,12 +20,14 @@ try:
     from src.services.diagnostic_service import diagnostic_service
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.student import Student
+    from src.utils.field_encryption import make_email_hash
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.diagnostic_test import DiagnosticTest, DiagnosticResult, DiagnosticComparison
     from services.diagnostic_service import diagnostic_service
     from models.curriculum import Lesson, Unit, Course
     from models.student import Student
+    from utils.field_encryption import make_email_hash
 
 # ✅ استيراد موديل الإشعارات لحفظها في قاعدة البيانات
 try:
@@ -1693,7 +1695,7 @@ def get_student_assigned_tests():
                             username = cookie_name.replace('student_session_', '')
                             student = Student.query.filter_by(username=username).first()
                             if not student:
-                                student = Student.query.filter_by(email=username).first()
+                                student = Student.query.filter_by(email_hash=make_email_hash(username)).first()
                             if student:
                                 student_id = student.id
                                 print(f"✅ Got student_id from session cookie: {student_id} (username: {username})")

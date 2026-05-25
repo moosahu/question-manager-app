@@ -10,6 +10,7 @@ from src.models.teacher import Teacher  # ✅ جديد
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
 from src.middleware.auth_middleware import create_student_token, create_teacher_token
+from src.utils.field_encryption import make_email_hash
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -307,7 +308,7 @@ def register_student():
             }), 400
         
         # التحقق من عدم تكرار الإيميل
-        if Student.query.filter_by(email=email).first():
+        if Student.query.filter_by(email_hash=make_email_hash(email)).first():
             return jsonify({
                 'success': False,
                 'error': 'الإيميل مسجل مسبقاً'
@@ -453,7 +454,7 @@ def register_teacher():
             }), 400
         
         # التحقق من عدم تكرار الإيميل
-        if Teacher.query.filter_by(email=email).first():
+        if Teacher.query.filter_by(email_hash=make_email_hash(email)).first():
             return jsonify({
                 'success': False,
                 'error': 'الإيميل مسجل مسبقاً'
@@ -569,7 +570,7 @@ def verify_code():
             if is_teacher:
                 if Teacher.query.filter_by(username=verification.username).first():
                     return jsonify({'success': False, 'error': 'اسم المستخدم أصبح محجوزاً'}), 400
-                if Teacher.query.filter_by(email=verification.email).first():
+                if Teacher.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                     return jsonify({'success': False, 'error': 'الإيميل أصبح مسجلاً'}), 400
                 
                 teacher = Teacher(
@@ -600,7 +601,7 @@ def verify_code():
             else:
                 if Student.query.filter_by(username=verification.username).first():
                     return jsonify({'success': False, 'error': 'اسم المستخدم أصبح محجوزاً'}), 400
-                if Student.query.filter_by(email=verification.email).first():
+                if Student.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                     return jsonify({'success': False, 'error': 'الإيميل أصبح مسجلاً'}), 400
                 
                 student = Student(
@@ -648,7 +649,7 @@ def verify_code():
                     'error': 'اسم المستخدم أصبح محجوزاً. يرجى إعادة التسجيل'
                 }), 400
             
-            if Teacher.query.filter_by(email=verification.email).first():
+            if Teacher.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                 return jsonify({
                     'success': False,
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
@@ -706,7 +707,7 @@ def verify_code():
                     'error': 'اسم المستخدم أصبح محجوزاً. يرجى إعادة التسجيل'
                 }), 400
             
-            if Student.query.filter_by(email=verification.email).first():
+            if Student.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                 return jsonify({
                     'success': False,
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
@@ -822,7 +823,7 @@ def verify_phone_code():
         if is_teacher:
             # ==================== إنشاء حساب معلم ====================
             if Teacher.query.filter_by(username=verification.username).first() or \
-               Teacher.query.filter_by(email=verification.email).first():
+               Teacher.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                 return jsonify({
                     'success': False,
                     'error': 'اسم المستخدم أو الإيميل أصبح محجوزاً.'
@@ -853,7 +854,7 @@ def verify_phone_code():
         else:
             # ==================== إنشاء حساب طالب ====================
             if Student.query.filter_by(username=verification.username).first() or \
-               Student.query.filter_by(email=verification.email).first():
+               Student.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                 return jsonify({
                     'success': False,
                     'error': 'اسم المستخدم أو الإيميل أصبح محجوزاً.'
@@ -920,10 +921,10 @@ def activate_after_phone():
         
         if account_type == 'teacher':
             # تفعيل حساب معلم
-            user = Teacher.query.filter_by(email=email).first()
+            user = Teacher.query.filter_by(email_hash=make_email_hash(email)).first()
         else:
             # تفعيل حساب طالب
-            user = Student.query.filter_by(email=email).first()
+            user = Student.query.filter_by(email_hash=make_email_hash(email)).first()
         
         if not user:
             return jsonify({

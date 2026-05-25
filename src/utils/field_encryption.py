@@ -11,15 +11,16 @@ import hashlib
 import hmac
 import base64
 import logging
+from typing import Optional
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import types
 
 logger = logging.getLogger(__name__)
 
-_cipher: Fernet | None = None
+_cipher = None  # type: Optional[Fernet]
 
 
-def _get_cipher() -> Fernet:
+def _get_cipher():
     global _cipher
     if _cipher is not None:
         return _cipher
@@ -38,7 +39,7 @@ def _get_cipher() -> Fernet:
     return _cipher
 
 
-def encrypt(value: str | None) -> str | None:
+def encrypt(value):
     """يشفّر النص — يرجع None لو القيمة None"""
     if value is None:
         return None
@@ -49,7 +50,7 @@ def encrypt(value: str | None) -> str | None:
         raise
 
 
-def decrypt(value: str | None) -> str | None:
+def decrypt(value):
     """يفك تشفير النص — يرجع None لو القيمة None أو غير مشفرة"""
     if value is None:
         return None
@@ -63,7 +64,7 @@ def decrypt(value: str | None) -> str | None:
         return value
 
 
-def make_email_hash(email: str | None) -> str | None:
+def make_email_hash(email):
     """HMAC-SHA256 للإيميل — للبحث والتحقق من التفرد بدون فك التشفير"""
     if not email:
         return None

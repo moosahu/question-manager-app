@@ -10,6 +10,7 @@ from src.extensions import db
 from src.models.student import Student
 from src.models.password_reset import PasswordReset
 from src.services.email_service import email_service
+from src.utils.field_encryption import make_email_hash
 
 
 def _make_reset_token(reset_id: int) -> str:
@@ -51,7 +52,7 @@ def request_password_reset():
             }), 400
         
         # البحث عن الطالب بالبريد الإلكتروني
-        student = Student.query.filter_by(email=email).first()
+        student = Student.query.filter_by(email_hash=make_email_hash(email)).first()
 
         if not student:
             # نُرجع نفس الرسالة لمنع اكتشاف الحسابات المسجلة
@@ -135,7 +136,7 @@ def verify_reset_code():
             }), 400
         
         # البحث عن الطالب
-        student = Student.query.filter_by(email=email).first()
+        student = Student.query.filter_by(email_hash=make_email_hash(email)).first()
         
         if not student:
             return jsonify({
@@ -289,7 +290,7 @@ def resend_reset_code():
             }), 400
         
         # البحث عن الطالب
-        student = Student.query.filter_by(email=email).first()
+        student = Student.query.filter_by(email_hash=make_email_hash(email)).first()
         
         if not student:
             # البريد غير موجود

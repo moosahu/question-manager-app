@@ -10,6 +10,7 @@ from src.models.teacher import Teacher
 from src.models.student import Student
 from src.models.email_verification import RegistrationSettings  # ✅ جديد
 from src.middleware.auth_middleware import verify_teacher_token
+from src.utils.field_encryption import make_email_hash
 from functools import wraps
 from datetime import datetime
 
@@ -91,7 +92,7 @@ def add_teacher():
                 return render_template('teachers/add.html')
 
         # التحقق من عدم تكرار البريد
-        if email and Teacher.query.filter_by(email=email).first():
+        if email and Teacher.query.filter_by(email_hash=make_email_hash(email)).first():
             flash('البريد الإلكتروني موجود مسبقاً', 'danger')
             return render_template('teachers/add.html')
 

@@ -47,10 +47,10 @@ class Teacher(db.Model, UserMixin):
     notifications_enabled = db.Column(db.Boolean, default=True)
 
     # بيانات الجهاز
-    device_id = db.Column(EncryptedString(500), nullable=True)
+    device_id = db.Column(db.String(500), nullable=True)
     device_name = db.Column(db.String(255), nullable=True)
     last_device_login = db.Column(db.DateTime, nullable=True)
-    session_token = db.Column(EncryptedString(1000), nullable=True)
+    session_token = db.Column(db.String(1000), nullable=True)
 
     @staticmethod
     def generate_class_code():
@@ -127,7 +127,6 @@ class Teacher(db.Model, UserMixin):
             db.or_(
                 Teacher.name.ilike(search),
                 Teacher.username.ilike(search),
-                Teacher.phone.ilike(search),
                 Teacher.school.ilike(search)
             )
         ).all()

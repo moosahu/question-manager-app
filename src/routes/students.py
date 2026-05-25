@@ -10,6 +10,7 @@ from src.extensions import db
 from src.models.student import Student
 from functools import wraps
 from src.middleware.auth_middleware import create_student_token
+from src.utils.field_encryption import make_email_hash
 from datetime import datetime
 import secrets
 import pytz  # ✅ إضافة لنظام التوقيت الذكي
@@ -154,7 +155,7 @@ def add_student():
             return render_template('students/add.html')
         
         # التحقق من عدم تكرار البريد
-        if email and Student.query.filter_by(email=email).first():
+        if email and Student.query.filter_by(email_hash=make_email_hash(email)).first():
             flash('البريد الإلكتروني موجود مسبقاً', 'danger')
             return render_template('students/add.html')
         
@@ -2461,7 +2462,7 @@ def api_mobile_add_student():
     if Student.query.filter_by(username=username).first():
         return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
 
-    if email and Student.query.filter_by(email=email).first():
+    if email and Student.query.filter_by(email_hash=make_email_hash(email)).first():
         return jsonify({'success': False, 'error': 'البريد الإلكتروني موجود مسبقاً'}), 409
 
     student = Student(
