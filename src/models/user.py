@@ -17,6 +17,7 @@ except ImportError:
         SystemNotifications = None
         notifications_available = False
 from src.extensions import db
+from src.utils.field_encryption import EncryptedString, make_email_hash
 
 
 class User(db.Model, UserMixin):
@@ -25,15 +26,16 @@ class User(db.Model, UserMixin):
     id              = db.Column(db.Integer, primary_key=True)
     username        = db.Column(db.String(80), unique=True, nullable=False)
     full_name       = db.Column(db.String(100), nullable=True)
-    email            = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash   = db.Column(db.String(256), nullable=False)  # Increased length for stronger hashes
+    email            = db.Column(EncryptedString(500), nullable=False)
+    email_hash       = db.Column(db.String(100), nullable=True, index=True)
+    password_hash   = db.Column(db.String(256), nullable=False)
     is_admin        = db.Column(db.Boolean, default=False)
     two_factor_auth = db.Column(db.Boolean, default=False, nullable=False)
     totp_secret     = db.Column(db.String(32), nullable=True)
-    phone_number    = db.Column(db.String(20), nullable=True)  # للتحقق عبر SMS
-    trusted_device_token = db.Column(db.String(128), nullable=True)  # توكن الجهاز الموثوق
-    trusted_device_expires = db.Column(db.DateTime, nullable=True)   # تاريخ انتهاء التوكن
-    fcm_token = db.Column(db.String(500), nullable=True)  # FCM token للإشعارات في التطبيق
+    phone_number    = db.Column(EncryptedString(500), nullable=True)
+    trusted_device_token = db.Column(EncryptedString(500), nullable=True)
+    trusted_device_expires = db.Column(db.DateTime, nullable=True)
+    fcm_token = db.Column(EncryptedString(1000), nullable=True)
 
     # كود ربط الطلاب بالأدمن — نفس منطق المعلمين
     class_code = db.Column(db.String(10), unique=True, nullable=True)

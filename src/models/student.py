@@ -1,6 +1,7 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from src.extensions import db
+from src.utils.field_encryption import EncryptedString, make_email_hash
 from datetime import datetime
 
 
@@ -13,8 +14,9 @@ class Student(db.Model, UserMixin):
     # البيانات الأساسية
     name = db.Column(db.String(100), nullable=False)  # اسم الطالب
     username = db.Column(db.String(80), unique=True, nullable=False)  # اسم المستخدم للدخول
-    email = db.Column(db.String(120), unique=True, nullable=True)  # البريد (اختياري)
-    phone = db.Column(db.String(20), nullable=True)  # رقم الجوال
+    email = db.Column(EncryptedString(500), nullable=True)
+    email_hash = db.Column(db.String(100), nullable=True, index=True)
+    phone = db.Column(EncryptedString(500), nullable=True)
     password_hash = db.Column(db.String(256), nullable=False)
     
     # معلومات إضافية
@@ -32,7 +34,7 @@ class Student(db.Model, UserMixin):
     notes = db.Column(db.Text, nullable=True)
     
     # Firebase Cloud Messaging Token
-    fcm_token = db.Column(db.String(500), nullable=True)  # للإشعارات
+    fcm_token = db.Column(EncryptedString(1000), nullable=True)
     fcm_token_updated_at = db.Column(db.DateTime, nullable=True)  # آخر تحديث للـ FCM Token
 
     # ✅ اختبار التصاميم — الأدمن يفعّل لطلاب محددين
@@ -40,10 +42,15 @@ class Student(db.Model, UserMixin):
     allowed_designs = db.Column(db.String(100), nullable=True) # "1,3,5" أو null=الكل
 
     # ✅ جديد: بيانات الجهاز للتسجيل من جهاز واحد
-    device_id = db.Column(db.String(255), nullable=True)  # معرف الجهاز الفريد
-    device_name = db.Column(db.String(255), nullable=True)  # اسم الجهاز
-    last_device_login = db.Column(db.DateTime, nullable=True)  # آخر تسجيل دخول من الجهاز
-    session_token = db.Column(db.String(255), nullable=True)  # توكن الجلسة (للأمان الإضافي)
+    device_id = db.Column(EncryptedString(500), nullable=True)
+    device_name = db.Column(db.String(255), nullable=True)
+    last_device_login = db.Column(db.DateTime, nullable=True)
+    session_token = db.Column(EncryptedString(1000), nullable=True)
+
+    def set_email(self, email):
+        """يحفظ الإيميل مشفراً ويحدّث الـ hash للبحث"""
+        self.email = email
+        self.email_hash = make_email_hash(email)
 
     def set_password(self, password):
         """تشفير كلمة المرور"""

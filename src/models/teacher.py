@@ -5,6 +5,7 @@ Teacher Model - موديل المعلم
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from src.extensions import db
+from src.utils.field_encryption import EncryptedString, make_email_hash
 from datetime import datetime
 import secrets
 import string
@@ -19,8 +20,9 @@ class Teacher(db.Model, UserMixin):
     # البيانات الأساسية
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=True)
-    phone = db.Column(db.String(20), nullable=True)
+    email = db.Column(EncryptedString(500), nullable=True)
+    email_hash = db.Column(db.String(100), nullable=True, index=True)
+    phone = db.Column(EncryptedString(500), nullable=True)
     password_hash = db.Column(db.String(256), nullable=False)
     
     # معلومات إضافية
@@ -40,15 +42,15 @@ class Teacher(db.Model, UserMixin):
     class_code = db.Column(db.String(10), unique=True, nullable=True)
     
     # Firebase Cloud Messaging Token
-    fcm_token = db.Column(db.String(500), nullable=True)
+    fcm_token = db.Column(EncryptedString(1000), nullable=True)
     fcm_token_updated_at = db.Column(db.DateTime, nullable=True)
     notifications_enabled = db.Column(db.Boolean, default=True)
 
     # بيانات الجهاز
-    device_id = db.Column(db.String(255), nullable=True)
+    device_id = db.Column(EncryptedString(500), nullable=True)
     device_name = db.Column(db.String(255), nullable=True)
     last_device_login = db.Column(db.DateTime, nullable=True)
-    session_token = db.Column(db.String(255), nullable=True)
+    session_token = db.Column(EncryptedString(1000), nullable=True)
 
     @staticmethod
     def generate_class_code():
@@ -64,6 +66,10 @@ class Teacher(db.Model, UserMixin):
         if not self.class_code:
             self.class_code = Teacher.generate_class_code()
         return self.class_code
+
+    def set_email(self, email):
+        self.email = email
+        self.email_hash = make_email_hash(email)
 
     def set_password(self, password):
         """تشفير كلمة المرور"""
