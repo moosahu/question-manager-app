@@ -4010,6 +4010,11 @@ def generate_exam():
         unit_distribution = data.get("unit_distribution", {})
         manual_question_ids = list(data.get("question_ids", []))  # اختيار يدوي
 
+        # ── عدد كل نوع سؤال لحاله (اختياري) — مثال: {"mcq": 20, "true_false": 5} ──
+        type_counts = data.get("type_counts")
+        if type_counts:
+            question_count = sum(int(v) for v in type_counts.values())
+
         # ── فلاتر ──────────────────────────────────────────────────
         difficulty_filter = data.get("difficulty", [])   # [] = كل الصعوبات
         bloom_filter      = data.get("bloom_levels", []) # [] = كل المستويات
@@ -4133,6 +4138,19 @@ def generate_exam():
                 if shuffle_questions: _random.shuffle(result)
                 return result[:question_count]
 
+        # ── اختيار حسب عدد كل نوع لحاله (type_counts) — mcq أولاً ثم true_false ──
+        def select_questions_by_type(pool, counts, rng=None):
+            shuffler = rng.shuffle if rng else _random.shuffle
+            result = []
+            for qtype in EXAM_SUPPORTED_TYPES:
+                cnt = int(counts.get(qtype, 0))
+                if cnt <= 0:
+                    continue
+                type_pool = [q for q in pool if q.question_type == qtype]
+                shuffler(type_pool)
+                result.extend(type_pool[:cnt])
+            return result
+
         # ── دالة التنسيق ──────────────────────────────────────────────
         def format_selected(qs_list):
             formatted = []
@@ -4216,15 +4234,18 @@ def generate_exam():
 
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
-                selected = select_questions(available)
-                if _stable_seed is None and shuffle_questions:
-                    _random.shuffle(selected)
-                if mode != "manual":
-                    # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها
-                    # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
-                    mcq_group = [q for q in selected if q.question_type != 'true_false']
-                    tf_group = [q for q in selected if q.question_type == 'true_false']
-                    selected = mcq_group + tf_group
+                if type_counts:
+                    selected = select_questions_by_type(available, type_counts)
+                else:
+                    selected = select_questions(available)
+                    if _stable_seed is None and shuffle_questions:
+                        _random.shuffle(selected)
+                    if mode != "manual":
+                        # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها
+                        # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
+                        mcq_group = [q for q in selected if q.question_type != 'true_false']
+                        tf_group = [q for q in selected if q.question_type == 'true_false']
+                        selected = mcq_group + tf_group
                 gen_questions = to_gen_questions(format_selected(selected))
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
@@ -4242,14 +4263,17 @@ def generate_exam():
                 import fitz  # PyMuPDF موجود في requirements
                 merged = fitz.open()
                 for i in range(models_count):
-                    selected_i = select_questions(available)
                     rng = _random.Random(_stable_seed + i * 31337 if _stable_seed is not None else None)
-                    rng.shuffle(selected_i)
-                    if mode != "manual":
-                        # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها (لكل نموذج على حدة)
-                        mcq_group_i = [q for q in selected_i if q.question_type != 'true_false']
-                        tf_group_i = [q for q in selected_i if q.question_type == 'true_false']
-                        selected_i = mcq_group_i + tf_group_i
+                    if type_counts:
+                        selected_i = select_questions_by_type(available, type_counts, rng=rng)
+                    else:
+                        selected_i = select_questions(available)
+                        rng.shuffle(selected_i)
+                        if mode != "manual":
+                            # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها (لكل نموذج على حدة)
+                            mcq_group_i = [q for q in selected_i if q.question_type != 'true_false']
+                            tf_group_i = [q for q in selected_i if q.question_type == 'true_false']
+                            selected_i = mcq_group_i + tf_group_i
                     gen_questions_i = to_gen_questions(format_selected(selected_i))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
@@ -4289,7 +4313,10 @@ def generate_exam():
 
         # ── JSON: نماذج متعددة ────────────────────────────────────────
         model_letters = ['أ', 'ب', 'ج', 'د']
-        base_selected = select_questions(available)
+        if type_counts:
+            base_selected = select_questions_by_type(available, type_counts)
+        else:
+            base_selected = select_questions(available)
 
         if models_count > 1:
             models_result = []
