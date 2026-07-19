@@ -4169,6 +4169,7 @@ def generate_exam():
                         'options':           [],
                         'correct_option_id': fq.get('correct_option_id'),
                         'image_url':         fq.get('image_url'),
+                        'question_type':     fq.get('question_type', 'mcq'),
                     }
                     for opt in fq.get('options', []):
                         gen_q['options'].append({
@@ -4218,6 +4219,12 @@ def generate_exam():
                 selected = select_questions(available)
                 if _stable_seed is None and shuffle_questions:
                     _random.shuffle(selected)
+                if mode != "manual":
+                    # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها
+                    # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
+                    mcq_group = [q for q in selected if q.question_type != 'true_false']
+                    tf_group = [q for q in selected if q.question_type == 'true_false']
+                    selected = mcq_group + tf_group
                 gen_questions = to_gen_questions(format_selected(selected))
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
@@ -4238,6 +4245,11 @@ def generate_exam():
                     selected_i = select_questions(available)
                     rng = _random.Random(_stable_seed + i * 31337 if _stable_seed is not None else None)
                     rng.shuffle(selected_i)
+                    if mode != "manual":
+                        # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها (لكل نموذج على حدة)
+                        mcq_group_i = [q for q in selected_i if q.question_type != 'true_false']
+                        tf_group_i = [q for q in selected_i if q.question_type == 'true_false']
+                        selected_i = mcq_group_i + tf_group_i
                     gen_questions_i = to_gen_questions(format_selected(selected_i))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,

@@ -446,6 +446,24 @@
             justify-content: flex-start;
         }
 
+        /* جدول سؤال صح/خطأ — عمودين ثابتين بدل قائمة أ/ب/ج/د */
+        .tf-table {
+            width: 50%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-right: 8px;
+            margin-top: 8px;
+            border: 1px solid #333;
+        }
+
+        .tf-cell {
+            width: 50%;
+            padding: 6px 4px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #333;
+        }
+
         /* =============================================
            خاتمة الاختبار 
            =============================================
@@ -649,6 +667,16 @@
             <img src="{{ q.image_url }}" class="q-image" alt="diagram">
         {% endif %}
 
+        {% if q.question_type == 'true_false' %}
+            <table class="tf-table">
+                <tr>
+                    {% for opt in q.options %}
+                    <td class="tf-cell">{{ opt.option_text }}</td>
+                    {% endfor %}
+                </tr>
+            </table>
+        {% else %}
+
         {% set has_img_opts = [] %}
         {% for opt in q.options %}
             {% if opt.image_url or (opt.option_text and opt.option_text.startswith('http')) %}
@@ -709,6 +737,8 @@
             {% endif %}
         {% endif %}
 
+        {% endif %}
+
     </div>
     {% endmacro %}
 
@@ -757,7 +787,11 @@
                         <strong>
                             {% for option in question.options %}
                                 {% if option.is_correct %}
-                                    {{ letters[loop.index0] }}
+                                    {% if question.question_type == 'true_false' %}
+                                        {{ option.option_text }}
+                                    {% else %}
+                                        {{ letters[loop.index0] }}
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
                         </strong>

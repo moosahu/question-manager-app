@@ -169,7 +169,8 @@ class ExamGenerator:
                 'points':        question.get('points', 1),
                 'image_url':     question.get('image_url'),
                 'options':       [],
-                'correct_answer': ''
+                'correct_answer': '',
+                'question_type': question.get('question_type', 'mcq'),
             }
             options = question.get('options', [])
             for idx, option in enumerate(options):
@@ -185,7 +186,12 @@ class ExamGenerator:
                     'is_correct':  is_correct,
                 })
                 if is_correct and show_answers:
-                    formatted_q['correct_answer'] = letter
+                    # لسؤال صح/خطأ نعرض النص نفسه ("صح"/"خطأ") بدل الحرف — أوضح بمفتاح الإجابة
+                    formatted_q['correct_answer'] = (
+                        option.get('option_text', letter)
+                        if formatted_q['question_type'] == 'true_false'
+                        else letter
+                    )
             context['questions'].append(formatted_q)
         return context
 
