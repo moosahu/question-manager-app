@@ -19,9 +19,9 @@ from flask import (
 )
 from flask_login import login_required, current_user
 try:
-    from src.routes.api import teacher_or_admin_required
+    from src.routes.api import teacher_or_admin_required, format_question
 except ImportError:
-    from routes.api import teacher_or_admin_required
+    from routes.api import teacher_or_admin_required, format_question
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError, DBAPIError
@@ -272,6 +272,14 @@ def format_text_for_print(text):
     return Markup(formatted)
 
 
+# أنواع الأسئلة المدعومة حالياً بتوليد ملفات الامتحان (PDF).
+# تُوسَّع تدريجياً — راجع خطة دمج الأنواع الجديدة بالامتحان قبل أي تعديل هنا.
+EXAM_SUPPORTED_TYPES = ['mcq', 'true_false']
+
+# أنواع تُستبعد دائماً من ورقة التظليل (OMR) — لا توجد فقاعة تظليل ممكنة لإجابة نصية حرة
+OMR_EXCLUDED_TYPES = ('fill_blank', 'essay')
+
+
 def get_ordered_questions(question_ids):
     """
     جلب الأسئلة مرتبة حسب الوحدة ثم الدرس (باستخدام order_num)
@@ -281,10 +289,9 @@ def get_ordered_questions(question_ids):
     
     try:
         # جلب الأسئلة مرتبة حسب ترتيب الوحدة ثم الدرس
-        # استبعاد الأنواع الجديدة (غير MCQ) — تخطيط الامتحان الحالي (ورقة تظليل) يدعم MCQ فقط
         questions = Question.query.filter(
             Question.question_id.in_(question_ids),
-            Question.question_type == 'mcq'
+            Question.question_type.in_(EXAM_SUPPORTED_TYPES)
         ).join(
             Lesson, Question.lesson_id == Lesson.id
         ).join(
@@ -301,8 +308,93 @@ def get_ordered_questions(question_ids):
         # في حالة فشل الترتيب، نرجع الأسئلة بدون ترتيب
         return Question.query.filter(
             Question.question_id.in_(question_ids),
-            Question.question_type == 'mcq'
+            Question.question_type.in_(EXAM_SUPPORTED_TYPES)
         ).all()
+
+
+def get_ordered_questions_for_omr(question_ids):
+    """
+    مثل get_ordered_questions لكن تستبعد دائماً الأنواع غير المتوافقة مع ورقة التظليل
+    (fill_blank/essay — لا توجد فقاعة تظليل ممكنة لإجابة نصية حرة).
+    تُستخدم فقط بمسارات ورقة التظليل (OMR)، وليس بمسارات PDF العادي.
+    """
+    questions = get_ordered_questions(question_ids)
+    return [q for q in questions if q.question_type not in OMR_EXCLUDED_TYPES]
+
+
+# ============================================================
+# API خاص بشاشة استخراج الاختبار (export_exam.html) — إداري فقط (login_required)
+# منفصل تماماً عن /api/v1/* الذي يستهلكه تطبيق الطالب (الاختبار التفاعلي يبقى MCQ فقط دائماً).
+# هذا الـ API يدعم كل الأنواع المذكورة في EXAM_SUPPORTED_TYPES.
+# ============================================================
+
+@question_bp.route("/exam-api/lessons/<int:lesson_id>/questions", methods=["GET"])
+@login_required
+def exam_api_lesson_questions(lesson_id):
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        return jsonify({"error": "Lesson not found"}), 404
+    is_bank = bool(lesson.unit.course.is_bank) if lesson.unit and lesson.unit.course else False
+    questions = (
+        Question.query
+        .options(joinedload(Question.options))
+        .filter(Question.lesson_id == lesson_id)
+        .filter(Question.is_blocked == False)
+        .filter(Question.is_bank == is_bank)
+        .filter(Question.question_type.in_(EXAM_SUPPORTED_TYPES))
+        .order_by(Question.question_id)
+        .all()
+    )
+    return jsonify([format_question(q) for q in questions])
+
+
+@question_bp.route("/exam-api/courses/<int:course_id>/questions", methods=["GET"])
+@login_required
+def exam_api_course_questions(course_id):
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+    show_all = request.args.get('show_all', 'false').lower() == 'true'
+    is_bank = bool(course.is_bank)
+    query = (
+        Question.query
+        .join(Question.lesson)
+        .join(Lesson.unit)
+        .join(Unit.course)
+        .options(joinedload(Question.options))
+        .filter(Unit.course_id == course_id)
+        .filter(Question.is_blocked == False)
+        .filter(Question.is_bank == is_bank)
+        .filter(Question.question_type.in_(EXAM_SUPPORTED_TYPES))
+    )
+    if not show_all:
+        query = query.filter(Course.show_in_bot == True)
+    questions = query.order_by(Question.question_id).all()
+    return jsonify([format_question(q) for q in questions])
+
+
+@question_bp.route("/exam-api/courses/<int:course_id>/units/<int:unit_id>/questions", methods=["GET"])
+@login_required
+def exam_api_course_unit_questions(course_id, unit_id):
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+    unit = Unit.query.filter_by(id=unit_id, course_id=course_id).first()
+    if not unit:
+        return jsonify({"error": f"Unit {unit_id} not found in course {course_id}"}), 404
+    is_bank = bool(course.is_bank)
+    questions = (
+        Question.query
+        .join(Question.lesson)
+        .options(joinedload(Question.options))
+        .filter(Lesson.unit_id == unit_id)
+        .filter(Question.is_blocked == False)
+        .filter(Question.is_bank == is_bank)
+        .filter(Question.question_type.in_(EXAM_SUPPORTED_TYPES))
+        .order_by(Question.question_id)
+        .all()
+    )
+    return jsonify([format_question(q) for q in questions])
 
 
 # --- save_upload function (Modified for Cloudinary) --- #

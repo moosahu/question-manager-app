@@ -3465,14 +3465,16 @@ async function loadQuestions() {
     selectedQuestionIds.clear();
     
     try {
-        let endpoint = `${API_BASE}/courses/${currentCourseId}/questions`;
-        
+        // ملاحظة: نستخدم /questions/exam-api (إداري، login_required) وليس ${API_BASE} (/api/v1)
+        // لأن /api/v1 هو نفسه ما يستهلكه تطبيق الطالب للاختبار التفاعلي، ويجب أن يبقى MCQ فقط دائماً.
+        let endpoint = `/questions/exam-api/courses/${currentCourseId}/questions`;
+
         if (currentLessonId) {
-            endpoint = `${API_BASE}/lessons/${currentLessonId}/questions`;
+            endpoint = `/questions/exam-api/lessons/${currentLessonId}/questions`;
         } else if (currentUnitId) {
-            endpoint = `${API_BASE}/courses/${currentCourseId}/units/${currentUnitId}/questions`;
+            endpoint = `/questions/exam-api/courses/${currentCourseId}/units/${currentUnitId}/questions`;
         }
-        
+
         const response = await fetch(endpoint);
         const data = await response.json();
         
@@ -5101,7 +5103,7 @@ async function loadQuestionsFromSelectedCourses() {
             count++;
             console.log(`⏳ تحميل ${count}/${total}...`);
             
-            const endpoint = `${API_BASE}/courses/${courseId}/questions`;
+            const endpoint = `/questions/exam-api/courses/${courseId}/questions`;
             const response = await fetch(endpoint);
             
             if (!response.ok) {
