@@ -4028,8 +4028,17 @@ def generate_exam():
         # ── مصدر الأسئلة: regular | bank | both ──────────────────────
         question_source = data.get('source', 'regular')  # 'regular' | 'bank' | 'both'
 
+        # ── أنواع الأسئلة المدعومة بتوليد الامتحان (نفس القائمة المستخدمة بشاشة الويب) ──
+        try:
+            from src.routes.question import EXAM_SUPPORTED_TYPES
+        except ImportError:
+            from routes.question import EXAM_SUPPORTED_TYPES
+
         # ── بناء قاعدة الأسئلة ───────────────────────────────────────
-        base_query = Question.query.filter(Question.is_blocked == False)
+        base_query = Question.query.filter(
+            Question.is_blocked == False,
+            Question.question_type.in_(EXAM_SUPPORTED_TYPES)
+        )
         if question_source == 'bank':
             base_query = base_query.filter(Question.is_bank == True)
         elif question_source == 'both':
@@ -4062,7 +4071,8 @@ def generate_exam():
         if manual_question_ids:
             id_to_q = {q.question_id: q for q in Question.query.filter(
                 Question.question_id.in_(manual_question_ids),
-                Question.is_blocked == False
+                Question.is_blocked == False,
+                Question.question_type.in_(EXAM_SUPPORTED_TYPES)
             ).all()}
             available = [id_to_q[qid] for qid in manual_question_ids if qid in id_to_q]
             mode = "manual"

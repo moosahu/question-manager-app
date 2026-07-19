@@ -329,7 +329,7 @@ def get_ordered_questions_for_omr(question_ids):
 # ============================================================
 
 @question_bp.route("/exam-api/lessons/<int:lesson_id>/questions", methods=["GET"])
-@login_required
+@teacher_or_admin_required
 def exam_api_lesson_questions(lesson_id):
     lesson = Lesson.query.get(lesson_id)
     if not lesson:
@@ -349,7 +349,7 @@ def exam_api_lesson_questions(lesson_id):
 
 
 @question_bp.route("/exam-api/courses/<int:course_id>/questions", methods=["GET"])
-@login_required
+@teacher_or_admin_required
 def exam_api_course_questions(course_id):
     course = Course.query.get(course_id)
     if not course:
@@ -373,8 +373,33 @@ def exam_api_course_questions(course_id):
     return jsonify([format_question(q) for q in questions])
 
 
+@question_bp.route("/exam-api/units/<int:unit_id>/questions", methods=["GET"])
+@teacher_or_admin_required
+def exam_api_unit_questions(unit_id):
+    unit = Unit.query.get(unit_id)
+    if not unit:
+        return jsonify({"error": "Unit not found"}), 404
+    show_all = request.args.get('show_all', 'false').lower() == 'true'
+    is_bank = bool(unit.course.is_bank) if unit.course else False
+    query = (
+        Question.query
+        .join(Question.lesson)
+        .join(Lesson.unit)
+        .join(Unit.course)
+        .options(joinedload(Question.options))
+        .filter(Lesson.unit_id == unit_id)
+        .filter(Question.is_blocked == False)
+        .filter(Question.is_bank == is_bank)
+        .filter(Question.question_type.in_(EXAM_SUPPORTED_TYPES))
+    )
+    if not show_all:
+        query = query.filter(Course.show_in_bot == True)
+    questions = query.order_by(Question.question_id).all()
+    return jsonify([format_question(q) for q in questions])
+
+
 @question_bp.route("/exam-api/courses/<int:course_id>/units/<int:unit_id>/questions", methods=["GET"])
-@login_required
+@teacher_or_admin_required
 def exam_api_course_unit_questions(course_id, unit_id):
     course = Course.query.get(course_id)
     if not course:
