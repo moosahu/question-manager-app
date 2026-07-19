@@ -57,10 +57,26 @@ class Question(db.Model):
     formula_key = db.Column(db.String(120), nullable=True, index=True)
     # =========================================================
 
+    # ================ نوع السؤال (أنواع جديدة غير MCQ) ================
+    # mcq (افتراضي) | true_false | fill_blank | matching | essay
+    # لا تظهر الأنواع غير mcq أبداً في تطبيق الطالب — للاستخدام في الويب/الامتحانات فقط
+    question_type = db.Column(db.String(20), default='mcq', nullable=False, index=True)
+
+    # إكمال الفراغ
+    fill_blank_answer = db.Column(db.String(255), nullable=True)
+    fill_blank_alt_answers = db.Column(db.JSON, nullable=True)  # ["إجابة بديلة 1", ...]
+
+    # مقالية — إجابة نموذجية مرجعية للمعلم فقط (بدون تصحيح آلي)
+    essay_model_answer = db.Column(db.Text, nullable=True)
+    # =========================================================
+
     lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False)
 
     # Cascade delete ensures options are deleted when a question is deleted
     options = db.relationship("Option", backref="question", lazy=True, cascade="all, delete-orphan")
+    matching_pairs = db.relationship("MatchingPair", backref="question", lazy=True,
+                                      cascade="all, delete-orphan",
+                                      order_by="MatchingPair.order_num")
     lesson = db.relationship("Lesson", back_populates='questions', lazy=True) # Eager loading might be better if lesson is always accessed
 
     def __repr__(self):
@@ -81,4 +97,20 @@ class Option(db.Model):
 
     def __repr__(self):
         return f"<Option {self.option_id} for Question {self.question_id}>"
+
+
+class MatchingPair(db.Model):
+    __tablename__ = 'matching_pairs'
+
+    pair_id = db.Column(db.Integer, primary_key=True)
+    left_text = db.Column(db.Text, nullable=True)
+    left_image_url = db.Column(db.String(255), nullable=True)
+    right_text = db.Column(db.Text, nullable=True)
+    right_image_url = db.Column(db.String(255), nullable=True)
+    order_num = db.Column(db.Integer, default=0)
+
+    question_id = db.Column(db.Integer, db.ForeignKey("questions.question_id"), nullable=False)
+
+    def __repr__(self):
+        return f"<MatchingPair {self.pair_id} for Question {self.question_id}>"
 

@@ -196,6 +196,19 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-4">
+                                    <label class="form-label">نوع السؤال</label>
+                                    <select class="form-select" name="question_type">
+                                        <option value="" {% if not question_type %}selected{% endif %}>-- كل الأنواع --</option>
+                                        <option value="mcq" {% if question_type == 'mcq' %}selected{% endif %}>اختيار من متعدد</option>
+                                        <option value="true_false" {% if question_type == 'true_false' %}selected{% endif %}>صح وخطأ</option>
+                                        <option value="fill_blank" {% if question_type == 'fill_blank' %}selected{% endif %}>إكمال الفراغ</option>
+                                        <option value="matching" {% if question_type == 'matching' %}selected{% endif %}>مزاوجة</option>
+                                        <option value="essay" {% if question_type == 'essay' %}selected{% endif %}>مقالية</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="row mt-3">
                                 <div class="col-12">
                                     <button type="submit" class="btn btn-primary">تطبيق التصفية</button>
@@ -250,6 +263,7 @@
                                 <tr>
                                     <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox"></th>
                                     <th>رقم السؤال</th>
+                                    <th>نوع السؤال</th>
                                     <th>نص السؤال</th>
                                     <th>الدرس</th>
                                     <th>الوحدة</th>
@@ -272,6 +286,11 @@
                                             {% if question.video_url %}
                                                 <span class="badge ms-1" style="background-color: #dc2626;"><i class="fas fa-play-circle"></i></span>
                                             {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set qtype_labels = {'mcq': 'اختيار من متعدد', 'true_false': 'صح وخطأ', 'fill_blank': 'إكمال الفراغ', 'matching': 'مزاوجة', 'essay': 'مقالية'} %}
+                                            {% set qtype_colors = {'mcq': '#0d6efd', 'true_false': '#6f42c1', 'fill_blank': '#fd7e14', 'matching': '#20c997', 'essay': '#6c757d'} %}
+                                            <span class="badge" style="background-color: {{ qtype_colors.get(question.question_type, '#0d6efd') }};">{{ qtype_labels.get(question.question_type, question.question_type or 'اختيار من متعدد') }}</span>
                                         </td>
                                         <td dir="auto">
                                             {% if question.question_text %}
@@ -307,7 +326,7 @@
                                 {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
+                                        <td colspan="7" class="text-center text-muted py-4">
                                             <i class="fas fa-search fa-2x mb-2"></i>
                                             <br>
                                             {% if request.args.get('course_id') or request.args.get('unit_id') or request.args.get('lesson_id') %}
@@ -348,6 +367,11 @@
                                                 </div>
                                                 <!-- الجانب الأيسر: وسم المادة + الصعوبة + بلوم -->
                                                 <div class="left-section" style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                                                    {% set qtype_labels = {'mcq': 'اختيار من متعدد', 'true_false': 'صح وخطأ', 'fill_blank': 'إكمال الفراغ', 'matching': 'مزاوجة', 'essay': 'مقالية'} %}
+                                                    {% set qtype_colors = {'mcq': '#0d6efd', 'true_false': '#6f42c1', 'fill_blank': '#fd7e14', 'matching': '#20c997', 'essay': '#6c757d'} %}
+                                                    {% if question.question_type and question.question_type != 'mcq' %}
+                                                    <span class="badge" style="background-color: {{ qtype_colors.get(question.question_type, '#0d6efd') }};">{{ qtype_labels.get(question.question_type, question.question_type) }}</span>
+                                                    {% endif %}
                                                     <span class="course-badge badge">{{ question.lesson.unit.course.name if question.lesson and question.lesson.unit and question.lesson.unit.course else 'غير محدد' }}</span>
                                                     {% if question.image_url %}
                                                     <span class="image-badge badge" style="background-color: #28a745;">
@@ -417,8 +441,43 @@
 {% endfor %}
                                                 </div>
                                                 {% endif %}
+
+                                                {% if question.question_type == 'fill_blank' %}
+                                                <div class="question-options" style="margin-top: 15px;">
+                                                    <div style="padding: 8px; border: 1px solid #c3e6cb; border-radius: 5px; background-color: #d4edda;">
+                                                        <strong>الإجابة الصحيحة:</strong> {{ question.fill_blank_answer }}
+                                                        {% if question.fill_blank_alt_answers %}
+                                                        <div style="margin-top:4px; color:#555;">إجابات بديلة مقبولة: {{ question.fill_blank_alt_answers|join('، ') }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+
+                                                {% if question.question_type == 'essay' %}
+                                                <div class="question-options" style="margin-top: 15px;">
+                                                    {% if question.essay_model_answer %}
+                                                    <div style="padding: 8px; border: 1px solid #dee2e6; border-radius: 5px; background-color: #f8f9fa;">
+                                                        <strong>إجابة نموذجية (مرجع للمعلم):</strong> {{ question.essay_model_answer }}
+                                                    </div>
+                                                    {% else %}
+                                                    <span class="text-muted">سؤال مقالي بدون إجابة نموذجية محفوظة.</span>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+
+                                                {% if question.question_type == 'matching' %}
+                                                <div class="question-options" style="margin-top: 15px;">
+                                                    {% for pair in question.matching_pairs %}
+                                                    <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #dee2e6; border-radius: 5px; display:flex; justify-content:space-between; gap:10px;">
+                                                        <span>{{ pair.left_text or '' }}{% if pair.left_image_url %}<img src="{{ pair.left_image_url }}" class="option-image">{% endif %}</span>
+                                                        <i class="fas fa-arrows-alt-h"></i>
+                                                        <span>{{ pair.right_text or '' }}{% if pair.right_image_url %}<img src="{{ pair.right_image_url }}" class="option-image">{% endif %}</span>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
                                             </div>
-                                            
+
                                             <!-- تفاصيل السؤال -->
                                             <div class="enhanced-details">
                                                 <div class="detail-item compact">

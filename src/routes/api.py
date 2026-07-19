@@ -379,6 +379,7 @@ def format_question(question):
         "video_explanation": getattr(question, 'video_explanation', None),  # شرح الفيديو المفصّل
         "video_status": getattr(question, 'video_status', 'none'),  # حالة الفيديو
         "is_blocked": getattr(question, 'is_blocked', False),  # حالة الحظر
+        "question_type": getattr(question, 'question_type', 'mcq'),  # نوع السؤال
         # =========================================================
     }
 
@@ -800,6 +801,7 @@ def get_lesson_questions(lesson_id):
             .filter(Question.lesson_id == lesson_id)
             .filter(Question.is_blocked == False)
             .filter(Question.is_bank == is_bank)
+            .filter(Question.question_type == 'mcq')
             .order_by(Question.question_id)
             .all()
         )
@@ -838,6 +840,7 @@ def get_unit_questions_direct(unit_id):
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)
             .filter(Question.is_bank == is_bank)
+            .filter(Question.question_type == 'mcq')
         )
 
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
@@ -881,6 +884,7 @@ def get_course_questions_direct(course_id):
             .filter(Unit.course_id == course_id)
             .filter(Question.is_blocked == False)
             .filter(Question.is_bank == is_bank)
+            .filter(Question.question_type == 'mcq')
         )
 
         # فلتر بناءً على حالة المنهج فقط إذا لم يكن show_all
@@ -927,6 +931,7 @@ def get_course_unit_questions(course_id, unit_id):
             .filter(Lesson.unit_id == unit_id)
             .filter(Question.is_blocked == False)
             .filter(Question.is_bank == is_bank)
+            .filter(Question.question_type == 'mcq')
             .order_by(Question.question_id)
             .all()
         )
@@ -957,6 +962,7 @@ def get_all_questions_in_db(): # Renamed function to be more descriptive
             .options(joinedload(Question.options)) # Eager load options
             .filter(Course.show_in_bot == True)  # فلتر بناءً على حالة المنهج
             .filter(Question.is_bank == False)    # استبعاد أسئلة البنك
+            .filter(Question.question_type == 'mcq')
             .order_by(Question.question_id) # Optional: order by ID or another field
             .all()
         )
@@ -1188,11 +1194,12 @@ def get_random_questions():
         questions = (
             Question.query
             .options(joinedload(Question.options))
+            .filter(Question.question_type == 'mcq')
             .order_by(func.random())
             .limit(count)
             .all()
         )
-        
+
         logger.info(f"Found {len(questions)} random questions.")
         formatted_questions = [format_question(q) for q in questions]
         return jsonify(formatted_questions)
@@ -1396,6 +1403,7 @@ def get_filtered_questions():
         logger.info(f"Filtering by course_id: {course_id}")
 
     query = query.filter(Question.is_bank == False)  # استبعاد أسئلة البنك
+    query = query.filter(Question.question_type == 'mcq')
     questions = query.order_by(Question.question_id).all()
 
     # التحقق من جلب الخيارات بشكل صحيح

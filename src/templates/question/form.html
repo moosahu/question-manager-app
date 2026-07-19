@@ -204,6 +204,30 @@
                         </div>
                     </div>
 
+                    {% set qtype_value = question.question_type if question and question.question_type else 'mcq' %}
+                    <div class="mb-3">
+                        <label for="question_type_select" class="form-label fw-bold">نوع السؤال <span class="text-danger">*</span></label>
+                        {% if submit_text == 'تحديث السؤال' %}
+                            <select id="question_type_select" class="form-select" disabled>
+                                <option value="mcq" {% if qtype_value == 'mcq' %}selected{% endif %}>اختيار من متعدد</option>
+                                <option value="true_false" {% if qtype_value == 'true_false' %}selected{% endif %}>صح وخطأ</option>
+                                <option value="fill_blank" {% if qtype_value == 'fill_blank' %}selected{% endif %}>إكمال الفراغ</option>
+                                <option value="matching" {% if qtype_value == 'matching' %}selected{% endif %}>مزاوجة</option>
+                                <option value="essay" {% if qtype_value == 'essay' %}selected{% endif %}>مقالية</option>
+                            </select>
+                            <input type="hidden" name="question_type" value="{{ qtype_value }}">
+                            <small class="text-muted d-block mt-1">لا يمكن تغيير نوع السؤال بعد إنشائه.</small>
+                        {% else %}
+                            <select id="question_type_select" name="question_type" class="form-select">
+                                <option value="mcq" {% if qtype_value == 'mcq' %}selected{% endif %}>اختيار من متعدد</option>
+                                <option value="true_false" {% if qtype_value == 'true_false' %}selected{% endif %}>صح وخطأ</option>
+                                <option value="fill_blank" {% if qtype_value == 'fill_blank' %}selected{% endif %}>إكمال الفراغ</option>
+                                <option value="matching" {% if qtype_value == 'matching' %}selected{% endif %}>مزاوجة</option>
+                                <option value="essay" {% if qtype_value == 'essay' %}selected{% endif %}>مقالية</option>
+                            </select>
+                        {% endif %}
+                    </div>
+
                     <div class="mb-3">
                         <label for="text" class="form-label">نص السؤال (يدعم MathJax/ChemJax) - اختياري إذا وجدت صورة</label>
                         <div class="d-flex justify-content-between align-items-center mb-1">
@@ -311,8 +335,8 @@
                 </div>
             </div>
 
-            <!-- قسم الخيارات (في الوسط) -->
-            <div class="card mb-3">
+            <!-- قسم الخيارات (MCQ فقط) -->
+            <div class="card mb-3" id="mcq-section" style="{% if qtype_value != 'mcq' %}display:none;{% endif %}">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>الخيارات (خياران صالحان على الأقل، حدد الصحيح) <span class="text-danger">*</span></span>
                     <button type="button" class="btn btn-sm btn-success" id="add-option-btn">+ إضافة خيار</button>
@@ -371,6 +395,84 @@
                         </div>
                         {% endfor %}
                     </div>
+                </div>
+            </div>
+
+            <!-- قسم صح/خطأ -->
+            <div class="card mb-3" id="true-false-section" style="{% if qtype_value != 'true_false' %}display:none;{% endif %}">
+                <div class="card-header">الإجابة الصحيحة <span class="text-danger">*</span></div>
+                <div class="card-body">
+                    {% set tf_options = question.options if question and question.question_type == 'true_false' else [] %}
+                    {% set tf_true_checked = tf_options|length > 0 and tf_options[0].is_correct %}
+                    {% set tf_false_checked = tf_options|length > 1 and tf_options[1].is_correct %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="tf_answer" id="tf_true" value="true" {% if tf_true_checked %}checked{% endif %}>
+                        <label class="form-check-label" for="tf_true">✅ صح</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="tf_answer" id="tf_false" value="false" {% if tf_false_checked %}checked{% endif %}>
+                        <label class="form-check-label" for="tf_false">❌ خطأ</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم إكمال الفراغ -->
+            <div class="card mb-3" id="fill-blank-section" style="{% if qtype_value != 'fill_blank' %}display:none;{% endif %}">
+                <div class="card-header">إجابة إكمال الفراغ</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="fill_blank_answer" class="form-label">الإجابة الصحيحة <span class="text-danger">*</span></label>
+                        <input type="text" name="fill_blank_answer" id="fill_blank_answer" class="form-control" dir="auto"
+                               value="{{ question.fill_blank_answer if question and question.fill_blank_answer else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="fill_blank_alt_answers" class="form-label">إجابات بديلة مقبولة (اختياري — افصل بفاصلة)</label>
+                        <input type="text" name="fill_blank_alt_answers" id="fill_blank_alt_answers" class="form-control" dir="auto"
+                               value="{{ question.fill_blank_alt_answers|join('، ') if question and question.fill_blank_alt_answers else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم المزاوجة -->
+            <div class="card mb-3" id="matching-section" style="{% if qtype_value != 'matching' %}display:none;{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>أزواج المزاوجة (زوجان على الأقل) <span class="text-danger">*</span></span>
+                    <button type="button" class="btn btn-sm btn-success" id="add-pair-btn">+ إضافة زوج</button>
+                </div>
+                <div class="card-body">
+                    <div id="matching-container">
+                        {% set pairs = question.matching_pairs if question and question.question_type == 'matching' else [] %}
+                        {% set initial_pair_count = pairs|length if pairs|length > 1 else 2 %}
+                        {% for i in range(initial_pair_count) %}
+                        <div class="matching-pair-group border p-3 rounded mb-2" data-index="{{ i }}">
+                            <input type="hidden" name="pair_id_{{ i }}" value="{{ pairs[i].pair_id if i < pairs|length else '' }}">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">الزوج <span class="pair-number">{{ i + 1 }}</span></h6>
+                                <button type="button" class="btn btn-sm btn-danger remove-pair-btn" {% if i < 2 %}disabled{% endif %}>× إزالة</button>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">الطرف الأيمن</label>
+                                    <input type="text" name="left_text_{{ i }}" class="form-control" dir="auto" value="{{ pairs[i].left_text if i < pairs|length else '' }}">
+                                    <input type="file" name="left_image_{{ i }}" class="form-control mt-1" accept="image/*">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">الطرف الأيسر</label>
+                                    <input type="text" name="right_text_{{ i }}" class="form-control" dir="auto" value="{{ pairs[i].right_text if i < pairs|length else '' }}">
+                                    <input type="file" name="right_image_{{ i }}" class="form-control mt-1" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم مقالية -->
+            <div class="card mb-3" id="essay-section" style="{% if qtype_value != 'essay' %}display:none;{% endif %}">
+                <div class="card-header">إجابة نموذجية (اختياري — مرجع للمعلم فقط)</div>
+                <div class="card-body">
+                    <textarea name="essay_model_answer" id="essay_model_answer" rows="3" class="form-control" dir="auto">{{ question.essay_model_answer if question and question.essay_model_answer else '' }}</textarea>
                 </div>
             </div>
 
@@ -546,6 +648,29 @@
                         <label class="form-check-label" for="correct_option___INDEX__">
                             هذا هو الخيار الصحيح
                         </label>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- قالب زوج المزاوجة (مخفي) -->
+        <template id="matching-pair-template">
+            <div class="matching-pair-group border p-3 rounded mb-2" data-index="__INDEX__">
+                <input type="hidden" name="pair_id___INDEX__" value="">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">الزوج <span class="pair-number">__NUMBER__</span></h6>
+                    <button type="button" class="btn btn-sm btn-danger remove-pair-btn">× إزالة</button>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">الطرف الأيمن</label>
+                        <input type="text" name="left_text___INDEX__" class="form-control" dir="auto" value="">
+                        <input type="file" name="left_image___INDEX__" class="form-control mt-1" accept="image/*">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">الطرف الأيسر</label>
+                        <input type="text" name="right_text___INDEX__" class="form-control" dir="auto" value="">
+                        <input type="file" name="right_image___INDEX__" class="form-control mt-1" accept="image/*">
                     </div>
                 </div>
             </div>
@@ -1264,17 +1389,101 @@
                 });
             }
 
-            // Ensure at least 2 options are present
-            const optionGroups = optionsContainer.querySelectorAll(".option-group");
-            if (optionGroups.length < 2) {
-                // Add options until we have at least 2
-                while (optionsContainer.querySelectorAll(".option-group").length < 2) {
-                    addOption();
+            // Ensure at least 2 options are present (MCQ فقط)
+            if (getSelectedQuestionType() === "mcq") {
+                const optionGroups = optionsContainer.querySelectorAll(".option-group");
+                if (optionGroups.length < 2) {
+                    // Add options until we have at least 2
+                    while (optionsContainer.querySelectorAll(".option-group").length < 2) {
+                        addOption();
+                    }
                 }
             }
 
             // Update indices on initial load
             updateOptionIndices();
+
+            // ===== نوع السؤال: إظهار/إخفاء الأقسام حسب النوع =====
+            function getSelectedQuestionType() {
+                const sel = document.getElementById("question_type_select");
+                return sel ? sel.value : "mcq";
+            }
+
+            function toggleQuestionTypeSections() {
+                const type = getSelectedQuestionType();
+                const sections = {
+                    mcq: document.getElementById("mcq-section"),
+                    true_false: document.getElementById("true-false-section"),
+                    fill_blank: document.getElementById("fill-blank-section"),
+                    matching: document.getElementById("matching-section"),
+                    essay: document.getElementById("essay-section"),
+                };
+                Object.keys(sections).forEach(function(key) {
+                    if (sections[key]) sections[key].style.display = (key === type) ? "" : "none";
+                });
+            }
+
+            const questionTypeSelect = document.getElementById("question_type_select");
+            if (questionTypeSelect) {
+                questionTypeSelect.addEventListener("change", toggleQuestionTypeSections);
+            }
+            toggleQuestionTypeSections();
+
+            // ===== أزواج المزاوجة =====
+            function updateMatchingPairIndices() {
+                const container = document.getElementById("matching-container");
+                if (!container) return;
+                const pairGroups = container.querySelectorAll(".matching-pair-group");
+                const canRemove = pairGroups.length > 2;
+
+                pairGroups.forEach((group, index) => {
+                    group.dataset.index = index;
+                    const pairNumber = index + 1;
+                    const numberSpan = group.querySelector(".pair-number");
+                    if (numberSpan) numberSpan.textContent = pairNumber;
+
+                    const elementsWithIndex = group.querySelectorAll("[id*='__INDEX__'], [name*='__INDEX__']");
+                    elementsWithIndex.forEach(el => {
+                        if (el.id) el.id = el.id.replace(/__INDEX__/g, index);
+                        if (el.name) el.name = el.name.replace(/__INDEX__/g, index);
+                    });
+
+                    const removeBtn = group.querySelector(".remove-pair-btn");
+                    if (removeBtn) removeBtn.disabled = !canRemove;
+                });
+            }
+
+            function addMatchingPair() {
+                const container = document.getElementById("matching-container");
+                const template = document.getElementById("matching-pair-template");
+                if (!container || !template) return;
+                const newIndex = container.querySelectorAll(".matching-pair-group").length;
+                const newNumber = newIndex + 1;
+                const newHTML = template.innerHTML
+                    .replace(/__INDEX__/g, newIndex)
+                    .replace(/__NUMBER__/g, newNumber);
+                container.insertAdjacentHTML("beforeend", newHTML);
+                updateMatchingPairIndices();
+            }
+
+            const addPairBtn = document.getElementById("add-pair-btn");
+            if (addPairBtn) {
+                addPairBtn.addEventListener("click", addMatchingPair);
+            }
+
+            const matchingContainer = document.getElementById("matching-container");
+            if (matchingContainer) {
+                matchingContainer.addEventListener("click", function(event) {
+                    if (event.target.classList.contains("remove-pair-btn")) {
+                        const group = event.target.closest(".matching-pair-group");
+                        if (group) {
+                            group.remove();
+                            updateMatchingPairIndices();
+                        }
+                    }
+                });
+                updateMatchingPairIndices();
+            }
 
             // تهيئة كل الـ previews بإصلاح BiDi عند تحميل الصفحة
             updateMathJaxPreviews();

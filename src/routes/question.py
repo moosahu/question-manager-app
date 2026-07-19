@@ -47,12 +47,12 @@ except ImportError:  # pragma: no cover
             raise
 
 try:
-    from src.models.question import Question, Option
+    from src.models.question import Question, Option, MatchingPair
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.activity import Activity  # استيراد نموذج النشاط
 except ImportError:  # pragma: no cover
     try:
-        from models.question import Question, Option
+        from models.question import Question, Option, MatchingPair
         from models.curriculum import Lesson, Unit, Course
         from models.activity import Activity  # استيراد نموذج النشاط
     except ImportError:
@@ -281,8 +281,10 @@ def get_ordered_questions(question_ids):
     
     try:
         # جلب الأسئلة مرتبة حسب ترتيب الوحدة ثم الدرس
+        # استبعاد الأنواع الجديدة (غير MCQ) — تخطيط الامتحان الحالي (ورقة تظليل) يدعم MCQ فقط
         questions = Question.query.filter(
-            Question.question_id.in_(question_ids)
+            Question.question_id.in_(question_ids),
+            Question.question_type == 'mcq'
         ).join(
             Lesson, Question.lesson_id == Lesson.id
         ).join(
@@ -297,7 +299,10 @@ def get_ordered_questions(question_ids):
         return questions
     except Exception:
         # في حالة فشل الترتيب، نرجع الأسئلة بدون ترتيب
-        return Question.query.filter(Question.question_id.in_(question_ids)).all()
+        return Question.query.filter(
+            Question.question_id.in_(question_ids),
+            Question.question_type == 'mcq'
+        ).all()
 
 
 # --- save_upload function (Modified for Cloudinary) --- #
@@ -405,6 +410,7 @@ def list_questions():
     search_q = request.args.get("q", "").strip()
     difficulty = request.args.get("difficulty", "")
     bloom_level = request.args.get("bloom_level", "")
+    question_type = request.args.get("question_type", "")
     blocked = request.args.get("blocked", "")  # "1"=محجوبة, "0"=غير محجوبة, ""=الكل
     has_video = request.args.get("has_video", "")        # "1"=فيه فيديو, "0"=ما فيه, ""=الكل
     has_explanation = request.args.get("has_explanation", "")  # "1"=فيه شرح, "0"=ما فيه, ""=الكل
@@ -463,6 +469,10 @@ def list_questions():
         # فلتر مستوى بلوم
         if bloom_level:
             query = query.filter(Question.bloom_level == bloom_level)
+
+        # فلتر نوع السؤال
+        if question_type:
+            query = query.filter(Question.question_type == question_type)
 
         # فلتر المحجوبة
         if blocked == "1":
@@ -639,6 +649,7 @@ def list_questions():
             search_q=search_q,
             difficulty=difficulty,
             bloom_level=bloom_level,
+            question_type=question_type,
             blocked=blocked,
             has_video=has_video,
             has_explanation=has_explanation,
@@ -713,7 +724,11 @@ def apply_filters(query, filters):
                     query = query.filter(Question.question_text.startswith(value))
                 elif operator == 'ends_with':
                     query = query.filter(Question.question_text.endswith(value))
-                    
+
+            elif field == 'question_type':
+                if operator == 'equals':
+                    query = query.filter(Question.question_type == value)
+
             elif field == 'created_at':
                 try:
                     date_value = datetime.strptime(value, '%Y-%m-%d')
@@ -1294,6 +1309,9 @@ def add_question():
         current_app.logger.info("POST request received for add_question.")
         question_text = request.form.get("text", "").strip()
         lesson_id = request.form.get("lesson_id")
+        question_type = request.form.get("question_type", "mcq").strip() or "mcq"
+        if question_type not in ("mcq", "true_false", "fill_blank", "matching", "essay"):
+            question_type = "mcq"
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
 
@@ -1312,80 +1330,150 @@ def add_question():
             error_messages.append("يجب توفير نص للسؤال أو رفع صورة له.")
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
-        
-        option_keys_check = [key for key in request.form if key.startswith("option_text_")]
-        option_files_check = [key for key in request.files if key.startswith("option_image_")]
-        if (option_keys_check or option_files_check) and correct_option_index_str is None:
-            error_messages.append("يجب تحديد الإجابة الصحيحة.")
-
-        correct_option_index = -1
-        if correct_option_index_str is not None:
-            try:
-                correct_option_index = int(correct_option_index_str)
-                if correct_option_index < 0:
-                     error_messages.append("اختيار الإجابة الصحيحة غير صالح.")
-            except ValueError:
-                error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
         options_data_from_form = []
+        matching_pairs_data = []
+        fill_blank_answer = None
+        fill_blank_alt_answers = None
+        essay_model_answer = None
         max_submitted_index = -1
-        for key in list(request.form.keys()) + list(request.files.keys()):
-            if key.startswith(("option_text_", "option_image_")):
+
+        if question_type == "mcq":
+            option_keys_check = [key for key in request.form if key.startswith("option_text_")]
+            option_files_check = [key for key in request.files if key.startswith("option_image_")]
+            if (option_keys_check or option_files_check) and correct_option_index_str is None:
+                error_messages.append("يجب تحديد الإجابة الصحيحة.")
+
+            correct_option_index = -1
+            if correct_option_index_str is not None:
                 try:
-                    index_str = key.split("_")[-1]
-                    max_submitted_index = max(max_submitted_index, int(index_str))
-                except (ValueError, IndexError):
-                    continue
+                    correct_option_index = int(correct_option_index_str)
+                    if correct_option_index < 0:
+                         error_messages.append("اختيار الإجابة الصحيحة غير صالح.")
+                except ValueError:
+                    error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
-        for i in range(max_submitted_index + 1):
-            index_str = str(i)
-            option_text = request.form.get(f"option_text_{index_str}", "").strip()
-            option_image_file = request.files.get(f"option_image_{index_str}")
-            option_image_path = None
+            for key in list(request.form.keys()) + list(request.files.keys()):
+                if key.startswith(("option_text_", "option_image_")):
+                    try:
+                        index_str = key.split("_")[-1]
+                        max_submitted_index = max(max_submitted_index, int(index_str))
+                    except (ValueError, IndexError):
+                        continue
 
-            if option_image_file and option_image_file.filename:
-                if not allowed_image_file(option_image_file.filename):
-                    error_messages.append(f"نوع ملف صورة الخيار رقم {i+1} غير مسموح به.")
-                else:
-                    # Uses the Cloudinary-compatible save_upload function
-                    option_image_path = save_upload(option_image_file, subfolder="options")
-                    if option_image_path is None:
-                        error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
+            for i in range(max_submitted_index + 1):
+                index_str = str(i)
+                option_text = request.form.get(f"option_text_{index_str}", "").strip()
+                option_image_file = request.files.get(f"option_image_{index_str}")
+                option_image_path = None
 
-            if option_text or option_image_path:
-                is_correct = (i == correct_option_index)
-                options_data_from_form.append({
-                    "index": i,
-                    "option_text": option_text,
-                    "image_url": option_image_path,
-                    "is_correct": is_correct
-                })
+                if option_image_file and option_image_file.filename:
+                    if not allowed_image_file(option_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الخيار رقم {i+1} غير مسموح به.")
+                    else:
+                        # Uses the Cloudinary-compatible save_upload function
+                        option_image_path = save_upload(option_image_file, subfolder="options")
+                        if option_image_path is None:
+                            error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
 
-        if len(options_data_from_form) < 2:
-            error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
-        
-        if correct_option_index_str is not None and correct_option_index >= len(options_data_from_form):
-             error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
+                if option_text or option_image_path:
+                    is_correct = (i == correct_option_index)
+                    options_data_from_form.append({
+                        "index": i,
+                        "option_text": option_text,
+                        "image_url": option_image_path,
+                        "is_correct": is_correct
+                    })
+
+            if len(options_data_from_form) < 2:
+                error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
+
+            if correct_option_index_str is not None and correct_option_index >= len(options_data_from_form):
+                 error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
+
+        elif question_type == "true_false":
+            tf_answer = request.form.get("tf_answer")
+            if tf_answer not in ("true", "false"):
+                error_messages.append("يجب اختيار الإجابة الصحيحة (صح أو خطأ).")
+            else:
+                options_data_from_form = [
+                    {"index": 0, "option_text": "صح", "image_url": None, "is_correct": tf_answer == "true"},
+                    {"index": 1, "option_text": "خطأ", "image_url": None, "is_correct": tf_answer == "false"},
+                ]
+
+        elif question_type == "fill_blank":
+            fill_blank_answer = request.form.get("fill_blank_answer", "").strip()
+            if not fill_blank_answer:
+                error_messages.append("يجب إدخال الإجابة الصحيحة لسؤال إكمال الفراغ.")
+            alt_raw = request.form.get("fill_blank_alt_answers", "").strip()
+            if alt_raw:
+                fill_blank_alt_answers = [a.strip() for a in alt_raw.split(",") if a.strip()]
+
+        elif question_type == "matching":
+            max_pair_index = -1
+            for key in list(request.form.keys()) + list(request.files.keys()):
+                if key.startswith(("left_text_", "right_text_", "left_image_", "right_image_")):
+                    try:
+                        max_pair_index = max(max_pair_index, int(key.split("_")[-1]))
+                    except (ValueError, IndexError):
+                        continue
+
+            for i in range(max_pair_index + 1):
+                idx_str = str(i)
+                left_text = request.form.get(f"left_text_{idx_str}", "").strip()
+                right_text = request.form.get(f"right_text_{idx_str}", "").strip()
+                left_image_file = request.files.get(f"left_image_{idx_str}")
+                right_image_file = request.files.get(f"right_image_{idx_str}")
+                left_image_path = None
+                right_image_path = None
+
+                if left_image_file and left_image_file.filename:
+                    if not allowed_image_file(left_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الطرف الأيسر رقم {i+1} غير مسموح به.")
+                    else:
+                        left_image_path = save_upload(left_image_file, subfolder="matching")
+                if right_image_file and right_image_file.filename:
+                    if not allowed_image_file(right_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الطرف الأيمن رقم {i+1} غير مسموح به.")
+                    else:
+                        right_image_path = save_upload(right_image_file, subfolder="matching")
+
+                if left_text or left_image_path or right_text or right_image_path:
+                    matching_pairs_data.append({
+                        "order_num": i,
+                        "left_text": left_text or None,
+                        "left_image_url": left_image_path,
+                        "right_text": right_text or None,
+                        "right_image_url": right_image_path,
+                    })
+
+            if len(matching_pairs_data) < 2:
+                error_messages.append("يجب إضافة زوجين على الأقل لسؤال المزاوجة.")
+
+        elif question_type == "essay":
+            essay_model_answer = request.form.get("essay_model_answer", "").strip() or None
 
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
             form_data = request.form.to_dict()
-            repop_options = []
-            for i in range(max_submitted_index + 1):
-                 idx_str = str(i)
-                 opt_text = request.form.get(f"option_text_{idx_str}", "")
-                 processed_opt = next((opt for opt in options_data_from_form if opt["index"] == i), None)
-                 img_url = processed_opt["image_url"] if processed_opt else None
-                 repop_options.append({"option_text": opt_text, "image_url": img_url})
-            form_data["options_repop"] = repop_options
-            form_data["correct_option_repop"] = correct_option_index_str
+            if question_type == "mcq":
+                repop_options = []
+                for i in range(max_submitted_index + 1):
+                     idx_str = str(i)
+                     opt_text = request.form.get(f"option_text_{idx_str}", "")
+                     processed_opt = next((opt for opt in options_data_from_form if opt["index"] == i), None)
+                     img_url = processed_opt["image_url"] if processed_opt else None
+                     repop_options.append({"option_text": opt_text, "image_url": img_url})
+                form_data["options_repop"] = repop_options
+                form_data["correct_option_repop"] = correct_option_index_str
+            form_data["question_type"] = question_type
             form_data["question_image_url_repop"] = q_image_path
             return render_template("question/form.html", title="إضافة سؤال جديد", lessons=lessons, question=form_data, submit_text="إضافة سؤال", form=form)
 
         try:
-            # فحص التكرار — نص + درس + إجابة صحيحة (لأن نفس النص ممكن يكون سؤالين مختلفين)
-            if question_text:
+            # فحص التكرار — نص + درس + إجابة صحيحة (خاص بـ MCQ فقط، لأن نفس النص ممكن يكون سؤالين مختلفين)
+            if question_text and question_type == "mcq":
                 correct_answer_text = next(
                     (o["option_text"] for o in options_data_from_form if o["is_correct"]), None
                 )
@@ -1420,6 +1508,10 @@ def add_question():
                 explanation_image_path=None,
                 is_blocked=(request.form.get("is_blocked") == "1"),  # معالجة حقل منع السؤال
                 is_bank=auto_is_bank,
+                question_type=question_type,
+                fill_blank_answer=fill_blank_answer,
+                fill_blank_alt_answers=fill_blank_alt_answers,
+                essay_model_answer=essay_model_answer,
             )
             db.session.add(new_question)
             db.session.flush()
@@ -1440,7 +1532,18 @@ def add_question():
                     question_id=new_question.question_id
                 )
                 db.session.add(option)
-            
+
+            for pair_data in matching_pairs_data:
+                pair = MatchingPair(
+                    left_text=pair_data["left_text"],
+                    left_image_url=pair_data["left_image_url"],
+                    right_text=pair_data["right_text"],
+                    right_image_url=pair_data["right_image_url"],
+                    order_num=pair_data["order_num"],
+                    question_id=new_question.question_id
+                )
+                db.session.add(pair)
+
             db.session.commit()
             current_app.logger.info("Transaction committed successfully. Question and options saved.")
             flash("تمت إضافة السؤال بنجاح!", "success")
@@ -1825,6 +1928,8 @@ def edit_question(question_id):
         current_app.logger.info(f"POST request received for edit_question ID: {question_id}")
         question_text = request.form.get("text", "").strip()
         lesson_id = request.form.get("lesson_id")
+        # نوع السؤال لا يتغير بعد الإنشاء — نعتمد على القيمة المحفوظة دائماً
+        question_type = question.question_type or "mcq"
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
         delete_question_image = request.form.get("delete_question_image") == "1"
@@ -1849,92 +1954,174 @@ def edit_question(question_id):
             error_messages.append("يجب توفير نص للسؤال أو رفع صورة له.")
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
-        
-        option_keys_check = [key for key in request.form if key.startswith("option_text_")]
-        option_files_check = [key for key in request.files if key.startswith("option_image_")]
-        if (option_keys_check or option_files_check) and correct_option_index_str is None:
-            error_messages.append("يجب تحديد الإجابة الصحيحة.")
-
-        correct_option_index = -1
-        if correct_option_index_str is not None:
-            try:
-                correct_option_index = int(correct_option_index_str)
-                if correct_option_index < 0:
-                     error_messages.append("اختيار الإجابة الصحيحة غير صالح.")
-            except ValueError:
-                error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
 
         options_data_from_form = []
+        matching_pairs_data = []
+        fill_blank_answer = question.fill_blank_answer
+        fill_blank_alt_answers = question.fill_blank_alt_answers
+        essay_model_answer = question.essay_model_answer
         max_submitted_index = -1
-        for key in list(request.form.keys()) + list(request.files.keys()):
-            if key.startswith(("option_text_", "option_image_")):
-                try:
-                    index_str = key.split("_")[-1]
-                    max_submitted_index = max(max_submitted_index, int(index_str))
-                except (ValueError, IndexError):
-                    continue
 
-        for i in range(max_submitted_index + 1):
-            index_str = str(i)
-            option_text = request.form.get(f"option_text_{index_str}", "").strip()
-            option_image_file = request.files.get(f"option_image_{index_str}")
-            delete_option_image = request.form.get(f"delete_option_image_{index_str}") == "1"
-            option_id = request.form.get(f"option_id_{index_str}")
-            
-            # Find existing option if we have an option_id
-            existing_option = None
-            if option_id:
+        if question_type == "mcq":
+            option_keys_check = [key for key in request.form if key.startswith("option_text_")]
+            option_files_check = [key for key in request.files if key.startswith("option_image_")]
+            if (option_keys_check or option_files_check) and correct_option_index_str is None:
+                error_messages.append("يجب تحديد الإجابة الصحيحة.")
+
+            correct_option_index = -1
+            if correct_option_index_str is not None:
                 try:
-                    option_id = int(option_id)
-                    existing_option = next((opt for opt in question.options if opt.option_id == option_id), None)
+                    correct_option_index = int(correct_option_index_str)
+                    if correct_option_index < 0:
+                         error_messages.append("اختيار الإجابة الصحيحة غير صالح.")
                 except ValueError:
-                    pass
-            
-            option_image_path = existing_option.image_url if existing_option else None
-            
-            if delete_option_image:
-                option_image_path = None
-            elif option_image_file and option_image_file.filename:
-                if not allowed_image_file(option_image_file.filename):
-                    error_messages.append(f"نوع ملف صورة الخيار رقم {i+1} غير مسموح به.")
-                else:
-                    # Uses the Cloudinary-compatible save_upload function
-                    new_option_image_path = save_upload(option_image_file, subfolder="options")
-                    if new_option_image_path is None:
-                        error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
+                    error_messages.append("اختيار الإجابة الصحيحة يجب أن يكون رقمًا.")
+
+            for key in list(request.form.keys()) + list(request.files.keys()):
+                if key.startswith(("option_text_", "option_image_")):
+                    try:
+                        index_str = key.split("_")[-1]
+                        max_submitted_index = max(max_submitted_index, int(index_str))
+                    except (ValueError, IndexError):
+                        continue
+
+            for i in range(max_submitted_index + 1):
+                index_str = str(i)
+                option_text = request.form.get(f"option_text_{index_str}", "").strip()
+                option_image_file = request.files.get(f"option_image_{index_str}")
+                delete_option_image = request.form.get(f"delete_option_image_{index_str}") == "1"
+                option_id = request.form.get(f"option_id_{index_str}")
+
+                # Find existing option if we have an option_id
+                existing_option = None
+                if option_id:
+                    try:
+                        option_id = int(option_id)
+                        existing_option = next((opt for opt in question.options if opt.option_id == option_id), None)
+                    except ValueError:
+                        pass
+
+                option_image_path = existing_option.image_url if existing_option else None
+
+                if delete_option_image:
+                    option_image_path = None
+                elif option_image_file and option_image_file.filename:
+                    if not allowed_image_file(option_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الخيار رقم {i+1} غير مسموح به.")
                     else:
-                        option_image_path = new_option_image_path
+                        # Uses the Cloudinary-compatible save_upload function
+                        new_option_image_path = save_upload(option_image_file, subfolder="options")
+                        if new_option_image_path is None:
+                            error_messages.append(f"فشل رفع صورة الخيار رقم {i+1}. تحقق من إعدادات Cloudinary والسجلات.")
+                        else:
+                            option_image_path = new_option_image_path
 
-            if option_text or option_image_path:
-                is_correct = (i == correct_option_index)
-                options_data_from_form.append({
-                    "index": i,
-                    "option_id": option_id,
-                    "option_text": option_text,
-                    "image_url": option_image_path,
-                    "is_correct": is_correct
-                })
+                if option_text or option_image_path:
+                    is_correct = (i == correct_option_index)
+                    options_data_from_form.append({
+                        "index": i,
+                        "option_id": option_id,
+                        "option_text": option_text,
+                        "image_url": option_image_path,
+                        "is_correct": is_correct
+                    })
 
-        if len(options_data_from_form) < 2:
-            error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
-        
-        if correct_option_index_str is not None and correct_option_index >= len(options_data_from_form):
-             error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
+            if len(options_data_from_form) < 2:
+                error_messages.append("يجب إضافة خيارين صالحين على الأقل (بنص أو صورة).")
+
+            if correct_option_index_str is not None and correct_option_index >= len(options_data_from_form):
+                 error_messages.append("الخيار المحدد كصحيح غير موجود أو غير صالح.")
+
+        elif question_type == "true_false":
+            tf_answer = request.form.get("tf_answer")
+            if tf_answer not in ("true", "false"):
+                error_messages.append("يجب اختيار الإجابة الصحيحة (صح أو خطأ).")
+            else:
+                existing_opts_sorted = sorted(question.options, key=lambda o: o.option_id)
+                opt0_id = existing_opts_sorted[0].option_id if len(existing_opts_sorted) > 0 else None
+                opt1_id = existing_opts_sorted[1].option_id if len(existing_opts_sorted) > 1 else None
+                options_data_from_form = [
+                    {"index": 0, "option_id": opt0_id, "option_text": "صح", "image_url": None, "is_correct": tf_answer == "true"},
+                    {"index": 1, "option_id": opt1_id, "option_text": "خطأ", "image_url": None, "is_correct": tf_answer == "false"},
+                ]
+
+        elif question_type == "fill_blank":
+            fill_blank_answer = request.form.get("fill_blank_answer", "").strip()
+            if not fill_blank_answer:
+                error_messages.append("يجب إدخال الإجابة الصحيحة لسؤال إكمال الفراغ.")
+            alt_raw = request.form.get("fill_blank_alt_answers", "").strip()
+            fill_blank_alt_answers = [a.strip() for a in alt_raw.split(",") if a.strip()] if alt_raw else None
+
+        elif question_type == "matching":
+            max_pair_index = -1
+            for key in list(request.form.keys()) + list(request.files.keys()):
+                if key.startswith(("left_text_", "right_text_", "left_image_", "right_image_")):
+                    try:
+                        max_pair_index = max(max_pair_index, int(key.split("_")[-1]))
+                    except (ValueError, IndexError):
+                        continue
+
+            for i in range(max_pair_index + 1):
+                idx_str = str(i)
+                pair_id = request.form.get(f"pair_id_{idx_str}")
+                existing_pair = None
+                if pair_id:
+                    try:
+                        pair_id = int(pair_id)
+                        existing_pair = next((p for p in question.matching_pairs if p.pair_id == pair_id), None)
+                    except ValueError:
+                        pair_id = None
+
+                left_text = request.form.get(f"left_text_{idx_str}", "").strip()
+                right_text = request.form.get(f"right_text_{idx_str}", "").strip()
+                left_image_file = request.files.get(f"left_image_{idx_str}")
+                right_image_file = request.files.get(f"right_image_{idx_str}")
+                left_image_path = existing_pair.left_image_url if existing_pair else None
+                right_image_path = existing_pair.right_image_url if existing_pair else None
+
+                if left_image_file and left_image_file.filename:
+                    if not allowed_image_file(left_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الطرف الأيسر رقم {i+1} غير مسموح به.")
+                    else:
+                        left_image_path = save_upload(left_image_file, subfolder="matching")
+                if right_image_file and right_image_file.filename:
+                    if not allowed_image_file(right_image_file.filename):
+                        error_messages.append(f"نوع ملف صورة الطرف الأيمن رقم {i+1} غير مسموح به.")
+                    else:
+                        right_image_path = save_upload(right_image_file, subfolder="matching")
+
+                if left_text or left_image_path or right_text or right_image_path:
+                    matching_pairs_data.append({
+                        "pair_id": pair_id,
+                        "order_num": i,
+                        "left_text": left_text or None,
+                        "left_image_url": left_image_path,
+                        "right_text": right_text or None,
+                        "right_image_url": right_image_path,
+                    })
+
+            if len(matching_pairs_data) < 2:
+                error_messages.append("يجب إضافة زوجين على الأقل لسؤال المزاوجة.")
+
+        elif question_type == "essay":
+            essay_model_answer = request.form.get("essay_model_answer", "").strip() or None
 
         if error_messages:
             for error in error_messages:
                 flash(error, "danger")
             form_data = request.form.to_dict()
-            repop_options = []
-            for i in range(max_submitted_index + 1):
-                 idx_str = str(i)
-                 opt_text = request.form.get(f"option_text_{idx_str}", "")
-                 opt_id = request.form.get(f"option_id_{idx_str}")
-                 processed_opt = next((opt for opt in options_data_from_form if opt["index"] == i), None)
-                 img_url = processed_opt["image_url"] if processed_opt else None
-                 repop_options.append({"option_id": opt_id, "option_text": opt_text, "image_url": img_url})
-            form_data["options_repop"] = repop_options
-            form_data["correct_option_repop"] = correct_option_index_str
+            if question_type == "mcq":
+                repop_options = []
+                for i in range(max_submitted_index + 1):
+                     idx_str = str(i)
+                     opt_text = request.form.get(f"option_text_{idx_str}", "")
+                     opt_id = request.form.get(f"option_id_{idx_str}")
+                     processed_opt = next((opt for opt in options_data_from_form if opt["index"] == i), None)
+                     img_url = processed_opt["image_url"] if processed_opt else None
+                     repop_options.append({"option_id": opt_id, "option_text": opt_text, "image_url": img_url})
+                form_data["options_repop"] = repop_options
+                form_data["correct_option_repop"] = correct_option_index_str
+            form_data["question_type"] = question_type
             form_data["question_image_url_repop"] = q_image_path
             return render_template("question/form.html", title="تعديل السؤال", lessons=lessons, question=form_data, submit_text="تحديث السؤال", form=form)
 
@@ -1961,33 +2148,48 @@ def edit_question(question_id):
             elif 'r2_video_url' in request.form and not r2_url_form:
                 question.r2_video_url = None
 
-            # Track existing options to determine which to delete
-            existing_option_ids = {opt.option_id for opt in question.options}
-            updated_option_ids = set()
-            
-            # Update or create options
-            for opt_data in options_data_from_form:
-                option_id = opt_data.get("option_id")
-                
-                # --- Logic to set option_text to image_url if option_text is empty and image_url exists ---
-                option_text_to_save = opt_data["option_text"]
-                if not option_text_to_save and opt_data["image_url"]:
-                    option_text_to_save = opt_data["image_url"] # Set option_text to the image_url
-                elif not option_text_to_save: # If option_text is still empty (and no image_url or image_url was not used)
-                    option_text_to_save = None
-                
-                if option_id:
-                    # Update existing option
-                    try:
-                        option_id = int(option_id)
-                        option = next((opt for opt in question.options if opt.option_id == option_id), None)
-                        if option:
-                            option.option_text = option_text_to_save
-                            option.image_url = opt_data["image_url"]
-                            option.is_correct = opt_data["is_correct"]
-                            updated_option_ids.add(option_id)
-                    except (ValueError, TypeError):
-                        # If option_id is not a valid integer, create a new option
+            # حقول الأنواع الجديدة
+            question.fill_blank_answer = fill_blank_answer
+            question.fill_blank_alt_answers = fill_blank_alt_answers
+            question.essay_model_answer = essay_model_answer
+
+            if question_type in ("mcq", "true_false"):
+                # Track existing options to determine which to delete
+                existing_option_ids = {opt.option_id for opt in question.options}
+                updated_option_ids = set()
+
+                # Update or create options
+                for opt_data in options_data_from_form:
+                    option_id = opt_data.get("option_id")
+
+                    # --- Logic to set option_text to image_url if option_text is empty and image_url exists ---
+                    option_text_to_save = opt_data["option_text"]
+                    if not option_text_to_save and opt_data["image_url"]:
+                        option_text_to_save = opt_data["image_url"] # Set option_text to the image_url
+                    elif not option_text_to_save: # If option_text is still empty (and no image_url or image_url was not used)
+                        option_text_to_save = None
+
+                    if option_id:
+                        # Update existing option
+                        try:
+                            option_id = int(option_id)
+                            option = next((opt for opt in question.options if opt.option_id == option_id), None)
+                            if option:
+                                option.option_text = option_text_to_save
+                                option.image_url = opt_data["image_url"]
+                                option.is_correct = opt_data["is_correct"]
+                                updated_option_ids.add(option_id)
+                        except (ValueError, TypeError):
+                            # If option_id is not a valid integer, create a new option
+                            option = Option(
+                                option_text=option_text_to_save,
+                                image_url=opt_data["image_url"],
+                                is_correct=opt_data["is_correct"],
+                                question_id=question.question_id
+                            )
+                            db.session.add(option)
+                    else:
+                        # Create new option
                         option = Option(
                             option_text=option_text_to_save,
                             image_url=opt_data["image_url"],
@@ -1995,21 +2197,42 @@ def edit_question(question_id):
                             question_id=question.question_id
                         )
                         db.session.add(option)
-                else:
-                    # Create new option
-                    option = Option(
-                        option_text=option_text_to_save,
-                        image_url=opt_data["image_url"],
-                        is_correct=opt_data["is_correct"],
+
+                # Delete options that were not updated or created
+                options_to_delete = existing_option_ids - updated_option_ids
+                if options_to_delete:
+                    Option.query.filter(Option.option_id.in_(options_to_delete)).delete(synchronize_session=False)
+
+            elif question_type == "matching":
+                existing_pair_ids = {p.pair_id for p in question.matching_pairs}
+                updated_pair_ids = set()
+
+                for pair_data in matching_pairs_data:
+                    pair_id = pair_data.get("pair_id")
+                    if pair_id:
+                        pair = next((p for p in question.matching_pairs if p.pair_id == pair_id), None)
+                        if pair:
+                            pair.left_text = pair_data["left_text"]
+                            pair.left_image_url = pair_data["left_image_url"]
+                            pair.right_text = pair_data["right_text"]
+                            pair.right_image_url = pair_data["right_image_url"]
+                            pair.order_num = pair_data["order_num"]
+                            updated_pair_ids.add(pair_id)
+                            continue
+                    pair = MatchingPair(
+                        left_text=pair_data["left_text"],
+                        left_image_url=pair_data["left_image_url"],
+                        right_text=pair_data["right_text"],
+                        right_image_url=pair_data["right_image_url"],
+                        order_num=pair_data["order_num"],
                         question_id=question.question_id
                     )
-                    db.session.add(option)
-            
-            # Delete options that were not updated or created
-            options_to_delete = existing_option_ids - updated_option_ids
-            if options_to_delete:
-                Option.query.filter(Option.option_id.in_(options_to_delete)).delete(synchronize_session=False)
-            
+                    db.session.add(pair)
+
+                pairs_to_delete = existing_pair_ids - updated_pair_ids
+                if pairs_to_delete:
+                    MatchingPair.query.filter(MatchingPair.pair_id.in_(pairs_to_delete)).delete(synchronize_session=False)
+
             db.session.commit()
             current_app.logger.info(f"Question ID {question_id} updated successfully.")
             flash("تم تحديث السؤال بنجاح!", "success")
@@ -2189,11 +2412,12 @@ def download_exam_word():
                 'error': 'لم يتم تحديد أسئلة'
             }), 400
         
-        # الحصول على الأسئلة من قاعدة البيانات
+        # الحصول على الأسئلة من قاعدة البيانات (MCQ فقط — تصدير Word لا يدعم بقية الأنواع بعد)
         questions = Question.query.filter(
-            Question.question_id.in_(question_ids)
+            Question.question_id.in_(question_ids),
+            Question.question_type == 'mcq'
         ).all()
-        
+
         if not questions:
             return jsonify({
                 'success': False,
