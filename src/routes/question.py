@@ -1312,6 +1312,8 @@ def add_question():
         question_type = request.form.get("question_type", "mcq").strip() or "mcq"
         if question_type not in ("mcq", "true_false", "fill_blank", "matching", "essay"):
             question_type = "mcq"
+        if question_type == "matching" and not question_text:
+            question_text = "اربط العمود أ بما يناسبه من العمود ب"
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
 
@@ -1326,7 +1328,7 @@ def add_question():
                      flash("فشل رفع صورة السؤال. تحقق من إعدادات Cloudinary والسجلات.", "danger")
 
         error_messages = []
-        if not question_text and not q_image_path:
+        if question_type != "matching" and not question_text and not q_image_path:
             error_messages.append("يجب توفير نص للسؤال أو رفع صورة له.")
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
@@ -1429,12 +1431,12 @@ def add_question():
 
                 if left_image_file and left_image_file.filename:
                     if not allowed_image_file(left_image_file.filename):
-                        error_messages.append(f"نوع ملف صورة الطرف الأيسر رقم {i+1} غير مسموح به.")
+                        error_messages.append(f"نوع ملف صورة العمود ب رقم {i+1} غير مسموح به.")
                     else:
                         left_image_path = save_upload(left_image_file, subfolder="matching")
                 if right_image_file and right_image_file.filename:
                     if not allowed_image_file(right_image_file.filename):
-                        error_messages.append(f"نوع ملف صورة الطرف الأيمن رقم {i+1} غير مسموح به.")
+                        error_messages.append(f"نوع ملف صورة العمود أ رقم {i+1} غير مسموح به.")
                     else:
                         right_image_path = save_upload(right_image_file, subfolder="matching")
 
@@ -1930,6 +1932,8 @@ def edit_question(question_id):
         lesson_id = request.form.get("lesson_id")
         # نوع السؤال لا يتغير بعد الإنشاء — نعتمد على القيمة المحفوظة دائماً
         question_type = question.question_type or "mcq"
+        if question_type == "matching" and not question_text:
+            question_text = "اربط العمود أ بما يناسبه من العمود ب"
         correct_option_index_str = request.form.get("correct_option")
         q_image_file = request.files.get("question_image")
         delete_question_image = request.form.get("delete_question_image") == "1"
@@ -1950,7 +1954,7 @@ def edit_question(question_id):
                     q_image_path = new_q_image_path
 
         error_messages = []
-        if not question_text and not q_image_path:
+        if question_type != "matching" and not question_text and not q_image_path:
             error_messages.append("يجب توفير نص للسؤال أو رفع صورة له.")
         if not lesson_id:
             error_messages.append("يجب اختيار درس.")
@@ -2081,12 +2085,12 @@ def edit_question(question_id):
 
                 if left_image_file and left_image_file.filename:
                     if not allowed_image_file(left_image_file.filename):
-                        error_messages.append(f"نوع ملف صورة الطرف الأيسر رقم {i+1} غير مسموح به.")
+                        error_messages.append(f"نوع ملف صورة العمود ب رقم {i+1} غير مسموح به.")
                     else:
                         left_image_path = save_upload(left_image_file, subfolder="matching")
                 if right_image_file and right_image_file.filename:
                     if not allowed_image_file(right_image_file.filename):
-                        error_messages.append(f"نوع ملف صورة الطرف الأيمن رقم {i+1} غير مسموح به.")
+                        error_messages.append(f"نوع ملف صورة العمود أ رقم {i+1} غير مسموح به.")
                     else:
                         right_image_path = save_upload(right_image_file, subfolder="matching")
 

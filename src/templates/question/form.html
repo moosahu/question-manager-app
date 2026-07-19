@@ -452,12 +452,12 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-2">
-                                    <label class="form-label">الطرف الأيمن</label>
+                                    <label class="form-label">العمود أ</label>
                                     <input type="text" name="left_text_{{ i }}" class="form-control" dir="auto" value="{{ pairs[i].left_text if i < pairs|length else '' }}">
                                     <input type="file" name="left_image_{{ i }}" class="form-control mt-1" accept="image/*">
                                 </div>
                                 <div class="col-md-6 mb-2">
-                                    <label class="form-label">الطرف الأيسر</label>
+                                    <label class="form-label">العمود ب</label>
                                     <input type="text" name="right_text_{{ i }}" class="form-control" dir="auto" value="{{ pairs[i].right_text if i < pairs|length else '' }}">
                                     <input type="file" name="right_image_{{ i }}" class="form-control mt-1" accept="image/*">
                                 </div>
@@ -663,12 +663,12 @@
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">الطرف الأيمن</label>
+                        <label class="form-label">العمود أ</label>
                         <input type="text" name="left_text___INDEX__" class="form-control" dir="auto" value="">
                         <input type="file" name="left_image___INDEX__" class="form-control mt-1" accept="image/*">
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">الطرف الأيسر</label>
+                        <label class="form-label">العمود ب</label>
                         <input type="text" name="right_text___INDEX__" class="form-control" dir="auto" value="">
                         <input type="file" name="right_image___INDEX__" class="form-control mt-1" accept="image/*">
                     </div>
@@ -1505,7 +1505,7 @@
                     const hasExistingImage = document.querySelector("#question_image_preview") &&
                                            document.querySelector("#question_image_preview").style.display !== "none";
 
-                    if (!questionText && !questionImage && !hasExistingImage) {
+                    if (getSelectedQuestionType() !== "matching" && !questionText && !questionImage && !hasExistingImage) {
                         event.preventDefault();
                         alert("يجب إدخال نص السؤال أو رفع صورة للسؤال على الأقل");
                         return false;
