@@ -278,6 +278,10 @@
             width: 50%;
             {% endif %}
         }
+        .questions-col-full {
+            vertical-align: top;
+            width: 100%;
+        }
         .col-divider {
             border-left: 1px solid #000;
             padding-left: 8px;
@@ -845,10 +849,14 @@
     {% endmacro %}
 
     {# رسم شبكة أسئلة مجموعة واحدة (عمود/عمودان/ثلاثة حسب col_count)، بترقيم يبدأ من start_num #}
-    {% macro render_question_grid(group_questions, start_num) %}
+    {% macro render_question_grid(group_questions, start_num, force_single_col=false) %}
         {# عدد الأعمدة الفعلي — لا نفتح أعمدة أكثر من عدد الأسئلة نفسه، تفادي خط فاصل بعمود فاضي #}
-        {% set eff_col_count = [col_count, group_questions|length]|min %}
-        {% set eff_col_count = [eff_col_count, 1]|max %}
+        {% if force_single_col %}
+            {% set eff_col_count = 1 %}
+        {% else %}
+            {% set eff_col_count = [col_count, group_questions|length]|min %}
+            {% set eff_col_count = [eff_col_count, 1]|max %}
+        {% endif %}
         {% set qcpp = [(group_questions|length / eff_col_count / 2)|round(0, 'ceil')|int, 1]|max %}
         {% set qpp  = qcpp * eff_col_count %}
         {% set num_rows = [(group_questions|length / qpp)|round(0, 'ceil')|int, 1]|max %}
@@ -858,7 +866,7 @@
                 {% for c in range(eff_col_count) %}
                     {% set start = row * qpp + c * qcpp %}
                     {% set end   = start + qcpp %}
-                    <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
+                    <td class="{% if force_single_col %}questions-col-full{% else %}questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}{% endif %}">
                         {% for question in group_questions[start:end] %}
                             {{ render_question(question, (start_num - 1) + start + loop.index) }}
                         {% endfor %}
@@ -951,6 +959,12 @@
                 {% for q in group_questions %}
                     {{ render_matching_tables(q) }}
                 {% endfor %}
+            {% elif section.type == 'fill_blank' %}
+                {# عمود واحد بعرض الصفحة كاملة دائماً — لا تُقسَّم إكمال الفراغ على أعمدة #}
+                {{ render_question_grid(group_questions, 1, force_single_col=true) }}
+            {% elif section.type == 'essay' %}
+                {# قابل للتحكم من التطبيق — عمود واحد افتراضياً، أو حسب إعداد essay_single_column #}
+                {{ render_question_grid(group_questions, 1, force_single_col=essay_single_column|default(true, true)) }}
             {% else %}
                 {{ render_question_grid(group_questions, 1) }}
             {% endif %}

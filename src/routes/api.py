@@ -4058,6 +4058,7 @@ def generate_exam():
         spacing        = data.get("spacing", "normal")
         options_layout = data.get("options_layout", "vertical")
         font_family    = data.get("font_family", "amiri")
+        essay_single_column = bool(data.get("essay_single_column", True))
 
         # ── الكليشه الكاملة ───────────────────────────────────────────
         header = data.get("header", {})
@@ -4292,6 +4293,7 @@ def generate_exam():
                 options_layout=options_layout,
                 include_qr=include_qr,
                 font_family=font_family,
+                essay_single_column=essay_single_column,
             )
 
             # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة

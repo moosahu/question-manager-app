@@ -160,6 +160,7 @@ class ExamGenerator:
             'options_layout':      kwargs.get('options_layout', 'vertical'),
             'include_qr':          kwargs.get('include_qr', True),
             'font_family':         kwargs.get('font_family', 'traditional'),
+            'essay_single_column': kwargs.get('essay_single_column', True),
         }
 
         arabic_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
