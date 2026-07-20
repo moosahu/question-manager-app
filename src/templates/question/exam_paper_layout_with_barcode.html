@@ -270,9 +270,8 @@
            الترقيم بين الأعمدة لو الافتراض غلط). */
         .questions-columns {
             column-gap: 16px;
-            column-rule-width: 1px;
-            column-rule-style: solid;
-            column-rule-color: #000;
+            background-repeat: no-repeat;
+            background-size: 1px 100%;
         }
 
         .section-header {
@@ -875,7 +874,20 @@
             {% set eff_col_count = [col_count, group_questions|length]|min %}
             {% set eff_col_count = [eff_col_count, 1]|max %}
         {% endif %}
-        <div class="questions-columns" style="column-count: {{ eff_col_count }};">
+        {# خطوط الفاصل بين الأعمدة: تُرسم عبر background-image (مو column-rule) لأن
+           column-rule بـWeasyPrint ينزاح موضعه بسياق RTL. الموضع يُحسب رياضياً
+           بمعزل عن اتجاه النص (تماثل الأعمدة فيزيائياً بغض النظر عن ترتيب RTL/LTR):
+           مركز الفاصل رقم k من ضمن N عمود بفجوة gap = (k/N)*(100%+gap) - gap/2 #}
+        {% set gap_px = 16 %}
+        {% set divider_positions = [] %}
+        {% for k in range(1, eff_col_count) %}
+            {% set pct = (k / eff_col_count * 100) %}
+            {% set px_offset = (k / eff_col_count * gap_px - gap_px / 2) %}
+            {% set pos = 'calc(' ~ pct|round(3) ~ '%' ~ (' + ' if px_offset >= 0 else ' - ') ~ px_offset|abs|round(3) ~ 'px) 0' %}
+            {% set _ = divider_positions.append(pos) %}
+        {% endfor %}
+        {% set divider_gradients = ['linear-gradient(#000,#000)'] * (divider_positions|length) %}
+        <div class="questions-columns" style="column-count: {{ eff_col_count }};{% if divider_positions %} background-image: {{ divider_gradients|join(', ') }}; background-position: {{ divider_positions|join(', ') }};{% endif %}">
             {% for question in group_questions %}
                 {{ render_question(question, (start_num - 1) + loop.index) }}
             {% endfor %}
