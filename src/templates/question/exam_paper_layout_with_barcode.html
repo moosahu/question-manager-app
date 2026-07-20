@@ -875,15 +875,14 @@
             {% set eff_col_count = [eff_col_count, 1]|max %}
         {% endif %}
         {# خطوط الفاصل بين الأعمدة: تُرسم عبر background-image (مو column-rule) لأن
-           column-rule بـWeasyPrint ينزاح موضعه بسياق RTL. الموضع يُحسب رياضياً
-           بمعزل عن اتجاه النص (تماثل الأعمدة فيزيائياً بغض النظر عن ترتيب RTL/LTR):
-           مركز الفاصل رقم k من ضمن N عمود بفجوة gap = (k/N)*(100%+gap) - gap/2 #}
-        {% set gap_px = 16 %}
+           column-rule بـWeasyPrint ينزاح موضعه بسياق RTL. الموضع يُحسب كنسبة مئوية
+           بسيطة بمعزل عن اتجاه النص (تماثل الأعمدة فيزيائياً بغض النظر عن RTL/LTR).
+           (تجنّب calc() هنا عمداً — WeasyPrint يطيح بخطأ داخلي عند دمج % وpx
+           بـbackground-position عبر calc، فرق الدقة الناتج ببضع بكسلات مقبول) #}
         {% set divider_positions = [] %}
         {% for k in range(1, eff_col_count) %}
             {% set pct = (k / eff_col_count * 100) %}
-            {% set px_offset = (k / eff_col_count * gap_px - gap_px / 2) %}
-            {% set pos = 'calc(' ~ pct|round(3) ~ '%' ~ (' + ' if px_offset >= 0 else ' - ') ~ px_offset|abs|round(3) ~ 'px) 0' %}
+            {% set pos = pct|round(3) ~ '% 0' %}
             {% set _ = divider_positions.append(pos) %}
         {% endfor %}
         {% set divider_gradients = ['linear-gradient(#000,#000)'] * (divider_positions|length) %}
