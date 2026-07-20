@@ -174,6 +174,7 @@ class ExamGenerator:
                 'matching_pairs': question.get('matching_pairs', []),
                 'matching_right_shuffled': question.get('matching_right_shuffled', []),
                 'essay_model_answer': question.get('essay_model_answer'),
+                'fill_blank_answer': question.get('fill_blank_answer'),
             }
             options = question.get('options', [])
             for idx, option in enumerate(options):

@@ -274,7 +274,7 @@ def format_text_for_print(text):
 
 # أنواع الأسئلة المدعومة حالياً بتوليد ملفات الامتحان (PDF).
 # تُوسَّع تدريجياً — راجع خطة دمج الأنواع الجديدة بالامتحان قبل أي تعديل هنا.
-EXAM_SUPPORTED_TYPES = ['mcq', 'true_false', 'matching', 'essay']
+EXAM_SUPPORTED_TYPES = ['mcq', 'true_false', 'fill_blank', 'matching', 'essay']
 
 # أنواع تُستبعد دائماً من ورقة التظليل (OMR) — لا توجد فقاعة تظليل ممكنة لإجابة نصية حرة
 OMR_EXCLUDED_TYPES = ('fill_blank', 'essay')

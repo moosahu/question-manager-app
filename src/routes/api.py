@@ -4252,6 +4252,7 @@ def generate_exam():
                         'matching_pairs':    fq.get('matching_pairs', []),
                         'matching_right_shuffled': fq.get('matching_right_shuffled', []),
                         'essay_model_answer': fq.get('essay_model_answer'),
+                        'fill_blank_answer': fq.get('fill_blank_answer'),
                     }
                     for opt in fq.get('options', []):
                         gen_q['options'].append({

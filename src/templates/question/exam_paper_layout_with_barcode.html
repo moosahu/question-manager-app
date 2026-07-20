@@ -536,6 +536,15 @@
             font-size: 0.9em;
         }
 
+        .fill-blank-answer {
+            margin-right: 8px;
+            margin-top: 6px;
+            padding: 4px 6px;
+            background: #f5f5f5;
+            border: 1px dashed #999;
+            font-size: 0.9em;
+        }
+
         /* =============================================
            خاتمة الاختبار 
            =============================================
@@ -747,6 +756,12 @@
                     {% endfor %}
                 </tr>
             </table>
+        {% elif q.question_type == 'fill_blank' %}
+            {% if show_answers and q.fill_blank_answer %}
+                <div class="fill-blank-answer">
+                    <strong>الإجابة الصحيحة:</strong> {{ q.fill_blank_answer }}
+                </div>
+            {% endif %}
         {% elif q.question_type == 'matching' %}
             <table class="matching-table">
                 {% for pair in q.matching_pairs %}
@@ -869,17 +884,18 @@
         </table>
     {% endmacro %}
 
-    {# تقسيم الأسئلة لأقسام حسب النوع بترتيب ثابت، كل قسم بعنوان + تعليمة، والترقيم يستمر تسلسلياً بلا تصفير #}
+    {# تقسيم الأسئلة لأقسام حسب النوع بترتيب ثابت، كل قسم بعنوان + تعليمة، وترقيم كل قسم يبدأ من 1 من جديد #}
     {% set type_sections = [
         {'type': 'mcq', 'instruction': 'اختر الإجابة الصحيحة لكل مما يأتي:'},
         {'type': 'true_false', 'instruction': 'ضع علامة (✓) أمام العبارة الصحيحة وعلامة (✗) أمام العبارة الخاطئة:'},
+        {'type': 'fill_blank', 'instruction': 'أكمل الفراغ فيما يأتي:'},
         {'type': 'matching', 'instruction': 'اختر من العمود (أ) ما يناسبها من العمود (ب):'},
         {'type': 'essay', 'instruction': 'أجب عن الأسئلة التالية:'},
     ] %}
-    {% set ordinal_words = ['الأول', 'الثاني', 'الثالث', 'الرابع'] %}
+    {% set ordinal_words = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'] %}
     {% set present_types = questions|map(attribute='question_type')|unique|list %}
     {% set show_section_headers = present_types|length > 1 %}
-    {% set ns = namespace(qnum=1, section_index=0) %}
+    {% set ns = namespace(section_index=0) %}
     {% for section in type_sections %}
         {% set group_questions = questions|selectattr('question_type', 'equalto', section.type)|list %}
         {% if group_questions|length > 0 %}
@@ -888,8 +904,7 @@
                 السؤال {{ ordinal_words[ns.section_index] }}: {{ section.instruction }}
             </div>
             {% endif %}
-            {{ render_question_grid(group_questions, ns.qnum) }}
-            {% set ns.qnum = ns.qnum + group_questions|length %}
+            {{ render_question_grid(group_questions, 1) }}
             {% set ns.section_index = ns.section_index + 1 %}
         {% endif %}
     {% endfor %}
@@ -910,37 +925,43 @@
                 مفتاح الإجابات - نموذج {{ model_letter }}
             </div>
             
-            <div class="answer-grid">
-                
-                {% for question in questions %}
-                    {% if question.question_type == 'essay' %}
-                        {# لا إجابة صحيحة واحدة لسؤال مقالي — يُستبعد من مفتاح الإجابات المختصر #}
-                    {% elif question.question_type == 'matching' %}
-                        <div class="answer-item">
-                            س{{ loop.index }}:
-                            <strong>
-                                {% for pair in question.matching_pairs %}{{ loop.index }}={{ pair.correct_letter }}{% if not loop.last %}، {% endif %}{% endfor %}
-                            </strong>
-                        </div>
-                    {% else %}
-                        <div class="answer-item">
-                            س{{ loop.index }}:
-                            <strong>
-                                {% for option in question.options %}
-                                    {% if option.is_correct %}
-                                        {% if question.question_type == 'true_false' %}
-                                            {{ option.option_text }}
-                                        {% else %}
-                                            {{ letters[loop.index0] }}
+            {% for section in type_sections %}
+                {% set group_questions = questions|selectattr('question_type', 'equalto', section.type)|list %}
+                {% if group_questions|length > 0 and section.type != 'essay' %}
+                <div class="answer-grid">
+                    {% for question in group_questions %}
+                        {% if question.question_type == 'matching' %}
+                            <div class="answer-item">
+                                س{{ loop.index }}:
+                                <strong>
+                                    {% for pair in question.matching_pairs %}{{ loop.index }}={{ pair.correct_letter }}{% if not loop.last %}، {% endif %}{% endfor %}
+                                </strong>
+                            </div>
+                        {% elif question.question_type == 'fill_blank' %}
+                            <div class="answer-item">
+                                س{{ loop.index }}:
+                                <strong>{{ question.fill_blank_answer }}</strong>
+                            </div>
+                        {% else %}
+                            <div class="answer-item">
+                                س{{ loop.index }}:
+                                <strong>
+                                    {% for option in question.options %}
+                                        {% if option.is_correct %}
+                                            {% if question.question_type == 'true_false' %}
+                                                {{ option.option_text }}
+                                            {% else %}
+                                                {{ letters[loop.index0] }}
+                                            {% endif %}
                                         {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </strong>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-                
-            </div>
+                                    {% endfor %}
+                                </strong>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endfor %}
             
         </div>
         
