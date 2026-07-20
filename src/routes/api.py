@@ -4105,6 +4105,12 @@ def generate_exam():
 
         available = base_query.all()
 
+        # لو ما فيه type_counts، نقتصر على اختيار من متعدد بس — question_count
+        # كان يعني MCQ حصراً دائماً قبل إضافة الأنواع الجديدة، ولازم يبقى كذلك
+        # لأي طلب ما يحدد عدد كل نوع صراحة (تفادي اختيار عشوائي من كل الأنواع مختلطة)
+        if not type_counts:
+            available = [q for q in available if q.question_type == 'mcq']
+
         # ── الوضع اليدوي: استخدم question_ids مباشرةً ──────────────
         if manual_question_ids:
             id_to_q = {q.question_id: q for q in Question.query.filter(
