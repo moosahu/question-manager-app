@@ -741,7 +741,7 @@
 
         <div class="q-header">
             <span class="q-num">س{{ qnum }}:</span>
-            <span class="q-text">{{ q.question_text|default('', true) }}</span>
+            <span class="q-text">{% if q.question_type == 'fill_blank' %}...................... {% endif %}{{ q.question_text|default('', true) }}</span>
         </div>
 
         {% if q.image_url %}

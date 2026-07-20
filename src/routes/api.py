@@ -4755,14 +4755,24 @@ def get_unit_questions_count(unit_id):
             Lesson.unit_id == unit_id,
             Question.is_blocked == False
         ).count()
-        
+
+        type_rows = (
+            db.session.query(Question.question_type, db.func.count(Question.question_id))
+            .join(Lesson, Question.lesson_id == Lesson.id)
+            .filter(Lesson.unit_id == unit_id, Question.is_blocked == False)
+            .group_by(Question.question_type)
+            .all()
+        )
+        by_type = {t or 'mcq': c for t, c in type_rows}
+
         return jsonify({
             'success': True,
             'unit_id': unit_id,
             'unit_name': unit.name,
-            'questions_count': count
+            'questions_count': count,
+            'by_type': by_type
         })
-        
+
     except Exception as e:
         logger.exception(f"Error getting unit questions count: {e}")
         return jsonify({
@@ -4791,14 +4801,24 @@ def get_lesson_questions_count(lesson_id):
             Question.lesson_id == lesson_id,
             Question.is_blocked == False
         ).count()
-        
+
+        # عدد الأسئلة حسب النوع (لضبط الحد الأقصى بشاشة استخراج الاختبار)
+        type_rows = (
+            db.session.query(Question.question_type, db.func.count(Question.question_id))
+            .filter(Question.lesson_id == lesson_id, Question.is_blocked == False)
+            .group_by(Question.question_type)
+            .all()
+        )
+        by_type = {t or 'mcq': c for t, c in type_rows}
+
         return jsonify({
             'success': True,
             'lesson_id': lesson_id,
             'lesson_name': lesson.name,
-            'questions_count': count
+            'questions_count': count,
+            'by_type': by_type
         })
-        
+
     except Exception as e:
         logger.exception(f"Error getting lesson questions count: {e}")
         return jsonify({
@@ -4832,14 +4852,23 @@ def get_course_questions_count(course_id):
             Question.lesson_id.in_(lesson_ids),
             Question.is_blocked == False
         ).count()
-        
+
+        type_rows = (
+            db.session.query(Question.question_type, db.func.count(Question.question_id))
+            .filter(Question.lesson_id.in_(lesson_ids), Question.is_blocked == False)
+            .group_by(Question.question_type)
+            .all()
+        )
+        by_type = {t or 'mcq': c for t, c in type_rows}
+
         return jsonify({
             'success': True,
             'course_id': course_id,
             'course_name': course.name,
-            'questions_count': count
+            'questions_count': count,
+            'by_type': by_type
         })
-        
+
     except Exception as e:
         logger.exception(f"Error getting course questions count: {e}")
         return jsonify({
