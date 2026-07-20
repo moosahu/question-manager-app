@@ -3998,6 +3998,7 @@ def generate_exam():
     try:
         import random as _random
         import io
+        from types import SimpleNamespace as _SimpleNamespace
 
         data = request.get_json()
 
@@ -4181,6 +4182,73 @@ def generate_exam():
         def group_by_type_order(qs):
             return [q for t in EXAM_SUPPORTED_TYPES for q in qs if q.question_type == t]
 
+        # ── تجميع أزواج المزاوجة من كل أسئلة المزاوجة بالنطاق المختار بمسبح واحد،
+        # واختيار عدد الأزواج المطلوب منه (موزّعة بالتساوي عبر الدروس لو mode=balanced،
+        # وإلا عشوائياً من كامل المسبح) — بدل التعامل مع كل سؤال مزاوجة ككتلة واحدة ──
+        def _pool_matching_group(matching_questions, target_count, rng=None):
+            shuffler = rng.shuffle if rng else _random.shuffle
+            chooser = rng.choice if rng else _random.choice
+
+            pool = [(q.lesson_id, p) for q in matching_questions for p in (q.matching_pairs or [])]
+            if not pool or target_count <= 0:
+                return []
+
+            selected_pairs = []
+            if mode == 'balanced':
+                by_lesson = {}
+                for lesson_id, p in pool:
+                    by_lesson.setdefault(lesson_id, []).append(p)
+                for plist in by_lesson.values():
+                    shuffler(plist)
+                lesson_ids = list(by_lesson.keys())
+                i = 0
+                while len(selected_pairs) < target_count and any(by_lesson.values()):
+                    lid = lesson_ids[i % len(lesson_ids)]
+                    if by_lesson[lid]:
+                        selected_pairs.append(by_lesson[lid].pop())
+                    i += 1
+            else:
+                shuffled_pool = list(pool)
+                shuffler(shuffled_pool)
+                selected_pairs = [p for _, p in shuffled_pool[:target_count]]
+
+            selected_ids = {p.pair_id for p in selected_pairs}
+            remaining = [p for _, p in pool if p.pair_id not in selected_ids]
+            distractor = chooser(remaining) if remaining else None
+
+            pooled_fq = {
+                'question_id': -1,
+                'question_text': 'اربط العمود (أ) بما يناسبه من العمود (ب):',
+                'image_url': None,
+                'options': [],
+                'correct_option_id': None,
+                'explanation': None,
+                'explanation_image_path': None,
+                'lesson': None, 'unit': None, 'course': None,
+                'difficulty': 'medium', 'bloom_level': 'remember',
+                'video_url': None, 'r2_video_url': None, 'video_explanation': None, 'video_status': 'none',
+                'is_blocked': False,
+                'question_type': 'matching',
+                'matching_pairs': [
+                    {
+                        'left_text': p.left_text,
+                        'left_image_url': format_image_url(p.left_image_url),
+                        'right_text': p.right_text,
+                        'right_image_url': format_image_url(p.right_image_url),
+                    }
+                    for p in selected_pairs
+                ],
+                'matching_distractor': (
+                    {'text': distractor.right_text, 'image_url': format_image_url(distractor.right_image_url)}
+                    if distractor else None
+                ),
+                'fill_blank_answer': None,
+                'fill_blank_alt_answers': [],
+                'essay_model_answer': None,
+                '_pooled_matching': True,
+            }
+            return [_SimpleNamespace(**pooled_fq)]
+
         # ── اختيار حسب عدد كل نوع لحاله (type_counts) — بنفس ترتيب EXAM_SUPPORTED_TYPES ──
         def select_questions_by_type(pool, counts, rng=None):
             shuffler = rng.shuffle if rng else _random.shuffle
@@ -4190,8 +4258,11 @@ def generate_exam():
                 if cnt <= 0:
                     continue
                 type_pool = [q for q in pool if q.question_type == qtype]
-                shuffler(type_pool)
-                result.extend(type_pool[:cnt])
+                if qtype == 'matching':
+                    result.extend(_pool_matching_group(type_pool, cnt, rng))
+                else:
+                    shuffler(type_pool)
+                    result.extend(type_pool[:cnt])
             return result
 
         # ── دالة التنسيق ──────────────────────────────────────────────
@@ -4200,7 +4271,11 @@ def generate_exam():
         def format_selected(qs_list):
             formatted = []
             for q in qs_list:
-                fq = format_question(q)
+                if getattr(q, '_pooled_matching', False):
+                    fq = dict(vars(q))
+                    fq.pop('_pooled_matching', None)
+                else:
+                    fq = format_question(q)
                 if shuffle_options and fq.get('options'):
                     opts = list(fq['options'])
                     _random.shuffle(opts)
@@ -4773,6 +4848,18 @@ def get_unit_questions_count(unit_id):
         )
         by_type = {t or 'mcq': c for t, c in type_rows}
 
+        # سؤال المزاوجة يُختار على مستوى الزوج (pooling) وليس على مستوى السؤال —
+        # لذا "المتاح" لهذا النوع يجب أن يكون عدد الأزواج الفعلي، لا عدد أسئلة المزاوجة
+        matching_pairs_count = (
+            db.session.query(db.func.count(MatchingPair.pair_id))
+            .join(Question, MatchingPair.question_id == Question.question_id)
+            .join(Lesson, Question.lesson_id == Lesson.id)
+            .filter(Lesson.unit_id == unit_id, Question.is_blocked == False, Question.question_type == 'matching')
+            .scalar()
+        ) or 0
+        if 'matching' in by_type:
+            by_type['matching'] = matching_pairs_count
+
         return jsonify({
             'success': True,
             'unit_id': unit_id,
@@ -4818,6 +4905,17 @@ def get_lesson_questions_count(lesson_id):
             .all()
         )
         by_type = {t or 'mcq': c for t, c in type_rows}
+
+        # سؤال المزاوجة يُختار على مستوى الزوج (pooling) وليس على مستوى السؤال —
+        # لذا "المتاح" لهذا النوع يجب أن يكون عدد الأزواج الفعلي، لا عدد أسئلة المزاوجة
+        matching_pairs_count = (
+            db.session.query(db.func.count(MatchingPair.pair_id))
+            .join(Question, MatchingPair.question_id == Question.question_id)
+            .filter(Question.lesson_id == lesson_id, Question.is_blocked == False, Question.question_type == 'matching')
+            .scalar()
+        ) or 0
+        if 'matching' in by_type:
+            by_type['matching'] = matching_pairs_count
 
         return jsonify({
             'success': True,
@@ -4868,6 +4966,17 @@ def get_course_questions_count(course_id):
             .all()
         )
         by_type = {t or 'mcq': c for t, c in type_rows}
+
+        # سؤال المزاوجة يُختار على مستوى الزوج (pooling) وليس على مستوى السؤال —
+        # لذا "المتاح" لهذا النوع يجب أن يكون عدد الأزواج الفعلي، لا عدد أسئلة المزاوجة
+        matching_pairs_count = (
+            db.session.query(db.func.count(MatchingPair.pair_id))
+            .join(Question, MatchingPair.question_id == Question.question_id)
+            .filter(Question.lesson_id.in_(lesson_ids), Question.is_blocked == False, Question.question_type == 'matching')
+            .scalar()
+        ) or 0
+        if 'matching' in by_type:
+            by_type['matching'] = matching_pairs_count
 
         return jsonify({
             'success': True,
