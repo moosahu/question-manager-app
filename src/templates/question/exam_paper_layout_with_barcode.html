@@ -270,8 +270,6 @@
            الترقيم بين الأعمدة لو الافتراض غلط). */
         .questions-columns {
             column-gap: 16px;
-            background-repeat: no-repeat;
-            background-size: 1px 100%;
         }
 
         .section-header {
@@ -886,7 +884,9 @@
             {% set _ = divider_positions.append(pos) %}
         {% endfor %}
         {% set divider_gradients = ['linear-gradient(#000,#000)'] * (divider_positions|length) %}
-        <div class="questions-columns" style="column-count: {{ eff_col_count }};{% if divider_positions %} background-image: {{ divider_gradients|join(', ') }}; background-position: {{ divider_positions|join(', ') }};{% endif %}">
+        {% set divider_sizes = ['1px 100%'] * (divider_positions|length) %}
+        {% set divider_repeats = ['no-repeat'] * (divider_positions|length) %}
+        <div class="questions-columns" style="column-count: {{ eff_col_count }};{% if divider_positions %} background-image: {{ divider_gradients|join(', ') }}; background-position: {{ divider_positions|join(', ') }}; background-size: {{ divider_sizes|join(', ') }}; background-repeat: {{ divider_repeats|join(', ') }};{% endif %}">
             {% for question in group_questions %}
                 {{ render_question(question, (start_num - 1) + loop.index) }}
             {% endfor %}
