@@ -3636,23 +3636,38 @@ function updateQuestionsList() {
                 };
                 const bloom = question.bloom_level || 'remember';
                 const bloomBadge = bloomBadges[bloom] || bloomBadges['remember'];
-                
+
+                // تحديد شارة نوع السؤال
+                const typeBadges = {
+                    'mcq': { text: 'اختيار متعدد', bg: '#2563eb', icon: '☑️' },
+                    'true_false': { text: 'صح وخطأ', bg: '#16a34a', icon: '✔️' },
+                    'fill_blank': { text: 'إكمال فراغ', bg: '#d97706', icon: '✍️' },
+                    'matching': { text: 'مزاوجة', bg: '#9333ea', icon: '🔗' },
+                    'essay': { text: 'مقالي', bg: '#dc2626', icon: '📄' }
+                };
+                const qtype = question.question_type || 'mcq';
+                const typeBadge = typeBadges[qtype] || typeBadges['mcq'];
+
                 html += `
-                    <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}" 
-                         style="background: ${isSelected ? color.lighter : '#fafafa'}; border: 2px solid ${isSelected ? color.border : '#eee'}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `box-shadow: 0 2px 8px ${color.light};` : ''}" 
-                         onmouseover="if(!this.classList.contains('selected')) this.style.borderColor='${color.light}'" 
+                    <div class="question-item ${isSelected ? 'selected' : ''}" id="question-${question.question_id}"
+                         style="background: ${isSelected ? color.lighter : '#fafafa'}; border: 2px solid ${isSelected ? color.border : '#eee'}; border-radius: 8px; padding: 10px; transition: all 0.2s; ${isSelected ? `box-shadow: 0 2px 8px ${color.light};` : ''}"
+                         onmouseover="if(!this.classList.contains('selected')) this.style.borderColor='${color.light}'"
                          onmouseout="if(!this.classList.contains('selected')) this.style.borderColor='#eee'">
                         <div style="display: flex; align-items: flex-start; gap: 10px;">
-                            <input type="checkbox" class="question-checkbox" value="${question.question_id}" 
-                                   ${isSelected ? 'checked' : ''} 
+                            <input type="checkbox" class="question-checkbox" value="${question.question_id}"
+                                   ${isSelected ? 'checked' : ''}
                                    data-unit="${unitName}"
                                    data-lesson="${lessonName}"
                                    data-difficulty="${difficulty}"
                                    data-bloom="${bloom}"
+                                   data-type="${qtype}"
                                    style="margin-top: 3px; accent-color: ${color.border}; width: 18px; height: 18px; cursor: pointer;" />
                             <div style="flex: 1; cursor: pointer;" onclick="document.querySelector('.question-checkbox[value=\\'${question.question_id}\\']').click()">
                                 <div class="question-text" style="font-size: 0.88rem; line-height: 1.5; color: #333; margin-bottom: 6px;">${question.question_text || '<em style="color:#999;">[سؤال بالصورة]</em>'}</div>
                                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    <span style="background: ${typeBadge.bg}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600;">
+                                        ${typeBadge.icon} ${typeBadge.text}
+                                    </span>
                                     <span style="background: ${diffBadge.bg}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600;">
                                         ${diffBadge.icon} ${diffBadge.text}
                                     </span>
