@@ -864,18 +864,21 @@
 
     {# رسم شبكة أسئلة مجموعة واحدة (عمود/عمودان/ثلاثة حسب col_count)، بترقيم يبدأ من start_num #}
     {% macro render_question_grid(group_questions, start_num) %}
-        {% set qcpp = [(group_questions|length / col_count / 2)|round(0, 'ceil')|int, 1]|max %}
-        {% set qpp  = qcpp * col_count %}
+        {# عدد الأعمدة الفعلي — لا نفتح أعمدة أكثر من عدد الأسئلة نفسه، تفادي خط فاصل بعمود فاضي #}
+        {% set eff_col_count = [col_count, group_questions|length]|min %}
+        {% set eff_col_count = [eff_col_count, 1]|max %}
+        {% set qcpp = [(group_questions|length / eff_col_count / 2)|round(0, 'ceil')|int, 1]|max %}
+        {% set qpp  = qcpp * eff_col_count %}
         {% set num_rows = [(group_questions|length / qpp)|round(0, 'ceil')|int, 1]|max %}
         <table class="questions-table">
             {% for row in range(num_rows) %}
             <tr>
-                {% for c in range(col_count) %}
+                {% for c in range(eff_col_count) %}
                     {% set start = row * qpp + c * qcpp %}
                     {% set end   = start + qcpp %}
                     <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
                         {% for question in group_questions[start:end] %}
-                            {{ render_question(question, start_num + start + loop.index) }}
+                            {{ render_question(question, (start_num - 1) + start + loop.index) }}
                         {% endfor %}
                     </td>
                 {% endfor %}
