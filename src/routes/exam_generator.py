@@ -210,22 +210,36 @@ class ExamGenerator:
         base_url = f"file://{src_dir}/"
         # Playwright أسرع بـ 5-8x — WeasyPrint احتياطي إذا فشل
         try:
-            return self._pdf_playwright(html_content, base_url)
+            return self._pdf_playwright(html_content, src_dir)
         except Exception as e:
             current_app.logger.warning(f"Playwright failed, fallback to WeasyPrint: {e}")
             return HTML(string=html_content, base_url=base_url).write_pdf()
 
-    def _pdf_playwright(self, html_content, base_url):
+    def _pdf_playwright(self, html_content, src_dir):
+        # page.set_content() بـPlaywright (النسخة الحالية) ما يدعم base_url إطلاقاً
+        # (باراميتر موجود بتوثيق JS بس، مو بـPython API) — لحل المسارات النسبية
+        # (خطوط/شعار بـstatic/...) لازم نكتب الملف فعلياً داخل src_dir ونفتحه
+        # بـgoto(file://...) بدل set_content، فيصير أساس المسارات النسبية صحيح تلقائياً.
+        import uuid
         browser = _get_browser()
         ctx  = browser.new_context()
         page = ctx.new_page()
-        page.set_content(html_content, base_url=base_url, wait_until='load')
-        pdf  = page.pdf(
-            format='A4',
-            print_background=True,
-            margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
-        )
-        ctx.close()
+        tmp_path = os.path.join(src_dir, f'_pw_render_{uuid.uuid4().hex}.html')
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            page.goto(f"file://{tmp_path}", wait_until='load')
+            pdf = page.pdf(
+                format='A4',
+                print_background=True,
+                margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
+            )
+        finally:
+            ctx.close()
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
         return pdf
 
     def generate_word(self, questions, exam_title="نموذج الاختبار", show_answers=False, **kwargs):
