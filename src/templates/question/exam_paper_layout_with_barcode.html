@@ -477,7 +477,7 @@
             border: 1px solid #333;
         }
 
-        /* جدول سؤال المزاوجة — عمود يمين وعمود يسار لكل زوج */
+        /* جدول سؤال المزاوجة — عمود (أ) بترقيم + خانة إجابة فارغة، وعمود (ب) شبه شرعي (legend) مبعثر */
         .matching-table {
             width: 100%;
             table-layout: fixed;
@@ -488,10 +488,32 @@
         }
 
         .matching-cell {
-            width: 50%;
+            width: 85%;
             padding: 5px 6px;
+            text-align: right;
+            border: 1px solid #333;
+        }
+
+        .matching-answer-cell {
+            width: 15%;
+            padding: 5px 4px;
             text-align: center;
             border: 1px solid #333;
+            font-weight: bold;
+        }
+
+        .matching-legend {
+            margin-right: 8px;
+            margin-top: 6px;
+            padding: 6px 8px;
+            border: 1px dashed #666;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+        }
+
+        .matching-legend-item {
+            white-space: nowrap;
         }
 
         /* سؤال مقالي — أسطر فارغة للكتابة */
@@ -729,17 +751,24 @@
             <table class="matching-table">
                 {% for pair in q.matching_pairs %}
                 <tr>
+                    <td class="matching-answer-cell">( &nbsp; )</td>
                     <td class="matching-cell">
-                        {% if pair.right_text %}{{ pair.right_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
-                        {% if pair.right_image_url %}<img src="{{ pair.right_image_url }}" class="option-img">{% endif %}
-                    </td>
-                    <td class="matching-cell">
+                        {{ loop.index }}.
                         {% if pair.left_text %}{{ pair.left_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
                         {% if pair.left_image_url %}<img src="{{ pair.left_image_url }}" class="option-img">{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </table>
+            <div class="matching-legend">
+                {% for item in q.matching_right_shuffled %}
+                    <span class="matching-legend-item">
+                        {{ item.letter }})
+                        {% if item.text %}{{ item.text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
+                        {% if item.image_url %}<img src="{{ item.image_url }}" class="option-img">{% endif %}
+                    </span>
+                {% endfor %}
+            </div>
         {% elif q.question_type == 'essay' %}
             <div class="essay-lines">
                 <div class="essay-line"></div>
@@ -884,8 +913,15 @@
             <div class="answer-grid">
                 
                 {% for question in questions %}
-                    {% if question.question_type in ('essay', 'matching') %}
-                        {# لا حرف إجابة واحد لسؤالي مقالي/مزاوجة — التطابق الصحيح معروض مباشرة بجدول السؤال نفسه، فيُستبعدان من مفتاح الإجابات المختصر #}
+                    {% if question.question_type == 'essay' %}
+                        {# لا إجابة صحيحة واحدة لسؤال مقالي — يُستبعد من مفتاح الإجابات المختصر #}
+                    {% elif question.question_type == 'matching' %}
+                        <div class="answer-item">
+                            س{{ loop.index }}:
+                            <strong>
+                                {% for pair in question.matching_pairs %}{{ loop.index }}={{ pair.correct_letter }}{% if not loop.last %}، {% endif %}{% endfor %}
+                            </strong>
+                        </div>
                     {% else %}
                         <div class="answer-item">
                             س{{ loop.index }}:

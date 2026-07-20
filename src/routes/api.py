@@ -158,7 +158,7 @@ except ImportError:  # pragma: no cover
 
 # Import models - adjust path if necessary based on your structure
 try:
-    from src.models.question import Question, Option
+    from src.models.question import Question, Option, MatchingPair
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.generated_exam import GeneratedExam
     from src.models.backup_settings import BackupSettings
@@ -179,7 +179,7 @@ try:
             activity_available = False
 except ImportError:  # pragma: no cover
     try:
-        from models.question import Question, Option
+        from models.question import Question, Option, MatchingPair
         from models.curriculum import Lesson, Unit, Course
         from models.backup_settings import BackupSettings
         from models.backup_log import BackupLog
@@ -358,7 +358,26 @@ def format_question(question):
             unit_name = question.lesson.unit.name
             if question.lesson.unit.course:
                 course_name = question.lesson.unit.course.name
-            
+
+    # لسؤال المزاوجة: خيار زائد (مشتّت) بعمود (ب) بلا إجابة صحيحة — يُسحب من
+    # سؤال مزاوجة آخر بنفس الدرس إن وُجد، لمنع الطالب من الإجابة بالاستبعاد
+    matching_distractor = None
+    if getattr(question, 'question_type', 'mcq') == 'matching':
+        other_pair = (
+            MatchingPair.query
+            .join(Question, MatchingPair.question_id == Question.question_id)
+            .filter(Question.lesson_id == question.lesson_id)
+            .filter(Question.question_id != question.question_id)
+            .filter(Question.question_type == 'matching')
+            .order_by(db.func.random())
+            .first()
+        )
+        if other_pair:
+            matching_distractor = {
+                "text": other_pair.right_text,
+                "image_url": format_image_url(other_pair.right_image_url),
+            }
+
     return {
         "question_id": question.question_id,
         "question_text": question.question_text,
@@ -389,6 +408,7 @@ def format_question(question):
             }
             for p in sorted(getattr(question, 'matching_pairs', []) or [], key=lambda p: p.order_num or 0)
         ],
+        "matching_distractor": matching_distractor,
         "fill_blank_answer": getattr(question, 'fill_blank_answer', None),
         "fill_blank_alt_answers": getattr(question, 'fill_blank_alt_answers', None) or [],
         "essay_model_answer": getattr(question, 'essay_model_answer', None),
@@ -4168,6 +4188,8 @@ def generate_exam():
             return result
 
         # ── دالة التنسيق ──────────────────────────────────────────────
+        matching_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي']
+
         def format_selected(qs_list):
             formatted = []
             for q in qs_list:
@@ -4178,6 +4200,29 @@ def generate_exam():
                     fq['options'] = opts
                 if not include_answers:
                     fq.pop('correct_option_id', None)
+
+                if fq.get('question_type') == 'matching' and fq.get('matching_pairs'):
+                    pairs = fq['matching_pairs']
+                    right_items = [
+                        {'text': p['right_text'], 'image_url': p['right_image_url']}
+                        for p in pairs
+                    ]
+                    if fq.get('matching_distractor'):
+                        right_items.append(fq['matching_distractor'])
+                    order = list(range(len(right_items)))
+                    _random.shuffle(order)
+                    shuffled_right = []
+                    correct_letter_by_index = {}
+                    for pos, orig_idx in enumerate(order):
+                        letter = matching_letters[pos] if pos < len(matching_letters) else str(pos + 1)
+                        item = right_items[orig_idx]
+                        shuffled_right.append({'letter': letter, 'text': item['text'], 'image_url': item['image_url']})
+                        if orig_idx < len(pairs):
+                            correct_letter_by_index[orig_idx] = letter
+                    fq['matching_right_shuffled'] = shuffled_right
+                    for i, p in enumerate(pairs):
+                        p['correct_letter'] = correct_letter_by_index.get(i, '') if include_answers else ''
+
                 formatted.append(fq)
             return formatted
 
@@ -4205,6 +4250,7 @@ def generate_exam():
                         'image_url':         fq.get('image_url'),
                         'question_type':     fq.get('question_type', 'mcq'),
                         'matching_pairs':    fq.get('matching_pairs', []),
+                        'matching_right_shuffled': fq.get('matching_right_shuffled', []),
                         'essay_model_answer': fq.get('essay_model_answer'),
                     }
                     for opt in fq.get('options', []):

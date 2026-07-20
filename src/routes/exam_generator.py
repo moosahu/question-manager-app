@@ -172,6 +172,7 @@ class ExamGenerator:
                 'correct_answer': '',
                 'question_type': question.get('question_type', 'mcq'),
                 'matching_pairs': question.get('matching_pairs', []),
+                'matching_right_shuffled': question.get('matching_right_shuffled', []),
                 'essay_model_answer': question.get('essay_model_answer'),
             }
             options = question.get('options', [])
