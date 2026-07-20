@@ -267,26 +267,19 @@
         /* تخطيط الأسئلة — أعمدة CSS حقيقية (multi-column): يمتلئ العمود تلقائياً
            حسب المساحة الفعلية بالصفحة، ثم ينتقل للعمود التالي، ثم للصفحة التالية —
            بدل جدول محسوب يدوياً كان يفترض عدد أسئلة ثابت لكل صفحة (يسبب انزياح
-           الترقيم بين الأعمدة لو الافتراض غلط). */
+           الترقيم بين الأعمدة لو الافتراض غلط).
+           خط الفاصل: column-rule عادي — مولّد PDF الفعلي بالإنتاج هو Playwright/
+           Chromium (WeasyPrint احتياطي نادر الاستخدام فقط لو فشل Playwright).
+           اختُبر محلياً عبر Playwright الحقيقي: column-rule يشتغل صحيح 100%،
+           موضع صحيح مع RTL، ويمتد تلقائياً عبر كل صفحات القسم بدون أي تسريب —
+           كل التعقيد السابق (background-image/position:fixed/absolute) كان
+           بسبب اختبار الحل على WeasyPrint (المسار الاحتياطي) بدل Playwright
+           (المسار الفعلي المستخدم)، وWeasyPrint فيه علل حقيقية بهذي الخاصية. */
         .questions-columns {
             column-gap: 16px;
-        }
-
-        /* حاوية نسبية حول قسم الأسئلة فقط — تحصر خط الفاصل بحدود هذا القسم بالضبط،
-           بدون تسريبه لأقسام لاحقة (صح/خطأ، مزاوجة، مقالية) على نفس الصفحة أو التالية.
-           (اختُبر محلياً: column-rule ينزاح بسياق RTL، وposition:fixed يتكرر بكل
-           صفحات المستند كاملة بغض النظر عن مكان تعريفه — يسرّب الخط لأقسام لاحقة
-           لا أعمدة فيها. position:absolute داخل حاوية position:relative محصورة
-           بارتفاع القسم نفسه هو الحل المضبوط المُتحقَّق منه فعلياً.) */
-        .columns-wrap {
-            position: relative;
-        }
-        .column-divider {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: #000;
+            column-rule-width: 1px;
+            column-rule-style: solid;
+            column-rule-color: #000;
         }
 
         .section-header {
@@ -889,19 +882,10 @@
             {% set eff_col_count = [col_count, group_questions|length]|min %}
             {% set eff_col_count = [eff_col_count, 1]|max %}
         {% endif %}
-        {# خطوط فاصل حقيقية (divs) بموضع نسبة مئوية بسيطة — بمعزل عن اتجاه RTL/LTR
-           (تماثل فيزيائي للأعمدة)، محصورة بحاوية هذا القسم فقط عبر position:relative
-           فما تسرّب لأقسام لاحقة على نفس الصفحة أو الصفحة التالية. #}
-        <div class="columns-wrap">
-            {% for k in range(1, eff_col_count) %}
-                {% set pct = (k / eff_col_count * 100) %}
-                <div class="column-divider" style="left: {{ pct|round(3) }}%;"></div>
+        <div class="questions-columns" style="column-count: {{ eff_col_count }};">
+            {% for question in group_questions %}
+                {{ render_question(question, (start_num - 1) + loop.index) }}
             {% endfor %}
-            <div class="questions-columns" style="column-count: {{ eff_col_count }};">
-                {% for question in group_questions %}
-                    {{ render_question(question, (start_num - 1) + loop.index) }}
-                {% endfor %}
-            </div>
         </div>
     {% endmacro %}
 
