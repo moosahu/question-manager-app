@@ -322,6 +322,78 @@ def get_ordered_questions_for_omr(question_ids):
     return [q for q in questions if q.question_type not in OMR_EXCLUDED_TYPES]
 
 
+def _split_omr_questions_data(questions):
+    """
+    يقسّم أسئلة OMR (بعد استبعاد fill_blank/essay) لثلاث مجموعات حسب النوع —
+    كل نوع له مسبح ترقيم مستقل بورقة التظليل (اختر/ص-خ/مزاوجة)، بدل معاملتها
+    كمسبح واحد مختلط (كان يسبب أرقام إجابات خاطئة/فاضية لصح-خطأ والمزاوجة).
+    """
+    mcq_data, tf_data = [], []
+    matching_pairs_flat = []
+    for q in questions:
+        qtype = getattr(q, 'question_type', 'mcq') or 'mcq'
+        if qtype == 'matching':
+            for p in (q.matching_pairs or []):
+                matching_pairs_flat.append({'pair_id': p.pair_id, 'right_text': p.right_text})
+            continue
+        q_dict = {
+            'question_id': q.question_id,
+            'options': [
+                {'option_id': getattr(o, 'option_id', None),
+                 'option_text': getattr(o, 'option_text', '') or '',
+                 'is_correct': getattr(o, 'is_correct', False)}
+                for o in q.options
+            ],
+        }
+        if qtype == 'true_false':
+            tf_data.append(q_dict)
+        else:
+            mcq_data.append(q_dict)
+    return mcq_data, tf_data, matching_pairs_flat
+
+
+def _build_omr_answers(mcq_data, tf_data, matching_pairs_flat, shuffle_questions=True, shuffle_options=True, seed=None):
+    """
+    يبني قاموس answers الموحّد اللي يتوقعه قالب remark_answer_sheet.html بأوفست ثابت:
+    اختر (متعدد) 1-40، ص/خ (صح-خطأ) 41-60، مزاوجة 61-70 — كل نوع بمسبح ترقيم وخلط مستقل.
+    """
+    letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    matching_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي']
+    answers = {}
+
+    shuffled_mcq = shuffle_exam(mcq_data, shuffle_questions=shuffle_questions, shuffle_options=shuffle_options, seed=seed)
+    for q_num, q in enumerate(shuffled_mcq[:40], 1):
+        for i, opt in enumerate(q.get('options', [])):
+            if opt.get('is_correct'):
+                answers[q_num] = letters[i] if i < len(letters) else str(i + 1)
+                break
+
+    tf_seed = (seed + 1) if seed is not None else None
+    shuffled_tf = shuffle_exam(tf_data, shuffle_questions=shuffle_questions, shuffle_options=False, seed=tf_seed)
+    for q_num, q in enumerate(shuffled_tf[:20], 1):
+        for opt in q.get('options', []):
+            if opt.get('is_correct'):
+                answers[40 + q_num] = 'ص' if opt.get('option_text') == 'صح' else 'خ'
+                break
+
+    rng = random.Random(seed + 2) if seed is not None else random
+    pairs = list(matching_pairs_flat)
+    if shuffle_questions:
+        rng.shuffle(pairs)
+    pairs = pairs[:10]
+    if pairs:
+        order = list(range(len(pairs)))
+        rng.shuffle(order)
+        correct_letter_by_index = {}
+        for pos, orig_idx in enumerate(order):
+            letter = matching_letters[pos] if pos < len(matching_letters) else str(pos + 1)
+            correct_letter_by_index[orig_idx] = letter
+        for i in range(len(pairs)):
+            answers[60 + i + 1] = correct_letter_by_index.get(i, '')
+
+    return answers
+
+
 # ============================================================
 # API خاص بشاشة استخراج الاختبار (export_exam.html) — إداري فقط (login_required)
 # منفصل تماماً عن /api/v1/* الذي يستهلكه تطبيق الطالب (الاختبار التفاعلي يبقى MCQ فقط دائماً).
@@ -3633,22 +3705,17 @@ def generate_omr_answer_key():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
-        # جلب الأسئلة مع الخيارات
-        questions = get_ordered_questions(question_ids)
-        
+        # جلب الأسئلة مع الخيارات (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
+        questions = get_ordered_questions_for_omr(question_ids)
+
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
-        
-        # استخراج الإجابات الصحيحة
-        answers = {}
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
-        
-        for i, q in enumerate(questions, 1):
-            for j, opt in enumerate(q.options):
-                if opt.is_correct:
-                    answers[i] = letters[j] if j < len(letters) else 'أ'
-                    break
-        
+
+        # استخراج الإجابات الصحيحة — مفصولة حسب النوع (متعدد/صح-خطأ/مزاوجة)
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        answers = _build_omr_answers(mcq_data, tf_data, matching_pairs_flat,
+                                      shuffle_questions=False, shuffle_options=False, seed=None)
+
         # جلب إعدادات الكليشة
         header_settings_record = ExamHeaderSettings.query.first()
         header_settings = {
@@ -3773,30 +3840,15 @@ def print_remark_sheets_multi_models():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
         
-        # جلب الأسئلة
-        questions = get_ordered_questions(question_ids)
-        
+        # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
+        questions = get_ordered_questions_for_omr(question_ids)
+
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
-        
-        # تحويل الأسئلة لقاموس مع تنسيق النص للطباعة
-        questions_data = []
-        for q in questions:
-            q_dict = {
-                'question_id': q.question_id,
-                'question_text': format_text_for_print(getattr(q, 'question_text', '') or ''),
-                'image_url': getattr(q, 'image_url', None) or '',
-                'options': []
-            }
-            for opt in q.options:
-                q_dict['options'].append({
-                    'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
-                    'image_url': getattr(opt, 'image_url', None) or '',
-                    'is_correct': getattr(opt, 'is_correct', False)
-                })
-            questions_data.append(q_dict)
-        
+
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
+
         # جلب إعدادات الكليشة
         settings = ExamHeaderSettings.query.first()
         header_context = {
@@ -3821,33 +3873,18 @@ def print_remark_sheets_multi_models():
                     header_context['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         except Exception as e:
             current_app.logger.warning(f"Could not load logo: {e}")
-        
-        # توليد مفاتيح الإجابة لكل نموذج
+
+        # توليد مفاتيح الإجابة لكل نموذج — كل نوع (متعدد/صح-خطأ/مزاوجة) بمسبح مستقل
         answer_keys = {}
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
-        
+
         for idx, model_letter in enumerate(models):
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
-            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled_questions = shuffle_exam(
-                questions_data,
-                shuffle_questions=True,
-                shuffle_options=shuffle_options,
-                seed=seed
+            seed = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answer_keys[model_letter] = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_options, seed=seed
             )
-            
-            # بناء مفتاح الإجابات لهذا النموذج
-            model_answers = {}
-            for q_num, q in enumerate(shuffled_questions, 1):
-                correct_letter = ''
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        correct_letter = letters[i] if i < len(letters) else str(i+1)
-                        break
-                model_answers[q_num] = correct_letter
-            answer_keys[model_letter] = model_answers
         
         # توزيع النماذج على الطلاب بالتساوي
         students_per_model = len(students_list) // len(models)
@@ -3884,11 +3921,11 @@ def print_remark_sheets_multi_models():
                     model_letter=model_letter,
                     is_answer_key=False,
                     answers=None,  # لا نعرض الإجابات في ورقة الطالب
-                    questions_count=len(questions_data),
+                    questions_count=len(questions),
                     **header_context
                 )
                 all_html += '<div style="page-break-after: always;"></div>'
-        
+
         # إضافة مفاتيح الإجابة لكل نموذج في النهاية
         for model_letter in models:
             all_html += render_template(
@@ -3903,7 +3940,7 @@ def print_remark_sheets_multi_models():
                 is_answer_key=True,
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
-                questions_count=len(questions_data),
+                questions_count=len(questions),
                 **header_context
             )
             all_html += '<div style="page-break-after: always;"></div>'
@@ -3931,8 +3968,8 @@ def print_blank_remark_sheets():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
         
-        # جلب الأسئلة لمعرفة العدد
-        questions = get_ordered_questions(question_ids)
+        # جلب الأسئلة لمعرفة العدد (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
+        questions = get_ordered_questions_for_omr(question_ids)
         questions_count = len(questions)
         
         # جلب إعدادات الكليشة
@@ -4007,30 +4044,15 @@ def generate_all_models_answer_keys():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
         
-        # جلب الأسئلة
-        questions = get_ordered_questions(question_ids)
-        
+        # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
+        questions = get_ordered_questions_for_omr(question_ids)
+
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
-        
-        # تحويل الأسئلة لقاموس مع تنسيق النص للطباعة
-        questions_data = []
-        for q in questions:
-            q_dict = {
-                'question_id': q.question_id,
-                'question_text': format_text_for_print(getattr(q, 'question_text', '') or ''),
-                'image_url': getattr(q, 'image_url', None) or '',
-                'options': []
-            }
-            for opt in q.options:
-                q_dict['options'].append({
-                    'option_id': getattr(opt, 'option_id', None),
-                    'option_text': format_text_for_print(getattr(opt, 'option_text', '') or ''),
-                    'image_url': getattr(opt, 'image_url', None) or '',
-                    'is_correct': getattr(opt, 'is_correct', False)
-                })
-            questions_data.append(q_dict)
-        
+
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
+
         # جلب إعدادات الكليشة
         header_settings_record = ExamHeaderSettings.query.first()
         header_settings = {
@@ -4055,7 +4077,7 @@ def generate_all_models_answer_keys():
                 'grade': getattr(header_settings_record, 'grade', ''),
                 'total_score': getattr(header_settings_record, 'total_score', 30)
             })
-        
+
         # تحويل الشعار لـ Base64
         try:
             logo_path = os.path.join(current_app.static_folder, 'images', 'logo.png')
@@ -4064,33 +4086,19 @@ def generate_all_models_answer_keys():
                     header_settings['logo_base64'] = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         except Exception as e:
             current_app.logger.warning(f"Could not load logo: {e}")
-        
-        # توليد مفاتيح الإجابة لكل نموذج
+
+        # توليد مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل
         all_keys_html = ""
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
-        
+
         for idx, model_letter in enumerate(models):
             # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
-            question_ids_str = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled_questions = shuffle_exam(
-                questions_data,
-                shuffle_questions=True,
-                shuffle_options=shuffle_options,
-                seed=seed
+            seed = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answers = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_options, seed=seed
             )
-            
-            # استخراج الإجابات الصحيحة
-            answers = {}
-            for q_num, q in enumerate(shuffled_questions, 1):
-                correct_letter = ''
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        correct_letter = letters[i] if i < len(letters) else str(i+1)
-                        break
-                answers[q_num] = correct_letter
-            
+
             # توليد HTML لمفتاح الإجابة
             answer_key_html = render_template(
                 'question/remark_answer_sheet.html',
@@ -4511,7 +4519,7 @@ def remark_blank_pdf():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
-        questions_count = len(get_ordered_questions(question_ids))
+        questions_count = len(get_ordered_questions_for_omr(question_ids))
         ctx = _remark_header_context(exam_type, semester, academic_year)
 
         all_html = ""
@@ -4559,33 +4567,23 @@ def remark_answer_key_pdf():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
-        questions = get_ordered_questions(question_ids)
+        questions = get_ordered_questions_for_omr(question_ids)
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        questions_data = []
-        for q in questions:
-            q_dict = {'question_id': q.question_id, 'options': []}
-            for opt in q.options:
-                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
-            questions_data.append(q_dict)
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
 
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         ctx = _remark_header_context(exam_type, semester, academic_year)
         all_html = ""
 
         for idx, model_letter in enumerate(models):
-            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
-
-            answers = {}
-            for q_num, q in enumerate(shuffled, 1):
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
-                        break
+            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answers = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
+            )
 
             all_html += render_template(
                 'question/remark_answer_sheet.html',
@@ -4651,35 +4649,24 @@ def remark_students_pdf():
         if not students_list:
             return jsonify({'error': 'لا يوجد طلاب'}), 400
 
-        # ── جلب الأسئلة ─────────────────────────────────────────────
-        questions = get_ordered_questions(question_ids)
+        # ── جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل) ──────
+        questions = get_ordered_questions_for_omr(question_ids)
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        questions_data = []
-        for q in questions:
-            q_dict = {'question_id': q.question_id, 'options': []}
-            for opt in q.options:
-                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
-            questions_data.append(q_dict)
-
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
         ctx = _remark_header_context(exam_type, semester, academic_year)
 
-        # ── بناء مفاتيح الإجابة لكل نموذج ──────────────────────────
+        # ── بناء مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل ──────
         answer_keys = {}
         for idx, model_letter in enumerate(models):
-            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
-            model_answers = {}
-            for q_num, q in enumerate(shuffled, 1):
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        model_answers[q_num] = letters[i] if i < len(letters) else str(i+1)
-                        break
-            answer_keys[model_letter] = model_answers
+            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answer_keys[model_letter] = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
+            )
 
         # ── توزيع الطلاب على النماذج ────────────────────────────────
         per_model   = len(students_list) // len(models)
@@ -4709,7 +4696,7 @@ def remark_students_pdf():
                     model_letter=model_letter,
                     is_answer_key=False,
                     answers=None,
-                    questions_count=len(questions_data),
+                    questions_count=len(questions),
                     **ctx
                 )
 
@@ -4722,7 +4709,7 @@ def remark_students_pdf():
                 is_answer_key=True,
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
-                questions_count=len(questions_data),
+                questions_count=len(questions),
                 **ctx
             )
 
@@ -4791,7 +4778,7 @@ def remark_blank_html():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
-        questions_count = len(get_ordered_questions(question_ids))
+        questions_count = len(get_ordered_questions_for_omr(question_ids))
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
@@ -4847,34 +4834,24 @@ def remark_answer_key_html():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
-        questions = get_ordered_questions(question_ids)
+        questions = get_ordered_questions_for_omr(question_ids)
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        questions_data = []
-        for q in questions:
-            q_dict = {'question_id': q.question_id, 'options': []}
-            for opt in q.options:
-                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
-            questions_data.append(q_dict)
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
 
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
         all_html = ""
 
         for idx, model_letter in enumerate(models):
-            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
-
-            answers = {}
-            for q_num, q in enumerate(shuffled, 1):
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
-                        break
+            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answers = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
+            )
 
             all_html += render_template(
                 template_name,
@@ -4926,16 +4903,12 @@ def remark_students_html():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
 
-        questions = get_ordered_questions(question_ids)
+        questions = get_ordered_questions_for_omr(question_ids)
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        questions_data = []
-        for q in questions:
-            q_dict = {'question_id': q.question_id, 'options': []}
-            for opt in q.options:
-                q_dict['options'].append({'is_correct': getattr(opt, 'is_correct', False)})
-            questions_data.append(q_dict)
+        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        question_id_sum = sum(q.question_id for q in questions)
 
         # بناء قائمة الطلاب
         if students_raw:
@@ -4950,24 +4923,18 @@ def remark_students_html():
         else:
             return jsonify({'error': 'لم يتم تحديد طلاب'}), 400
 
-        letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
-        # بناء مفاتيح الإجابة لكل نموذج
+        # بناء مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل
         answer_keys = {}
         for idx, model_letter in enumerate(models):
-            qids_str      = ''.join(str(q['question_id']) for q in questions_data)
             random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (sum(q['question_id'] for q in questions_data) * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            shuffled      = shuffle_exam(questions_data, shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed)
-            answers = {}
-            for q_num, q in enumerate(shuffled, 1):
-                for i, opt in enumerate(q.get('options', [])):
-                    if opt.get('is_correct'):
-                        answers[q_num] = letters[i] if i < len(letters) else str(i+1)
-                        break
-            answer_keys[model_letter] = answers
+            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
+            answer_keys[model_letter] = _build_omr_answers(
+                mcq_data, tf_data, matching_pairs_flat,
+                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
+            )
 
         all_html = ""
         student_idx = 0
@@ -4988,7 +4955,7 @@ def remark_students_html():
                     model_letter=model_letter,
                     is_answer_key=False,
                     answers=None,
-                    questions_count=len(questions_data),
+                    questions_count=len(questions),
                     **ctx
                 )
 
@@ -5001,7 +4968,7 @@ def remark_students_html():
                 is_answer_key=True,
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
-                questions_count=len(questions_data),
+                questions_count=len(questions),
                 **ctx
             )
 
