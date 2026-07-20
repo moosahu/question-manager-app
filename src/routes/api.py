@@ -380,6 +380,18 @@ def format_question(question):
         "video_status": getattr(question, 'video_status', 'none'),  # حالة الفيديو
         "is_blocked": getattr(question, 'is_blocked', False),  # حالة الحظر
         "question_type": getattr(question, 'question_type', 'mcq'),  # نوع السؤال
+        "matching_pairs": [
+            {
+                "left_text": p.left_text,
+                "left_image_url": format_image_url(p.left_image_url),
+                "right_text": p.right_text,
+                "right_image_url": format_image_url(p.right_image_url),
+            }
+            for p in sorted(getattr(question, 'matching_pairs', []) or [], key=lambda p: p.order_num or 0)
+        ],
+        "fill_blank_answer": getattr(question, 'fill_blank_answer', None),
+        "fill_blank_alt_answers": getattr(question, 'fill_blank_alt_answers', None) or [],
+        "essay_model_answer": getattr(question, 'essay_model_answer', None),
         # =========================================================
     }
 
@@ -4192,6 +4204,8 @@ def generate_exam():
                         'correct_option_id': fq.get('correct_option_id'),
                         'image_url':         fq.get('image_url'),
                         'question_type':     fq.get('question_type', 'mcq'),
+                        'matching_pairs':    fq.get('matching_pairs', []),
+                        'essay_model_answer': fq.get('essay_model_answer'),
                     }
                     for opt in fq.get('options', []):
                         gen_q['options'].append({

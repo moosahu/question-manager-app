@@ -477,6 +477,43 @@
             border: 1px solid #333;
         }
 
+        /* جدول سؤال المزاوجة — عمود يمين وعمود يسار لكل زوج */
+        .matching-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-right: 8px;
+            margin-top: 8px;
+            border: 1px solid #333;
+        }
+
+        .matching-cell {
+            width: 50%;
+            padding: 5px 6px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        /* سؤال مقالي — أسطر فارغة للكتابة */
+        .essay-lines {
+            margin-right: 8px;
+            margin-top: 8px;
+        }
+
+        .essay-line {
+            border-bottom: 1px solid #333;
+            height: 22px;
+        }
+
+        .essay-model-answer {
+            margin-right: 8px;
+            margin-top: 6px;
+            padding: 4px 6px;
+            background: #f5f5f5;
+            border: 1px dashed #999;
+            font-size: 0.9em;
+        }
+
         /* =============================================
            خاتمة الاختبار 
            =============================================
@@ -688,6 +725,32 @@
                     {% endfor %}
                 </tr>
             </table>
+        {% elif q.question_type == 'matching' %}
+            <table class="matching-table">
+                {% for pair in q.matching_pairs %}
+                <tr>
+                    <td class="matching-cell">
+                        {% if pair.right_text %}{{ pair.right_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
+                        {% if pair.right_image_url %}<img src="{{ pair.right_image_url }}" class="option-img">{% endif %}
+                    </td>
+                    <td class="matching-cell">
+                        {% if pair.left_text %}{{ pair.left_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
+                        {% if pair.left_image_url %}<img src="{{ pair.left_image_url }}" class="option-img">{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% elif q.question_type == 'essay' %}
+            <div class="essay-lines">
+                <div class="essay-line"></div>
+                <div class="essay-line"></div>
+                <div class="essay-line"></div>
+            </div>
+            {% if show_answers and q.essay_model_answer %}
+                <div class="essay-model-answer">
+                    <strong>إجابة نموذجية:</strong> {{ q.essay_model_answer }}
+                </div>
+            {% endif %}
         {% else %}
 
         {% set has_img_opts = [] %}
@@ -821,20 +884,24 @@
             <div class="answer-grid">
                 
                 {% for question in questions %}
-                    <div class="answer-item">
-                        س{{ loop.index }}: 
-                        <strong>
-                            {% for option in question.options %}
-                                {% if option.is_correct %}
-                                    {% if question.question_type == 'true_false' %}
-                                        {{ option.option_text }}
-                                    {% else %}
-                                        {{ letters[loop.index0] }}
+                    {% if question.question_type in ('essay', 'matching') %}
+                        {# لا حرف إجابة واحد لسؤالي مقالي/مزاوجة — التطابق الصحيح معروض مباشرة بجدول السؤال نفسه، فيُستبعدان من مفتاح الإجابات المختصر #}
+                    {% else %}
+                        <div class="answer-item">
+                            س{{ loop.index }}:
+                            <strong>
+                                {% for option in question.options %}
+                                    {% if option.is_correct %}
+                                        {% if question.question_type == 'true_false' %}
+                                            {{ option.option_text }}
+                                        {% else %}
+                                            {{ letters[loop.index0] }}
+                                        {% endif %}
                                     {% endif %}
-                                {% endif %}
-                            {% endfor %}
-                        </strong>
-                    </div>
+                                {% endfor %}
+                            </strong>
+                        </div>
+                    {% endif %}
                 {% endfor %}
                 
             </div>
