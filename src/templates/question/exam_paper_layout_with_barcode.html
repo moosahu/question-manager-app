@@ -272,6 +272,23 @@
             column-gap: 16px;
         }
 
+        /* حاوية نسبية حول قسم الأسئلة فقط — تحصر خط الفاصل بحدود هذا القسم بالضبط،
+           بدون تسريبه لأقسام لاحقة (صح/خطأ، مزاوجة، مقالية) على نفس الصفحة أو التالية.
+           (اختُبر محلياً: column-rule ينزاح بسياق RTL، وposition:fixed يتكرر بكل
+           صفحات المستند كاملة بغض النظر عن مكان تعريفه — يسرّب الخط لأقسام لاحقة
+           لا أعمدة فيها. position:absolute داخل حاوية position:relative محصورة
+           بارتفاع القسم نفسه هو الحل المضبوط المُتحقَّق منه فعلياً.) */
+        .columns-wrap {
+            position: relative;
+        }
+        .column-divider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #000;
+        }
+
         .section-header {
             width: 100%;
             background: #eee;
@@ -872,24 +889,19 @@
             {% set eff_col_count = [col_count, group_questions|length]|min %}
             {% set eff_col_count = [eff_col_count, 1]|max %}
         {% endif %}
-        {# خطوط الفاصل بين الأعمدة: تُرسم عبر background-image (مو column-rule) لأن
-           column-rule بـWeasyPrint ينزاح موضعه بسياق RTL. الموضع يُحسب كنسبة مئوية
-           بسيطة بمعزل عن اتجاه النص (تماثل الأعمدة فيزيائياً بغض النظر عن RTL/LTR).
-           (تجنّب calc() هنا عمداً — WeasyPrint يطيح بخطأ داخلي عند دمج % وpx
-           بـbackground-position عبر calc، فرق الدقة الناتج ببضع بكسلات مقبول) #}
-        {% set divider_positions = [] %}
-        {% for k in range(1, eff_col_count) %}
-            {% set pct = (k / eff_col_count * 100) %}
-            {% set pos = pct|round(3) ~ '% 0' %}
-            {% set _ = divider_positions.append(pos) %}
-        {% endfor %}
-        {% set divider_gradients = ['linear-gradient(#000,#000)'] * (divider_positions|length) %}
-        {% set divider_sizes = ['1px 100%'] * (divider_positions|length) %}
-        {% set divider_repeats = ['no-repeat'] * (divider_positions|length) %}
-        <div class="questions-columns" style="column-count: {{ eff_col_count }};{% if divider_positions %} background-image: {{ divider_gradients|join(', ') }}; background-position: {{ divider_positions|join(', ') }}; background-size: {{ divider_sizes|join(', ') }}; background-repeat: {{ divider_repeats|join(', ') }};{% endif %}">
-            {% for question in group_questions %}
-                {{ render_question(question, (start_num - 1) + loop.index) }}
+        {# خطوط فاصل حقيقية (divs) بموضع نسبة مئوية بسيطة — بمعزل عن اتجاه RTL/LTR
+           (تماثل فيزيائي للأعمدة)، محصورة بحاوية هذا القسم فقط عبر position:relative
+           فما تسرّب لأقسام لاحقة على نفس الصفحة أو الصفحة التالية. #}
+        <div class="columns-wrap">
+            {% for k in range(1, eff_col_count) %}
+                {% set pct = (k / eff_col_count * 100) %}
+                <div class="column-divider" style="left: {{ pct|round(3) }}%;"></div>
             {% endfor %}
+            <div class="questions-columns" style="column-count: {{ eff_col_count }};">
+                {% for question in group_questions %}
+                    {{ render_question(question, (start_num - 1) + loop.index) }}
+                {% endfor %}
+            </div>
         </div>
     {% endmacro %}
 
