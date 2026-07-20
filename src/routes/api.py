@@ -401,6 +401,7 @@ def format_question(question):
         "question_type": getattr(question, 'question_type', 'mcq'),  # نوع السؤال
         "matching_pairs": [
             {
+                "pair_id": p.pair_id,
                 "left_text": p.left_text,
                 "left_image_url": format_image_url(p.left_image_url),
                 "right_text": p.right_text,
@@ -4042,6 +4043,7 @@ def generate_exam():
         include_qr        = bool(data.get("include_qr", True))
         unit_distribution = data.get("unit_distribution", {})
         manual_question_ids = list(data.get("question_ids", []))  # اختيار يدوي
+        matching_pair_ids = list(data.get("matching_pair_ids", []))  # أزواج مزاوجة مختارة يدوياً بالضبط
 
         # ── عدد كل نوع سؤال لحاله (اختياري) — مثال: {"mcq": 20, "true_false": 5} ──
         type_counts = data.get("type_counts")
@@ -4112,17 +4114,20 @@ def generate_exam():
         if not type_counts:
             available = [q for q in available if q.question_type == 'mcq']
 
-        # ── الوضع اليدوي: استخدم question_ids مباشرةً ──────────────
-        if manual_question_ids:
-            id_to_q = {q.question_id: q for q in Question.query.filter(
-                Question.question_id.in_(manual_question_ids),
-                Question.is_blocked == False,
-                Question.question_type.in_(EXAM_SUPPORTED_TYPES)
-            ).all()}
+        # ── الوضع اليدوي: استخدم question_ids مباشرةً (والمزاوجة على مستوى الزوج
+        # عبر matching_pair_ids — يُبنى سؤالها الموحّد بعد تعريف الدوال المساعدة أدناه) ──
+        if manual_question_ids or matching_pair_ids:
+            id_to_q = {}
+            if manual_question_ids:
+                id_to_q = {q.question_id: q for q in Question.query.filter(
+                    Question.question_id.in_(manual_question_ids),
+                    Question.is_blocked == False,
+                    Question.question_type.in_(EXAM_SUPPORTED_TYPES)
+                ).all()}
             available = [id_to_q[qid] for qid in manual_question_ids if qid in id_to_q]
             mode = "manual"
 
-        if not available:
+        if not available and not matching_pair_ids:
             return jsonify({
                 'success': False,
                 'error': 'لا توجد أسئلة متاحة بهذه الفلاتر — جرّب تخفيف الفلاتر'
@@ -4182,6 +4187,79 @@ def generate_exam():
         def group_by_type_order(qs):
             return [q for t in EXAM_SUPPORTED_TYPES for q in qs if q.question_type == t]
 
+        # ── بناء سؤال مزاوجة اصطناعي واحد موحّد من قائمة أزواج مُختارة (سواء بالتجميع
+        # التلقائي أو الاختيار اليدوي الصريح) — يحمل matching_pair_ids لدعم إعادة
+        # إنتاج نفس الأزواج بالضبط لاحقاً (تصدير PDF بنفس أسئلة المعاينة JSON) ──
+        def _build_pooled_matching_fq(selected_pairs, distractor):
+            return _SimpleNamespace(**{
+                'question_id': -1,
+                'question_text': 'اربط العمود (أ) بما يناسبه من العمود (ب):',
+                'image_url': None,
+                'options': [],
+                'correct_option_id': None,
+                'explanation': None,
+                'explanation_image_path': None,
+                'lesson': None, 'unit': None, 'course': None,
+                'difficulty': 'medium', 'bloom_level': 'remember',
+                'video_url': None, 'r2_video_url': None, 'video_explanation': None, 'video_status': 'none',
+                'is_blocked': False,
+                'question_type': 'matching',
+                'matching_pairs': [
+                    {
+                        'left_text': p.left_text,
+                        'left_image_url': format_image_url(p.left_image_url),
+                        'right_text': p.right_text,
+                        'right_image_url': format_image_url(p.right_image_url),
+                    }
+                    for p in selected_pairs
+                ],
+                'matching_pair_ids': [p.pair_id for p in selected_pairs],
+                'matching_distractor': (
+                    {'text': distractor.right_text, 'image_url': format_image_url(distractor.right_image_url)}
+                    if distractor else None
+                ),
+                'fill_blank_answer': None,
+                'fill_blank_alt_answers': [],
+                'essay_model_answer': None,
+                '_pooled_matching': True,
+            })
+
+        # ── سؤال مزاوجة اصطناعي من أزواج اختارها المعلم يدوياً بالضبط (بدون عيّنة
+        # عشوائية) — يُستخدم بوضع الاختيار اليدوي، أو لإعادة إنتاج نفس أزواج المعاينة ──
+        def _build_manual_matching_fq(pair_ids, rng=None):
+            chooser = rng.choice if rng else _random.choice
+            all_pairs = MatchingPair.query.filter(MatchingPair.pair_id.in_(pair_ids)).all()
+            if not all_pairs:
+                return None
+            order = {pid: i for i, pid in enumerate(pair_ids)}
+            selected_pairs = sorted(all_pairs, key=lambda p: order.get(p.pair_id, 0))
+
+            lesson_ids = {p.question.lesson_id for p in selected_pairs if p.question}
+            distractor = None
+            if lesson_ids:
+                distractor = (
+                    MatchingPair.query
+                    .join(Question, MatchingPair.question_id == Question.question_id)
+                    .filter(Question.lesson_id.in_(lesson_ids))
+                    .filter(Question.question_type == 'matching')
+                    .filter(~MatchingPair.pair_id.in_(pair_ids))
+                    .order_by(db.func.random())
+                    .first()
+                )
+            return _build_pooled_matching_fq(selected_pairs, distractor)
+
+        # ── وضع يدوي بأزواج مزاوجة مُختارة صراحة: ابنِ سؤالها الموحّد وأضفه لـ available ──
+        if matching_pair_ids:
+            manual_matching_fq = _build_manual_matching_fq(matching_pair_ids)
+            if manual_matching_fq:
+                available.append(manual_matching_fq)
+
+        if not available:
+            return jsonify({
+                'success': False,
+                'error': 'لا توجد أسئلة متاحة بهذه الفلاتر — جرّب تخفيف الفلاتر'
+            }), 404
+
         # ── تجميع أزواج المزاوجة من كل أسئلة المزاوجة بالنطاق المختار بمسبح واحد،
         # واختيار عدد الأزواج المطلوب منه (موزّعة نسبياً حسب حجم كل درس لو mode=balanced —
         # درس فيه أزواج أكثر ياخذ نصيب أكبر، بدل تساوٍ صارم يظلم الدروس الكبيرة —
@@ -4240,38 +4318,7 @@ def generate_exam():
             remaining = [p for _, p in pool if p.pair_id not in selected_ids]
             distractor = chooser(remaining) if remaining else None
 
-            pooled_fq = {
-                'question_id': -1,
-                'question_text': 'اربط العمود (أ) بما يناسبه من العمود (ب):',
-                'image_url': None,
-                'options': [],
-                'correct_option_id': None,
-                'explanation': None,
-                'explanation_image_path': None,
-                'lesson': None, 'unit': None, 'course': None,
-                'difficulty': 'medium', 'bloom_level': 'remember',
-                'video_url': None, 'r2_video_url': None, 'video_explanation': None, 'video_status': 'none',
-                'is_blocked': False,
-                'question_type': 'matching',
-                'matching_pairs': [
-                    {
-                        'left_text': p.left_text,
-                        'left_image_url': format_image_url(p.left_image_url),
-                        'right_text': p.right_text,
-                        'right_image_url': format_image_url(p.right_image_url),
-                    }
-                    for p in selected_pairs
-                ],
-                'matching_distractor': (
-                    {'text': distractor.right_text, 'image_url': format_image_url(distractor.right_image_url)}
-                    if distractor else None
-                ),
-                'fill_blank_answer': None,
-                'fill_blank_alt_answers': [],
-                'essay_model_answer': None,
-                '_pooled_matching': True,
-            }
-            return [_SimpleNamespace(**pooled_fq)]
+            return [_build_pooled_matching_fq(selected_pairs, distractor)]
 
         # ── اختيار حسب عدد كل نوع لحاله (type_counts) — بنفس ترتيب EXAM_SUPPORTED_TYPES ──
         def select_questions_by_type(pool, counts, rng=None):
@@ -4402,7 +4449,10 @@ def generate_exam():
             )
 
             # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة
-            _stable_seed = sum(manual_question_ids) if manual_question_ids else None
+            _stable_seed = (
+                sum(manual_question_ids) + sum(matching_pair_ids)
+                if (manual_question_ids or matching_pair_ids) else None
+            )
 
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
