@@ -601,12 +601,48 @@
         }
 
         .answer-item {
-            border: 1px solid #000; 
-            padding: 6px 12px; 
+            border: 1px solid #000;
+            padding: 6px 12px;
             text-align: center;
             font-size: 13px;
             width: calc(20% - 10px);
             min-width: 80px;
+        }
+
+        .answer-key-section-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin: 18px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1.5px solid #000;
+        }
+
+        .matching-answer-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            direction: rtl;
+        }
+
+        .matching-answer-item {
+            border: 1px solid #000;
+            padding: 5px 12px;
+            font-size: 13px;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .essay-answer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .essay-answer-item {
+            border: 1px solid #000;
+            padding: 8px 10px;
+            font-size: 13px;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -776,11 +812,6 @@
                 <div class="essay-line"></div>
                 <div class="essay-line"></div>
             </div>
-            {% if show_answers and q.essay_model_answer %}
-                <div class="essay-model-answer">
-                    <strong>إجابة نموذجية:</strong> {{ q.essay_model_answer }}
-                </div>
-            {% endif %}
         {% else %}
 
         {% set has_img_opts = [] %}
@@ -990,39 +1021,54 @@
             
             {% for section in type_sections %}
                 {% set group_questions = questions|selectattr('question_type', 'equalto', section.type)|list %}
-                {% if group_questions|length > 0 and section.type != 'essay' %}
-                <div class="answer-grid">
-                    {% for question in group_questions %}
-                        {% if question.question_type == 'matching' %}
-                            <div class="answer-item">
-                                س{{ loop.index }}:
-                                <strong>
-                                    {% for pair in question.matching_pairs %}{{ loop.index }}={{ pair.correct_letter }}{% if not loop.last %}، {% endif %}{% endfor %}
-                                </strong>
-                            </div>
-                        {% elif question.question_type == 'fill_blank' %}
-                            <div class="answer-item">
-                                س{{ loop.index }}:
-                                <strong>{{ question.fill_blank_answer }}</strong>
-                            </div>
-                        {% else %}
-                            <div class="answer-item">
-                                س{{ loop.index }}:
-                                <strong>
-                                    {% for option in question.options %}
-                                        {% if option.is_correct %}
-                                            {% if question.question_type == 'true_false' %}
-                                                {{ option.option_text }}
-                                            {% else %}
-                                                {{ letters[loop.index0] }}
-                                            {% endif %}
-                                        {% endif %}
-                                    {% endfor %}
-                                </strong>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
+                {% if group_questions|length > 0 %}
+                    {% if section.type == 'essay' %}
+                        <div class="answer-key-section-title">إجابات الأسئلة المقالية</div>
+                        <div class="essay-answer-list">
+                            {% for question in group_questions %}
+                                {% if question.essay_model_answer %}
+                                <div class="essay-answer-item">
+                                    <strong>س{{ loop.index }}:</strong> {{ question.essay_model_answer }}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% elif section.type == 'matching' %}
+                        <div class="answer-key-section-title">إجابات المزاوجة</div>
+                        <div class="matching-answer-list">
+                            {% for question in group_questions %}
+                                {% for pair in question.matching_pairs %}
+                                <div class="matching-answer-item">زوج {{ loop.index }} ← {{ pair.correct_letter }}</div>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="answer-grid">
+                            {% for question in group_questions %}
+                                {% if question.question_type == 'fill_blank' %}
+                                    <div class="answer-item">
+                                        س{{ loop.index }}:
+                                        <strong>{{ question.fill_blank_answer }}</strong>
+                                    </div>
+                                {% else %}
+                                    <div class="answer-item">
+                                        س{{ loop.index }}:
+                                        <strong>
+                                            {% for option in question.options %}
+                                                {% if option.is_correct %}
+                                                    {% if question.question_type == 'true_false' %}
+                                                        {{ option.option_text }}
+                                                    {% else %}
+                                                        {{ letters[loop.index0] }}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </strong>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 {% endif %}
             {% endfor %}
             

@@ -352,6 +352,20 @@ def _split_omr_questions_data(questions):
     return mcq_data, tf_data, matching_pairs_flat
 
 
+def _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids):
+    """
+    عند توليد امتحان بأزواج مزاوجة مُجمَّعة (pooling) أو مُختارة يدوياً، الأزواج
+    المستخدمة فعلياً بالامتحان لا تُستنتج من question_ids (لأن سؤال المزاوجة
+    الموحّد بورقة الامتحان اصطناعي وليس صفاً حقيقياً بجدول الأسئلة) — لذا إن
+    وُصلت matching_pair_ids صراحةً (من نفس استدعاء توليد الامتحان)، تُستخدم هي
+    بالضبط بدل الأزواج المُستنتجة تلقائياً من أسئلة مزاوجة قد لا تُطابق الفعلي.
+    """
+    if not matching_pair_ids:
+        return matching_pairs_flat
+    pairs = MatchingPair.query.filter(MatchingPair.pair_id.in_(matching_pair_ids)).all()
+    return [{'pair_id': p.pair_id, 'right_text': p.right_text} for p in pairs]
+
+
 def _build_omr_answers(mcq_data, tf_data, matching_pairs_flat, shuffle_questions=True, shuffle_options=True, seed=None):
     """
     يبني قاموس answers الموحّد اللي يتوقعه قالب remark_answer_sheet.html بأوفست ثابت:
@@ -3697,14 +3711,15 @@ def generate_omr_answer_key():
     try:
         data = request.get_json()
         question_ids = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         model_letter = data.get('model_letter', 'أ')
         exam_type = data.get('exam_type', 'نهاية')
         semester = data.get('semester', 'الأول')
         academic_year = data.get('academic_year', '1447هـ')
-        
+
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
-        
+
         # جلب الأسئلة مع الخيارات (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
         questions = get_ordered_questions_for_omr(question_ids)
 
@@ -3713,6 +3728,7 @@ def generate_omr_answer_key():
 
         # استخراج الإجابات الصحيحة — مفصولة حسب النوع (متعدد/صح-خطأ/مزاوجة)
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         answers = _build_omr_answers(mcq_data, tf_data, matching_pairs_flat,
                                       shuffle_questions=False, shuffle_options=False, seed=None)
 
@@ -3829,17 +3845,18 @@ def print_remark_sheets_multi_models():
         students_list = data.get('students', [])
         models = data.get('models', ['أ'])  # النماذج المطلوبة
         question_ids = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         shuffle_options = data.get('shuffle_options', True)
         exam_type = data.get('exam_type', 'نهاية')
         semester = data.get('semester', 'الأول')
         academic_year = data.get('academic_year', '1447هـ')
-        
+
         if not students_list:
             return jsonify({'error': 'لم يتم تحديد قائمة الطلاب'}), 400
-        
+
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
-        
+
         # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
         questions = get_ordered_questions_for_omr(question_ids)
 
@@ -3847,6 +3864,7 @@ def print_remark_sheets_multi_models():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
 
         # جلب إعدادات الكليشة
@@ -4035,15 +4053,16 @@ def generate_all_models_answer_keys():
     try:
         data = request.get_json()
         question_ids = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         models = data.get('models', ['أ'])
         shuffle_options = data.get('shuffle_options', True)
         exam_type = data.get('exam_type', 'نهاية')
         semester = data.get('semester', 'الأول')
         academic_year = data.get('academic_year', '1447هـ')
-        
+
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد أسئلة'}), 400
-        
+
         # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
         questions = get_ordered_questions_for_omr(question_ids)
 
@@ -4051,6 +4070,7 @@ def generate_all_models_answer_keys():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
 
         # جلب إعدادات الكليشة
@@ -4558,6 +4578,7 @@ def remark_answer_key_pdf():
     try:
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         models        = data.get('models', ['أ'])
         shuffle_opts  = data.get('shuffle_options', True)
         exam_type     = data.get('exam_type', 'نهاية')
@@ -4572,6 +4593,7 @@ def remark_answer_key_pdf():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
 
         ctx = _remark_header_context(exam_type, semester, academic_year)
@@ -4616,6 +4638,7 @@ def remark_students_pdf():
     try:
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         models        = data.get('models', ['أ'])
         shuffle_opts  = data.get('shuffle_options', True)
         exam_type     = data.get('exam_type', 'نهاية')
@@ -4655,6 +4678,7 @@ def remark_students_pdf():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
         ctx = _remark_header_context(exam_type, semester, academic_year)
 
@@ -4824,6 +4848,7 @@ def remark_answer_key_html():
                                 'quota_exceeded': True, 'limit': _lim, 'remaining': 0}), 403
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         models        = data.get('models', ['أ'])
         shuffle_opts  = data.get('shuffle_options', True)
         exam_type     = data.get('exam_type', 'نهاية')
@@ -4839,6 +4864,7 @@ def remark_answer_key_html():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
 
         ctx = _remark_header_context(exam_type, semester, academic_year)
@@ -4891,6 +4917,7 @@ def remark_students_html():
                                 'quota_exceeded': True, 'limit': _lim, 'remaining': 0}), 403
         data          = request.get_json()
         question_ids  = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         models        = data.get('models', ['أ'])
         shuffle_opts  = data.get('shuffle_options', True)
         exam_type     = data.get('exam_type', 'نهاية')
@@ -4908,6 +4935,7 @@ def remark_students_html():
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
         mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
+        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
         question_id_sum = sum(q.question_id for q in questions)
 
         # بناء قائمة الطلاب
