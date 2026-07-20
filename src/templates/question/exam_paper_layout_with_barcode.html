@@ -964,7 +964,7 @@
                 {{ render_question_grid(group_questions, 1, force_single_col=true) }}
             {% elif section.type == 'essay' %}
                 {# قابل للتحكم من التطبيق — عمود واحد افتراضياً، أو حسب إعداد essay_single_column #}
-                {{ render_question_grid(group_questions, 1, force_single_col=essay_single_column|default(true, true)) }}
+                {{ render_question_grid(group_questions, 1, force_single_col=essay_single_column) }}
             {% else %}
                 {{ render_question_grid(group_questions, 1) }}
             {% endif %}
