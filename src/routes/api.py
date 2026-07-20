@@ -4183,7 +4183,8 @@ def generate_exam():
             return [q for t in EXAM_SUPPORTED_TYPES for q in qs if q.question_type == t]
 
         # ── تجميع أزواج المزاوجة من كل أسئلة المزاوجة بالنطاق المختار بمسبح واحد،
-        # واختيار عدد الأزواج المطلوب منه (موزّعة بالتساوي عبر الدروس لو mode=balanced،
+        # واختيار عدد الأزواج المطلوب منه (موزّعة نسبياً حسب حجم كل درس لو mode=balanced —
+        # درس فيه أزواج أكثر ياخذ نصيب أكبر، بدل تساوٍ صارم يظلم الدروس الكبيرة —
         # وإلا عشوائياً من كامل المسبح) — بدل التعامل مع كل سؤال مزاوجة ككتلة واحدة ──
         def _pool_matching_group(matching_questions, target_count, rng=None):
             shuffler = rng.shuffle if rng else _random.shuffle
@@ -4200,13 +4201,36 @@ def generate_exam():
                     by_lesson.setdefault(lesson_id, []).append(p)
                 for plist in by_lesson.values():
                     shuffler(plist)
-                lesson_ids = list(by_lesson.keys())
-                i = 0
-                while len(selected_pairs) < target_count and any(by_lesson.values()):
-                    lid = lesson_ids[i % len(lesson_ids)]
-                    if by_lesson[lid]:
-                        selected_pairs.append(by_lesson[lid].pop())
-                    i += 1
+
+                # توزيع نسبي (طريقة أكبر باقٍ / largest remainder): كل درس ياخذ
+                # نصيباً يتناسب مع عدد أزواجه الفعلي من إجمالي المسبح، مع ضبط
+                # الكسور بحيث يكون المجموع النهائي = target_count بالضبط، وإعادة
+                # توزيع أي فائض (نتيجة درس وصل لحد أزواجه الفعلي) على الباقي.
+                remaining_target = min(target_count, len(pool))
+                lesson_ids = [lid for lid in by_lesson if by_lesson[lid]]
+                while remaining_target > 0 and lesson_ids:
+                    total_available = sum(len(by_lesson[lid]) for lid in lesson_ids)
+                    shares = {}
+                    remainders = []
+                    for lid in lesson_ids:
+                        exact = remaining_target * len(by_lesson[lid]) / total_available
+                        base = int(exact)
+                        shares[lid] = base
+                        remainders.append((exact - base, lid))
+                    allocated = sum(shares.values())
+                    leftover = remaining_target - allocated
+                    remainders.sort(key=lambda x: x[0], reverse=True)
+                    for _, lid in remainders[:leftover]:
+                        shares[lid] += 1
+
+                    overflow = 0
+                    for lid in lesson_ids:
+                        take = min(shares[lid], len(by_lesson[lid]))
+                        overflow += shares[lid] - take
+                        for _ in range(take):
+                            selected_pairs.append(by_lesson[lid].pop())
+                    remaining_target = overflow
+                    lesson_ids = [lid for lid in lesson_ids if by_lesson[lid]]
             else:
                 shuffled_pool = list(pool)
                 shuffler(shuffled_pool)
