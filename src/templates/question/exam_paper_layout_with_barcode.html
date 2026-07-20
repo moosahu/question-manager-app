@@ -287,6 +287,19 @@
             padding-right: 8px;
         }
 
+        .section-header {
+            width: 100%;
+            background: #eee;
+            border: 1px solid #000;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin: 10px 0 8px 0;
+            font-weight: bold;
+            font-size: {{ font_size|default(14, true) }}px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
         .question-box {
             width: 100%;
             margin-bottom: {{ q_margin }}px;
@@ -742,26 +755,52 @@
     </div>
     {% endmacro %}
 
-    {# رسم الأسئلة: عمود واحد = div عادي، عمودان/ثلاثة = جدول مع فاصل حقيقي #}
-    {# qcpp = عدد الأسئلة لكل عمود لكل صفحة — يستهدف صفحتين تقريباً #}
-    {% set qcpp = [(questions|length / col_count / 2)|round(0, 'ceil')|int, 1]|max %}
-    {% set qpp  = qcpp * col_count %}
-    {% set num_rows = [(questions|length / qpp)|round(0, 'ceil')|int, 1]|max %}
-    <table class="questions-table">
-        {% for row in range(num_rows) %}
-        <tr>
-            {% for c in range(col_count) %}
-                {% set start = row * qpp + c * qcpp %}
-                {% set end   = start + qcpp %}
-                <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
-                    {% for question in questions[start:end] %}
-                        {{ render_question(question, start + loop.index) }}
-                    {% endfor %}
-                </td>
+    {# رسم شبكة أسئلة مجموعة واحدة (عمود/عمودان/ثلاثة حسب col_count)، بترقيم يبدأ من start_num #}
+    {% macro render_question_grid(group_questions, start_num) %}
+        {% set qcpp = [(group_questions|length / col_count / 2)|round(0, 'ceil')|int, 1]|max %}
+        {% set qpp  = qcpp * col_count %}
+        {% set num_rows = [(group_questions|length / qpp)|round(0, 'ceil')|int, 1]|max %}
+        <table class="questions-table">
+            {% for row in range(num_rows) %}
+            <tr>
+                {% for c in range(col_count) %}
+                    {% set start = row * qpp + c * qcpp %}
+                    {% set end   = start + qcpp %}
+                    <td class="questions-col {% if not loop.last %}col-divider{% else %}col-last{% endif %}">
+                        {% for question in group_questions[start:end] %}
+                            {{ render_question(question, start_num + start + loop.index) }}
+                        {% endfor %}
+                    </td>
+                {% endfor %}
+            </tr>
             {% endfor %}
-        </tr>
-        {% endfor %}
-    </table>
+        </table>
+    {% endmacro %}
+
+    {# تقسيم الأسئلة لأقسام حسب النوع بترتيب ثابت، كل قسم بعنوان + تعليمة، والترقيم يستمر تسلسلياً بلا تصفير #}
+    {% set type_sections = [
+        {'type': 'mcq', 'instruction': 'اختر الإجابة الصحيحة لكل مما يأتي:'},
+        {'type': 'true_false', 'instruction': 'ضع علامة (✓) أمام العبارة الصحيحة وعلامة (✗) أمام العبارة الخاطئة:'},
+        {'type': 'matching', 'instruction': 'اختر من العمود (أ) ما يناسبها من العمود (ب):'},
+        {'type': 'essay', 'instruction': 'أجب عن الأسئلة التالية:'},
+    ] %}
+    {% set ordinal_words = ['الأول', 'الثاني', 'الثالث', 'الرابع'] %}
+    {% set present_types = questions|map(attribute='question_type')|unique|list %}
+    {% set show_section_headers = present_types|length > 1 %}
+    {% set ns = namespace(qnum=1, section_index=0) %}
+    {% for section in type_sections %}
+        {% set group_questions = questions|selectattr('question_type', 'equalto', section.type)|list %}
+        {% if group_questions|length > 0 %}
+            {% if show_section_headers %}
+            <div class="section-header">
+                السؤال {{ ordinal_words[ns.section_index] }}: {{ section.instruction }}
+            </div>
+            {% endif %}
+            {{ render_question_grid(group_questions, ns.qnum) }}
+            {% set ns.qnum = ns.qnum + group_questions|length %}
+            {% set ns.section_index = ns.section_index + 1 %}
+        {% endif %}
+    {% endfor %}
 
     <div class="exam-end">
         <div class="end-text">

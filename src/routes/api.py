@@ -4138,7 +4138,11 @@ def generate_exam():
                 if shuffle_questions: _random.shuffle(result)
                 return result[:question_count]
 
-        # ── اختيار حسب عدد كل نوع لحاله (type_counts) — mcq أولاً ثم true_false ──
+        # ── تجميع نهائي حسب النوع بترتيب ثابت: mcq > true_false > matching > essay ──
+        def group_by_type_order(qs):
+            return [q for t in EXAM_SUPPORTED_TYPES for q in qs if q.question_type == t]
+
+        # ── اختيار حسب عدد كل نوع لحاله (type_counts) — بنفس ترتيب EXAM_SUPPORTED_TYPES ──
         def select_questions_by_type(pool, counts, rng=None):
             shuffler = rng.shuffle if rng else _random.shuffle
             result = []
@@ -4234,18 +4238,16 @@ def generate_exam():
 
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
-                if type_counts:
+                if type_counts and mode != "manual":
                     selected = select_questions_by_type(available, type_counts)
                 else:
                     selected = select_questions(available)
                     if _stable_seed is None and shuffle_questions:
                         _random.shuffle(selected)
                     if mode != "manual":
-                        # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها
+                        # تجميع نهائي: mcq > true_false > matching > essay
                         # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
-                        mcq_group = [q for q in selected if q.question_type != 'true_false']
-                        tf_group = [q for q in selected if q.question_type == 'true_false']
-                        selected = mcq_group + tf_group
+                        selected = group_by_type_order(selected)
                 gen_questions = to_gen_questions(format_selected(selected))
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
@@ -4264,16 +4266,14 @@ def generate_exam():
                 merged = fitz.open()
                 for i in range(models_count):
                     rng = _random.Random(_stable_seed + i * 31337 if _stable_seed is not None else None)
-                    if type_counts:
+                    if type_counts and mode != "manual":
                         selected_i = select_questions_by_type(available, type_counts, rng=rng)
                     else:
                         selected_i = select_questions(available)
                         rng.shuffle(selected_i)
                         if mode != "manual":
-                            # تجميع: كل أسئلة الاختيار من متعدد أولاً، ثم صح/خطأ بعدها (لكل نموذج على حدة)
-                            mcq_group_i = [q for q in selected_i if q.question_type != 'true_false']
-                            tf_group_i = [q for q in selected_i if q.question_type == 'true_false']
-                            selected_i = mcq_group_i + tf_group_i
+                            # تجميع نهائي (لكل نموذج على حدة): mcq > true_false > matching > essay
+                            selected_i = group_by_type_order(selected_i)
                     gen_questions_i = to_gen_questions(format_selected(selected_i))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
@@ -4313,7 +4313,7 @@ def generate_exam():
 
         # ── JSON: نماذج متعددة ────────────────────────────────────────
         model_letters = ['أ', 'ب', 'ج', 'د']
-        if type_counts:
+        if type_counts and mode != "manual":
             base_selected = select_questions_by_type(available, type_counts)
         else:
             base_selected = select_questions(available)
