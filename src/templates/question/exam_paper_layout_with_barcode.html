@@ -459,61 +459,73 @@
             justify-content: flex-start;
         }
 
-        /* جدول سؤال صح/خطأ — عمودين ثابتين بدل قائمة أ/ب/ج/د */
-        .tf-table {
-            width: 50%;
-            table-layout: fixed;
-            border-collapse: collapse;
-            margin-right: 8px;
-            margin-top: 8px;
-            border: 1px solid #333;
-        }
-
-        .tf-cell {
-            width: 50%;
-            padding: 6px 4px;
-            text-align: center;
-            font-weight: bold;
-            border: 1px solid #333;
-        }
-
-        /* جدول سؤال المزاوجة — عمود (أ) بترقيم + خانة إجابة فارغة، وعمود (ب) شبه شرعي (legend) مبعثر */
-        .matching-table {
+        /* جدول موحّد لأسئلة صح/خطأ — صف لكل سؤال، عمودا صح/خطأ فارغان ليظللهما الطالب */
+        .tf-full-table {
             width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
-            margin-right: 8px;
-            margin-top: 8px;
+            margin-top: 10px;
             border: 1px solid #333;
+        }
+
+        .tf-full-table th, .tf-full-table td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+        }
+
+        .tf-full-th-num, .tf-full-cell:first-child {
+            width: 6%;
+            text-align: center;
+        }
+
+        .tf-full-th-wide {
+            width: 74%;
+            text-align: right;
+        }
+
+        .tf-full-th-narrow {
+            width: 10%;
+            text-align: center;
+        }
+
+        .tf-full-text {
+            text-align: right;
+        }
+
+        /* جدولا سؤال المزاوجة جنب بعض — (أ) بترقيم + خانة الحرف الصحيح، و(ب) بحروف مبعثرة */
+        .matching-dual-container {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            align-items: flex-start;
+        }
+
+        .matching-a-table, .matching-b-table {
+            border-collapse: collapse;
+            border: 1px solid #333;
+        }
+
+        .matching-a-table {
+            flex: 3;
+        }
+
+        .matching-b-table {
+            flex: 2;
+        }
+
+        .matching-a-table th, .matching-a-table td,
+        .matching-b-table th, .matching-b-table td {
+            border: 1px solid #333;
+            padding: 5px 6px;
         }
 
         .matching-cell {
-            width: 85%;
-            padding: 5px 6px;
             text-align: right;
-            border: 1px solid #333;
         }
 
         .matching-answer-cell {
-            width: 15%;
-            padding: 5px 4px;
+            width: 60px;
             text-align: center;
-            border: 1px solid #333;
-            font-weight: bold;
-        }
-
-        .matching-legend {
-            margin-right: 8px;
-            margin-top: 6px;
-            padding: 6px 8px;
-            border: 1px dashed #666;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 16px;
-        }
-
-        .matching-legend-item {
-            white-space: nowrap;
         }
 
         /* سؤال مقالي — أسطر فارغة للكتابة */
@@ -748,42 +760,12 @@
             <img src="{{ q.image_url }}" class="q-image" alt="diagram">
         {% endif %}
 
-        {% if q.question_type == 'true_false' %}
-            <table class="tf-table">
-                <tr>
-                    {% for opt in q.options %}
-                    <td class="tf-cell">{{ opt.option_text }}</td>
-                    {% endfor %}
-                </tr>
-            </table>
-        {% elif q.question_type == 'fill_blank' %}
+        {% if q.question_type == 'fill_blank' %}
             {% if show_answers and q.fill_blank_answer %}
                 <div class="fill-blank-answer">
                     <strong>الإجابة الصحيحة:</strong> {{ q.fill_blank_answer }}
                 </div>
             {% endif %}
-        {% elif q.question_type == 'matching' %}
-            <table class="matching-table">
-                {% for pair in q.matching_pairs %}
-                <tr>
-                    <td class="matching-answer-cell">( &nbsp; )</td>
-                    <td class="matching-cell">
-                        {{ loop.index }}.
-                        {% if pair.left_text %}{{ pair.left_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
-                        {% if pair.left_image_url %}<img src="{{ pair.left_image_url }}" class="option-img">{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
-            <div class="matching-legend">
-                {% for item in q.matching_right_shuffled %}
-                    <span class="matching-legend-item">
-                        {{ item.letter }})
-                        {% if item.text %}{{ item.text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
-                        {% if item.image_url %}<img src="{{ item.image_url }}" class="option-img">{% endif %}
-                    </span>
-                {% endfor %}
-            </div>
         {% elif q.question_type == 'essay' %}
             <div class="essay-lines">
                 <div class="essay-line"></div>
@@ -887,6 +869,62 @@
         </table>
     {% endmacro %}
 
+    {# جدول موحّد لكل أسئلة صح/خطأ بالقسم (صف لكل سؤال) بدل صندوق منفصل لكل سؤال #}
+    {% macro render_tf_table(group_questions) %}
+        <table class="tf-full-table">
+            <tr>
+                <th class="tf-full-th-num">م</th>
+                <th class="tf-full-th-wide">السؤال</th>
+                <th class="tf-full-th-narrow">صح</th>
+                <th class="tf-full-th-narrow">خطأ</th>
+            </tr>
+            {% for q in group_questions %}
+            <tr>
+                <td class="tf-full-cell">{{ loop.index }}</td>
+                <td class="tf-full-text">{{ q.question_text|default('', true)|replace('/', '⁠/⁠')|bidi_ltr }}</td>
+                <td class="tf-full-cell"></td>
+                <td class="tf-full-cell"></td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endmacro %}
+
+    {# جدولان جنب بعض لسؤال المزاوجة: عمود (أ) بترقيم + خانة الحرف الصحيح، وعمود (ب) بحروف مبعثرة كجدول مرجعي #}
+    {% macro render_matching_tables(q) %}
+        <div class="matching-dual-container">
+            <table class="matching-a-table">
+                <tr>
+                    <th>الحرف الصحيح</th>
+                    <th>( أ )</th>
+                </tr>
+                {% for pair in q.matching_pairs %}
+                <tr>
+                    <td class="matching-answer-cell"></td>
+                    <td class="matching-cell">
+                        {{ loop.index }}.
+                        {% if pair.left_text %}{{ pair.left_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
+                        {% if pair.left_image_url %}<img src="{{ pair.left_image_url }}" class="option-img">{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            <table class="matching-b-table">
+                <tr>
+                    <th>( ب )</th>
+                </tr>
+                {% for item in q.matching_right_shuffled %}
+                <tr>
+                    <td class="matching-cell">
+                        ({{ item.letter }})
+                        {% if item.text %}{{ item.text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
+                        {% if item.image_url %}<img src="{{ item.image_url }}" class="option-img">{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% endmacro %}
+
     {# تقسيم الأسئلة لأقسام حسب النوع بترتيب ثابت، كل قسم بعنوان + تعليمة، وترقيم كل قسم يبدأ من 1 من جديد #}
     {% set type_sections = [
         {'type': 'mcq', 'instruction': 'اختر الإجابة الصحيحة لكل مما يأتي:'},
@@ -907,7 +945,15 @@
                 السؤال {{ ordinal_words[ns.section_index] }}: {{ section.instruction }}
             </div>
             {% endif %}
-            {{ render_question_grid(group_questions, 1) }}
+            {% if section.type == 'true_false' %}
+                {{ render_tf_table(group_questions) }}
+            {% elif section.type == 'matching' %}
+                {% for q in group_questions %}
+                    {{ render_matching_tables(q) }}
+                {% endfor %}
+            {% else %}
+                {{ render_question_grid(group_questions, 1) }}
+            {% endif %}
             {% set ns.section_index = ns.section_index + 1 %}
         {% endif %}
     {% endfor %}
