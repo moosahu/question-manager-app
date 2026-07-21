@@ -160,9 +160,17 @@ def build_exam_model(available, model_index, stable_seed,
     يرجّع القائمة النهائية المُنسّقة/المُرتّبة (نفس تنسيق format_selected) —
     استدعاؤها من مسارين مختلفين بنفس المدخلات يضمن نفس الترتيب حرفياً.
     """
+    # ملاحظة حرجة: ما نستدعي group_by_type_order هنا — api.py بوضع manual
+    # (اللي يمثّله هذا الاستدعاء دائماً: أسئلة مُقفلة بمعرّفات محددة) يتجاوز
+    # هذا التجميع تماماً (`if mode != "manual": selected = group_by_type_order(...)`)،
+    # فيبقى الترتيب المُختلط (بعد الخلط مباشرة) هو اللي يُمرَّر لـformat_selected.
+    # لو جمّعنا حسب النوع هنا قبل format_selected، كل سؤال ياخذ فرصته من rng
+    # بترتيب مختلف عن ورقة الاختبار الفعلية، فيختلف ترتيب خيارات كل سؤال رغم
+    # تطابق الـseed (rng.shuffle يستهلك التدفق العشوائي حسب ترتيب العناصر
+    # بالضبط وقت النداء). قسم الأنواع بمفتاح الريمارك يصير لاحقاً بعد
+    # format_selected (فلترة تحافظ على الترتيب، بدون التأثير على استهلاك rng).
     rng = random.Random(stable_seed + model_index * 31337) if stable_seed is not None else None
     selected = list(available)
     if rng is not None:
         rng.shuffle(selected)
-    selected = group_by_type_order(selected)
     return format_selected(selected, rng=rng, shuffle_options=shuffle_options, include_answers=include_answers)
