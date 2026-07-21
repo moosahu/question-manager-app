@@ -51,6 +51,13 @@
             }
         }
 
+        /* صفحة "انتهت الأسئلة" ومفتاح الإجابات لا تحتاج "اقلب الصفحة" — ما فيه أسئلة بعدها */
+        @page closing {
+            @bottom-left {
+                content: "";
+            }
+        }
+
         /* =============================================
            إعدادات عامة 
            =============================================
@@ -559,6 +566,8 @@
         .exam-end {
             text-align: center;
             margin-top: 40px;
+            page: closing;
+            page-break-before: always;
         }
 
         .exam-end .end-text {
@@ -572,6 +581,7 @@
            =============================================
         */
         .answer-key {
+            page: closing;
             page-break-before: always;
             padding-top: 10px;
         }
@@ -792,11 +802,7 @@
         {% endif %}
 
         {% if q.question_type == 'fill_blank' %}
-            {% if show_answers and q.fill_blank_answer %}
-                <div class="fill-blank-answer">
-                    <strong>الإجابة الصحيحة:</strong> {{ q.fill_blank_answer }}
-                </div>
-            {% endif %}
+            {# الإجابة تظهر بمفتاح الإجابات فقط، مو هنا بجسم الاختبار #}
         {% elif q.question_type == 'essay' %}
             <div class="essay-lines">
                 <div class="essay-line"></div>
