@@ -43,20 +43,10 @@
                 color: #333;
             }
             
-            @bottom-left {
-                content: "◄ اقلب الصفحة";
-                font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
-                font-size: 11px;
-                color: #666;
-            }
         }
-
-        /* صفحة "انتهت الأسئلة" ومفتاح الإجابات لا تحتاج "اقلب الصفحة" — ما فيه أسئلة بعدها */
-        @page closing {
-            @bottom-left {
-                content: "";
-            }
-        }
+        /* حذفنا تعليمة "اقلب الصفحة" — "صفحة X من Y" بالتذييل تكفي وحدها لتوضيح
+           إذا فيه صفحات بعدها أو لا، بدون تناقض ممكن على آخر صفحة أو إجبار
+           صفحة جديدة فاضية فقط عشان نخفيها */
 
         /* =============================================
            إعدادات عامة 
@@ -566,8 +556,6 @@
         .exam-end {
             text-align: center;
             margin-top: 40px;
-            page: closing;
-            page-break-before: always;
         }
 
         .exam-end .end-text {
@@ -581,7 +569,6 @@
            =============================================
         */
         .answer-key {
-            page: closing;
             page-break-before: always;
             padding-top: 10px;
         }
