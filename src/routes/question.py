@@ -745,8 +745,14 @@ def list_questions():
         elif has_explanation == "0":
             query = query.filter(or_(Question.explanation == None, Question.explanation == ''))
 
-        # ترتيب النتائج: بالدرس ثم بالـ ID تصاعدياً
-        questions_pagination = query.order_by(Question.lesson_id.asc(), Question.question_id.asc()).paginate(
+        # ترتيب النتائج: لو محدد درس معيّن، رتب حسب تسلسل الدرس (تصاعدي)
+        # غير كذا (تصفح عام)، رتب الأحدث إضافة أولاً عشان الأسئلة الجديدة تظهر مباشرة بدون بحث
+        if lesson_id:
+            query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
+        else:
+            query = query.order_by(Question.question_id.desc())
+
+        questions_pagination = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
         
