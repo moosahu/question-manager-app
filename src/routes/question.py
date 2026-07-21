@@ -227,17 +227,67 @@ ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 ALLOWED_IMPORT_EXTENSIONS = {"xlsx", "csv"}
 
 # Define expected columns for import template (used in import and download)
+# Question Type يحدد نوع كل صف (mcq الافتراضي لو العمود غير موجود — توافق خلفي).
+# باقي الأعمدة الجديدة (Correct Answer/Fill Blank .../Left|Right .../Essay Model Answer)
+# كل وحدة خاصة بنوع معيّن، اختيارية دائماً بفحص الأعمدة المطلوبة.
 EXPECTED_IMPORT_COLUMNS = [
     "Course Name", "Unit Name", "Lesson Name",
+    "Question Type", "Question Group",
     "Question Text", "Question Image URL",
     "Option 1 Text", "Option 1 Image URL",
     "Option 2 Text", "Option 2 Image URL",
     "Option 3 Text", "Option 3 Image URL",
     "Option 4 Text", "Option 4 Image URL",
     "Correct Option Number",
+    "Correct Answer",
+    "Fill Blank Answer", "Fill Blank Alt Answers",
+    "Left Text", "Left Image URL", "Right Text", "Right Image URL",
+    "Essay Model Answer",
     "Explanation",
     "Difficulty", "Bloom Level", "Video URL", "Video Explanation", "Is Blocked"
 ]
+
+# الأعمدة الإلزامية بكل الأحوال (بغض النظر عن نوع السؤال) — باقي الأعمدة اختيارية
+# وتُفحص حسب نوع كل صف داخل حلقة المعالجة نفسها.
+REQUIRED_IMPORT_COLUMNS = ["Course Name", "Unit Name", "Lesson Name"]
+
+# أعمدة خاصة بكل نوع سؤال — تُستخدم لبناء قوالب التنزيل حسب الأنواع المختارة
+IMPORT_COLUMNS_BY_TYPE = {
+    "mcq": [
+        "Question Text", "Question Image URL",
+        "Option 1 Text", "Option 1 Image URL",
+        "Option 2 Text", "Option 2 Image URL",
+        "Option 3 Text", "Option 3 Image URL",
+        "Option 4 Text", "Option 4 Image URL",
+        "Correct Option Number",
+    ],
+    "true_false": [
+        "Question Text", "Question Image URL", "Correct Answer",
+    ],
+    "fill_blank": [
+        "Question Text", "Question Image URL",
+        "Fill Blank Answer", "Fill Blank Alt Answers",
+    ],
+    "matching": [
+        "Question Group", "Question Text",
+        "Left Text", "Left Image URL", "Right Text", "Right Image URL",
+    ],
+    "essay": [
+        "Question Text", "Question Image URL", "Essay Model Answer",
+    ],
+}
+
+IMPORT_COMMON_TRAILING_COLUMNS = [
+    "Explanation", "Difficulty", "Bloom Level", "Video URL", "Video Explanation", "Is Blocked"
+]
+
+IMPORT_TYPE_LABELS_AR = {
+    "mcq": "اختيار من متعدد",
+    "true_false": "صح وخطأ",
+    "fill_blank": "إكمال فراغ",
+    "matching": "مزاوجة",
+    "essay": "مقالي",
+}
 
 def allowed_image_file(filename):
     return ("." in filename and
@@ -1839,31 +1889,32 @@ def import_questions():
             current_app.logger.info(f"File read successfully. Shape: {df.shape}")
             current_app.logger.debug(f"Columns in file: {df.columns.tolist()}")
             
-            # Validate columns (Explanation is optional)
-            required_columns = [col for col in EXPECTED_IMPORT_COLUMNS if col != "Explanation"]
-            missing_columns = [col for col in required_columns if col not in df.columns]
+            # الأعمدة الإلزامية بغض النظر عن النوع — باقي الأعمدة اختيارية وتُفحص
+            # حسب نوع كل صف (Question Type) داخل حلقة المعالجة نفسها.
+            missing_columns = [col for col in REQUIRED_IMPORT_COLUMNS if col not in df.columns]
             if missing_columns:
                 flash(f"الملف يفتقد إلى الأعمدة التالية: {', '.join(missing_columns)}", "danger")
                 current_app.logger.warning(f"Missing columns in import file: {missing_columns}")
                 return render_template("question/import_questions.html", lessons=lessons, selected_lesson_id=lesson_id, form=form)
-            
+
             # Process each row
             imported_count = 0
             skipped_count = 0
             error_details = []
-            
+            matching_groups = {}  # (lesson_id, group_key) -> [{"index":, "row":, "import_is_bank":}, ...]
+
             for index, row in df.iterrows():
                 try:
                     # Extract course, unit, and lesson names
                     course_name = row["Course Name"] if pd.notna(row.get("Course Name")) else None
                     unit_name = row["Unit Name"] if pd.notna(row.get("Unit Name")) else None
                     lesson_name = row["Lesson Name"] if pd.notna(row.get("Lesson Name")) else None
-                    
+
                     # Validate course, unit, and lesson names
                     if not course_name or not unit_name or not lesson_name:
                         error_details.append(f"صف {index+2}: يجب توفير اسم المنهج والوحدة والدرس.")
                         continue
-                    
+
                     # Find the lesson by course, unit, and lesson names
                     # لو المستخدم اختار منهج محدد من الـ dropdown → نفلتر بـ course_id عشان نتجنب تضارب الأسماء
                     lesson_q = Lesson.query.join(Unit).join(Course).filter(
@@ -1875,64 +1926,114 @@ def import_questions():
                     else:
                         lesson_q = lesson_q.filter(Course.name == course_name)
                     lesson = lesson_q.first()
-                    
+
                     if not lesson:
                         error_details.append(f"صف {index+2}: لم يتم العثور على الدرس '{lesson_name}' في الوحدة '{unit_name}' في المنهج '{course_name}'.")
                         continue
-                    
+
                     current_lesson_id = lesson.id
                     # هل الدرس تابع لمنهج بنك؟
                     import_is_bank = False
                     if lesson.unit and lesson.unit.course:
                         import_is_bank = bool(lesson.unit.course.is_bank)
 
-                    # Extract question data
-                    question_text = row["Question Text"] if pd.notna(row["Question Text"]) else None
-                    question_image_url = row["Question Image URL"] if pd.notna(row["Question Image URL"]) else None
-                    
-                    # Skip row if both question text and image are missing
+                    # نوع السؤال — mcq افتراضياً لو العمود غير موجود/فاضي (توافق خلفي مع ملفات قديمة)
+                    raw_type = row.get("Question Type")
+                    question_type = str(raw_type).strip().lower() if pd.notna(raw_type) else "mcq"
+                    if question_type not in ("mcq", "true_false", "fill_blank", "matching", "essay"):
+                        question_type = "mcq"
+
+                    # المزاوجة تُجمَّع أولاً (كل صف = زوج)، تُعالج كمجموعات بعد الحلقة
+                    if question_type == "matching":
+                        raw_group = row.get("Question Group")
+                        group_key = str(raw_group).strip() if pd.notna(raw_group) else None
+                        if not group_key:
+                            error_details.append(f"صف {index+2}: سؤال المزاوجة يحتاج قيمة بعمود Question Group.")
+                            continue
+                        matching_groups.setdefault((current_lesson_id, group_key), []).append({
+                            "index": index, "row": row, "import_is_bank": import_is_bank,
+                        })
+                        continue
+
+                    # الأنواع غير-matching: نص/صورة السؤال إلزامية للجميع
+                    question_text = row["Question Text"] if pd.notna(row.get("Question Text")) else None
+                    question_image_url = row["Question Image URL"] if pd.notna(row.get("Question Image URL")) else None
+
                     if not question_text and not question_image_url:
                         error_details.append(f"صف {index+2}: يجب توفير نص السؤال أو صورة له.")
                         continue
-                    
-                    # Extract options data
+
                     options_data = []
-                    valid_options_count = 0
-                    correct_option_number = None
-                    
-                    if pd.notna(row["Correct Option Number"]):
-                        try:
-                            correct_option_number = int(row["Correct Option Number"])
-                            if correct_option_number < 1 or correct_option_number > 4:
-                                error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون بين 1 و 4.")
+                    fill_blank_answer = None
+                    fill_blank_alt_answers = None
+                    essay_model_answer = None
+
+                    if question_type == "mcq":
+                        valid_options_count = 0
+                        correct_option_number = None
+
+                        if pd.notna(row.get("Correct Option Number")):
+                            try:
+                                correct_option_number = int(row["Correct Option Number"])
+                                if correct_option_number < 1 or correct_option_number > 4:
+                                    error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون بين 1 و 4.")
+                                    continue
+                            except (ValueError, TypeError):
+                                error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون رقمًا صحيحًا.")
                                 continue
-                        except (ValueError, TypeError):
-                            error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يجب أن يكون رقمًا صحيحًا.")
+                        else:
+                            error_details.append(f"صف {index+2}: يجب تحديد رقم الإجابة الصحيحة.")
                             continue
-                    else:
-                        error_details.append(f"صف {index+2}: يجب تحديد رقم الإجابة الصحيحة.")
-                        continue
-                    
-                    for i in range(1, 5):
-                        option_text = row[f"Option {i} Text"] if pd.notna(row[f"Option {i} Text"]) else None
-                        option_image_url = row[f"Option {i} Image URL"] if pd.notna(row[f"Option {i} Image URL"]) else None
-                        
-                        if option_text or option_image_url:
-                            valid_options_count += 1
-                            options_data.append({
-                                "option_text": option_text,
-                                "image_url": option_image_url,
-                                "is_correct": (i == correct_option_number)
-                            })
-                    
-                    if valid_options_count < 2:
-                        error_details.append(f"صف {index+2}: يجب توفير خيارين صالحين على الأقل.")
-                        continue
-                    
-                    if correct_option_number > valid_options_count:
-                        error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
-                        continue
-                    
+
+                        for i in range(1, 5):
+                            option_text = row[f"Option {i} Text"] if pd.notna(row.get(f"Option {i} Text")) else None
+                            option_image_url = row[f"Option {i} Image URL"] if pd.notna(row.get(f"Option {i} Image URL")) else None
+
+                            if option_text or option_image_url:
+                                valid_options_count += 1
+                                options_data.append({
+                                    "option_text": option_text,
+                                    "image_url": option_image_url,
+                                    "is_correct": (i == correct_option_number)
+                                })
+
+                        if valid_options_count < 2:
+                            error_details.append(f"صف {index+2}: يجب توفير خيارين صالحين على الأقل.")
+                            continue
+
+                        if correct_option_number > valid_options_count:
+                            error_details.append(f"صف {index+2}: رقم الإجابة الصحيحة يشير إلى خيار غير موجود.")
+                            continue
+
+                    elif question_type == "true_false":
+                        raw_answer = row.get("Correct Answer")
+                        answer_str = str(raw_answer).strip().lower() if pd.notna(raw_answer) else ""
+                        if answer_str in ("true", "صح", "1", "yes", "t"):
+                            tf_correct = True
+                        elif answer_str in ("false", "خطأ", "خطا", "0", "no", "f"):
+                            tf_correct = False
+                        else:
+                            error_details.append(f"صف {index+2}: قيمة Correct Answer يجب أن تكون true/false أو صح/خطأ.")
+                            continue
+                        options_data = [
+                            {"option_text": "صح", "image_url": None, "is_correct": tf_correct},
+                            {"option_text": "خطأ", "image_url": None, "is_correct": not tf_correct},
+                        ]
+
+                    elif question_type == "fill_blank":
+                        raw_fb = row.get("Fill Blank Answer")
+                        fill_blank_answer = str(raw_fb).strip() if pd.notna(raw_fb) else None
+                        if not fill_blank_answer:
+                            error_details.append(f"صف {index+2}: يجب إدخال الإجابة الصحيحة لسؤال إكمال الفراغ (Fill Blank Answer).")
+                            continue
+                        raw_alt = row.get("Fill Blank Alt Answers")
+                        if pd.notna(raw_alt) and str(raw_alt).strip():
+                            fill_blank_alt_answers = [a.strip() for a in str(raw_alt).split(",") if a.strip()]
+
+                    elif question_type == "essay":
+                        raw_essay = row.get("Essay Model Answer")
+                        essay_model_answer = str(raw_essay).strip() if pd.notna(raw_essay) else None
+
                     # Extract optional fields
                     explanation  = row["Explanation"]  if pd.notna(row.get("Explanation"))  else None
                     difficulty   = row["Difficulty"]   if pd.notna(row.get("Difficulty"))   else None
@@ -1941,8 +2042,8 @@ def import_questions():
                     video_explanation = row["Video Explanation"] if pd.notna(row.get("Video Explanation")) else None
                     is_blocked        = str(row.get("Is Blocked", "0")).strip() == "1"
 
-                    # فحص التكرار — نص + درس + إجابة صحيحة
-                    if question_text:
+                    # فحص التكرار — نص + درس + إجابة صحيحة (mcq فقط، مطابقة سلوك الإضافة اليدوية)
+                    if question_type == "mcq" and question_text:
                         correct_opt_text = next(
                             (o["option_text"] for o in options_data if o["is_correct"]), None
                         )
@@ -1974,11 +2075,15 @@ def import_questions():
                         video_explanation=video_explanation,
                         is_blocked=is_blocked,
                         is_bank=import_is_bank,
+                        question_type=question_type,
+                        fill_blank_answer=fill_blank_answer,
+                        fill_blank_alt_answers=fill_blank_alt_answers,
+                        essay_model_answer=essay_model_answer,
                     )
                     db.session.add(new_question)
                     db.session.flush()  # Get the question ID
-                    
-                    # Create options
+
+                    # Create options (mcq/true_false فقط — باقي الأنواع بدون Option rows)
                     for opt_data in options_data:
                         option = Option(
                             option_text=opt_data["option_text"],
@@ -1987,12 +2092,97 @@ def import_questions():
                             question_id=new_question.question_id
                         )
                         db.session.add(option)
-                    
+
                     imported_count += 1
-                    
+
                 except Exception as row_error:
                     error_details.append(f"صف {index+2}: {str(row_error)}")
                     current_app.logger.exception(f"Error processing row {index+2}: {row_error}")
+
+            # ── معالجة مجموعات المزاوجة (كل مجموعة = سؤال واحد بعدة أزواج) ──────
+            for (group_lesson_id, group_key), rows_in_group in matching_groups.items():
+                first_index = rows_in_group[0]["index"]
+                try:
+                    pairs_data = []
+                    group_question_text = None
+                    group_question_image_url = None
+                    group_explanation = None
+                    group_difficulty = None
+                    group_bloom_level = None
+                    group_video_url = None
+                    group_video_explanation = None
+                    group_is_blocked = False
+                    group_import_is_bank = rows_in_group[0]["import_is_bank"]
+
+                    for order_num, entry in enumerate(rows_in_group):
+                        row = entry["row"]
+                        left_text = row["Left Text"] if pd.notna(row.get("Left Text")) else None
+                        left_image_url = row["Left Image URL"] if pd.notna(row.get("Left Image URL")) else None
+                        right_text = row["Right Text"] if pd.notna(row.get("Right Text")) else None
+                        right_image_url = row["Right Image URL"] if pd.notna(row.get("Right Image URL")) else None
+
+                        if left_text or left_image_url or right_text or right_image_url:
+                            pairs_data.append({
+                                "order_num": order_num,
+                                "left_text": left_text, "left_image_url": left_image_url,
+                                "right_text": right_text, "right_image_url": right_image_url,
+                            })
+
+                        if group_question_text is None and pd.notna(row.get("Question Text")):
+                            group_question_text = row["Question Text"]
+                        if group_question_image_url is None and pd.notna(row.get("Question Image URL")):
+                            group_question_image_url = row["Question Image URL"]
+                        if group_explanation is None and pd.notna(row.get("Explanation")):
+                            group_explanation = row["Explanation"]
+                        if group_difficulty is None and pd.notna(row.get("Difficulty")):
+                            group_difficulty = row["Difficulty"]
+                        if group_bloom_level is None and pd.notna(row.get("Bloom Level")):
+                            group_bloom_level = row["Bloom Level"]
+                        if group_video_url is None and pd.notna(row.get("Video URL")):
+                            group_video_url = row["Video URL"]
+                        if group_video_explanation is None and pd.notna(row.get("Video Explanation")):
+                            group_video_explanation = row["Video Explanation"]
+                        if str(row.get("Is Blocked", "0")).strip() == "1":
+                            group_is_blocked = True
+
+                    if len(pairs_data) < 2:
+                        error_details.append(f"صف {first_index+2}: سؤال المزاوجة (Question Group: {group_key}) يحتاج زوجين على الأقل.")
+                        continue
+
+                    if not group_question_text:
+                        group_question_text = "اربط العمود أ بما يناسبه من العمود ب"
+
+                    new_question = Question(
+                        question_text=group_question_text,
+                        lesson_id=group_lesson_id,
+                        image_url=group_question_image_url,
+                        explanation=group_explanation,
+                        difficulty=group_difficulty,
+                        bloom_level=group_bloom_level,
+                        video_url=group_video_url,
+                        video_explanation=group_video_explanation,
+                        is_blocked=group_is_blocked,
+                        is_bank=group_import_is_bank,
+                        question_type="matching",
+                    )
+                    db.session.add(new_question)
+                    db.session.flush()
+
+                    for pair_data in pairs_data:
+                        pair = MatchingPair(
+                            left_text=pair_data["left_text"],
+                            left_image_url=pair_data["left_image_url"],
+                            right_text=pair_data["right_text"],
+                            right_image_url=pair_data["right_image_url"],
+                            order_num=pair_data["order_num"],
+                            question_id=new_question.question_id,
+                        )
+                        db.session.add(pair)
+
+                    imported_count += 1
+                except Exception as group_error:
+                    error_details.append(f"صف {first_index+2}: {str(group_error)}")
+                    current_app.logger.exception(f"Error processing matching group {group_key}: {group_error}")
             
             # Commit all changes if there were any successful imports
             if imported_count > 0:
@@ -2054,66 +2244,113 @@ def import_questions():
     # GET request - show the form
     return render_template("question/import_questions.html", lessons=lessons, form=form)
 
-# --- download_import_template route (keep as is) --- #
+def _import_sample_row_for_type(qtype):
+    """صف عيّنة واقعي (أو أكثر لو النوع يحتاج عدة صفوف كالمزاوجة) لنوع سؤال معيّن."""
+    base = {
+        "Course Name": "مثال: كيمياء 1",
+        "Unit Name": "مثال: الوحدة الأولى",
+        "Lesson Name": "مثال: الدرس الأول",
+        "Question Type": qtype,
+    }
+    if qtype == "mcq":
+        return [{
+            **base,
+            "Question Text": "ما هي الصيغة الكيميائية للماء؟",
+            "Option 1 Text": "H₂O", "Option 2 Text": "CO₂",
+            "Option 3 Text": "NaCl", "Option 4 Text": "O₂",
+            "Correct Option Number": 1,
+            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين",
+            "Difficulty": "medium", "Bloom Level": "remember", "Is Blocked": 0,
+        }]
+    if qtype == "true_false":
+        return [{
+            **base,
+            "Question Text": "الأوزون غاز عديم اللون.",
+            "Correct Answer": "صح",
+            "Difficulty": "easy", "Bloom Level": "remember", "Is Blocked": 0,
+        }]
+    if qtype == "fill_blank":
+        return [{
+            **base,
+            "Question Text": "الصيغة الكيميائية للماء هي ......",
+            "Fill Blank Answer": "H2O", "Fill Blank Alt Answers": "H₂O, ماء",
+            "Difficulty": "medium", "Bloom Level": "remember", "Is Blocked": 0,
+        }]
+    if qtype == "matching":
+        return [
+            {**base, "Question Group": "مثال-1", "Question Text": "اربط العمود أ بما يناسبه من العمود ب",
+             "Left Text": "الأوزون", "Right Text": "O3", "Difficulty": "medium", "Bloom Level": "understand", "Is Blocked": 0},
+            {**base, "Question Group": "مثال-1",
+             "Left Text": "الماء", "Right Text": "H2O"},
+        ]
+    if qtype == "essay":
+        return [{
+            **base,
+            "Question Text": "اشرح كيف تتكون طبقة الأوزون.",
+            "Essay Model Answer": "تتكون طبقة الأوزون عندما تتحلل جزيئات الأكسجين بفعل الأشعة فوق البنفسجية...",
+            "Difficulty": "hard", "Bloom Level": "understand", "Is Blocked": 0,
+        }]
+    return []
+
+
 @question_bp.route("/import/template")
 @login_required
 def download_import_template():
     try:
-        # Create a sample DataFrame with the expected columns
-        df = pd.DataFrame(columns=EXPECTED_IMPORT_COLUMNS)
-        
-        # Add a sample row
-        sample_row = {
-            "Course Name": "مثال: كيمياء 1",
-            "Unit Name": "مثال: الوحدة الأولى",
-            "Lesson Name": "مثال: الدرس الأول",
-            "Question Text": "ما هي الصيغة الكيميائية للماء؟",
-            "Question Image URL": "",
-            "Option 1 Text": "H₂O",
-            "Option 1 Image URL": "",
-            "Option 2 Text": "CO₂",
-            "Option 2 Image URL": "",
-            "Option 3 Text": "NaCl",
-            "Option 3 Image URL": "",
-            "Option 4 Text": "O₂",
-            "Option 4 Image URL": "",
-            "Correct Option Number": 1,
-            "Explanation": "الماء يتكون من ذرتين من الهيدروجين وذرة واحدة من الأكسجين",
-            "Difficulty": "medium",
-            "Bloom Level": "remember",
-            "Video URL": "",
-            "Video Explanation": "",
-            "Is Blocked": 0
-        }
-        df = pd.concat([df, pd.DataFrame([sample_row])], ignore_index=True)
-        
-        # Create a BytesIO object to store the Excel file
+        requested_types = [t.strip().lower() for t in request.args.get('types', 'mcq').split(',') if t.strip()]
+        selected_types = [t for t in requested_types if t in IMPORT_COLUMNS_BY_TYPE] or ["mcq"]
+        file_format = request.args.get('format', 'xlsx').strip().lower()
+        if file_format not in ('xlsx', 'csv'):
+            file_format = 'xlsx'
+
+        # الأعمدة = الثابتة + عمود النوع/المجموعة + اتحاد أعمدة الأنواع المختارة + الأعمدة العامة بالنهاية
+        columns = ["Course Name", "Unit Name", "Lesson Name", "Question Type", "Question Group"]
+        for t in selected_types:
+            for col in IMPORT_COLUMNS_BY_TYPE[t]:
+                if col not in columns:
+                    columns.append(col)
+        columns += IMPORT_COMMON_TRAILING_COLUMNS
+
+        df = pd.DataFrame(columns=columns)
+        sample_rows = []
+        for t in selected_types:
+            sample_rows.extend(_import_sample_row_for_type(t))
+        if sample_rows:
+            df = pd.concat([df, pd.DataFrame(sample_rows)], ignore_index=True)
+        df = df.fillna("")
+
         output = io.BytesIO()
-        
-        # Write the DataFrame to the BytesIO object
+        type_labels = "-".join(IMPORT_TYPE_LABELS_AR.get(t, t) for t in selected_types)
+
+        if file_format == 'csv':
+            output.write(df.to_csv(index=False).encode('utf-8-sig'))
+            output.seek(0)
+            return send_file(
+                output,
+                mimetype='text/csv',
+                as_attachment=True,
+                download_name=f'question_import_template_{"_".join(selected_types)}.csv'
+            )
+
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Questions')
-            
+
             # Auto-adjust column widths
             worksheet = writer.sheets['Questions']
+            from openpyxl.utils import get_column_letter
             for i, col in enumerate(df.columns):
                 col_max = df[col].astype(str).map(len).max()
                 max_width = max(col_max if pd.notna(col_max) else 0, len(col)) + 2
-                # دعم أعمدة ما بعد Z (AA, AB, ...)
-                from openpyxl.utils import get_column_letter
                 worksheet.column_dimensions[get_column_letter(i + 1)].width = max_width
-        
-        # Seek to the beginning of the BytesIO object
+
         output.seek(0)
-        
-        # Send the file
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name='question_import_template.xlsx'
+            download_name=f'question_import_template_{"_".join(selected_types)}.xlsx'
         )
-        
+
     except Exception as e:
         current_app.logger.exception("Error generating import template")
         flash("حدث خطأ أثناء إنشاء قالب الاستيراد.", "danger")

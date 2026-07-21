@@ -449,35 +449,62 @@
 
                     <div class="alert alert-info">
                         <h5 class="alert-heading">متطلبات تنسيق الملف</h5>
-                        <p>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب:</p>
-                        <ol>
-                            <li><code>Course Name</code> (اسم المنهج - مطلوب)</li>
-                            <li><code>Unit Name</code> (اسم الوحدة - مطلوب)</li>
-                            <li><code>Lesson Name</code> (اسم الدرس - مطلوب)</li>
-                            <li><code>Question Text</code> (نص السؤال - اختياري في حال وجود صورة)</li>
-                            <li><code>Question Image URL</code> (رابط صورة السؤال - اختياري)</li>
-                            <li><code>Option 1 Text</code> (نص الخيار 1 - اختياري في حال وجود صورة)</li>
-                            <li><code>Option 1 Image URL</code> (رابط صورة الخيار 1 - اختياري)</li>
-                            <li><code>Option 2 Text</code> (نص الخيار 2 - اختياري في حال وجود صورة)</li>
-                            <li><code>Option 2 Image URL</code> (رابط صورة الخيار 2 - اختياري)</li>
-                            <li><code>Option 3 Text</code> (نص الخيار 3 - اختياري)</li>
-                            <li><code>Option 3 Image URL</code> (رابط صورة الخيار 3 - اختياري)</li>
-                            <li><code>Option 4 Text</code> (نص الخيار 4 - اختياري)</li>
-                            <li><code>Option 4 Image URL</code> (رابط صورة الخيار 4 - اختياري)</li>
-                            <li><code>Correct Option Number</code> (رقم الخيار الصحيح - مطلوب: 1، 2، 3، أو 4)</li>
-                            <li><code>Explanation</code> (شرح الإجابة الصحيحة - اختياري)</li>
-                        </ol>
+                        <p>الملف يدعم <strong>كل أنواع الأسئلة</strong> بنفس الوقت — عمود <code>Question Type</code> يحدد نوع كل صف
+                        (<code>mcq</code> / <code>true_false</code> / <code>fill_blank</code> / <code>matching</code> / <code>essay</code>،
+                        أو فاضي = اختيار متعدد افتراضياً). كل نوع يستخدم أعمدته الخاصة بس، الباقي يُترك فاضي بذاك الصف.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered" style="font-size: 0.85rem;">
+                                <thead>
+                                    <tr><th>العمود</th><th>يُستخدم لـ</th><th>ملاحظة</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>Course Name</code> / <code>Unit Name</code> / <code>Lesson Name</code></td><td>كل الأنواع</td><td>مطلوبة دائماً</td></tr>
+                                    <tr><td><code>Question Type</code></td><td>كل الأنواع</td><td>mcq افتراضياً لو فاضي</td></tr>
+                                    <tr><td><code>Question Group</code></td><td>مزاوجة فقط</td><td>نفس القيمة بعدة صفوف = أزواج سؤال واحد (كل صف = زوج)</td></tr>
+                                    <tr><td><code>Question Text</code> / <code>Question Image URL</code></td><td>متعدد / صح_خطأ / فراغ / مقالي</td><td>بالمزاوجة: بأول صف بالمجموعة بس</td></tr>
+                                    <tr><td><code>Option 1-4 Text/Image URL</code> + <code>Correct Option Number</code></td><td>متعدد فقط</td><td>رقم الإجابة 1-4</td></tr>
+                                    <tr><td><code>Correct Answer</code></td><td>صح_خطأ فقط</td><td>true/false أو صح/خطأ</td></tr>
+                                    <tr><td><code>Fill Blank Answer</code> / <code>Fill Blank Alt Answers</code></td><td>فراغ فقط</td><td>إجابات بديلة مفصولة بفاصلة</td></tr>
+                                    <tr><td><code>Left Text/Image URL</code> / <code>Right Text/Image URL</code></td><td>مزاوجة فقط</td><td>كل صف = زوج واحد بالمجموعة</td></tr>
+                                    <tr><td><code>Essay Model Answer</code></td><td>مقالي فقط</td><td>اختياري</td></tr>
+                                    <tr><td><code>Explanation</code> / <code>Difficulty</code> / <code>Bloom Level</code> / <code>Video URL</code> / <code>Video Explanation</code> / <code>Is Blocked</code></td><td>كل الأنواع</td><td>اختيارية</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <p><strong>هام:</strong></p>
                         <ul>
                             <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة <strong>باللغة الإنجليزية</strong> تمامًا كما هي مذكورة أعلاه.</li>
-                            <li>مطلوب خياران على الأقل (نص أو صورة) لكل سؤال.</li>
+                            <li>مطلوب خياران على الأقل (نص أو صورة) لسؤال الاختيار من متعدد.</li>
                             <li>يجب أن تتطابق أسماء المنهج والوحدة والدرس مع الأسماء الموجودة في النظام بالضبط. <a href="{{ url_for('question.export_courses_units_lessons') }}" class="text-primary">انقر هنا لتنزيل قائمة المناهج والوحدات والدروس المتاحة</a>.</li>
                             <li>تأكد من أن روابط الصور صالحة ويمكن الوصول إليها بشكل عام.</li>
                         </ul>
                         <hr>
+                        <p class="mb-2"><strong>اختر أنواع الأسئلة اللي تبي تنزّل لها قالب</strong> (تقدر تختار أكثر من نوع مع بعض):</p>
+                        <div class="mb-3" id="import_type_checkboxes">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input import-type-cb" type="checkbox" id="type_mcq" value="mcq" checked>
+                                <label class="form-check-label" for="type_mcq">اختيار من متعدد</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input import-type-cb" type="checkbox" id="type_true_false" value="true_false">
+                                <label class="form-check-label" for="type_true_false">صح وخطأ</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input import-type-cb" type="checkbox" id="type_fill_blank" value="fill_blank">
+                                <label class="form-check-label" for="type_fill_blank">إكمال فراغ</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input import-type-cb" type="checkbox" id="type_matching" value="matching">
+                                <label class="form-check-label" for="type_matching">مزاوجة</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input import-type-cb" type="checkbox" id="type_essay" value="essay">
+                                <label class="form-check-label" for="type_essay">مقالي</label>
+                            </div>
+                        </div>
                         <p><strong>تنزيل القالب:</strong>
-                            <a href="{{ url_for('question.download_import_template', format='xlsx') }}" class="btn btn-sm btn-outline-success">تنزيل قالب Excel (.xlsx)</a>
-                            <a href="{{ url_for('question.download_import_template', format='csv') }}" class="btn btn-sm btn-outline-secondary">تنزيل قالب CSV (.csv)</a>
+                            <a id="template_download_xlsx" href="{{ url_for('question.download_import_template', format='xlsx', types='mcq') }}" class="btn btn-sm btn-outline-success">تنزيل قالب Excel (.xlsx)</a>
+                            <a id="template_download_csv" href="{{ url_for('question.download_import_template', format='csv', types='mcq') }}" class="btn btn-sm btn-outline-secondary">تنزيل قالب CSV (.csv)</a>
                         </p>
                     </div>
 
@@ -498,6 +525,21 @@
             const lessonSelect = document.getElementById("lesson_id");
             const fileInput = document.getElementById("question_file");
             const form = document.querySelector('form');
+
+            // تحديث روابط تنزيل القالب حسب الأنواع المحدَّدة بالـcheckboxes
+            const typeCheckboxes = document.querySelectorAll('.import-type-cb');
+            const xlsxLink = document.getElementById('template_download_xlsx');
+            const csvLink = document.getElementById('template_download_csv');
+            const templateBaseUrl = "{{ url_for('question.download_import_template') }}";
+
+            function updateTemplateLinks() {
+                const selected = Array.from(typeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+                const types = (selected.length > 0 ? selected : ['mcq']).join(',');
+                xlsxLink.href = `${templateBaseUrl}?format=xlsx&types=${encodeURIComponent(types)}`;
+                csvLink.href = `${templateBaseUrl}?format=csv&types=${encodeURIComponent(types)}`;
+            }
+            typeCheckboxes.forEach(cb => cb.addEventListener('change', updateTemplateLinks));
+            updateTemplateLinks();
 
             function populateSelect(selectElement, items, placeholder, selectedValue = null) {
                 selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
