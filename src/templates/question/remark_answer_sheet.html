@@ -349,6 +349,12 @@
                     <div class="info-label">المادة</div>
                     <div class="info-value">{{ subject|default('', true) }}</div>
                 </div>
+                {% if exam_number %}
+                <div class="info-item">
+                    <div class="info-label">رقم النموذج</div>
+                    <div class="info-value">{{ exam_number }}</div>
+                </div>
+                {% endif %}
             </div>
 
             <div class="score-table-section">

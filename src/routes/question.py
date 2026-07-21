@@ -466,10 +466,11 @@ def _build_answer_keys_for_models(question_ids, matching_pair_ids, models, shuff
     (كان قبل هذا التصحيح مستقل تماماً بصيغة seed مختلفة وخوارزمية خلط مختلفة،
     فيؤدي لاختلاف الإجابة الصحيحة بين الورقة والمفتاح).
 
-    ترجع: (answer_keys: {model_letter: answers_dict}, questions_count: int)
+    ترجع: (answer_keys: {model_letter: answers_dict}, questions_count: int, exam_number: str)
     """
     from src.routes.exam_model_builder import (
-        build_exam_model, build_manual_matching_fq, compute_stable_seed, EXAM_SUPPORTED_TYPES as _EXAM_TYPES
+        build_exam_model, build_manual_matching_fq, compute_stable_seed, format_exam_number,
+        EXAM_SUPPORTED_TYPES as _EXAM_TYPES
     )
 
     id_to_q = {
@@ -527,7 +528,7 @@ def _build_answer_keys_for_models(question_ids, matching_pair_ids, models, shuff
 
         answer_keys[model_letter] = answers
 
-    return answer_keys, questions_count
+    return answer_keys, questions_count, format_exam_number(stable_seed)
 
 
 # ============================================================
@@ -4205,7 +4206,7 @@ def print_remark_sheets_multi_models():
 
         # توليد مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ترتيب/خلط ورقة الاختبار
         # الفعلية (exam_model_builder) عشان تطابق المطبوع بالضبط، مو خلط مستقل
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_options
         )
 
@@ -4245,6 +4246,7 @@ def print_remark_sheets_multi_models():
                     is_answer_key=False,
                     answers=None,  # لا نعرض الإجابات في ورقة الطالب
                     questions_count=len(questions),
+                    exam_number=exam_number,
                     **header_context
                 )
                 all_html += '<div style="page-break-after: always;"></div>'
@@ -4264,6 +4266,7 @@ def print_remark_sheets_multi_models():
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **header_context
             )
             all_html += '<div style="page-break-after: always;"></div>'
@@ -4284,16 +4287,20 @@ def print_blank_remark_sheets():
         models = data.get('models', ['أ'])
         count_per_model = data.get('count_per_model', 10)
         question_ids = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         exam_type = data.get('exam_type', 'نهاية')
         semester = data.get('semester', 'الأول')
         academic_year = data.get('academic_year', '1447هـ')
-        
+
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
-        
+
         # جلب الأسئلة لمعرفة العدد (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
         questions = get_ordered_questions_for_omr(question_ids)
         questions_count = len(questions)
+
+        from src.routes.exam_model_builder import compute_stable_seed, format_exam_number
+        exam_number = format_exam_number(compute_stable_seed(question_ids, matching_pair_ids))
         
         # جلب إعدادات الكليشة
         settings = ExamHeaderSettings.query.first()
@@ -4340,12 +4347,13 @@ def print_blank_remark_sheets():
                     is_answer_key=False,
                     answers=None,
                     questions_count=questions_count,
+                    exam_number=exam_number,
                     **header_context
                 )
                 all_html += '<div style="page-break-after: always;"></div>'
-        
+
         return jsonify({'success': True, 'html_content': all_html})
-        
+
     except Exception as e:
         current_app.logger.error(f"Error in print_blank_remark_sheets: {str(e)}")
         return jsonify({'error': f'فشل تجهيز الطباعة: {str(e)}'}), 500
@@ -4410,7 +4418,7 @@ def generate_all_models_answer_keys():
 
         # توليد مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ترتيب/خلط ورقة الاختبار
         # الفعلية (exam_model_builder) عشان تطابق المطبوع بالضبط، مو خلط مستقل
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_options
         )
         all_keys_html = ""
@@ -4429,6 +4437,7 @@ def generate_all_models_answer_keys():
                 semester=semester,
                 academic_year=academic_year,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **header_settings
             )
             all_keys_html += answer_key_html
@@ -4831,6 +4840,7 @@ def remark_blank_pdf():
         models           = data.get('models', ['أ'])
         count_per_model  = int(data.get('count_per_model', 10))
         question_ids     = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         exam_type        = data.get('exam_type', 'نهاية')
         semester         = data.get('semester', 'الأول')
         academic_year    = data.get('academic_year', '1447هـ')
@@ -4840,6 +4850,9 @@ def remark_blank_pdf():
 
         questions_count = len(get_ordered_questions_for_omr(question_ids))
         ctx = _remark_header_context(exam_type, semester, academic_year)
+
+        from src.routes.exam_model_builder import compute_stable_seed, format_exam_number
+        exam_number = format_exam_number(compute_stable_seed(question_ids, matching_pair_ids))
 
         all_html = ""
         for model_letter in models:
@@ -4859,6 +4872,7 @@ def remark_blank_pdf():
                     is_answer_key=False,
                     answers=None,
                     questions_count=questions_count,
+                    exam_number=exam_number,
                     **ctx
                 )
 
@@ -4891,7 +4905,7 @@ def remark_answer_key_pdf():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
@@ -4909,6 +4923,7 @@ def remark_answer_key_pdf():
                 answers=answers,
                 model_letter=model_letter,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **ctx
             )
 
@@ -4974,7 +4989,7 @@ def remark_students_pdf():
         ctx = _remark_header_context(exam_type, semester, academic_year)
 
         # ── بناء مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ورقة الاختبار الفعلية ──
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
@@ -5000,6 +5015,7 @@ def remark_students_pdf():
                 is_answer_key=False,
                 answers=None,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **ctx
             )
 
@@ -5013,6 +5029,7 @@ def remark_students_pdf():
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **ctx
             )
 
@@ -5073,6 +5090,7 @@ def remark_blank_html():
         models          = data.get('models', ['أ'])
         count_per_model = int(data.get('count_per_model', 10))
         question_ids    = data.get('question_ids', [])
+        matching_pair_ids = data.get('matching_pair_ids', [])
         exam_type       = data.get('exam_type', 'نهاية')
         semester        = data.get('semester', 'الأول')
         academic_year   = data.get('academic_year', '1447هـ')
@@ -5084,6 +5102,9 @@ def remark_blank_html():
         questions_count = len(get_ordered_questions_for_omr(question_ids))
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
+
+        from src.routes.exam_model_builder import compute_stable_seed, format_exam_number
+        exam_number = format_exam_number(compute_stable_seed(question_ids, matching_pair_ids))
 
         all_html = ""
         for model_letter in models:
@@ -5098,6 +5119,7 @@ def remark_blank_html():
                     is_answer_key=False,
                     answers=None,
                     questions_count=questions_count,
+                    exam_number=exam_number,
                     **ctx
                 )
         wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
@@ -5142,7 +5164,7 @@ def remark_answer_key_html():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
@@ -5162,6 +5184,7 @@ def remark_answer_key_html():
                 answers=answers,
                 model_letter=model_letter,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **ctx
             )
         wrapper = _remark_pdf_wrapper_colored if style == 'colored' else _remark_pdf_wrapper
@@ -5228,7 +5251,7 @@ def remark_students_html():
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
         # بناء مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ورقة الاختبار الفعلية
-        answer_keys, _ = _build_answer_keys_for_models(
+        answer_keys, _, exam_number = _build_answer_keys_for_models(
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
@@ -5252,6 +5275,7 @@ def remark_students_html():
                     is_answer_key=False,
                     answers=None,
                     questions_count=len(questions),
+                    exam_number=exam_number,
                     **ctx
                 )
 
@@ -5265,6 +5289,7 @@ def remark_students_html():
                 answers=answer_keys[model_letter],
                 model_letter=model_letter,
                 questions_count=len(questions),
+                exam_number=exam_number,
                 **ctx
             )
 

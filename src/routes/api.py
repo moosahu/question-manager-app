@@ -4459,6 +4459,14 @@ def generate_exam():
                 if (manual_question_ids or matching_pair_ids) else None
             )
 
+            # رقم نموذج قصير مشتق من نفس الـseed — يطلع متطابق حرفياً بمفتاح
+            # الريمارك لنفس التوليد (نفس المدخلات = نفس الرقم بالطرفين)
+            try:
+                from src.routes.exam_model_builder import format_exam_number
+            except ImportError:
+                from routes.exam_model_builder import format_exam_number
+            pdf_kwargs['exam_number'] = format_exam_number(_stable_seed)
+
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
                 # rng0 مُبذّر من _stable_seed (لو متوفر) عشان خلط الخيارات وعمود

@@ -147,6 +147,16 @@ def compute_stable_seed(question_ids, matching_pair_ids=None):
     return sum(question_ids) + sum(matching_pair_ids)
 
 
+def format_exam_number(stable_seed):
+    """رقم نموذج قصير قابل للقراءة، مشتق من نفس بذرة الأسئلة المشتركة —
+    يطلع متطابق حرفياً بين ورقة الاختبار ومفتاح الريمارك لنفس التوليد،
+    بدون أي تنسيق إضافي بين مسار PDF ومسار الريمارك (نفس مبدأ compute_stable_seed).
+    يرجع '' لو ما فيه seed (وضع تلقائي بدون قفل أسئلة)."""
+    if stable_seed is None:
+        return ''
+    return str(abs(stable_seed) % 1_000_000).zfill(6)
+
+
 def build_exam_model(available, model_index, stable_seed,
                       shuffle_options=True, include_answers=False):
     """

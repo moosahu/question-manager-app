@@ -42,7 +42,16 @@
                 font-size: 11px;
                 color: #333;
             }
-            
+
+            {% if exam_number %}
+            /* رقم النموذج — نفس الرقم يطلع بمفتاح الريمارك لهذا التوليد بالضبط */
+            @bottom-left {
+                content: "رقم النموذج: {{ exam_number }}";
+                font-family: 'Traditional Arabic', 'Tahoma', Arial, sans-serif;
+                font-size: 11px;
+                color: #666;
+            }
+            {% endif %}
         }
         /* حذفنا تعليمة "اقلب الصفحة" — "صفحة X من Y" بالتذييل تكفي وحدها لتوضيح
            إذا فيه صفحات بعدها أو لا، بدون تناقض ممكن على آخر صفحة أو إجبار
