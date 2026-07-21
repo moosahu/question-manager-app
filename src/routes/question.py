@@ -4978,37 +4978,30 @@ def remark_students_pdf():
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
-        # ── توزيع الطلاب على النماذج ────────────────────────────────
-        per_model   = len(students_list) // len(models)
-        remainder   = len(students_list) % len(models)
+        # ── ورقة فارغة لكل طالب بدون تحديد نموذج مسبقاً — المعلم يوزّع نماذج
+        # الاختبار فعلياً بيده بالفصل بأي ترتيب، فالطالب نفسه يظلل أي نموذج
+        # استلم بورقته (فقاعة "نموذج الاختبار" تطلع فارغة، مو مُعبّأة مسبقاً) ──
         all_html    = ""
         student_idx = 0
+        for s0 in students_list:
+            s = dict(s0)
+            student_idx += 1
+            if not s.get('seat_no'):
+                s['seat_no'] = str(student_idx)
+            acad_id = s.get('academic_id', '')
+            s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
+            s['model_letter'] = None
 
-        for m_idx, model_letter in enumerate(models):
-            count = per_model + (1 if m_idx < remainder else 0)
-            for _ in range(count):
-                if student_idx >= len(students_list):
-                    break
-                s = dict(students_list[student_idx])
-                student_idx += 1
-                # رقم الجلوس: من البيانات أو تسلسلي
-                if not s.get('seat_no'):
-                    s['seat_no'] = str(student_idx)
-                # باركود
-                acad_id = s.get('academic_id', '')
-                s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
-                s['model_letter'] = model_letter
-
-                all_html += render_template(
-                    'question/remark_answer_sheet.html',
-                    standalone=False,
-                    student=s,
-                    model_letter=model_letter,
-                    is_answer_key=False,
-                    answers=None,
-                    questions_count=len(questions),
-                    **ctx
-                )
+            all_html += render_template(
+                'question/remark_answer_sheet.html',
+                standalone=False,
+                student=s,
+                model_letter=None,
+                is_answer_key=False,
+                answers=None,
+                questions_count=len(questions),
+                **ctx
+            )
 
         # ── مفاتيح الإجابة في النهاية ────────────────────────────────
         for model_letter in models:
@@ -5239,27 +5232,23 @@ def remark_students_html():
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
-        # ── توزيع الطلاب على النماذج بالتساوي (كل نموذج ياخذ نصيبه، مو كل الطلاب لنموذج واحد) ──
-        per_model = len(students_list) // len(models)
-        remainder = len(students_list) % len(models)
+        # ── ورقة فارغة لكل طالب بدون تحديد نموذج مسبقاً — المعلم يوزّع نماذج
+        # الاختبار فعلياً بيده بالفصل بأي ترتيب، فالطالب نفسه يظلل أي نموذج
+        # استلم بورقته (فقاعة "نموذج الاختبار" تطلع فارغة، مو مُعبّأة مسبقاً) ──
         all_html = ""
         student_idx = 0
-        for m_idx, model_letter in enumerate(models):
-            count = per_model + (1 if m_idx < remainder else 0)
-            for _ in range(count):
-                if student_idx >= len(students_list):
-                    break
-                s = dict(students_list[student_idx])
-                student_idx += 1
-                if not s.get('seat_no'):
-                    s['seat_no'] = str(student_idx)
-                acad_id = s.get('academic_id', '')
-                s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
-                all_html += render_template(
+        for s0 in students_list:
+            s = dict(s0)
+            student_idx += 1
+            if not s.get('seat_no'):
+                s['seat_no'] = str(student_idx)
+            acad_id = s.get('academic_id', '')
+            s['barcode'] = generate_student_barcode(acad_id) if acad_id else None
+            all_html += render_template(
                     template_name,
                     standalone=False,
                     student=s,
-                    model_letter=model_letter,
+                    model_letter=None,
                     is_answer_key=False,
                     answers=None,
                     questions_count=len(questions),
