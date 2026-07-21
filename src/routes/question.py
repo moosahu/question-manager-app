@@ -5219,12 +5219,15 @@ def remark_students_html():
         if students_raw:
             students_list = [dict(s) for s in students_raw]
         elif student_ids:
-            from src.models.user import User
-            db_students = User.query.filter(User.user_id.in_(student_ids), User.role == 'student').all()
-            students_list = [{'name': s.full_name or s.username,
-                              'academic_id': getattr(s, 'academic_id', '') or '',
-                              'section': getattr(s, 'class_name', '') or '',
-                              'seat_no': ''} for s in db_students]
+            try:
+                from src.models.student import Student as StudentModel
+            except ImportError:
+                from models.student import Student as StudentModel
+            db_students = StudentModel.query.filter(StudentModel.id.in_(student_ids)).all()
+            students_list = [{'name': s.name,
+                              'academic_id': str(s.id),
+                              'section': s.grade or '',
+                              'seat_no': str(idx + 1)} for idx, s in enumerate(db_students)]
         else:
             return jsonify({'error': 'لم يتم تحديد طلاب'}), 400
 
