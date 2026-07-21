@@ -5239,10 +5239,14 @@ def remark_students_html():
             question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
         )
 
+        # ── توزيع الطلاب على النماذج بالتساوي (كل نموذج ياخذ نصيبه، مو كل الطلاب لنموذج واحد) ──
+        per_model = len(students_list) // len(models)
+        remainder = len(students_list) % len(models)
         all_html = ""
         student_idx = 0
-        for model_letter in models:
-            while student_idx < len(students_list):
+        for m_idx, model_letter in enumerate(models):
+            count = per_model + (1 if m_idx < remainder else 0)
+            for _ in range(count):
                 if student_idx >= len(students_list):
                     break
                 s = dict(students_list[student_idx])
