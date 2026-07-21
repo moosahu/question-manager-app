@@ -4339,7 +4339,12 @@ def generate_exam():
         # ── دالة التنسيق ──────────────────────────────────────────────
         matching_letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي']
 
-        def format_selected(qs_list):
+        def format_selected(qs_list, rng=None):
+            # rng: مولّد عشوائي مُبذّر (اختياري) — يُستخدم بدل random العامة غير
+            # المُبذّرة لخلط الخيارات وعمود المزاوجة الأيمن، عشان يقدر مفتاح
+            # الريمارك (question.py) يعيد إنتاج نفس الترتيب بالضبط لاحقاً بنفس
+            # الـseed، بدل ترتيب مختلف كل مرة يُستدعى فيها format_selected.
+            shuffler = rng.shuffle if rng is not None else _random.shuffle
             formatted = []
             for q in qs_list:
                 if getattr(q, '_pooled_matching', False):
@@ -4349,7 +4354,7 @@ def generate_exam():
                     fq = format_question(q)
                 if shuffle_options and fq.get('options'):
                     opts = list(fq['options'])
-                    _random.shuffle(opts)
+                    shuffler(opts)
                     fq['options'] = opts
                 if not include_answers:
                     fq.pop('correct_option_id', None)
@@ -4363,7 +4368,7 @@ def generate_exam():
                     if fq.get('matching_distractor'):
                         right_items.append(fq['matching_distractor'])
                     order = list(range(len(right_items)))
-                    _random.shuffle(order)
+                    shuffler(order)
                     shuffled_right = []
                     correct_letter_by_index = {}
                     for pos, orig_idx in enumerate(order):
@@ -4456,6 +4461,10 @@ def generate_exam():
 
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
+                # rng0 مُبذّر من _stable_seed (لو متوفر) عشان خلط الخيارات وعمود
+                # المزاوجة داخل format_selected يصير قابل لإعادة الإنتاج — يخلي مفتاح
+                # الريمارك (question.py) يقدر يعيد نفس الترتيب بالضبط لاحقاً.
+                rng0 = _random.Random(_stable_seed) if _stable_seed is not None else None
                 if type_counts and mode != "manual":
                     selected = select_questions_by_type(available, type_counts)
                 else:
@@ -4466,7 +4475,7 @@ def generate_exam():
                         # تجميع نهائي: mcq > true_false > matching > essay
                         # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
                         selected = group_by_type_order(selected)
-                gen_questions = to_gen_questions(format_selected(selected))
+                gen_questions = to_gen_questions(format_selected(selected, rng=rng0))
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
                     exam_title=exam_title,
@@ -4492,7 +4501,7 @@ def generate_exam():
                         if mode != "manual":
                             # تجميع نهائي (لكل نموذج على حدة): mcq > true_false > matching > essay
                             selected_i = group_by_type_order(selected_i)
-                    gen_questions_i = to_gen_questions(format_selected(selected_i))
+                    gen_questions_i = to_gen_questions(format_selected(selected_i, rng=rng))
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
                         exam_title=exam_title,

@@ -458,6 +458,78 @@ def _build_omr_answers(mcq_data, tf_data, matching_pairs_flat, shuffle_questions
     return answers
 
 
+def _build_answer_keys_for_models(question_ids, matching_pair_ids, models, shuffle_options=True, include_answers=True):
+    """
+    يبني answers (فقاعات) لكل نموذج بالاعتماد على نفس بايبلاين ترتيب/خلط ورقة
+    الاختبار الفعلية (src.routes.exam_model_builder) بدل إعادة خلط مستقل —
+    عشان مفتاح الريمارك يطابق بالضبط ما طُبع بورقة الاختبار لنفس النموذج
+    (كان قبل هذا التصحيح مستقل تماماً بصيغة seed مختلفة وخوارزمية خلط مختلفة،
+    فيؤدي لاختلاف الإجابة الصحيحة بين الورقة والمفتاح).
+
+    ترجع: (answer_keys: {model_letter: answers_dict}, questions_count: int)
+    """
+    from src.routes.exam_model_builder import (
+        build_exam_model, build_manual_matching_fq, compute_stable_seed, EXAM_SUPPORTED_TYPES as _EXAM_TYPES
+    )
+
+    id_to_q = {
+        q.question_id: q for q in Question.query.filter(
+            Question.question_id.in_(question_ids),
+            Question.is_blocked == False,
+            Question.question_type.in_(_EXAM_TYPES)
+        ).all()
+    }
+    available = [id_to_q[qid] for qid in question_ids if qid in id_to_q]
+    if matching_pair_ids:
+        manual_matching_fq = build_manual_matching_fq(matching_pair_ids)
+        if manual_matching_fq:
+            available.append(manual_matching_fq)
+
+    stable_seed = compute_stable_seed(question_ids, matching_pair_ids)
+    model_letters_canonical = ['أ', 'ب', 'ج', 'د']
+
+    letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و']
+    answer_keys = {}
+    questions_count = len([q for q in available if getattr(q, 'question_type', None) != 'matching']) + (
+        1 if matching_pair_ids and any(getattr(q, 'question_type', None) == 'matching' for q in available) else 0
+    )
+
+    for model_letter in models:
+        model_index = model_letters_canonical.index(model_letter) if model_letter in model_letters_canonical else 0
+        formatted = build_exam_model(
+            available, model_index, stable_seed,
+            shuffle_options=shuffle_options, include_answers=include_answers
+        )
+
+        answers = {}
+        mcq_items = [f for f in formatted if f.get('question_type') == 'mcq']
+        for q_num, f in enumerate(mcq_items[:40], 1):
+            for i, opt in enumerate(f.get('options', [])):
+                if opt.get('is_correct'):
+                    answers[q_num] = letters[i] if i < len(letters) else str(i + 1)
+                    break
+
+        tf_items = [f for f in formatted if f.get('question_type') == 'true_false']
+        for q_num, f in enumerate(tf_items[:20], 1):
+            for opt in f.get('options', []):
+                if opt.get('is_correct'):
+                    answers[40 + q_num] = 'ص' if opt.get('option_text') == 'صح' else 'خ'
+                    break
+
+        matching_items = [f for f in formatted if f.get('question_type') == 'matching']
+        pair_idx = 0
+        for f in matching_items:
+            for p in (f.get('matching_pairs') or []):
+                pair_idx += 1
+                if pair_idx > 10:
+                    break
+                answers[60 + pair_idx] = p.get('correct_letter', '')
+
+        answer_keys[model_letter] = answers
+
+    return answer_keys, questions_count
+
+
 # ============================================================
 # API خاص بشاشة استخراج الاختبار (export_exam.html) — إداري فقط (login_required)
 # منفصل تماماً عن /api/v1/* الذي يستهلكه تطبيق الطالب (الاختبار التفاعلي يبقى MCQ فقط دائماً).
@@ -4100,15 +4172,11 @@ def print_remark_sheets_multi_models():
         if not question_ids:
             return jsonify({'error': 'لم يتم تحديد الأسئلة'}), 400
 
-        # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل)
+        # جلب الأسئلة (تستبعد fill_blank/essay غير المتوافقة مع التظليل) — للعدّ فقط
         questions = get_ordered_questions_for_omr(question_ids)
 
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
-
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
 
         # جلب إعدادات الكليشة
         settings = ExamHeaderSettings.query.first()
@@ -4135,18 +4203,12 @@ def print_remark_sheets_multi_models():
         except Exception as e:
             current_app.logger.warning(f"Could not load logo: {e}")
 
-        # توليد مفاتيح الإجابة لكل نموذج — كل نوع (متعدد/صح-خطأ/مزاوجة) بمسبح مستقل
-        answer_keys = {}
+        # توليد مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ترتيب/خلط ورقة الاختبار
+        # الفعلية (exam_model_builder) عشان تطابق المطبوع بالضبط، مو خلط مستقل
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_options
+        )
 
-        for idx, model_letter in enumerate(models):
-            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answer_keys[model_letter] = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_options, seed=seed
-            )
-        
         # توزيع النماذج على الطلاب بالتساوي
         students_per_model = len(students_list) // len(models)
         remainder = len(students_list) % len(models)
@@ -4312,10 +4374,6 @@ def generate_all_models_answer_keys():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
-
         # جلب إعدادات الكليشة
         header_settings_record = ExamHeaderSettings.query.first()
         header_settings = {
@@ -4350,17 +4408,15 @@ def generate_all_models_answer_keys():
         except Exception as e:
             current_app.logger.warning(f"Could not load logo: {e}")
 
-        # توليد مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل
+        # توليد مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ترتيب/خلط ورقة الاختبار
+        # الفعلية (exam_model_builder) عشان تطابق المطبوع بالضبط، مو خلط مستقل
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_options
+        )
         all_keys_html = ""
 
         for idx, model_letter in enumerate(models):
-            # 🔧 seed يعتمد على: محتوى الأسئلة + النموذج + رقم عشوائي كبير
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answers = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_options, seed=seed
-            )
+            answers = answer_keys[model_letter]
 
             # توليد HTML لمفتاح الإجابة
             answer_key_html = render_template(
@@ -4835,20 +4891,15 @@ def remark_answer_key_pdf():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
+        )
 
         ctx = _remark_header_context(exam_type, semester, academic_year)
         all_html = ""
 
         for idx, model_letter in enumerate(models):
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answers = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
-            )
+            answers = answer_keys[model_letter]
 
             all_html += render_template(
                 'question/remark_answer_sheet.html',
@@ -4920,20 +4971,12 @@ def remark_students_pdf():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
         ctx = _remark_header_context(exam_type, semester, academic_year)
 
-        # ── بناء مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل ──────
-        answer_keys = {}
-        for idx, model_letter in enumerate(models):
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answer_keys[model_letter] = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
-            )
+        # ── بناء مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ورقة الاختبار الفعلية ──
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
+        )
 
         # ── توزيع الطلاب على النماذج ────────────────────────────────
         per_model   = len(students_list) // len(models)
@@ -5106,21 +5149,16 @@ def remark_answer_key_html():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
+        )
 
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
         all_html = ""
 
         for idx, model_letter in enumerate(models):
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answers = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
-            )
+            answers = answer_keys[model_letter]
 
             all_html += render_template(
                 template_name,
@@ -5177,10 +5215,6 @@ def remark_students_html():
         if not questions:
             return jsonify({'error': 'لم يتم العثور على الأسئلة'}), 404
 
-        mcq_data, tf_data, matching_pairs_flat = _split_omr_questions_data(questions)
-        matching_pairs_flat = _resolve_matching_pairs_flat(matching_pairs_flat, matching_pair_ids)
-        question_id_sum = sum(q.question_id for q in questions)
-
         # بناء قائمة الطلاب
         if students_raw:
             students_list = [dict(s) for s in students_raw]
@@ -5197,15 +5231,10 @@ def remark_students_html():
         ctx = _remark_header_context(exam_type, semester, academic_year)
         template_name = 'question/remark_answer_sheet_colored.html' if style == 'colored' else 'question/remark_answer_sheet.html'
 
-        # بناء مفاتيح الإجابة لكل نموذج — كل نوع بمسبح ترقيم وخلط مستقل
-        answer_keys = {}
-        for idx, model_letter in enumerate(models):
-            random_offset = [15485863, 32452843, 49979687, 67867967][idx % 4]
-            seed          = (question_id_sum * (ord(model_letter[0]) + 1) + idx * 7919 + random_offset) % (2**31)
-            answer_keys[model_letter] = _build_omr_answers(
-                mcq_data, tf_data, matching_pairs_flat,
-                shuffle_questions=True, shuffle_options=shuffle_opts, seed=seed
-            )
+        # بناء مفاتيح الإجابة لكل نموذج — عبر نفس بايبلاين ورقة الاختبار الفعلية
+        answer_keys, _ = _build_answer_keys_for_models(
+            question_ids, matching_pair_ids, models, shuffle_options=shuffle_opts
+        )
 
         all_html = ""
         student_idx = 0
