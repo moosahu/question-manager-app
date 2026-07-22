@@ -101,6 +101,7 @@ def add_teacher():
             name=name,
             username=username,
             email=email,
+            email_hash=make_email_hash(email),
             phone=phone,
             school=school,
             is_active=is_active,
@@ -330,7 +331,7 @@ def api_mobile_add_teacher():
     if Teacher.query.filter_by(username=username).first():
         return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
 
-    teacher = Teacher(name=name, username=username, email=email)
+    teacher = Teacher(name=name, username=username, email=email, email_hash=make_email_hash(email))
     teacher.set_password(password)
 
     try:

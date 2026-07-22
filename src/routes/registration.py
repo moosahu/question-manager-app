@@ -577,6 +577,7 @@ def verify_code():
                     name=verification.name,
                     username=verification.username,
                     email=verification.email,
+                    email_hash=make_email_hash(verification.email),
                     password_hash=verification.password_hash,
                     phone=verification.phone,
                     school=verification.school,
@@ -584,7 +585,7 @@ def verify_code():
                 )
                 db.session.add(teacher)
                 db.session.commit()
-                
+
                 token = create_teacher_token(teacher_id=teacher.id, username=teacher.username)
                 print(f"🐞 Teacher created (inactive): phone='{verification.phone}', waiting for phone verification")
                 
@@ -608,6 +609,7 @@ def verify_code():
                     name=verification.name,
                     username=verification.username,
                     email=verification.email,
+                    email_hash=make_email_hash(verification.email),
                     password_hash=verification.password_hash,
                     phone=verification.phone,
                     school=verification.school,
@@ -616,7 +618,7 @@ def verify_code():
                 )
                 db.session.add(student)
                 db.session.commit()
-                
+
                 token = create_student_token(student_id=student.id, username=student.username)
                 print(f"🐞 Student created (inactive): phone='{verification.phone}', waiting for phone verification")
 
@@ -667,15 +669,16 @@ def verify_code():
                 name=verification.name,
                 username=verification.username,
                 email=verification.email,
+                email_hash=make_email_hash(verification.email),
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
                 is_active=should_activate
             )
-            
+
             db.session.add(teacher)
             db.session.commit()
-            
+
             # إنشاء JWT Token
             token = create_teacher_token(
                 teacher_id=teacher.id,
@@ -725,16 +728,17 @@ def verify_code():
                 name=verification.name,
                 username=verification.username,
                 email=verification.email,
+                email_hash=make_email_hash(verification.email),
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
                 grade=verification.grade,
                 is_active=should_activate
             )
-            
+
             db.session.add(student)
             db.session.commit()
-            
+
             # تحديث آخر تسجيل دخول
             student.update_last_login()
             
@@ -833,6 +837,7 @@ def verify_phone_code():
                 name=verification.name,
                 username=verification.username,
                 email=verification.email,
+                email_hash=make_email_hash(verification.email),
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,
@@ -840,7 +845,7 @@ def verify_phone_code():
             )
             db.session.add(teacher)
             db.session.commit()
-            
+
             token = create_teacher_token(teacher_id=teacher.id, username=teacher.username)
 
             return jsonify({
@@ -864,6 +869,7 @@ def verify_phone_code():
                 name=verification.name,
                 username=verification.username,
                 email=verification.email,
+                email_hash=make_email_hash(verification.email),
                 password_hash=verification.password_hash,
                 phone=verification.phone,
                 school=verification.school,

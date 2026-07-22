@@ -1094,6 +1094,7 @@ def restore_backup():
         from src.models.textbook import LessonPlan
         from src.models.learning_content import LessonSummary, ConceptMap, StudentLessonProgress
         from src.models.student_result import StudentResult
+        from src.utils.field_encryption import make_email_hash
         from werkzeug.security import generate_password_hash
 
         # ─── 1. Curriculum ───────────────────────────────────────────────
@@ -1158,6 +1159,7 @@ def restore_backup():
                     name=sd['name'],
                     username=sd['username'],
                     email=sd.get('email'),
+                    email_hash=make_email_hash(sd.get('email')),
                     phone=sd.get('phone'),
                     school=sd.get('school'),
                     grade=sd.get('grade'),
@@ -1176,6 +1178,7 @@ def restore_backup():
                     name=td['name'],
                     username=td['username'],
                     email=td.get('email'),
+                    email_hash=make_email_hash(td.get('email')),
                     phone=td.get('phone'),
                     school=td.get('school'),
                     is_active=td.get('is_active', True),
