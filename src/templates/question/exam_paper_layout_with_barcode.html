@@ -800,7 +800,7 @@
 
         <div class="q-header">
             <span class="q-num">س{{ qnum }}:</span>
-            <span class="q-text">{% if q.question_type == 'fill_blank' %}...................... {% endif %}{{ q.question_text|default('', true) }}</span>
+            <span class="q-text">{% if q.question_type == 'fill_blank' %}{% if inline_answers and q.fill_blank_answer %}<span class="correct-highlight">{{ q.fill_blank_answer | replace('/', '⁠/⁠') | bidi_ltr }}</span> {% else %}...................... {% endif %}{% endif %}{{ q.question_text|default('', true) }}</span>
         </div>
 
         {% if q.image_url %}
@@ -808,10 +808,7 @@
         {% endif %}
 
         {% if q.question_type == 'fill_blank' %}
-            {% if inline_answers and q.fill_blank_answer %}
-                <div class="fill-blank-answer correct-highlight">{{ q.fill_blank_answer | replace('/', '⁠/⁠') | bidi_ltr }}</div>
-            {% endif %}
-            {# غير كذا، الإجابة تظهر بمفتاح الإجابات فقط، مو هنا بجسم الاختبار #}
+            {# الإجابة تُطبع مكان الفراغ بسطر السؤال نفسه (فوق)، أو بمفتاح الإجابات فقط لو inline_answers مطفي #}
         {% elif q.question_type == 'essay' %}
             {% if inline_answers and q.essay_model_answer %}
                 <div class="essay-model-answer correct-highlight">{{ q.essay_model_answer | replace('/', '⁠/⁠') | bidi_ltr }}</div>
@@ -922,8 +919,8 @@
             <tr>
                 <td class="tf-full-cell">{{ loop.index }}</td>
                 <td class="tf-full-text">{{ q.question_text|default('', true)|replace('/', '⁠/⁠')|bidi_ltr }}</td>
-                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'صح' %} correct-highlight{% endif %}"></td>
-                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'خطأ' %} correct-highlight{% endif %}"></td>
+                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'صح' %} correct-highlight{% endif %}">{% if correct_opt and correct_opt.option_text == 'صح' %}✓{% endif %}</td>
+                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'خطأ' %} correct-highlight{% endif %}">{% if correct_opt and correct_opt.option_text == 'خطأ' %}✓{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
