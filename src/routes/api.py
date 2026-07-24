@@ -4401,6 +4401,20 @@ def generate_exam():
             from routes.exam_model_builder import format_exam_number
         exam_number_str = format_exam_number(_stable_seed)
 
+        def _actual_ids_from_formatted(formatted_list):
+            """يستخرج المعرّفات الفعلية للأسئلة المولّدة (بعد الاختيار العشوائي
+            حسب type_counts أو اليدوي) عشان تُحفظ بسجل الاختبارات وتضمن استعادة
+            نفس الأسئلة بالضبط لاحقاً، بدل تكرار اختيار عشوائي جديد."""
+            qids, pair_ids = [], []
+            for fq in formatted_list:
+                if fq.get('question_type') == 'matching':
+                    pair_ids.extend(fq.get('matching_pair_ids', []))
+                else:
+                    qid = fq.get('question_id')
+                    if isinstance(qid, int) and qid > 0:
+                        qids.append(qid)
+            return qids, pair_ids
+
         # إعدادات إضافية للاستعادة الكاملة من سجل الاختبارات (extra_json)
         _history_extra = dict(
             type_counts=type_counts,
@@ -4510,7 +4524,8 @@ def generate_exam():
                         # تجميع نهائي: mcq > true_false > matching > essay
                         # (الخلط أعلاه صار قبل التقسيم، فالترتيب الداخلي لكل مجموعة يبقى عشوائياً)
                         selected = group_by_type_order(selected)
-                gen_questions = to_gen_questions(format_selected(selected, rng=rng0))
+                formatted_for_pdf = format_selected(selected, rng=rng0)
+                gen_questions = to_gen_questions(formatted_for_pdf)
                 pdf_bytes = generator.generate_pdf(
                     gen_questions,
                     exam_title=exam_title,
@@ -4518,6 +4533,9 @@ def generate_exam():
                     model_letter='',
                     **pdf_kwargs
                 )
+                _actual_qids, _actual_pair_ids = _actual_ids_from_formatted(formatted_for_pdf)
+                _history_extra['manual_question_ids'] = _actual_qids
+                _history_extra['matching_pair_ids'] = _actual_pair_ids
                 _save_exam_history_record(
                     primary_course_id, unit_id, lesson_id,
                     len(gen_questions), include_answers, shuffle_questions, shuffle_options, header,
@@ -4537,7 +4555,8 @@ def generate_exam():
                         if mode != "manual":
                             # تجميع نهائي (لكل نموذج على حدة): mcq > true_false > matching > essay
                             selected_i = group_by_type_order(selected_i)
-                    gen_questions_i = to_gen_questions(format_selected(selected_i, rng=rng))
+                    formatted_i = format_selected(selected_i, rng=rng)
+                    gen_questions_i = to_gen_questions(formatted_i)
                     pdf_i = generator.generate_pdf(
                         gen_questions_i,
                         exam_title=exam_title,
@@ -4545,6 +4564,10 @@ def generate_exam():
                         model_letter=model_letters[i],
                         **pdf_kwargs
                     )
+                    if i == 0:
+                        _actual_qids, _actual_pair_ids = _actual_ids_from_formatted(formatted_i)
+                        _history_extra['manual_question_ids'] = _actual_qids
+                        _history_extra['matching_pair_ids'] = _actual_pair_ids
                     doc_i = fitz.open(stream=pdf_i, filetype='pdf')
                     merged.insert_pdf(doc_i)
                     doc_i.close()
@@ -4587,9 +4610,14 @@ def generate_exam():
             for i in range(models_count):
                 pool_copy = list(base_selected)
                 _random.shuffle(pool_copy)
+                formatted_i = format_selected(pool_copy)
+                if i == 0:
+                    _actual_qids, _actual_pair_ids = _actual_ids_from_formatted(formatted_i)
+                    _history_extra['manual_question_ids'] = _actual_qids
+                    _history_extra['matching_pair_ids'] = _actual_pair_ids
                 models_result.append({
                     'model':     model_letters[i],
-                    'questions': format_selected(pool_copy),
+                    'questions': formatted_i,
                     'count':     len(pool_copy),
                 })
             _save_exam_history_record(
@@ -4607,6 +4635,9 @@ def generate_exam():
 
         # ── JSON: نموذج واحد ─────────────────────────────────────────
         formatted_questions = format_selected(base_selected)
+        _actual_qids, _actual_pair_ids = _actual_ids_from_formatted(formatted_questions)
+        _history_extra['manual_question_ids'] = _actual_qids
+        _history_extra['matching_pair_ids'] = _actual_pair_ids
         _save_exam_history_record(
             primary_course_id, unit_id, lesson_id,
             len(formatted_questions), include_answers, shuffle_questions, shuffle_options, header,
