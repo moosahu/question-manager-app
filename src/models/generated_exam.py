@@ -27,6 +27,14 @@ class GeneratedExam(db.Model):
     # بيانات الكليشه (JSON)
     header_json    = db.Column(db.Text, nullable=True)
 
+    # رقم النموذج (نفس الرقم المطبوع بورقة الاختبار ومفتاح الريمارك)
+    exam_number    = db.Column(db.String(20), nullable=True)
+
+    # إعدادات إضافية للاستعادة الكاملة (توزيع الأنواع، الاختيار اليدوي،
+    # منهج/وحدة/دروس متعددة، فلاتر، عدد نماذج، تنسيق) — JSON مرن واحد
+    # بدل عمود منفصل لكل إعداد، بنفس نمط header_json
+    extra_json     = db.Column(db.Text, nullable=True)
+
     # أسماء مخزّنة للعرض السريع (بدون join)
     course_name    = db.Column(db.String(200), nullable=True)
     unit_name      = db.Column(db.String(200), nullable=True)
@@ -48,6 +56,19 @@ class GeneratedExam(db.Model):
     def header(self, value):
         self.header_json = json.dumps(value, ensure_ascii=False) if value else None
 
+    @property
+    def extra(self):
+        if self.extra_json:
+            try:
+                return json.loads(self.extra_json)
+            except Exception:
+                return {}
+        return {}
+
+    @extra.setter
+    def extra(self, value):
+        self.extra_json = json.dumps(value, ensure_ascii=False) if value else None
+
     def to_dict(self):
         return {
             'id':               self.id,
@@ -59,6 +80,8 @@ class GeneratedExam(db.Model):
             'shuffle_questions': self.shuffle_questions,
             'shuffle_options':  self.shuffle_options,
             'header':           self.header,
+            'exam_number':      self.exam_number or '',
+            'extra':            self.extra,
             'course_name':      self.course_name or '',
             'unit_name':        self.unit_name or '',
             'lesson_name':      self.lesson_name or '',

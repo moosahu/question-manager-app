@@ -3954,7 +3954,8 @@ def _resolve_caller_ids():
 
 def _save_exam_history_record(course_id, unit_id, lesson_id,
                                question_count, include_answers,
-                               shuffle_questions, shuffle_options, header):
+                               shuffle_questions, shuffle_options, header,
+                               exam_number=None, extra=None):
     """يحفظ سجل التوليد — يُبتلع الخطأ دائماً لأن التاريخ اختياري"""
     try:
         from src.models.generated_exam import GeneratedExam as _GE
@@ -3971,11 +3972,13 @@ def _save_exam_history_record(course_id, unit_id, lesson_id,
             include_answers=include_answers,
             shuffle_questions=shuffle_questions,
             shuffle_options=shuffle_options,
+            exam_number=exam_number,
             course_name=_course.name  if _course  else None,
             unit_name=_unit.name      if _unit    else None,
             lesson_name=_lesson.name  if _lesson  else None,
         )
         ge.header = header
+        ge.extra = extra
         _db.session.add(ge)
         _db.session.commit()
     except Exception:
@@ -4385,6 +4388,40 @@ def generate_exam():
                 formatted.append(fq)
             return formatted
 
+        # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة، ورقم نموذج
+        # قصير مشتق منه — يطلع متطابق حرفياً بمفتاح الريمارك لنفس التوليد،
+        # ومتوفر لكل مسارات الإرجاع (PDF وJSON) عشان يُحفظ بسجل الاختبارات
+        _stable_seed = (
+            sum(manual_question_ids) + sum(matching_pair_ids)
+            if (manual_question_ids or matching_pair_ids) else None
+        )
+        try:
+            from src.routes.exam_model_builder import format_exam_number
+        except ImportError:
+            from routes.exam_model_builder import format_exam_number
+        exam_number_str = format_exam_number(_stable_seed)
+
+        # إعدادات إضافية للاستعادة الكاملة من سجل الاختبارات (extra_json)
+        _history_extra = dict(
+            type_counts=type_counts,
+            manual_question_ids=manual_question_ids,
+            matching_pair_ids=matching_pair_ids,
+            course_ids=course_ids,
+            unit_ids=unit_ids,
+            lesson_ids=lesson_ids,
+            difficulty=difficulty_filter,
+            bloom_levels=bloom_filter,
+            models_count=models_count,
+            mode=mode,
+            font_size=font_size,
+            columns=columns,
+            spacing=spacing,
+            options_layout=options_layout,
+            font_family=font_family,
+            essay_single_column=essay_single_column,
+            inline_answers=inline_answers,
+        )
+
         # ── إرجاع PDF ───────────────────────────────────────────────
         if output_format == 'pdf':
             try:
@@ -4455,19 +4492,7 @@ def generate_exam():
                 inline_answers=inline_answers,
             )
 
-            # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة
-            _stable_seed = (
-                sum(manual_question_ids) + sum(matching_pair_ids)
-                if (manual_question_ids or matching_pair_ids) else None
-            )
-
-            # رقم نموذج قصير مشتق من نفس الـseed — يطلع متطابق حرفياً بمفتاح
-            # الريمارك لنفس التوليد (نفس المدخلات = نفس الرقم بالطرفين)
-            try:
-                from src.routes.exam_model_builder import format_exam_number
-            except ImportError:
-                from routes.exam_model_builder import format_exam_number
-            pdf_kwargs['exam_number'] = format_exam_number(_stable_seed)
+            pdf_kwargs['exam_number'] = exam_number_str
 
             if models_count <= 1:
                 # نموذج واحد — حافظ على الترتيب من manual أو اخلط عشوائياً
@@ -4495,7 +4520,8 @@ def generate_exam():
                 )
                 _save_exam_history_record(
                     primary_course_id, unit_id, lesson_id,
-                    len(gen_questions), include_answers, shuffle_questions, shuffle_options, header
+                    len(gen_questions), include_answers, shuffle_questions, shuffle_options, header,
+                    exam_number=exam_number_str, extra=_history_extra
                 )
             else:
                 # نماذج متعددة — كل نموذج بترتيب مختلف لكن ثابت عبر التصديرات
@@ -4526,7 +4552,8 @@ def generate_exam():
                 merged.close()
                 _save_exam_history_record(
                     primary_course_id, unit_id, lesson_id,
-                    question_count, include_answers, shuffle_questions, shuffle_options, header
+                    question_count, include_answers, shuffle_questions, shuffle_options, header,
+                    exam_number=exam_number_str, extra=_history_extra
                 )
 
             # سجّل استخراج المعلم
@@ -4567,7 +4594,8 @@ def generate_exam():
                 })
             _save_exam_history_record(
                 primary_course_id, unit_id, lesson_id,
-                question_count, include_answers, shuffle_questions, shuffle_options, header
+                question_count, include_answers, shuffle_questions, shuffle_options, header,
+                exam_number=exam_number_str, extra=_history_extra
             )
             return jsonify({
                 'success':     True,
@@ -4581,7 +4609,8 @@ def generate_exam():
         formatted_questions = format_selected(base_selected)
         _save_exam_history_record(
             primary_course_id, unit_id, lesson_id,
-            len(formatted_questions), include_answers, shuffle_questions, shuffle_options, header
+            len(formatted_questions), include_answers, shuffle_questions, shuffle_options, header,
+            exam_number=exam_number_str, extra=_history_extra
         )
         return jsonify({
             'success': True,
@@ -4787,44 +4816,63 @@ def get_bank_stats():
 # ======================================================
 
 
+def _filter_exam_history_by_caller(query):
+    """يقيّد استعلام GeneratedExam بالمستخدم الحالي (معلم عبر session/JWT، أو أدمن) —
+    مشتركة بين قراءة السجل وحذفه الجماعي."""
+    from src.models.generated_exam import GeneratedExam as _GE
+    from src.models.teacher import Teacher as _T
+
+    session_tok  = request.headers.get('X-Session-Token')
+    auth_header  = request.headers.get('Authorization', '')
+    teacher_id   = None
+
+    if session_tok:
+        _t = _T.query.filter_by(session_token=session_tok, is_active=True).first()
+        if _t:
+            teacher_id = _t.id
+    elif auth_header.startswith('Bearer '):
+        import jwt as _jwt
+        try:
+            _data = _jwt.decode(auth_header[7:], current_app.config['JWT_SECRET_KEY'],
+                                algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
+            if _data.get('user_type') == 'teacher':
+                teacher_id = _data.get('teacher_id')
+        except Exception:
+            pass
+
+    if teacher_id:
+        return query.filter(_GE.teacher_id == teacher_id), True
+    elif current_user.is_authenticated:
+        return query.filter(_GE.user_id == current_user.id), True
+    else:
+        return query, False
+
+
 @api_bp.route("/questions/exam-history", methods=["GET"])
 @teacher_or_admin_required
 def get_exam_history():
-    """آخر 20 اختبار مولّد للمستخدم الحالي"""
+    """سجل الاختبارات المولّدة للمستخدم الحالي — بصفحات (page/per_page)"""
     try:
         from src.models.generated_exam import GeneratedExam as _GE
-        from src.models.teacher import Teacher as _T
 
-        query = _GE.query
+        page     = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
 
-        # تحديد المستخدم
-        session_tok  = request.headers.get('X-Session-Token')
-        auth_header  = request.headers.get('Authorization', '')
-        teacher_id   = None
-
-        if session_tok:
-            _t = _T.query.filter_by(session_token=session_tok, is_active=True).first()
-            if _t:
-                teacher_id = _t.id
-        elif auth_header.startswith('Bearer '):
-            import jwt as _jwt
-            try:
-                _data = _jwt.decode(auth_header[7:], current_app.config['JWT_SECRET_KEY'],
-                                    algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
-                if _data.get('user_type') == 'teacher':
-                    teacher_id = _data.get('teacher_id')
-            except Exception:
-                pass
-
-        if teacher_id:
-            query = query.filter(_GE.teacher_id == teacher_id)
-        elif current_user.is_authenticated:
-            query = query.filter(_GE.user_id == current_user.id)
-        else:
+        query, authorized = _filter_exam_history_by_caller(_GE.query)
+        if not authorized:
             return jsonify({'success': False, 'error': 'غير مصرّح'}), 401
 
-        items = query.order_by(_GE.generated_at.desc()).limit(20).all()
-        return jsonify({'success': True, 'history': [i.to_dict() for i in items]})
+        total = query.count()
+        items = (query.order_by(_GE.generated_at.desc())
+                 .offset((page - 1) * per_page).limit(per_page).all())
+        return jsonify({
+            'success': True,
+            'history': [i.to_dict() for i in items],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page if per_page else 1,
+        })
 
     except Exception as e:
         logger.exception(f"Error fetching exam history: {e}")
@@ -4844,6 +4892,26 @@ def delete_exam_history_item(item_id):
         _db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route("/questions/exam-history", methods=["DELETE"])
+@teacher_or_admin_required
+def delete_all_exam_history():
+    """حذف كل سجل الاختبارات للمستخدم الحالي دفعة وحدة"""
+    try:
+        from src.models.generated_exam import GeneratedExam as _GE
+        from src.extensions import db as _db
+
+        query, authorized = _filter_exam_history_by_caller(_GE.query)
+        if not authorized:
+            return jsonify({'success': False, 'error': 'غير مصرّح'}), 401
+
+        deleted = query.delete(synchronize_session=False)
+        _db.session.commit()
+        return jsonify({'success': True, 'deleted': deleted})
+    except Exception as e:
+        _db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
