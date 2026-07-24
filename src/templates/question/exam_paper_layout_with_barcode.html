@@ -419,6 +419,16 @@
             page-break-inside: avoid;
             min-height: 24px;
         }
+
+        /* وضع "الحل داخل الأسئلة" — تمييز الإجابة الصحيحة بخلفية رمادية خفيفة */
+        .correct-highlight {
+            background: #e5e5e5;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        td.correct-highlight {
+            padding: 4px 6px;
+        }
         
         .option-char { 
             font-weight: bold; 
@@ -798,13 +808,20 @@
         {% endif %}
 
         {% if q.question_type == 'fill_blank' %}
-            {# الإجابة تظهر بمفتاح الإجابات فقط، مو هنا بجسم الاختبار #}
+            {% if inline_answers and q.fill_blank_answer %}
+                <div class="fill-blank-answer correct-highlight">{{ q.fill_blank_answer | replace('/', '⁠/⁠') | bidi_ltr }}</div>
+            {% endif %}
+            {# غير كذا، الإجابة تظهر بمفتاح الإجابات فقط، مو هنا بجسم الاختبار #}
         {% elif q.question_type == 'essay' %}
+            {% if inline_answers and q.essay_model_answer %}
+                <div class="essay-model-answer correct-highlight">{{ q.essay_model_answer | replace('/', '⁠/⁠') | bidi_ltr }}</div>
+            {% else %}
             <div class="essay-lines">
                 <div class="essay-line"></div>
                 <div class="essay-line"></div>
                 <div class="essay-line"></div>
             </div>
+            {% endif %}
         {% else %}
 
         {% set has_img_opts = [] %}
@@ -822,7 +839,7 @@
                 <tr>
                     <td>
                         {% if opt_b %}
-                        <div class="q-option">
+                        <div class="q-option{% if inline_answers and opt_b.is_correct %} correct-highlight{% endif %}">
                             <span class="option-char">{{ letters[i+1] }})</span>
                             <div class="option-content">
                                 {% if opt_b.option_text and not opt_b.option_text.startswith('http') %}<span>{{ opt_b.option_text | replace('/', '⁠/⁠') | bidi_ltr }}</span>{% endif %}
@@ -832,7 +849,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <div class="q-option">
+                        <div class="q-option{% if inline_answers and opt_a.is_correct %} correct-highlight{% endif %}">
                             <span class="option-char">{{ letters[i] }})</span>
                             <div class="option-content">
                                 {% if opt_a.option_text and not opt_a.option_text.startswith('http') %}<span>{{ opt_a.option_text | replace('/', '⁠/⁠') | bidi_ltr }}</span>{% endif %}
@@ -848,15 +865,15 @@
             <table class="opts-grid">
                 {% for i in range(0, q.options|length, 2) %}
                 <tr>
-                    <td><span class="option-char">{{ letters[i+1] }})</span> {{ (q.options[i+1].option_text if q.options[i+1] is defined else '') | replace('/', '⁠/⁠') | bidi_ltr }}</td>
-                    <td><span class="option-char">{{ letters[i] }})</span> {{ (q.options[i].option_text | replace('/', '⁠/⁠') | bidi_ltr) if q.options[i] is defined else '' }}</td>
+                    <td{% if inline_answers and q.options[i+1] is defined and q.options[i+1].is_correct %} class="correct-highlight"{% endif %}><span class="option-char">{{ letters[i+1] }})</span> {{ (q.options[i+1].option_text if q.options[i+1] is defined else '') | replace('/', '⁠/⁠') | bidi_ltr }}</td>
+                    <td{% if inline_answers and q.options[i] is defined and q.options[i].is_correct %} class="correct-highlight"{% endif %}><span class="option-char">{{ letters[i] }})</span> {{ (q.options[i].option_text | replace('/', '⁠/⁠') | bidi_ltr) if q.options[i] is defined else '' }}</td>
                 </tr>
                 {% endfor %}
             </table>
             {% else %}
             <div class="options-container">
                 {% for opt in q.options %}
-                    <div class="q-option">
+                    <div class="q-option{% if inline_answers and opt.is_correct %} correct-highlight{% endif %}">
                         <span class="option-char">{{ letters[loop.index0] }})</span>
                         <div class="option-content">
                             {% if opt.option_text %}{{ opt.option_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
@@ -901,11 +918,12 @@
                 <th class="tf-full-th-narrow">خطأ</th>
             </tr>
             {% for q in group_questions %}
+            {% set correct_opt = (q.options|selectattr('is_correct')|first) if inline_answers else None %}
             <tr>
                 <td class="tf-full-cell">{{ loop.index }}</td>
                 <td class="tf-full-text">{{ q.question_text|default('', true)|replace('/', '⁠/⁠')|bidi_ltr }}</td>
-                <td class="tf-full-cell"></td>
-                <td class="tf-full-cell"></td>
+                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'صح' %} correct-highlight{% endif %}"></td>
+                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'خطأ' %} correct-highlight{% endif %}"></td>
             </tr>
             {% endfor %}
         </table>
@@ -921,7 +939,7 @@
                 </tr>
                 {% for pair in q.matching_pairs %}
                 <tr>
-                    <td class="matching-answer-cell"></td>
+                    <td class="matching-answer-cell{% if inline_answers %} correct-highlight{% endif %}">{% if inline_answers %}{{ pair.correct_letter }}{% endif %}</td>
                     <td class="matching-cell">
                         {{ loop.index }}.
                         {% if pair.left_text %}{{ pair.left_text | replace('/', '⁠/⁠') | bidi_ltr }}{% endif %}
@@ -994,8 +1012,8 @@
         </div>
     </div>
 
-    {% if show_answers %}
-        
+    {% if show_answers and not inline_answers %}
+
         <div class="answer-key">
             
             <div class="answer-key-title">

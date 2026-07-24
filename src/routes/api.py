@@ -4062,6 +4062,7 @@ def generate_exam():
         options_layout = data.get("options_layout", "vertical")
         font_family    = data.get("font_family", "amiri")
         essay_single_column = bool(data.get("essay_single_column", True))
+        inline_answers = bool(data.get("inline_answers", False))
 
         # ── الكليشه الكاملة ───────────────────────────────────────────
         header = data.get("header", {})
@@ -4451,6 +4452,7 @@ def generate_exam():
                 include_qr=include_qr,
                 font_family=font_family,
                 essay_single_column=essay_single_column,
+                inline_answers=inline_answers,
             )
 
             # seed ثابت لضمان نفس الترتيب في كل تصدير بنفس الأسئلة

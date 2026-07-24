@@ -154,6 +154,9 @@ class ExamGenerator:
             'qr_code':             kwargs.get('qr_code'),
             'model_letter':        kwargs.get('model_letter', ''),
             'exam_number':         kwargs.get('exam_number', ''),
+            # يبقى False دايماً لو show_answers=False — تفادي أي تسريب إجابة
+            # داخل نسخة "بدون إجابات" النظيفة بغض النظر عن قيمة inline_answers المُرسلة
+            'inline_answers':      bool(kwargs.get('inline_answers', False)) and show_answers,
             # إعدادات التنسيق (تُقرأ مباشرة من القالب)
             'font_size':           kwargs.get('font_size', 14),
             'image_size':          kwargs.get('image_size', 70),
