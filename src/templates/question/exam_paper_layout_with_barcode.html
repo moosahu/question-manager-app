@@ -920,7 +920,7 @@
                 <td class="tf-full-cell">{{ loop.index }}</td>
                 <td class="tf-full-text">{{ q.question_text|default('', true)|replace('/', '⁠/⁠')|bidi_ltr }}</td>
                 <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'صح' %} correct-highlight{% endif %}">{% if correct_opt and correct_opt.option_text == 'صح' %}✓{% endif %}</td>
-                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'خطأ' %} correct-highlight{% endif %}">{% if correct_opt and correct_opt.option_text == 'خطأ' %}✓{% endif %}</td>
+                <td class="tf-full-cell{% if correct_opt and correct_opt.option_text == 'خطأ' %} correct-highlight{% endif %}">{% if correct_opt and correct_opt.option_text == 'خطأ' %}✗{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
