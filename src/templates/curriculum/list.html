@@ -66,6 +66,10 @@
                                 <i class="fas fa-edit"></i>
                                 تعديل
                             </a>
+                            <button class="btn-action btn-copy" onclick="event.stopPropagation(); openDuplicateModal('course', {{ course.id }}); return false;">
+                                <i class="fas fa-copy"></i>
+                                نسخ
+                            </button>
                             <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('course', {{ course.id }}); return false;">
                                 <i class="fas fa-trash"></i>
                                 حذف
@@ -103,6 +107,10 @@
                                                     <i class="fas fa-edit"></i>
                                                     تعديل
                                                 </a>
+                                                <button class="btn-action btn-copy" onclick="event.stopPropagation(); openDuplicateModal('unit', {{ unit.id }}, {{ course.id }}); return false;">
+                                                    <i class="fas fa-copy"></i>
+                                                    نسخ
+                                                </button>
                                                 <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('unit', {{ unit.id }}); return false;">
                                                     <i class="fas fa-trash"></i>
                                                     حذف
@@ -144,6 +152,10 @@
                                                                         <i class="fas fa-edit"></i>
                                                                         تعديل
                                                                     </a>
+                                                                    <button class="btn-action btn-copy" onclick="event.stopPropagation(); openDuplicateModal('lesson', {{ lesson.id }}, {{ unit.id }}); return false;">
+                                                                        <i class="fas fa-copy"></i>
+                                                                        نسخ
+                                                                    </button>
                                                                     <button class="btn-action btn-delete" onclick="event.stopPropagation(); curriculumConfirmDelete('lesson', {{ lesson.id }}); return false;">
                                                                         <i class="fas fa-trash"></i>
                                                                         حذف
@@ -175,6 +187,36 @@
             لا توجد مناهج حالياً. <a href="{{ url_for('curriculum.add_course') }}">إضافة منهج جديد</a>
         </div>
     {% endif %}
+</div>
+
+<!-- Modal نسخ عنصر (منهج/وحدة/درس) -->
+<div class="modal fade" id="duplicateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="duplicateForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="duplicateModalTitle">نسخ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="duplicateNameGroup" class="mb-3">
+                        <label for="duplicateNameInput" class="form-label">الاسم الجديد</label>
+                        <input type="text" class="form-control" id="duplicateNameInput" name="name">
+                    </div>
+                    <div id="duplicateTargetGroup" class="mb-3">
+                        <label for="duplicateTargetSelect" class="form-label" id="duplicateTargetLabel">الوجهة</label>
+                        <select class="form-select" id="duplicateTargetSelect" name="target"></select>
+                    </div>
+                    <p class="text-muted small mb-0">سيتم نسخ المحتوى بدون الأسئلة.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">نسخ</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -365,6 +407,16 @@
     .btn-add {
         color: #28a745;
         border-color: #28a745;
+    }
+
+    .btn-copy {
+        color: #6f42c1;
+        border-color: #6f42c1;
+    }
+
+    .btn-copy:hover {
+        background-color: #6f42c1;
+        color: white;
     }
 
     .btn-add:hover {
@@ -758,5 +810,95 @@
         // يمكن استخدام مكتبة Toast أو إنشاء واحدة بسيطة
         alert(message);
     }
+
+    // خريطة: معرف المنهج -> قائمة وحداته (لبناء قائمة الوجهة عند نسخ درس)
+    var unitsByCourse = {
+        {% for c in courses %}
+        {{ c.id }}: [{% for u in c.units %}{id: {{ u.id }}, name: {{ u.name|tojson }}}{% if not loop.last %}, {% endif %}{% endfor %}]{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    // خريطة: معرف الوحدة -> معرف المنهج الذي تتبعه (لمعرفة منهج الدرس عند فتح نافذة نسخه)
+    var courseOfUnit = {};
+    var unitCoursePairs = [
+        {% for c in courses %}{% for u in c.units %}[{{ u.id }}, {{ c.id }}]{% if not loop.last %}, {% endif %}{% endfor %}{% if not loop.last and c.units %}, {% endif %}{% endfor %}
+    ];
+    unitCoursePairs.forEach(function(pair) { courseOfUnit[pair[0]] = pair[1]; });
+
+    // فتح نافذة نسخ عنصر (منهج/وحدة/درس)
+    // type: 'course' | 'unit' | 'lesson'
+    // id: معرف العنصر المراد نسخه
+    // parentId: لمنهج -> غير مستخدم، لوحدة -> معرف المنهج الحالي، لدرس -> معرف الوحدة الحالية
+    function openDuplicateModal(type, id, parentId) {
+        const titles = { course: 'نسخ المنهج', unit: 'نسخ الوحدة', lesson: 'نسخ الدرس' };
+        const urlMap = {
+            course: `/curriculum/courses/duplicate/${id}`,
+            unit: `/curriculum/units/duplicate/${id}`,
+            lesson: `/curriculum/lessons/duplicate/${id}`
+        };
+
+        document.getElementById('duplicateModalTitle').textContent = titles[type] || 'نسخ';
+        document.getElementById('duplicateForm').action = urlMap[type];
+
+        const nameGroup = document.getElementById('duplicateNameGroup');
+        const nameInput = document.getElementById('duplicateNameInput');
+        const targetGroup = document.getElementById('duplicateTargetGroup');
+        const targetLabel = document.getElementById('duplicateTargetLabel');
+        const targetSelect = document.getElementById('duplicateTargetSelect');
+
+        targetSelect.innerHTML = '';
+        nameInput.value = '';
+
+        if (type === 'course') {
+            // منهج: يحتاج اسم جديد فقط، بدون وجهة
+            nameGroup.style.display = '';
+            nameInput.required = true;
+            targetGroup.style.display = 'none';
+            targetSelect.name = '';
+        } else if (type === 'unit') {
+            // وحدة: بدون اسم جديد (تبقى مطابقة)، مع اختيار المنهج الهدف
+            nameGroup.style.display = 'none';
+            nameInput.required = false;
+            targetGroup.style.display = '';
+            targetLabel.textContent = 'المنهج الهدف';
+            targetSelect.name = 'target_course_id';
+            populateCourseOptions(targetSelect, parentId);
+        } else if (type === 'lesson') {
+            // درس: بدون اسم جديد (يبقى مطابق)، مع اختيار الوحدة الهدف ضمن نفس المنهج
+            nameGroup.style.display = 'none';
+            nameInput.required = false;
+            targetGroup.style.display = '';
+            targetLabel.textContent = 'الوحدة الهدف';
+            targetSelect.name = 'target_unit_id';
+            const courseId = courseOfUnit[parentId];
+            const units = unitsByCourse[courseId] || [];
+            units.forEach(function(u) {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = u.name;
+                if (u.id === parentId) opt.selected = true;
+                targetSelect.appendChild(opt);
+            });
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('duplicateModal'));
+        modal.show();
+    }
+
+    // تعبئة قائمة المناهج (id + اسم) من بيانات الصفحة الحالية
+    function populateCourseOptions(selectEl, currentCourseId) {
+        selectEl.innerHTML = '';
+        courseOptionsList.forEach(function(c) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            if (c.id === currentCourseId) opt.selected = true;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    var courseOptionsList = [
+        {% for c in courses %}{ id: {{ c.id }}, name: {{ c.name|tojson }} }{% if not loop.last %}, {% endif %}{% endfor %}
+    ];
 </script>
 {% endblock %}

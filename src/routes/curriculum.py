@@ -271,6 +271,60 @@ def edit_course(course_id):
     # Pass course object for GET or failed POST
     return render_template("curriculum/course_form.html", title="تعديل المنهج", course=course, submit_text="تحديث المنهج", form=form)
 
+@curriculum_bp.route("/courses/duplicate/<int:course_id>", methods=["POST"])
+@login_required
+def duplicate_course(course_id):
+    """نسخ منهج كامل (وحداته ودروسه) باسم جديد، بدون نسخ الأسئلة"""
+    course = Course.query.get_or_404(course_id)
+    new_name = (request.form.get("name") or "").strip()
+
+    if not new_name:
+        flash("اسم المنهج الجديد لا يمكن أن يكون فارغاً.", "danger")
+        return redirect(url_for("curriculum.list_courses"))
+
+    if Course.query.filter_by(name=new_name).first():
+        flash("يوجد منهج آخر بهذا الاسم بالفعل.", "warning")
+        return redirect(url_for("curriculum.list_courses"))
+
+    try:
+        max_order = db.session.query(db.func.max(Course.order_num)).scalar() or 0
+        new_course = Course(
+            name=new_name,
+            order_num=max_order + 10,
+            show_in_bot=course.show_in_bot,
+            is_bank=course.is_bank,
+        )
+        db.session.add(new_course)
+        db.session.flush()  # للحصول على new_course.id
+
+        for unit in course.units:
+            new_unit = Unit(
+                name=unit.name,
+                course_id=new_course.id,
+                order_num=unit.order_num,
+                show_in_bot=unit.show_in_bot,
+            )
+            db.session.add(new_unit)
+            db.session.flush()
+
+            for lesson in unit.lessons:
+                new_lesson = Lesson(
+                    name=lesson.name,
+                    unit_id=new_unit.id,
+                    order_num=lesson.order_num,
+                    show_in_bot=lesson.show_in_bot,
+                )
+                db.session.add(new_lesson)
+
+        db.session.commit()
+        flash(f"تم نسخ المنهج باسم \"{new_name}\" بنجاح (بدون الأسئلة)!", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error duplicating course {course_id}: {e}")
+        flash(f"خطأ في نسخ المنهج: {e}", "danger")
+
+    return redirect(url_for("curriculum.list_courses"))
+
 @curriculum_bp.route("/courses/delete/<int:course_id>", methods=["GET"]) # Use GET for simplicity
 @login_required
 def delete_course(course_id):
@@ -445,6 +499,43 @@ def edit_unit(unit_id):
     # Pass unit object and course_id
     return render_template("curriculum/unit_form.html", title=f"تعديل الوحدة {unit.name}", unit=unit, course_id=unit.course_id, submit_text="تحديث الوحدة", form=form)
 
+@curriculum_bp.route("/units/duplicate/<int:unit_id>", methods=["POST"])
+@login_required
+def duplicate_unit(unit_id):
+    """نسخ وحدة بدروسها (بدون الأسئلة)، مع إمكانية اختيار منهج هدف مختلف"""
+    unit = Unit.query.get_or_404(unit_id)
+    target_course_id = request.form.get("target_course_id", type=int) or unit.course_id
+    target_course = Course.query.get_or_404(target_course_id)
+
+    try:
+        max_order = db.session.query(db.func.max(Unit.order_num)).filter(Unit.course_id == target_course.id).scalar() or 0
+        new_unit = Unit(
+            name=unit.name,
+            course_id=target_course.id,
+            order_num=max_order + 10,
+            show_in_bot=unit.show_in_bot,
+        )
+        db.session.add(new_unit)
+        db.session.flush()
+
+        for lesson in unit.lessons:
+            new_lesson = Lesson(
+                name=lesson.name,
+                unit_id=new_unit.id,
+                order_num=lesson.order_num,
+                show_in_bot=lesson.show_in_bot,
+            )
+            db.session.add(new_lesson)
+
+        db.session.commit()
+        flash(f"تم نسخ الوحدة \"{unit.name}\" إلى \"{target_course.name}\" بنجاح (بدون الأسئلة)!", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error duplicating unit {unit_id}: {e}")
+        flash(f"خطأ في نسخ الوحدة: {e}", "danger")
+
+    return redirect(url_for("curriculum.list_courses"))
+
 @curriculum_bp.route("/units/delete/<int:unit_id>", methods=["GET"]) # Use GET for simplicity
 @login_required
 def delete_unit(unit_id):
@@ -589,6 +680,32 @@ def edit_lesson(lesson_id):
             flash("اسم الدرس لا يمكن أن يكون فارغاً.", "danger")
     # Pass lesson object and unit_id
     return render_template("curriculum/lesson_form.html", title=f"تعديل الدرس {lesson.name}", lesson=lesson, unit_id=lesson.unit_id, submit_text="تحديث الدرس", form=form)
+
+@curriculum_bp.route("/lessons/duplicate/<int:lesson_id>", methods=["POST"])
+@login_required
+def duplicate_lesson(lesson_id):
+    """نسخ درس (بدون الأسئلة)، مع إمكانية اختيار وحدة هدف مختلفة"""
+    lesson = Lesson.query.get_or_404(lesson_id)
+    target_unit_id = request.form.get("target_unit_id", type=int) or lesson.unit_id
+    target_unit = Unit.query.get_or_404(target_unit_id)
+
+    try:
+        max_order = db.session.query(db.func.max(Lesson.order_num)).filter(Lesson.unit_id == target_unit.id).scalar() or 0
+        new_lesson = Lesson(
+            name=lesson.name,
+            unit_id=target_unit.id,
+            order_num=max_order + 10,
+            show_in_bot=lesson.show_in_bot,
+        )
+        db.session.add(new_lesson)
+        db.session.commit()
+        flash(f"تم نسخ الدرس \"{lesson.name}\" إلى \"{target_unit.name}\" بنجاح (بدون الأسئلة)!", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error duplicating lesson {lesson_id}: {e}")
+        flash(f"خطأ في نسخ الدرس: {e}", "danger")
+
+    return redirect(url_for("curriculum.list_courses"))
 
 @curriculum_bp.route("/lessons/delete/<int:lesson_id>", methods=["GET"]) # Use GET for simplicity
 @login_required
