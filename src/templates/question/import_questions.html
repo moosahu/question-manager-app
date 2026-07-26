@@ -440,10 +440,11 @@
                     {# End: Cascading Dropdowns #}
 
                     <div class="mb-3">
-                        <label for="question_file" class="form-label">رفع ملف (.xlsx أو .csv) *</label>
-                        <input class="form-control" type="file" id="question_file" name="question_file" accept=".xlsx,.csv" required>
+                        <label for="question_file" class="form-label">رفع ملف أو أكثر (.xlsx أو .csv) *</label>
+                        <input class="form-control" type="file" id="question_file" name="question_file" accept=".xlsx,.csv" multiple required>
+                        <div class="form-text">تقدر تختار أكثر من ملف دفعة وحدة (Ctrl/Cmd + اختيار).</div>
                         <div class="invalid-feedback">
-                            الرجاء اختيار ملف بصيغة .xlsx أو .csv لرفعه.
+                            الرجاء اختيار ملف واحد على الأقل بصيغة .xlsx أو .csv لرفعه.
                         </div>
                     </div>
 
