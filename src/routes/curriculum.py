@@ -217,7 +217,8 @@ def add_course():
     if request.method == "POST":
         name = request.form.get("name")
         show_in_bot = 'show_in_bot' in request.form  # True إذا كان checkbox محدد
-        is_bank = 'is_bank' in request.form
+        is_license_exam = 'is_license_exam' in request.form
+        is_bank = ('is_bank' in request.form) or is_license_exam
         if name:
             existing_course = Course.query.filter_by(name=name).first()
             if existing_course:
@@ -225,7 +226,8 @@ def add_course():
             else:
                 # حساب أعلى قيمة ترتيب موجودة وإضافة 10 إليها
                 max_order = db.session.query(db.func.max(Course.order_num)).scalar() or 0
-                new_course = Course(name=name, order_num=max_order + 10, show_in_bot=show_in_bot, is_bank=is_bank)
+                new_course = Course(name=name, order_num=max_order + 10, show_in_bot=show_in_bot,
+                                     is_bank=is_bank, is_license_exam=is_license_exam)
                 db.session.add(new_course)
                 try:
                     db.session.commit()
@@ -249,7 +251,8 @@ def edit_course(course_id):
     if request.method == "POST":
         name = request.form.get("name")
         show_in_bot = 'show_in_bot' in request.form  # True إذا كان checkbox محدد
-        is_bank = 'is_bank' in request.form
+        is_license_exam = 'is_license_exam' in request.form
+        is_bank = ('is_bank' in request.form) or is_license_exam
         if name:
             existing_course = Course.query.filter(Course.name == name, Course.id != course_id).first()
             if existing_course:
@@ -258,6 +261,7 @@ def edit_course(course_id):
                 course.name = name
                 course.show_in_bot = show_in_bot
                 course.is_bank = is_bank
+                course.is_license_exam = is_license_exam
                 try:
                     db.session.commit()
                     flash("تم تحديث المنهج بنجاح!", "success")
@@ -293,6 +297,7 @@ def duplicate_course(course_id):
             order_num=max_order + 10,
             show_in_bot=course.show_in_bot,
             is_bank=course.is_bank,
+            is_license_exam=course.is_license_exam,
         )
         db.session.add(new_course)
         db.session.flush()  # للحصول على new_course.id

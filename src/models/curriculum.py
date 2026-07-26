@@ -13,6 +13,7 @@ class Course(db.Model):
     order_num = db.Column(db.Integer, default=0)
     show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
     is_bank = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    is_license_exam = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     # العلاقات
     units = db.relationship('Unit', backref='course', lazy=True,

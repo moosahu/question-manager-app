@@ -689,7 +689,7 @@ def get_all_courses():
             courses = Course.query.filter(Course.show_in_bot == True).order_by(Course.order_num.asc(), Course.id).all()
         
         logger.info(f"Found {len(courses)} courses.")
-        formatted_courses = [{"id": c.id, "name": c.name, "order_num": c.order_num, "is_bank": bool(c.is_bank)} for c in courses]
+        formatted_courses = [{"id": c.id, "name": c.name, "order_num": c.order_num, "is_bank": bool(c.is_bank), "is_license_exam": bool(c.is_license_exam)} for c in courses]
         return jsonify(formatted_courses)
     except SQLAlchemyError as e:
         logger.exception(f"Database error while fetching courses: {e}")
@@ -4943,6 +4943,74 @@ def delete_all_exam_history():
         return jsonify({'success': True, 'deleted': deleted})
     except Exception as e:
         _db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _resolve_current_teacher_id():
+    """يحدد teacher_id للمستخدم الحالي عبر X-Session-Token أو JWT، أو None لو أدمن/غير معروف."""
+    from src.models.teacher import Teacher as _T
+
+    session_tok = request.headers.get('X-Session-Token')
+    auth_header = request.headers.get('Authorization', '')
+
+    if session_tok:
+        _t = _T.query.filter_by(session_token=session_tok, is_active=True).first()
+        if _t:
+            return _t.id
+    elif auth_header.startswith('Bearer '):
+        import jwt as _jwt
+        try:
+            _data = _jwt.decode(auth_header[7:], current_app.config['JWT_SECRET_KEY'],
+                                algorithms=[current_app.config.get('JWT_ALGORITHM', 'HS256')])
+            if _data.get('user_type') == 'teacher':
+                return _data.get('teacher_id')
+        except Exception:
+            pass
+    return None
+
+
+@api_bp.route("/license-exam/results", methods=["POST"])
+@teacher_or_admin_required
+def save_license_exam_result():
+    """حفظ نتيجة اختبار الرخصة المهنية لمعلم (عام تربوي / تخصص كيمياء)"""
+    try:
+        from src.models.teacher_exam_result import TeacherExamResult
+
+        teacher_id = _resolve_current_teacher_id()
+        if not teacher_id:
+            # أدمن يجرّب الاختبار — لا يوجد سجل معلم لحفظ نتيجة له
+            return jsonify({'success': True, 'saved': False, 'message': 'لا يُحفظ سجل نتيجة للأدمن'})
+
+        data = request.get_json(silent=True) or {}
+        quiz_type = data.get('quiz_type')
+        quiz_name = data.get('quiz_name')
+        total_questions = data.get('total_questions', 0)
+        correct_answers = data.get('correct_answers', 0)
+        wrong_answers = data.get('wrong_answers', max(0, total_questions - correct_answers))
+        score_percentage = data.get('score_percentage', 0.0)
+
+        if not quiz_type or not quiz_name:
+            return jsonify({'success': False, 'error': 'بيانات الاختبار ناقصة'}), 400
+
+        result = TeacherExamResult(
+            teacher_id=teacher_id,
+            quiz_type=quiz_type,
+            course_id=data.get('course_id'),
+            unit_id=data.get('unit_id'),
+            lesson_id=data.get('lesson_id'),
+            quiz_name=quiz_name,
+            total_questions=total_questions,
+            correct_answers=correct_answers,
+            wrong_answers=wrong_answers,
+            score_percentage=score_percentage,
+            time_spent=data.get('time_spent'),
+        )
+        db.session.add(result)
+        db.session.commit()
+        return jsonify({'success': True, 'saved': True, 'result': result.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error saving license exam result: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
