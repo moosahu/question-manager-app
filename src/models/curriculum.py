@@ -42,7 +42,7 @@ class Unit(db.Model):
 class Lesson(db.Model):
     __tablename__ = 'lesson'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.Text, nullable=False)
     unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=False)
     order_num = db.Column(db.Integer, default=0)
     show_in_bot = db.Column(db.Boolean, default=True, nullable=False)
