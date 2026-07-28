@@ -1992,6 +1992,22 @@ def api_create_audit_log():
 # توليد الشرح بالذكاء الاصطناعي
 # ============================================
 
+def _call_gemini_with_rotation(model, prompt):
+    """يستدعي Gemini، وعند 429/quota يدور للمفتاح التالي عبر gemini_key_manager
+    ويعيد المحاولة مرة وحدة — نفس أسلوب question_classifier.py."""
+    from src.services.gemini_client import gemini_key_manager
+    client = gemini_key_manager.get_client()
+    try:
+        response = client.models.generate_content(model=model, contents=prompt)
+        return response.text.strip()
+    except Exception as e:
+        if gemini_key_manager.is_quota_error(str(e)) and gemini_key_manager.rotate_key():
+            client = gemini_key_manager.get_client()
+            response = client.models.generate_content(model=model, contents=prompt)
+            return response.text.strip()
+        raise
+
+
 def _call_ai_for_explanation(question_text, options_data, correct_text):
     """يستدعي AI لتوليد الشرح — يقرأ المزوّد والنموذج من AISetting"""
     provider = AISetting.get_setting('explanation_ai_provider', 'gemini')
@@ -2006,10 +2022,7 @@ def _call_ai_for_explanation(question_text, options_data, correct_text):
     )
 
     if provider == 'gemini':
-        from src.services.gemini_client import gemini_key_manager
-        client = gemini_key_manager.get_client()
-        response = client.models.generate_content(model=model, contents=prompt)
-        return response.text.strip()
+        return _call_gemini_with_rotation(model, prompt)
 
     elif provider == 'claude':
         from src.services.claude_client import claude_key_manager
@@ -2053,10 +2066,7 @@ def _call_ai_for_video_explanation(question_text, options_data, correct_text):
     )
 
     if provider == 'gemini':
-        from src.services.gemini_client import gemini_key_manager
-        client = gemini_key_manager.get_client()
-        response = client.models.generate_content(model=model, contents=prompt)
-        return response.text.strip()
+        return _call_gemini_with_rotation(model, prompt)
 
     elif provider == 'claude':
         from src.services.claude_client import claude_key_manager
