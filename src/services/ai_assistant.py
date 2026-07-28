@@ -116,10 +116,21 @@ class AIAssistant:
             elif self.gemini_client:
                 from src.services.lesson_prep_service import AI_PROVIDERS as _LP
                 model_id = _LP.get(self.active_provider, {}).get('model', 'gemini-2.0-flash')
-                response = self.gemini_client.models.generate_content(
-                    model=model_id,
-                    contents=prompt,
-                )
+                try:
+                    response = self.gemini_client.models.generate_content(
+                        model=model_id,
+                        contents=prompt,
+                    )
+                except Exception as gemini_err:
+                    from src.services.gemini_client import gemini_key_manager
+                    if gemini_key_manager.is_quota_error(str(gemini_err)) and gemini_key_manager.rotate_key():
+                        self.gemini_client = gemini_key_manager.get_client()
+                        response = self.gemini_client.models.generate_content(
+                            model=model_id,
+                            contents=prompt,
+                        )
+                    else:
+                        raise
                 return response.text
             return None
         except Exception as e:

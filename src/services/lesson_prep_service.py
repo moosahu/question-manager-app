@@ -235,10 +235,28 @@ class LessonPrepService:
             )
         except Exception as e:
             err_str = str(e).lower()
-            if '503' in err_str or 'unavailable' in err_str or 'high demand' in err_str or '429' in err_str or 'resource_exhausted' in err_str:
+            is_quota = '429' in err_str or 'resource_exhausted' in err_str
+            if is_quota:
+                from src.services.gemini_client import gemini_key_manager
+                if gemini_key_manager.rotate_key():
+                    self.gemini_client = gemini_key_manager.get_client()
+                    try:
+                        response = self.gemini_client.models.generate_content(
+                            model=model_id,
+                            contents=content_parts,
+                            config=types.GenerateContentConfig(max_output_tokens=self._current_max_tokens),
+                        )
+                    except Exception as e2:
+                        logger.warning(f"⏳ Gemini [{label}] خطأ مؤقت بعد تدوير المفتاح ({type(e2).__name__}): {e2}")
+                        raise RateLimitError(str(e2))
+                else:
+                    logger.warning(f"⏳ Gemini [{label}] خطأ مؤقت ({type(e).__name__}): {e}")
+                    raise RateLimitError(str(e))
+            elif '503' in err_str or 'unavailable' in err_str or 'high demand' in err_str:
                 logger.warning(f"⏳ Gemini [{label}] خطأ مؤقت ({type(e).__name__}): {e}")
                 raise RateLimitError(str(e))
-            raise
+            else:
+                raise
 
         # استخراج tokens من usage_metadata
         usage = {'input_tokens': 0, 'output_tokens': 0}

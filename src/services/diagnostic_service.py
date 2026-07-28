@@ -61,6 +61,17 @@ class DiagnosticService:
         except Exception:
             return 'gemini-2.0-flash'
 
+    def _generate_with_rotation(self, prompt):
+        """يستدعي Gemini، وعند 429/quota يدور للمفتاح التالي ويعيد المحاولة مرة وحدة."""
+        from src.services.gemini_client import gemini_key_manager
+        try:
+            return self.client.models.generate_content(model=self._get_model(), contents=prompt)
+        except Exception as e:
+            if gemini_key_manager.is_quota_error(str(e)) and gemini_key_manager.rotate_key():
+                self.client = gemini_key_manager.get_client()
+                return self.client.models.generate_content(model=self._get_model(), contents=prompt)
+            raise
+
     def _configure_ai(self):
         """تهيئة AI مع دعم البحث في الإنترنت"""
         if self.is_configured:
@@ -382,7 +393,7 @@ class DiagnosticService:
 ]
 """
             print(f"🤖 Generating questions for: {context.get('name', 'Unknown')}")
-            response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
+            response = self._generate_with_rotation(prompt)
             
             import re
             import json
@@ -590,7 +601,7 @@ class DiagnosticService:
 
 اكتب الرد بالعربية، مختصر ومفيد (أقل من 200 كلمة)، بأسلوب تشجيعي وإيجابي.
 """
-            response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
+            response = self._generate_with_rotation(prompt)
             
             return {
                 'analysis': response.text,
@@ -675,7 +686,7 @@ class DiagnosticService:
 
 اكتب بأسلوب إيجابي ومشجع، أقل من 150 كلمة.
 """
-                response = self.client.models.generate_content(model=self._get_model(), contents=prompt)
+                response = self._generate_with_rotation(prompt)
                 analysis = response.text
                 
             except Exception as e:

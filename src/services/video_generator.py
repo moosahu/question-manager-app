@@ -479,10 +479,20 @@ def generate_all_content(question_text, options, lesson, unit,
         from src.services.gemini_client import gemini_key_manager
         client = gemini_key_manager.get_client()
     except Exception:
+        gemini_key_manager = None
         client = genai.Client(api_key=gemini_api_key)
-    response = client.models.generate_content(
-        model=_model, contents=prompt
-    )
+    try:
+        response = client.models.generate_content(
+            model=_model, contents=prompt
+        )
+    except Exception as e:
+        if gemini_key_manager and gemini_key_manager.is_quota_error(str(e)) and gemini_key_manager.rotate_key():
+            client = gemini_key_manager.get_client()
+            response = client.models.generate_content(
+                model=_model, contents=prompt
+            )
+        else:
+            raise
     text     = response.text.strip()
 
     if text.startswith("```"):
