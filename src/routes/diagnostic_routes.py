@@ -1551,6 +1551,7 @@ def assign_test():
                 print(f"⚠️ Error sending notifications: {e}")
         
         return jsonify({
+            'success': True,
             'message': 'Test assigned successfully',
             'test': test.to_dict()
         }), 200
