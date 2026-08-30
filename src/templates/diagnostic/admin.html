@@ -1514,7 +1514,7 @@
                 </p>
                 <table class="table">
                     <thead>
-                        <tr><th>الطالب</th><th>الشعبة</th><th>الحالة</th><th>النسبة</th></tr>
+                        <tr><th>الطالب</th><th>الشعبة</th><th>الحالة</th><th>النسبة</th><th></th></tr>
                     </thead>
                     <tbody>
                         ${data.students.map(s => `
@@ -1523,11 +1523,85 @@
                                 <td>${s.section ? `شعبة ${s.section}` : '-'}</td>
                                 <td><span style="color: ${statusColor[s.status]}; font-weight: 600;">${statusLabel[s.status]}</span></td>
                                 <td>${s.percentage != null ? s.percentage.toFixed(1) + '%' : '-'}</td>
+                                <td>
+                                    ${s.status !== 'not_started'
+                                        ? `<button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="reopenStudentTest(${testId}, ${s.student_id}, this)">إعادة فتح</button>`
+                                        : ''}
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             `;
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
+    // ===== إعادة فتح اختبار لطالب واحد =====
+    window.reopenStudentTest = async function(testId, studentId, btn) {
+        if (!confirm('هل تريد مسح محاولة هذا الطالب وإعادة فتح الاختبار له؟')) return;
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}/reopen/${studentId}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showAlert('تم إعادة فتح الاختبار للطالب', 'success');
+                if (btn) { btn.disabled = true; btn.textContent = 'تم ✓'; }
+            } else {
+                showAlert(data.error || 'خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ: ' + e.message, 'error');
+        }
+    };
+
+    // ===== مقارنة القبلي/البعدي =====
+    window.viewComparison = async function(testId) {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}/comparison`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            let html = `
+                <h4 style="margin-bottom: 0.25rem; color: #333;">مقارنة: ${data.pre_test_title} ← ${data.post_test_title}</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">
+                    عدد الطلاب اللي أكملوا الاثنين: ${data.count} — متوسط التحسّن: ${data.avg_improvement}%
+                </p>
+            `;
+
+            if (!data.students.length) {
+                html += `<p style="text-align: center; color: #6b7280; padding: 1rem;">لا يوجد طلاب أكملوا الاختبارين حتى الآن</p>`;
+            } else {
+                html += `
+                    <table class="table">
+                        <thead>
+                            <tr><th>الطالب</th><th>الشعبة</th><th>القبلي</th><th>البعدي</th><th>التحسّن</th></tr>
+                        </thead>
+                        <tbody>
+                            ${data.students.map(s => `
+                                <tr>
+                                    <td>${s.student_name}</td>
+                                    <td>${s.section ? `شعبة ${s.section}` : '-'}</td>
+                                    <td>${s.pre_percentage}%</td>
+                                    <td>${s.post_percentage}%</td>
+                                    <td style="color: ${s.improvement >= 0 ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                                        ${s.improvement >= 0 ? '+' : ''}${s.improvement}%
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
 
             showCustomModal(html);
         } catch (e) {
@@ -2024,6 +2098,13 @@
                             <button class="btn btn-sm btn-outline" onclick="viewAssignmentStatus(${t.id})" title="مين استلم وفتح الاختبار">
                                 📋 حالة الإرسال
                             </button>
+                            <button class="btn btn-sm btn-outline" onclick="window.open('${API_BASE}/tests/${t.id}/export-excel', '_blank')" title="تصدير النتائج Excel">
+                                📊 Excel
+                            </button>
+                            ${t.paired_test_id ? `
+                            <button class="btn btn-sm btn-outline" onclick="viewComparison(${t.id})" title="مقارنة القبلي/البعدي">
+                                📈 مقارنة
+                            </button>` : ''}
                             <button class="btn btn-sm btn-warning" onclick="cancelSchedule(${t.id})" title="إلغاء الجدولة فقط">
                                 ⏸️ إلغاء الجدولة
                             </button>

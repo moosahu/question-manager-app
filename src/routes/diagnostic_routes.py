@@ -1300,6 +1300,172 @@ def get_assignment_status(test_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@diagnostic_bp.route('/tests/<int:test_id>/reopen/<int:student_id>', methods=['POST'])
+@login_required
+@admin_required
+def reopen_test_for_student(test_id, student_id):
+    """يمسح محاولة طالب معيّن على اختبار (مكتملة أو قيد التنفيذ) عشان ياخذ فرصة ثانية،
+    دون الحاجة لإعادة تعيين الاختبار لكل الطلاب من جديد"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        result = DiagnosticResult.query.filter_by(
+            diagnostic_test_id=test_id, student_id=str(student_id)
+        ).first()
+        if not result:
+            return jsonify({'success': False, 'error': 'ما فيه محاولة سابقة لهذا الطالب'}), 404
+
+        db.session.delete(result)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم فتح الاختبار للطالب من جديد'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error reopening test: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/export-excel', methods=['GET'])
+@login_required
+@admin_required
+def export_results_excel(test_id):
+    """تصدير نتائج اختبار تشخيصي كملف Excel"""
+    try:
+        from io import BytesIO
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from flask import send_file
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        results = DiagnosticResult.query.filter_by(diagnostic_test_id=test_id)\
+            .order_by(DiagnosticResult.percentage.desc()).all()
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'النتائج'
+        ws.sheet_view.rightToLeft = True
+
+        header_fill = PatternFill('solid', fgColor='0D9488')
+        thin = Side(style='thin', color='CBD5E1')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        headers = ['الطالب', 'الشعبة', 'الحالة', 'الدرجة', 'من', 'النسبة', 'الوقت المستغرق (د)', 'تاريخ الإكمال']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(1, col, value=h)
+            cell.font = Font(bold=True, color='FFFFFF', size=11)
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+            cell.border = border
+        ws.row_dimensions[1].height = 26
+
+        status_ar = {'completed': 'مكتمل', 'in_progress': 'قيد التنفيذ'}
+        for r, res in enumerate(results, 2):
+            student = Student.query.get(res.student_id) if res.student_id else None
+            row = [
+                (student.name if student else f'طالب #{res.student_id}'),
+                _get_student_section(res.student_id) if res.student_id else '',
+                status_ar.get(res.status, res.status),
+                res.correct_answers or 0,
+                res.total_questions or 0,
+                round(res.percentage or 0, 1),
+                round((res.time_spent_seconds or 0) / 60, 1),
+                res.completed_at.strftime('%Y-%m-%d %H:%M') if (res.completed_at and res.status == 'completed') else '',
+            ]
+            for col, val in enumerate(row, 1):
+                cell = ws.cell(r, col, value=val)
+                cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+                cell.border = border
+
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        safe_title = (test.title or 'اختبار').replace('/', '-')
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'نتائج_{safe_title}.xlsx',
+        )
+    except Exception as e:
+        print(f"❌ Error exporting results excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/comparison', methods=['GET'])
+def get_test_comparison(test_id):
+    """مقارنة نتائج القبلي/البعدي لكل طالب أكمل الاثنين (يعتمد على paired_test_id)"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        paired_id = test.paired_test_id
+        if not paired_id:
+            return jsonify({'success': False, 'error': 'هذا الاختبار غير مرتبط باختبار قبلي/بعدي'}), 400
+
+        if test.test_type == 'pre_test':
+            pre_id, post_id = test_id, paired_id
+        else:
+            pre_id, post_id = paired_id, test_id
+
+        pre_test = DiagnosticTest.query.get(pre_id)
+        post_test = DiagnosticTest.query.get(post_id)
+        if not pre_test or not post_test:
+            return jsonify({'success': False, 'error': 'الاختبار المرتبط غير موجود'}), 404
+
+        pre_results = {
+            r.student_id: r for r in
+            DiagnosticResult.query.filter_by(diagnostic_test_id=pre_id, status='completed').all()
+        }
+        post_results = {
+            r.student_id: r for r in
+            DiagnosticResult.query.filter_by(diagnostic_test_id=post_id, status='completed').all()
+        }
+        common_ids = set(pre_results.keys()) & set(post_results.keys())
+
+        students = []
+        for sid in common_ids:
+            pre_r = pre_results[sid]
+            post_r = post_results[sid]
+            student = Student.query.get(sid) if sid else None
+            improvement = (post_r.percentage or 0) - (pre_r.percentage or 0)
+            students.append({
+                'student_id': sid,
+                'student_name': student.name if student else f'طالب #{sid}',
+                'section': _get_student_section(sid) if sid else '',
+                'pre_percentage': round(pre_r.percentage or 0, 1),
+                'post_percentage': round(post_r.percentage or 0, 1),
+                'improvement': round(improvement, 1),
+            })
+
+        students.sort(key=lambda s: s['improvement'], reverse=True)
+        avg_improvement = round(sum(s['improvement'] for s in students) / len(students), 1) if students else 0
+
+        return jsonify({
+            'success': True,
+            'pre_test_title': pre_test.title,
+            'post_test_title': post_test.title,
+            'students': students,
+            'avg_improvement': avg_improvement,
+            'count': len(students),
+        })
+    except Exception as e:
+        print(f"❌ Error getting comparison: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ==========================================
 # المقارنة بين القبلي والبعدي
 # ==========================================

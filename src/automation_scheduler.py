@@ -391,6 +391,87 @@ def check_single_student_analysis_job():
         logger.error(f"❌ [Scheduler] خطأ في check_single_student_analysis_job: {e}")
 
 
+def check_diagnostic_reminders_job():
+    """
+    تذكير الطلاب اللي ما بدأوا اختبارهم التشخيصي المجدول قبل انتهاء وقته بحوالي ساعة.
+    يشتغل كل 30 دقيقة، ويستهدف نافذة 45-75 دقيقة قبل scheduled_end حتى يرسل مرة وحدة تقريباً لكل اختبار.
+    """
+    global _flask_app
+    if _flask_app is None:
+        return
+
+    try:
+        with _flask_app.app_context():
+            from datetime import timedelta
+            from src.models.diagnostic_test import DiagnosticTest, DiagnosticResult
+            from src.models.student import Student
+            from src.routes.diagnostic_routes import _save_notification_to_db
+
+            now = datetime.utcnow()
+            window_start = now + timedelta(minutes=45)
+            window_end = now + timedelta(minutes=75)
+
+            tests = DiagnosticTest.query.filter(
+                DiagnosticTest.is_scheduled == True,
+                DiagnosticTest.is_active == True,
+                DiagnosticTest.scheduled_end.isnot(None),
+                DiagnosticTest.scheduled_end >= window_start,
+                DiagnosticTest.scheduled_end <= window_end,
+            ).all()
+
+            if not tests:
+                return
+
+            try:
+                from src.services.notification_service import NotificationService
+            except Exception:
+                NotificationService = None
+
+            for test in tests:
+                assigned_ids = test.assigned_students or []
+                if not assigned_ids:
+                    continue
+
+                started_ids = {
+                    r.student_id for r in DiagnosticResult.query.filter_by(
+                        diagnostic_test_id=test.id
+                    ).all()
+                }
+
+                not_started = [sid for sid in assigned_ids if str(sid) not in
+                               {str(x) for x in started_ids}]
+                if not not_started:
+                    continue
+
+                title = '⏰ تذكير: اختبار تشخيصي لم تبدأه'
+                message = f'باقي أقل من ساعة على انتهاء "{test.title}" ولسه ما بدأته — بادر بحله.'
+
+                sent = 0
+                for sid in not_started:
+                    student = Student.query.get(sid)
+                    if not student:
+                        continue
+                    _save_notification_to_db(
+                        student_id=sid, title=title, message=message,
+                        notification_type='reminder',
+                        data={'type': 'diagnostic_test', 'test_id': str(test.id)},
+                    )
+                    if NotificationService and getattr(student, 'fcm_token', None):
+                        try:
+                            NotificationService.send_fcm_notification(
+                                student.fcm_token, title, message,
+                                {'type': 'diagnostic_test', 'test_id': str(test.id)},
+                            )
+                            sent += 1
+                        except Exception as e:
+                            logger.warning(f"⚠️ فشل إرسال تذكير الاختبار التشخيصي لطالب {sid}: {e}")
+
+                db.session.commit()
+                logger.info(f"⏰ تذكير اختبار تشخيصي #{test.id}: {sent}/{len(not_started)} إشعار FCM")
+    except Exception as e:
+        logger.error(f"❌ [Scheduler] خطأ في check_diagnostic_reminders_job: {e}")
+
+
 import threading as _threading
 _lesson_prep_running = False  # منع تشغيل أكثر من مهمة في نفس الوقت
 
@@ -668,6 +749,17 @@ def start_automation_scheduler(app):
             replace_existing=True,
             max_instances=2,
             misfire_grace_time=30,
+        )
+
+        # ✅ تذكير الاختبارات التشخيصية قبل انتهاء وقتها (كل 30 دقيقة)
+        automation_scheduler.add_job(
+            func=check_diagnostic_reminders_job,
+            trigger=IntervalTrigger(minutes=30),
+            id='check_diagnostic_reminders',
+            name='تذكير الاختبار التشخيصي',
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=120,
         )
 
         # ✅ فحص فعالية الإشعارات يومياً (كل 24 ساعة)
