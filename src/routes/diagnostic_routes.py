@@ -1368,6 +1368,7 @@ def assign_test():
         test_id = data.get('test_id')
         student_ids = data.get('student_ids')
         grade = data.get('grade')  # ✅ جديد: الصف الدراسي
+        sections = data.get('sections')  # ✅ جديد: فلترة شعبة واحدة أو أكثر (مع my_students)
         scheduled_start = data.get('scheduled_start')
         scheduled_end = data.get('scheduled_end')
         time_limit = data.get('time_limit_minutes', 30)
@@ -1396,6 +1397,8 @@ def assign_test():
             try:
                 from src.models.teacher_student import TeacherStudent
                 links = TeacherStudent.query.filter_by(admin_id=current_user.id).all()
+                if sections:
+                    links = [lnk for lnk in links if (lnk.section or '') in sections]
                 student_ids_list = [lnk.student_id for lnk in links]
                 print(f"✅ طلابي (أدمن {current_user.id}): {len(student_ids_list)} طالب")
             except Exception as e:
@@ -1591,6 +1594,7 @@ def teacher_assign_test():
         send_notif       = body.get('send_notification', True)
         scheduled_start  = body.get('scheduled_start')
         scheduled_end    = body.get('scheduled_end')
+        sections         = body.get('sections')  # ✅ جديد: فلترة شعبة واحدة أو أكثر
 
         test = DiagnosticTest.query.get(test_id)
         if not test:
@@ -1598,10 +1602,12 @@ def teacher_assign_test():
 
         # جلب طلاب المعلم
         links = TeacherStudent.query.filter_by(teacher_id=teacher_id).all()
+        if sections:
+            links = [lnk for lnk in links if (lnk.section or '') in sections]
         student_ids_list = [lnk.student_id for lnk in links]
 
         if not student_ids_list:
-            return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون بك بعد'}), 400
+            return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون بك بعد ضمن الشعبة المحددة' if sections else 'لا يوجد طلاب مرتبطون بك بعد'}), 400
 
         test.is_scheduled     = True
         test.assigned_students = student_ids_list
