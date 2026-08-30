@@ -1155,6 +1155,151 @@ def submit_test(result_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _get_student_section(student_id):
+    """يرجع شعبة الطالب (أول ربط له فيه شعبة) أو نص فاضي"""
+    try:
+        from src.models.teacher_student import TeacherStudent
+        link = TeacherStudent.query.filter(
+            TeacherStudent.student_id == student_id,
+            TeacherStudent.section.isnot(None),
+            TeacherStudent.section != ''
+        ).first()
+        return link.section if link else ''
+    except Exception:
+        return ''
+
+
+@diagnostic_bp.route('/results/<int:result_id>/detail', methods=['GET'])
+def get_result_detail(result_id):
+    """تفاصيل نتيجة طالب: كل سؤال، إجابته، الإجابة الصحيحة، ونقاط القوة/الضعف"""
+    try:
+        result = DiagnosticResult.query.get(result_id)
+        if not result:
+            return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
+
+        test = result.test
+        questions_data = (test.questions_data or []) if test else []
+        stored_answers = result.answers or []
+
+        questions = []
+        topic_breakdown = {}
+
+        for a in stored_answers:
+            idx = a.get('question_id')
+            q = questions_data[idx] if (isinstance(idx, int) and 0 <= idx < len(questions_data)) else {}
+            options = q.get('options', [])
+
+            def _opt_text(opt_idx):
+                if opt_idx is None or not (0 <= opt_idx < len(options)):
+                    return None
+                return options[opt_idx].get('text', '')
+
+            topic = a.get('topic') or 'عام'
+            bucket = topic_breakdown.setdefault(topic, {'correct': 0, 'total': 0})
+            bucket['total'] += 1
+            if a.get('is_correct'):
+                bucket['correct'] += 1
+
+            questions.append({
+                'question_text': a.get('question_text', ''),
+                'topic': topic,
+                'options': [o.get('text', '') for o in options],
+                'selected_index': a.get('selected_answer'),
+                'selected_text': _opt_text(a.get('selected_answer')),
+                'correct_index': a.get('correct_answer'),
+                'correct_text': _opt_text(a.get('correct_answer')),
+                'is_correct': a.get('is_correct', False),
+            })
+
+        weak_topics = [t for t, b in topic_breakdown.items() if b['correct'] < b['total']]
+        strong_topics = [t for t, b in topic_breakdown.items() if b['correct'] == b['total'] and b['total'] > 0]
+
+        result_dict = result.to_dict()
+        if test:
+            result_dict['test_title'] = test.title
+            result_dict['test_type'] = test.test_type
+        student = Student.query.get(result.student_id) if result.student_id else None
+        if student:
+            result_dict['student_name'] = student.name
+            result_dict['section'] = _get_student_section(student.id)
+
+        return jsonify({
+            'success': True,
+            'result': result_dict,
+            'questions': questions,
+            'stats': {
+                'weak_topics': weak_topics,
+                'strong_topics': strong_topics,
+                'topic_breakdown': topic_breakdown,
+            }
+        })
+    except Exception as e:
+        print(f"❌ Error getting result detail: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/assignment-status', methods=['GET'])
+def get_assignment_status(test_id):
+    """حالة كل طالب معيّن له الاختبار: لم يبدأ / قيد التنفيذ / مكتمل"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        assigned_ids = test.assigned_students or []
+
+        results_by_student = {}
+        for r in DiagnosticResult.query.filter_by(diagnostic_test_id=test_id).all():
+            try:
+                sid = int(r.student_id)
+            except (TypeError, ValueError):
+                continue
+            # لو فيه أكثر من محاولة، خذ الأحدث/الأكمل
+            existing = results_by_student.get(sid)
+            if not existing or (r.status == 'completed' and existing.status != 'completed'):
+                results_by_student[sid] = r
+
+        data = []
+        for sid in assigned_ids:
+            student = Student.query.get(sid)
+            r = results_by_student.get(sid)
+            if r and r.status == 'completed':
+                status = 'completed'
+            elif r:
+                status = 'in_progress'
+            else:
+                status = 'not_started'
+
+            data.append({
+                'student_id': sid,
+                'student_name': student.name if student else f'طالب #{sid}',
+                'section': _get_student_section(sid),
+                'status': status,
+                'percentage': r.percentage if r else None,
+                'completed_at': ((r.completed_at.isoformat() + 'Z') if (r and r.completed_at and status == 'completed') else None),
+            })
+
+        counts = {
+            'not_started': sum(1 for d in data if d['status'] == 'not_started'),
+            'in_progress': sum(1 for d in data if d['status'] == 'in_progress'),
+            'completed': sum(1 for d in data if d['status'] == 'completed'),
+        }
+
+        return jsonify({
+            'success': True,
+            'test_title': test.title,
+            'students': data,
+            'counts': counts,
+        })
+    except Exception as e:
+        print(f"❌ Error getting assignment status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ==========================================
 # المقارنة بين القبلي والبعدي
 # ==========================================
@@ -2038,16 +2183,7 @@ def get_all_results():
                     student = Student.query.get(r.student_id)
                     if student:
                         result_dict['student_name'] = student.name
-                        try:
-                            from src.models.teacher_student import TeacherStudent
-                            link = TeacherStudent.query.filter(
-                                TeacherStudent.student_id == student.id,
-                                TeacherStudent.section.isnot(None),
-                                TeacherStudent.section != ''
-                            ).first()
-                            result_dict['section'] = link.section if link else ''
-                        except Exception as _e:
-                            result_dict['section'] = ''
+                        result_dict['section'] = _get_student_section(student.id)
 
                 results_data.append(result_dict)
             except Exception as e:

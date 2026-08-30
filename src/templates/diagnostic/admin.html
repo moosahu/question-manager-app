@@ -1360,6 +1360,181 @@
         }
     };
     
+    // ===== Modal مخصص قابل لإعادة الاستخدام =====
+    function showCustomModal(html) {
+        const existingModal = document.getElementById('custom-view-modal');
+        const existingOverlay = document.getElementById('custom-overlay');
+        if (existingModal) existingModal.remove();
+        if (existingOverlay) existingOverlay.remove();
+
+        const newModal = document.createElement('div');
+        newModal.id = 'custom-view-modal';
+        newModal.innerHTML = html;
+        newModal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            z-index: 9999999;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            direction: rtl;
+            text-align: right;
+        `;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'custom-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999998;
+        `;
+        overlay.onclick = () => { newModal.remove(); overlay.remove(); };
+
+        // زر إغلاق
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕ إغلاق';
+        closeBtn.style.cssText = `
+            position: sticky;
+            top: 0;
+            float: left;
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            font-size: 14px;
+        `;
+        closeBtn.onclick = () => { newModal.remove(); overlay.remove(); };
+        newModal.insertBefore(closeBtn, newModal.firstChild);
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(newModal);
+    }
+
+    // ===== تفاصيل نتيجة طالب (أخطاؤه + نقاط القوة/الضعف) =====
+    window.viewResultDetail = async function(resultId) {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/results/${resultId}/detail`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            const r = data.result;
+            const arabicLetters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
+
+            let html = `
+                <h4 style="margin-bottom: 0.25rem; color: #333;">${r.test_title || ''}</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">
+                    ${r.student_name || ''} ${r.section ? `— شعبة ${r.section}` : ''}
+                    — ${(r.percentage || 0).toFixed(1)}% (${r.correct_answers || 0}/${r.total_questions || 0})
+                </p>
+            `;
+
+            if (data.stats.weak_topics.length || data.stats.strong_topics.length) {
+                html += `<div style="background: #f9fafb; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #e5e7eb;">`;
+                if (data.stats.weak_topics.length) {
+                    html += `<p style="color: #b91c1c; margin: 0.25rem 0;"><strong>نقاط الضعف:</strong> ${data.stats.weak_topics.join('، ')}</p>`;
+                }
+                if (data.stats.strong_topics.length) {
+                    html += `<p style="color: #047857; margin: 0.25rem 0;"><strong>نقاط القوة:</strong> ${data.stats.strong_topics.join('، ')}</p>`;
+                }
+                html += `</div>`;
+            }
+
+            data.questions.forEach((q, i) => {
+                const borderColor = q.is_correct ? '#a7f3d0' : '#fecaca';
+                html += `
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid ${borderColor};">
+                        <p style="font-weight: 600; margin-bottom: 0.75rem; color: #1f2937;">
+                            س${i + 1}: ${q.question_text} ${q.is_correct ? '✅' : '❌'}
+                        </p>
+                        <div style="padding-right: 1rem;">
+                `;
+                (q.options || []).forEach((optText, idx) => {
+                    const isCorrect = idx === q.correct_index;
+                    const isSelected = idx === q.selected_index;
+                    let style = 'color: #374151;';
+                    if (isCorrect) style = 'color: #047857; font-weight: 600;';
+                    else if (isSelected) style = 'color: #b91c1c; font-weight: 600;';
+                    const letter = arabicLetters[idx] || (idx + 1);
+                    html += `<p style="${style}; margin: 0.5rem 0;">${letter}- ${optText} ${isCorrect ? '✓' : ''} ${isSelected && !isCorrect ? '(إجابة الطالب)' : ''}</p>`;
+                });
+                if (q.selected_index === null || q.selected_index === undefined) {
+                    html += `<p style="color: #92400e; margin-top: 0.5rem;">⚠️ لم يجب الطالب على هذا السؤال</p>`;
+                }
+                html += `</div></div>`;
+            });
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
+    // ===== حالة تعيين الاختبار (لم يبدأ / قيد التنفيذ / مكتمل) =====
+    window.viewAssignmentStatus = async function(testId) {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}/assignment-status`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            const statusLabel = { not_started: 'لم يبدأ', in_progress: 'قيد التنفيذ', completed: 'مكتمل' };
+            const statusColor = { not_started: '#9ca3af', in_progress: '#f59e0b', completed: '#10b981' };
+
+            let html = `
+                <h4 style="margin-bottom: 0.5rem; color: #333;">${data.test_title}</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">
+                    لم يبدأ: ${data.counts.not_started} — قيد التنفيذ: ${data.counts.in_progress} — مكتمل: ${data.counts.completed}
+                </p>
+                <table class="table">
+                    <thead>
+                        <tr><th>الطالب</th><th>الشعبة</th><th>الحالة</th><th>النسبة</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.students.map(s => `
+                            <tr>
+                                <td>${s.student_name}</td>
+                                <td>${s.section ? `شعبة ${s.section}` : '-'}</td>
+                                <td><span style="color: ${statusColor[s.status]}; font-weight: 600;">${statusLabel[s.status]}</span></td>
+                                <td>${s.percentage != null ? s.percentage.toFixed(1) + '%' : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
     // ===== View Test =====
     window.viewTest = async function(testId) {
         console.log('👁️ viewTest called with ID:', testId);
@@ -1412,71 +1587,8 @@
                 html += `</div></div>`;
             });
             
-            // إنشاء Modal مخصص
-            const existingModal = document.getElementById('custom-view-modal');
-            const existingOverlay = document.getElementById('custom-overlay');
-            if (existingModal) existingModal.remove();
-            if (existingOverlay) existingOverlay.remove();
+            showCustomModal(html);
 
-            const newModal = document.createElement('div');
-            newModal.id = 'custom-view-modal';
-            newModal.innerHTML = html;
-            newModal.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: white;
-                padding: 25px;
-                border-radius: 15px;
-                width: 90%;
-                max-width: 650px;
-                max-height: 85vh;
-                overflow-y: auto;
-                z-index: 9999999;
-                box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-                direction: rtl;
-                text-align: right;
-            `;
-
-            // زر إغلاق
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '✕ إغلاق';
-            closeBtn.style.cssText = `
-                position: sticky;
-                top: 0;
-                float: left;
-                background: #dc3545;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-                border-radius: 5px;
-                cursor: pointer;
-                margin-bottom: 15px;
-                font-size: 14px;
-            `;
-            closeBtn.onclick = () => { newModal.remove(); overlay.remove(); };
-            newModal.insertBefore(closeBtn, newModal.firstChild);
-
-            // Overlay
-            const overlay = document.createElement('div');
-            overlay.id = 'custom-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.7);
-                z-index: 9999998;
-            `;
-            overlay.onclick = () => { newModal.remove(); overlay.remove(); };
-
-            document.body.appendChild(overlay);
-            document.body.appendChild(newModal);
-            
-            console.log('✅ Custom modal opened!');
-            
         } catch (e) {
             console.error('❌ Error:', e);
             showAlert('خطأ: ' + e.message, 'error');
@@ -1616,6 +1728,7 @@
                             <th>الحالة</th>
                             <th>الوقت المستغرق</th>
                             <th>التاريخ</th>
+                            <th>التفاصيل</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1637,6 +1750,11 @@
                                 </td>
                                 <td>${r.time_spent_seconds ? Math.round(r.time_spent_seconds / 60) + ' د' : '-'}</td>
                                 <td>${r.completed_at ? new Date(r.completed_at).toLocaleString('ar-SA') : '-'}</td>
+                                <td>
+                                    ${r.status === 'completed'
+                                        ? `<button class="btn btn-outline" style="padding: 0.25rem 0.6rem; font-size: 0.8rem;" onclick="viewResultDetail(${r.id})">عرض</button>`
+                                        : '-'}
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1870,6 +1988,9 @@
                     <div style="display: flex; justify-content: space-between; align-items: start;">
                         <h4>${t.title}</h4>
                         <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-sm btn-outline" onclick="viewAssignmentStatus(${t.id})" title="مين استلم وفتح الاختبار">
+                                📋 حالة الإرسال
+                            </button>
                             <button class="btn btn-sm btn-warning" onclick="cancelSchedule(${t.id})" title="إلغاء الجدولة فقط">
                                 ⏸️ إلغاء الجدولة
                             </button>
