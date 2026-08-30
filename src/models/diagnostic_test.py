@@ -107,8 +107,8 @@ class DiagnosticTest(db.Model):
             # الجدولة
             'is_scheduled': self.is_scheduled,
             'schedule_status': self.schedule_status,
-            'scheduled_start': self.scheduled_start.isoformat() if self.scheduled_start else None,
-            'scheduled_end': self.scheduled_end.isoformat() if self.scheduled_end else None,
+            'scheduled_start': (self.scheduled_start.isoformat() + 'Z') if self.scheduled_start else None,
+            'scheduled_end': (self.scheduled_end.isoformat() + 'Z') if self.scheduled_end else None,
             'assigned_students': self.assigned_students or [],
             'assigned_students_count': len(self.assigned_students or []),
             'assigned_grade': self.assigned_grade,
@@ -116,7 +116,7 @@ class DiagnosticTest(db.Model):
             
             'is_active': self.is_active,
             'is_published': self.is_published,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
         }
         
         if include_questions:
@@ -213,7 +213,7 @@ class DiagnosticResult(db.Model):
             'percentage': self.percentage,
             'status': self.status,
             'time_spent_seconds': self.time_spent_seconds,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+            'completed_at': (self.completed_at.isoformat() + 'Z') if self.completed_at else None
         }
 
 
@@ -266,5 +266,5 @@ class DiagnosticComparison(db.Model):
             'pre_score': self.pre_score,
             'post_score': self.post_score,
             'improvement': self.improvement,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None
         }

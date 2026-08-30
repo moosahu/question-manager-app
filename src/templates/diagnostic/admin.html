@@ -1610,9 +1610,11 @@
                         <tr>
                             <th>الاختبار</th>
                             <th>الطالب</th>
+                            <th>الشعبة</th>
                             <th>الدرجة</th>
                             <th>النسبة</th>
                             <th>الحالة</th>
+                            <th>الوقت المستغرق</th>
                             <th>التاريخ</th>
                         </tr>
                     </thead>
@@ -1621,6 +1623,7 @@
                             <tr>
                                 <td>${r.test_title || 'N/A'}</td>
                                 <td>${r.student_name || `طالب #${r.student_id}`}</td>
+                                <td>${r.section ? `شعبة ${r.section}` : '-'}</td>
                                 <td>${r.score || 0} / ${r.total_questions || 0}</td>
                                 <td>
                                     <span style="color: ${(r.percentage || 0) >= 60 ? '#10b981' : '#ef4444'}">
@@ -1632,6 +1635,7 @@
                                         ${r.status === 'completed' ? 'مكتمل' : 'غير مكتمل'}
                                     </span>
                                 </td>
+                                <td>${r.time_spent_seconds ? Math.round(r.time_spent_seconds / 60) + ' د' : '-'}</td>
                                 <td>${r.completed_at ? new Date(r.completed_at).toLocaleString('ar-SA') : '-'}</td>
                             </tr>
                         `).join('')}

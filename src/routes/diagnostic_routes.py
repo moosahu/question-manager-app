@@ -1122,7 +1122,8 @@ def submit_test(result_id):
         result.score_percentage = result.percentage
         result.passed = result.score_percentage >= test.passing_score
         result.completed_at = datetime.utcnow()
-        result.time_spent_seconds = sum(a.get('time_spent', 0) for a in corrected)
+        summed_time = sum(a.get('time_spent', 0) for a in corrected)
+        result.time_spent_seconds = data.get('time_spent_seconds') or summed_time
         result.status = 'completed'
         
         # تحليل النتيجة
@@ -2032,12 +2033,22 @@ def get_all_results():
                     result_dict['test_title'] = r.test.title
                     result_dict['test_type'] = r.test.test_type
                 
-                # جلب اسم الطالب
+                # جلب اسم الطالب + الشعبة
                 if r.student_id:
                     student = Student.query.get(r.student_id)
                     if student:
                         result_dict['student_name'] = student.name
-                
+                        try:
+                            from src.models.teacher_student import TeacherStudent
+                            link = TeacherStudent.query.filter(
+                                TeacherStudent.student_id == student.id,
+                                TeacherStudent.section.isnot(None),
+                                TeacherStudent.section != ''
+                            ).first()
+                            result_dict['section'] = link.section if link else ''
+                        except Exception as _e:
+                            result_dict['section'] = ''
+
                 results_data.append(result_dict)
             except Exception as e:
                 print(f"⚠️ Error processing result {r.id}: {e}")
