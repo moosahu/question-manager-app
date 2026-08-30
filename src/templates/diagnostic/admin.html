@@ -1327,6 +1327,9 @@
                                 <button class="btn btn-sm btn-warning" onclick="downloadPDF(${test.id}, true)" title="PDF مع الإجابات">
                                     📋
                                 </button>
+                                <button class="btn btn-sm btn-outline" onclick="renameTest(${test.id}, '${test.title.replace(/'/g, "\\'")}')" title="تعديل الاسم">
+                                    ✏️
+                                </button>
                                 <button class="btn btn-sm btn-danger" onclick="deleteTest(${test.id})" title="حذف">
                                     🗑️
                                 </button>
@@ -1615,6 +1618,36 @@
         downloadPDF(testId, includeAnswers, fontFamily);
     };
     
+    // ===== Rename Test =====
+    window.renameTest = async function(testId, currentTitle) {
+        const newTitle = prompt('اسم الاختبار الجديد:', currentTitle);
+        if (newTitle === null) return; // إلغاء
+        const trimmed = newTitle.trim();
+        if (!trimmed) {
+            showAlert('اسم الاختبار مطلوب', 'error');
+            return;
+        }
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: trimmed})
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert('تم تعديل الاسم', 'success');
+                diagLoadTests();
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
     // ===== Delete Test =====
     window.deleteTest = async function(testId) {
         if (!confirm('هل أنت متأكد من حذف هذا الاختبار؟')) return;

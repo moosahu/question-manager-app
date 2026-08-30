@@ -1441,6 +1441,31 @@ def get_student_history(student_id):
 # حذف
 # ==========================================
 
+@diagnostic_bp.route('/tests/<int:test_id>', methods=['PUT'])
+@login_required
+@admin_required
+def update_test(test_id):
+    """تعديل اسم الاختبار"""
+    try:
+        test = DiagnosticTest.query.filter_by(id=test_id, is_active=True).first()
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        data = request.get_json() or {}
+        title = (data.get('title') or '').strip()
+        if not title:
+            return jsonify({'success': False, 'error': 'اسم الاختبار مطلوب'}), 400
+
+        test.title = title
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم تعديل الاسم بنجاح', 'test': test.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error updating test: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @diagnostic_bp.route('/tests/<int:test_id>', methods=['DELETE'])
 @login_required
 @admin_required
