@@ -1622,6 +1622,53 @@
         }
     };
 
+    // ===== تحليل الأسئلة (أضعف سؤال + أكثر مشتت تم اختياره) =====
+    window.viewItemAnalysis = async function(testId) {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}/item-analysis`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            if (!data.items.length) {
+                showCustomModal(`<h4 style="margin-bottom:1rem;">${data.test_title}</h4>
+                    <p style="text-align:center; color:#6b7280; padding:1rem;">لا يوجد طلاب أكملوا هذا الاختبار حتى الآن</p>`);
+                return;
+            }
+
+            let html = `
+                <h4 style="margin-bottom: 0.25rem; color: #333;">🔍 تحليل الأسئلة — ${data.test_title}</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">مرتبة من الأضعف (الأقل دقة) للأقوى</p>
+                <table class="table">
+                    <thead>
+                        <tr><th>السؤال</th><th>الدقة</th><th>أكثر مشتت تم اختياره</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.items.map(it => `
+                            <tr>
+                                <td style="text-align:right;">${it.question_text}</td>
+                                <td style="color: ${it.accuracy >= 60 ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                                    ${it.accuracy}%<br><small style="color:#9ca3af;">${it.correct_count}/${it.total_answers}</small>
+                                </td>
+                                <td>${it.top_distractor ? `${it.top_distractor}<br><small style="color:#9ca3af;">اختاره ${it.top_distractor_count}</small>` : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
     window.viewComparison = async function(testId) {
         showLoading(true);
         try {
@@ -2166,6 +2213,9 @@
                             </button>
                             <button class="btn btn-sm btn-outline" onclick="window.open('${API_BASE}/tests/${t.id}/export-excel', '_blank')" title="تصدير النتائج Excel">
                                 📊 Excel
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="viewItemAnalysis(${t.id})" title="أضعف الأسئلة وأكثر مشتت تم اختياره">
+                                🔍 تحليل الأسئلة
                             </button>
                             ${t.paired_test_id ? `
                             <button class="btn btn-sm btn-outline" onclick="viewComparison(${t.id})" title="مقارنة القبلي/البعدي">

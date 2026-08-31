@@ -1141,7 +1141,8 @@ def submit_test(result_id):
                 'correct_answer': correct_index,
                 'is_correct': is_correct,
                 'time_spent': ans.get('time_spent', 0),
-                'topic': question.get('lesson_name', '')
+                # ✅ اسم الدرس من السؤال نفسه، وإلا اسم الدرس/الوحدة/المقرر المرتبط بالاختبار نفسه
+                'topic': question.get('lesson_name') or test.lesson_name or test.unit_name or test.course_name or ''
             })
         
         # تحديث النتيجة
@@ -1197,6 +1198,15 @@ def submit_test(result_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _topic_fallback(stored_topic, test):
+    """اسم الموضوع/الدرس، وإذا كان فارغاً (نتائج قديمة) يرجع لاسم الاختبار نفسه بدل 'عام'"""
+    if stored_topic:
+        return stored_topic
+    if test:
+        return test.lesson_name or test.unit_name or test.course_name or 'عام'
+    return 'عام'
+
+
 def _get_student_section(student_id):
     """يرجع شعبة الطالب (أول ربط له فيه شعبة) أو نص فاضي"""
     try:
@@ -1250,7 +1260,7 @@ def get_result_detail(result_id):
                     return None
                 return options[opt_idx].get('text', '')
 
-            topic = a.get('topic') or 'عام'
+            topic = _topic_fallback(a.get('topic'), test)
             bucket = topic_breakdown.setdefault(topic, {'correct': 0, 'total': 0})
             bucket['total'] += 1
             if a.get('is_correct'):
@@ -1385,6 +1395,87 @@ def reopen_test_for_student(test_id, student_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _resolve_question_options(result, a):
+    """يرجع (options, نص إجابة الطالب) لعنصر إجابة واحد، مع مراعاة الترتيب العشوائي لكل طالب"""
+    idx = a.get('question_id')
+    test = result.test
+    if not test or not isinstance(idx, int):
+        return [], None
+    canonical = test.questions_data or []
+    shuffled = _get_shuffled_questions(canonical, result.id)
+    q = {}
+    if 0 <= idx < len(shuffled) and shuffled[idx].get('text') == a.get('question_text'):
+        q = shuffled[idx]
+    elif 0 <= idx < len(canonical):
+        q = canonical[idx]
+    options = q.get('options', [])
+    sel = a.get('selected_answer')
+    sel_text = options[sel].get('text', '') if (isinstance(sel, int) and 0 <= sel < len(options)) else None
+    return options, sel_text
+
+
+def _compute_item_analysis(test):
+    """تحليل كل سؤال بالاختبار عبر كل الطلاب: نسبة الصح، وأكثر مشتت (إجابة خاطئة) تم اختياره"""
+    results = DiagnosticResult.query.filter_by(diagnostic_test_id=test.id, status='completed').all()
+
+    stats = {}
+    order = []
+    for r in results:
+        for a in (r.answers or []):
+            if not isinstance(a, dict) or a.get('_meta'):
+                continue
+            qtext = a.get('question_text') or ''
+            if not qtext:
+                continue
+            if qtext not in stats:
+                stats[qtext] = {'correct': 0, 'total': 0, 'wrong_counts': {}}
+                order.append(qtext)
+            s = stats[qtext]
+            s['total'] += 1
+            if a.get('is_correct'):
+                s['correct'] += 1
+            else:
+                _, sel_text = _resolve_question_options(r, a)
+                key = sel_text if sel_text else '(لم يُجب)'
+                s['wrong_counts'][key] = s['wrong_counts'].get(key, 0) + 1
+
+    items = []
+    for qtext in order:
+        s = stats[qtext]
+        accuracy = round(s['correct'] / s['total'] * 100, 1) if s['total'] else 0
+        top_distractor = max(s['wrong_counts'].items(), key=lambda kv: kv[1]) if s['wrong_counts'] else None
+        items.append({
+            'question_text': qtext,
+            'total_answers': s['total'],
+            'correct_count': s['correct'],
+            'accuracy': accuracy,
+            'top_distractor': top_distractor[0] if top_distractor else None,
+            'top_distractor_count': top_distractor[1] if top_distractor else 0,
+            'distractor_breakdown': s['wrong_counts'],
+        })
+    items.sort(key=lambda it: it['accuracy'])
+    return items
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/item-analysis', methods=['GET'])
+@login_required
+@admin_required
+def get_item_analysis(test_id):
+    """تحليل كل سؤال بالاختبار: أضعف الأسئلة وأكثر مشتت (إجابة خاطئة) تم اختياره"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        items = _compute_item_analysis(test)
+        return jsonify({'success': True, 'test_title': test.title, 'items': items})
+    except Exception as e:
+        print(f"❌ Error getting item analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @diagnostic_bp.route('/tests/<int:test_id>/export-excel', methods=['GET'])
 @login_required
 @admin_required
@@ -1442,6 +1533,40 @@ def export_results_excel(test_id):
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
 
+        # ✅ ورقة ثانية: تحليل كل سؤال (أضعف الأسئلة + أكثر مشتت تم اختياره)
+        items = _compute_item_analysis(test)
+        if items:
+            ws2 = wb.create_sheet('تحليل الأسئلة')
+            ws2.sheet_view.rightToLeft = True
+            headers2 = ['السؤال', 'عدد الإجابات', 'صح', 'الدقة %', 'أكثر مشتت تم اختياره', 'عدد من اختاره']
+            for col, h in enumerate(headers2, 1):
+                cell = ws2.cell(1, col, value=h)
+                cell.font = Font(bold=True, color='FFFFFF', size=11)
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2, wrap_text=True)
+                cell.border = border
+            ws2.row_dimensions[1].height = 30
+
+            for r, it in enumerate(items, 2):
+                row = [
+                    it['question_text'],
+                    it['total_answers'],
+                    it['correct_count'],
+                    it['accuracy'],
+                    it['top_distractor'] or '-',
+                    it['top_distractor_count'],
+                ]
+                for col, val in enumerate(row, 1):
+                    cell = ws2.cell(r, col, value=val)
+                    cell.alignment = Alignment(horizontal='center', vertical='center',
+                                               readingOrder=2, wrap_text=True)
+                    cell.border = border
+
+            ws2.column_dimensions['A'].width = 45
+            for col in range(2, len(headers2) + 1):
+                ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+            ws2.column_dimensions['E'].width = 30
+
         output = BytesIO()
         wb.save(output)
         output.seek(0)
@@ -1484,7 +1609,7 @@ def get_sections_report():
                     if a.get('left_app_count') or a.get('screenshot_count'):
                         cheat_count += 1
                     continue
-                topic = a.get('topic') or 'عام'
+                topic = _topic_fallback(a.get('topic'), r.test)
                 t = topic_stats.setdefault(topic, {'correct': 0, 'total': 0})
                 t['total'] += 1
                 if a.get('is_correct'):
