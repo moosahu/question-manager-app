@@ -959,6 +959,24 @@ def generate_diagnostic_html(test, include_answers=False, header_settings=None, 
 # حل الاختبار (للطالب)
 # ==========================================
 
+def _get_shuffled_questions(questions_data, seed):
+    """
+    يرجّع نسخة من الأسئلة (وخياراتها) بترتيب عشوائي يعتمد على seed ثابت (result.id).
+    نفس الـ seed يرجع نفس الترتيب بالضبط دائماً — يُستخدم وقت عرض الاختبار للطالب
+    وأيضاً وقت التصحيح، فيبقى التصحيح صحيح دون الحاجة لتخزين أي بيانات إضافية.
+    """
+    import random
+    import copy
+    rng = random.Random(seed)
+    questions = copy.deepcopy(questions_data)
+    rng.shuffle(questions)
+    for q in questions:
+        options = q.get('options')
+        if isinstance(options, list):
+            rng.shuffle(options)
+    return questions
+
+
 @diagnostic_bp.route('/tests/<int:test_id>/start', methods=['POST'])
 def start_test(test_id):
     """
@@ -1030,11 +1048,11 @@ def start_test(test_id):
         result.started_at = datetime.utcnow()
         result.status = 'in_progress'
         db.session.commit()
-        
-        # جلب الأسئلة
-        questions = []
-        questions = test.questions_data or []
-        
+
+        # ✅ جلب الأسئلة بترتيب عشوائي (أسئلة + خيارات) يختلف لكل طالب، لمنع الغش
+        # الترتيب مبني على result.id كـ seed ثابت، فيرجع نفسه بالضبط وقت التصحيح بدون تخزين أي شي إضافي
+        questions = _get_shuffled_questions(test.questions_data or [], result.id)
+
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
@@ -1074,8 +1092,9 @@ def submit_test(result_id):
             return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
         
         test = result.test
-        questions = test.questions_data or []
-        
+        # ✅ نفس الترتيب العشوائي المبني على result.id اللي شافه الطالب بالضبط وقت الحل
+        questions = _get_shuffled_questions(test.questions_data or [], result.id)
+
         # تصحيح الإجابات
         corrected = []
         correct_count = 0
@@ -1178,7 +1197,9 @@ def get_result_detail(result_id):
             return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
 
         test = result.test
-        questions_data = (test.questions_data or []) if test else []
+        canonical_data = (test.questions_data or []) if test else []
+        # ✅ نفس الترتيب العشوائي اللي شافه الطالب وقت الحل (نفس result.id = نفس seed)
+        shuffled_data = _get_shuffled_questions(canonical_data, result.id) if test else []
         stored_answers = result.answers or []
 
         questions = []
@@ -1186,7 +1207,14 @@ def get_result_detail(result_id):
 
         for a in stored_answers:
             idx = a.get('question_id')
-            q = questions_data[idx] if (isinstance(idx, int) and 0 <= idx < len(questions_data)) else {}
+            q = {}
+            if isinstance(idx, int):
+                # جرّب الترتيب العشوائي أولاً، وإذا نص السؤال ما تطابق (نتيجة قديمة من قبل هذه الميزة)
+                # ارجع للترتيب الأصلي حتى تبقى النتائج القديمة صحيحة
+                if 0 <= idx < len(shuffled_data) and shuffled_data[idx].get('text') == a.get('question_text'):
+                    q = shuffled_data[idx]
+                elif 0 <= idx < len(canonical_data):
+                    q = canonical_data[idx]
             options = q.get('options', [])
 
             def _opt_text(opt_idx):
