@@ -2033,12 +2033,20 @@ def assign_test():
             test.update_schedule_status()
         
         db.session.commit()
-        
+
+        # ✅ لا نُشعر مين خلّص الاختبار فعلاً (يصير مزعج له ولا يقدر يفتحه مرة ثانية أصلاً)
+        already_completed_ids = {
+            int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                diagnostic_test_id=test.id, status='completed'
+            ).all() if r.student_id and str(r.student_id).isdigit()
+        }
+        notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+
         # إرسال إشعارات
         if send_notification and NotificationService:
             try:
                 students = Student.query.filter(
-                    Student.id.in_(student_ids_list),
+                    Student.id.in_(notify_ids),
                     Student.fcm_token.isnot(None)
                 ).all()
                 
@@ -2129,7 +2137,7 @@ def assign_test():
                     'test_id': str(test.id),
                 }
                 
-                for sid in student_ids_list:
+                for sid in notify_ids:
                     if _save_notification_to_db(
                         student_id=sid,
                         title=notification_title,
@@ -2141,7 +2149,8 @@ def assign_test():
                 
                 db.session.commit()
                 print(f"✅ تم إرسال {success_count}/{len(students)} إشعار FCM")
-                print(f"✅ تم حفظ {db_save_count}/{len(student_ids_list)} إشعار في قاعدة البيانات")
+                print(f"✅ تم حفظ {db_save_count}/{len(notify_ids)} إشعار في قاعدة البيانات "
+                      f"(استُثني {len(student_ids_list) - len(notify_ids)} أكملوا الاختبار مسبقاً)")
                 
                 if success_count > 0:
                     test.notification_sent = True
@@ -2229,10 +2238,18 @@ def teacher_assign_test():
 
         db.session.commit()
 
+        # ✅ لا نُشعر مين خلّص الاختبار فعلاً (يصير مزعج له ولا يقدر يفتحه مرة ثانية أصلاً)
+        already_completed_ids = {
+            int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                diagnostic_test_id=test.id, status='completed'
+            ).all() if r.student_id and str(r.student_id).isdigit()
+        }
+        notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+
         # إشعارات FCM
         if send_notif:
             try:
-                students = Student.query.filter(Student.id.in_(student_ids_list), Student.is_active == True).all()
+                students = Student.query.filter(Student.id.in_(notify_ids), Student.is_active == True).all()
                 for s in students:
                     if getattr(s, 'fcm_token', None):
                         try:
