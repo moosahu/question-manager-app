@@ -1036,7 +1036,17 @@ def start_test(test_id):
             diagnostic_test_id=test_id,
             student_id=student_id
         ).first()
-        
+
+        device_id = request.headers.get('X-Device-ID') or data.get('device_id')
+
+        # ✅ منع فتح نفس الاختبار من جهازين بنفس الوقت (نفس الحساب على أكثر من جهاز)
+        if result and result.status == 'in_progress' and result.device_id and device_id \
+                and result.device_id != device_id:
+            return jsonify({
+                'success': False,
+                'error': 'هذا الاختبار مفتوح حالياً من جهاز آخر بنفس حسابك'
+            }), 409
+
         if not result:
             result = DiagnosticResult(
                 diagnostic_test_id=test_id,
@@ -1044,7 +1054,9 @@ def start_test(test_id):
                 total_questions=test.questions_count
             )
             db.session.add(result)
-        
+
+        if device_id:
+            result.device_id = device_id
         result.started_at = datetime.utcnow()
         result.status = 'in_progress'
         db.session.commit()
@@ -1156,7 +1168,18 @@ def submit_test(result_id):
         strong = [a['topic'] for a in corrected if a['is_correct'] and a.get('topic')]
         result.weak_topics = list(set(weak))
         result.strong_topics = list(set(strong))
-        
+
+        # ✅ مؤشرات غش (بدون عمود DB جديد — تُخزَّن كعنصر _meta داخل answers نفسها)
+        left_app_count = int(data.get('left_app_count') or 0)
+        screenshot_count = int(data.get('screenshot_count') or 0)
+        if left_app_count or screenshot_count:
+            corrected.append({
+                '_meta': True,
+                'left_app_count': left_app_count,
+                'screenshot_count': screenshot_count,
+            })
+            result.answers = corrected
+
         db.session.commit()
         
         return jsonify({
@@ -1204,8 +1227,13 @@ def get_result_detail(result_id):
 
         questions = []
         topic_breakdown = {}
+        cheat_flags = {'left_app_count': 0, 'screenshot_count': 0}
 
         for a in stored_answers:
+            if a.get('_meta'):
+                cheat_flags['left_app_count'] = a.get('left_app_count', 0)
+                cheat_flags['screenshot_count'] = a.get('screenshot_count', 0)
+                continue
             idx = a.get('question_id')
             q = {}
             if isinstance(idx, int):
@@ -1259,6 +1287,8 @@ def get_result_detail(result_id):
                 'weak_topics': weak_topics,
                 'strong_topics': strong_topics,
                 'topic_breakdown': topic_breakdown,
+                'left_app_count': cheat_flags['left_app_count'],
+                'screenshot_count': cheat_flags['screenshot_count'],
             }
         })
     except Exception as e:
@@ -1424,6 +1454,66 @@ def export_results_excel(test_id):
         )
     except Exception as e:
         print(f"❌ Error exporting results excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/sections-report', methods=['GET'])
+@login_required
+@admin_required
+def get_sections_report():
+    """تقرير أداء شامل عبر الشعب — متوسط كل شعبة وأضعف المواضيع عبر كل الاختبارات التشخيصية مجتمعة"""
+    try:
+        results = DiagnosticResult.query.filter_by(status='completed').all()
+
+        section_stats = {}
+        topic_stats = {}
+        cheat_count = 0
+
+        for r in results:
+            section = (_get_student_section(r.student_id) if r.student_id else '') or 'بدون شعبة'
+            s = section_stats.setdefault(section, {'count': 0, 'sum_pct': 0.0})
+            s['count'] += 1
+            s['sum_pct'] += (r.percentage or 0)
+
+            for a in (r.answers or []):
+                if not isinstance(a, dict):
+                    continue
+                if a.get('_meta'):
+                    if a.get('left_app_count') or a.get('screenshot_count'):
+                        cheat_count += 1
+                    continue
+                topic = a.get('topic') or 'عام'
+                t = topic_stats.setdefault(topic, {'correct': 0, 'total': 0})
+                t['total'] += 1
+                if a.get('is_correct'):
+                    t['correct'] += 1
+
+        sections = [{
+            'section': k,
+            'count': v['count'],
+            'avg_percentage': round(v['sum_pct'] / v['count'], 1) if v['count'] else 0,
+        } for k, v in section_stats.items()]
+        sections.sort(key=lambda s: s['avg_percentage'])
+
+        topics = [{
+            'topic': k,
+            'correct': v['correct'],
+            'total': v['total'],
+            'accuracy': round(v['correct'] / v['total'] * 100, 1) if v['total'] else 0,
+        } for k, v in topic_stats.items()]
+        topics.sort(key=lambda t: t['accuracy'])
+
+        return jsonify({
+            'success': True,
+            'sections': sections,
+            'weak_topics': topics[:10],
+            'total_results': len(results),
+            'flagged_attempts': cheat_count,
+        })
+    except Exception as e:
+        print(f"❌ Error getting sections report: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2403,6 +2493,12 @@ def get_all_results():
                     if student:
                         result_dict['student_name'] = student.name
                         result_dict['section'] = _get_student_section(student.id)
+
+                # ✅ مؤشر غش سريع بدون فتح التفاصيل
+                meta = next((a for a in (r.answers or []) if isinstance(a, dict) and a.get('_meta')), None)
+                if meta:
+                    result_dict['left_app_count'] = meta.get('left_app_count', 0)
+                    result_dict['screenshot_count'] = meta.get('screenshot_count', 0)
 
                 results_data.append(result_dict)
             except Exception as e:

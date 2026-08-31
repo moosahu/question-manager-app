@@ -991,7 +991,10 @@
         <div class="card">
             <div class="card-header">
                 <h3>📊 نتائج الاختبارات</h3>
-                <button class="btn btn-sm btn-primary" onclick="loadAllResults()">🔄 تحديث</button>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-sm btn-outline" onclick="viewSectionsReport()">📈 تقرير الشعب</button>
+                    <button class="btn btn-sm btn-primary" onclick="loadAllResults()">🔄 تحديث</button>
+                </div>
             </div>
             <div class="card-body">
                 <div style="margin-bottom: 1rem;">
@@ -1561,6 +1564,64 @@
     };
 
     // ===== مقارنة القبلي/البعدي =====
+    // ===== تقرير أداء شامل عبر الشعب =====
+    window.viewSectionsReport = async function() {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/sections-report`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            let html = `
+                <h4 style="margin-bottom: 0.25rem; color: #333;">📈 تقرير أداء الشعب — كل الاختبارات التشخيصية</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">
+                    إجمالي المحاولات المكتملة: ${data.total_results}
+                    ${data.flagged_attempts ? ` — <span style="color:#f59e0b;">⚠️ محاولات فيها مؤشر غش: ${data.flagged_attempts}</span>` : ''}
+                </p>
+                <h5 style="margin-bottom: 0.5rem;">متوسط كل شعبة (من الأضعف للأقوى)</h5>
+                <table class="table" style="margin-bottom: 1.5rem;">
+                    <thead><tr><th>الشعبة</th><th>عدد المحاولات</th><th>المتوسط</th></tr></thead>
+                    <tbody>
+                        ${data.sections.map(s => `
+                            <tr>
+                                <td>شعبة ${s.section}</td>
+                                <td>${s.count}</td>
+                                <td style="color: ${s.avg_percentage >= 60 ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                                    ${s.avg_percentage}%
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <h5 style="margin-bottom: 0.5rem;">أضعف المواضيع (الأقل دقة)</h5>
+                <table class="table">
+                    <thead><tr><th>الموضوع</th><th>صح/الإجمالي</th><th>الدقة</th></tr></thead>
+                    <tbody>
+                        ${data.weak_topics.map(t => `
+                            <tr>
+                                <td>${t.topic}</td>
+                                <td>${t.correct}/${t.total}</td>
+                                <td style="color: ${t.accuracy >= 60 ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                                    ${t.accuracy}%
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
     window.viewComparison = async function(testId) {
         showLoading(true);
         try {
@@ -1842,7 +1903,12 @@
                         ${results.map(r => `
                             <tr>
                                 <td>${r.test_title || 'N/A'}</td>
-                                <td>${r.student_name || `طالب #${r.student_id}`}</td>
+                                <td>
+                                    ${r.student_name || `طالب #${r.student_id}`}
+                                    ${(r.left_app_count || r.screenshot_count)
+                                        ? ` <span title="خرج من التطبيق: ${r.left_app_count || 0} — لقطة شاشة: ${r.screenshot_count || 0}" style="color:#f59e0b;">⚠️</span>`
+                                        : ''}
+                                </td>
                                 <td>${r.section ? `شعبة ${r.section}` : '-'}</td>
                                 <td>${r.score || 0} / ${r.total_questions || 0}</td>
                                 <td>
