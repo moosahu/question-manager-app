@@ -1533,6 +1533,16 @@ def export_results_excel(test_id):
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
 
+        # صف المصدر (نفس تذييل بقية تقارير التطبيق)
+        footer_row1 = len(results) + 3
+        ws.merge_cells(start_row=footer_row1, start_column=1, end_row=footer_row1, end_column=len(headers))
+        fc1 = ws.cell(footer_row1, 1)
+        fc1.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+        fc1.font = Font(size=9, color='888888', italic=True)
+        fc1.alignment = Alignment(horizontal='center', vertical='center')
+        fc1.fill = PatternFill('solid', fgColor='F1F5F9')
+        ws.row_dimensions[footer_row1].height = 18
+
         # ✅ ورقة ثانية: تحليل كل سؤال (أضعف الأسئلة + أكثر مشتت تم اختياره)
         items = _compute_item_analysis(test)
         if items:
@@ -1565,6 +1575,15 @@ def export_results_excel(test_id):
             ws2.column_dimensions['A'].width = 45
             for col in range(2, len(headers2) + 1):
                 ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+
+            footer_row2 = len(items) + 3
+            ws2.merge_cells(start_row=footer_row2, start_column=1, end_row=footer_row2, end_column=len(headers2))
+            fc2 = ws2.cell(footer_row2, 1)
+            fc2.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+            fc2.font = Font(size=9, color='888888', italic=True)
+            fc2.alignment = Alignment(horizontal='center', vertical='center')
+            fc2.fill = PatternFill('solid', fgColor='F1F5F9')
+            ws2.row_dimensions[footer_row2].height = 18
             ws2.column_dimensions['E'].width = 30
 
         output = BytesIO()
@@ -1953,7 +1972,9 @@ def assign_test():
         scheduled_end = data.get('scheduled_end')
         time_limit = data.get('time_limit_minutes', 30)
         send_notification = data.get('send_notification', True)
-        append_students = data.get('append_students', False)  # ✅ جديد: إضافة بدلاً من الاستبدال
+        # ✅ افتراضياً نضيف للقائمة الحالية بدل ما نستبدلها (منعاً لضياع طلاب أُرسل لهم الاختبار سابقاً
+        # عند إعادة الإرسال لمجموعة/شعبة ثانية) — مرّر replace_students=true للاستبدال الكامل عمداً
+        append_students = not data.get('replace_students', False)
         
         test = DiagnosticTest.query.get(test_id)
         if not test:
@@ -2189,6 +2210,11 @@ def teacher_assign_test():
 
         if not student_ids_list:
             return jsonify({'success': False, 'error': 'لا يوجد طلاب مرتبطون بك بعد ضمن الشعبة المحددة' if sections else 'لا يوجد طلاب مرتبطون بك بعد'}), 400
+
+        # ✅ نضيف للقائمة الحالية بدل الاستبدال — منعاً لضياع طلاب أُرسل لهم الاختبار سابقاً
+        # عند إعادة الإرسال لشعبة ثانية لاحقاً
+        if not body.get('replace_students', False) and test.assigned_students:
+            student_ids_list = list(set(test.assigned_students) | set(student_ids_list))
 
         test.is_scheduled     = True
         test.assigned_students = student_ids_list
