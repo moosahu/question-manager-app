@@ -1972,9 +1972,11 @@ def assign_test():
         scheduled_end = data.get('scheduled_end')
         time_limit = data.get('time_limit_minutes', 30)
         send_notification = data.get('send_notification', True)
-        # ✅ افتراضياً نضيف للقائمة الحالية بدل ما نستبدلها (منعاً لضياع طلاب أُرسل لهم الاختبار سابقاً
-        # عند إعادة الإرسال لمجموعة/شعبة ثانية) — مرّر replace_students=true للاستبدال الكامل عمداً
-        append_students = not data.get('replace_students', False)
+        # ✅ إضافة بدلاً من الاستبدال (checkbox بالموقع). التطبيق ما يرسل هذا الحقل، فنخليه يضيف
+        # افتراضياً (منعاً لضياع طلاب أُرسل لهم الاختبار سابقاً عند إعادة الإرسال لشعبة ثانية)
+        append_students = data.get('append_students', True)
+        # ✅ هل نُشعر حتى من أكمل الاختبار مسبقاً، أو الطلاب الجدد بس (الافتراضي)
+        notify_all = data.get('notify_all', False)
         
         test = DiagnosticTest.query.get(test_id)
         if not test:
@@ -2034,13 +2036,16 @@ def assign_test():
         
         db.session.commit()
 
-        # ✅ لا نُشعر مين خلّص الاختبار فعلاً (يصير مزعج له ولا يقدر يفتحه مرة ثانية أصلاً)
-        already_completed_ids = {
-            int(r.student_id) for r in DiagnosticResult.query.filter_by(
-                diagnostic_test_id=test.id, status='completed'
-            ).all() if r.student_id and str(r.student_id).isdigit()
-        }
-        notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+        # ✅ لا نُشعر مين خلّص الاختبار فعلاً إلا لو طلب notify_all صراحة (يصير مزعج وهو أصلاً ما يقدر يفتحه مرة ثانية)
+        if notify_all:
+            notify_ids = student_ids_list
+        else:
+            already_completed_ids = {
+                int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                    diagnostic_test_id=test.id, status='completed'
+                ).all() if r.student_id and str(r.student_id).isdigit()
+            }
+            notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
 
         # إرسال إشعارات
         if send_notification and NotificationService:
@@ -2206,6 +2211,7 @@ def teacher_assign_test():
         scheduled_start  = body.get('scheduled_start')
         scheduled_end    = body.get('scheduled_end')
         sections         = body.get('sections')  # ✅ جديد: فلترة شعبة واحدة أو أكثر
+        notify_all       = body.get('notify_all', False)  # ✅ إشعار حتى من أكمل الاختبار مسبقاً
 
         test = DiagnosticTest.query.get(test_id)
         if not test:
@@ -2238,13 +2244,16 @@ def teacher_assign_test():
 
         db.session.commit()
 
-        # ✅ لا نُشعر مين خلّص الاختبار فعلاً (يصير مزعج له ولا يقدر يفتحه مرة ثانية أصلاً)
-        already_completed_ids = {
-            int(r.student_id) for r in DiagnosticResult.query.filter_by(
-                diagnostic_test_id=test.id, status='completed'
-            ).all() if r.student_id and str(r.student_id).isdigit()
-        }
-        notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+        # ✅ لا نُشعر مين خلّص الاختبار فعلاً إلا لو طلب notify_all صراحة
+        if notify_all:
+            notify_ids = student_ids_list
+        else:
+            already_completed_ids = {
+                int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                    diagnostic_test_id=test.id, status='completed'
+                ).all() if r.student_id and str(r.student_id).isdigit()
+            }
+            notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
 
         # إشعارات FCM
         if send_notif:

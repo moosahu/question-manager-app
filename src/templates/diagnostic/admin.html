@@ -905,6 +905,13 @@
                         </label>
                         <small style="color: #6b7280; margin-top: 0.25rem; display: block;">فعّل هذا الخيار لإرسال الاختبار لطلاب إضافيين</small>
                     </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="schedule_notify_all">
+                            <span>إشعار حتى من أكمل الاختبار مسبقاً</span>
+                        </label>
+                        <small style="color: #6b7280; margin-top: 0.25rem; display: block;">افتراضياً: الإشعار يوصل بس للطلاب الجدد (اللي ما اختبروا بعد)</small>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         📅 جدولة الاختبار وإرسال الإشعارات
                     </button>
@@ -2171,7 +2178,8 @@
             scheduled_end: document.getElementById('schedule_end').value,
             time_limit_minutes: parseInt(document.getElementById('schedule_time_limit').value),
             send_notification: document.getElementById('schedule_send_notification').checked,
-            append_students: document.getElementById('schedule_append_students').checked
+            append_students: document.getElementById('schedule_append_students').checked,
+            notify_all: document.getElementById('schedule_notify_all').checked
         };
         try {
             const res = await fetch('/api/diagnostic/assign', {
