@@ -1221,6 +1221,91 @@ def _get_student_section(student_id):
         return ''
 
 
+def _get_historical_avg(student_id, exclude_result_id=None):
+    """متوسط أداء الطالب بباقي الاختبارات التشخيصية المكتملة (لرصد الشذوذ)"""
+    q = DiagnosticResult.query.filter_by(student_id=student_id, status='completed')
+    if exclude_result_id:
+        q = q.filter(DiagnosticResult.id != exclude_result_id)
+    others = q.all()
+    if not others:
+        return None
+    return sum(o.percentage or 0 for o in others) / len(others)
+
+
+def _get_student_answer_signature(result):
+    """يرجع {نص السؤال: نص الإجابة المختارة} لإجابات الطالب الخاطئة فقط (لمقارنة التطابق بين طلاب)"""
+    sig = {}
+    for a in (result.answers or []):
+        if not isinstance(a, dict) or a.get('_meta') or a.get('is_correct'):
+            continue
+        qtext = a.get('question_text')
+        if not qtext:
+            continue
+        _, sel_text = _resolve_question_options(result, a)
+        sig[qtext] = sel_text or '(لم يُجب)'
+    return sig
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/collusion-check', methods=['GET'])
+@login_required
+@admin_required
+def get_collusion_check(test_id):
+    """رصد تشابه مشبوه بالإجابات الخاطئة بين الطلاب (مؤشر تبادل/غش) لنفس الاختبار"""
+    try:
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        results = DiagnosticResult.query.filter_by(diagnostic_test_id=test_id, status='completed').all()
+
+        entries = []
+        for r in results:
+            sig = _get_student_answer_signature(r)
+            if len(sig) < 2:
+                continue
+            student = Student.query.get(r.student_id) if r.student_id else None
+            entries.append({
+                'result_id': r.id,
+                'student_name': student.name if student else f'طالب #{r.student_id}',
+                'section': _get_student_section(r.student_id) if r.student_id else '',
+                'sig': sig,
+            })
+
+        pairs = []
+        for i in range(len(entries)):
+            for j in range(i + 1, len(entries)):
+                a, b = entries[i], entries[j]
+                common_qs = set(a['sig'].keys()) & set(b['sig'].keys())
+                if len(common_qs) < 2:
+                    continue
+                matches = sum(1 for q in common_qs if a['sig'][q] == b['sig'][q])
+                similarity = matches / len(common_qs)
+                if similarity >= 0.7 and matches >= 2:
+                    pairs.append({
+                        'student_a': a['student_name'],
+                        'student_b': b['student_name'],
+                        'section_a': a['section'],
+                        'section_b': b['section'],
+                        'matching_wrong_answers': matches,
+                        'compared_questions': len(common_qs),
+                        'similarity_percent': round(similarity * 100, 1),
+                    })
+
+        pairs.sort(key=lambda p: p['similarity_percent'], reverse=True)
+
+        return jsonify({
+            'success': True,
+            'test_title': test.title,
+            'suspicious_pairs': pairs,
+            'count': len(pairs),
+        })
+    except Exception as e:
+        print(f"❌ Error checking collusion: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @diagnostic_bp.route('/results/<int:result_id>/detail', methods=['GET'])
 def get_result_detail(result_id):
     """تفاصيل نتيجة طالب: كل سؤال، إجابته، الإجابة الصحيحة، ونقاط القوة/الضعف"""
@@ -2676,6 +2761,20 @@ def get_all_results():
                 if meta:
                     result_dict['left_app_count'] = meta.get('left_app_count', 0)
                     result_dict['screenshot_count'] = meta.get('screenshot_count', 0)
+
+                # ✅ إكمال سريع بشكل غير طبيعي (أقل من ٨ ثواني لكل سؤال بالمتوسط)
+                if r.status == 'completed' and r.time_spent_seconds and r.total_questions:
+                    avg_per_q = r.time_spent_seconds / r.total_questions
+                    if avg_per_q < 8:
+                        result_dict['too_fast'] = True
+                        result_dict['avg_seconds_per_question'] = round(avg_per_q, 1)
+
+                # ✅ شذوذ مقارنة بمتوسط أداء الطالب بباقي الاختبارات التشخيصية
+                if r.status == 'completed' and r.student_id:
+                    hist_avg = _get_historical_avg(r.student_id, exclude_result_id=r.id)
+                    if hist_avg is not None and (r.percentage or 0) - hist_avg > 30:
+                        result_dict['anomalous_vs_history'] = True
+                        result_dict['historical_avg'] = round(hist_avg, 1)
 
                 results_data.append(result_dict)
             except Exception as e:

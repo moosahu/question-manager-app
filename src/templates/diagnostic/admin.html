@@ -1676,6 +1676,57 @@
         }
     };
 
+    // ===== فحص تطابق الإجابات المشبوه بين الطلاب =====
+    window.viewCollusionCheck = async function(testId) {
+        showLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/tests/${testId}/collusion-check`);
+            const data = await res.json();
+            if (!data.success) {
+                showAlert(data.error || 'خطأ', 'error');
+                return;
+            }
+
+            let html = `
+                <h4 style="margin-bottom: 0.25rem; color: #333;">🕵️ فحص تطابق الإجابات — ${data.test_title}</h4>
+                <p style="color: #6b7280; margin-bottom: 1rem;">
+                    نسبة تطابق ≥ 70% بنفس الإجابات الخاطئة بين طالبين = مؤشر مشبوه محتمل، مو دليل قاطع
+                </p>
+            `;
+
+            if (!data.suspicious_pairs.length) {
+                html += `<p style="text-align: center; color: #10b981; padding: 1rem;">✅ ما فيه أي تطابق مشبوه</p>`;
+            } else {
+                html += `
+                    <table class="table">
+                        <thead>
+                            <tr><th>الطالب الأول</th><th>الطالب الثاني</th><th>نسبة التطابق</th><th>إجابات متطابقة</th></tr>
+                        </thead>
+                        <tbody>
+                            ${data.suspicious_pairs.map(p => `
+                                <tr>
+                                    <td>${p.student_a}${p.section_a ? ` (شعبة ${p.section_a})` : ''}</td>
+                                    <td>${p.student_b}${p.section_b ? ` (شعبة ${p.section_b})` : ''}</td>
+                                    <td style="color: ${p.similarity_percent >= 90 ? '#dc2626' : '#f59e0b'}; font-weight: 700;">
+                                        ${p.similarity_percent}%
+                                    </td>
+                                    <td>${p.matching_wrong_answers}/${p.compared_questions}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            showCustomModal(html);
+        } catch (e) {
+            console.error('❌ Error:', e);
+            showAlert('خطأ: ' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+
     window.viewComparison = async function(testId) {
         showLoading(true);
         try {
@@ -1962,6 +2013,12 @@
                                     ${(r.left_app_count || r.screenshot_count)
                                         ? ` <span title="خرج من التطبيق: ${r.left_app_count || 0} — لقطة شاشة: ${r.screenshot_count || 0}" style="color:#f59e0b;">⚠️</span>`
                                         : ''}
+                                    ${r.too_fast
+                                        ? ` <span title="إكمال سريع جداً: ${r.avg_seconds_per_question} ثانية بالمتوسط لكل سؤال" style="color:#ef4444;">⚡</span>`
+                                        : ''}
+                                    ${r.anomalous_vs_history
+                                        ? ` <span title="أعلى بكثير من متوسط أدائه المعتاد (${r.historical_avg}%)" style="color:#8b5cf6;">📈</span>`
+                                        : ''}
                                 </td>
                                 <td>${r.section ? `شعبة ${r.section}` : '-'}</td>
                                 <td>${r.score || 0} / ${r.total_questions || 0}</td>
@@ -2224,6 +2281,9 @@
                             </button>
                             <button class="btn btn-sm btn-outline" onclick="viewItemAnalysis(${t.id})" title="أضعف الأسئلة وأكثر مشتت تم اختياره">
                                 🔍 تحليل الأسئلة
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="viewCollusionCheck(${t.id})" title="رصد تشابه مشبوه بالإجابات الخاطئة بين الطلاب">
+                                🕵️ فحص التطابق
                             </button>
                             ${t.paired_test_id ? `
                             <button class="btn btn-sm btn-outline" onclick="viewComparison(${t.id})" title="مقارنة القبلي/البعدي">
