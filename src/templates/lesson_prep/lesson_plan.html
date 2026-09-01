@@ -532,31 +532,26 @@
   </div>
 </div>
 
-<!-- ═══ المفردات الجديدة ═══ -->
-{% set vocabulary = plan_data.get('vocabulary', []) %}
-{% if vocabulary %}
+<!-- ═══ الأهداف ═══ -->
+{% set objectives = plan_data.get('objectives', {}) %}
+{% if objectives %}
 {% set ns.n = ns.n + 1 %}
-<div class="section sec-info">
-  <div class="sh-wrap"><div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ ns.n }}</span> المفردات الجديدة</div></div>
+<div class="section sec-behav">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الأهداف السلوكية</div></div>
   <div class="section-body">
-    <table class="styled-table">
-      <thead>
-        <tr style="background: #0891b2 !important;">
-          <th style="width:35%;">المصطلح</th>
-          <th>التعريف</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for v in vocabulary %}
-        {% if v is mapping %}
-        <tr>
-          <td style="font-weight:900; color:#0e7490;">{{ v.get('term', '') }}</td>
-          <td>{{ v.get('definition', '') }}</td>
-        </tr>
-        {% endif %}
+    {% for type_key, type_label, color in [('cognitive', 'أهداف معرفية', '#7c3aed'), ('skill', 'أهداف مهارية', '#0891b2'), ('emotional', 'أهداف وجدانية', '#db2777')] %}
+    {% set items = objectives.get(type_key, []) %}
+    {% if items %}
+    <div class="sub-section">
+      <div class="sub-title" style="background: {{ color }}20 !important; color: {{ color }};">{{ type_label }}</div>
+      <ul class="items">
+        {% for item in items %}
+        <li>{{ item }}</li>
         {% endfor %}
-      </tbody>
-    </table>
+      </ul>
+    </div>
+    {% endif %}
+    {% endfor %}
   </div>
 </div>
 {% endif %}
@@ -580,30 +575,6 @@
     {% elif not show_answers %}
     <div style="height:24px; border-bottom:1px dashed #cbd5e1; margin-bottom:6px;"></div>
     {% endif %}
-    </div>
-    {% endif %}
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<!-- ═══ الأهداف ═══ -->
-{% set objectives = plan_data.get('objectives', {}) %}
-{% if objectives %}
-{% set ns.n = ns.n + 1 %}
-<div class="section sec-behav">
-  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الأهداف السلوكية</div></div>
-  <div class="section-body">
-    {% for type_key, type_label, color in [('cognitive', 'أهداف معرفية', '#7c3aed'), ('skill', 'أهداف مهارية', '#0891b2'), ('emotional', 'أهداف وجدانية', '#db2777')] %}
-    {% set items = objectives.get(type_key, []) %}
-    {% if items %}
-    <div class="sub-section">
-      <div class="sub-title" style="background: {{ color }}20 !important; color: {{ color }};">{{ type_label }}</div>
-      <ul class="items">
-        {% for item in items %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
     </div>
     {% endif %}
     {% endfor %}
@@ -638,26 +609,31 @@
 </div>
 {% endif %}
 
-<!-- ═══ استراتيجيات التدريس ═══ -->
-{% set strategies = plan_data.get('teaching_strategies', []) %}
-{% if strategies %}
+<!-- ═══ المفردات الجديدة ═══ -->
+{% set vocabulary = plan_data.get('vocabulary', []) %}
+{% if vocabulary %}
 {% set ns.n = ns.n + 1 %}
-<div class="section sec-strat">
-  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> استراتيجيات التدريس</div></div>
+<div class="section sec-info">
+  <div class="sh-wrap"><div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ ns.n }}</span> المفردات الجديدة</div></div>
   <div class="section-body">
-    <div class="strategy-grid">
-      {% for s in strategies %}
-      {% if s is mapping %}
-      <div class="strategy-card">
-        <div class="s-name">{{ s.get('strategy', '') }}</div>
-        <div class="s-app">{{ s.get('application', '') }}</div>
-        {% if s.get('duration_minutes') %}
-        <span class="s-time">{{ s.duration_minutes }} دقيقة</span>
+    <table class="styled-table">
+      <thead>
+        <tr style="background: #0891b2 !important;">
+          <th style="width:35%;">المصطلح</th>
+          <th>التعريف</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vocabulary %}
+        {% if v is mapping %}
+        <tr>
+          <td style="font-weight:900; color:#0e7490;">{{ v.get('term', '') }}</td>
+          <td>{{ v.get('definition', '') }}</td>
+        </tr>
         {% endif %}
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endif %}
@@ -753,36 +729,120 @@
 </div>
 {% endif %}
 
-<!-- ═══ الربط بالقيم ═══ -->
-{% set values = plan_data.get('values_connection', {}) %}
-{% if values and values is mapping %}
-{% set ns.n = ns.n + 1 %}
-<div class="section sec-values">
-  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الربط بالقيم</div></div>
-  <div class="section-body">
-    <div class="values-grid">
-      {% if values.get('religious') %}
-      <div class="value-card val-religious">
-        <div class="v-icon">🕌</div>
-        <div class="v-title">الربط الديني</div>
-        <div class="v-text">{{ values.religious }}</div>
-      </div>
-      {% endif %}
-      {% if values.get('national') %}
-      <div class="value-card val-national">
-        <div class="v-icon">🇸🇦</div>
-        <div class="v-title">الربط الوطني</div>
-        <div class="v-text">{{ values.national }}</div>
-      </div>
-      {% endif %}
-      {% if values.get('life') %}
-      <div class="value-card val-life">
-        <div class="v-icon">🔬</div>
-        <div class="v-title">الربط بالحياة</div>
-        <div class="v-text">{{ values.life }}</div>
-      </div>
-      {% endif %}
+<!-- ═══ جداول المقارنة (إن وجدت) ═══ -->
+{% set comparison_tables = plan_data.get('comparison_tables', []) %}
+{% if comparison_tables %}
+<div class="comparison-section">
+  {% for ct in comparison_tables %}
+  {% if ct is mapping %}
+  <div class="section sec-eval" style="margin-top:10px;">
+    <div class="sh-wrap"><div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
+    <div class="section-body" style="border-color: #6ee7b7; background: #ecfdf5 !important;">
+      <table class="styled-table">
+        <thead>
+          <tr style="background: #10b981 !important;">
+            {% for h in ct.get('headers', []) %}
+            <th>{{ h }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ct.get('rows', []) %}
+          <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ═══ ملاحظات السلامة (إن وجدت) ═══ -->
+{% set safety = plan_data.get('safety_notes', []) %}
+{% if safety %}
+<div class="section" style="margin-top:10px;">
+  <div class="sh-wrap"><div class="section-header" style="background: #dc2626 !important; color: #fff !important;">
+    <span class="num">⚠</span> ملاحظات السلامة
+  </div>
+  <div class="section-body" style="border-color: #fca5a5; background: #fef2f2 !important;">
+    <ul class="items">
+      {% for note in safety %}
+      <li style="font-weight:700; color: #dc2626;">{{ note }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ استراتيجيات التدريس ═══ -->
+{% set strategies = plan_data.get('teaching_strategies', []) %}
+{% if strategies %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-strat">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> استراتيجيات التدريس</div></div>
+  <div class="section-body">
+    <div class="strategy-grid">
+      {% for s in strategies %}
+      {% if s is mapping %}
+      <div class="strategy-card">
+        <div class="s-name">{{ s.get('strategy', '') }}</div>
+        <div class="s-app">{{ s.get('application', '') }}</div>
+        {% if s.get('duration_minutes') %}
+        <span class="s-time">{{ s.duration_minutes }} دقيقة</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ الفروق الفردية ═══ -->
+{% set ind_diff = plan_data.get('individual_differences', {}) %}
+{% if ind_diff %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-diff">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> مراعاة الفروق الفردية</div></div>
+  <div class="section-body">
+    <div class="two-cols">
+      <div class="col col-weak">
+        <div class="col-header">دعم الطلاب الضعاف</div>
+        <div class="col-body">
+          <ul class="items">
+            {% for item in ind_diff.get('weak_support', []) %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="col col-gifted">
+        <div class="col-header">أنشطة المتفوقين</div>
+        <div class="col-body">
+          <ul class="items">
+            {% for item in ind_diff.get('gifted_activities', []) %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% if ind_diff.get('average_activities') %}
+    <div style="margin-top:8px;">
+      <div class="sub-title" style="background: #cffafe !important; color: #155e75;">المستوى المتوسط</div>
+      <ul class="items">
+        {% for item in ind_diff.average_activities %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endif %}
@@ -882,80 +942,36 @@
 </div>
 {% endif %}
 
-<!-- ═══ الفروق الفردية ═══ -->
-{% set ind_diff = plan_data.get('individual_differences', {}) %}
-{% if ind_diff %}
+<!-- ═══ الربط بالقيم ═══ -->
+{% set values = plan_data.get('values_connection', {}) %}
+{% if values and values is mapping %}
 {% set ns.n = ns.n + 1 %}
-<div class="section sec-diff">
-  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> مراعاة الفروق الفردية</div></div>
+<div class="section sec-values">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الربط بالقيم</div></div>
   <div class="section-body">
-    <div class="two-cols">
-      <div class="col col-weak">
-        <div class="col-header">دعم الطلاب الضعاف</div>
-        <div class="col-body">
-          <ul class="items">
-            {% for item in ind_diff.get('weak_support', []) %}
-            <li>{{ item }}</li>
-            {% endfor %}
-          </ul>
-        </div>
+    <div class="values-grid">
+      {% if values.get('religious') %}
+      <div class="value-card val-religious">
+        <div class="v-icon">🕌</div>
+        <div class="v-title">الربط الديني</div>
+        <div class="v-text">{{ values.religious }}</div>
       </div>
-      <div class="col col-gifted">
-        <div class="col-header">أنشطة المتفوقين</div>
-        <div class="col-body">
-          <ul class="items">
-            {% for item in ind_diff.get('gifted_activities', []) %}
-            <li>{{ item }}</li>
-            {% endfor %}
-          </ul>
-        </div>
+      {% endif %}
+      {% if values.get('national') %}
+      <div class="value-card val-national">
+        <div class="v-icon">🇸🇦</div>
+        <div class="v-title">الربط الوطني</div>
+        <div class="v-text">{{ values.national }}</div>
       </div>
+      {% endif %}
+      {% if values.get('life') %}
+      <div class="value-card val-life">
+        <div class="v-icon">🔬</div>
+        <div class="v-title">الربط بالحياة</div>
+        <div class="v-text">{{ values.life }}</div>
+      </div>
+      {% endif %}
     </div>
-    {% if ind_diff.get('average_activities') %}
-    <div style="margin-top:8px;">
-      <div class="sub-title" style="background: #cffafe !important; color: #155e75;">المستوى المتوسط</div>
-      <ul class="items">
-        {% for item in ind_diff.average_activities %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-  </div>
-</div>
-{% endif %}
-
-<!-- ═══ الوسائل التعليمية ═══ -->
-{% set resources = plan_data.get('resources', []) %}
-{% if resources %}
-{% set ns.n = ns.n + 1 %}
-<div class="section sec-res">
-  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الوسائل التعليمية</div></div>
-  <div class="section-body">
-    {% if resources[0] is mapping %}
-    <table class="styled-table">
-      <thead>
-        <tr style="background: #92400e !important;">
-          <th style="width:35%;">الوسيلة</th>
-          <th>الغرض</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in resources %}
-        <tr>
-          <td style="font-weight:700;">{{ r.get('name', r.get('resource', '')) }}</td>
-          <td>{{ r.get('purpose', r.get('usage', '')) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <ul class="items">
-      {% for r in resources %}
-      <li>{{ r }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
   </div>
 </div>
 {% endif %}
@@ -1004,6 +1020,41 @@
       {% endif %}
       {% endfor %}
     </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ الوسائل التعليمية ═══ -->
+{% set resources = plan_data.get('resources', []) %}
+{% if resources %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-res">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> الوسائل التعليمية</div></div>
+  <div class="section-body">
+    {% if resources[0] is mapping %}
+    <table class="styled-table">
+      <thead>
+        <tr style="background: #92400e !important;">
+          <th style="width:35%;">الوسيلة</th>
+          <th>الغرض</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resources %}
+        <tr>
+          <td style="font-weight:700;">{{ r.get('name', r.get('resource', '')) }}</td>
+          <td>{{ r.get('purpose', r.get('usage', '')) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <ul class="items">
+      {% for r in resources %}
+      <li>{{ r }}</li>
+      {% endfor %}
+    </ul>
     {% endif %}
   </div>
 </div>
@@ -1065,57 +1116,6 @@
       <div class="rf-label">ملاحظات إضافية</div>
       <div class="rf-content">{{ reflection.get('notes', '') }}</div>
     </div>
-  </div>
-</div>
-{% endif %}
-
-<!-- ═══ جداول المقارنة (إن وجدت) ═══ -->
-{% set comparison_tables = plan_data.get('comparison_tables', []) %}
-{% if comparison_tables %}
-<div class="comparison-section">
-  {% for ct in comparison_tables %}
-  {% if ct is mapping %}
-  <div class="section sec-eval" style="margin-top:10px;">
-    <div class="sh-wrap"><div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
-    <div class="section-body" style="border-color: #6ee7b7; background: #ecfdf5 !important;">
-      <table class="styled-table">
-        <thead>
-          <tr style="background: #10b981 !important;">
-            {% for h in ct.get('headers', []) %}
-            <th>{{ h }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in ct.get('rows', []) %}
-          <tr>
-            {% for cell in row %}
-            <td>{{ cell }}</td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-  {% endfor %}
-</div>
-{% endif %}
-
-<!-- ═══ ملاحظات السلامة (إن وجدت) ═══ -->
-{% set safety = plan_data.get('safety_notes', []) %}
-{% if safety %}
-<div class="section" style="margin-top:10px;">
-  <div class="sh-wrap"><div class="section-header" style="background: #dc2626 !important; color: #fff !important;">
-    <span class="num">⚠</span> ملاحظات السلامة
-  </div>
-  <div class="section-body" style="border-color: #fca5a5; background: #fef2f2 !important;">
-    <ul class="items">
-      {% for note in safety %}
-      <li style="font-weight:700; color: #dc2626;">{{ note }}</li>
-      {% endfor %}
-    </ul>
   </div>
 </div>
 {% endif %}
