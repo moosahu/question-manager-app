@@ -725,6 +725,8 @@ class LessonPrepService:
           }}
         ],
         "student_activity": "نشاط الطلاب",
+        "equations": ["المعادلات الكيميائية الخاصة بهذا المفهوم تحديداً فقط، إن وجدت"],
+        "diagrams_description": ["وصف رسم/مخطط توضيحي خاص بهذا المفهوم تحديداً فقط، إن وجد"],
         "diagram": {{
           "type": "concentration_time أو energy_diagram أو rate_time أو none",
           "title": "عنوان الرسم البياني",
@@ -734,9 +736,7 @@ class LessonPrepService:
           "note": "ملاحظة أسفل الرسم (اختيارية)"
         }}
       }}
-    ],
-    "equations": ["المعادلات إن وجدت"],
-    "diagrams_description": ["وصف الرسومات والمخططات التوضيحية المطلوبة"]
+    ]
   }},
   "teaching_strategies": [
     {{
