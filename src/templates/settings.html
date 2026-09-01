@@ -2160,6 +2160,34 @@ if (!document.getElementById('notification-styles')) {
                     </div>
                 </div>
                 <div id="video-button-msg" class="mt-2"></div>
+
+                <hr class="my-4">
+                <h5 class="mb-2"><i class="fas fa-mobile-alt text-primary me-2"></i> التحديث الإجباري للتطبيق</h5>
+                <p class="text-muted mb-3" style="font-size:0.82rem">
+                    أي طالب/معلم بنسخة تطبيق أقدم من "أقل نسخة مسموحة" يُحجب بشاشة تحديث إجبارية عند فتح التطبيق حتى يحدّث. اتركه فاضياً لتعطيل التحديث الإجباري.
+                </p>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size:0.82rem">أقل نسخة مسموحة</label>
+                        <input type="text" class="form-control form-control-sm" id="fu-min-version" placeholder="مثال: 1.3.0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size:0.82rem">رابط App Store</label>
+                        <input type="text" class="form-control form-control-sm" id="fu-ios-url" placeholder="https://apps.apple.com/...">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size:0.82rem">رابط Google Play</label>
+                        <input type="text" class="form-control form-control-sm" id="fu-android-url" placeholder="https://play.google.com/...">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" style="font-size:0.82rem">رسالة الشاشة</label>
+                        <input type="text" class="form-control form-control-sm" id="fu-message" placeholder="يوجد تحديث جديد إجباري للتطبيق — يرجى التحديث للاستمرار">
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-primary mt-2" onclick="saveForceUpdateConfig()">
+                    <i class="fas fa-save me-1"></i> حفظ
+                </button>
+                <div id="fu-msg" class="mt-2"></div>
             </section>
 
         </div>
@@ -3435,8 +3463,41 @@ function loadVideoSettings() {
             }
             // زر الفيديو
             _setVideoButtonMode(data.video_button_mode || 'off');
+
+            // التحديث الإجباري
+            const fuMin = document.getElementById('fu-min-version');
+            if (fuMin) {
+                fuMin.value = data.min_app_version || '';
+                document.getElementById('fu-ios-url').value = data.ios_store_url || '';
+                document.getElementById('fu-android-url').value = data.android_store_url || '';
+                document.getElementById('fu-message').value = data.force_update_message || '';
+            }
         })
         .catch(() => {});
+}
+
+function saveForceUpdateConfig() {
+    const msg = document.getElementById('fu-msg');
+    const body = {
+        min_app_version: document.getElementById('fu-min-version').value.trim(),
+        ios_store_url: document.getElementById('fu-ios-url').value.trim(),
+        android_store_url: document.getElementById('fu-android-url').value.trim(),
+        force_update_message: document.getElementById('fu-message').value.trim(),
+    };
+    msg.innerHTML = '<span class="text-muted">جاري الحفظ...</span>';
+    fetch('/api/admin/ai/force-update-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(data => {
+        msg.innerHTML = data.success
+            ? '<span class="text-success"><i class="fas fa-check-circle"></i> تم الحفظ</span>'
+            : `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => { msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>'; });
 }
 
 function saveTtsSetting(toggle) {

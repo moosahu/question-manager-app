@@ -2270,7 +2270,42 @@ def get_app_settings():
         'video_button_mode':   _get_video_button_mode(),
         'tts_enabled':         AISetting.get_setting('tts_enabled', 'true') == 'true',
         'machine_online':      machine_online,
+        # ✅ تحديث إجباري — يقارنها التطبيق بنسخته الحالية
+        'min_app_version':     AISetting.get_setting('min_app_version', ''),
+        'force_update_message': AISetting.get_setting(
+            'force_update_message', 'يوجد تحديث جديد إجباري للتطبيق — يرجى التحديث للاستمرار'),
+        'ios_store_url':       AISetting.get_setting('ios_store_url', ''),
+        'android_store_url':   AISetting.get_setting('android_store_url', ''),
     })
+
+
+# ── تحديث إعدادات التحديث الإجباري — يستدعى من لوحة الأدمن ──
+@admin_ai_bp.route('/force-update-config', methods=['GET', 'POST'])
+@admin_required
+def force_update_config():
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'min_app_version': AISetting.get_setting('min_app_version', ''),
+            'force_update_message': AISetting.get_setting('force_update_message', ''),
+            'ios_store_url': AISetting.get_setting('ios_store_url', ''),
+            'android_store_url': AISetting.get_setting('android_store_url', ''),
+        })
+
+    data = request.get_json() or {}
+    if 'min_app_version' in data:
+        AISetting.set_setting('min_app_version', data.get('min_app_version') or '',
+                              'string', description='أقل نسخة تطبيق مسموحة (تحديث إجباري)')
+    if 'force_update_message' in data:
+        AISetting.set_setting('force_update_message', data.get('force_update_message') or '',
+                              'string', description='رسالة شاشة التحديث الإجباري')
+    if 'ios_store_url' in data:
+        AISetting.set_setting('ios_store_url', data.get('ios_store_url') or '',
+                              'string', description='رابط App Store')
+    if 'android_store_url' in data:
+        AISetting.set_setting('android_store_url', data.get('android_store_url') or '',
+                              'string', description='رابط Google Play')
+    return jsonify({'success': True})
 
 
 # ── Heartbeat — يُستدعى من process_queue.py كل 30 ثانية ──
