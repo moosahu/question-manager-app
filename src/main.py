@@ -163,6 +163,15 @@ try:
 except ImportError as e:
     print(f"⚠️ Diagnostic blueprint not available: {e}")
 
+# ✅ استيراد Academic Calendar Blueprint لمسرد إعداد الدروس
+academic_calendar_available = False
+try:
+    from src.routes.academic_calendar_routes import academic_calendar_bp
+    academic_calendar_available = True
+    print("✅ Academic Calendar blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Academic Calendar blueprint not available: {e}")
+
 # ✅ استيراد Learning Content Blueprint لنظام خرائط المفاهيم والملخصات
 learning_available = False
 try:
@@ -1009,7 +1018,16 @@ def create_app():
             print("   - /api/diagnostic/compare")
         except Exception as e:
             print(f"❌ Error registering Diagnostic blueprint: {e}")
-    
+
+    # ✅ تسجيل Academic Calendar Blueprint لمسرد إعداد الدروس
+    if academic_calendar_available:
+        try:
+            csrf.exempt(academic_calendar_bp)
+            app.register_blueprint(academic_calendar_bp)
+            print("✅ Academic Calendar blueprint registered successfully")
+        except Exception as e:
+            print(f"❌ Error registering Academic Calendar blueprint: {e}")
+
     # ✅ تسجيل Semester Grades Blueprint لدرجات الفترة الفصلية
     if semester_grades_available:
         csrf.exempt(semester_grades_bp)

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>مسرد إعداد الدروس</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1f2937; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 160px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; }
+  textarea { min-height: 220px; direction: rtl; }
+  .btn { background: #0d9488; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: #0b7a70; }
+  .btn-outline { background: #fff; color: #0d9488; border: 1.5px solid #0d9488; }
+  .btn-danger { background: #dc2626; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: center; }
+  th { background: #0d9488; color: #fff; }
+  .holiday-row td { background: #fff7ed; color: #9a3412; font-weight: 700; }
+  .week-cell { background: #f1f5f9; font-weight: 700; }
+  td input { border: 1px solid transparent; background: transparent; text-align: center; }
+  td input:hover, td input:focus { border-color: #d1d5db; background: #fff; outline: none; }
+  .msg { font-size: 12px; margin-top: 8px; }
+  .msg.ok { color: #059669; } .msg.err { color: #dc2626; }
+  .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+  .list-item:hover { background: #f9fafb; }
+  .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; line-height: 1.6; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📅 مسرد إعداد الدروس</h1>
+  <p class="sub">تقويم دراسي بالتواريخ والإجازات، ودروس المنهج موزّعة عليه تلقائياً</p>
+
+  <!-- قائمة التقاويم المحفوظة -->
+  <div class="card" id="section-list">
+    <div class="row" style="justify-content: space-between; align-items:center;">
+      <h3 style="margin:0;">التقاويم المحفوظة</h3>
+      <button class="btn" onclick="showSetupForm()">+ تقويم جديد</button>
+    </div>
+    <div id="calendars-list" style="margin-top:14px;">جاري التحميل...</div>
+  </div>
+
+  <!-- نموذج إنشاء تقويم جديد -->
+  <div class="card hidden" id="section-setup">
+    <div class="row" style="justify-content: space-between; align-items:center;">
+      <h3 style="margin:0;">➕ تقويم جديد</h3>
+      <button class="btn-outline btn btn-sm" onclick="showList()">إلغاء</button>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <div class="field">
+        <label>المقرر</label>
+        <select id="su-course"></select>
+      </div>
+      <div class="field">
+        <label>الفصل الدراسي</label>
+        <select id="su-semester">
+          <option value="1">الأول</option>
+          <option value="2">الثاني</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>العام الدراسي (هجري)</label>
+        <input type="text" id="su-year" placeholder="مثال: 1448هـ">
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <label>التقويم (الصق التواريخ من التقويم الرسمي)</label>
+      <textarea id="su-bulk" placeholder="الأول
+الأحد|10/3
+الاثنين|11/3
+الثلاثاء|12/3
+الأربعاء|13/3
+الخميس|14/3
+الثاني
+الأحد|17/3
+..."></textarea>
+      <div class="hint">
+        سطر لوحده = اسم الأسبوع (الأول، الثاني...) — يبدأ أسبوع جديد.<br>
+        سطر يوم = <code>اسم اليوم|التاريخ الهجري</code> — مثال: <code>الأحد|10/3</code><br>
+        يوم إجازة = أضف اسم الإجازة بعد فاصل ثالث — مثال: <code>الأربعاء|12/4|إجازة اليوم الوطني</code>
+      </div>
+    </div>
+    <button class="btn" style="margin-top:14px;" onclick="submitSetup()">إنشاء وتوزيع الدروس تلقائياً</button>
+    <div id="setup-msg" class="msg"></div>
+  </div>
+
+  <!-- عرض/تعديل تقويم -->
+  <div class="card hidden" id="section-view">
+    <div class="row" style="justify-content: space-between; align-items:center;">
+      <h3 id="view-title" style="margin:0;"></h3>
+      <div>
+        <button class="btn-outline btn btn-sm" onclick="regenerateCurrent()">🔄 إعادة توزيع الدروس</button>
+        <button class="btn-danger btn btn-sm" onclick="deleteCurrent()">🗑 حذف التقويم</button>
+        <button class="btn-outline btn btn-sm" onclick="showList()">رجوع للقائمة</button>
+      </div>
+    </div>
+    <div id="view-table" style="margin-top:14px; overflow-x:auto;"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/academic-calendar';
+let currentCalendarId = null;
+
+function showList() {
+  document.getElementById('section-list').classList.remove('hidden');
+  document.getElementById('section-setup').classList.add('hidden');
+  document.getElementById('section-view').classList.add('hidden');
+  loadCalendarsList();
+}
+
+function showSetupForm() {
+  document.getElementById('section-list').classList.add('hidden');
+  document.getElementById('section-setup').classList.remove('hidden');
+  document.getElementById('section-view').classList.add('hidden');
+  loadCoursesIntoSelect();
+}
+
+async function loadCoursesIntoSelect() {
+  const sel = document.getElementById('su-course');
+  sel.innerHTML = '<option>جاري التحميل...</option>';
+  try {
+    const res = await fetch('/api/v1/courses?show_all=true');
+    const courses = await res.json();
+    sel.innerHTML = courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  } catch (e) {
+    sel.innerHTML = '<option>خطأ بالتحميل</option>';
+  }
+}
+
+async function loadCalendarsList() {
+  const el = document.getElementById('calendars-list');
+  el.innerHTML = 'جاري التحميل...';
+  try {
+    const res = await fetch(`${API}/list`);
+    const data = await res.json();
+    if (!data.success) { el.innerHTML = `<p style="color:#dc2626;">${data.error || 'خطأ'}</p>`; return; }
+    if (!data.calendars.length) { el.innerHTML = '<p style="color:#9ca3af;">لا يوجد تقاويم محفوظة بعد</p>'; return; }
+    el.innerHTML = data.calendars.map(c => `
+      <div class="list-item" onclick="openCalendar(${c.id})">
+        <span><strong>${c.course_name}</strong> — الفصل ${c.semester_number === 1 ? 'الأول' : 'الثاني'} — ${c.academic_year_label}</span>
+        <span style="color:#6b7280; font-size:12px;">${c.weeks_count} أسبوع</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = `<p style="color:#dc2626;">خطأ: ${e.message}</p>`;
+  }
+}
+
+function parseBulkText(text) {
+  const dayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const weeks = [];
+  let current = null;
+  let weekNum = 0;
+  for (const line of lines) {
+    const parts = line.split('|').map(p => p.trim());
+    const isDayLine = dayNames.includes(parts[0]);
+    if (!isDayLine) {
+      weekNum++;
+      current = { week_number: weekNum, week_label: parts[0], days: [] };
+      weeks.push(current);
+    } else {
+      if (!current) { weekNum++; current = { week_number: weekNum, week_label: String(weekNum), days: [] }; weeks.push(current); }
+      const [day_name, hijri_date, holiday_label] = parts;
+      current.days.push({
+        day_name, hijri_date: hijri_date || '',
+        is_holiday: !!holiday_label,
+        holiday_label: holiday_label || null,
+      });
+    }
+  }
+  return weeks;
+}
+
+async function submitSetup() {
+  const msg = document.getElementById('setup-msg');
+  const course_id = parseInt(document.getElementById('su-course').value);
+  const semester_number = parseInt(document.getElementById('su-semester').value);
+  const academic_year_label = document.getElementById('su-year').value.trim();
+  const weeks = parseBulkText(document.getElementById('su-bulk').value);
+
+  if (!course_id || !academic_year_label || !weeks.length) {
+    msg.className = 'msg err'; msg.textContent = 'عبّي كل الحقول والتقويم أولاً'; return;
+  }
+
+  msg.className = 'msg'; msg.textContent = 'جاري الإنشاء...';
+  try {
+    const res = await fetch(`${API}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ course_id, semester_number, academic_year_label, weeks }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.className = 'msg ok';
+      msg.textContent = `تم! وزّعنا ${data.used_lessons} من ${data.total_lessons} درس`;
+      setTimeout(() => openCalendar(data.calendar.id), 800);
+    } else {
+      msg.className = 'msg err'; msg.textContent = data.error || 'خطأ';
+    }
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = 'خطأ في الاتصال: ' + e.message;
+  }
+}
+
+async function openCalendar(id) {
+  currentCalendarId = id;
+  document.getElementById('section-list').classList.add('hidden');
+  document.getElementById('section-setup').classList.add('hidden');
+  document.getElementById('section-view').classList.remove('hidden');
+  document.getElementById('view-table').innerHTML = 'جاري التحميل...';
+
+  const res = await fetch(`${API}/${id}`);
+  const data = await res.json();
+  if (!data.success) { document.getElementById('view-table').innerHTML = `<p style="color:#dc2626;">${data.error}</p>`; return; }
+
+  const cal = data.calendar;
+  document.getElementById('view-title').textContent =
+    `${cal.course_name} — الفصل ${cal.semester_number === 1 ? 'الأول' : 'الثاني'} — ${cal.academic_year_label}`;
+
+  let html = `<table><thead><tr>
+    <th>الأسبوع</th><th>اليوم والتاريخ</th><th>الوحدة</th><th>الدرس</th><th>الواجب</th><th>ملاحظات</th>
+  </tr></thead><tbody>`;
+
+  cal.weeks_data.forEach(week => {
+    week.days.forEach((day, i) => {
+      if (day.is_holiday) {
+        html += `<tr class="holiday-row">
+          <td class="week-cell">${i === 0 ? 'الأسبوع ' + week.week_label : ''}</td>
+          <td>${day.day_name}<br>${day.hijri_date}هـ</td>
+          <td colspan="4">${day.holiday_label || 'إجازة'}</td>
+        </tr>`;
+      } else {
+        html += `<tr>
+          <td class="week-cell">${i === 0 ? 'الأسبوع ' + week.week_label : ''}</td>
+          <td>${day.day_name}<br>${day.hijri_date}هـ</td>
+          <td>${day.unit_name || '-'}</td>
+          <td><input value="${(day.lesson_name || '').replace(/"/g, '&quot;')}"
+                onchange="saveDay(${week.week_number}, '${day.day_name}', 'lesson_name', this.value)"></td>
+          <td><input value="${(day.homework || '').replace(/"/g, '&quot;')}"
+                onchange="saveDay(${week.week_number}, '${day.day_name}', 'homework', this.value)"></td>
+          <td><input value="${(day.notes || '').replace(/"/g, '&quot;')}"
+                onchange="saveDay(${week.week_number}, '${day.day_name}', 'notes', this.value)"></td>
+        </tr>`;
+      }
+    });
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('view-table').innerHTML = html;
+}
+
+async function saveDay(week_number, day_name, field, value) {
+  try {
+    await fetch(`${API}/${currentCalendarId}/day`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_number, day_name, [field]: value }),
+    });
+  } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
+}
+
+async function regenerateCurrent() {
+  if (!confirm('هذا يمسح أي تعديل يدوي سويته على أسماء الدروس ويعيد التوزيع من المنهج من جديد. متأكد؟')) return;
+  const res = await fetch(`${API}/${currentCalendarId}/regenerate`, { method: 'POST' });
+  const data = await res.json();
+  if (data.success) openCalendar(currentCalendarId);
+  else alert(data.error || 'خطأ');
+}
+
+async function deleteCurrent() {
+  if (!confirm('حذف هذا التقويم نهائياً؟')) return;
+  const res = await fetch(`${API}/${currentCalendarId}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.success) showList();
+  else alert(data.error || 'خطأ');
+}
+
+showList();
+</script>
+</body>
+</html>
