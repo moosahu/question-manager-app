@@ -60,6 +60,7 @@ class ErrorReport(db.Model):
     error_context = db.Column(db.String(200),nullable=True)
     user_type     = db.Column(db.String(20), nullable=True)   # admin | teacher | student | unknown
     app_version   = db.Column(db.String(20), nullable=True)
+    device_model  = db.Column(db.String(100),nullable=True)   # مثل: iPhone 13, SM-G991B (Galaxy S21)
     created_at    = db.Column(db.DateTime,   nullable=False, default=datetime.utcnow)
 
     def __repr__(self):
@@ -77,6 +78,7 @@ class ErrorReport(db.Model):
             'error_context': self.error_context,
             'user_type'    : self.user_type,
             'app_version'  : self.app_version,
+            'device_model' : self.device_model,
             'created_at'   : self.created_at.isoformat() + 'Z' if self.created_at else None,
         }
 

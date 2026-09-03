@@ -149,6 +149,7 @@ def report_error():
         error_context = (data.get('error_context') or '').strip()[:200] or None
         user_type     = (data.get('user_type') or 'unknown').strip()[:20]
         app_version   = (data.get('app_version') or '').strip()[:20]
+        device_model  = (data.get('device_model') or '').strip()[:100] or None
 
         if not error_message:
             return jsonify({'success': False, 'error': 'error_message مطلوب'}), 400
@@ -192,6 +193,7 @@ def report_error():
             error_context = error_context,
             user_type     = user_type,
             app_version   = app_version,
+            device_model  = device_model,
             created_at    = now,
         )
         db.session.add(report)
