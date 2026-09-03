@@ -4,6 +4,8 @@
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
 from functools import wraps
+from datetime import datetime, timedelta
+from hijridate import Gregorian
 
 try:
     from src.extensions import db
@@ -26,6 +28,77 @@ def admin_required(f):
             return jsonify({'success': False, 'error': 'صلاحيات غير كافية'}), 403
         return f(*args, **kwargs)
     return decorated
+
+
+_ARABIC_WEEKDAY = {
+    6: 'الأحد',      # Python weekday(): Monday=0 ... Sunday=6
+    0: 'الاثنين',
+    1: 'الثلاثاء',
+    2: 'الأربعاء',
+    3: 'الخميس',
+}
+_ARABIC_WEEK_ORDINALS = [
+    'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر',
+    'الحادي عشر', 'الثاني عشر', 'الثالث عشر', 'الرابع عشر', 'الخامس عشر', 'السادس عشر',
+    'السابع عشر', 'الثامن عشر', 'التاسع عشر', 'العشرون', 'الحادي والعشرون', 'الثاني والعشرون',
+]
+
+
+def _week_label(n):
+    """رقم -> اسم أسبوع عربي (١، ٢، ٣...)؛ يرجع الرقم نفسه لو تعدّى القائمة الجاهزة"""
+    return _ARABIC_WEEK_ORDINALS[n - 1] if 1 <= n <= len(_ARABIC_WEEK_ORDINALS) else str(n)
+
+
+def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
+    """يبني هيكل الأسابيع/الأيام تلقائياً من تاريخ بداية/نهاية ميلادي، مستثنياً الجمعة/السبت،
+    ومحوّلاً كل تاريخ للهجري للعرض، ومعلّماً أيام الإجازات المحددة"""
+    start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    if end < start:
+        raise ValueError('تاريخ النهاية قبل تاريخ البداية')
+
+    # حوّل نطاقات الإجازات لتواريخ فعلية
+    holiday_ranges = []
+    for h in (holidays or []):
+        try:
+            h_start = datetime.strptime(h['start_date'], '%Y-%m-%d').date()
+            h_end = datetime.strptime(h.get('end_date') or h['start_date'], '%Y-%m-%d').date()
+            holiday_ranges.append((h_start, h_end, h.get('label') or 'إجازة'))
+        except Exception:
+            continue
+
+    def _holiday_label_for(d):
+        for h_start, h_end, label in holiday_ranges:
+            if h_start <= d <= h_end:
+                return label
+        return None
+
+    weeks = []
+    current_week_days = []
+    week_num = 0
+    d = start
+    while d <= end:
+        wd = d.weekday()
+        if wd in _ARABIC_WEEKDAY:  # يستثني الجمعة (4) والسبت (5) تلقائياً
+            hijri = Gregorian(d.year, d.month, d.day).to_hijri()
+            holiday_label = _holiday_label_for(d)
+            current_week_days.append({
+                'day_name': _ARABIC_WEEKDAY[wd],
+                'hijri_date': f'{hijri.day}/{hijri.month}',
+                'is_holiday': holiday_label is not None,
+                'holiday_label': holiday_label,
+            })
+            if len(current_week_days) == 5:
+                week_num += 1
+                weeks.append({'week_number': week_num, 'week_label': _week_label(week_num), 'days': current_week_days})
+                current_week_days = []
+        d += timedelta(days=1)
+
+    if current_week_days:  # آخر أسبوع ناقص (أقل من 5 أيام)
+        week_num += 1
+        weeks.append({'week_number': week_num, 'week_label': _week_label(week_num), 'days': current_week_days})
+
+    return weeks
 
 
 def _auto_fill_lessons(course_id, weeks):
@@ -120,7 +193,6 @@ def setup_calendar():
         course_id = data.get('course_id')
         semester_number = data.get('semester_number')
         academic_year_label = (data.get('academic_year_label') or '').strip()
-        weeks = data.get('weeks') or []
 
         if not course_id or not semester_number or not academic_year_label:
             return jsonify({'success': False, 'error': 'course_id و semester_number و academic_year_label مطلوبة'}), 400
@@ -128,6 +200,20 @@ def setup_calendar():
         course = Course.query.get(course_id)
         if not course:
             return jsonify({'success': False, 'error': 'المقرر غير موجود'}), 404
+
+        # ✅ طريقتان لبناء الأسابيع: (أ) تاريخ بداية/نهاية + إجازات (تلقائي، موصى به)
+        #    (ب) هيكل weeks جاهز يدوياً (الطريقة القديمة، تبقى مدعومة)
+        if data.get('start_date') and data.get('end_date'):
+            try:
+                weeks = _generate_weeks_from_range(
+                    data['start_date'], data['end_date'], data.get('holidays') or [])
+            except ValueError as ve:
+                return jsonify({'success': False, 'error': str(ve)}), 400
+        else:
+            weeks = data.get('weeks') or []
+
+        if not weeks:
+            return jsonify({'success': False, 'error': 'ما فيه أيام دراسية بالنطاق المحدد'}), 400
 
         existing = AcademicCalendar.query.filter_by(
             course_id=course_id, semester_number=semester_number,

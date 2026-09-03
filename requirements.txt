@@ -1,6 +1,9 @@
 # متطلبات نظام الذكاء الاصطناعي - Chem Tahsili
 # Requirements Updated for AI System
 
+# تحويل تاريخ هجري/ميلادي (مسرد إعداد الدروس)
+hijridate>=2.3.0
+
 # Flask Core
 Flask>=3.0.0
 Flask-Login>=0.6.0

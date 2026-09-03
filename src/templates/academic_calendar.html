@@ -71,24 +71,27 @@
         <input type="text" id="su-year" placeholder="مثال: 1448هـ">
       </div>
     </div>
-    <div style="margin-top:14px;">
-      <label>التقويم (الصق التواريخ من التقويم الرسمي)</label>
-      <textarea id="su-bulk" placeholder="الأول
-الأحد|10/3
-الاثنين|11/3
-الثلاثاء|12/3
-الأربعاء|13/3
-الخميس|14/3
-الثاني
-الأحد|17/3
-..."></textarea>
-      <div class="hint">
-        سطر لوحده = اسم الأسبوع (الأول، الثاني...) — يبدأ أسبوع جديد.<br>
-        سطر يوم = <code>اسم اليوم|التاريخ الهجري</code> — مثال: <code>الأحد|10/3</code><br>
-        يوم إجازة = أضف اسم الإجازة بعد فاصل ثالث — مثال: <code>الأربعاء|12/4|إجازة اليوم الوطني</code>
+    <div class="row" style="margin-top:14px;">
+      <div class="field">
+        <label>بداية الفصل الدراسي (ميلادي)</label>
+        <input type="date" id="su-start">
+      </div>
+      <div class="field">
+        <label>نهاية الفصل الدراسي (ميلادي)</label>
+        <input type="date" id="su-end">
       </div>
     </div>
-    <button class="btn" style="margin-top:14px;" onclick="submitSetup()">إنشاء وتوزيع الدروس تلقائياً</button>
+    <div class="hint">التواريخ ميلادية عادية (نفس تقويم جوالك) — النظام يحوّلها هجري ويستثني الجمعة والسبت تلقائياً.</div>
+
+    <div style="margin-top:18px;">
+      <div class="row" style="justify-content: space-between; align-items:center;">
+        <label style="margin:0;">الإجازات ضمن الفصل</label>
+        <button class="btn-outline btn btn-sm" onclick="addHolidayRow()">+ إضافة إجازة</button>
+      </div>
+      <div id="holidays-list" style="margin-top:8px;"></div>
+    </div>
+
+    <button class="btn" style="margin-top:18px;" onclick="submitSetup()">إنشاء وتوزيع الدروس تلقائياً</button>
     <div id="setup-msg" class="msg"></div>
   </div>
 
@@ -117,11 +120,48 @@ function showList() {
   loadCalendarsList();
 }
 
+let holidayRowCount = 0;
+
 function showSetupForm() {
   document.getElementById('section-list').classList.add('hidden');
   document.getElementById('section-setup').classList.remove('hidden');
   document.getElementById('section-view').classList.add('hidden');
+  document.getElementById('su-start').value = '';
+  document.getElementById('su-end').value = '';
+  document.getElementById('su-year').value = '';
+  document.getElementById('holidays-list').innerHTML = '';
+  holidayRowCount = 0;
+  addHolidayRow(); // إجازة وحدة جاهزة تبدأ فيها
   loadCoursesIntoSelect();
+}
+
+function addHolidayRow() {
+  holidayRowCount++;
+  const id = holidayRowCount;
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.id = `holiday-row-${id}`;
+  div.style.marginBottom = '8px';
+  div.style.alignItems = 'flex-end';
+  div.innerHTML = `
+    <div class="field"><label>من</label><input type="date" class="h-start"></div>
+    <div class="field"><label>إلى</label><input type="date" class="h-end"></div>
+    <div class="field" style="flex:2;"><label>السبب</label><input type="text" class="h-label" placeholder="مثال: اليوم الوطني"></div>
+    <button class="btn-danger btn btn-sm" style="height:36px;" onclick="document.getElementById('holiday-row-${id}').remove()">حذف</button>
+  `;
+  document.getElementById('holidays-list').appendChild(div);
+}
+
+function collectHolidays() {
+  const rows = document.querySelectorAll('#holidays-list .row');
+  const holidays = [];
+  rows.forEach(row => {
+    const start_date = row.querySelector('.h-start').value;
+    const end_date = row.querySelector('.h-end').value || start_date;
+    const label = row.querySelector('.h-label').value.trim();
+    if (start_date) holidays.push({ start_date, end_date, label: label || 'إجازة' });
+  });
+  return holidays;
 }
 
 async function loadCoursesIntoSelect() {
@@ -155,41 +195,17 @@ async function loadCalendarsList() {
   }
 }
 
-function parseBulkText(text) {
-  const dayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const weeks = [];
-  let current = null;
-  let weekNum = 0;
-  for (const line of lines) {
-    const parts = line.split('|').map(p => p.trim());
-    const isDayLine = dayNames.includes(parts[0]);
-    if (!isDayLine) {
-      weekNum++;
-      current = { week_number: weekNum, week_label: parts[0], days: [] };
-      weeks.push(current);
-    } else {
-      if (!current) { weekNum++; current = { week_number: weekNum, week_label: String(weekNum), days: [] }; weeks.push(current); }
-      const [day_name, hijri_date, holiday_label] = parts;
-      current.days.push({
-        day_name, hijri_date: hijri_date || '',
-        is_holiday: !!holiday_label,
-        holiday_label: holiday_label || null,
-      });
-    }
-  }
-  return weeks;
-}
-
 async function submitSetup() {
   const msg = document.getElementById('setup-msg');
   const course_id = parseInt(document.getElementById('su-course').value);
   const semester_number = parseInt(document.getElementById('su-semester').value);
   const academic_year_label = document.getElementById('su-year').value.trim();
-  const weeks = parseBulkText(document.getElementById('su-bulk').value);
+  const start_date = document.getElementById('su-start').value;
+  const end_date = document.getElementById('su-end').value;
+  const holidays = collectHolidays();
 
-  if (!course_id || !academic_year_label || !weeks.length) {
-    msg.className = 'msg err'; msg.textContent = 'عبّي كل الحقول والتقويم أولاً'; return;
+  if (!course_id || !academic_year_label || !start_date || !end_date) {
+    msg.className = 'msg err'; msg.textContent = 'عبّي المقرر والعام وتاريخ البداية والنهاية'; return;
   }
 
   msg.className = 'msg'; msg.textContent = 'جاري الإنشاء...';
@@ -197,7 +213,7 @@ async function submitSetup() {
     const res = await fetch(`${API}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id, semester_number, academic_year_label, weeks }),
+      body: JSON.stringify({ course_id, semester_number, academic_year_label, start_date, end_date, holidays }),
     });
     const data = await res.json();
     if (data.success) {
