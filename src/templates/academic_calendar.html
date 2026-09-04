@@ -346,7 +346,8 @@ async function openCalendar(id) {
 
   cal.weeks_data.forEach(week => {
     week.days.forEach((day, i) => {
-      const weekCell = `<td class="week-cell">${i === 0 ? 'الأسبوع ' + week.week_label : ''}</td>`;
+      const weekHeader = week.week_number != null ? ('الأسبوع ' + week.week_label) : (week.holiday_summary || 'إجازة');
+      const weekCell = `<td class="week-cell">${i === 0 ? weekHeader : ''}</td>`;
       const dateCell = `<td>${day.day_name}<br><bdi dir="ltr">${day.hijri_date}</bdi>هـ</td>`;
       if (day.is_holiday) {
         const rowClasses = { exam: 'exam-row', practical_exam: 'practical-exam-row', review: 'review-row' };

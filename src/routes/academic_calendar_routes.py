@@ -103,9 +103,9 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_wee
                 return label, h_type
         return None, None
 
-    weeks = []
+    # مرحلة 1: جمّع الأيام بمجموعات كل 5 أيام (بغض النظر عن كونها إجازة) بدون ترقيم بعد
+    raw_weeks = []
     current_week_days = []
-    week_num = 0
     d = start
     while d <= end:
         wd = d.weekday()
@@ -122,14 +122,30 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_wee
                 'day_type': day_type or 'study',  # study | holiday | exam | no_class
             })
             if len(current_week_days) == 5:
-                week_num += 1
-                weeks.append({'week_number': week_num, 'week_label': _week_label(week_num), 'days': current_week_days})
+                raw_weeks.append(current_week_days)
                 current_week_days = []
         d += timedelta(days=1)
-
     if current_week_days:  # آخر أسبوع ناقص (أقل من 5 أيام)
-        week_num += 1
-        weeks.append({'week_number': week_num, 'week_label': _week_label(week_num), 'days': current_week_days})
+        raw_weeks.append(current_week_days)
+
+    # مرحلة 2: رقّم الأسابيع بالتسلسل — أسبوع كامل إجازة (كل أيامه is_holiday) ما يُحسب
+    # ضمن عدّاد "الأسبوع الدراسي" (نفس منطق المسرد الرسمي)، يُعرض كبطاقة إجازة بدون رقم
+    weeks = []
+    week_num = 0
+    for days in raw_weeks:
+        is_full_holiday = all(day['is_holiday'] for day in days)
+        if is_full_holiday:
+            labels = {day['holiday_label'] for day in days if day['holiday_label']}
+            weeks.append({
+                'week_number': None,
+                'week_label': None,
+                'is_full_holiday_week': True,
+                'holiday_summary': ' / '.join(sorted(labels)) if labels else 'إجازة',
+                'days': days,
+            })
+        else:
+            week_num += 1
+            weeks.append({'week_number': week_num, 'week_label': _week_label(week_num), 'days': days})
 
     return weeks
 
@@ -199,7 +215,7 @@ def list_calendars():
                 'course_name': c.course.name if c.course else None,
                 'semester_number': c.semester_number,
                 'academic_year_label': c.academic_year_label,
-                'weeks_count': len(c.weeks_data or []),
+                'weeks_count': len([w for w in (c.weeks_data or []) if w.get('week_number') is not None]),
             } for c in calendars],
         })
     except Exception as e:
