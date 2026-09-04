@@ -1,48 +1,64 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<title>مسرد إعداد الدروس</title>
+{% extends "base.html" %}
+
+{% block title %}مسرد إعداد الدروس{% endblock %}
+
+{% block extra_css %}
 <style>
-  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1f2937; }
-  .container { max-width: 1200px; margin: 0 auto; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  .sub { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
-  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; }
+  .cal-page { font-family: 'Segoe UI', Tahoma, sans-serif; color: #1f2937; }
+  .cal-container { max-width: 1200px; margin: 0 auto; }
+  .cal-header {
+    background: linear-gradient(135deg, #4ecdc4, #2563eb);
+    color: #fff;
+    padding: 28px 24px 24px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cal-header::before { content:''; position:absolute; inset:0; background: rgba(0,0,0,.2); }
+  .cal-header * { position: relative; }
+  .cal-header h1 { font-size: 22px; margin: 0 0 6px; font-weight: 700; }
+  .cal-header p { color: rgba(255,255,255,.9); font-size: 13px; margin: 0; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 18px; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; }
   .field { flex: 1; min-width: 160px; }
   label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px; }
   input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; }
   textarea { min-height: 220px; direction: rtl; }
-  .btn { background: #0d9488; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-  .btn:hover { background: #0b7a70; }
-  .btn-outline { background: #fff; color: #0d9488; border: 1.5px solid #0d9488; }
-  .btn-danger { background: #dc2626; }
+  .btn { background: #4ecdc4; color: #1e2a38; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
+  .btn:hover { background: #3dbdb4; transform: translateY(-2px); }
+  .btn-outline { background: #fff; color: #2563eb; border: 1.5px solid #2563eb; }
+  .btn-outline:hover { background: #eff6ff; transform: translateY(-2px); }
+  .btn-danger { background: #e74c3c; color: #fff; }
+  .btn-danger:hover { background: #d94132; transform: translateY(-2px); }
   .btn-sm { padding: 5px 10px; font-size: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: center; }
-  th { background: #0d9488; color: #fff; }
+  th { background: #2563eb; color: #fff; }
   .holiday-row td { background: #fff7ed; color: #9a3412; font-weight: 700; }
   .exam-row td { background: #fdf2f8; color: #9d174d; font-weight: 700; }
   .practical-exam-row td { background: #eff6ff; color: #1e40af; font-weight: 700; }
   .review-row td { background: #f0fdf4; color: #15803d; font-weight: 700; }
   .no-class-row td { background: #f9fafb; color: #9ca3af; }
-  .weekday-check { display: inline-flex; align-items: center; gap: 4px; margin-left: 14px; font-size: 13px; font-weight: 400; }
   .week-cell { background: #f1f5f9; font-weight: 700; }
-  td input { border: 1px solid transparent; background: transparent; text-align: center; }
-  td input:hover, td input:focus { border-color: #d1d5db; background: #fff; outline: none; }
+  td input, td select { border: 1px solid transparent; background: transparent; text-align: center; }
+  td input:hover, td input:focus, td select:hover, td select:focus { border-color: #d1d5db; background: #fff; outline: none; }
   .msg { font-size: 12px; margin-top: 8px; }
-  .msg.ok { color: #059669; } .msg.err { color: #dc2626; }
+  .msg.ok { color: #059669; } .msg.err { color: #e74c3c; }
   .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
   .list-item:hover { background: #f9fafb; }
   .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; line-height: 1.6; }
   .hidden { display: none; }
 </style>
-</head>
-<body>
-<div class="container">
-  <h1>📅 مسرد إعداد الدروس</h1>
-  <p class="sub">تقويم دراسي بالتواريخ والإجازات، ودروس المنهج موزّعة عليه تلقائياً</p>
+{% endblock %}
+
+{% block content %}
+<div class="cal-page">
+<div class="cal-container">
+  <div class="cal-header">
+    <h1>📅 مسرد إعداد الدروس</h1>
+    <p>تقويم دراسي بالتواريخ والإجازات، ودروس المنهج موزّعة عليه تلقائياً</p>
+  </div>
 
   <!-- قائمة التقاويم المحفوظة -->
   <div class="card" id="section-list">
@@ -155,7 +171,10 @@
     <div id="view-table" style="margin-top:14px; overflow-x:auto;"></div>
   </div>
 </div>
+</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 const API = '/api/academic-calendar';
 let currentCalendarId = null;
@@ -294,7 +313,7 @@ async function loadCalendarsList() {
   try {
     const res = await fetch(`${API}/list`);
     const data = await res.json();
-    if (!data.success) { el.innerHTML = `<p style="color:#dc2626;">${data.error || 'خطأ'}</p>`; return; }
+    if (!data.success) { el.innerHTML = `<p style="color:#e74c3c;">${data.error || 'خطأ'}</p>`; return; }
     if (!data.calendars.length) { el.innerHTML = '<p style="color:#9ca3af;">لا يوجد تقاويم محفوظة بعد</p>'; return; }
     el.innerHTML = data.calendars.map(c => `
       <div class="list-item" onclick="openCalendar(${c.id})">
@@ -303,7 +322,7 @@ async function loadCalendarsList() {
       </div>
     `).join('');
   } catch (e) {
-    el.innerHTML = `<p style="color:#dc2626;">خطأ: ${e.message}</p>`;
+    el.innerHTML = `<p style="color:#e74c3c;">خطأ: ${e.message}</p>`;
   }
 }
 
@@ -381,7 +400,7 @@ async function openCalendar(id) {
 
   const res = await fetch(`${API}/${id}`);
   const data = await res.json();
-  if (!data.success) { document.getElementById('view-table').innerHTML = `<p style="color:#dc2626;">${data.error}</p>`; return; }
+  if (!data.success) { document.getElementById('view-table').innerHTML = `<p style="color:#e74c3c;">${data.error}</p>`; return; }
 
   const cal = data.calendar;
   currentCalendar = cal;
@@ -534,5 +553,4 @@ async function deleteCurrent() {
 
 showList();
 </script>
-</body>
-</html>
+{% endblock %}
