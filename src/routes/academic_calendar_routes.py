@@ -68,6 +68,23 @@ def _week_label(n):
     return _ARABIC_WEEK_ORDINALS[n - 1] if 1 <= n <= len(_ARABIC_WEEK_ORDINALS) else str(n)
 
 
+# ترتيب أيام الأسبوع الدراسي (الأحد أولاً) بترميز weekday() بايثون
+_WEEKDAY_ORDER = [6, 0, 1, 2, 3]  # أحد، اثنين، ثلاثاء، أربعاء، خميس
+
+
+def _auto_pick_weekdays(count):
+    """يختار عدد أيام موزّع بالتساوي على الأسبوع الدراسي (أحد-خميس) بدل ما يحدده المستخدم يدوياً —
+    مفيد لما يكون عندك عدة شعب لنفس المقرر بأيام مختلفة وما تعرف مسبقاً أي أيام بالضبط"""
+    n = max(1, min(5, int(count)))
+    if n == 5:
+        return list(_WEEKDAY_ORDER)
+    if n == 1:
+        return [_WEEKDAY_ORDER[2]]  # الثلاثاء (منتصف الأسبوع)
+    step = (len(_WEEKDAY_ORDER) - 1) / (n - 1)
+    indices = sorted({round(i * step) for i in range(n)})
+    return [_WEEKDAY_ORDER[i] for i in indices]
+
+
 def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_weekdays=None):
     """يبني هيكل الأسابيع/الأيام تلقائياً من تاريخ بداية/نهاية ميلادي، مستثنياً الجمعة/السبت،
     ومحوّلاً كل تاريخ للهجري للعرض، ومعلّماً أيام الإجازات المحددة.
@@ -215,6 +232,7 @@ def list_calendars():
                 'course_name': c.course.name if c.course else None,
                 'semester_number': c.semester_number,
                 'academic_year_label': c.academic_year_label,
+                'section': c.section,
                 'weeks_count': len([w for w in (c.weeks_data or []) if w.get('week_number') is not None]),
             } for c in calendars],
         })
@@ -315,6 +333,7 @@ def setup_calendar():
         course_id = data.get('course_id')
         semester_number = data.get('semester_number')
         academic_year_label = (data.get('academic_year_label') or '').strip()
+        section = (data.get('section') or '').strip() or None
 
         if not course_id or not semester_number or not academic_year_label:
             return jsonify({'success': False, 'error': 'course_id و semester_number و academic_year_label مطلوبة'}), 400
@@ -327,6 +346,11 @@ def setup_calendar():
         #    (ب) هيكل weeks جاهز يدوياً (الطريقة القديمة، تبقى مدعومة)
         raw_holidays = data.get('holidays') or []
         raw_class_weekdays = data.get('class_weekdays')
+        weekly_periods_count = data.get('weekly_periods_count')
+        # لو حدد عدد الحصص بس (مو أيام معيّنة) — النظام يختار الأيام بنفسه موزّعة بالتساوي
+        # (مفيد لما يكون عندك عدة شعب لنفس المقرر بأيام مختلفة وما تعرف مسبقاً أي أيام بالضبط)
+        if not raw_class_weekdays and weekly_periods_count:
+            raw_class_weekdays = _auto_pick_weekdays(weekly_periods_count)
         if data.get('start_date') and data.get('end_date'):
             # class_weekdays: أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر
             # ما تُرسل = كل أيام الأسبوع الدراسي فيها حصة (الافتراضي)
@@ -344,10 +368,10 @@ def setup_calendar():
 
         existing = AcademicCalendar.query.filter_by(
             course_id=course_id, semester_number=semester_number,
-            academic_year_label=academic_year_label,
+            academic_year_label=academic_year_label, section=section,
         ).first()
         if existing:
-            return jsonify({'success': False, 'error': 'يوجد تقويم محفوظ مسبقاً بنفس المقرر والفصل والعام — عدّله من شاشة التعديل بدل إنشاء واحد جديد'}), 400
+            return jsonify({'success': False, 'error': 'يوجد تقويم محفوظ مسبقاً بنفس المقرر والشعبة والفصل والعام — عدّله من شاشة التعديل بدل إنشاء واحد جديد'}), 400
 
         weeks, total_lessons, used_lessons = _auto_fill_lessons(course_id, weeks)
 
@@ -355,6 +379,7 @@ def setup_calendar():
             course_id=course_id,
             semester_number=semester_number,
             academic_year_label=academic_year_label,
+            section=section,
             weeks_data=weeks,
             start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
             end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None,

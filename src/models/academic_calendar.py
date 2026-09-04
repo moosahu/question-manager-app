@@ -16,6 +16,7 @@ class AcademicCalendar(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     semester_number = db.Column(db.Integer, nullable=False)  # 1 أو 2
     academic_year_label = db.Column(db.String(20), nullable=False)  # مثال: "1448هـ"
+    section = db.Column(db.String(50), nullable=True)  # الشعبة — كل شعبة تقويمها المستقل (أيام حصص/توزيع مختلف)
     weeks_data = db.Column(db.JSON, nullable=False, default=list)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -35,6 +36,7 @@ class AcademicCalendar(db.Model):
             'course_name': self.course.name if self.course else None,
             'semester_number': self.semester_number,
             'academic_year_label': self.academic_year_label,
+            'section': self.section,
             'weeks_data': self.weeks_data or [],
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,
