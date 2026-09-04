@@ -24,6 +24,8 @@
   th { background: #0d9488; color: #fff; }
   .holiday-row td { background: #fff7ed; color: #9a3412; font-weight: 700; }
   .exam-row td { background: #fdf2f8; color: #9d174d; font-weight: 700; }
+  .practical-exam-row td { background: #eff6ff; color: #1e40af; font-weight: 700; }
+  .review-row td { background: #f0fdf4; color: #15803d; font-weight: 700; }
   .no-class-row td { background: #f9fafb; color: #9ca3af; }
   .weekday-check { display: inline-flex; align-items: center; gap: 4px; margin-left: 14px; font-size: 13px; font-weight: 400; }
   .week-cell { background: #f1f5f9; font-weight: 700; }
@@ -164,6 +166,8 @@ function addHolidayRow() {
     <div class="field"><label>النوع</label>
       <select class="h-type">
         <option value="holiday">إجازة</option>
+        <option value="review">مراجعة</option>
+        <option value="practical_exam">اختبارات عملية</option>
         <option value="exam">اختبارات نهاية الفصل</option>
       </select>
     </div>
@@ -181,7 +185,8 @@ function collectHolidays() {
     const end_date = row.querySelector('.h-end').value || start_date;
     const type = row.querySelector('.h-type').value || 'holiday';
     const label = row.querySelector('.h-label').value.trim();
-    if (start_date) holidays.push({ start_date, end_date, type, label: label || (type === 'exam' ? 'اختبارات نهاية الفصل' : 'إجازة') });
+    const defaultLabels = { holiday: 'إجازة', review: 'مراجعة', practical_exam: 'اختبارات عملية', exam: 'اختبارات نهاية الفصل' };
+    if (start_date) holidays.push({ start_date, end_date, type, label: label || defaultLabels[type] || 'إجازة' });
   });
   return holidays;
 }
@@ -279,11 +284,13 @@ async function openCalendar(id) {
       const weekCell = `<td class="week-cell">${i === 0 ? 'الأسبوع ' + week.week_label : ''}</td>`;
       const dateCell = `<td>${day.day_name}<br><bdi dir="ltr">${day.hijri_date}</bdi>هـ</td>`;
       if (day.is_holiday) {
-        const rowClass = day.day_type === 'exam' ? 'exam-row' : 'holiday-row';
+        const rowClasses = { exam: 'exam-row', practical_exam: 'practical-exam-row', review: 'review-row' };
+        const defaultLabels = { holiday: 'إجازة', review: 'مراجعة', practical_exam: 'اختبارات عملية', exam: 'اختبارات نهاية الفصل' };
+        const rowClass = rowClasses[day.day_type] || 'holiday-row';
         html += `<tr class="${rowClass}">
           ${weekCell}
           ${dateCell}
-          <td colspan="6">${day.holiday_label || (day.day_type === 'exam' ? 'اختبارات نهاية الفصل' : 'إجازة')}</td>
+          <td colspan="6">${day.holiday_label || defaultLabels[day.day_type] || 'إجازة'}</td>
         </tr>`;
       } else if (day.day_type === 'no_class') {
         html += `<tr class="no-class-row">

@@ -76,15 +76,21 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_wee
     if end < start:
         raise ValueError('تاريخ النهاية قبل تاريخ البداية')
 
-    # حوّل نطاقات الإجازات/الاختبارات لتواريخ فعلية
-    # type: 'holiday' (إجازة، برتقالي) أو 'exam' (اختبارات نهاية الفصل، وردي)
+    # حوّل نطاقات الإجازات/الاختبارات/المراجعة لتواريخ فعلية — كلها تُستثنى من توزيع الدروس
+    # type: holiday (إجازة) | exam (اختبارات نظرية) | practical_exam (اختبارات عملية) | review (مراجعة)
+    _DEFAULT_LABELS = {
+        'holiday': 'إجازة',
+        'exam': 'اختبارات نهاية الفصل الدراسي',
+        'practical_exam': 'اختبارات عملية',
+        'review': 'مراجعة',
+    }
     holiday_ranges = []
     for h in (holidays or []):
         try:
             h_start = datetime.strptime(h['start_date'], '%Y-%m-%d').date()
             h_end = datetime.strptime(h.get('end_date') or h['start_date'], '%Y-%m-%d').date()
             h_type = h.get('type') or 'holiday'
-            default_label = 'اختبارات نهاية الفصل الدراسي' if h_type == 'exam' else 'إجازة'
+            default_label = _DEFAULT_LABELS.get(h_type, 'إجازة')
             holiday_ranges.append((h_start, h_end, h.get('label') or default_label, h_type))
         except Exception:
             continue
