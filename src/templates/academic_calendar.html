@@ -160,6 +160,7 @@
     <div class="row" style="justify-content: space-between; align-items:center;">
       <h3 id="view-title" style="margin:0;"></h3>
       <div>
+        <button class="btn-outline btn btn-sm" onclick="exportCurrentExcel()">📥 تصدير Excel</button>
         <button class="btn-outline btn btn-sm" onclick="regenerateCurrent()">🔄 إعادة توزيع الدروس</button>
         <button class="btn-danger btn btn-sm" onclick="deleteCurrent()">🗑 حذف التقويم</button>
         <button class="btn-outline btn btn-sm" onclick="showList()">رجوع للقائمة</button>
@@ -460,13 +461,13 @@ async function openCalendar(id) {
         html += `<tr class="${rowClass}">
           ${weekCell}
           ${dateCell}
-          <td colspan="6">${day.holiday_label || defaultLabels[day.day_type] || 'إجازة'}</td>
+          <td colspan="7">${day.holiday_label || defaultLabels[day.day_type] || 'إجازة'}</td>
         </tr>`;
       } else if (day.day_type === 'no_class') {
         html += `<tr class="no-class-row">
           ${weekCell}
           ${dateCell}
-          <td colspan="6">لا يوجد حصة لهذا المقرر</td>
+          <td colspan="7">لا يوجد حصة لهذا المقرر</td>
         </tr>`;
       } else {
         html += `<tr>
@@ -566,6 +567,10 @@ async function saveDay(week_number, day_name, field, value) {
       body: JSON.stringify({ week_number, day_name, [field]: value }),
     });
   } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
+}
+
+function exportCurrentExcel() {
+  window.location.href = `${API}/${currentCalendarId}/export-excel`;
 }
 
 async function regenerateCurrent() {

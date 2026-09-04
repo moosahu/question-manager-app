@@ -275,6 +275,105 @@ def get_calendar(calendar_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@academic_calendar_bp.route('/<int:calendar_id>/export-excel', methods=['GET'])
+@login_required
+@admin_or_teacher_required
+def export_calendar_excel(calendar_id):
+    """تصدير التقويم كملف Excel — متاح للأدمن والمعلم"""
+    try:
+        cal = AcademicCalendar.query.get(calendar_id)
+        if not cal:
+            return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
+
+        from io import BytesIO
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from flask import send_file
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'مسرد إعداد الدروس'
+        ws.sheet_view.rightToLeft = True
+
+        headers = ['الأسبوع', 'اليوم والتاريخ', 'الحصة', 'الشعبة', 'الوحدة', 'الدرس',
+                   'المسائل المحلولة', 'الواجب', 'ملاحظات']
+        thin = Side(style='thin', color='CBD5E1')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        header_fill = PatternFill('solid', fgColor='0D9488')
+        for col, h in enumerate(headers, start=1):
+            c = ws.cell(1, col, h)
+            c.font = Font(color='FFFFFF', bold=True, size=11)
+            c.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+            c.fill = header_fill
+            c.border = border
+        ws.row_dimensions[1].height = 26
+
+        _EXAM_TYPE_LABELS = {'holiday': 'إجازة', 'review': 'مراجعة', 'practical_exam': 'اختبارات عملية', 'exam': 'اختبارات نهاية الفصل'}
+        row_num = 2
+        for week in (cal.weeks_data or []):
+            week_header = f"الأسبوع {week['week_label']}" if week.get('week_number') is not None else (week.get('holiday_summary') or 'إجازة')
+            for i, day in enumerate(week.get('days', [])):
+                date_str = f"{day.get('day_name', '')} {day.get('hijri_date', '')}هـ"
+                if day.get('is_holiday'):
+                    label = day.get('holiday_label') or _EXAM_TYPE_LABELS.get(day.get('day_type'), 'إجازة')
+                    ws.cell(row_num, 1, week_header if i == 0 else '')
+                    ws.cell(row_num, 2, date_str)
+                    ws.merge_cells(start_row=row_num, start_column=3, end_row=row_num, end_column=len(headers))
+                    lc = ws.cell(row_num, 3, label)
+                    lc.alignment = Alignment(horizontal='center', vertical='center')
+                    lc.font = Font(bold=True, color='9A3412' if day.get('day_type') != 'exam' else '9D174D')
+                elif day.get('day_type') == 'no_class':
+                    ws.cell(row_num, 1, week_header if i == 0 else '')
+                    ws.cell(row_num, 2, date_str)
+                    ws.merge_cells(start_row=row_num, start_column=3, end_row=row_num, end_column=len(headers))
+                    ws.cell(row_num, 3, 'لا يوجد حصة لهذا المقرر').alignment = Alignment(horizontal='center', vertical='center')
+                else:
+                    values = [
+                        week_header if i == 0 else '', date_str, day.get('period_number') or '', day.get('section') or '',
+                        day.get('unit_name') or '', day.get('lesson_name') or '', day.get('solved_problems') or '',
+                        day.get('homework') or '', day.get('notes') or '',
+                    ]
+                    for col, v in enumerate(values, start=1):
+                        ws.cell(row_num, col, v)
+                for col in range(1, len(headers) + 1):
+                    cell = ws.cell(row_num, col)
+                    cell.border = border
+                    if col <= 2:
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                row_num += 1
+
+        for col, width in zip(range(1, len(headers) + 1), [10, 14, 8, 10, 18, 26, 20, 18, 20]):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+        # صف المصدر (نفس تذييل بقية تقارير التطبيق)
+        footer_row = row_num + 1
+        ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=len(headers))
+        fc = ws.cell(footer_row, 1)
+        fc.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+        fc.font = Font(size=9, color='888888', italic=True)
+        fc.alignment = Alignment(horizontal='center', vertical='center')
+        fc.fill = PatternFill('solid', fgColor='F1F5F9')
+        ws.row_dimensions[footer_row].height = 18
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        course_name = (cal.course.name if cal.course else 'مقرر').replace('/', '-')
+        section_part = f'_شعبة{cal.section}' if cal.section else ''
+        filename = f'مسرد_{course_name}{section_part}_فصل{cal.semester_number}.xlsx'
+        return send_file(
+            output, as_attachment=True, download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
+        print(f"❌ Error exporting calendar to excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @academic_calendar_bp.route('/extract-from-pdf', methods=['POST'])
 @login_required
 @admin_required
