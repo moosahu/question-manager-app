@@ -160,6 +160,55 @@
 const API = '/api/academic-calendar';
 let currentCalendarId = null;
 let currentCalendar = null;
+let currentCourseLessons = [];
+let currentCourseLessonsCourseId = null;
+
+async function loadCourseLessons(courseId) {
+  if (currentCourseLessonsCourseId === courseId) return; // مخزّنة مسبقاً
+  try {
+    const res = await fetch(`${API}/course/${courseId}/lessons`);
+    const data = await res.json();
+    currentCourseLessons = data.success ? (data.lessons || []) : [];
+    currentCourseLessonsCourseId = courseId;
+  } catch (e) {
+    currentCourseLessons = [];
+  }
+}
+
+function lessonSelectHtml(day, weekNumber, dayName) {
+  const currentId = day.lesson_id;
+  const hasMatch = currentId != null && currentCourseLessons.some(l => l.lesson_id === currentId);
+  let options = currentCourseLessons.map(l =>
+    `<option value="${l.lesson_id}" ${l.lesson_id === currentId ? 'selected' : ''}>${(l.unit_name + ' — ' + l.lesson_name).replace(/"/g, '&quot;')}</option>`
+  ).join('');
+  // لو الدرس الحالي نص حر ما يطابق أي درس بالمنهج (تعديل يدوي قديم)، أضفه كخيار مخصص
+  if (!hasMatch && day.lesson_name) {
+    options = `<option value="custom" selected>${day.lesson_name.replace(/"/g, '&quot;')} (مخصص)</option>` + options;
+  }
+  options = `<option value="">— بدون —</option>` + options;
+  return `<select onchange="saveDayLesson(${weekNumber}, '${dayName}', this.value)">${options}</select>`;
+}
+
+async function saveDayLesson(weekNumber, dayName, value) {
+  let fields;
+  if (!value) {
+    fields = { lesson_id: null, lesson_name: '', unit_id: null, unit_name: null };
+  } else if (value === 'custom') {
+    return; // خيار العرض بس — ما يترسل
+  } else {
+    const lesson = currentCourseLessons.find(l => String(l.lesson_id) === String(value));
+    if (!lesson) return;
+    fields = { lesson_id: lesson.lesson_id, lesson_name: lesson.lesson_name, unit_id: lesson.unit_id, unit_name: lesson.unit_name };
+  }
+  try {
+    await fetch(`${API}/${currentCalendarId}/day`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_number: weekNumber, day_name: dayName, ...fields }),
+    });
+    openCalendar(currentCalendarId);
+  } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
+}
 const HOLIDAY_TYPE_LABELS = { holiday: 'إجازة', review: 'مراجعة', practical_exam: 'اختبارات عملية', exam: 'اختبارات نهاية الفصل' };
 
 function showList() {
@@ -340,6 +389,7 @@ async function openCalendar(id) {
     `${cal.course_name}${cal.section ? ' — شعبة ' + cal.section : ''} — الفصل ${cal.semester_number === 1 ? 'الأول' : 'الثاني'} — ${cal.academic_year_label}`;
 
   renderHolidaysSection(cal);
+  await loadCourseLessons(cal.course_id);
 
   let html = `<table><thead><tr>
     <th>الأسبوع</th><th>اليوم والتاريخ</th><th>الحصة</th><th>الشعبة</th><th>الوحدة</th><th>الدرس</th>
@@ -375,8 +425,7 @@ async function openCalendar(id) {
           <td><input value="${(day.section || '').replace(/"/g, '&quot;')}" style="width:50px;"
                 onchange="saveDay(${week.week_number}, '${day.day_name}', 'section', this.value)"></td>
           <td>${day.unit_name || '-'}</td>
-          <td><input value="${(day.lesson_name || '').replace(/"/g, '&quot;')}"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'lesson_name', this.value)"></td>
+          <td>${lessonSelectHtml(day, week.week_number, day.day_name)}</td>
           <td><input value="${(day.solved_problems || '').replace(/"/g, '&quot;')}"
                 onchange="saveDay(${week.week_number}, '${day.day_name}', 'solved_problems', this.value)"></td>
           <td><input value="${(day.homework || '').replace(/"/g, '&quot;')}"

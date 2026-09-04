@@ -23,7 +23,10 @@ except ImportError:  # pragma: no cover
 academic_calendar_bp = Blueprint('academic_calendar', __name__, url_prefix='/api/academic-calendar')
 
 # حقول اليوم اللي يُسمح للمعلم يعدّلها (تعبئة محتوى بس) — الباقي (الإجازات/الحصص الأسبوعية/الهيكل) أدمن فقط
-_TEACHER_EDITABLE_DAY_FIELDS = {'lesson_name', 'homework', 'notes', 'solved_problems', 'section', 'period_number'}
+_TEACHER_EDITABLE_DAY_FIELDS = {
+    'lesson_name', 'lesson_id', 'unit_id', 'unit_name',  # اختيار الدرس من قائمة المنهج بدل كتابة حرة
+    'homework', 'notes', 'solved_problems', 'section', 'period_number',
+}
 
 
 def admin_required(f):
@@ -215,6 +218,25 @@ def _auto_fill_lessons(course_id, weeks):
 def calendar_page():
     """صفحة مسرد إعداد الدروس"""
     return render_template('academic_calendar.html')
+
+
+@academic_calendar_bp.route('/course/<int:course_id>/lessons', methods=['GET'])
+@login_required
+@admin_or_teacher_required
+def course_lessons(course_id):
+    """دروس مقرر معيّن مرتّبة (وحدة فدرس) — تُستخدم بقائمة اختيار الدرس بدل الكتابة الحرة"""
+    try:
+        units = Unit.query.filter_by(course_id=course_id).order_by(Unit.order_num).all()
+        lessons = []
+        for u in units:
+            for l in Lesson.query.filter_by(unit_id=u.id).order_by(Lesson.order_num).all():
+                lessons.append({
+                    'unit_id': u.id, 'unit_name': u.name,
+                    'lesson_id': l.id, 'lesson_name': l.name,
+                })
+        return jsonify({'success': True, 'lessons': lessons})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @academic_calendar_bp.route('/list', methods=['GET'])
