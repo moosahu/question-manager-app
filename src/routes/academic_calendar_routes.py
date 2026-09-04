@@ -57,21 +57,24 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
     if end < start:
         raise ValueError('تاريخ النهاية قبل تاريخ البداية')
 
-    # حوّل نطاقات الإجازات لتواريخ فعلية
+    # حوّل نطاقات الإجازات/الاختبارات لتواريخ فعلية
+    # type: 'holiday' (إجازة، برتقالي) أو 'exam' (اختبارات نهاية الفصل، وردي)
     holiday_ranges = []
     for h in (holidays or []):
         try:
             h_start = datetime.strptime(h['start_date'], '%Y-%m-%d').date()
             h_end = datetime.strptime(h.get('end_date') or h['start_date'], '%Y-%m-%d').date()
-            holiday_ranges.append((h_start, h_end, h.get('label') or 'إجازة'))
+            h_type = h.get('type') or 'holiday'
+            default_label = 'اختبارات نهاية الفصل الدراسي' if h_type == 'exam' else 'إجازة'
+            holiday_ranges.append((h_start, h_end, h.get('label') or default_label, h_type))
         except Exception:
             continue
 
     def _holiday_label_for(d):
-        for h_start, h_end, label in holiday_ranges:
+        for h_start, h_end, label, h_type in holiday_ranges:
             if h_start <= d <= h_end:
-                return label
-        return None
+                return label, h_type
+        return None, None
 
     weeks = []
     current_week_days = []
@@ -81,12 +84,13 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
         wd = d.weekday()
         if wd in _ARABIC_WEEKDAY:  # يستثني الجمعة (4) والسبت (5) تلقائياً
             hijri = Gregorian(d.year, d.month, d.day).to_hijri()
-            holiday_label = _holiday_label_for(d)
+            holiday_label, day_type = _holiday_label_for(d)
             current_week_days.append({
                 'day_name': _ARABIC_WEEKDAY[wd],
                 'hijri_date': f'{hijri.day}/{hijri.month}',
                 'is_holiday': holiday_label is not None,
                 'holiday_label': holiday_label,
+                'day_type': day_type or 'study',  # study | holiday | exam
             })
             if len(current_week_days) == 5:
                 week_num += 1
@@ -134,9 +138,12 @@ def _auto_fill_lessons(course_id, weeks):
                 day['lesson_id'] = None
                 day['lesson_name'] = None
             day.setdefault('period_number', 1)
+            day.setdefault('section', '')
+            day.setdefault('solved_problems', '')
             day.setdefault('homework', '')
             day.setdefault('notes', '')
             day.setdefault('holiday_label', None)
+            day.setdefault('day_type', 'exam' if day.get('is_holiday') and 'اختبار' in (day.get('holiday_label') or '') else ('holiday' if day.get('is_holiday') else 'study'))
     return weeks, len(lesson_queue), idx
 
 
@@ -308,6 +315,10 @@ def update_day(calendar_id):
                     day['unit_name'] = data.get('unit_name')
                 if 'period_number' in data:
                     day['period_number'] = data.get('period_number')
+                if 'section' in data:
+                    day['section'] = data.get('section')
+                if 'solved_problems' in data:
+                    day['solved_problems'] = data.get('solved_problems')
                 if 'homework' in data:
                     day['homework'] = data.get('homework')
                 if 'notes' in data:
@@ -316,6 +327,8 @@ def update_day(calendar_id):
                     day['is_holiday'] = data.get('is_holiday')
                 if 'holiday_label' in data:
                     day['holiday_label'] = data.get('holiday_label')
+                if 'day_type' in data:
+                    day['day_type'] = data.get('day_type')  # study | holiday | exam
                 found = True
                 break
             if found:
