@@ -11,12 +11,17 @@ try:
     from src.extensions import db
     from src.models.academic_calendar import AcademicCalendar
     from src.models.curriculum import Lesson, Unit, Course
+    from src.models.teacher import Teacher
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.academic_calendar import AcademicCalendar
     from models.curriculum import Lesson, Unit, Course
+    from models.teacher import Teacher
 
 academic_calendar_bp = Blueprint('academic_calendar', __name__, url_prefix='/api/academic-calendar')
+
+# حقول اليوم اللي يُسمح للمعلم يعدّلها (تعبئة محتوى بس) — الباقي (الإجازات/الحصص الأسبوعية/الهيكل) أدمن فقط
+_TEACHER_EDITABLE_DAY_FIELDS = {'lesson_name', 'homework', 'notes', 'solved_problems', 'section', 'period_number'}
 
 
 def admin_required(f):
@@ -25,6 +30,18 @@ def admin_required(f):
         if not current_user.is_authenticated:
             return jsonify({'success': False, 'error': 'يجب تسجيل الدخول'}), 401
         if not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'صلاحيات غير كافية'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def admin_or_teacher_required(f):
+    """للشاشات اللي يشوفها الأدمن والمعلم (عرض + تعبئة الدرس) — التمييز الفعلي بين الاثنين يصير داخل الدالة"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return jsonify({'success': False, 'error': 'يجب تسجيل الدخول'}), 401
+        if not (getattr(current_user, 'is_admin', False) or isinstance(current_user, Teacher)):
             return jsonify({'success': False, 'error': 'صلاحيات غير كافية'}), 403
         return f(*args, **kwargs)
     return decorated
@@ -161,7 +178,7 @@ def calendar_page():
 
 @academic_calendar_bp.route('/list', methods=['GET'])
 @login_required
-@admin_required
+@admin_or_teacher_required
 def list_calendars():
     """قائمة كل التقاويم المحفوظة (بدون weeks_data الكاملة لتخفيف الحمل)"""
     try:
@@ -183,7 +200,7 @@ def list_calendars():
 
 @academic_calendar_bp.route('/<int:calendar_id>', methods=['GET'])
 @login_required
-@admin_required
+@admin_or_teacher_required
 def get_calendar(calendar_id):
     try:
         cal = AcademicCalendar.query.get(calendar_id)
@@ -291,15 +308,19 @@ def regenerate_calendar(calendar_id):
 
 @academic_calendar_bp.route('/<int:calendar_id>/day', methods=['PUT'])
 @login_required
-@admin_required
+@admin_or_teacher_required
 def update_day(calendar_id):
-    """تعديل خانة يوم واحد يدوياً (موضوع الدرس/الواجب/الملاحظات)"""
+    """تعديل خانة يوم واحد يدوياً (موضوع الدرس/الواجب/الملاحظات) — الأدمن يعدّل أي حقل،
+    المعلم يعدّل حقول التعبئة بس (_TEACHER_EDITABLE_DAY_FIELDS)"""
     try:
         cal = AcademicCalendar.query.get(calendar_id)
         if not cal:
             return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
 
+        is_admin = getattr(current_user, 'is_admin', False)
         data = request.get_json() or {}
+        if not is_admin:
+            data = {k: v for k, v in data.items() if k in _TEACHER_EDITABLE_DAY_FIELDS or k in ('week_number', 'day_name')}
         week_number = data.get('week_number')
         day_name = data.get('day_name')
         if week_number is None or not day_name:
