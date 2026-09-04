@@ -49,6 +49,7 @@
   .list-item:hover { background: #f9fafb; }
   .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; line-height: 1.6; }
   .hidden { display: none; }
+  .weekday-check { display: inline-flex; align-items: center; gap: 4px; margin-left: 14px; font-size: 13px; font-weight: 400; }
 </style>
 {% endblock %}
 
@@ -117,11 +118,29 @@
     <div class="hint">التواريخ ميلادية عادية (نفس تقويم جوالك) — النظام يحوّلها هجري ويستثني الجمعة والسبت تلقائياً. تقدر تدخلها يدوياً أو تعبّيها تلقائياً بالزر أعلاه ثم تراجعها.</div>
 
     <div style="margin-top:18px;">
-      <div class="field" style="max-width:220px;">
-        <label>كم حصة بالأسبوع لهذي الشعبة</label>
-        <input type="number" id="su-periods-count" min="1" max="5" value="5">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="su-manual-days-toggle" style="width:auto;" onchange="toggleManualDays()">
+        أعرف أيام الحصص بالضبط — أحددها بنفسي
+      </label>
+
+      <div id="periods-count-section" style="margin-top:10px;">
+        <div class="field" style="max-width:220px;">
+          <label>كم حصة بالأسبوع لهذي الشعبة</label>
+          <input type="number" id="su-periods-count" min="1" max="5" value="5">
+        </div>
+        <div class="hint">النظام يختار أيام موزّعة بالتساوي بنفسه — مفيد لو عندك عدة شعب بأيام مختلفة وما تعرف الأيام مسبقاً.</div>
       </div>
-      <div class="hint">النظام يختار أيام موزّعة بالتساوي بنفسه (ما تحتاج تحدد أي يوم بالضبط) — مفيد لو عندك عدة شعب بأيام مختلفة.</div>
+
+      <div id="manual-days-section" class="hidden" style="margin-top:10px;">
+        <label>أيام حصص هذي الشعبة بالأسبوع</label>
+        <div id="class-weekdays">
+          <label class="weekday-check"><input type="checkbox" class="cw-check" value="6"> الأحد</label>
+          <label class="weekday-check"><input type="checkbox" class="cw-check" value="0"> الاثنين</label>
+          <label class="weekday-check"><input type="checkbox" class="cw-check" value="1"> الثلاثاء</label>
+          <label class="weekday-check"><input type="checkbox" class="cw-check" value="2"> الأربعاء</label>
+          <label class="weekday-check"><input type="checkbox" class="cw-check" value="3"> الخميس</label>
+        </div>
+      </div>
     </div>
 
     <div style="margin-top:18px;">
@@ -248,11 +267,20 @@ function showSetupForm() {
   document.getElementById('su-year').value = '';
   document.getElementById('su-section').value = '';
   document.getElementById('su-periods-count').value = 5;
+  document.getElementById('su-manual-days-toggle').checked = false;
+  document.querySelectorAll('.cw-check').forEach(c => c.checked = false);
+  toggleManualDays();
   document.getElementById('ai-pdf-msg').textContent = '';
   document.getElementById('holidays-list').innerHTML = '';
   holidayRowCount = 0;
   addHolidayRow(); // إجازة وحدة جاهزة تبدأ فيها
   loadCoursesIntoSelect();
+}
+
+function toggleManualDays() {
+  const manual = document.getElementById('su-manual-days-toggle').checked;
+  document.getElementById('periods-count-section').classList.toggle('hidden', manual);
+  document.getElementById('manual-days-section').classList.toggle('hidden', !manual);
 }
 
 function addHolidayRow(prefill) {
@@ -365,10 +393,15 @@ async function submitSetup() {
   const start_date = document.getElementById('su-start').value;
   const end_date = document.getElementById('su-end').value;
   const holidays = collectHolidays();
-  const weekly_periods_count = parseInt(document.getElementById('su-periods-count').value) || 5;
+  const manualDays = document.getElementById('su-manual-days-toggle').checked;
+  const class_weekdays = manualDays ? Array.from(document.querySelectorAll('.cw-check:checked')).map(c => parseInt(c.value)) : null;
+  const weekly_periods_count = manualDays ? null : (parseInt(document.getElementById('su-periods-count').value) || 5);
 
   if (!course_id || !academic_year_label || !start_date || !end_date) {
     msg.className = 'msg err'; msg.textContent = 'عبّي المقرر والعام وتاريخ البداية والنهاية'; return;
+  }
+  if (manualDays && !class_weekdays.length) {
+    msg.className = 'msg err'; msg.textContent = 'حدّد يوم واحد على الأقل فيه حصة'; return;
   }
 
   msg.className = 'msg'; msg.textContent = 'جاري الإنشاء...';
@@ -376,7 +409,7 @@ async function submitSetup() {
     const res = await fetch(`${API}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id, semester_number, academic_year_label, section, start_date, end_date, holidays, weekly_periods_count }),
+      body: JSON.stringify({ course_id, semester_number, academic_year_label, section, start_date, end_date, holidays, weekly_periods_count, class_weekdays }),
     });
     const data = await res.json();
     if (data.success) {
