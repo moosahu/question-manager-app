@@ -12,11 +12,13 @@ try:
     from src.models.academic_calendar import AcademicCalendar
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.teacher import Teacher
+    from src.services.lesson_prep_service import lesson_prep_service
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.academic_calendar import AcademicCalendar
     from models.curriculum import Lesson, Unit, Course
     from models.teacher import Teacher
+    from services.lesson_prep_service import lesson_prep_service
 
 academic_calendar_bp = Blueprint('academic_calendar', __name__, url_prefix='/api/academic-calendar')
 
@@ -214,6 +216,76 @@ def get_calendar(calendar_id):
             return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
         return jsonify({'success': True, 'calendar': cal.to_dict()})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@academic_calendar_bp.route('/extract-from-pdf', methods=['POST'])
+@login_required
+@admin_required
+def extract_from_pdf():
+    """يرفع PDF تقويم دراسي رسمي (مثل مسرد الوزارة) ويستخرج منه بداية/نهاية الفصل + قائمة الإجازات
+    بالذكاء الاصطناعي — بدون حفظ، يرجّع البيانات للمراجعة والتعديل قبل التأكيد عبر /setup"""
+    try:
+        if 'pdf' not in request.files:
+            return jsonify({'success': False, 'error': 'لم يتم إرفاق ملف PDF'}), 400
+        pdf_file = request.files['pdf']
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'الملف يجب أن يكون PDF'}), 400
+
+        pdf_bytes = pdf_file.read()
+        import fitz
+        import gc
+        images = []
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+            images.append(pix.tobytes("jpeg"))
+            del pix
+        doc.close()
+        gc.collect()
+
+        if not images:
+            return jsonify({'success': False, 'error': 'تعذّر قراءة الملف'}), 400
+
+        prompt = """حلّل صور تقويم دراسي رسمي مرفقة (جدول أسابيع/أيام دراسية). أحتاج منك بس:
+1. تاريخ بداية الفصل الدراسي (أول يوم دراسي فعلي) بالميلادي
+2. تاريخ نهاية الفصل الدراسي (آخر يوم دراسي، عادة آخر يوم اختبارات) بالميلادي
+3. قائمة كل فترات التوقف عن الدروس العادية (إجازات رسمية، اختبارات، مراجعة، إجازات إضافية) بتواريخها الميلادية
+
+لكل فترة حدد "type":
+- "holiday" لأي إجازة عادية
+- "review" لأسبوع/أيام المراجعة
+- "practical_exam" للاختبارات العملية
+- "exam" لاختبارات نهاية الفصل
+
+لو التاريخ مذكور بالهجري بس، حوّله للميلادي بالاستناد لأي تاريخ ميلادي مرافق مذكور بالجدول (زي "20 - 28 نوفمبر 2026م")، أو احسبه بنفسك. لو ما تقدر تحدد سنة ميلادية بثقة لفترة معينة، اذكرها بحقل "warnings" بدل ما تخمّن.
+
+أجب بصيغة JSON فقط بدون أي نص إضافي، بالضبط بهذا الشكل:
+```json
+{
+  "start_date": "2026-08-23",
+  "end_date": "2027-01-14",
+  "holidays": [
+    {"start_date": "2026-11-20", "end_date": "2026-11-28", "type": "holiday", "label": "إجازة الخريف"},
+    {"start_date": "2027-01-10", "end_date": "2027-01-14", "type": "exam", "label": "اختبارات نهاية الفصل الدراسي الأول"}
+  ],
+  "warnings": []
+}
+```"""
+        text, _usage = lesson_prep_service._call_ai(
+            prompt, label='academic_calendar_extract', images=images,
+            plan_id=None, teacher_id=None, operation_type='calendar_extract',
+        )
+        extracted = lesson_prep_service._extract_json(text)
+        if not extracted or not extracted.get('start_date') or not extracted.get('end_date'):
+            return jsonify({'success': False, 'error': 'تعذّر استخراج البيانات من الملف بثقة — جرّب إدخالها يدوياً أو راجع وضوح الصور بالملف'}), 400
+
+        return jsonify({'success': True, 'extracted': extracted})
+    except Exception as e:
+        print(f"❌ Error extracting calendar from PDF: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

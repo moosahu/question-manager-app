@@ -76,6 +76,13 @@
         <input type="text" id="su-year" placeholder="مثال: 1448هـ">
       </div>
     </div>
+    <div class="row" style="margin-top:14px; align-items:center;">
+      <label style="margin:0;">🤖 عبّي التواريخ والإجازات تلقائياً من ملف PDF (تقويم وزاري رسمي)</label>
+      <input type="file" id="ai-pdf-input" accept="application/pdf" style="display:none;" onchange="uploadCalendarPdf()">
+      <button class="btn-outline btn btn-sm" onclick="document.getElementById('ai-pdf-input').click()">📄 رفع ملف</button>
+    </div>
+    <div id="ai-pdf-msg" class="msg"></div>
+
     <div class="row" style="margin-top:14px;">
       <div class="field">
         <label>بداية الفصل الدراسي (ميلادي)</label>
@@ -86,7 +93,7 @@
         <input type="date" id="su-end">
       </div>
     </div>
-    <div class="hint">التواريخ ميلادية عادية (نفس تقويم جوالك) — النظام يحوّلها هجري ويستثني الجمعة والسبت تلقائياً.</div>
+    <div class="hint">التواريخ ميلادية عادية (نفس تقويم جوالك) — النظام يحوّلها هجري ويستثني الجمعة والسبت تلقائياً. تقدر تدخلها يدوياً أو تعبّيها تلقائياً بالزر أعلاه ثم تراجعها.</div>
 
     <div style="margin-top:18px;">
       <label>أيام حصص هذا المقرر بالأسبوع</label>
@@ -176,7 +183,7 @@ function showSetupForm() {
   loadCoursesIntoSelect();
 }
 
-function addHolidayRow() {
+function addHolidayRow(prefill) {
   holidayRowCount++;
   const id = holidayRowCount;
   const div = document.createElement('div');
@@ -185,8 +192,8 @@ function addHolidayRow() {
   div.style.marginBottom = '8px';
   div.style.alignItems = 'flex-end';
   div.innerHTML = `
-    <div class="field"><label>من</label><input type="date" class="h-start"></div>
-    <div class="field"><label>إلى</label><input type="date" class="h-end"></div>
+    <div class="field"><label>من</label><input type="date" class="h-start" value="${prefill?.start_date || ''}"></div>
+    <div class="field"><label>إلى</label><input type="date" class="h-end" value="${prefill?.end_date || ''}"></div>
     <div class="field"><label>النوع</label>
       <select class="h-type">
         <option value="holiday">إجازة</option>
@@ -195,9 +202,10 @@ function addHolidayRow() {
         <option value="exam">اختبارات نهاية الفصل</option>
       </select>
     </div>
-    <div class="field" style="flex:2;"><label>السبب</label><input type="text" class="h-label" placeholder="مثال: اليوم الوطني"></div>
+    <div class="field" style="flex:2;"><label>السبب</label><input type="text" class="h-label" placeholder="مثال: اليوم الوطني" value="${(prefill?.label || '').replace(/"/g, '&quot;')}"></div>
     <button class="btn-danger btn btn-sm" style="height:36px;" onclick="document.getElementById('holiday-row-${id}').remove()">حذف</button>
   `;
+  if (prefill?.type) div.querySelector('.h-type').value = prefill.type;
   document.getElementById('holidays-list').appendChild(div);
 }
 
@@ -243,6 +251,36 @@ async function loadCalendarsList() {
     `).join('');
   } catch (e) {
     el.innerHTML = `<p style="color:#dc2626;">خطأ: ${e.message}</p>`;
+  }
+}
+
+async function uploadCalendarPdf() {
+  const input = document.getElementById('ai-pdf-input');
+  const msg = document.getElementById('ai-pdf-msg');
+  if (!input.files.length) return;
+
+  msg.className = 'msg'; msg.textContent = '🤖 جاري تحليل الملف بالذكاء الاصطناعي... قد يأخذ نصف دقيقة';
+  try {
+    const formData = new FormData();
+    formData.append('pdf', input.files[0]);
+    const res = await fetch(`${API}/extract-from-pdf`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) { msg.className = 'msg err'; msg.textContent = data.error || 'خطأ'; return; }
+
+    const ex = data.extracted;
+    document.getElementById('su-start').value = ex.start_date || '';
+    document.getElementById('su-end').value = ex.end_date || '';
+    document.getElementById('holidays-list').innerHTML = '';
+    holidayRowCount = 0;
+    (ex.holidays || []).forEach(h => addHolidayRow(h));
+    if (!ex.holidays || !ex.holidays.length) addHolidayRow();
+
+    msg.className = 'msg ok';
+    msg.textContent = `تم! راجع التواريخ والإجازات قبل الإنشاء${(ex.warnings || []).length ? ' — تنبيهات: ' + ex.warnings.join('، ') : ''}`;
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = 'خطأ في الاتصال: ' + e.message;
+  } finally {
+    input.value = '';
   }
 }
 
