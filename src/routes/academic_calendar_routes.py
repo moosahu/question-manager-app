@@ -49,9 +49,11 @@ def _week_label(n):
     return _ARABIC_WEEK_ORDINALS[n - 1] if 1 <= n <= len(_ARABIC_WEEK_ORDINALS) else str(n)
 
 
-def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
+def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_weekdays=None):
     """يبني هيكل الأسابيع/الأيام تلقائياً من تاريخ بداية/نهاية ميلادي، مستثنياً الجمعة/السبت،
-    ومحوّلاً كل تاريخ للهجري للعرض، ومعلّماً أيام الإجازات المحددة"""
+    ومحوّلاً كل تاريخ للهجري للعرض، ومعلّماً أيام الإجازات المحددة.
+    class_weekdays: مجموعة أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر —
+    None يعني كل أيام الأسبوع الدراسي (الأحد-الخميس) فيها حصة (السلوك الافتراضي القديم)"""
     start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
     if end < start:
@@ -85,12 +87,14 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
         if wd in _ARABIC_WEEKDAY:  # يستثني الجمعة (4) والسبت (5) تلقائياً
             hijri = Gregorian(d.year, d.month, d.day).to_hijri()
             holiday_label, day_type = _holiday_label_for(d)
+            if day_type is None and class_weekdays is not None and wd not in class_weekdays:
+                day_type = 'no_class'  # يوم دراسي عادي لكن ما فيه حصة لهذا المقرر
             current_week_days.append({
                 'day_name': _ARABIC_WEEKDAY[wd],
                 'hijri_date': f'{hijri.day}/{hijri.month}',
                 'is_holiday': holiday_label is not None,
                 'holiday_label': holiday_label,
-                'day_type': day_type or 'study',  # study | holiday | exam
+                'day_type': day_type or 'study',  # study | holiday | exam | no_class
             })
             if len(current_week_days) == 5:
                 week_num += 1
@@ -120,7 +124,7 @@ def _auto_fill_lessons(course_id, weeks):
     idx = 0
     for week in weeks:
         for day in week.get('days', []):
-            if day.get('is_holiday'):
+            if day.get('is_holiday') or day.get('day_type') == 'no_class':
                 day['unit_id'] = None
                 day['unit_name'] = None
                 day['lesson_id'] = None
@@ -211,9 +215,13 @@ def setup_calendar():
         # ✅ طريقتان لبناء الأسابيع: (أ) تاريخ بداية/نهاية + إجازات (تلقائي، موصى به)
         #    (ب) هيكل weeks جاهز يدوياً (الطريقة القديمة، تبقى مدعومة)
         if data.get('start_date') and data.get('end_date'):
+            # class_weekdays: أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر
+            # ما تُرسل = كل أيام الأسبوع الدراسي فيها حصة (الافتراضي)
+            raw_class_weekdays = data.get('class_weekdays')
+            class_weekdays = set(raw_class_weekdays) if raw_class_weekdays else None
             try:
                 weeks = _generate_weeks_from_range(
-                    data['start_date'], data['end_date'], data.get('holidays') or [])
+                    data['start_date'], data['end_date'], data.get('holidays') or [], class_weekdays)
             except ValueError as ve:
                 return jsonify({'success': False, 'error': str(ve)}), 400
         else:
