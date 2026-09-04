@@ -122,6 +122,28 @@
         <button class="btn-outline btn btn-sm" onclick="showList()">رجوع للقائمة</button>
       </div>
     </div>
+    <div id="view-holidays-section" style="margin-top:14px;">
+      <div class="row" style="justify-content: space-between; align-items:center;">
+        <label style="margin:0;">الإجازات المسجّلة</label>
+        <button class="btn-outline btn btn-sm" onclick="toggleAddHoliday()">+ إجازة جديدة</button>
+      </div>
+      <div id="view-holidays-list" style="margin-top:8px;"></div>
+      <div id="add-holiday-form" class="row hidden" style="margin-top:8px; align-items:flex-end;">
+        <div class="field"><label>من</label><input type="date" id="ah-start"></div>
+        <div class="field"><label>إلى</label><input type="date" id="ah-end"></div>
+        <div class="field"><label>النوع</label>
+          <select id="ah-type">
+            <option value="holiday">إجازة</option>
+            <option value="review">مراجعة</option>
+            <option value="practical_exam">اختبارات عملية</option>
+            <option value="exam">اختبارات نهاية الفصل</option>
+          </select>
+        </div>
+        <div class="field" style="flex:2;"><label>السبب</label><input type="text" id="ah-label" placeholder="اختياري"></div>
+        <button class="btn btn-sm" style="height:36px;" onclick="submitAddHoliday()">إضافة</button>
+      </div>
+      <div id="add-holiday-msg" class="msg"></div>
+    </div>
     <div id="view-table" style="margin-top:14px; overflow-x:auto;"></div>
   </div>
 </div>
@@ -129,6 +151,8 @@
 <script>
 const API = '/api/academic-calendar';
 let currentCalendarId = null;
+let currentCalendar = null;
+const HOLIDAY_TYPE_LABELS = { holiday: 'إجازة', review: 'مراجعة', practical_exam: 'اختبارات عملية', exam: 'اختبارات نهاية الفصل' };
 
 function showList() {
   document.getElementById('section-list').classList.remove('hidden');
@@ -271,8 +295,11 @@ async function openCalendar(id) {
   if (!data.success) { document.getElementById('view-table').innerHTML = `<p style="color:#dc2626;">${data.error}</p>`; return; }
 
   const cal = data.calendar;
+  currentCalendar = cal;
   document.getElementById('view-title').textContent =
     `${cal.course_name} — الفصل ${cal.semester_number === 1 ? 'الأول' : 'الثاني'} — ${cal.academic_year_label}`;
+
+  renderHolidaysSection(cal);
 
   let html = `<table><thead><tr>
     <th>الأسبوع</th><th>اليوم والتاريخ</th><th>الحصة</th><th>الشعبة</th><th>الوحدة</th><th>الدرس</th>
@@ -322,6 +349,71 @@ async function openCalendar(id) {
 
   html += '</tbody></table>';
   document.getElementById('view-table').innerHTML = html;
+}
+
+function renderHolidaysSection(cal) {
+  const listEl = document.getElementById('view-holidays-list');
+  const canEdit = !!(cal.start_date && cal.end_date);
+  document.getElementById('add-holiday-form').classList.add('hidden');
+  document.getElementById('add-holiday-msg').textContent = '';
+
+  if (!canEdit) {
+    listEl.innerHTML = '<p class="hint">هذا التقويم أُنشئ بنسخة قديمة — ما يدعم إضافة إجازات لاحقاً. احذفه وأنشئ واحد جديد لو تحتاج هذي الميزة.</p>';
+    document.querySelector('#view-holidays-section button.btn-outline').style.display = 'none';
+    return;
+  }
+  document.querySelector('#view-holidays-section button.btn-outline').style.display = '';
+
+  const holidays = cal.holidays || [];
+  if (!holidays.length) {
+    listEl.innerHTML = '<p class="hint">ما فيه إجازات مسجّلة</p>';
+    return;
+  }
+  listEl.innerHTML = holidays.map((h, i) => `
+    <div class="list-item" style="cursor:default;">
+      <span><strong>${HOLIDAY_TYPE_LABELS[h.type] || h.type}</strong> — ${h.label || ''} (<bdi dir="ltr">${h.start_date}</bdi> إلى <bdi dir="ltr">${h.end_date}</bdi>)</span>
+      <button class="btn-danger btn btn-sm" onclick="removeHoliday(${i})">حذف</button>
+    </div>
+  `).join('');
+}
+
+function toggleAddHoliday() {
+  document.getElementById('add-holiday-form').classList.toggle('hidden');
+}
+
+async function submitAddHoliday() {
+  const msg = document.getElementById('add-holiday-msg');
+  const start_date = document.getElementById('ah-start').value;
+  const end_date = document.getElementById('ah-end').value || start_date;
+  const type = document.getElementById('ah-type').value;
+  const label = document.getElementById('ah-label').value.trim();
+  if (!start_date) { msg.className = 'msg err'; msg.textContent = 'حدّد تاريخ البداية'; return; }
+
+  msg.className = 'msg'; msg.textContent = 'جاري الإضافة...';
+  try {
+    const res = await fetch(`${API}/${currentCalendarId}/holidays`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date, end_date, type, label }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.className = 'msg ok'; msg.textContent = 'تمت الإضافة';
+      openCalendar(currentCalendarId);
+    } else {
+      msg.className = 'msg err'; msg.textContent = data.error || 'خطأ';
+    }
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = 'خطأ في الاتصال: ' + e.message;
+  }
+}
+
+async function removeHoliday(index) {
+  if (!confirm('حذف هذي الإجازة وإعادة بناء التقويم؟')) return;
+  const res = await fetch(`${API}/${currentCalendarId}/holidays/${index}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.success) openCalendar(currentCalendarId);
+  else alert(data.error || 'خطأ');
 }
 
 async function saveDay(week_number, day_name, field, value) {

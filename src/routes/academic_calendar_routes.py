@@ -237,14 +237,15 @@ def setup_calendar():
 
         # ✅ طريقتان لبناء الأسابيع: (أ) تاريخ بداية/نهاية + إجازات (تلقائي، موصى به)
         #    (ب) هيكل weeks جاهز يدوياً (الطريقة القديمة، تبقى مدعومة)
+        raw_holidays = data.get('holidays') or []
+        raw_class_weekdays = data.get('class_weekdays')
         if data.get('start_date') and data.get('end_date'):
             # class_weekdays: أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر
             # ما تُرسل = كل أيام الأسبوع الدراسي فيها حصة (الافتراضي)
-            raw_class_weekdays = data.get('class_weekdays')
             class_weekdays = set(raw_class_weekdays) if raw_class_weekdays else None
             try:
                 weeks = _generate_weeks_from_range(
-                    data['start_date'], data['end_date'], data.get('holidays') or [], class_weekdays)
+                    data['start_date'], data['end_date'], raw_holidays, class_weekdays)
             except ValueError as ve:
                 return jsonify({'success': False, 'error': str(ve)}), 400
         else:
@@ -267,6 +268,10 @@ def setup_calendar():
             semester_number=semester_number,
             academic_year_label=academic_year_label,
             weeks_data=weeks,
+            start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
+            end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None,
+            class_weekdays=list(raw_class_weekdays) if raw_class_weekdays else None,
+            holidays=raw_holidays or None,
         )
         db.session.add(cal)
         db.session.commit()
@@ -307,6 +312,78 @@ def regenerate_calendar(calendar_id):
             'total_lessons': total_lessons,
             'used_lessons': used_lessons,
         })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@academic_calendar_bp.route('/<int:calendar_id>/holidays', methods=['POST'])
+@login_required
+@admin_required
+def add_holiday(calendar_id):
+    """إضافة إجازة/اختبارات/مراجعة على تقويم موجود — يعيد بناء الأسابيع كاملة (يمسح أي تعديل يدوي سابق)"""
+    try:
+        cal = AcademicCalendar.query.get(calendar_id)
+        if not cal:
+            return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
+        if not cal.start_date or not cal.end_date:
+            return jsonify({'success': False, 'error': 'هذا التقويم أُنشئ بطريقة قديمة ما تخزّن فيها تواريخ البداية/النهاية — احذفه وأنشئ واحد جديد عشان تقدر تضيف إجازات لاحقاً'}), 400
+
+        data = request.get_json() or {}
+        start_date = data.get('start_date')
+        end_date = data.get('end_date') or start_date
+        h_type = data.get('type') or 'holiday'
+        label = (data.get('label') or '').strip()
+        if not start_date:
+            return jsonify({'success': False, 'error': 'start_date مطلوب'}), 400
+
+        holidays = list(cal.holidays or [])
+        holidays.append({'start_date': start_date, 'end_date': end_date, 'type': h_type, 'label': label})
+
+        class_weekdays = set(cal.class_weekdays) if cal.class_weekdays else None
+        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays, class_weekdays)
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
+
+        cal.holidays = holidays
+        cal.weeks_data = weeks
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'تمت إضافة الإجازة وإعادة بناء التقويم',
+            'calendar': cal.to_dict(),
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@academic_calendar_bp.route('/<int:calendar_id>/holidays/<int:index>', methods=['DELETE'])
+@login_required
+@admin_required
+def remove_holiday(calendar_id, index):
+    """حذف إجازة مضافة سابقاً (بالترتيب الظاهر بالقائمة) — يعيد بناء الأسابيع كاملة"""
+    try:
+        cal = AcademicCalendar.query.get(calendar_id)
+        if not cal:
+            return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
+        if not cal.start_date or not cal.end_date:
+            return jsonify({'success': False, 'error': 'هذا التقويم ما يدعم التعديل — احذفه وأنشئ واحد جديد'}), 400
+
+        holidays = list(cal.holidays or [])
+        if index < 0 or index >= len(holidays):
+            return jsonify({'success': False, 'error': 'إجازة غير موجودة'}), 404
+        holidays.pop(index)
+
+        class_weekdays = set(cal.class_weekdays) if cal.class_weekdays else None
+        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays, class_weekdays)
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
+
+        cal.holidays = holidays
+        cal.weeks_data = weeks
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'تم الحذف وإعادة بناء التقويم', 'calendar': cal.to_dict()})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

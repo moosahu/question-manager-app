@@ -20,6 +20,12 @@ class AcademicCalendar(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # ✅ مدخلات الإنشاء الأصلية — تُخزَّن عشان نقدر نعيد بناء الأسابيع لاحقاً (مثلاً عند إضافة إجازة جديدة)
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+    class_weekdays = db.Column(db.JSON, nullable=True)  # [6,0,1,2,3] بترميز weekday() بايثون
+    holidays = db.Column(db.JSON, nullable=True)  # [{start_date,end_date,type,label}, ...]
+
     course = db.relationship('Course', backref='academic_calendars')
 
     def to_dict(self):
@@ -30,6 +36,10 @@ class AcademicCalendar(db.Model):
             'semester_number': self.semester_number,
             'academic_year_label': self.academic_year_label,
             'weeks_data': self.weeks_data or [],
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'class_weekdays': self.class_weekdays or [],
+            'holidays': self.holidays or [],
             'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'updated_at': (self.updated_at.isoformat() + 'Z') if self.updated_at else None,
         }
