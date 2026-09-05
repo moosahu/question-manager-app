@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}أنماط التعلم{% endblock %}
+
+{% block extra_css %}
+<style>
+  .ls-page { font-family: 'Segoe UI', Tahoma, sans-serif; color: #1f2937; }
+  .ls-container { max-width: 1000px; margin: 0 auto; }
+  .ls-header {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    padding: 28px 24px 24px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ls-header::before { content:''; position:absolute; inset:0; background: rgba(0,0,0,.2); }
+  .ls-header * { position: relative; }
+  .ls-header h1 { font-size: 22px; margin: 0 0 6px; font-weight: 700; }
+  .ls-header p { color: rgba(255,255,255,.9); font-size: 13px; margin: 0; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 18px; }
+  .btn { background: #6366f1; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
+  .btn:hover { background: #4f46e5; transform: translateY(-2px); }
+  .btn-outline { background: #fff; color: #6366f1; border: 1.5px solid #6366f1; }
+  .btn-outline:hover { background: #eef2ff; transform: translateY(-2px); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .stat-bar { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
+  .stat-bar .label { width: 100px; }
+  .stat-bar .track { flex:1; height:8px; background:#e5e7eb; border-radius:6px; overflow:hidden; }
+  .stat-bar .fill { height:100%; border-radius:6px; }
+  .student-row { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:8px; }
+  .student-row .badge { font-size:11px; padding:3px 8px; border-radius:999px; background:#f1f5f9; color:#475569; }
+  .student-row .badge.taken { background:#ecfdf5; color:#047857; }
+  .msg { font-size: 12px; margin-top: 8px; }
+  .msg.ok { color: #059669; } .msg.err { color: #e74c3c; }
+  .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ls-page">
+<div class="ls-container">
+  <div class="ls-header">
+    <h1>🧠 أنماط التعلم (VARK)</h1>
+    <p>استبيان يحدد نمط تعلم كل طالب (بصري / سمعي / قرائي-كتابي / حركي) — أرسله لطلابك وتابع نتائجهم من هنا</p>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <h3 style="margin:0;">الإحصائية الجماعية</h3>
+      <div>
+        <button class="btn-outline btn btn-sm" onclick="exportExcel()">📥 تصدير Excel</button>
+        <button class="btn-outline btn btn-sm" onclick="toggleSelectMode()">تحديد طلاب معيّنين</button>
+        <button class="btn btn-sm" onclick="sendNotify()">📋 إرسال الاستبيان</button>
+      </div>
+    </div>
+    <div id="stats-summary" style="margin-bottom:12px; font-size:13px; color:#6b7280;">جاري التحميل...</div>
+    <div id="stats-bars"></div>
+    <div id="notify-msg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 12px;">الطلاب</h3>
+    <div id="students-list">جاري التحميل...</div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API = '/api/learning-style';
+let selectMode = false;
+let selectedIds = new Set();
+let studentsData = [];
+
+const STYLE_COLORS = { 'بصري': '#3b82f6', 'سمعي': '#f59e0b', 'قرائي/كتابي': '#10b981', 'حركي': '#ef4444' };
+
+function exportExcel() {
+  window.location.href = `${API}/admin/export-excel`;
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(`${API}/admin/students`);
+    const data = await res.json();
+    if (!data.success) { document.getElementById('students-list').innerHTML = `<p style="color:#e74c3c;">${data.error || 'خطأ'}</p>`; return; }
+
+    studentsData = data.students;
+    document.getElementById('stats-summary').textContent = `${data.taken_count} من ${data.total_students} طالب أخذوا الاستبيان`;
+
+    const barsEl = document.getElementById('stats-bars');
+    barsEl.innerHTML = Object.entries(data.counts).map(([style, count]) => {
+      const pct = data.taken_count > 0 ? Math.round(count / data.taken_count * 100) : 0;
+      return `<div class="stat-bar">
+        <span class="label">${style}</span>
+        <div class="track"><div class="fill" style="width:${pct}%; background:${STYLE_COLORS[style]};"></div></div>
+        <span>${count}</span>
+      </div>`;
+    }).join('');
+
+    renderStudents();
+  } catch (e) {
+    document.getElementById('students-list').innerHTML = `<p style="color:#e74c3c;">خطأ: ${e.message}</p>`;
+  }
+}
+
+function renderStudents() {
+  const el = document.getElementById('students-list');
+  if (!studentsData.length) { el.innerHTML = '<p style="color:#9ca3af;">ما فيه طلاب</p>'; return; }
+  el.innerHTML = studentsData.map(s => `
+    <div class="student-row">
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${selectMode ? `<input type="checkbox" data-id="${s.student_id}" onchange="toggleSelect(${s.student_id}, this.checked)" ${selectedIds.has(s.student_id) ? 'checked' : ''}>` : ''}
+        <strong>${s.student_name}</strong>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="badge ${s.taken ? 'taken' : ''}">${s.taken ? (s.result.dominant_style || 'محدد') : 'ما أخذه بعد'}</span>
+        ${s.taken ? `<button class="btn-outline btn btn-sm" onclick="reopenStudent(${s.student_id})">إعادة الفرصة</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedIds.clear();
+  renderStudents();
+}
+
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+}
+
+async function sendNotify() {
+  const msg = document.getElementById('notify-msg');
+  const student_ids = selectMode ? Array.from(selectedIds) : null;
+  if (selectMode && !student_ids.length) {
+    msg.className = 'msg err'; msg.textContent = 'حدّد طالب واحد على الأقل'; return;
+  }
+  msg.className = 'msg'; msg.textContent = 'جاري الإرسال...';
+  try {
+    const res = await fetch(`${API}/admin/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_ids }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.className = 'msg ok'; msg.textContent = `تم إرسال الاستبيان لـ${data.sent_count} طالب`;
+    } else {
+      msg.className = 'msg err'; msg.textContent = data.error || 'خطأ';
+    }
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = 'خطأ في الاتصال: ' + e.message;
+  }
+}
+
+async function reopenStudent(id) {
+  if (!confirm('تعيد الفرصة لهذا الطالب يعيد الاستبيان من جديد؟')) return;
+  try {
+    const res = await fetch(`${API}/admin/reopen/${id}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) loadData();
+    else alert(data.error || 'خطأ');
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+loadData();
+</script>
+{% endblock %}

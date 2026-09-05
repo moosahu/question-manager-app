@@ -1,7 +1,9 @@
 # src/routes/learning_style_routes.py
 """أنماط التعلم (VARK) — استبيان يحدد نمط تعلم الطالب، ويعرض للمعلم إحصائيات طلابه"""
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
+from flask_login import login_required, current_user
+from functools import wraps
 from datetime import datetime
 
 try:
@@ -18,6 +20,17 @@ except ImportError:  # pragma: no cover
     from middleware.auth_middleware import verify_student_token, verify_teacher_token
 
 learning_style_bp = Blueprint('learning_style', __name__, url_prefix='/api/learning-style')
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return jsonify({'success': False, 'error': 'يجب تسجيل الدخول'}), 401
+        if not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'صلاحيات غير كافية'}), 403
+        return f(*args, **kwargs)
+    return decorated
 
 _STYLE_NAMES = {'V': 'بصري', 'A': 'سمعي', 'R': 'قرائي/كتابي', 'K': 'حركي'}
 
@@ -234,10 +247,47 @@ def reopen_for_student(student_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _notify_students(student_ids):
+    """يرسل تذكير (إشعار داخل التطبيق + push لو متاح) لقائمة معرّفات طلاب — يُستخدم من مسارات المعلم والأدمن"""
+    try:
+        from src.models.notification import Notification, StudentNotification
+    except ImportError:  # pragma: no cover
+        from models.notification import Notification, StudentNotification
+
+    title = '📋 استبيان أنماط التعلم'
+    message = 'معلمك يطلب منك تعبئة استبيان أنماط التعلم من التطبيق — يساعده يفهم طريقة تعلّمك الأفضل.'
+
+    for sid in student_ids:
+        notification = Notification(
+            student_id=sid, title=title, message=message, body=message,
+            type='learning_style', notification_type='learning_style',
+            is_read=False, status='delivered', sent_at=datetime.utcnow(),
+        )
+        db.session.add(notification)
+        db.session.flush()
+        db.session.add(StudentNotification(student_id=sid, notification_id=notification.id, is_read=False))
+    db.session.commit()
+
+    sent_push = 0
+    try:
+        from src.services.notification_service import NotificationService
+        students = Student.query.filter(Student.id.in_(student_ids), Student.fcm_token.isnot(None)).all()
+        for st in students:
+            try:
+                NotificationService.send_fcm_notification(st.fcm_token, title, message, {'type': 'learning_style'})
+                sent_push += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    return sent_push
+
+
 @learning_style_bp.route('/teacher/notify', methods=['POST'])
 @verify_teacher_token
 def notify_students():
-    """يرسل تذكير (إشعار داخل التطبيق + push لو متاح) لطلاب محددين أو كل طلابي بتعبئة الاستبيان"""
+    """يرسل تذكير لطلاب محددين أو كل طلاب المعلم بتعبئة الاستبيان"""
     try:
         teacher_id = request.teacher_id
         data = request.get_json() or {}
@@ -250,42 +300,205 @@ def notify_students():
         if not targets:
             return jsonify({'success': False, 'error': 'ما فيه طلاب لإرسال الاستبيان لهم'}), 400
 
-        try:
-            from src.models.notification import Notification, StudentNotification
-        except ImportError:  # pragma: no cover
-            from models.notification import Notification, StudentNotification
-
-        title = '📋 استبيان أنماط التعلم'
-        message = 'معلمك يطلب منك تعبئة استبيان أنماط التعلم من التطبيق — يساعده يفهم طريقة تعلّمك الأفضل.'
-
-        for sid in targets:
-            notification = Notification(
-                student_id=sid, title=title, message=message, body=message,
-                type='learning_style', notification_type='learning_style',
-                is_read=False, status='delivered', sent_at=datetime.utcnow(),
-            )
-            db.session.add(notification)
-            db.session.flush()
-            db.session.add(StudentNotification(student_id=sid, notification_id=notification.id, is_read=False))
-        db.session.commit()
-
-        # إرسال push notification لو عند الطالب FCM token (بدون ما يفشل الطلب لو ما توفر)
-        sent_push = 0
-        try:
-            from src.services.notification_service import NotificationService
-            students = Student.query.filter(Student.id.in_(targets), Student.fcm_token.isnot(None)).all()
-            for st in students:
-                try:
-                    NotificationService.send_fcm_notification(
-                        st.fcm_token, title, message, {'type': 'learning_style'},
-                    )
-                    sent_push += 1
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
+        sent_push = _notify_students(targets)
         return jsonify({'success': True, 'sent_count': len(targets), 'push_sent': sent_push})
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== لوحة الأدمن (ويب) ====================
+
+@learning_style_bp.route('/page', methods=['GET'])
+@login_required
+@admin_required
+def admin_page():
+    """صفحة الأدمن لإرسال استبيان أنماط التعلم لكل الطلاب أو طلاب محددين"""
+    return render_template('learning_styles_admin.html')
+
+
+@learning_style_bp.route('/admin/students', methods=['GET'])
+@login_required
+@admin_required
+def admin_students_styles():
+    """كل الطلاب (مو بس طلاب معلم معيّن) مع أنماط تعلمهم + إحصائية جماعية"""
+    try:
+        students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+        student_ids = [s.id for s in students]
+        results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
+        by_student = {r.student_id: r for r in results}
+
+        counts = {'بصري': 0, 'سمعي': 0, 'قرائي/كتابي': 0, 'حركي': 0}
+        students_data = []
+        for st in students:
+            r = by_student.get(st.id)
+            students_data.append({
+                'student_id': st.id,
+                'student_name': st.name,
+                'taken': r is not None,
+                'result': r.to_dict() if r else None,
+            })
+            if r and r.dominant_style:
+                for style in r.dominant_style.split('/'):
+                    if style in counts:
+                        counts[style] += 1
+
+        return jsonify({
+            'success': True,
+            'students': students_data,
+            'counts': counts,
+            'total_students': len(students),
+            'taken_count': len(results),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/admin/notify', methods=['POST'])
+@login_required
+@admin_required
+def admin_notify_students():
+    """الأدمن يرسل تذكير الاستبيان لطلاب محددين أو كل الطلاب"""
+    try:
+        data = request.get_json() or {}
+        requested_ids = data.get('student_ids')  # None/[] = كل الطلاب
+        if requested_ids:
+            targets = requested_ids
+        else:
+            targets = [s.id for s in Student.query.filter_by(is_active=True).all()]
+
+        if not targets:
+            return jsonify({'success': False, 'error': 'ما فيه طلاب لإرسال الاستبيان لهم'}), 400
+
+        sent_push = _notify_students(targets)
+        return jsonify({'success': True, 'sent_count': len(targets), 'push_sent': sent_push})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/admin/reopen/<int:student_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_reopen_for_student(student_id):
+    """الأدمن يعيد الفرصة لأي طالب يعيد الاستبيان (بدون قيد إنه طالب معلم معيّن)"""
+    try:
+        result = LearningStyleResult.query.filter_by(student_id=student_id).first()
+        if not result:
+            return jsonify({'success': False, 'error': 'هذا الطالب ما أخذ الاستبيان أصلاً'}), 400
+        db.session.delete(result)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم إعادة الفرصة للطالب'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _build_styles_excel(students_data):
+    """يبني ملف Excel لتقرير أنماط التعلم — نفس أسلوب بقية تقارير التطبيق (هيدر أرجواني، تذييل موحّد)"""
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'أنماط التعلم'
+    ws.sheet_view.rightToLeft = True
+
+    headers = ['الطالب', 'النمط الغالب', 'بصري %', 'سمعي %', 'قرائي/كتابي %', 'حركي %', 'أخذ الاستبيان']
+    thin = Side(style='thin', color='CBD5E1')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_fill = PatternFill('solid', fgColor='6366F1')
+    for col, h in enumerate(headers, start=1):
+        c = ws.cell(1, col, h)
+        c.font = Font(color='FFFFFF', bold=True, size=11)
+        c.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+        c.fill = header_fill
+        c.border = border
+    ws.row_dimensions[1].height = 26
+
+    row = 2
+    for s in students_data:
+        r = s.get('result') or {}
+        values = [
+            s.get('student_name') or '', r.get('dominant_style') or '-',
+            r.get('visual_percent', ''), r.get('auditory_percent', ''),
+            r.get('reading_percent', ''), r.get('kinesthetic_percent', ''),
+            'نعم' if s.get('taken') else 'لا',
+        ]
+        for col, v in enumerate(values, start=1):
+            cell = ws.cell(row, col, v)
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        row += 1
+
+    for col, width in zip(range(1, len(headers) + 1), [22, 20, 10, 10, 14, 10, 14]):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+    footer_row = row + 1
+    ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=len(headers))
+    fc = ws.cell(footer_row, 1)
+    fc.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
+    fc.font = Font(size=9, color='888888', italic=True)
+    fc.alignment = Alignment(horizontal='center', vertical='center')
+    fc.fill = PatternFill('solid', fgColor='F1F5F9')
+    ws.row_dimensions[footer_row].height = 18
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+@learning_style_bp.route('/admin/export-excel', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_excel():
+    """تصدير تقرير أنماط التعلم لكل الطلاب (أدمن)"""
+    try:
+        from flask import send_file
+        students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+        student_ids = [s.id for s in students]
+        results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
+        by_student = {r.student_id: r for r in results}
+        students_data = [{
+            'student_name': s.name,
+            'taken': s.id in by_student,
+            'result': by_student[s.id].to_dict() if s.id in by_student else None,
+        } for s in students]
+
+        output = _build_styles_excel(students_data)
+        return send_file(
+            output, as_attachment=True, download_name='أنماط_التعلم.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/teacher/export-excel', methods=['GET'])
+@verify_teacher_token
+def teacher_export_excel():
+    """تصدير تقرير أنماط تعلم طلاب المعلم"""
+    try:
+        from flask import send_file
+        teacher_id = request.teacher_id
+        links = TeacherStudent.query.join(TeacherStudent.student).filter(
+            TeacherStudent.teacher_id == teacher_id
+        ).order_by(Student.name).all()
+        student_ids = [l.student_id for l in links]
+        results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
+        by_student = {r.student_id: r for r in results}
+        students_data = [{
+            'student_name': l.student.name if l.student else None,
+            'taken': l.student_id in by_student,
+            'result': by_student[l.student_id].to_dict() if l.student_id in by_student else None,
+        } for l in links]
+
+        output = _build_styles_excel(students_data)
+        return send_file(
+            output, as_attachment=True, download_name='أنماط_التعلم.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
