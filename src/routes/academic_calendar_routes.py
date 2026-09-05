@@ -158,19 +158,23 @@ def _blank_period(period_number=1):
     }
 
 
-def _auto_fill_lessons(course_id, weeks):
-    """يوزّع دروس المقرر (بالترتيب: وحدة فوحدة، درس فدرس) تسلسلياً — حصة افتراضية واحدة (period_number=1)
-    لكل يوم دراسي غير العطلة. الأدمن/المعلم يقدر يضيف حصص إضافية لنفس اليوم لشعب مختلفة يدوياً بعدها.
+def _auto_fill_lessons(course_id, weeks, distribute=True):
+    """يبني حصة افتراضية واحدة (period_number=1) لكل يوم دراسي غير العطلة.
+    distribute=True: يعبّي الحصة بدرس المنهج التالي بالتسلسل (وحدة فدرس) — يفترض شعبة وحدة تتقدم
+    بنفس الوتيرة، فما يناسب لو الأيام فيها حصص لشعب متعددة بسرعات مختلفة.
+    distribute=False: يسوّي الحصة فاضية بس (بدون درس) — الأدمن/المعلم يختار كل درس يدوياً من القائمة،
+    ويضيف حصص إضافية لشعب ثانية بنفسه.
     ⚠️ تُعيد كتابة periods كاملة — أي حصص إضافية أُضيفت يدوياً سابقاً تُمسح (نفس تحذير إعادة التوزيع)"""
-    units = Unit.query.filter_by(course_id=course_id).order_by(Unit.order_num).all()
     lesson_queue = []
-    for u in units:
-        lessons = Lesson.query.filter_by(unit_id=u.id).order_by(Lesson.order_num).all()
-        for l in lessons:
-            lesson_queue.append({
-                'unit_id': u.id, 'unit_name': u.name,
-                'lesson_id': l.id, 'lesson_name': l.name,
-            })
+    if distribute:
+        units = Unit.query.filter_by(course_id=course_id).order_by(Unit.order_num).all()
+        for u in units:
+            lessons = Lesson.query.filter_by(unit_id=u.id).order_by(Lesson.order_num).all()
+            for l in lessons:
+                lesson_queue.append({
+                    'unit_id': u.id, 'unit_name': u.name,
+                    'lesson_id': l.id, 'lesson_name': l.name,
+                })
 
     idx = 0
     for week in weeks:
@@ -479,6 +483,7 @@ def setup_calendar():
         course_id = data.get('course_id')
         semester_number = data.get('semester_number')
         academic_year_label = (data.get('academic_year_label') or '').strip()
+        auto_distribute = data.get('auto_distribute', True)
 
         if not course_id or not semester_number or not academic_year_label:
             return jsonify({'success': False, 'error': 'course_id و semester_number و academic_year_label مطلوبة'}), 400
@@ -508,12 +513,13 @@ def setup_calendar():
         if existing:
             return jsonify({'success': False, 'error': 'يوجد تقويم محفوظ مسبقاً بنفس المقرر والفصل والعام — عدّله من شاشة التعديل بدل إنشاء واحد جديد'}), 400
 
-        weeks, total_lessons, used_lessons = _auto_fill_lessons(course_id, weeks)
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(course_id, weeks, distribute=auto_distribute)
 
         cal = AcademicCalendar(
             course_id=course_id,
             semester_number=semester_number,
             academic_year_label=academic_year_label,
+            auto_distribute=auto_distribute,
             weeks_data=weeks,
             start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
             end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None,
@@ -547,7 +553,7 @@ def regenerate_calendar(calendar_id):
         if not cal:
             return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
 
-        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, cal.weeks_data or [])
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, cal.weeks_data or [], distribute=cal.auto_distribute)
         cal.weeks_data = weeks
         db.session.commit()
 
@@ -587,7 +593,7 @@ def add_holiday(calendar_id):
         holidays.append({'start_date': start_date, 'end_date': end_date, 'type': h_type, 'label': label})
 
         weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays)
-        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks, distribute=cal.auto_distribute)
 
         cal.holidays = holidays
         cal.weeks_data = weeks
@@ -621,7 +627,7 @@ def remove_holiday(calendar_id, index):
         holidays.pop(index)
 
         weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays)
-        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
+        weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks, distribute=cal.auto_distribute)
 
         cal.holidays = holidays
         cal.weeks_data = weeks

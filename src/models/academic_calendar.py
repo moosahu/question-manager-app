@@ -26,6 +26,7 @@ class AcademicCalendar(db.Model):
     end_date = db.Column(db.Date, nullable=True)
     class_weekdays = db.Column(db.JSON, nullable=True)  # [6,0,1,2,3] بترميز weekday() بايثون
     holidays = db.Column(db.JSON, nullable=True)  # [{start_date,end_date,type,label}, ...]
+    auto_distribute = db.Column(db.Boolean, nullable=False, default=True)  # يوزّع دروس المنهج تلقائياً ولا يخلي الحصص فاضية للتعبئة اليدوية
 
     course = db.relationship('Course', backref='academic_calendars')
 
@@ -42,6 +43,7 @@ class AcademicCalendar(db.Model):
             'end_date': self.end_date.isoformat() if self.end_date else None,
             'class_weekdays': self.class_weekdays or [],
             'holidays': self.holidays or [],
+            'auto_distribute': self.auto_distribute,
             'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'updated_at': (self.updated_at.isoformat() + 'Z') if self.updated_at else None,
         }

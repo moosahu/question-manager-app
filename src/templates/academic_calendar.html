@@ -120,7 +120,15 @@
       <div id="holidays-list" style="margin-top:8px;"></div>
     </div>
 
-    <button class="btn" style="margin-top:18px;" onclick="submitSetup()">إنشاء وتوزيع الدروس تلقائياً</button>
+    <div style="margin-top:18px;">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="su-auto-distribute" style="width:auto;" checked>
+        وزّع دروس المنهج تلقائياً على الأيام
+      </label>
+      <div class="hint">فكّ التحديد لو تبي تعبّي كل حصة يدوياً بنفسك (التوزيع التلقائي يفترض شعبة وحدة تتقدم بنفس الوتيرة — مو مناسب لو كل يوم فيه حصص لشعب مختلفة بسرعات مختلفة).</div>
+    </div>
+
+    <button class="btn" style="margin-top:18px;" onclick="submitSetup()">إنشاء التقويم</button>
     <div id="setup-msg" class="msg"></div>
   </div>
 
@@ -272,6 +280,7 @@ function showSetupForm() {
   document.getElementById('su-start').value = '';
   document.getElementById('su-end').value = '';
   document.getElementById('su-year').value = '';
+  document.getElementById('su-auto-distribute').checked = true;
   document.getElementById('ai-pdf-msg').textContent = '';
   document.getElementById('holidays-list').innerHTML = '';
   holidayRowCount = 0;
@@ -388,6 +397,7 @@ async function submitSetup() {
   const start_date = document.getElementById('su-start').value;
   const end_date = document.getElementById('su-end').value;
   const holidays = collectHolidays();
+  const auto_distribute = document.getElementById('su-auto-distribute').checked;
 
   if (!course_id || !academic_year_label || !start_date || !end_date) {
     msg.className = 'msg err'; msg.textContent = 'عبّي المقرر والعام وتاريخ البداية والنهاية'; return;
@@ -398,7 +408,7 @@ async function submitSetup() {
     const res = await fetch(`${API}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id, semester_number, academic_year_label, start_date, end_date, holidays }),
+      body: JSON.stringify({ course_id, semester_number, academic_year_label, start_date, end_date, holidays, auto_distribute }),
     });
     const data = await res.json();
     if (data.success) {
