@@ -172,6 +172,15 @@ try:
 except ImportError as e:
     print(f"⚠️ Academic Calendar blueprint not available: {e}")
 
+# ✅ استيراد Learning Style Blueprint لاستبيان أنماط التعلم (VARK)
+learning_style_available = False
+try:
+    from src.routes.learning_style_routes import learning_style_bp
+    learning_style_available = True
+    print("✅ Learning Style blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Learning Style blueprint not available: {e}")
+
 # ✅ استيراد Learning Content Blueprint لنظام خرائط المفاهيم والملخصات
 learning_available = False
 try:
@@ -1027,6 +1036,15 @@ def create_app():
             print("✅ Academic Calendar blueprint registered successfully")
         except Exception as e:
             print(f"❌ Error registering Academic Calendar blueprint: {e}")
+
+    # ✅ تسجيل Learning Style Blueprint لاستبيان أنماط التعلم (VARK)
+    if learning_style_available:
+        try:
+            csrf.exempt(learning_style_bp)
+            app.register_blueprint(learning_style_bp)
+            print("✅ Learning Style blueprint registered successfully")
+        except Exception as e:
+            print(f"❌ Error registering Learning Style blueprint: {e}")
 
     # ✅ تسجيل Semester Grades Blueprint لدرجات الفترة الفصلية
     if semester_grades_available:
