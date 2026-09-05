@@ -49,7 +49,6 @@
   .list-item:hover { background: #f9fafb; }
   .hint { font-size: 11px; color: #9ca3af; margin-top: 4px; line-height: 1.6; }
   .hidden { display: none; }
-  .weekday-check { display: inline-flex; align-items: center; gap: 4px; margin-left: 14px; font-size: 13px; font-weight: 400; }
 </style>
 {% endblock %}
 
@@ -92,12 +91,8 @@
         <label>العام الدراسي (هجري)</label>
         <input type="text" id="su-year" placeholder="مثال: 1448هـ">
       </div>
-      <div class="field">
-        <label>الشعبة</label>
-        <input type="text" id="su-section" placeholder="مثال: 1/3">
-      </div>
     </div>
-    <div class="hint">كل شعبة تقويمها المستقل (أيام حصص/توزيع دروس مختلف) — اتركها فاضية لو المقرر عندك شعبة وحدة بس.</div>
+    <div class="hint">تقويم واحد يشمل كل شعب المقرر — كل يوم دراسي يقدر يحتوي أكثر من حصة (شعب مختلفة)، تضيفها بعد الإنشاء من شاشة التعديل.</div>
     <div class="row" style="margin-top:14px; align-items:center;">
       <label style="margin:0;">🤖 عبّي التواريخ والإجازات تلقائياً من ملف PDF (تقويم وزاري رسمي)</label>
       <input type="file" id="ai-pdf-input" accept="application/pdf" style="display:none;" onchange="uploadCalendarPdf()">
@@ -116,32 +111,6 @@
       </div>
     </div>
     <div class="hint">التواريخ ميلادية عادية (نفس تقويم جوالك) — النظام يحوّلها هجري ويستثني الجمعة والسبت تلقائياً. تقدر تدخلها يدوياً أو تعبّيها تلقائياً بالزر أعلاه ثم تراجعها.</div>
-
-    <div style="margin-top:18px;">
-      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-        <input type="checkbox" id="su-manual-days-toggle" style="width:auto;" onchange="toggleManualDays()">
-        أعرف أيام الحصص بالضبط — أحددها بنفسي
-      </label>
-
-      <div id="periods-count-section" style="margin-top:10px;">
-        <div class="field" style="max-width:220px;">
-          <label>كم حصة بالأسبوع لهذي الشعبة</label>
-          <input type="number" id="su-periods-count" min="1" max="5" value="5">
-        </div>
-        <div class="hint">النظام يختار أيام موزّعة بالتساوي بنفسه — مفيد لو عندك عدة شعب بأيام مختلفة وما تعرف الأيام مسبقاً.</div>
-      </div>
-
-      <div id="manual-days-section" class="hidden" style="margin-top:10px;">
-        <label>أيام حصص هذي الشعبة بالأسبوع</label>
-        <div id="class-weekdays">
-          <label class="weekday-check"><input type="checkbox" class="cw-check" value="6"> الأحد</label>
-          <label class="weekday-check"><input type="checkbox" class="cw-check" value="0"> الاثنين</label>
-          <label class="weekday-check"><input type="checkbox" class="cw-check" value="1"> الثلاثاء</label>
-          <label class="weekday-check"><input type="checkbox" class="cw-check" value="2"> الأربعاء</label>
-          <label class="weekday-check"><input type="checkbox" class="cw-check" value="3"> الخميس</label>
-        </div>
-      </div>
-    </div>
 
     <div style="margin-top:18px;">
       <div class="row" style="justify-content: space-between; align-items:center;">
@@ -214,21 +183,21 @@ async function loadCourseLessons(courseId) {
   }
 }
 
-function lessonSelectHtml(day, weekNumber, dayName) {
-  const currentId = day.lesson_id;
+function periodLessonSelectHtml(p, weekNumber, dayName, periodIndex) {
+  const currentId = p.lesson_id;
   const hasMatch = currentId != null && currentCourseLessons.some(l => l.lesson_id === currentId);
   let options = currentCourseLessons.map(l =>
     `<option value="${l.lesson_id}" ${l.lesson_id === currentId ? 'selected' : ''}>${(l.unit_name + ' — ' + l.lesson_name).replace(/"/g, '&quot;')}</option>`
   ).join('');
   // لو الدرس الحالي نص حر ما يطابق أي درس بالمنهج (تعديل يدوي قديم)، أضفه كخيار مخصص
-  if (!hasMatch && day.lesson_name) {
-    options = `<option value="custom" selected>${day.lesson_name.replace(/"/g, '&quot;')} (مخصص)</option>` + options;
+  if (!hasMatch && p.lesson_name) {
+    options = `<option value="custom" selected>${p.lesson_name.replace(/"/g, '&quot;')} (مخصص)</option>` + options;
   }
   options = `<option value="">— بدون —</option>` + options;
-  return `<select onchange="saveDayLesson(${weekNumber}, '${dayName}', this.value)">${options}</select>`;
+  return `<select onchange="savePeriodLesson(${weekNumber}, '${dayName}', ${periodIndex}, this.value)">${options}</select>`;
 }
 
-async function saveDayLesson(weekNumber, dayName, value) {
+async function savePeriodLesson(weekNumber, dayName, periodIndex, value) {
   let fields;
   if (!value) {
     fields = { lesson_id: null, lesson_name: '', unit_id: null, unit_name: null };
@@ -240,13 +209,50 @@ async function saveDayLesson(weekNumber, dayName, value) {
     fields = { lesson_id: lesson.lesson_id, lesson_name: lesson.lesson_name, unit_id: lesson.unit_id, unit_name: lesson.unit_name };
   }
   try {
-    await fetch(`${API}/${currentCalendarId}/day`, {
+    await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ week_number: weekNumber, day_name: dayName, ...fields }),
     });
     openCalendar(currentCalendarId);
   } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
+}
+
+async function savePeriodField(weekNumber, dayName, periodIndex, field, value) {
+  try {
+    await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_number: weekNumber, day_name: dayName, [field]: value }),
+    });
+  } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
+}
+
+async function addPeriod(weekNumber, dayName) {
+  try {
+    const res = await fetch(`${API}/${currentCalendarId}/periods`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_number: weekNumber, day_name: dayName }),
+    });
+    const data = await res.json();
+    if (data.success) openCalendar(currentCalendarId);
+    else alert(data.error || 'خطأ');
+  } catch (e) { alert('خطأ: ' + e.message); }
+}
+
+async function removePeriod(weekNumber, dayName, periodIndex) {
+  if (!confirm('حذف هذي الحصة؟')) return;
+  try {
+    const res = await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_number: weekNumber, day_name: dayName }),
+    });
+    const data = await res.json();
+    if (data.success) openCalendar(currentCalendarId);
+    else alert(data.error || 'خطأ');
+  } catch (e) { alert('خطأ: ' + e.message); }
 }
 const HOLIDAY_TYPE_LABELS = { holiday: 'إجازة', review: 'مراجعة', practical_exam: 'اختبارات عملية', exam: 'اختبارات نهاية الفصل' };
 
@@ -266,22 +272,11 @@ function showSetupForm() {
   document.getElementById('su-start').value = '';
   document.getElementById('su-end').value = '';
   document.getElementById('su-year').value = '';
-  document.getElementById('su-section').value = '';
-  document.getElementById('su-periods-count').value = 5;
-  document.getElementById('su-manual-days-toggle').checked = false;
-  document.querySelectorAll('.cw-check').forEach(c => c.checked = false);
-  toggleManualDays();
   document.getElementById('ai-pdf-msg').textContent = '';
   document.getElementById('holidays-list').innerHTML = '';
   holidayRowCount = 0;
   addHolidayRow(); // إجازة وحدة جاهزة تبدأ فيها
   loadCoursesIntoSelect();
-}
-
-function toggleManualDays() {
-  const manual = document.getElementById('su-manual-days-toggle').checked;
-  document.getElementById('periods-count-section').classList.toggle('hidden', manual);
-  document.getElementById('manual-days-section').classList.toggle('hidden', !manual);
 }
 
 function addHolidayRow(prefill) {
@@ -390,19 +385,12 @@ async function submitSetup() {
   const course_id = parseInt(document.getElementById('su-course').value);
   const semester_number = parseInt(document.getElementById('su-semester').value);
   const academic_year_label = document.getElementById('su-year').value.trim();
-  const section = document.getElementById('su-section').value.trim();
   const start_date = document.getElementById('su-start').value;
   const end_date = document.getElementById('su-end').value;
   const holidays = collectHolidays();
-  const manualDays = document.getElementById('su-manual-days-toggle').checked;
-  const class_weekdays = manualDays ? Array.from(document.querySelectorAll('.cw-check:checked')).map(c => parseInt(c.value)) : null;
-  const weekly_periods_count = manualDays ? null : (parseInt(document.getElementById('su-periods-count').value) || 5);
 
   if (!course_id || !academic_year_label || !start_date || !end_date) {
     msg.className = 'msg err'; msg.textContent = 'عبّي المقرر والعام وتاريخ البداية والنهاية'; return;
-  }
-  if (manualDays && !class_weekdays.length) {
-    msg.className = 'msg err'; msg.textContent = 'حدّد يوم واحد على الأقل فيه حصة'; return;
   }
 
   msg.className = 'msg'; msg.textContent = 'جاري الإنشاء...';
@@ -410,7 +398,7 @@ async function submitSetup() {
     const res = await fetch(`${API}/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id, semester_number, academic_year_label, section, start_date, end_date, holidays, weekly_periods_count, class_weekdays }),
+      body: JSON.stringify({ course_id, semester_number, academic_year_label, start_date, end_date, holidays }),
     });
     const data = await res.json();
     if (data.success) {
@@ -463,28 +451,43 @@ async function openCalendar(id) {
           ${dateCell}
           <td colspan="7">${day.holiday_label || defaultLabels[day.day_type] || 'إجازة'}</td>
         </tr>`;
-      } else if (day.day_type === 'no_class') {
-        html += `<tr class="no-class-row">
-          ${weekCell}
-          ${dateCell}
-          <td colspan="7">لا يوجد حصة لهذا المقرر</td>
-        </tr>`;
-      } else {
+        return;
+      }
+
+      const periods = day.periods || [];
+      if (!periods.length) {
         html += `<tr>
           ${weekCell}
           ${dateCell}
-          <td><input value="${(day.period_number ?? '').toString().replace(/"/g, '&quot;')}" style="width:36px;"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'period_number', this.value)"></td>
-          <td><input value="${(day.section || '').replace(/"/g, '&quot;')}" style="width:50px;"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'section', this.value)"></td>
-          <td>${day.unit_name || '-'}</td>
-          <td>${lessonSelectHtml(day, week.week_number, day.day_name)}</td>
-          <td><input value="${(day.solved_problems || '').replace(/"/g, '&quot;')}"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'solved_problems', this.value)"></td>
-          <td><input value="${(day.homework || '').replace(/"/g, '&quot;')}"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'homework', this.value)"></td>
-          <td><input value="${(day.notes || '').replace(/"/g, '&quot;')}"
-                onchange="saveDay(${week.week_number}, '${day.day_name}', 'notes', this.value)"></td>
+          <td colspan="7" style="color:#9ca3af;">لا يوجد حصص —
+            <button class="btn-outline btn btn-sm" onclick="addPeriod(${week.week_number}, '${day.day_name}')">+ إضافة حصة</button>
+          </td>
+        </tr>`;
+      } else {
+        periods.forEach((p, pi) => {
+          html += `<tr>
+            <td class="week-cell">${(i === 0 && pi === 0) ? weekHeader : ''}</td>
+            <td>${pi === 0 ? `${day.day_name}<br><bdi dir="ltr">${day.hijri_date}</bdi>هـ` : ''}</td>
+            <td><input value="${(p.period_number ?? '').toString().replace(/"/g, '&quot;')}" style="width:36px;"
+                  onchange="savePeriodField(${week.week_number}, '${day.day_name}', ${pi}, 'period_number', this.value)"></td>
+            <td><input value="${(p.section || '').replace(/"/g, '&quot;')}" style="width:50px;"
+                  onchange="savePeriodField(${week.week_number}, '${day.day_name}', ${pi}, 'section', this.value)"></td>
+            <td>${p.unit_name || '-'}</td>
+            <td>${periodLessonSelectHtml(p, week.week_number, day.day_name, pi)}</td>
+            <td><input value="${(p.solved_problems || '').replace(/"/g, '&quot;')}"
+                  onchange="savePeriodField(${week.week_number}, '${day.day_name}', ${pi}, 'solved_problems', this.value)"></td>
+            <td><input value="${(p.homework || '').replace(/"/g, '&quot;')}"
+                  onchange="savePeriodField(${week.week_number}, '${day.day_name}', ${pi}, 'homework', this.value)"></td>
+            <td style="display:flex; align-items:center; gap:4px;">
+              <input value="${(p.notes || '').replace(/"/g, '&quot;')}" style="flex:1;"
+                    onchange="savePeriodField(${week.week_number}, '${day.day_name}', ${pi}, 'notes', this.value)">
+              <button class="btn-danger btn-sm" style="padding:2px 6px;" onclick="removePeriod(${week.week_number}, '${day.day_name}', ${pi})">🗑</button>
+            </td>
+          </tr>`;
+        });
+        html += `<tr>
+          <td class="week-cell"></td><td></td>
+          <td colspan="7"><button class="btn-outline btn btn-sm" onclick="addPeriod(${week.week_number}, '${day.day_name}')">+ إضافة حصة</button></td>
         </tr>`;
       }
     });
@@ -557,16 +560,6 @@ async function removeHoliday(index) {
   const data = await res.json();
   if (data.success) openCalendar(currentCalendarId);
   else alert(data.error || 'خطأ');
-}
-
-async function saveDay(week_number, day_name, field, value) {
-  try {
-    await fetch(`${API}/${currentCalendarId}/day`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ week_number, day_name, [field]: value }),
-    });
-  } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
 }
 
 function exportCurrentExcel() {

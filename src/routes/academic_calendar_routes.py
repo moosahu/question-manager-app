@@ -22,10 +22,10 @@ except ImportError:  # pragma: no cover
 
 academic_calendar_bp = Blueprint('academic_calendar', __name__, url_prefix='/api/academic-calendar')
 
-# حقول اليوم اللي يُسمح للمعلم يعدّلها (تعبئة محتوى بس) — الباقي (الإجازات/الحصص الأسبوعية/الهيكل) أدمن فقط
-_TEACHER_EDITABLE_DAY_FIELDS = {
-    'lesson_name', 'lesson_id', 'unit_id', 'unit_name',  # اختيار الدرس من قائمة المنهج بدل كتابة حرة
-    'homework', 'notes', 'solved_problems', 'section', 'period_number',
+# حقول الحصة اللي يُسمح للمعلم يعدّلها (تعبئة محتوى) — نفس صلاحية الأدمن، ما فيه حقول هيكلية بمستوى الحصة
+_PERIOD_FIELDS = {
+    'period_number', 'section', 'lesson_id', 'lesson_name', 'unit_id', 'unit_name',
+    'solved_problems', 'homework', 'notes',
 }
 
 
@@ -71,28 +71,10 @@ def _week_label(n):
     return _ARABIC_WEEK_ORDINALS[n - 1] if 1 <= n <= len(_ARABIC_WEEK_ORDINALS) else str(n)
 
 
-# ترتيب أيام الأسبوع الدراسي (الأحد أولاً) بترميز weekday() بايثون
-_WEEKDAY_ORDER = [6, 0, 1, 2, 3]  # أحد، اثنين، ثلاثاء، أربعاء، خميس
-
-
-def _auto_pick_weekdays(count):
-    """يختار عدد أيام موزّع بالتساوي على الأسبوع الدراسي (أحد-خميس) بدل ما يحدده المستخدم يدوياً —
-    مفيد لما يكون عندك عدة شعب لنفس المقرر بأيام مختلفة وما تعرف مسبقاً أي أيام بالضبط"""
-    n = max(1, min(5, int(count)))
-    if n == 5:
-        return list(_WEEKDAY_ORDER)
-    if n == 1:
-        return [_WEEKDAY_ORDER[2]]  # الثلاثاء (منتصف الأسبوع)
-    step = (len(_WEEKDAY_ORDER) - 1) / (n - 1)
-    indices = sorted({round(i * step) for i in range(n)})
-    return [_WEEKDAY_ORDER[i] for i in indices]
-
-
-def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_weekdays=None):
+def _generate_weeks_from_range(start_date_str, end_date_str, holidays):
     """يبني هيكل الأسابيع/الأيام تلقائياً من تاريخ بداية/نهاية ميلادي، مستثنياً الجمعة/السبت،
     ومحوّلاً كل تاريخ للهجري للعرض، ومعلّماً أيام الإجازات المحددة.
-    class_weekdays: مجموعة أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر —
-    None يعني كل أيام الأسبوع الدراسي (الأحد-الخميس) فيها حصة (السلوك الافتراضي القديم)"""
+    تقويم واحد لكل مقرر (يشمل كل الشعب) — كل يوم دراسي يقدر يحتوي أكثر من حصة (شعب مختلفة)"""
     start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
     if end < start:
@@ -132,14 +114,12 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_wee
         if wd in _ARABIC_WEEKDAY:  # يستثني الجمعة (4) والسبت (5) تلقائياً
             hijri = Gregorian(d.year, d.month, d.day).to_hijri()
             holiday_label, day_type = _holiday_label_for(d)
-            if day_type is None and class_weekdays is not None and wd not in class_weekdays:
-                day_type = 'no_class'  # يوم دراسي عادي لكن ما فيه حصة لهذا المقرر
             current_week_days.append({
                 'day_name': _ARABIC_WEEKDAY[wd],
                 'hijri_date': f'{hijri.day}/{hijri.month}',
                 'is_holiday': holiday_label is not None,
                 'holiday_label': holiday_label,
-                'day_type': day_type or 'study',  # study | holiday | exam | no_class
+                'day_type': day_type or 'study',  # study | holiday | exam | review | practical_exam
             })
             if len(current_week_days) == 5:
                 raw_weeks.append(current_week_days)
@@ -170,8 +150,18 @@ def _generate_weeks_from_range(start_date_str, end_date_str, holidays, class_wee
     return weeks
 
 
+def _blank_period(period_number=1):
+    return {
+        'period_number': period_number, 'section': '',
+        'unit_id': None, 'unit_name': None, 'lesson_id': None, 'lesson_name': None,
+        'solved_problems': '', 'homework': '', 'notes': '',
+    }
+
+
 def _auto_fill_lessons(course_id, weeks):
-    """يوزّع دروس المقرر (بالترتيب: وحدة فوحدة، درس فدرس) على الأيام غير العطلة تسلسلياً"""
+    """يوزّع دروس المقرر (بالترتيب: وحدة فوحدة، درس فدرس) تسلسلياً — حصة افتراضية واحدة (period_number=1)
+    لكل يوم دراسي غير العطلة. الأدمن/المعلم يقدر يضيف حصص إضافية لنفس اليوم لشعب مختلفة يدوياً بعدها.
+    ⚠️ تُعيد كتابة periods كاملة — أي حصص إضافية أُضيفت يدوياً سابقاً تُمسح (نفس تحذير إعادة التوزيع)"""
     units = Unit.query.filter_by(course_id=course_id).order_by(Unit.order_num).all()
     lesson_queue = []
     for u in units:
@@ -185,31 +175,52 @@ def _auto_fill_lessons(course_id, weeks):
     idx = 0
     for week in weeks:
         for day in week.get('days', []):
-            if day.get('is_holiday') or day.get('day_type') == 'no_class':
-                day['unit_id'] = None
-                day['unit_name'] = None
-                day['lesson_id'] = None
-                day['lesson_name'] = None
-            elif idx < len(lesson_queue):
-                item = lesson_queue[idx]
-                day['unit_id'] = item['unit_id']
-                day['unit_name'] = item['unit_name']
-                day['lesson_id'] = item['lesson_id']
-                day['lesson_name'] = item['lesson_name']
-                idx += 1
-            else:
-                day['unit_id'] = None
-                day['unit_name'] = None
-                day['lesson_id'] = None
-                day['lesson_name'] = None
-            day.setdefault('period_number', 1)
-            day.setdefault('section', '')
-            day.setdefault('solved_problems', '')
-            day.setdefault('homework', '')
-            day.setdefault('notes', '')
             day.setdefault('holiday_label', None)
-            day.setdefault('day_type', 'exam' if day.get('is_holiday') and 'اختبار' in (day.get('holiday_label') or '') else ('holiday' if day.get('is_holiday') else 'study'))
+            day.setdefault('day_type', 'holiday' if day.get('is_holiday') else 'study')
+            if day.get('is_holiday'):
+                day['periods'] = []
+                continue
+            period = _blank_period()
+            if idx < len(lesson_queue):
+                item = lesson_queue[idx]
+                period['unit_id'] = item['unit_id']
+                period['unit_name'] = item['unit_name']
+                period['lesson_id'] = item['lesson_id']
+                period['lesson_name'] = item['lesson_name']
+                idx += 1
+            day['periods'] = [period]
     return weeks, len(lesson_queue), idx
+
+
+def _ensure_periods_format(weeks):
+    """توافق خلفي: أي يوم بتقويم قديم (قبل دعم تعدد الحصص) ما فيه 'periods' — يُحوَّل تلقائياً
+    (بدون حفظ) من حقوله المسطّحة القديمة لعرضه بنفس الشكل الجديد"""
+    for week in (weeks or []):
+        for day in week.get('days', []):
+            if 'periods' in day:
+                continue
+            if day.get('is_holiday') or not day.get('lesson_name'):
+                day['periods'] = []
+            else:
+                day['periods'] = [{
+                    'period_number': day.get('period_number') or 1,
+                    'section': day.get('section') or '',
+                    'lesson_id': day.get('lesson_id'), 'lesson_name': day.get('lesson_name'),
+                    'unit_id': day.get('unit_id'), 'unit_name': day.get('unit_name'),
+                    'solved_problems': day.get('solved_problems') or '',
+                    'homework': day.get('homework') or '', 'notes': day.get('notes') or '',
+                }]
+    return weeks
+
+
+def _find_day(weeks, week_number, day_name):
+    for week in (weeks or []):
+        if week.get('week_number') != week_number:
+            continue
+        for day in week.get('days', []):
+            if day.get('day_name') == day_name:
+                return day
+    return None
 
 
 @academic_calendar_bp.route('/page', methods=['GET'])
@@ -270,7 +281,9 @@ def get_calendar(calendar_id):
         cal = AcademicCalendar.query.get(calendar_id)
         if not cal:
             return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
-        return jsonify({'success': True, 'calendar': cal.to_dict()})
+        data = cal.to_dict()
+        data['weeks_data'] = _ensure_periods_format(data['weeks_data'])
+        return jsonify({'success': True, 'calendar': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -310,8 +323,9 @@ def export_calendar_excel(calendar_id):
         ws.row_dimensions[1].height = 26
 
         _EXAM_TYPE_LABELS = {'holiday': 'إجازة', 'review': 'مراجعة', 'practical_exam': 'اختبارات عملية', 'exam': 'اختبارات نهاية الفصل'}
+        weeks_data = _ensure_periods_format(cal.weeks_data or [])
         row_num = 2
-        for week in (cal.weeks_data or []):
+        for week in weeks_data:
             week_header = f"الأسبوع {week['week_label']}" if week.get('week_number') is not None else (week.get('holiday_summary') or 'إجازة')
             for i, day in enumerate(week.get('days', [])):
                 date_str = f"{day.get('day_name', '')} {day.get('hijri_date', '')}هـ"
@@ -323,25 +337,36 @@ def export_calendar_excel(calendar_id):
                     lc = ws.cell(row_num, 3, label)
                     lc.alignment = Alignment(horizontal='center', vertical='center')
                     lc.font = Font(bold=True, color='9A3412' if day.get('day_type') != 'exam' else '9D174D')
-                elif day.get('day_type') == 'no_class':
+                    for col in range(1, len(headers) + 1):
+                        ws.cell(row_num, col).border = border
+                    row_num += 1
+                    continue
+
+                periods = day.get('periods') or []
+                if not periods:
                     ws.cell(row_num, 1, week_header if i == 0 else '')
                     ws.cell(row_num, 2, date_str)
                     ws.merge_cells(start_row=row_num, start_column=3, end_row=row_num, end_column=len(headers))
-                    ws.cell(row_num, 3, 'لا يوجد حصة لهذا المقرر').alignment = Alignment(horizontal='center', vertical='center')
-                else:
+                    ws.cell(row_num, 3, 'لا يوجد حصص مضافة').alignment = Alignment(horizontal='center', vertical='center')
+                    for col in range(1, len(headers) + 1):
+                        ws.cell(row_num, col).border = border
+                    row_num += 1
+                    continue
+
+                for pi, p in enumerate(periods):
                     values = [
-                        week_header if i == 0 else '', date_str, day.get('period_number') or '', day.get('section') or '',
-                        day.get('unit_name') or '', day.get('lesson_name') or '', day.get('solved_problems') or '',
-                        day.get('homework') or '', day.get('notes') or '',
+                        week_header if (i == 0 and pi == 0) else '', date_str if pi == 0 else '',
+                        p.get('period_number') or '', p.get('section') or '', p.get('unit_name') or '',
+                        p.get('lesson_name') or '', p.get('solved_problems') or '', p.get('homework') or '', p.get('notes') or '',
                     ]
                     for col, v in enumerate(values, start=1):
                         ws.cell(row_num, col, v)
-                for col in range(1, len(headers) + 1):
-                    cell = ws.cell(row_num, col)
-                    cell.border = border
-                    if col <= 2:
-                        cell.alignment = Alignment(horizontal='center', vertical='center')
-                row_num += 1
+                    for col in range(1, len(headers) + 1):
+                        cell = ws.cell(row_num, col)
+                        cell.border = border
+                        if col <= 2:
+                            cell.alignment = Alignment(horizontal='center', vertical='center')
+                    row_num += 1
 
         for col, width in zip(range(1, len(headers) + 1), [10, 14, 8, 10, 18, 26, 20, 18, 20]):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
@@ -454,7 +479,6 @@ def setup_calendar():
         course_id = data.get('course_id')
         semester_number = data.get('semester_number')
         academic_year_label = (data.get('academic_year_label') or '').strip()
-        section = (data.get('section') or '').strip() or None
 
         if not course_id or not semester_number or not academic_year_label:
             return jsonify({'success': False, 'error': 'course_id و semester_number و academic_year_label مطلوبة'}), 400
@@ -466,19 +490,9 @@ def setup_calendar():
         # ✅ طريقتان لبناء الأسابيع: (أ) تاريخ بداية/نهاية + إجازات (تلقائي، موصى به)
         #    (ب) هيكل weeks جاهز يدوياً (الطريقة القديمة، تبقى مدعومة)
         raw_holidays = data.get('holidays') or []
-        raw_class_weekdays = data.get('class_weekdays')
-        weekly_periods_count = data.get('weekly_periods_count')
-        # لو حدد عدد الحصص بس (مو أيام معيّنة) — النظام يختار الأيام بنفسه موزّعة بالتساوي
-        # (مفيد لما يكون عندك عدة شعب لنفس المقرر بأيام مختلفة وما تعرف مسبقاً أي أيام بالضبط)
-        if not raw_class_weekdays and weekly_periods_count:
-            raw_class_weekdays = _auto_pick_weekdays(weekly_periods_count)
         if data.get('start_date') and data.get('end_date'):
-            # class_weekdays: أرقام weekday() (الاثنين=0..الأحد=6) للأيام اللي فيها حصة لهذا المقرر
-            # ما تُرسل = كل أيام الأسبوع الدراسي فيها حصة (الافتراضي)
-            class_weekdays = set(raw_class_weekdays) if raw_class_weekdays else None
             try:
-                weeks = _generate_weeks_from_range(
-                    data['start_date'], data['end_date'], raw_holidays, class_weekdays)
+                weeks = _generate_weeks_from_range(data['start_date'], data['end_date'], raw_holidays)
             except ValueError as ve:
                 return jsonify({'success': False, 'error': str(ve)}), 400
         else:
@@ -489,10 +503,10 @@ def setup_calendar():
 
         existing = AcademicCalendar.query.filter_by(
             course_id=course_id, semester_number=semester_number,
-            academic_year_label=academic_year_label, section=section,
+            academic_year_label=academic_year_label,
         ).first()
         if existing:
-            return jsonify({'success': False, 'error': 'يوجد تقويم محفوظ مسبقاً بنفس المقرر والشعبة والفصل والعام — عدّله من شاشة التعديل بدل إنشاء واحد جديد'}), 400
+            return jsonify({'success': False, 'error': 'يوجد تقويم محفوظ مسبقاً بنفس المقرر والفصل والعام — عدّله من شاشة التعديل بدل إنشاء واحد جديد'}), 400
 
         weeks, total_lessons, used_lessons = _auto_fill_lessons(course_id, weeks)
 
@@ -500,11 +514,9 @@ def setup_calendar():
             course_id=course_id,
             semester_number=semester_number,
             academic_year_label=academic_year_label,
-            section=section,
             weeks_data=weeks,
             start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
             end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None,
-            class_weekdays=list(raw_class_weekdays) if raw_class_weekdays else None,
             holidays=raw_holidays or None,
         )
         db.session.add(cal)
@@ -574,8 +586,7 @@ def add_holiday(calendar_id):
         holidays = list(cal.holidays or [])
         holidays.append({'start_date': start_date, 'end_date': end_date, 'type': h_type, 'label': label})
 
-        class_weekdays = set(cal.class_weekdays) if cal.class_weekdays else None
-        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays, class_weekdays)
+        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays)
         weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
 
         cal.holidays = holidays
@@ -609,8 +620,7 @@ def remove_holiday(calendar_id, index):
             return jsonify({'success': False, 'error': 'إجازة غير موجودة'}), 404
         holidays.pop(index)
 
-        class_weekdays = set(cal.class_weekdays) if cal.class_weekdays else None
-        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays, class_weekdays)
+        weeks = _generate_weeks_from_range(cal.start_date.isoformat(), cal.end_date.isoformat(), holidays)
         weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, weeks)
 
         cal.holidays = holidays
@@ -623,69 +633,109 @@ def remove_holiday(calendar_id, index):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@academic_calendar_bp.route('/<int:calendar_id>/day', methods=['PUT'])
+@academic_calendar_bp.route('/<int:calendar_id>/periods', methods=['POST'])
 @login_required
 @admin_or_teacher_required
-def update_day(calendar_id):
-    """تعديل خانة يوم واحد يدوياً (موضوع الدرس/الواجب/الملاحظات) — الأدمن يعدّل أي حقل،
-    المعلم يعدّل حقول التعبئة بس (_TEACHER_EDITABLE_DAY_FIELDS)"""
+def add_period(calendar_id):
+    """إضافة حصة جديدة ليوم دراسي — يوم واحد ممكن يحتوي أكثر من حصة (شعب مختلفة بنفس اليوم)"""
     try:
         cal = AcademicCalendar.query.get(calendar_id)
         if not cal:
             return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
 
-        is_admin = getattr(current_user, 'is_admin', False)
         data = request.get_json() or {}
-        if not is_admin:
-            data = {k: v for k, v in data.items() if k in _TEACHER_EDITABLE_DAY_FIELDS or k in ('week_number', 'day_name')}
         week_number = data.get('week_number')
         day_name = data.get('day_name')
         if week_number is None or not day_name:
             return jsonify({'success': False, 'error': 'week_number و day_name مطلوبة'}), 400
 
-        weeks = cal.weeks_data or []
-        found = False
-        for week in weeks:
-            if week.get('week_number') != week_number:
-                continue
-            for day in week.get('days', []):
-                if day.get('day_name') != day_name:
-                    continue
-                if 'lesson_id' in data:
-                    day['lesson_id'] = data.get('lesson_id')
-                if 'lesson_name' in data:
-                    day['lesson_name'] = data.get('lesson_name')
-                if 'unit_id' in data:
-                    day['unit_id'] = data.get('unit_id')
-                if 'unit_name' in data:
-                    day['unit_name'] = data.get('unit_name')
-                if 'period_number' in data:
-                    day['period_number'] = data.get('period_number')
-                if 'section' in data:
-                    day['section'] = data.get('section')
-                if 'solved_problems' in data:
-                    day['solved_problems'] = data.get('solved_problems')
-                if 'homework' in data:
-                    day['homework'] = data.get('homework')
-                if 'notes' in data:
-                    day['notes'] = data.get('notes')
-                if 'is_holiday' in data:
-                    day['is_holiday'] = data.get('is_holiday')
-                if 'holiday_label' in data:
-                    day['holiday_label'] = data.get('holiday_label')
-                if 'day_type' in data:
-                    day['day_type'] = data.get('day_type')  # study | holiday | exam
-                found = True
-                break
-            if found:
-                break
-
-        if not found:
+        weeks = _ensure_periods_format(cal.weeks_data or [])
+        day = _find_day(weeks, week_number, day_name)
+        if not day:
             return jsonify({'success': False, 'error': 'اليوم غير موجود بهذا التقويم'}), 404
+        if day.get('is_holiday'):
+            return jsonify({'success': False, 'error': 'ما تقدر تضيف حصة ليوم إجازة'}), 400
+
+        periods = day.setdefault('periods', [])
+        next_num = max([p.get('period_number') or 0 for p in periods], default=0) + 1
+        period = _blank_period(next_num)
+        for field in _PERIOD_FIELDS:
+            if field in data:
+                period[field] = data[field]
+        periods.append(period)
+
+        cal.weeks_data = weeks
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تمت إضافة الحصة', 'calendar': cal.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@academic_calendar_bp.route('/<int:calendar_id>/periods/<int:period_index>', methods=['PUT'])
+@login_required
+@admin_or_teacher_required
+def update_period(calendar_id, period_index):
+    """تعديل حصة موجودة — الأدمن والمعلم عندهم نفس الصلاحية (كلها حقول تعبئة، ما فيه هيكلي)"""
+    try:
+        cal = AcademicCalendar.query.get(calendar_id)
+        if not cal:
+            return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
+
+        data = request.get_json() or {}
+        week_number = data.get('week_number')
+        day_name = data.get('day_name')
+        if week_number is None or not day_name:
+            return jsonify({'success': False, 'error': 'week_number و day_name مطلوبة'}), 400
+
+        weeks = _ensure_periods_format(cal.weeks_data or [])
+        day = _find_day(weeks, week_number, day_name)
+        if not day:
+            return jsonify({'success': False, 'error': 'اليوم غير موجود بهذا التقويم'}), 404
+        periods = day.get('periods') or []
+        if period_index < 0 or period_index >= len(periods):
+            return jsonify({'success': False, 'error': 'الحصة غير موجودة'}), 404
+
+        for field in _PERIOD_FIELDS:
+            if field in data:
+                periods[period_index][field] = data[field]
 
         cal.weeks_data = weeks
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم الحفظ'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@academic_calendar_bp.route('/<int:calendar_id>/periods/<int:period_index>', methods=['DELETE'])
+@login_required
+@admin_or_teacher_required
+def delete_period(calendar_id, period_index):
+    """حذف حصة من يوم"""
+    try:
+        cal = AcademicCalendar.query.get(calendar_id)
+        if not cal:
+            return jsonify({'success': False, 'error': 'التقويم غير موجود'}), 404
+
+        data = request.get_json(silent=True) or {}
+        week_number = data.get('week_number')
+        day_name = data.get('day_name')
+        if week_number is None or not day_name:
+            return jsonify({'success': False, 'error': 'week_number و day_name مطلوبة'}), 400
+
+        weeks = _ensure_periods_format(cal.weeks_data or [])
+        day = _find_day(weeks, week_number, day_name)
+        if not day:
+            return jsonify({'success': False, 'error': 'اليوم غير موجود بهذا التقويم'}), 404
+        periods = day.get('periods') or []
+        if period_index < 0 or period_index >= len(periods):
+            return jsonify({'success': False, 'error': 'الحصة غير موجودة'}), 404
+        periods.pop(period_index)
+
+        cal.weeks_data = weeks
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم الحذف'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
