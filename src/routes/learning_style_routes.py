@@ -126,12 +126,17 @@ def submit_result():
         if not answers:
             return jsonify({'success': False, 'error': 'answers مطلوبة'}), 400
 
-        scores, dominant_style = _compute_result(answers)
-
+        # ✅ الاستبيان يُؤخذ مرة واحدة بس — إلا لو المعلم/الأدمن أعاد الفرصة (يمسح نتيجته القديمة)
         result = LearningStyleResult.query.filter_by(student_id=student_id).first()
-        if not result:
-            result = LearningStyleResult(student_id=student_id)
-            db.session.add(result)
+        if result:
+            return jsonify({
+                'success': False, 'error': 'already_taken',
+                'message': 'أخذت الاستبيان من قبل — اطلب من معلمك يعيد لك الفرصة عشان تقدر تعيده',
+            }), 400
+
+        scores, dominant_style = _compute_result(answers)
+        result = LearningStyleResult(student_id=student_id)
+        db.session.add(result)
 
         result.visual_score = scores['V']
         result.auditory_score = scores['A']
@@ -204,6 +209,28 @@ def teacher_students_styles():
             'taken_count': len(results),
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/teacher/reopen/<int:student_id>', methods=['POST'])
+@verify_teacher_token
+def reopen_for_student(student_id):
+    """يعيد الفرصة لطالب من طلاب المعلم يعيد الاستبيان (يمسح نتيجته الحالية)"""
+    try:
+        teacher_id = request.teacher_id
+        link = TeacherStudent.query.filter_by(teacher_id=teacher_id, student_id=student_id).first()
+        if not link:
+            return jsonify({'success': False, 'error': 'هذا الطالب مو من ضمن طلابك'}), 403
+
+        result = LearningStyleResult.query.filter_by(student_id=student_id).first()
+        if not result:
+            return jsonify({'success': False, 'error': 'هذا الطالب ما أخذ الاستبيان أصلاً'}), 400
+
+        db.session.delete(result)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم إعادة الفرصة للطالب'})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
