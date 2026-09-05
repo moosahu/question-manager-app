@@ -317,13 +317,21 @@ def admin_page():
     return render_template('learning_styles_admin.html')
 
 
+def _admin_linked_students():
+    """طلاب الأدمن المرتبطين به فقط (TeacherStudent.admin_id) — نفس نطاق /api/mobile/admin/students"""
+    links = TeacherStudent.query.join(TeacherStudent.student).filter(
+        TeacherStudent.admin_id == current_user.id
+    ).order_by(Student.name).all()
+    return [l.student for l in links if l.student]
+
+
 @learning_style_bp.route('/admin/students', methods=['GET'])
 @login_required
 @admin_required
 def admin_students_styles():
-    """كل الطلاب (مو بس طلاب معلم معيّن) مع أنماط تعلمهم + إحصائية جماعية"""
+    """طلاب الأدمن المرتبطين به بس (مو كل طلاب المنصة) مع أنماط تعلمهم + إحصائية جماعية"""
     try:
-        students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+        students = _admin_linked_students()
         student_ids = [s.id for s in students]
         results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
         by_student = {r.student_id: r for r in results}
@@ -358,14 +366,13 @@ def admin_students_styles():
 @login_required
 @admin_required
 def admin_notify_students():
-    """الأدمن يرسل تذكير الاستبيان لطلاب محددين أو كل الطلاب"""
+    """الأدمن يرسل تذكير الاستبيان لطلاب محددين أو كل طلابه المرتبطين (مو كل طلاب المنصة)"""
     try:
         data = request.get_json() or {}
-        requested_ids = data.get('student_ids')  # None/[] = كل الطلاب
-        if requested_ids:
-            targets = requested_ids
-        else:
-            targets = [s.id for s in Student.query.filter_by(is_active=True).all()]
+        requested_ids = data.get('student_ids')  # None/[] = كل طلاب الأدمن المرتبطين
+
+        my_student_ids = {s.id for s in _admin_linked_students()}
+        targets = [sid for sid in requested_ids if sid in my_student_ids] if requested_ids else list(my_student_ids)
 
         if not targets:
             return jsonify({'success': False, 'error': 'ما فيه طلاب لإرسال الاستبيان لهم'}), 400
@@ -381,8 +388,12 @@ def admin_notify_students():
 @login_required
 @admin_required
 def admin_reopen_for_student(student_id):
-    """الأدمن يعيد الفرصة لأي طالب يعيد الاستبيان (بدون قيد إنه طالب معلم معيّن)"""
+    """الأدمن يعيد الفرصة لطالب من طلابه المرتبطين بس يعيد الاستبيان"""
     try:
+        link = TeacherStudent.query.filter_by(admin_id=current_user.id, student_id=student_id).first()
+        if not link:
+            return jsonify({'success': False, 'error': 'هذا الطالب مو من ضمن طلابك'}), 403
+
         result = LearningStyleResult.query.filter_by(student_id=student_id).first()
         if not result:
             return jsonify({'success': False, 'error': 'هذا الطالب ما أخذ الاستبيان أصلاً'}), 400
@@ -454,10 +465,10 @@ def _build_styles_excel(students_data):
 @login_required
 @admin_required
 def admin_export_excel():
-    """تصدير تقرير أنماط التعلم لكل الطلاب (أدمن)"""
+    """تصدير تقرير أنماط التعلم لطلاب الأدمن المرتبطين بس"""
     try:
         from flask import send_file
-        students = Student.query.filter_by(is_active=True).order_by(Student.name).all()
+        students = _admin_linked_students()
         student_ids = [s.id for s in students]
         results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
         by_student = {r.student_id: r for r in results}
