@@ -217,22 +217,26 @@ async function savePeriodLesson(weekNumber, dayName, periodIndex, value) {
     fields = { lesson_id: lesson.lesson_id, lesson_name: lesson.lesson_name, unit_id: lesson.unit_id, unit_name: lesson.unit_name };
   }
   try {
-    await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
+    const res = await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ week_number: weekNumber, day_name: dayName, ...fields }),
     });
+    const data = await res.json();
+    if (!data.success) { alert('ما انحفظ: ' + (data.error || res.status)); return; }
     openCalendar(currentCalendarId);
   } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
 }
 
 async function savePeriodField(weekNumber, dayName, periodIndex, field, value) {
   try {
-    await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
+    const res = await fetch(`${API}/${currentCalendarId}/periods/${periodIndex}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ week_number: weekNumber, day_name: dayName, [field]: value }),
     });
+    const data = await res.json();
+    if (!data.success) { alert('ما انحفظ: ' + (data.error || res.status)); }
   } catch (e) { alert('خطأ بالحفظ: ' + e.message); }
 }
 
