@@ -35,6 +35,13 @@
   .msg { font-size: 12px; margin-top: 8px; }
   .msg.ok { color: #059669; } .msg.err { color: #e74c3c; }
   .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .modal-box { background: #fff; border-radius: 14px; padding: 22px; width: 92%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  .modal-box h3 { margin: 0 0 14px; }
+  .modal-box label { display: block; font-size: 13px; margin: 10px 0 4px; font-weight: 600; }
+  .modal-box input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; }
+  .modal-toggle { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 </style>
 {% endblock %}
 
@@ -51,6 +58,7 @@
       <h3 style="margin:0;">الإحصائية الجماعية</h3>
       <div>
         <button class="btn-outline btn btn-sm" onclick="exportExcel()">📥 تصدير Excel</button>
+        <button class="btn-outline btn btn-sm" onclick="openPdfModal()">📄 تصدير PDF</button>
         <button class="btn-outline btn btn-sm" onclick="toggleSelectMode()">تحديد طلاب معيّنين</button>
         <button class="btn btn-sm" onclick="sendNotify()">📋 إرسال الاستبيان</button>
       </div>
@@ -66,6 +74,28 @@
   </div>
 </div>
 </div>
+
+<div id="pdf-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h3>📄 تصدير تقرير PDF</h3>
+    <div class="modal-toggle">
+      <input type="checkbox" id="pdf-letterhead" onchange="document.getElementById('pdf-school-wrap').style.display = this.checked ? 'block' : 'none';">
+      <label for="pdf-letterhead" style="margin:0;">تضمين كليشة الوزارة (شعار + اسم المدرسة)</label>
+    </div>
+    <div id="pdf-school-wrap" style="display:none;">
+      <label>اسم المدرسة</label>
+      <input type="text" id="pdf-school-name" placeholder="مثال: ثانوية عبدالرحمن بن القاسم">
+    </div>
+    <label>الفصل / الشعبة</label>
+    <input type="text" id="pdf-section-label" placeholder="مثال: شعبة 101">
+    <label>العام الدراسي</label>
+    <input type="text" id="pdf-academic-year" placeholder="مثال: 1448هـ">
+    <div class="modal-actions">
+      <button class="btn-outline btn btn-sm" onclick="closePdfModal()">إلغاء</button>
+      <button class="btn btn-sm" onclick="confirmExportPdf()">تصدير</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -79,6 +109,25 @@ const STYLE_COLORS = { 'بصري': '#3b82f6', 'سمعي': '#f59e0b', 'قرائي
 
 function exportExcel() {
   window.location.href = `${API}/admin/export-excel`;
+}
+
+function openPdfModal() {
+  document.getElementById('pdf-modal').style.display = 'flex';
+}
+function closePdfModal() {
+  document.getElementById('pdf-modal').style.display = 'none';
+}
+function confirmExportPdf() {
+  const withLetterhead = document.getElementById('pdf-letterhead').checked;
+  const params = new URLSearchParams({
+    with_letterhead: withLetterhead ? '1' : '0',
+    school_name: document.getElementById('pdf-school-name').value.trim(),
+    section_label: document.getElementById('pdf-section-label').value.trim(),
+    academic_year: document.getElementById('pdf-academic-year').value.trim(),
+  });
+  if (selectMode && selectedIds.size) params.set('student_ids', Array.from(selectedIds).join(','));
+  window.location.href = `${API}/admin/export-pdf?${params.toString()}`;
+  closePdfModal();
 }
 
 async function loadData() {

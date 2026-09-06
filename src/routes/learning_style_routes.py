@@ -10,12 +10,14 @@ try:
     from src.extensions import db
     from src.models.learning_style import LearningStyleResult
     from src.models.student import Student
+    from src.models.teacher import Teacher
     from src.models.teacher_student import TeacherStudent
     from src.middleware.auth_middleware import verify_student_token, verify_teacher_token
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.learning_style import LearningStyleResult
     from models.student import Student
+    from models.teacher import Teacher
     from models.teacher_student import TeacherStudent
     from middleware.auth_middleware import verify_student_token, verify_teacher_token
 
@@ -543,6 +545,158 @@ def teacher_export_excel():
         return send_file(
             output, as_attachment=True, download_name='أنماط_التعلم.xlsx',
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== تصدير PDF (مع/بدون كليشة الوزارة) ====================
+
+# نفس ترتيب عرض الأنماط بالنموذج الرسمي: سمعي / حركي / بصري / قرائي-كتابي
+_PDF_STYLE_ORDER = [('A', 'سمعي'), ('K', 'حركي'), ('V', 'بصري'), ('R', 'قرائي/كتابي')]
+
+
+def _parse_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _pdf_options_from_request(default_teacher_name='', default_school_name=''):
+    return {
+        'with_letterhead': _parse_bool(request.args.get('with_letterhead'), False),
+        'school_name': request.args.get('school_name') or default_school_name,
+        'section_label': request.args.get('section_label') or '',
+        'academic_year': request.args.get('academic_year') or '',
+        'teacher_name': request.args.get('teacher_name') or default_teacher_name,
+    }
+
+
+def _filter_by_ids(students, param_name='student_ids'):
+    """يفلتر قائمة كائنات طالب/روابط حسب query param اختياري student_ids (مفصولة بفواصل)"""
+    raw = request.args.get(param_name)
+    if not raw:
+        return students
+    wanted = {int(x) for x in raw.split(',') if x.strip().isdigit()}
+    return [s for s in students if (s.student_id if hasattr(s, 'student_id') else s.id) in wanted]
+
+
+def _html_to_pdf(html_content):
+    """يحوّل HTML لـPDF عبر نفس محرّك Playwright المستخدم بتوليد الاختبارات"""
+    import os
+    import uuid
+    try:
+        from src.routes.exam_generator import _get_browser
+    except ImportError:  # pragma: no cover
+        from routes.exam_generator import _get_browser
+
+    src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    browser = _get_browser()
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    tmp_path = os.path.join(src_dir, f'_pw_render_{uuid.uuid4().hex}.html')
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        page.goto(f"file://{tmp_path}", wait_until='load')
+        pdf = page.pdf(
+            format='A4', print_background=True,
+            margin={'top': '10mm', 'right': '8mm', 'bottom': '12mm', 'left': '8mm'},
+        )
+    finally:
+        ctx.close()
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+    return pdf
+
+
+def _build_styles_pdf(students_data, options):
+    """يبني تقرير PDF لأنماط التعلم — نفس شكل النموذج الرسمي (مربعات اختيار مُعلَّمة تلقائياً حسب النمط الغالب المحسوب)"""
+    try:
+        from src.routes.exam_generator import _get_font_data, _get_font_data_bold, _default_logo_base64
+    except ImportError:  # pragma: no cover
+        from routes.exam_generator import _get_font_data, _get_font_data_bold, _default_logo_base64
+
+    context = {
+        'students': students_data,
+        'style_order': _PDF_STYLE_ORDER,
+        'with_letterhead': options.get('with_letterhead', False),
+        'school_name': options.get('school_name') or '',
+        'section_label': options.get('section_label') or '',
+        'academic_year': options.get('academic_year') or '',
+        'teacher_name': options.get('teacher_name') or '',
+        'logo_base64': _default_logo_base64() or '',
+        'font_regular': _get_font_data('cairo'),
+        'font_bold': _get_font_data_bold('cairo'),
+        'year_now': datetime.now().year,
+    }
+    html_content = render_template('learning_style_report_pdf.html', **context)
+    return _html_to_pdf(html_content)
+
+
+def _students_data_for_pdf(links_or_students, is_link=True):
+    """يبني students_data من روابط TeacherStudent أو من كائنات Student مباشرة"""
+    ids = [(l.student_id if is_link else l.id) for l in links_or_students]
+    results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(ids)).all() if ids else []
+    by_student = {r.student_id: r for r in results}
+    data = []
+    for item in links_or_students:
+        sid = item.student_id if is_link else item.id
+        name = (item.student.name if item.student else None) if is_link else item.name
+        r = by_student.get(sid)
+        data.append({
+            'student_name': name,
+            'taken': r is not None,
+            'dominant_keys': set((r.dominant_style or '').split('/')) if r else set(),
+        })
+    return data
+
+
+@learning_style_bp.route('/admin/export-pdf', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_pdf():
+    """تصدير تقرير أنماط التعلم PDF بشكل النموذج الرسمي — مع/بدون كليشة الوزارة حسب اختيار الأدمن"""
+    try:
+        from flask import send_file
+        from io import BytesIO
+
+        students = _filter_by_ids(_admin_linked_students())
+        students_data = _students_data_for_pdf(students, is_link=False)
+
+        admin_name = getattr(current_user, 'full_name', '') or current_user.username
+        pdf_bytes = _build_styles_pdf(students_data, _pdf_options_from_request(default_teacher_name=admin_name))
+        return send_file(
+            BytesIO(pdf_bytes), as_attachment=True, download_name='تقرير_أنماط_التعلم.pdf', mimetype='application/pdf',
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/teacher/export-pdf', methods=['GET'])
+@verify_teacher_token
+def teacher_export_pdf():
+    """تصدير تقرير أنماط التعلم PDF بشكل النموذج الرسمي — مع/بدون كليشة الوزارة حسب اختيار المعلم"""
+    try:
+        from flask import send_file
+        from io import BytesIO
+
+        teacher_id = request.teacher_id
+        links = TeacherStudent.query.join(TeacherStudent.student).filter(
+            TeacherStudent.teacher_id == teacher_id
+        ).order_by(Student.name).all()
+        links = _filter_by_ids(links)
+        students_data = _students_data_for_pdf(links, is_link=True)
+
+        teacher = Teacher.query.get(teacher_id)
+        pdf_bytes = _build_styles_pdf(students_data, _pdf_options_from_request(
+            default_teacher_name=teacher.name if teacher else '',
+            default_school_name=(teacher.school if teacher else '') or '',
+        ))
+        return send_file(
+            BytesIO(pdf_bytes), as_attachment=True, download_name='تقرير_أنماط_التعلم.pdf', mimetype='application/pdf',
         )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
