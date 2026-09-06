@@ -6,6 +6,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime, timedelta
 from hijridate import Gregorian
+from sqlalchemy.orm.attributes import flag_modified
 
 try:
     from src.extensions import db
@@ -555,6 +556,7 @@ def regenerate_calendar(calendar_id):
 
         weeks, total_lessons, used_lessons = _auto_fill_lessons(cal.course_id, cal.weeks_data or [], distribute=cal.auto_distribute)
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
 
         return jsonify({
@@ -597,6 +599,7 @@ def add_holiday(calendar_id):
 
         cal.holidays = holidays
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
 
         return jsonify({
@@ -631,6 +634,7 @@ def remove_holiday(calendar_id, index):
 
         cal.holidays = holidays
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
 
         return jsonify({'success': True, 'message': 'تم الحذف وإعادة بناء التقويم', 'calendar': cal.to_dict()})
@@ -671,6 +675,7 @@ def add_period(calendar_id):
         periods.append(period)
 
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
         return jsonify({'success': True, 'message': 'تمت إضافة الحصة', 'calendar': cal.to_dict()})
     except Exception as e:
@@ -707,6 +712,7 @@ def update_period(calendar_id, period_index):
                 periods[period_index][field] = data[field]
 
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم الحفظ'})
     except Exception as e:
@@ -740,6 +746,7 @@ def delete_period(calendar_id, period_index):
         periods.pop(period_index)
 
         cal.weeks_data = weeks
+        flag_modified(cal, 'weeks_data')
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم الحذف'})
     except Exception as e:
