@@ -183,6 +183,26 @@ def my_result():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@learning_style_bp.route('/access', methods=['GET'])
+@verify_student_token
+def check_access():
+    """هل الاستبيان متاح لهذا الطالب؟ — بس لو معلمه/الأدمن أرسله له (أو أخذه من قبل أصلاً)"""
+    try:
+        student_id = request.student_id
+        if LearningStyleResult.query.filter_by(student_id=student_id).first():
+            return jsonify({'success': True, 'has_access': True})
+
+        try:
+            from src.models.notification import Notification
+        except ImportError:  # pragma: no cover
+            from models.notification import Notification
+
+        invited = Notification.query.filter_by(student_id=student_id, type='learning_style').first() is not None
+        return jsonify({'success': True, 'has_access': invited})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @learning_style_bp.route('/teacher/students', methods=['GET'])
 @verify_teacher_token
 def teacher_students_styles():
