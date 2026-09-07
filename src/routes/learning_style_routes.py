@@ -352,12 +352,16 @@ def admin_page():
     return render_template('learning_styles_admin.html')
 
 
-def _admin_linked_students():
-    """طلاب الأدمن المرتبطين به فقط (TeacherStudent.admin_id) — نفس نطاق /api/mobile/admin/students"""
-    links = TeacherStudent.query.join(TeacherStudent.student).filter(
+def _admin_linked_links():
+    """روابط TeacherStudent لطلاب الأدمن المرتبطين به فقط (admin_id) — تشمل الشعبة"""
+    return TeacherStudent.query.join(TeacherStudent.student).filter(
         TeacherStudent.admin_id == current_user.id
     ).order_by(Student.name).all()
-    return [l.student for l in links if l.student]
+
+
+def _admin_linked_students():
+    """طلاب الأدمن المرتبطين به فقط (TeacherStudent.admin_id) — نفس نطاق /api/mobile/admin/students"""
+    return [l.student for l in _admin_linked_links() if l.student]
 
 
 @learning_style_bp.route('/admin/students', methods=['GET'])
@@ -496,22 +500,58 @@ def _build_styles_excel(students_data):
     return output
 
 
+def _filter_by_section(links, param_name='section'):
+    """يفلتر روابط TeacherStudent حسب query param اختياري section (TeacherStudent.section) — فاضي = كل الشعب"""
+    section = (request.args.get(param_name) or '').strip()
+    if not section:
+        return links
+    return [l for l in links if (l.section or '').strip() == section]
+
+
+@learning_style_bp.route('/admin/sections', methods=['GET'])
+@login_required
+@admin_required
+def admin_sections():
+    """قائمة الشعب الفعلية لطلاب الأدمن المرتبطين (من TeacherStudent.section) — لفلترة التصدير"""
+    try:
+        sections = sorted({(l.section or '').strip() for l in _admin_linked_links() if (l.section or '').strip()})
+        return jsonify({'success': True, 'sections': sections})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@learning_style_bp.route('/teacher/sections', methods=['GET'])
+@verify_teacher_token
+def teacher_sections():
+    """قائمة الشعب الفعلية لطلاب المعلم (من TeacherStudent.section) — لفلترة التصدير"""
+    try:
+        links = TeacherStudent.query.filter_by(teacher_id=request.teacher_id).all()
+        sections = sorted({(l.section or '').strip() for l in links if (l.section or '').strip()})
+        return jsonify({'success': True, 'sections': sections})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _excel_data_from_links(links):
+    student_ids = [l.student_id for l in links]
+    results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
+    by_student = {r.student_id: r for r in results}
+    return [{
+        'student_name': l.student.name if l.student else None,
+        'taken': l.student_id in by_student,
+        'result': by_student[l.student_id].to_dict() if l.student_id in by_student else None,
+    } for l in links]
+
+
 @learning_style_bp.route('/admin/export-excel', methods=['GET'])
 @login_required
 @admin_required
 def admin_export_excel():
-    """تصدير تقرير أنماط التعلم لطلاب الأدمن المرتبطين بس"""
+    """تصدير تقرير أنماط التعلم لطلاب الأدمن المرتبطين بس — يدعم فلترة اختيارية بالشعبة (?section=)"""
     try:
         from flask import send_file
-        students = _admin_linked_students()
-        student_ids = [s.id for s in students]
-        results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
-        by_student = {r.student_id: r for r in results}
-        students_data = [{
-            'student_name': s.name,
-            'taken': s.id in by_student,
-            'result': by_student[s.id].to_dict() if s.id in by_student else None,
-        } for s in students]
+        links = _filter_by_section(_admin_linked_links())
+        students_data = _excel_data_from_links(links)
 
         output = _build_styles_excel(students_data)
         return send_file(
@@ -525,21 +565,15 @@ def admin_export_excel():
 @learning_style_bp.route('/teacher/export-excel', methods=['GET'])
 @verify_teacher_token
 def teacher_export_excel():
-    """تصدير تقرير أنماط تعلم طلاب المعلم"""
+    """تصدير تقرير أنماط تعلم طلاب المعلم — يدعم فلترة اختيارية بالشعبة (?section=)"""
     try:
         from flask import send_file
         teacher_id = request.teacher_id
         links = TeacherStudent.query.join(TeacherStudent.student).filter(
             TeacherStudent.teacher_id == teacher_id
         ).order_by(Student.name).all()
-        student_ids = [l.student_id for l in links]
-        results = LearningStyleResult.query.filter(LearningStyleResult.student_id.in_(student_ids)).all() if student_ids else []
-        by_student = {r.student_id: r for r in results}
-        students_data = [{
-            'student_name': l.student.name if l.student else None,
-            'taken': l.student_id in by_student,
-            'result': by_student[l.student_id].to_dict() if l.student_id in by_student else None,
-        } for l in links]
+        links = _filter_by_section(links)
+        students_data = _excel_data_from_links(links)
 
         output = _build_styles_excel(students_data)
         return send_file(
@@ -683,8 +717,8 @@ def admin_export_pdf():
         from flask import send_file
         from io import BytesIO
 
-        students = _filter_by_ids(_admin_linked_students())
-        students_data = _students_data_for_pdf(students, is_link=False)
+        links = _filter_by_section(_filter_by_ids(_admin_linked_links()))
+        students_data = _students_data_for_pdf(links, is_link=True)
 
         admin_name = getattr(current_user, 'full_name', '') or current_user.username
         pdf_bytes = _build_styles_pdf(students_data, _pdf_options_from_request(default_teacher_name=admin_name))
@@ -707,7 +741,7 @@ def teacher_export_pdf():
         links = TeacherStudent.query.join(TeacherStudent.student).filter(
             TeacherStudent.teacher_id == teacher_id
         ).order_by(Student.name).all()
-        links = _filter_by_ids(links)
+        links = _filter_by_section(_filter_by_ids(links))
         students_data = _students_data_for_pdf(links, is_link=True)
 
         teacher = Teacher.query.get(teacher_id)

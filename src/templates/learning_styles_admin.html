@@ -58,7 +58,7 @@
       <h3 style="margin:0;">الإحصائية الجماعية</h3>
       <div>
         <button class="btn-outline btn btn-sm" onclick="exportExcel()">📥 تصدير Excel</button>
-        <button class="btn-outline btn btn-sm" onclick="openPdfModal()">📄 تصدير PDF</button>
+        <button class="btn-outline btn btn-sm" onclick="exportKind='pdf'; openPdfModal();">📄 تصدير PDF</button>
         <button class="btn-outline btn btn-sm" onclick="toggleSelectMode()">تحديد طلاب معيّنين</button>
         <button class="btn btn-sm" onclick="sendNotify()">📋 إرسال الاستبيان</button>
       </div>
@@ -77,22 +77,26 @@
 
 <div id="pdf-modal" class="modal-overlay" style="display:none;">
   <div class="modal-box">
-    <h3>📄 تصدير تقرير PDF</h3>
-    <div class="modal-toggle">
-      <input type="checkbox" id="pdf-letterhead" onchange="document.getElementById('pdf-school-wrap').style.display = this.checked ? 'block' : 'none';">
-      <label for="pdf-letterhead" style="margin:0;">تضمين كليشة الوزارة (شعار + اسم المدرسة)</label>
+    <h3 id="export-modal-title">📄 تصدير تقرير PDF</h3>
+    <label>الشعبة</label>
+    <select id="export-section" style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px;">
+      <option value="">كل الشعب</option>
+    </select>
+    <div id="pdf-only-fields">
+      <div class="modal-toggle">
+        <input type="checkbox" id="pdf-letterhead" onchange="document.getElementById('pdf-school-wrap').style.display = this.checked ? 'block' : 'none';">
+        <label for="pdf-letterhead" style="margin:0;">تضمين كليشة الوزارة (شعار + اسم المدرسة)</label>
+      </div>
+      <div id="pdf-school-wrap" style="display:none;">
+        <label>اسم المدرسة</label>
+        <input type="text" id="pdf-school-name" placeholder="مثال: ثانوية عبدالرحمن بن القاسم">
+      </div>
+      <label>العام الدراسي</label>
+      <input type="text" id="pdf-academic-year" placeholder="مثال: 1448هـ">
     </div>
-    <div id="pdf-school-wrap" style="display:none;">
-      <label>اسم المدرسة</label>
-      <input type="text" id="pdf-school-name" placeholder="مثال: ثانوية عبدالرحمن بن القاسم">
-    </div>
-    <label>الفصل / الشعبة</label>
-    <input type="text" id="pdf-section-label" placeholder="مثال: شعبة 101">
-    <label>العام الدراسي</label>
-    <input type="text" id="pdf-academic-year" placeholder="مثال: 1448هـ">
     <div class="modal-actions">
       <button class="btn-outline btn btn-sm" onclick="closePdfModal()">إلغاء</button>
-      <button class="btn btn-sm" onclick="confirmExportPdf()">تصدير</button>
+      <button class="btn btn-sm" onclick="confirmExport()">تصدير</button>
     </div>
   </div>
 </div>
@@ -107,26 +111,52 @@ let studentsData = [];
 
 const STYLE_COLORS = { 'بصري': '#3b82f6', 'سمعي': '#f59e0b', 'قرائي/كتابي': '#10b981', 'حركي': '#ef4444' };
 
+let exportKind = 'pdf'; // 'pdf' | 'excel'
+
+async function loadSections() {
+  try {
+    const res = await fetch(`${API}/admin/sections`);
+    const data = await res.json();
+    const sel = document.getElementById('export-section');
+    sel.innerHTML = '<option value="">كل الشعب</option>' +
+      (data.sections || []).map(s => `<option value="${s}">${s}</option>`).join('');
+  } catch (e) { /* تجاهل — يبقى خيار "كل الشعب" بس */ }
+}
+
 function exportExcel() {
-  window.location.href = `${API}/admin/export-excel`;
+  exportKind = 'excel';
+  document.getElementById('export-modal-title').textContent = '📥 تصدير تقرير Excel';
+  document.getElementById('pdf-only-fields').style.display = 'none';
+  openPdfModal();
 }
 
 function openPdfModal() {
+  if (exportKind === 'pdf') {
+    document.getElementById('export-modal-title').textContent = '📄 تصدير تقرير PDF';
+    document.getElementById('pdf-only-fields').style.display = 'block';
+  }
+  loadSections();
   document.getElementById('pdf-modal').style.display = 'flex';
 }
 function closePdfModal() {
   document.getElementById('pdf-modal').style.display = 'none';
 }
-function confirmExportPdf() {
-  const withLetterhead = document.getElementById('pdf-letterhead').checked;
-  const params = new URLSearchParams({
-    with_letterhead: withLetterhead ? '1' : '0',
-    school_name: document.getElementById('pdf-school-name').value.trim(),
-    section_label: document.getElementById('pdf-section-label').value.trim(),
-    academic_year: document.getElementById('pdf-academic-year').value.trim(),
-  });
+function confirmExport() {
+  const section = document.getElementById('export-section').value;
+  const params = new URLSearchParams();
+  if (section) params.set('section', section);
   if (selectMode && selectedIds.size) params.set('student_ids', Array.from(selectedIds).join(','));
-  window.location.href = `${API}/admin/export-pdf?${params.toString()}`;
+
+  if (exportKind === 'excel') {
+    window.location.href = `${API}/admin/export-excel?${params.toString()}`;
+  } else {
+    const withLetterhead = document.getElementById('pdf-letterhead').checked;
+    params.set('with_letterhead', withLetterhead ? '1' : '0');
+    params.set('school_name', document.getElementById('pdf-school-name').value.trim());
+    params.set('section_label', section);
+    params.set('academic_year', document.getElementById('pdf-academic-year').value.trim());
+    window.location.href = `${API}/admin/export-pdf?${params.toString()}`;
+  }
   closePdfModal();
 }
 
