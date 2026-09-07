@@ -218,6 +218,21 @@ def _ensure_periods_format(weeks):
     return weeks
 
 
+def _safe_int(value, default=0):
+    """يحوّل period_number لعدد صحيح بأمان — الحقل يوصل أحياناً كنص من حقول الإدخال بالويب/التطبيق"""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_period_fields(fields):
+    """يضمن إن period_number يُخزَّن كعدد صحيح دايماً (مو نص) — يمنع تضارب أنواع لاحقاً بحساب next_num"""
+    if 'period_number' in fields and fields['period_number'] not in (None, ''):
+        fields['period_number'] = _safe_int(fields['period_number'], fields['period_number'])
+    return fields
+
+
 def _find_day(weeks, week_number, day_name):
     for week in (weeks or []):
         if week.get('week_number') != week_number:
@@ -667,11 +682,10 @@ def add_period(calendar_id):
             return jsonify({'success': False, 'error': 'ما تقدر تضيف حصة ليوم إجازة'}), 400
 
         periods = day.setdefault('periods', [])
-        next_num = max([p.get('period_number') or 0 for p in periods], default=0) + 1
+        next_num = max([_safe_int(p.get('period_number'), 0) for p in periods], default=0) + 1
         period = _blank_period(next_num)
-        for field in _PERIOD_FIELDS:
-            if field in data:
-                period[field] = data[field]
+        fields = _normalize_period_fields({k: v for k, v in data.items() if k in _PERIOD_FIELDS})
+        period.update(fields)
         periods.append(period)
 
         cal.weeks_data = weeks
@@ -707,9 +721,8 @@ def update_period(calendar_id, period_index):
         if period_index < 0 or period_index >= len(periods):
             return jsonify({'success': False, 'error': 'الحصة غير موجودة'}), 404
 
-        for field in _PERIOD_FIELDS:
-            if field in data:
-                periods[period_index][field] = data[field]
+        fields = _normalize_period_fields({k: v for k, v in data.items() if k in _PERIOD_FIELDS})
+        periods[period_index].update(fields)
 
         cal.weeks_data = weeks
         flag_modified(cal, 'weeks_data')
