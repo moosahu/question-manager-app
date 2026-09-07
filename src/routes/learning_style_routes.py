@@ -612,12 +612,32 @@ def _html_to_pdf(html_content):
     return pdf
 
 
+_ls_header_img_cache = None
+
+
+def _learning_style_header_base64():
+    """صورة هيدر الوزارة الرسمي (مستخرجة من قالب Word رسمي زوّدنا حسين إياه) — بديل الشعار المفرد"""
+    global _ls_header_img_cache
+    if _ls_header_img_cache is not None:
+        return _ls_header_img_cache
+    import base64
+    import os
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'learning_style_header.png'))
+    try:
+        with open(path, 'rb') as f:
+            data = base64.b64encode(f.read()).decode()
+            _ls_header_img_cache = f'data:image/png;base64,{data}'
+    except Exception:
+        _ls_header_img_cache = ''
+    return _ls_header_img_cache
+
+
 def _build_styles_pdf(students_data, options):
     """يبني تقرير PDF لأنماط التعلم — نفس شكل النموذج الرسمي (مربعات اختيار مُعلَّمة تلقائياً حسب النمط الغالب المحسوب)"""
     try:
-        from src.routes.exam_generator import _get_font_data, _get_font_data_bold, _default_logo_base64
+        from src.routes.exam_generator import _get_font_data, _get_font_data_bold
     except ImportError:  # pragma: no cover
-        from routes.exam_generator import _get_font_data, _get_font_data_bold, _default_logo_base64
+        from routes.exam_generator import _get_font_data, _get_font_data_bold
 
     context = {
         'students': students_data,
@@ -627,7 +647,7 @@ def _build_styles_pdf(students_data, options):
         'section_label': options.get('section_label') or '',
         'academic_year': options.get('academic_year') or '',
         'teacher_name': options.get('teacher_name') or '',
-        'logo_base64': _default_logo_base64() or '',
+        'header_image_base64': _learning_style_header_base64() if options.get('with_letterhead') else '',
         'font_regular': _get_font_data('cairo'),
         'font_bold': _get_font_data_bold('cairo'),
         'year_now': datetime.now().year,

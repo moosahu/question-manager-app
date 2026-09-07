@@ -25,27 +25,22 @@
   }
 
   {% if with_letterhead %}
-  {% set c1 = '#0c4a43' %}{% set c2 = '#16a34a' %}
+  {% set c1 = '#0B3945' %}{% set c2 = '#46BA7B' %}
   {% else %}
   {% set c1 = '#6366F1' %}{% set c2 = '#8B5CF6' %}
   {% endif %}
 
-  /* ── هيدر بموجة سفلية (نفس هوية الوزارة الرسمية) ── */
-  .header { position: relative; height: 130px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
-             clip-path: url(#waveClip); }
-  .header-inner { position: absolute; top: 22px; right: 26px; left: 26px; display: flex; align-items: center; }
-
-  .brand-card { background: #fff; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 12px;
-                box-shadow: 0 2px 6px rgba(0,0,0,.12); }
-  .brand-logo { height: 46px; }
-  .brand-divider { width: 1.5px; height: 40px; background: #cbd5e1; }
-  .brand-text .ministry { font-size: 17px; font-weight: bold; color: {{ c1 }}; }
-  .brand-text .school { font-size: 12px; color: #475569; margin-top: 3px; }
-
-  .app-brand-card { background: rgba(255,255,255,.15); border-radius: 10px; padding: 10px 18px; display: flex; align-items: center; gap: 10px; }
-  .app-brand-card .emoji { font-size: 32px; }
-  .app-brand-card .ministry { font-size: 17px; font-weight: bold; color: #fff; }
+  /* ── هيدر ── */
+  {% if with_letterhead %}
+  .header img { width: 100%; display: block; }
+  {% else %}
+  .header { position: relative; height: 108px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
+            border-radius: 0 0 34px 0; display: flex; align-items: center; padding: 0 26px; }
+  .app-brand-card { display: flex; align-items: center; gap: 10px; }
+  .app-brand-card .emoji { font-size: 34px; }
+  .app-brand-card .ministry { font-size: 18px; font-weight: bold; color: #fff; }
   .app-brand-card .school { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 3px; }
+  {% endif %}
 
   .title-box { width: 58%; margin-right: auto; margin-left: 0; background: #f8fafc; border: 1px solid #cbd5e1;
                border-radius: 10px; text-align: center; padding: 9px; font-size: 15.5px; font-weight: bold; color: #0f172a; margin-top: 16px; }
@@ -79,49 +74,28 @@
 
   .app-footer { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; padding: 8px; }
 
-  /* ── شريط سفلي مموّج (نفس هوية الوزارة) ── */
-  .bottom-wave { position: relative; height: 46px; margin-top: 18px;
-                 background: linear-gradient(120deg, {{ c2 }} 0%, {{ c1 }} 100%);
-                 clip-path: url(#waveClipBottom); }
+  /* ── شريط سفلي بلون الهوية (نفس تدرّج القالب الرسمي) ── */
+  .bottom-bar { height: 26px; margin-top: 18px; background: linear-gradient(90deg, {{ c1 }}, {{ c2 }}); border-radius: 30px 0 0 0; }
 </style>
 </head>
 <body>
 
-<svg width="0" height="0">
-  <defs>
-    <clipPath id="waveClip" clipPathUnits="objectBoundingBox">
-      <path d="M0,0 L1,0 L1,1 L0.42,1 C0.33,1 0.30,0.82 0.19,0.85 C0.10,0.87 0.07,0.95 0,0.9 Z" />
-    </clipPath>
-    <clipPath id="waveClipBottom" clipPathUnits="objectBoundingBox">
-      <path d="M0,1 L1,1 L1,0.15 C0.9,0.05 0.8,0.3 0.65,0.2 C0.5,0.1 0.35,0.35 0.2,0.25 C0.1,0.18 0.05,0.35 0,0.2 Z" />
-    </clipPath>
-  </defs>
-</svg>
-
   <div class="header">
-    <div class="header-inner">
-      {% if with_letterhead %}
-      <div class="brand-card">
-        {% if logo_base64 %}<img class="brand-logo" src="{{ logo_base64 }}">{% endif %}
-        <div class="brand-divider"></div>
-        <div class="brand-text">
-          <div class="ministry">وزارة التعليم</div>
-          <div class="school">{{ school_name or '—' }}</div>
-        </div>
+    {% if with_letterhead and header_image_base64 %}
+    <img src="{{ header_image_base64 }}">
+    {% elif not with_letterhead %}
+    <div class="app-brand-card">
+      <div class="emoji">🧠</div>
+      <div>
+        <div class="ministry">كيم تحصيلي</div>
+        <div class="school">منصة تعليمية للكيمياء</div>
       </div>
-      {% else %}
-      <div class="app-brand-card">
-        <div class="emoji">🧠</div>
-        <div class="brand-text">
-          <div class="ministry">كيم تحصيلي</div>
-          <div class="school">منصة تعليمية للكيمياء</div>
-        </div>
-      </div>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
 
   <div class="title-box">تقرير أنماط التعلم (VARK)</div>
+  {% if school_name and with_letterhead %}<div class="meta-line">المدرسة: {{ school_name }}</div>{% endif %}
   {% if section_label %}<div class="meta-line">الفصل: {{ section_label }}</div>{% endif %}
   {% if academic_year %}<div class="meta-line">العام الدراسي {{ academic_year }}</div>{% endif %}
 
@@ -181,7 +155,7 @@
 
   <div class="app-footer">⚗️ تم استخراج هذا التقرير من تطبيق كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}</div>
 
-  <div class="bottom-wave"></div>
+  <div class="bottom-bar"></div>
 
 </body>
 </html>
