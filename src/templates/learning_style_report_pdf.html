@@ -31,8 +31,13 @@
   {% endif %}
 
   /* ── هيدر ── */
+  .header { position: relative; }
   {% if with_letterhead %}
   .header img { width: 100%; display: block; }
+  /* المربع المفرّغ المرسوم أصلاً داخل صورة الهيدر الرسمية — نعرض فيه اسم المدرسة */
+  .header-tab { position: absolute; right: 26.5%; left: 26.5%; top: 73%; bottom: 3%;
+                display: flex; align-items: center; justify-content: center;
+                color: #eafff2; font-size: 12.5px; font-weight: 600; text-align: center; overflow: hidden; padding: 0 6px; }
   {% else %}
   .header { position: relative; height: 108px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
             border-radius: 0 0 34px 0; display: flex; align-items: center; padding: 0 26px; }
@@ -83,6 +88,7 @@
   <div class="header">
     {% if with_letterhead and header_image_base64 %}
     <img src="{{ header_image_base64 }}">
+    <div class="header-tab">{{ school_name or '' }}</div>
     {% elif not with_letterhead %}
     <div class="app-brand-card">
       <div class="emoji">🧠</div>
@@ -95,7 +101,6 @@
   </div>
 
   <div class="title-box">تقرير أنماط التعلم (VARK)</div>
-  {% if school_name and with_letterhead %}<div class="meta-line">المدرسة: {{ school_name }}</div>{% endif %}
   {% if section_label %}<div class="meta-line">الفصل: {{ section_label }}</div>{% endif %}
   {% if academic_year %}<div class="meta-line">العام الدراسي {{ academic_year }}</div>{% endif %}
 
