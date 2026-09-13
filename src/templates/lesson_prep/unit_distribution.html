@@ -262,6 +262,41 @@
     white-space: nowrap;
   }
 
+  /* بطاقات الأنشطة القابلة للطباعة */
+  .cards-appendix {
+    border-top: 3px solid #3f6212;
+    padding-top: 14px;
+    margin-top: 20px;
+  }
+  .cards-appendix-header {
+    font-size: 13pt;
+    font-weight: 900;
+    color: #3f6212;
+    margin-bottom: 8px;
+  }
+  .printcard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .printcard {
+    border: 1.5px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 12px;
+    break-inside: avoid;
+    background: #ffffff;
+  }
+  .printcard .pc-source {
+    font-size: 8pt;
+    font-weight: 900;
+    color: #4d7c0f;
+    margin-bottom: 5px;
+  }
+  .printcard .pc-text {
+    font-size: 9.5pt;
+    line-height: 1.6;
+  }
+
   /* الفروق الفردية */
   .diff-grid {
     display: flex;
@@ -760,6 +795,34 @@
       <p style="font-size:10pt;">{{ assessment.summative }}</p>
     </div>
     {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ مواد الأنشطة القابلة للطباعة (ملحق للوحدة كاملة) ═══ -->
+{% set printable_cards = [] %}
+{% for p in plan_data.get('periods', []) %}
+  {% if p is mapping %}
+    {% for concept in p.get('main_concepts', []) %}
+      {% if concept is mapping %}
+        {% for card_text in concept.get('activity_materials', []) %}
+          {% if card_text %}{% set _ = printable_cards.append({'source': 'حصة ' ~ p.get('period_number', '') ~ ' - ' ~ concept.get('concept', ''), 'text': card_text}) %}{% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% if printable_cards %}
+<div class="cards-appendix">
+  <div class="cards-appendix-header">مواد الأنشطة القابلة للطباعة (اقطع وزّع)</div>
+  <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة حسب الحصة والنشاط المرتبط بها.</p>
+  <div class="printcard-grid">
+    {% for card in printable_cards %}
+    <div class="printcard">
+      <div class="pc-source">{{ card.source }}</div>
+      <div class="pc-text">{{ card.text|chem }}</div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 {% endif %}

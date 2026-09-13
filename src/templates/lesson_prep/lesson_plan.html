@@ -161,6 +161,33 @@
   .sec-refl .section-header    { background: #334155 !important; color: #ffffff !important; }
   .sec-refl .section-body      { border-color: #e2e8f0; background: #f8fafc !important; }
 
+  .sec-cards .section-header   { background: #3f6212 !important; color: #ffffff !important; }
+  .sec-cards .section-body     { border-color: #ecfccb; background: #f7fee7 !important; }
+
+  /* ─── بطاقات الأنشطة القابلة للطباعة ─── */
+  .printcard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .printcard {
+    border: 1.5px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 14px;
+    break-inside: avoid;
+    background: #ffffff;
+  }
+  .printcard .pc-source {
+    font-size: 8pt;
+    font-weight: 900;
+    color: #4d7c0f;
+    margin-bottom: 6px;
+  }
+  .printcard .pc-text {
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+
   /* ─── جداول ─── */
   table.info-table {
     width: 100%;
@@ -1181,6 +1208,33 @@
     <div class="reflection-field">
       <div class="rf-label">ملاحظات إضافية</div>
       <div class="rf-content">{{ reflection.get('notes', '') }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ مواد الأنشطة القابلة للطباعة (ملحق) ═══ -->
+{% set printable_cards = [] %}
+{% for concept in plan_data.get('presentation', {}).get('main_concepts', []) %}
+  {% if concept is mapping %}
+    {% for card_text in concept.get('activity_materials', []) %}
+      {% if card_text %}{% set _ = printable_cards.append({'source': concept.get('concept', ''), 'text': card_text}) %}{% endif %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% if printable_cards %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-cards">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> مواد الأنشطة القابلة للطباعة (اقطع وزّع)</div></div>
+  <div class="section-body">
+    <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة حسب النشاط المرتبط بها بعرض الدرس.</p>
+    <div class="printcard-grid">
+      {% for card in printable_cards %}
+      <div class="printcard">
+        <div class="pc-source">{{ card.source }}</div>
+        <div class="pc-text">{{ card.text|chem }}</div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </div>
