@@ -805,7 +805,7 @@
   {% if p is mapping %}
     {% for concept in p.get('main_concepts', []) %}
       {% if concept is mapping %}
-        {% for card_text in concept.get('activity_materials', []) %}
+        {% for card_text in (concept.get('activity_materials') or []) %}
           {% if card_text %}{% set _ = printable_cards.append({'source': 'حصة ' ~ p.get('period_number', '') ~ ' - ' ~ concept.get('concept', ''), 'text': card_text}) %}{% endif %}
         {% endfor %}
       {% endif %}

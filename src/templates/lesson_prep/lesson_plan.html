@@ -1217,7 +1217,7 @@
 {% set printable_cards = [] %}
 {% for concept in plan_data.get('presentation', {}).get('main_concepts', []) %}
   {% if concept is mapping %}
-    {% for card_text in concept.get('activity_materials', []) %}
+    {% for card_text in (concept.get('activity_materials') or []) %}
       {% if card_text %}{% set _ = printable_cards.append({'source': concept.get('concept', ''), 'text': card_text}) %}{% endif %}
     {% endfor %}
   {% endif %}
