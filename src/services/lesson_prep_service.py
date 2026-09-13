@@ -7,6 +7,7 @@ Lesson Prep Service - خدمة تحضير الدروس بالذكاء الاصط
 import os
 import io
 import json
+import math
 import logging
 import tempfile
 import base64
@@ -364,6 +365,7 @@ class LessonPrepService:
                     'excellent_students_count': plan.excellent_students_count or 5,
                     'focus_area': plan.focus_area or 'شامل',
                     'examples_count': plan.examples_count or 5,
+                    'materials_count': plan.materials_count or LessonPrepService._default_materials_count(plan.student_count or 30),
                 },
                 textbook_text=textbook_text,
             )
@@ -640,6 +642,7 @@ class LessonPrepService:
         excellent_count = teacher_options.get('excellent_students_count', 5)
         focus = teacher_options.get('focus_area', 'شامل')
         examples = teacher_options.get('examples_count', 5)
+        materials_count = teacher_options.get('materials_count') or LessonPrepService._default_materials_count(student_count)
 
         # حقن النص المستخرج مباشرة من PDF
         textbook_section = ""
@@ -672,6 +675,7 @@ class LessonPrepService:
 - **عدد الطلاب المتفوقين**: {excellent_count}
 - **التركيز المطلوب**: {focus}
 - **عدد الأمثلة**: {examples}
+- **عدد المجموعات/الأزواج التقريبي بالفصل**: {materials_count} (محسوب من عدد الطلاب - استخدمه لتحديد عدد بطاقات activity_materials بأي نشاط يوزَّع على كامل الفصل مجموعات/أزواج)
 
 ## التعليمات
 أعد الرد بصيغة JSON تتضمن الأقسام التالية:
@@ -722,7 +726,7 @@ class LessonPrepService:
         "explanation": "الشرح التفصيلي",
         "teaching_method": "اسم الاستراتيجية المستخدمة لشرح هذا المفهوم تحديداً",
         "strategy_application": "شرح واضح ومحدد لكيفية تطبيق هذه الاستراتيجية بالضبط على هذا المفهوم تحديداً - ليس تعريفاً نظرياً عاماً للاستراتيجية",
-        "activity_materials": ["فقط لو نشاط الطلاب يتطلب توزيع بطاقات/أوراق مقصوصة على الطلاب (بطاقات سيناريوهات، بطاقات مطابقة، أوصاف صور تصرفات...): اكتب هنا نص كل بطاقة كعنصر مستقل جاهز للطباعة والقص، بنفس العدد بالضبط المذكور داخل نص student_activity. إن كان النشاط لا يحتاج مواد مطبوعة (نقاش شفهي، سبورة، فتح الكتاب...) اترك القائمة فارغة []"],
+        "activity_materials": ["فقط لو نشاط الطلاب يتطلب توزيع بطاقات/أوراق مقصوصة على الطلاب (بطاقات سيناريوهات، بطاقات مطابقة، أوصاف صور تصرفات...): اكتب هنا نص كل بطاقة/نسخة كعنصر مستقل جاهز للطباعة والقص. لو النشاط يوزَّع على كامل الفصل مجموعات/أزواج استخدم بالضبط {materials_count} عنصر (نفس عدد المجموعات). لو النشاط يتعمّد اختيار عدد محدود وثابت من الطلاب فقط (مثل اختيار 3-4 طلاب للتمثيل أمام الفصل) استخدم ذاك العدد المحدود نفسه بدل {materials_count}. إن كان النشاط لا يحتاج مواد مطبوعة (نقاش شفهي، سبورة، فتح الكتاب...) اترك القائمة فارغة []"],
         "examples": [
           {{
             "problem": "نص المثال أو المسألة",
@@ -818,7 +822,7 @@ class LessonPrepService:
 - ⚠️ الأمثلة في presentation يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
 - ⚠️ في teaching_strategies و strategy_application و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application/strategy_application يجب أن يكون مثالاً حقيقياً من محتوى هذا الدرس بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية - كل مفهوم فيه استراتيجية (teaching_method) يجب أن يحتوي strategy_application يشرح تطبيقها مباشرة بنفس المكان، لا تتركه فارغاً
-- ⚠️ activity_materials يجب أن يتطابق عدده بالضبط مع أي عدد مذكور داخل student_activity (مثلاً لو قلت "بطاقات فيها 4 سيناريوهات" يجب activity_materials يحتوي 4 عناصر بالضبط، كل عنصر نص سيناريو مستقل جاهز للطباعة) - لا تذكر عدداً بالنشاط بدون كتابة نفس العدد من البطاقات
+- ⚠️ activity_materials: لأي نشاط يوزَّع على كامل الفصل مجموعات/أزواج استخدم بالضبط {materials_count} عنصر (متوافق مع "عدد المجموعات/الأزواج التقريبي بالفصل" أعلاه)، ولأي نشاط يختار عدداً محدوداً وثابتاً من الطلاب فقط استخدم ذاك العدد بالضبط بدل {materials_count} - والنص المكتوب داخل student_activity نفسه يجب يذكر نفس العدد المستخدم فعلياً بـactivity_materials (لا تضارب بين العددين)
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى
 - استخدم مصطلحات علمية دقيقة مناسبة للمادة
@@ -1232,6 +1236,16 @@ class LessonPrepService:
         return plan_data
 
     @staticmethod
+    def _default_materials_count(student_count):
+        """يحسب عدد بطاقات الأنشطة الافتراضي (تقريباً عدد المجموعات/الأزواج بالفصل)
+        من عدد الطلاب - مجموعة كل 4 طلاب تقريباً، بحد أدنى 2 وأقصى 12."""
+        try:
+            student_count = int(student_count or 30)
+        except (TypeError, ValueError):
+            student_count = 30
+        return max(2, min(12, math.ceil(student_count / 4)))
+
+    @staticmethod
     def _build_strategies_from_concepts(concepts, original_strategies):
         """يبني قائمة استراتيجيات التدريس من نفس الاستراتيجيات المكتوبة داخل main_concepts
         (اسم + تطبيقها + نشاط الطلاب) بدل الاعتماد على تلخيص منفصل من الذكاء الاصطناعي عرضة
@@ -1363,8 +1377,10 @@ class LessonPrepService:
             return None
 
     def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
-                                     course_name, unit_name, all_lessons_text, textbook_text=""):
+                                     course_name, unit_name, all_lessons_text, textbook_text="",
+                                     materials_count=None):
         """بناء برومت لحصة واحدة فقط"""
+        materials_count = materials_count or 8
         textbook_section = ""
         if textbook_text and textbook_text.strip():
             textbook_section = f"""## ═══ النص الكامل لصفحات الكتاب المدرسي (مستخرج مباشرة بدقة 100%) ═══
@@ -1386,6 +1402,7 @@ class LessonPrepService:
 ## الحصة رقم: {period_num} من {total_periods}
 ## الدرس: {lesson_name}
 ## عنوان الحصة: {title}
+## عدد المجموعات/الأزواج التقريبي بالفصل: {materials_count} (استخدمه لتحديد عدد بطاقات activity_materials بأي نشاط يوزَّع على كامل الفصل مجموعات/أزواج)
 
 ## المطلوب
 أعد تحضيراً تفصيلياً كاملاً لهذه الحصة الواحدة فقط، مستنداً إلى محتوى الكتاب أعلاه والصور المرفقة.
@@ -1426,7 +1443,7 @@ class LessonPrepService:
       "explanation": "شرح مفصّل",
       "teaching_method": "اسم الاستراتيجية المستخدمة لشرح هذا المفهوم تحديداً",
       "strategy_application": "شرح واضح ومحدد لكيفية تطبيق هذه الاستراتيجية بالضبط على هذا المفهوم تحديداً - ليس تعريفاً نظرياً عاماً للاستراتيجية",
-      "activity_materials": ["فقط لو نشاط الطلاب يتطلب توزيع بطاقات/أوراق مقصوصة على الطلاب: اكتب هنا نص كل بطاقة كعنصر مستقل جاهز للطباعة والقص، بنفس العدد بالضبط المذكور داخل نص student_activity. إن كان النشاط لا يحتاج مواد مطبوعة اترك القائمة فارغة []"],
+      "activity_materials": ["فقط لو نشاط الطلاب يتطلب توزيع بطاقات/أوراق مقصوصة على الطلاب: اكتب هنا نص كل بطاقة/نسخة كعنصر مستقل جاهز للطباعة والقص. لو النشاط يوزَّع على كامل الفصل مجموعات/أزواج استخدم بالضبط {materials_count} عنصر. لو النشاط يتعمّد اختيار عدد محدود وثابت من الطلاب فقط استخدم ذاك العدد المحدود بدل {materials_count}. إن كان النشاط لا يحتاج مواد مطبوعة اترك القائمة فارغة []"],
       "examples": [
         {{
           "problem": "نص المثال أو المسألة",
@@ -1517,7 +1534,7 @@ class LessonPrepService:
 - ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation)
 - ⚠️ في teaching_strategies و strategy_application و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application/strategy_application يجب أن يكون مثالاً حقيقياً من محتوى هذه الحصة بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية - كل مفهوم فيه استراتيجية (teaching_method) يجب أن يحتوي strategy_application يشرح تطبيقها مباشرة بنفس المكان، لا تتركه فارغاً
-- ⚠️ activity_materials يجب أن يتطابق عدده بالضبط مع أي عدد مذكور داخل student_activity (مثلاً لو قلت "بطاقات فيها 4 سيناريوهات" يجب activity_materials يحتوي 4 عناصر بالضبط، كل عنصر نص سيناريو مستقل جاهز للطباعة) - لا تذكر عدداً بالنشاط بدون كتابة نفس العدد من البطاقات
+- ⚠️ activity_materials: لأي نشاط يوزَّع على كامل الفصل مجموعات/أزواج استخدم بالضبط {materials_count} عنصر (متوافق مع "عدد المجموعات/الأزواج التقريبي بالفصل" أعلاه)، ولأي نشاط يختار عدداً محدوداً وثابتاً من الطلاب فقط استخدم ذاك العدد بالضبط بدل {materials_count} - والنص المكتوب داخل student_activity نفسه يجب يذكر نفس العدد المستخدم فعلياً بـactivity_materials (لا تضارب بين العددين)
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
 - في vocabulary: استخرج المصطلحات الجديدة من محتوى هذه الحصة تحديداً - كل المصطلحات الموجودة فعلاً في الصفحات
@@ -1649,6 +1666,7 @@ class LessonPrepService:
                     period_num, total_periods, lesson_name, title,
                     course_name, unit.name, lessons_text,
                     textbook_text=period_text,
+                    materials_count=plan.materials_count or 8,
                 )
 
                 # محاولة توليد الحصة مع retry عند 503/rate limit

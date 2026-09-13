@@ -236,6 +236,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
             excellent_count = data.get('excellent_students_count', 5)
             focus_area = data.get('focus_area', 'شامل')
             examples_count = data.get('examples_count', 5)
+            materials_count = data.get('materials_count')
 
             cached = LessonPlan.query.filter_by(
                 lesson_id=lesson_id,
@@ -246,6 +247,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
                 excellent_students_count=excellent_count,
                 focus_area=focus_area,
                 examples_count=examples_count,
+                materials_count=materials_count,
                 include_support_plan=bool(data.get('include_support_plan', False)),
                 status='completed',
             ).filter(
@@ -266,6 +268,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
                     excellent_students_count=excellent_count,
                     focus_area=focus_area,
                     examples_count=examples_count,
+                    materials_count=materials_count,
                     status='completed',
                 )
                 db.session.add(new_plan)
@@ -292,6 +295,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
             excellent_students_count=data.get('excellent_students_count', 5),
             focus_area=data.get('focus_area', 'شامل'),
             examples_count=data.get('examples_count', 5),
+            materials_count=data.get('materials_count'),
             include_support_plan=bool(data.get('include_support_plan', False)),
             status='pending',
         )
@@ -341,6 +345,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
         lesson_id = data.get('lesson_id')  # أي درس من الوحدة
         total_periods = data.get('total_periods', 12)
         include_support_plan = data.get('include_support_plan', False)
+        materials_count = data.get('materials_count')
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
@@ -375,6 +380,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                     LessonPlan.plan_type == 'unit_distribution',
                     LessonPlan.student_count == total_periods,
                     LessonPlan.include_support_plan == bool(include_support_plan),
+                    LessonPlan.materials_count == materials_count,
                     LessonPlan.status == 'completed',
                     LessonPlan.plan_data.isnot(None),
                 ).first()
@@ -388,6 +394,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                         plan_data=dict(cached.plan_data),
                         pdf_file_url=cached.pdf_file_url,
                         student_count=total_periods,
+                        materials_count=materials_count,
                         status='completed',
                     )
                     db.session.add(new_plan)
@@ -409,6 +416,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             plan_type='unit_distribution',
             status='pending',
             student_count=total_periods,  # نستخدم هذا الحقل مؤقتاً لتخزين عدد الحصص
+            materials_count=materials_count,
             include_support_plan=include_support_plan,
         )
         db.session.add(plan)

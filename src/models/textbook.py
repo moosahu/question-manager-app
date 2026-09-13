@@ -87,6 +87,7 @@ class LessonPlan(db.Model):
     excellent_students_count = db.Column(db.Integer, nullable=True)
     focus_area = db.Column(db.String(30), nullable=True)
     examples_count = db.Column(db.Integer, default=5)
+    materials_count = db.Column(db.Integer, nullable=True)  # عدد بطاقات الأنشطة القابلة للطباعة - None = تلقائي
     status = db.Column(db.String(20), default='pending')  # pending, generating, completed, failed
     error_message = db.Column(db.Text, nullable=True)
     progress_message = db.Column(db.Text, nullable=True)
@@ -119,6 +120,7 @@ class LessonPlan(db.Model):
             'excellent_students_count': self.excellent_students_count,
             'focus_area': self.focus_area,
             'examples_count': self.examples_count,
+            'materials_count': self.materials_count,
             'status': self.status,
             'error_message': self.error_message,
             'progress_message': self.progress_message,
