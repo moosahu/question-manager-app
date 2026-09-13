@@ -401,6 +401,7 @@ class LessonPrepService:
             # حقن الرسوم البيانية SVG
             if isinstance(plan_data, dict) and 'raw_text' not in plan_data:
                 plan_data = LessonPrepService._inject_diagrams(plan_data)
+                plan_data = LessonPrepService._reconcile_teaching_strategies(plan_data)
 
             pdf_url = None
             try:
@@ -720,6 +721,7 @@ class LessonPrepService:
         "concept": "المفهوم",
         "explanation": "الشرح التفصيلي",
         "teaching_method": "اسم الاستراتيجية المستخدمة لشرح هذا المفهوم تحديداً",
+        "strategy_application": "شرح واضح ومحدد لكيفية تطبيق هذه الاستراتيجية بالضبط على هذا المفهوم تحديداً - ليس تعريفاً نظرياً عاماً للاستراتيجية",
         "examples": [
           {{
             "problem": "نص المثال أو المسألة",
@@ -814,7 +816,7 @@ class LessonPrepService:
 - ⚠️ استخدم نفس أسماء المفاتيح بالضبط كما هي مكتوبة - لا تغيرها (مثلاً: evaluation وليس assessment)
 - ⚠️ الأمثلة في presentation يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
-- ⚠️ في teaching_strategies و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application يجب أن يكون مثالاً حقيقياً من محتوى هذا الدرس بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية
+- ⚠️ في teaching_strategies و strategy_application و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application/strategy_application يجب أن يكون مثالاً حقيقياً من محتوى هذا الدرس بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية - كل مفهوم فيه استراتيجية (teaching_method) يجب أن يحتوي strategy_application يشرح تطبيقها مباشرة بنفس المكان، لا تتركه فارغاً
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى
 - استخدم مصطلحات علمية دقيقة مناسبة للمادة
@@ -1227,6 +1229,55 @@ class LessonPrepService:
                         c['diagram']['svg'] = svg
         return plan_data
 
+    @staticmethod
+    def _build_strategies_from_concepts(concepts, original_strategies):
+        """يبني قائمة استراتيجيات التدريس من نفس الاستراتيجيات المكتوبة داخل main_concepts
+        (اسم + تطبيقها + نشاط الطلاب) بدل الاعتماد على تلخيص منفصل من الذكاء الاصطناعي عرضة
+        لإسقاط أغلب الاستراتيجيات المستخدمة فعلياً. يحافظ على duration_minutes من القائمة
+        الأصلية لو وجد تطابق بالاسم."""
+        duration_by_name = {}
+        for s in (original_strategies or []):
+            if isinstance(s, dict) and s.get('strategy') and s.get('duration_minutes'):
+                duration_by_name[s['strategy'].strip()] = s['duration_minutes']
+
+        result = []
+        seen = set()
+        for c in (concepts or []):
+            if not isinstance(c, dict):
+                continue
+            name = (c.get('teaching_method') or '').strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            result.append({
+                'strategy': name,
+                'application': c.get('strategy_application') or '',
+                'activity': c.get('student_activity') or '',
+                'duration_minutes': duration_by_name.get(name),
+            })
+        # لو ما لقينا أي استراتيجية داخل المفاهيم (رد قديم أو ناقص)، نرجع للقائمة الأصلية كـ fallback
+        return result if result else (original_strategies or [])
+
+    @staticmethod
+    def _reconcile_teaching_strategies(plan_data):
+        """يعيد بناء teaching_strategies من نفس بيانات main_concepts بدل ملخّص منفصل من AI
+        قد ينسى أغلب الاستراتيجيات المستخدمة فعلياً بعرض الدرس."""
+        # درس واحد
+        if 'presentation' in plan_data:
+            concepts = plan_data.get('presentation', {}).get('main_concepts', [])
+            plan_data['teaching_strategies'] = LessonPrepService._build_strategies_from_concepts(
+                concepts, plan_data.get('teaching_strategies'))
+
+        # توزيع الوحدة (per period)
+        for p in plan_data.get('periods', []):
+            if not isinstance(p, dict):
+                continue
+            concepts = p.get('main_concepts', [])
+            p['teaching_strategies'] = LessonPrepService._build_strategies_from_concepts(
+                concepts, p.get('teaching_strategies'))
+
+        return plan_data
+
     def _generate_pdf(self, plan_data, lesson_name, unit_name, course_name, show_answers=True, font_family='cairo'):
         """توليد ملف PDF احترافي من بيانات التحضير باستخدام WeasyPrint"""
         try:
@@ -1372,6 +1423,7 @@ class LessonPrepService:
       "concept": "المفهوم الرئيسي",
       "explanation": "شرح مفصّل",
       "teaching_method": "اسم الاستراتيجية المستخدمة لشرح هذا المفهوم تحديداً",
+      "strategy_application": "شرح واضح ومحدد لكيفية تطبيق هذه الاستراتيجية بالضبط على هذا المفهوم تحديداً - ليس تعريفاً نظرياً عاماً للاستراتيجية",
       "examples": [
         {{
           "problem": "نص المثال أو المسألة",
@@ -1461,7 +1513,7 @@ class LessonPrepService:
 - ⚠️ الرد يجب أن يكون JSON لحصة واحدة فقط (ليس قائمة)
 - ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation)
-- ⚠️ في teaching_strategies و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application يجب أن يكون مثالاً حقيقياً من محتوى هذه الحصة بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية
+- ⚠️ في teaching_strategies و strategy_application و student_activity و introduction_activity: ممنوع الاكتفاء بعبارات عامة مثل "نشاط تفاعلي" أو "مناقشة جماعية" أو "استخدام السبورة" بدون تفاصيل - كل نشاط يجب أن يكون وصفاً تنفيذياً كاملاً وواضحاً بحيث يقدر المعلم يطبقه فوراً بالفصل كما هو مكتوب (خطوة بخطوة، من يسوي شنو، بكم دقيقة)، و application/strategy_application يجب أن يكون مثالاً حقيقياً من محتوى هذه الحصة بالذات وليس وصفاً نظرياً عاماً عن الاستراتيجية - كل مفهوم فيه استراتيجية (teaching_method) يجب أن يحتوي strategy_application يشرح تطبيقها مباشرة بنفس المكان، لا تتركه فارغاً
 - التزم بتنسيق JSON بالضبط
 - اكتب بالعربية الفصحى والمذكر (الطالب، الطلاب)
 - في vocabulary: استخرج المصطلحات الجديدة من محتوى هذه الحصة تحديداً - كل المصطلحات الموجودة فعلاً في الصفحات
@@ -1660,6 +1712,7 @@ class LessonPrepService:
 
             # حقن الرسوم البيانية SVG
             plan_data = LessonPrepService._inject_diagrams(plan_data)
+            plan_data = LessonPrepService._reconcile_teaching_strategies(plan_data)
 
             # توليد PDF للوحدة
             pdf_url = None

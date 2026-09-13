@@ -692,6 +692,9 @@
         <div class="cf-box cf-strategy">
           <div class="cf-label">🎯 الاستراتيجية</div>
           <div class="cf-text">{{ concept.teaching_method }}</div>
+          {% if concept.get('strategy_application') %}
+          <div class="cf-text" style="margin-top:4px;"><strong>كيف تُطبَّق:</strong> {{ concept.strategy_application|chem }}</div>
+          {% endif %}
         </div>
         {% endif %}
         {% if concept.get('student_activity') %}
@@ -850,7 +853,12 @@
       {% if s is mapping %}
       <div class="strategy-card">
         <div class="s-name">{{ s.get('strategy', '') }}</div>
-        <div class="s-app">{{ s.get('application', '') }}</div>
+        {% if s.get('application') %}
+        <div class="s-app"><strong>التطبيق:</strong> {{ s.application }}</div>
+        {% endif %}
+        {% if s.get('activity') %}
+        <div class="s-app" style="margin-top:4px;"><strong>النشاط:</strong> {{ s.activity }}</div>
+        {% endif %}
         {% if s.get('duration_minutes') %}
         <span class="s-time">{{ s.duration_minutes }} دقيقة</span>
         {% endif %}

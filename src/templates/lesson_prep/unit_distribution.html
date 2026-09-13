@@ -484,6 +484,9 @@
           {% if c.get('teaching_method') %}
           <p style="font-size:9pt; color:#6b21a8; margin-top:4px;"><strong>الاستراتيجية:</strong> {{ c.teaching_method }}</p>
           {% endif %}
+          {% if c.get('strategy_application') %}
+          <p style="font-size:9pt; color:#6b21a8; margin-top:2px;"><strong>كيف تُطبَّق:</strong> {{ c.strategy_application|chem }}</p>
+          {% endif %}
           {% if c.get('examples') %}
           <div style="margin-top:4px;">
             {% for ex in c.examples %}
@@ -545,7 +548,7 @@
       {% if s is mapping %}
       <div class="strategy-item">
         {% if s.get('duration_minutes') %}<span class="strategy-time">{{ s.duration_minutes }} د</span>{% endif %}
-        <span><strong>{{ s.get('strategy', '') }}</strong>{% if s.get('application') %}: {{ s.application }}{% endif %}</span>
+        <span><strong>{{ s.get('strategy', '') }}</strong>{% if s.get('application') %}: {{ s.application }}{% endif %}{% if s.get('activity') %} <strong>| النشاط:</strong> {{ s.activity }}{% endif %}</span>
       </div>
       {% endif %}
       {% endfor %}
