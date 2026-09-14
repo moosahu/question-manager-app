@@ -558,9 +558,26 @@ def get_history(teacher=None, user_id=None, is_admin=False):
             query = query.join(Lesson).join(Unit).filter(Unit.course_id == course_id)
 
         plans = query.order_by(LessonPlan.created_at.desc()).limit(50).all()
+
+        # مدة التوليد الفعلية (ثواني) - مجموع كل استدعاءات AI المرتبطة بنفس plan_id
+        # (توزيع وحدة/درس متعدد الحصص له عدة استدعاءات، حصة حصة)
+        plan_ids = [p.id for p in plans]
+        duration_map = {}
+        if plan_ids:
+            rows = db.session.query(
+                AIUsageLog.plan_id, func.sum(AIUsageLog.duration_seconds)
+            ).filter(AIUsageLog.plan_id.in_(plan_ids)).group_by(AIUsageLog.plan_id).all()
+            duration_map = {pid: dur for pid, dur in rows}
+
+        data = []
+        for p in plans:
+            d = p.to_dict()
+            d['generation_duration_seconds'] = duration_map.get(p.id)
+            data.append(d)
+
         return jsonify({
             'success': True,
-            'data': [p.to_dict() for p in plans]
+            'data': data
         })
 
     except Exception as e:
