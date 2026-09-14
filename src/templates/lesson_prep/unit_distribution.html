@@ -307,11 +307,12 @@
     margin-bottom: 8px;
   }
   .printcard-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 12px;
   }
   .printcard {
+    width: calc(50% - 6px);
     border: 1.5px dashed #94a3b8;
     border-radius: 8px;
     padding: 12px;
