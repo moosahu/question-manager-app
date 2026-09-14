@@ -1378,17 +1378,28 @@ class LessonPrepService:
 
     def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
                                      course_name, unit_name, all_lessons_text, textbook_text="",
-                                     materials_count=None, continuous_lesson=False):
+                                     materials_count=None, continuous_lesson=False,
+                                     content_scope="", all_periods_scope=None):
         """بناء برومت لحصة واحدة فقط"""
         materials_count = materials_count or 8
         continuity_note = ""
         if continuous_lesson and total_periods > 1:
+            other_periods_lines = ""
+            if all_periods_scope:
+                lines = []
+                for p in all_periods_scope:
+                    marker = " ← هذه الحصة الحالية" if p.get('period_number') == period_num else ""
+                    scope_txt = p.get('content_scope') or p.get('title', '')
+                    lines.append(f"  {p.get('period_number')}. {scope_txt}{marker}")
+                other_periods_lines = "## تقسيم محتوى الدرس على كل الحصص (مرجع كامل حتى تعرف وش تُغطى الحصص الثانية):\n" + "\n".join(lines) + "\n"
+
+            content_scope_line = f"## محتوى هذه الحصة تحديداً (لا تخرج عنه): {content_scope}\n" if content_scope else ""
+
             continuity_note = f"""
 ## ⚠️ ملاحظة مهمة جداً
 هذا الدرس ({lesson_name}) مقسّم على {total_periods} حصص متتالية لنفس الدرس (مو دروس مختلفة). هذه الحصة رقم {period_num} من {total_periods}.
-- غطِّ فقط الجزء المناسب من محتوى الكتاب لهذه المرحلة من الدرس حسب عنوان الحصة أعلاه، بترتيب منطقي متسلسل (الأساسي أولاً، المبني عليه بالحصص اللاحقة)
-- ممنوع تكرار نفس المفاهيم/الأمثلة اللي يُفترض تُغطى بحصة ثانية من نفس الدرس
-- لو هذه آخر حصة بالدرس، اجعلها تشمل ربط بقية المفاهيم + تقويم ختامي شامل للدرس كامل
+{content_scope_line}{other_periods_lines}- غطِّ فقط محتوى هذه الحصة تحديداً المذكور أعلاه - **ممنوع منعاً باتاً** تكرار أي مفهوم/مثال/مصطلح مخصص لحصة ثانية بالجدول أعلاه، حتى لو بدا مرتبطاً
+- لو هذه آخر حصة بالدرس، اجعلها تشمل ربط بقية المفاهيم + تقويم ختامي شامل للدرس كامل (يغطي محتوى كل الحصص)
 """
         textbook_section = ""
         if textbook_text and textbook_text.strip():
@@ -1613,18 +1624,21 @@ class LessonPrepService:
 
 ## المقرر: {course_name}
 ## الدرس: {original_lesson.name}
+{('## نص الكتاب لهذا الدرس (استخدمه لتحديد المفاهيم الفعلية الموجودة وتوزيعها):' + chr(10) + lesson_text_map.get(original_lesson.name, '')[:6000]) if lesson_text_map.get(original_lesson.name) else ''}
 
-أعد JSON بسيطاً فقط يحدد عنوان كل حصة (كلها لنفس الدرس):
+أعد JSON بسيطاً فقط يحدد عنوان ومحتوى كل حصة (كلها لنفس الدرس):
 ```json
 {{
   "periods_plan": [
-    {{"period_number": 1, "lesson_name": "{original_lesson.name}", "title": "عنوان يوضح جزء الدرس المغطى بهذه الحصة"}},
-    {{"period_number": 2, "lesson_name": "{original_lesson.name}", "title": "عنوان يوضح جزء الدرس المغطى بهذه الحصة"}}
+    {{"period_number": 1, "lesson_name": "{original_lesson.name}", "title": "عنوان محدد يذكر أسماء المفاهيم الفعلية المغطاة بهذه الحصة (مو عنوان عام)", "content_scope": "قائمة أسماء المفاهيم/المواضيع المحددة اللي تُغطى بهذه الحصة تحديداً، مستخرجة من محتوى الدرس"}},
+    {{"period_number": 2, "lesson_name": "{original_lesson.name}", "title": "عنوان محدد يذكر أسماء المفاهيم الفعلية المغطاة بهذه الحصة (مو عنوان عام)", "content_scope": "قائمة أسماء المفاهيم/المواضيع المحددة اللي تُغطى بهذه الحصة تحديداً - مختلفة تماماً عن الحصص الثانية"}}
   ]
 }}
 ```
 - كل الحصص لنفس الدرس ({original_lesson.name}) - lesson_name يبقى ثابتاً بكل عنصر
-- وزّع محتوى الدرس منطقياً حسب تسلسل الكتاب عبر الحصص (الأساسي أولاً، المبني عليه لاحقاً) - بدون تكرار نفس الجزء بأكثر من حصة"""
+- ⚠️ قسّم *كل* مفاهيم/مواضيع الدرس (كل ما هو موجود بمحتوى الكتاب أعلاه) على الحصص الـ{total_periods} بدون أي تداخل أو تكرار - كل مفهوم يظهر بـcontent_scope حصة واحدة فقط بالضبط
+- title وcontent_scope يجب يذكرا أسماء مفاهيم محددة فعلية من الدرس (مثلاً "أنواع الأبحاث والاكتشافات غير المقصودة" أو "ميثاق مونتريال والسلامة بالمختبر") - ممنوع عناوين عامة متشابهة بين الحصص مثل "الجزء الأول"/"الجزء الثاني" بدون تفاصيل
+- وزّع بترتيب منطقي حسب تسلسل الكتاب (الأساسي أولاً، المبني عليه لاحقاً)"""
             else:
                 plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
 
@@ -1668,12 +1682,23 @@ class LessonPrepService:
                         'title': f"الحصة {i + 1}: {l.name}",
                     })
 
+            # قائمة كل عناوين/نطاقات الحصص مقدماً - تُستخدم بوضع single_lesson_mode لمنع التكرار
+            all_periods_scope = [
+                {
+                    'period_number': p.get('period_number', i + 1),
+                    'title': p.get('title', ''),
+                    'content_scope': p.get('content_scope', ''),
+                }
+                for i, p in enumerate(periods_plan)
+            ] if single_lesson_mode else None
+
             # ── الخطوة 2: توليد كل حصة بشكل منفصل ──
             generated_periods = []
             for p_info in periods_plan:
                 period_num  = p_info.get('period_number', len(generated_periods) + 1)
                 lesson_name = p_info.get('lesson_name', '')
                 title       = p_info.get('title', f"الحصة {period_num}")
+                content_scope = p_info.get('content_scope', '')
 
                 _update_progress(plan_id, f"جاري توليد الحصة {period_num} من {total_periods}...")
                 logger.info(f"الوحدة #{plan_id}: توليد الحصة {period_num}/{total_periods} - {title}")
@@ -1698,6 +1723,8 @@ class LessonPrepService:
                     textbook_text=period_text,
                     materials_count=materials_count,
                     continuous_lesson=single_lesson_mode,
+                    content_scope=content_scope,
+                    all_periods_scope=all_periods_scope,
                 )
 
                 # محاولة توليد الحصة مع retry عند 503/rate limit
@@ -1757,10 +1784,11 @@ class LessonPrepService:
                         logger.warning(f"الوحدة #{plan_id}: فشل تحليل الحصة {period_num}")
 
             plan_data = {
-                'unit_name': unit.name,
+                'unit_name': original_lesson.name if single_lesson_mode else unit.name,
                 'course_name': course_name,
                 'total_periods': total_periods,
                 'periods': generated_periods,
+                'single_lesson_mode': single_lesson_mode,
             }
 
             # حقن الرسوم البيانية SVG
@@ -1772,7 +1800,7 @@ class LessonPrepService:
             try:
                 pdf_bytes = self._generate_unit_pdf(
                     plan_data,
-                    unit.name,
+                    plan_data['unit_name'],
                     course.name if course else '',
                 )
                 if pdf_bytes:
