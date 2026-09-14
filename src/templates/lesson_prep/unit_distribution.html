@@ -414,6 +414,14 @@
     font-size: 9.5pt;
     line-height: 1.6;
   }
+  .printcard .pc-task {
+    font-size: 8.5pt;
+    font-weight: 900;
+    color: #4d7c0f;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed #cbd5e1;
+  }
 
   /* مفتاح إجابة البطاقات (نسخة المعلم فقط) */
   .answer-key {
@@ -1021,11 +1029,13 @@
         <div class="printcard-grid">
           {% for card in concept_cards %}
           {% set card_text = card.get('text', '') if card is mapping else card %}
+          {% set card_task = card.get('task', '') if card is mapping else '' %}
           {% if card is mapping and card.get('answer') %}{% set _ = answers.append({'n': loop.index, 'a': card.answer}) %}{% endif %}
           {% if card_text %}
           <div class="printcard">
             <div class="pc-num">{{ loop.index }}</div>
             <div class="pc-text">{{ card_text|chem }}</div>
+            {% if card_task %}<div class="pc-task">المطلوب: {{ card_task|chem }}</div>{% endif %}
           </div>
           {% endif %}
           {% endfor %}
