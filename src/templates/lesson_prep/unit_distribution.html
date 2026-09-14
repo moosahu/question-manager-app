@@ -415,6 +415,26 @@
     line-height: 1.6;
   }
 
+  /* مفتاح إجابة البطاقات (نسخة المعلم فقط) */
+  .answer-key {
+    background: #fefce8 !important;
+    border: 1px solid #fde047;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 6px 0 4px;
+  }
+  .answer-key-title {
+    font-weight: 900;
+    font-size: 8pt;
+    color: #854d0e;
+    margin-bottom: 4px;
+  }
+  .answer-key-item {
+    font-size: 8.5pt;
+    color: #713f12;
+    margin-bottom: 2px;
+  }
+
   /* الفروق الفردية */
   .diff-grid {
     display: flex;
@@ -996,9 +1016,12 @@
       {% for concept in p.get('main_concepts', []) %}
         {% set concept_cards = (concept.get('activity_materials') or []) if concept is mapping else [] %}
         {% if concept_cards %}
+        {% set answers = [] %}
         <div style="font-weight:900; font-size:9pt; color:#4d7c0f; margin:10px 0 6px;">حصة {{ p.get('period_number', '') }} - {{ concept.get('concept', '') }}</div>
         <div class="printcard-grid">
-          {% for card_text in concept_cards %}
+          {% for card in concept_cards %}
+          {% set card_text = card.get('text', '') if card is mapping else card %}
+          {% if card is mapping and card.get('answer') %}{% set _ = answers.append({'n': loop.index, 'a': card.answer}) %}{% endif %}
           {% if card_text %}
           <div class="printcard">
             <div class="pc-num">{{ loop.index }}</div>
@@ -1007,6 +1030,14 @@
           {% endif %}
           {% endfor %}
         </div>
+        {% if show_answers and answers %}
+        <div class="answer-key">
+          <div class="answer-key-title">🔑 مفتاح الإجابة (نسخة المعلم)</div>
+          {% for a in answers %}
+          <div class="answer-key-item"><strong>{{ a.n }})</strong> {{ a.a|chem }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}
