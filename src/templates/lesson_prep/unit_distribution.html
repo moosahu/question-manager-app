@@ -169,21 +169,53 @@
 
   /* المفاهيم */
   .concept-block {
-    border: 1px solid #e2e8f0;
+    border: 1.5px solid #c7d2fe;
     border-radius: 6px;
     margin-bottom: 8px;
   }
   .concept-name {
-    background: rgba(0,0,0,0.04) !important;
-    padding: 5px 10px;
+    background: #e0e7ff !important;
+    color: #3730a3;
+    padding: 6px 10px;
     font-weight: 900;
     font-size: 10pt;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #c7d2fe;
   }
   .concept-content {
     padding: 8px 10px;
     font-size: 9.5pt;
   }
+
+  /* ─── صناديق عناصر المفهوم (شرح/استراتيجية/نشاط) - نفس تصميم تحضير الدرس الواحد ─── */
+  .cf-box {
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border: 1.5px solid;
+  }
+  .cf-label {
+    font-weight: 900;
+    font-size: 8pt;
+    margin-bottom: 2px;
+  }
+  .cf-text {
+    font-size: 9pt;
+  }
+  .cf-explain {
+    background: #f8fafc !important;
+    border-color: #cbd5e1;
+  }
+  .cf-explain .cf-label { color: #334155; }
+  .cf-strategy {
+    background: #faf5ff !important;
+    border-color: #d8b4fe;
+  }
+  .cf-strategy .cf-label { color: #7e22ce; }
+  .cf-activity {
+    background: #fff7ed !important;
+    border-color: #fdba74;
+  }
+  .cf-activity .cf-label { color: #9a3412; }
 
   /* المعادلات */
   .equation {
@@ -519,12 +551,20 @@
       <div class="concept-block">
         <div class="concept-name">{{ c.get('concept', '') }}</div>
         <div class="concept-content">
-          <p>{{ c.get('explanation', '')|chem }}</p>
-          {% if c.get('teaching_method') %}
-          <p style="font-size:9pt; color:#6b21a8; margin-top:4px;"><strong>الاستراتيجية:</strong> {{ c.teaching_method }}</p>
+          {% if c.get('explanation') %}
+          <div class="cf-box cf-explain">
+            <div class="cf-label">📖 الشرح</div>
+            <div class="cf-text">{{ c.explanation|chem }}</div>
+          </div>
           {% endif %}
-          {% if c.get('strategy_application') %}
-          <p style="font-size:9pt; color:#6b21a8; margin-top:2px;"><strong>كيف تُطبَّق:</strong> {{ c.strategy_application|chem }}</p>
+          {% if c.get('teaching_method') %}
+          <div class="cf-box cf-strategy">
+            <div class="cf-label">🎯 الاستراتيجية</div>
+            <div class="cf-text">{{ c.teaching_method }}</div>
+            {% if c.get('strategy_application') %}
+            <div class="cf-text" style="margin-top:3px;"><strong>كيف تُطبَّق:</strong> {{ c.strategy_application|chem }}</div>
+            {% endif %}
+          </div>
           {% endif %}
           {% if c.get('examples') %}
           <div style="margin-top:4px;">
@@ -552,7 +592,10 @@
           </div>
           {% endif %}
           {% if c.get('student_activity') %}
-          <p style="font-size:9pt; color:#475569; margin-top:4px;"><strong>نشاط الطلاب:</strong> {{ c.student_activity }}</p>
+          <div class="cf-box cf-activity">
+            <div class="cf-label">✋ نشاط الطلاب</div>
+            <div class="cf-text">{{ c.student_activity }}</div>
+          </div>
           {% endif %}
           {% if c.get('diagram') and c.diagram.get('svg') %}
           <div style="margin-top:8px; text-align:center;">
