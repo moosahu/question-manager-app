@@ -1378,9 +1378,18 @@ class LessonPrepService:
 
     def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
                                      course_name, unit_name, all_lessons_text, textbook_text="",
-                                     materials_count=None):
+                                     materials_count=None, continuous_lesson=False):
         """بناء برومت لحصة واحدة فقط"""
         materials_count = materials_count or 8
+        continuity_note = ""
+        if continuous_lesson and total_periods > 1:
+            continuity_note = f"""
+## ⚠️ ملاحظة مهمة جداً
+هذا الدرس ({lesson_name}) مقسّم على {total_periods} حصص متتالية لنفس الدرس (مو دروس مختلفة). هذه الحصة رقم {period_num} من {total_periods}.
+- غطِّ فقط الجزء المناسب من محتوى الكتاب لهذه المرحلة من الدرس حسب عنوان الحصة أعلاه، بترتيب منطقي متسلسل (الأساسي أولاً، المبني عليه بالحصص اللاحقة)
+- ممنوع تكرار نفس المفاهيم/الأمثلة اللي يُفترض تُغطى بحصة ثانية من نفس الدرس
+- لو هذه آخر حصة بالدرس، اجعلها تشمل ربط بقية المفاهيم + تقويم ختامي شامل للدرس كامل
+"""
         textbook_section = ""
         if textbook_text and textbook_text.strip():
             textbook_section = f"""## ═══ النص الكامل لصفحات الكتاب المدرسي (مستخرج مباشرة بدقة 100%) ═══
@@ -1403,7 +1412,7 @@ class LessonPrepService:
 ## الدرس: {lesson_name}
 ## عنوان الحصة: {title}
 ## عدد المجموعات/الأزواج التقريبي بالفصل: {materials_count} (استخدمه لتحديد عدد بطاقات activity_materials بأي نشاط يوزَّع على كامل الفصل مجموعات/أزواج)
-
+{continuity_note}
 ## المطلوب
 أعد تحضيراً تفصيلياً كاملاً لهذه الحصة الواحدة فقط، مستنداً إلى محتوى الكتاب أعلاه والصور المرفقة.
 
@@ -1564,10 +1573,13 @@ class LessonPrepService:
             if not unit:
                 raise ValueError("الوحدة غير موجودة")
 
-            total_periods = plan.student_count or 12
-            lessons = Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
+            total_periods = plan.total_periods or plan.student_count or 12  # توافق خلفي مع سجلات قديمة
+            single_lesson_mode = bool(getattr(plan, 'single_lesson_mode', False))
+            original_lesson = lesson  # نحفظه قبل ما يُعاد استخدام الاسم بالحلقة تحت
+            lessons = [original_lesson] if single_lesson_mode else Lesson.query.filter_by(unit_id=unit.id).order_by(Lesson.order_num).all()
             lessons_text = "\n".join([f"- {l.name}" for l in lessons])
             course_name = course.name if course else ''
+            materials_count = plan.materials_count or LessonPrepService._default_materials_count(plan.student_count or 30)
 
             # ── تحميل صور ونص الكتاب لكل درس (مرة واحدة لتوفير الذاكرة) ──
             _update_progress(plan_id, "جاري تحليل الكتاب المدرسي...")
@@ -1596,7 +1608,25 @@ class LessonPrepService:
                 logger.info(f"الوحدة #{plan_id}: لا توجد بيانات للكتاب - سيتم التوليد بالأسماء فقط")
 
             # ── الخطوة 1: توليد خطة الحصص (عناوين وتوزيع فقط) ──
-            plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
+            if single_lesson_mode:
+                plan_prompt = f"""أنت خبير تربوي. قسّم الدرس التالي (درس واحد فقط) على {total_periods} حصص متتالية.
+
+## المقرر: {course_name}
+## الدرس: {original_lesson.name}
+
+أعد JSON بسيطاً فقط يحدد عنوان كل حصة (كلها لنفس الدرس):
+```json
+{{
+  "periods_plan": [
+    {{"period_number": 1, "lesson_name": "{original_lesson.name}", "title": "عنوان يوضح جزء الدرس المغطى بهذه الحصة"}},
+    {{"period_number": 2, "lesson_name": "{original_lesson.name}", "title": "عنوان يوضح جزء الدرس المغطى بهذه الحصة"}}
+  ]
+}}
+```
+- كل الحصص لنفس الدرس ({original_lesson.name}) - lesson_name يبقى ثابتاً بكل عنصر
+- وزّع محتوى الدرس منطقياً حسب تسلسل الكتاب عبر الحصص (الأساسي أولاً، المبني عليه لاحقاً) - بدون تكرار نفس الجزء بأكثر من حصة"""
+            else:
+                plan_prompt = f"""أنت خبير تربوي. وزّع الوحدة التالية على {total_periods} حصة.
 
 ## المقرر: {course_name}
 ## الوحدة: {unit.name}
@@ -1666,7 +1696,8 @@ class LessonPrepService:
                     period_num, total_periods, lesson_name, title,
                     course_name, unit.name, lessons_text,
                     textbook_text=period_text,
-                    materials_count=plan.materials_count or 8,
+                    materials_count=materials_count,
+                    continuous_lesson=single_lesson_mode,
                 )
 
                 # محاولة توليد الحصة مع retry عند 503/rate limit

@@ -342,10 +342,17 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                 }), 429
 
         data = request.get_json()
-        lesson_id = data.get('lesson_id')  # أي درس من الوحدة
+        lesson_id = data.get('lesson_id')  # أي درس من الوحدة (أو الدرس نفسه لو single_lesson_mode)
         total_periods = data.get('total_periods', 12)
         include_support_plan = data.get('include_support_plan', False)
         materials_count = data.get('materials_count')
+        single_lesson_mode = bool(data.get('single_lesson_mode', False))
+        student_level = data.get('student_level', 'متفاوت')
+        student_count = data.get('student_count', 30)
+        weak_count = data.get('weak_students_count', 5)
+        excellent_count = data.get('excellent_students_count', 5)
+        focus_area = data.get('focus_area', 'شامل')
+        examples_count = data.get('examples_count', 5)
 
         if not lesson_id:
             return jsonify({'success': False, 'error': 'معرف الدرس مطلوب'}), 400
@@ -356,6 +363,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             LessonPlan.lesson_id == lesson_id,
             LessonPlan.teacher_id == teacher_id_val,
             LessonPlan.plan_type == 'unit_distribution',
+            LessonPlan.single_lesson_mode == single_lesson_mode,
             LessonPlan.status.in_(['pending', 'generating', 'rate_limited']),
         ).order_by(LessonPlan.id.desc()).first()
         if existing_active_unit:
@@ -369,16 +377,23 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                 }
             })
 
-        # Cache: بحث عن توزيع وحدة مكتمل بنفس الدرس وعدد الحصص (للمعلمين فقط)
+        # Cache: بحث عن توزيع مكتمل بنفس الدرس/الإعدادات (للمعلمين فقط)
         if teacher and not is_admin:
-            # نبحث عن أي درس من نفس الوحدة
-            lesson_obj = Lesson.query.get(lesson_id)
-            if lesson_obj:
-                unit_lesson_ids = [l.id for l in Lesson.query.filter_by(unit_id=lesson_obj.unit_id).all()]
+            if single_lesson_mode:
+                candidate_lesson_ids = [lesson_id]
+            else:
+                # نبحث عن أي درس من نفس الوحدة
+                lesson_obj = Lesson.query.get(lesson_id)
+                candidate_lesson_ids = (
+                    [l.id for l in Lesson.query.filter_by(unit_id=lesson_obj.unit_id).all()]
+                    if lesson_obj else []
+                )
+            if candidate_lesson_ids:
                 cached = LessonPlan.query.filter(
-                    LessonPlan.lesson_id.in_(unit_lesson_ids),
+                    LessonPlan.lesson_id.in_(candidate_lesson_ids),
                     LessonPlan.plan_type == 'unit_distribution',
-                    LessonPlan.student_count == total_periods,
+                    LessonPlan.single_lesson_mode == single_lesson_mode,
+                    LessonPlan.total_periods == total_periods,
                     LessonPlan.include_support_plan == bool(include_support_plan),
                     LessonPlan.materials_count == materials_count,
                     LessonPlan.status == 'completed',
@@ -393,7 +408,14 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                         ai_provider=cached.ai_provider,
                         plan_data=dict(cached.plan_data),
                         pdf_file_url=cached.pdf_file_url,
-                        student_count=total_periods,
+                        total_periods=total_periods,
+                        single_lesson_mode=single_lesson_mode,
+                        student_level=student_level,
+                        student_count=student_count,
+                        weak_students_count=weak_count,
+                        excellent_students_count=excellent_count,
+                        focus_area=focus_area,
+                        examples_count=examples_count,
                         materials_count=materials_count,
                         status='completed',
                     )
@@ -415,7 +437,14 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             teacher_id=teacher.id if teacher else None,
             plan_type='unit_distribution',
             status='pending',
-            student_count=total_periods,  # نستخدم هذا الحقل مؤقتاً لتخزين عدد الحصص
+            total_periods=total_periods,
+            single_lesson_mode=single_lesson_mode,
+            student_level=student_level,
+            student_count=student_count,
+            weak_students_count=weak_count,
+            excellent_students_count=excellent_count,
+            focus_area=focus_area,
+            examples_count=examples_count,
             materials_count=materials_count,
             include_support_plan=include_support_plan,
         )
