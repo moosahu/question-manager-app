@@ -107,34 +107,30 @@
 
   .period-body {
     padding: 14px 16px;
+    background: #ffffff !important;
   }
 
-  /* ألوان الحصص بالتناوب */
+  /* ألوان هيدر الحصة بالتناوب - محتوى الحصة نفسه محايد الآن ليطلع لون كل قسم (sec-*) بوضوح */
   .period-card:nth-child(6n+1) .period-header { background: #1e40af !important; }
   .period-card:nth-child(6n+1) { border-color: #93c5fd; }
-  .period-card:nth-child(6n+1) .period-body { background: #eff6ff !important; }
 
   .period-card:nth-child(6n+2) .period-header { background: #166534 !important; }
   .period-card:nth-child(6n+2) { border-color: #86efac; }
-  .period-card:nth-child(6n+2) .period-body { background: #f0fdf4 !important; }
 
   .period-card:nth-child(6n+3) .period-header { background: #6b21a8 !important; }
   .period-card:nth-child(6n+3) { border-color: #c4b5fd; }
-  .period-card:nth-child(6n+3) .period-body { background: #faf5ff !important; }
 
   .period-card:nth-child(6n+4) .period-header { background: #9a3412 !important; }
   .period-card:nth-child(6n+4) { border-color: #fdba74; }
-  .period-card:nth-child(6n+4) .period-body { background: #fff7ed !important; }
 
   .period-card:nth-child(6n+5) .period-header { background: #115e59 !important; }
   .period-card:nth-child(6n+5) { border-color: #5eead4; }
-  .period-card:nth-child(6n+5) .period-body { background: #f0fdfa !important; }
 
   .period-card:nth-child(6n+6) .period-header { background: #9f1239 !important; }
   .period-card:nth-child(6n+6) { border-color: #fda4af; }
   .period-card:nth-child(6n+6) .period-body { background: #fff1f2 !important; }
 
-  /* ─── أقسام داخل الحصة ─── */
+  /* ─── أقسام داخل الحصة (نفس نمط تحضير الدرس الواحد: شريط عنوان كامل + رقم) ─── */
   .p-section {
     margin-bottom: 10px;
   }
@@ -145,6 +141,91 @@
     border-radius: 5px;
     display: inline-block;
     margin-bottom: 4px;
+  }
+
+  .section {
+    margin-bottom: 12px;
+  }
+  .sh-wrap {
+    display: block;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 7px 7px 0 0;
+    font-size: 10.5pt;
+    font-weight: 900;
+    margin-bottom: 0;
+  }
+  .section-header .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3) !important;
+    font-size: 9.5pt;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .section-body {
+    padding: 10px 14px;
+    border: 1.5px solid;
+    border-top: none;
+    border-radius: 0 0 7px 7px;
+  }
+
+  .sec-info .section-header    { background: #1e40af !important; color: #ffffff !important; }
+  .sec-info .section-body      { border-color: #dbeafe; background: #eff6ff !important; }
+
+  .sec-behav .section-header   { background: #6b21a8 !important; color: #ffffff !important; }
+  .sec-behav .section-body     { border-color: #f3e8ff; background: #faf5ff !important; }
+
+  .sec-prep .section-header    { background: #9a3412 !important; color: #ffffff !important; }
+  .sec-prep .section-body      { border-color: #ffedd5; background: #fff7ed !important; }
+
+  .sec-strat .section-header   { background: #115e59 !important; color: #ffffff !important; }
+  .sec-strat .section-body     { border-color: #ccfbf1; background: #f0fdfa !important; }
+
+  .sec-present .section-header { background: #3730a3 !important; color: #ffffff !important; }
+  .sec-present .section-body   { border-color: #e0e7ff; background: #eef2ff !important; }
+
+  .sec-values .section-header  { background: #9f1239 !important; color: #ffffff !important; }
+  .sec-values .section-body    { border-color: #ffe4e6; background: #fff1f2 !important; }
+
+  .sec-eval .section-header    { background: #065f46 !important; color: #ffffff !important; }
+  .sec-eval .section-body      { border-color: #d1fae5; background: #ecfdf5 !important; }
+
+  .sec-diff .section-header    { background: #155e75 !important; color: #ffffff !important; }
+  .sec-diff .section-body      { border-color: #cffafe; background: #ecfeff !important; }
+
+  .sec-res .section-header     { background: #92400e !important; color: #ffffff !important; }
+  .sec-res .section-body       { border-color: #fef3c7; background: #fffbeb !important; }
+
+  .sec-hw .section-header      { background: #9d174d !important; color: #ffffff !important; }
+  .sec-hw .section-body        { border-color: #fce7f3; background: #fdf2f8 !important; }
+
+  .sec-time .section-header    { background: #0369a1 !important; color: #ffffff !important; }
+  .sec-time .section-body      { border-color: #e0f2fe; background: #f0f9ff !important; }
+
+  .sec-refl .section-header    { background: #334155 !important; color: #ffffff !important; }
+  .sec-refl .section-body      { border-color: #e2e8f0; background: #f8fafc !important; }
+
+  .sub-section {
+    margin-bottom: 8px;
+  }
+  .sub-title {
+    font-weight: 900;
+    font-size: 9pt;
+    margin-bottom: 3px;
+    padding: 3px 9px;
+    border-radius: 5px;
+    display: inline-block;
   }
 
   ul.items {
@@ -461,12 +542,15 @@
     <span class="period-lesson">{{ p.get('lesson_name', '') }}</span>
   </div></div>
   <div class="period-body">
+    {% set pn = namespace(n=0) %}
 
     <!-- المصطلحات -->
     {% set vocab = p.get('vocabulary', []) %}
     {% if vocab %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #ede9fe !important; color: #5b21b6;">المصطلحات العلمية</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-info">
+      <div class="sh-wrap"><div class="section-header" style="background: #0891b2 !important;"><span class="num">{{ pn.n }}</span> المصطلحات العلمية</div></div>
+      <div class="section-body" style="border-color: #a5f3fc; background: #ecfeff !important;">
       <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
         {% for v in vocab %}
         {% if v is mapping %}
@@ -476,14 +560,17 @@
         {% endif %}
         {% endfor %}
       </div>
+      </div>
     </div>
     {% endif %}
 
     <!-- أسئلة التشخيص -->
     {% set diag = p.get('diagnostic_questions', []) %}
     {% if diag %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #dbeafe !important; color: #1e3a8a;">أسئلة التشخيص القبلي</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-prep">
+      <div class="sh-wrap"><div class="section-header" style="background: #7c3aed !important;"><span class="num">{{ pn.n }}</span> أسئلة التشخيص القبلي</div></div>
+      <div class="section-body" style="border-color: #ddd6fe; background: #f5f3ff !important;">
       {% for dq in diag %}
       {% if dq is mapping %}
       <div class="q-box" style="background:#eff6ff !important; border-color:#93c5fd;">س: {{ dq.get('question','')|chem }}</div>
@@ -496,14 +583,17 @@
       {% endif %}
       {% endif %}
       {% endfor %}
+      </div>
     </div>
     {% endif %}
 
     <!-- الأهداف -->
     {% set objectives = p.get('objectives', {}) %}
     {% if objectives %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #dbeafe !important; color: #1e40af;">الأهداف</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-behav">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> الأهداف السلوكية</div></div>
+      <div class="section-body">
       {% if objectives is mapping %}
         {% if objectives.get('cognitive') %}
         <p style="font-weight:700; font-size:9pt; margin-top:4px;">معرفية:</p>
@@ -520,14 +610,17 @@
       {% else %}
         <ul class="items">{% for obj in objectives %}<li>{{ obj }}</li>{% endfor %}</ul>
       {% endif %}
+      </div>
     </div>
     {% endif %}
 
     <!-- التهيئة -->
     {% set prep = p.get('preparation', {}) %}
     {% if prep and prep is mapping %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #fef3c7 !important; color: #92400e;">التهيئة والتمهيد</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-prep">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> التهيئة والتمهيد</div></div>
+      <div class="section-body">
       {% if prep.get('introduction') %}
       <div class="prep-box">{{ prep.introduction|chem }}</div>
       {% endif %}
@@ -539,14 +632,17 @@
       {% if prep.get('connection_to_previous') %}
       <p style="font-size:9pt; color:#475569;"><strong>ربط بالسابق:</strong> {{ prep.connection_to_previous }}</p>
       {% endif %}
+      </div>
     </div>
     {% endif %}
 
     <!-- المفاهيم -->
     {% set concepts = p.get('main_concepts', []) %}
     {% if concepts %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #e0e7ff !important; color: #3730a3;">المفاهيم الرئيسية</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-present">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> عرض الدرس</div></div>
+      <div class="section-body">
       {% for c in concepts %}
       {% if c is mapping %}
       <div class="concept-block">
@@ -609,24 +705,27 @@
       <p style="font-size:9.5pt; margin-bottom:4px;">{{ c|chem }}</p>
       {% endif %}
       {% endfor %}
-    </div>
-    {% endif %}
 
-    <!-- المعادلات -->
-    {% set equations = p.get('equations', []) %}
-    {% if equations %}
-    <div class="p-section">
-      {% for eq in equations %}
-      {% if eq %}<div class="equation">{{ eq|chem }}</div>{% endif %}
-      {% endfor %}
+      <!-- المعادلات -->
+      {% set equations = p.get('equations', []) %}
+      {% if equations %}
+      <div class="p-section">
+        {% for eq in equations %}
+        {% if eq %}<div class="equation">{{ eq|chem }}</div>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      </div>
     </div>
     {% endif %}
 
     <!-- استراتيجيات التدريس -->
     {% set strategies = p.get('teaching_strategies', []) %}
     {% if strategies %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #ede9fe !important; color: #5b21b6;">استراتيجيات التدريس</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-strat">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> استراتيجيات التدريس</div></div>
+      <div class="section-body">
       {% for s in strategies %}
       {% if s is mapping %}
       <div class="strategy-item">
@@ -635,17 +734,21 @@
       </div>
       {% endif %}
       {% endfor %}
+      </div>
     </div>
     {% endif %}
 
     <!-- التقويم -->
     {% set evaluation = p.get('evaluation', {}) %}
     {% if evaluation %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #d1fae5 !important; color: #065f46;">التقويم</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-eval">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> التقويم</div></div>
+      <div class="section-body">
       {% if evaluation is mapping %}
         {% if evaluation.get('formative') %}
-        <p style="font-weight:700; font-size:9pt; margin-bottom:3px;">تكويني:</p>
+        <div class="sub-section">
+        <div class="sub-title" style="background: #d1fae5 !important; color: #065f46;">التقويم التكويني</div>
         {% for q in evaluation.formative %}
         {% if q is mapping %}
         <div class="q-box">س: {{ q.get('question','')|chem }}{% if q.get('bloom_level') %} <span style="color:#6b7280; font-size:8pt;">({{ q.bloom_level }})</span>{% endif %}</div>
@@ -653,9 +756,11 @@
         {% else %}<div style="height:22px; border-bottom:1px dashed #cbd5e1; margin-bottom:5px;"></div>{% endif %}
         {% endif %}
         {% endfor %}
+        </div>
         {% endif %}
         {% if evaluation.get('summative') %}
-        <p style="font-weight:700; font-size:9pt; margin-top:6px; margin-bottom:3px;">ختامي:</p>
+        <div class="sub-section">
+        <div class="sub-title" style="background: #dbeafe !important; color: #1e40af;">التقويم الختامي</div>
         {% for q in evaluation.summative %}
         {% if q is mapping %}
         <div class="q-box" style="background:#fef9c3 !important; border-color:#fde047;">س: {{ q.get('question','')|chem }}</div>
@@ -668,6 +773,7 @@
         <div class="q-box" style="background:#fef9c3 !important; border-color:#fde047;">{{ q|chem }}</div>
         {% endif %}
         {% endfor %}
+        </div>
         {% endif %}
       {% else %}
         {% for q in evaluation %}
@@ -679,14 +785,17 @@
         {% endif %}
         {% endfor %}
       {% endif %}
+      </div>
     </div>
     {% endif %}
 
     <!-- الفروق الفردية -->
     {% set ind_diff = p.get('individual_differences', {}) %}
     {% if ind_diff and ind_diff is mapping and (ind_diff.get('gifted_activities') or ind_diff.get('weak_support')) %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #ccfbf1 !important; color: #115e59;">الفروق الفردية</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-diff">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> مراعاة الفروق الفردية</div></div>
+      <div class="section-body">
       <div class="diff-grid">
         {% if ind_diff.get('gifted_activities') %}
         <div class="diff-col">
@@ -705,14 +814,17 @@
         </div>
         {% endif %}
       </div>
+      </div>
     </div>
     {% endif %}
 
     <!-- الواجب -->
     {% set hw = p.get('homework', '') %}
     {% if hw %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #ffedd5 !important; color: #9a3412;">الواجب</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-hw">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> الواجب المنزلي</div></div>
+      <div class="section-body">
       {% if hw is mapping %}
         {% if hw.get('main') %}
         <p style="font-weight:700; font-size:9pt;">أساسي:</p>
@@ -745,14 +857,17 @@
       {% elif hw is string %}
         <p style="font-size:9.5pt;">{{ hw }}</p>
       {% endif %}
+      </div>
     </div>
     {% endif %}
 
     <!-- التوزيع الزمني -->
     {% set time_dist = p.get('time_distribution', []) %}
     {% if time_dist %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #e0e7ff !important; color: #4338ca;">التوزيع الزمني</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-time">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> التوزيع الزمني</div></div>
+      <div class="section-body">
       {% for t in time_dist %}
       {% if t is mapping %}
       <div class="time-row">
@@ -761,16 +876,20 @@
       </div>
       {% endif %}
       {% endfor %}
+      </div>
     </div>
     {% endif %}
 
     <!-- الوسائل التعليمية -->
     {% set resources = p.get('resources', []) %}
     {% if resources %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #f1f5f9 !important; color: #475569;">الوسائل التعليمية</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-res">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> الوسائل التعليمية</div></div>
+      <div class="section-body">
       <div class="resources-box">
         <ul class="items">{% for r in resources %}<li>{{ r }}</li>{% endfor %}</ul>
+      </div>
       </div>
     </div>
     {% endif %}
@@ -778,8 +897,10 @@
     <!-- الربط بالقيم -->
     {% set values = p.get('values_connection', {}) %}
     {% if values and values is mapping %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #f3e8ff !important; color: #7c3aed;">الربط بالقيم</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-values">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> الربط بالقيم</div></div>
+      <div class="section-body">
       {% if values.get('religious') %}
       <div class="values-box"><span class="values-label">ديني: </span>{{ values.religious }}</div>
       {% endif %}
@@ -789,26 +910,32 @@
       {% if values.get('life') %}
       <div class="values-box"><span class="values-label">حياتي: </span>{{ values.life }}</div>
       {% endif %}
+      </div>
     </div>
     {% endif %}
 
-    <!-- ملاحظات السلامة -->
+    <!-- ملاحظات السلامة (بدون ترقيم - نفس نمط تحضير الدرس الواحد) -->
     {% set safety = p.get('safety_notes', []) %}
     {% if safety %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #fef9c3 !important; color: #713f12;">ملاحظات السلامة</div>
-      <ul class="items">{% for s in safety %}<li>{{ s }}</li>{% endfor %}</ul>
+    <div class="section" style="margin-top:10px;">
+      <div class="sh-wrap"><div class="section-header" style="background: #dc2626 !important; color: #fff !important;"><span class="num">⚠</span> ملاحظات السلامة</div></div>
+      <div class="section-body" style="border-color: #fca5a5; background: #fef2f2 !important;">
+      <ul class="items">{% for s in safety %}<li style="font-weight:700; color: #dc2626;">{{ s }}</li>{% endfor %}</ul>
+      </div>
     </div>
     {% endif %}
 
     <!-- التأمل الذاتي -->
     {% set reflection = p.get('reflection', {}) %}
     {% if reflection and reflection is mapping and show_answers %}
-    <div class="p-section">
-      <div class="p-section-title" style="background: #ecfdf5 !important; color: #065f46;">التأمل الذاتي للمعلم</div>
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-refl">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> التأمل الذاتي للمعلم</div></div>
+      <div class="section-body">
       {% if reflection.get('strengths') %}<p style="font-size:9pt;"><strong>نقاط القوة:</strong> {{ reflection.strengths }}</p>{% endif %}
       {% if reflection.get('improvements') %}<p style="font-size:9pt;"><strong>نقاط التحسين:</strong> {{ reflection.improvements }}</p>{% endif %}
       {% if reflection.get('notes') %}<p style="font-size:9pt;"><strong>ملاحظات:</strong> {{ reflection.notes }}</p>{% endif %}
+      </div>
     </div>
     {% endif %}
 
