@@ -1023,10 +1023,18 @@ class LessonPrepService:
         # 1. لف كل محتوى غير عربي في span dir=ltr
         # inline + unicode-bidi:isolate يعمل في Playwright/Chromium (المُستخدَم الآن)
         # WeasyPrint يتجاهل unicode-bidi لكنه fallback مقبول
+        # \u26A0\uFE0F \u0646\u0644\u0641 \u0641\u0642\u0637 \u0644\u0648 \u0627\u0644\u0645\u0642\u0637\u0639 \u0641\u064A\u0647 \u062D\u0631\u0641/\u0631\u0642\u0645 \u0644\u0627\u062A\u064A\u0646\u064A \u0641\u0639\u0644\u064A - \u0639\u0644\u0627\u0645\u0627\u062A \u062A\u0631\u0642\u064A\u0645 \u0645\u0646\u0641\u0631\u062F\u0629 \u0628\u064A\u0646 \u0643\u0644\u0645\u0627\u062A \u0639\u0631\u0628\u064A\u0629
+        # (\u0632\u064A \u0642\u0648\u0633 \u064A\u062D\u064A\u0637 \u0628\u0639\u0628\u0627\u0631\u0629 \u0639\u0631\u0628\u064A\u0629 \u0628\u062D\u062A\u0629) \u0645\u0627 \u062A\u064F\u0644\u0641\u060C \u0639\u0634\u0627\u0646 \u062A\u0646\u0639\u0643\u0633 (mirror) \u0628\u0634\u0643\u0644 \u0635\u062D\u064A\u062D \u0637\u0628\u064A\u0639\u064A\u0627\u064B
+        # \u062D\u0633\u0628 \u0627\u062A\u062C\u0627\u0647 RTL \u0627\u0644\u0645\u062D\u064A\u0637 \u0628\u0647\u0627 - \u0644\u0641\u0651\u0647\u0627 \u0628\u0645\u0641\u0631\u062F\u0647\u0627 \u0628\u0640dir=ltr \u064A\u0643\u0633\u0631 \u0627\u0646\u0639\u0643\u0627\u0633\u0647\u0627 \u0641\u064A\u0637\u0644\u0639 \u0627\u0644\u0642\u0648\u0633 \u0645\u0642\u0644\u0648\u0628
         _SPAN = 'display:inline;direction:ltr;unicode-bidi:isolate;white-space:nowrap;vertical-align:baseline'
+        def _wrap_foreign_run(m):
+            run = m.group(1)
+            if re.search(r'[A-Za-z0-9]', run):
+                return f'<span dir="ltr" style="{_SPAN}">{run}</span>'
+            return run
         text = re.sub(
             r'([^\u0600-\u06FF\s]+(?:\s+[^\u0600-\u06FF\s]+)*)',
-            lambda m: f'<span dir="ltr" style="{_SPAN}">{m.group(1)}</span>',
+            _wrap_foreign_run,
             text
         )
 
