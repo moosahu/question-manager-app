@@ -781,6 +781,11 @@ class LessonPrepService:
     "enrichment": ["أسئلة إثرائية للمتفوقين"],
     "remedial": ["أنشطة علاجية للضعاف"]
   }},
+  "exit_ticket": {{
+    "technique": "اسم الأسلوب المستخدم - اختر الأنسب لمحتوى هذه الحصة تحديداً من: 'أصعب نقطة' (وش أصعب جزء بالدرس عليك ولماذا) / 'ملخص بجملة' (لخّص الدرس بجملة أو كلمة واحدة) / 'مقارنة' (قارن بين مفهومين من الدرس) / 'تطبيق عملي' (مثال حقيقي من حياتك على المفهوم) / 'تصحيح خطأ' (زميلك قال عبارة خاطئة، صحّحها) / 'فحص فهم مباشر' (سؤال مباشر عن أهم نقطة) - نوّع الاختيار بين الحصص المختلفة، لا تستخدم نفس الأسلوب دائماً",
+    "question": "سؤال واحد قصير جداً ومركّز (يُجاب بجملة أو جملتين) مبني على الأسلوب المختار أعلاه، مرتبط بمحتوى هذه الحصة تحديداً - يُجاب فردياً من كل طالب على بطاقة صغيرة قبل خروجه من الحصة، مختلف عن أسئلة evaluation (ليس تكراراً لها)",
+    "answer": "الإجابة النموذجية المتوقعة المختصرة (أو معايير إجابة مقبولة لو السؤال مفتوح مثل 'تطبيق عملي')"
+  }},
   "individual_differences": {{
     "gifted_activities": ["أنشطة للمتفوقين"],
     "weak_support": ["دعم الطلاب الضعاف"],
@@ -823,7 +828,7 @@ class LessonPrepService:
 
 ## تنبيهات مهمة
 - ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
-- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, presentation, teaching_strategies, evaluation, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
+- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, presentation, teaching_strategies, evaluation, exit_ticket, individual_differences, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
 - ⚠️ استخدم نفس أسماء المفاتيح بالضبط كما هي مكتوبة - لا تغيرها (مثلاً: evaluation وليس assessment)
 - ⚠️ الأمثلة في presentation يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
 - ⚠️ summative يجب أن يكون قائمة كائنات بها (question, type, answer, explanation) وليس نصوصاً
@@ -1531,6 +1536,11 @@ class LessonPrepService:
     ],
     "enrichment": ["أسئلة إثرائية للمتفوقين"],
     "remedial": ["أنشطة علاجية للضعاف"]
+  }},
+  "exit_ticket": {{
+    "technique": "اسم الأسلوب المستخدم - اختر الأنسب لمحتوى هذه الحصة تحديداً من: 'أصعب نقطة' (وش أصعب جزء بالدرس عليك ولماذا) / 'ملخص بجملة' (لخّص الدرس بجملة أو كلمة واحدة) / 'مقارنة' (قارن بين مفهومين من الدرس) / 'تطبيق عملي' (مثال حقيقي من حياتك على المفهوم) / 'تصحيح خطأ' (زميلك قال عبارة خاطئة، صحّحها) / 'فحص فهم مباشر' (سؤال مباشر عن أهم نقطة) - نوّع الاختيار بين الحصص المختلفة، لا تستخدم نفس الأسلوب دائماً",
+    "question": "سؤال واحد قصير جداً ومركّز (يُجاب بجملة أو جملتين) مبني على الأسلوب المختار أعلاه، مرتبط بمحتوى هذه الحصة تحديداً - يُجاب فردياً من كل طالب على بطاقة صغيرة قبل خروجه من الحصة، مختلف عن أسئلة evaluation (ليس تكراراً لها)",
+    "answer": "الإجابة النموذجية المتوقعة المختصرة (أو معايير إجابة مقبولة لو السؤال مفتوح مثل 'تطبيق عملي')"
   }},
   "individual_differences": {{
     "gifted_activities": ["نشاط للمتفوقين"],
