@@ -174,14 +174,18 @@
     border: 1.5px dashed #94a3b8;
     border-radius: 8px;
     padding: 14px;
+    padding-top: 22px;
     break-inside: avoid;
     background: #ffffff;
+    position: relative;
   }
-  .printcard .pc-source {
+  .printcard .pc-num {
+    position: absolute;
+    top: 6px;
+    right: 10px;
     font-size: 8pt;
     font-weight: 900;
-    color: #4d7c0f;
-    margin-bottom: 6px;
+    color: #94a3b8;
   }
   .printcard .pc-text {
     font-size: 10pt;
@@ -1227,15 +1231,23 @@
 <div class="section sec-cards">
   <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> مواد الأنشطة القابلة للطباعة (اقطع وزّع)</div></div>
   <div class="section-body">
-    <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة حسب النشاط المرتبط بها بعرض الدرس.</p>
+    <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة حسب النشاط المرتبط بها بعرض الدرس (البطاقات نفسها بدون تسمية - مرتبة هنا حسب النشاط للتنظيم فقط).</p>
+    {% for concept in plan_data.get('presentation', {}).get('main_concepts', []) %}
+    {% set concept_cards = (concept.get('activity_materials') or []) if concept is mapping else [] %}
+    {% if concept_cards %}
+    <div style="font-weight:900; font-size:9pt; color:#4d7c0f; margin:10px 0 6px;">{{ concept.get('concept', '') }}</div>
     <div class="printcard-grid">
-      {% for card in printable_cards %}
+      {% for card_text in concept_cards %}
+      {% if card_text %}
       <div class="printcard">
-        <div class="pc-source">{{ card.source }}</div>
-        <div class="pc-text">{{ card.text|chem }}</div>
+        <div class="pc-num">{{ loop.index }}</div>
+        <div class="pc-text">{{ card_text|chem }}</div>
       </div>
+      {% endif %}
       {% endfor %}
     </div>
+    {% endif %}
+    {% endfor %}
   </div>
 </div>
 {% endif %}

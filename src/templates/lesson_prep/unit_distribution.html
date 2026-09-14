@@ -283,14 +283,18 @@
     border: 1.5px dashed #94a3b8;
     border-radius: 8px;
     padding: 12px;
+    padding-top: 20px;
     break-inside: avoid;
     background: #ffffff;
+    position: relative;
   }
-  .printcard .pc-source {
+  .printcard .pc-num {
+    position: absolute;
+    top: 5px;
+    right: 9px;
     font-size: 8pt;
     font-weight: 900;
-    color: #4d7c0f;
-    margin-bottom: 5px;
+    color: #94a3b8;
   }
   .printcard .pc-text {
     font-size: 9.5pt;
@@ -815,15 +819,27 @@
 {% if printable_cards %}
 <div class="cards-appendix">
   <div class="cards-appendix-header">مواد الأنشطة القابلة للطباعة (اقطع وزّع)</div>
-  <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة حسب الحصة والنشاط المرتبط بها.</p>
-  <div class="printcard-grid">
-    {% for card in printable_cards %}
-    <div class="printcard">
-      <div class="pc-source">{{ card.source }}</div>
-      <div class="pc-text">{{ card.text|chem }}</div>
-    </div>
-    {% endfor %}
-  </div>
+  <p style="font-size:9pt; color:#4d7c0f; margin-bottom:10px;">اطبع هذه الصفحة واقطع كل بطاقة على حدة (البطاقات نفسها بدون تسمية - مرتبة هنا حسب الحصة والنشاط للتنظيم فقط).</p>
+  {% for p in plan_data.get('periods', []) %}
+    {% if p is mapping %}
+      {% for concept in p.get('main_concepts', []) %}
+        {% set concept_cards = (concept.get('activity_materials') or []) if concept is mapping else [] %}
+        {% if concept_cards %}
+        <div style="font-weight:900; font-size:9pt; color:#4d7c0f; margin:10px 0 6px;">حصة {{ p.get('period_number', '') }} - {{ concept.get('concept', '') }}</div>
+        <div class="printcard-grid">
+          {% for card_text in concept_cards %}
+          {% if card_text %}
+          <div class="printcard">
+            <div class="pc-num">{{ loop.index }}</div>
+            <div class="pc-text">{{ card_text|chem }}</div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
 </div>
 {% endif %}
 
