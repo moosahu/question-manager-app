@@ -90,13 +90,17 @@
     min-width: 150px;
     font-weight: 700;
   }
+  /* ─── inline-block مو flex: flex بـWeasyPrint يُعامَل ككتلة واحدة غير قابلة للتقسيم
+     بين الصفحات - لو أي صف ما يكفي بالمساحة المتبقية بالصفحة، الشبكة كاملة تنتقل
+     للصفحة التالية وتترك فراغ كبير. inline-block يسمح بتوزيع طبيعي صف-بصف. ─── */
   .reflect-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    font-size: 0;
   }
   .reflect-box {
-    width: calc(50% - 4px);
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 8px);
+    margin: 0 4px 8px 4px;
     border: 1.5px solid #c7d2fe;
     border-radius: 8px;
     padding: 8px;
@@ -104,7 +108,7 @@
     background: #ffffff !important;
   }
   .reflect-box.full {
-    width: 100%;
+    width: calc(100% - 8px);
   }
   .reflect-box-title {
     font-weight: 900;
