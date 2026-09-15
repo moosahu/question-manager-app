@@ -2276,6 +2276,9 @@ def get_app_settings():
             'force_update_message', 'يوجد تحديث جديد إجباري للتطبيق — يرجى التحديث للاستمرار'),
         'ios_store_url':       AISetting.get_setting('ios_store_url', ''),
         'android_store_url':   AISetting.get_setting('android_store_url', ''),
+        # ✅ حد أدنى لنسخة ميزة الاختبار التشخيصي فقط (لا يحجب باقي التطبيق) - يُتحكم به
+        # من لوحة الأدمن بدون الحاجة لرفع نسخة جديدة للمتجر
+        'diagnostic_test_min_version': AISetting.get_setting('diagnostic_test_min_version', ''),
     })
 
 
@@ -2290,6 +2293,7 @@ def force_update_config():
             'force_update_message': AISetting.get_setting('force_update_message', ''),
             'ios_store_url': AISetting.get_setting('ios_store_url', ''),
             'android_store_url': AISetting.get_setting('android_store_url', ''),
+            'diagnostic_test_min_version': AISetting.get_setting('diagnostic_test_min_version', ''),
         })
 
     data = request.get_json() or {}
@@ -2305,6 +2309,9 @@ def force_update_config():
     if 'android_store_url' in data:
         AISetting.set_setting('android_store_url', data.get('android_store_url') or '',
                               'string', description='رابط Google Play')
+    if 'diagnostic_test_min_version' in data:
+        AISetting.set_setting('diagnostic_test_min_version', data.get('diagnostic_test_min_version') or '',
+                              'string', description='أقل نسخة تطبيق لفتح ميزة الاختبار التشخيصي فقط')
     return jsonify({'success': True})
 
 

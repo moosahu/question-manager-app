@@ -2188,6 +2188,22 @@ if (!document.getElementById('notification-styles')) {
                     <i class="fas fa-save me-1"></i> حفظ
                 </button>
                 <div id="fu-msg" class="mt-2"></div>
+
+                <hr class="my-4">
+                <h5 class="mb-2"><i class="fas fa-flask text-primary me-2"></i> أقل نسخة لميزة الاختبار التشخيصي</h5>
+                <p class="text-muted mb-3" style="font-size:0.82rem">
+                    يحجب دخول "الاختبارات التشخيصية" بس (باقي التطبيق يفضل شغّال عادي) لأي نسخة أقدم من هذا الرقم. اتركه فاضياً لإلغاء القيد. تقدر تغيّره في أي وقت من هنا بدون رفع نسخة جديدة للمتجر.
+                </p>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size:0.82rem">أقل نسخة مسموحة</label>
+                        <input type="text" class="form-control form-control-sm" id="fu-diag-min-version" placeholder="مثال: 1.0.15">
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-primary mt-2" onclick="saveDiagnosticMinVersion()">
+                    <i class="fas fa-save me-1"></i> حفظ
+                </button>
+                <div id="fu-diag-msg" class="mt-2"></div>
             </section>
 
         </div>
@@ -3472,8 +3488,36 @@ function loadVideoSettings() {
                 document.getElementById('fu-android-url').value = data.android_store_url || '';
                 document.getElementById('fu-message').value = data.force_update_message || '';
             }
+            // أقل نسخة لميزة الاختبار التشخيصي
+            const diagMin = document.getElementById('fu-diag-min-version');
+            if (diagMin) {
+                diagMin.value = data.diagnostic_test_min_version || '';
+            }
         })
         .catch(() => {});
+}
+
+function saveDiagnosticMinVersion() {
+    const msg = document.getElementById('fu-diag-msg');
+    const body = {
+        diagnostic_test_min_version: document.getElementById('fu-diag-min-version').value.trim(),
+    };
+    msg.innerHTML = '<span class="text-muted">جاري الحفظ...</span>';
+    fetch('/api/admin/ai/force-update-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(data => {
+        msg.innerHTML = data.success
+            ? '<span class="text-success"><i class="fas fa-check-circle"></i> تم الحفظ</span>'
+            : `<span class="text-danger">${data.error || 'خطأ'}</span>`;
+        setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => {
+        msg.innerHTML = '<span class="text-danger">خطأ في الاتصال</span>';
+    });
 }
 
 function saveForceUpdateConfig() {
