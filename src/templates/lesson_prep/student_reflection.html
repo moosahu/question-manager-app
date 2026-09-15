@@ -59,13 +59,13 @@
   .main-header {
     background: linear-gradient(135deg, #4338ca, #6366f1) !important;
     color: #ffffff !important;
-    padding: 14px 20px;
-    border-radius: 10px;
-    margin-bottom: 12px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
     text-align: center;
   }
-  .main-header h1 { font-size: 16pt; font-weight: 900; color: #ffffff !important; margin-bottom: 2px; }
-  .main-header .subtitle { font-size: 9pt; color: #e0e7ff !important; }
+  .main-header h1 { font-size: 13pt; font-weight: 900; color: #ffffff !important; margin-bottom: 1px; }
+  .main-header .subtitle { font-size: 8pt; color: #e0e7ff !important; }
 
   .reflect-page {
     page-break-after: always;
@@ -77,14 +77,14 @@
   .reflect-header {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 14px;
-    font-size: 10pt;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 9pt;
   }
   .reflect-header-item {
     border: 1.5px solid #c7d2fe;
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 5px 10px;
     background: #eef2ff !important;
     flex: 1;
     min-width: 150px;
@@ -93,13 +93,13 @@
   .reflect-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 8px;
   }
   .reflect-box {
-    width: calc(50% - 7px);
+    width: calc(50% - 4px);
     border: 1.5px solid #c7d2fe;
-    border-radius: 10px;
-    padding: 12px;
+    border-radius: 8px;
+    padding: 8px;
     break-inside: avoid;
     background: #ffffff !important;
   }
@@ -108,14 +108,14 @@
   }
   .reflect-box-title {
     font-weight: 900;
-    font-size: 10.5pt;
+    font-size: 9pt;
     color: #3730a3;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
   }
   .blank-line {
-    height: 24px;
+    height: 14px;
     border-bottom: 1px dashed #94a3b8;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 </style>
 </head>
@@ -140,31 +140,31 @@
   <div class="reflect-grid">
     <div class="reflect-box">
       <div class="reflect-box-title">📌 اكتب 3 معلومات رئيسية من الدرس</div>
-      {% for _ in range(3) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box">
       <div class="reflect-box-title">🔔 ماذا فهمت اليوم؟</div>
-      {% for _ in range(3) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box">
       <div class="reflect-box-title">✍️ اكتب سؤالين من الدرس</div>
-      {% for _ in range(4) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box">
       <div class="reflect-box-title">📖 اكتب قاعدة أو قانون تعلمته اليوم</div>
-      {% for _ in range(3) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box full">
       <div class="reflect-box-title">🚨 اكتب على الأقل 4 مفردات أو عبارات من الدرس</div>
-      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(1) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box full">
       <div class="reflect-box-title">💭 اكتب سؤالاً مستعملاً عبارة (ماذا لو..؟)</div>
-      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(1) %}<div class="blank-line"></div>{% endfor %}
     </div>
     <div class="reflect-box full">
       <div class="reflect-box-title">🤔 ما الجزء الذي كان صعباً عليك اليوم؟ ولماذا؟</div>
-      {% for _ in range(3) %}<div class="blank-line"></div>{% endfor %}
+      {% for _ in range(2) %}<div class="blank-line"></div>{% endfor %}
     </div>
   </div>
 </div>
