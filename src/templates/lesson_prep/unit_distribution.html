@@ -402,13 +402,15 @@
     color: #3f6212;
     margin-bottom: 8px;
   }
+  /* inline-block مو flex: flex يُعامَل ككتلة غير قابلة للتقسيم بين الصفحات بمحرك PDF */
   .printcard-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+    font-size: 0;
   }
   .printcard {
-    width: calc(50% - 6px);
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 12px);
+    margin: 0 6px 12px 6px;
     border: 1.5px dashed #94a3b8;
     border-radius: 8px;
     padding: 12px;

@@ -178,14 +178,17 @@
     color: #78350f;
   }
 
-  /* ─── بطاقات الأنشطة القابلة للطباعة (flex مو grid - grid ما يحترم RTL بمحرك PDF) ─── */
+  /* ─── بطاقات الأنشطة القابلة للطباعة (inline-block: لا grid لأنه لا يحترم RTL بمحرك
+     PDF، ولا flex لأنه يُعامَل ككتلة غير قابلة للتقسيم بين الصفحات فتترك فراغ كبير
+     لو الشبكة كاملة ما تكفي بالمساحة المتبقية) ─── */
   .printcard-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
+    font-size: 0;
   }
   .printcard {
-    width: calc(50% - 7px);
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 14px);
+    margin: 0 7px 14px 7px;
     border: 1.5px dashed #94a3b8;
     border-radius: 8px;
     padding: 14px;
