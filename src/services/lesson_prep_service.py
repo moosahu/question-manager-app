@@ -1397,6 +1397,31 @@ class LessonPrepService:
             traceback.print_exc()
             return None
 
+    def _generate_reflection_pdf(self, sessions, course_name, font_family='cairo'):
+        """توليد PDF مستقل لنموذج تأمل الطالب (قالب ثابت بدون AI - صفحة واحدة لكل جلسة/حصة)"""
+        try:
+            from weasyprint import HTML
+            from flask import render_template
+
+            context = {
+                'sessions': sessions,
+                'course_name': course_name,
+                'font_family': font_family,
+            }
+
+            html_string = render_template('lesson_prep/student_reflection.html', **context)
+            base_url = os.path.join(os.getcwd(), 'src', 'static')
+            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+
+            logger.info(f"تم توليد PDF نموذج تأمل الطالب بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+            return pdf_bytes
+
+        except Exception as e:
+            logger.error(f"خطأ في توليد PDF نموذج تأمل الطالب: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def _build_single_period_prompt(self, period_num, total_periods, lesson_name, title,
                                      course_name, unit_name, all_lessons_text, textbook_text="",
                                      materials_count=None, continuous_lesson=False,

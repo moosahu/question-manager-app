@@ -680,6 +680,55 @@ def download_plan_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@lesson_prep_bp.route('/<int:plan_id>/reflection-pdf', methods=['GET'])
+@auth_required
+def download_reflection_pdf(plan_id, teacher=None, user_id=None, is_admin=False):
+    """تحميل نموذج تأمل الطالب - PDF مستقل (بدون AI، فوري) - صفحة واحدة لكل درس/حصة"""
+    try:
+        plan = LessonPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({'success': False, 'error': 'التحضير غير موجود'}), 404
+
+        from src.services.lesson_prep_service import lesson_prep_service
+        from src.models.curriculum import Lesson, Unit, Course
+
+        lesson = Lesson.query.get(plan.lesson_id)
+        unit = Unit.query.get(lesson.unit_id) if lesson else None
+        course = Course.query.get(unit.course_id) if unit else None
+        plan_data = plan.plan_data or {}
+        font_family = request.args.get('font_family', 'cairo')
+
+        if plan.plan_type == 'unit_distribution':
+            sessions = [
+                {'title': p.get('title') or p.get('lesson_name') or ''}
+                for p in plan_data.get('periods', []) if isinstance(p, dict)
+            ]
+        else:
+            title = plan_data.get('lesson_info', {}).get('title') or (lesson.name if lesson else 'الدرس')
+            sessions = [{'title': title}]
+
+        if not sessions:
+            sessions = [{'title': lesson.name if lesson else 'الدرس'}]
+
+        pdf_bytes = lesson_prep_service._generate_reflection_pdf(
+            sessions,
+            course.name if course else '',
+            font_family=font_family,
+        )
+        if pdf_bytes:
+            return send_file(
+                io.BytesIO(pdf_bytes),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"نموذج_تأمل_الطالب_{plan.id}.pdf",
+            )
+        return jsonify({'success': False, 'error': 'فشل توليد نموذج التأمل'}), 500
+
+    except Exception as e:
+        logger.error(f"خطأ في تحميل نموذج تأمل الطالب: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @lesson_prep_bp.route('/<int:plan_id>', methods=['DELETE'])
 @auth_required
 def delete_plan(plan_id, teacher=None, user_id=None, is_admin=False):
