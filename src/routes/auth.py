@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy import func
 from src.models.user import User, db
 from src.forms import LoginForm, TwoFactorForm  # تأكد من تعريف هذا النموذج
 import pyotp
@@ -30,7 +31,8 @@ def login():
     if form.validate_on_submit():
         username = form.username.data
         password = form.password.data
-        user = User.query.filter_by(username=username).first()
+        # مقارنة اسم المستخدم بدون حساسية لحالة الأحرف (Admin = admin = ADMIN)
+        user = User.query.filter(func.lower(User.username) == (username or '').strip().lower()).first()
         if user and user.check_password(password):
             # ✅ الأدمن: يُجبر دائماً على التحقق الثنائي
             if user.is_admin:
@@ -379,7 +381,7 @@ def save_admin_fcm_token():
         # البحث عن الأدمن
         admin_user = None
         if username:
-            admin_user = User.query.filter_by(username=username, is_admin=True).first()
+            admin_user = User.query.filter(func.lower(User.username) == (username or '').strip().lower(), User.is_admin == True).first()
         if not admin_user:
             admin_user = User.query.filter_by(is_admin=True).first()
 
@@ -409,7 +411,7 @@ def get_admin_notifications():
 
         # التحقق من الأدمن عبر username في query params
         username = request.args.get('username', '')
-        admin_user = User.query.filter_by(username=username, is_admin=True).first()
+        admin_user = User.query.filter(func.lower(User.username) == (username or '').strip().lower(), User.is_admin == True).first()
         if not admin_user:
             admin_user = User.query.filter_by(is_admin=True).first()
 
@@ -461,7 +463,7 @@ def mark_all_admin_notifications_read():
 
         data = request.get_json() or {}
         username = data.get('username', '')
-        admin_user = User.query.filter_by(username=username, is_admin=True).first()
+        admin_user = User.query.filter(func.lower(User.username) == (username or '').strip().lower(), User.is_admin == True).first()
         if not admin_user:
             admin_user = User.query.filter_by(is_admin=True).first()
 

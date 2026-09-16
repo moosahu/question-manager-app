@@ -5,6 +5,7 @@
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from src.extensions import db
 from src.models.teacher import Teacher
 from src.models.student import Student
@@ -80,7 +81,7 @@ def add_teacher():
             return render_template('teachers/add.html')
         
         # التحقق من عدم تكرار اسم المستخدم
-        if Teacher.query.filter_by(username=username).first():
+        if Teacher.query.filter(func.lower(Teacher.username) == (username or '').strip().lower()).first():
             flash('اسم المستخدم موجود مسبقاً', 'danger')
             return render_template('teachers/add.html')
         
@@ -328,7 +329,7 @@ def api_mobile_add_teacher():
         if not (email.lower().endswith('moe.gov.sa') and local.upper().startswith('T')):
             return jsonify({'success': False, 'error': 'يجب استخدام إيميل منصة التعليم (مثال: T123456@estb.moe.gov.sa)'}), 400
 
-    if Teacher.query.filter_by(username=username).first():
+    if Teacher.query.filter(func.lower(Teacher.username) == (username or '').strip().lower()).first():
         return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
 
     teacher = Teacher(name=name, username=username, email=email, email_hash=make_email_hash(email))

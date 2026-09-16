@@ -5296,7 +5296,7 @@ def trusted_device_auth():
         if not device_token or not username:
             return jsonify({'success': False, 'error': 'بيانات ناقصة'}), 400
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter(func.lower(User.username) == username.strip().lower()).first()
         if not user or not user.is_admin:
             return jsonify({'success': False, 'error': 'مستخدم غير موجود'}), 404
 

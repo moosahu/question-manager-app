@@ -6,6 +6,7 @@
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from src.extensions import db
 from src.models.student import Student
 from functools import wraps
@@ -150,7 +151,7 @@ def add_student():
             return render_template('students/add.html')
         
         # التحقق من عدم تكرار اسم المستخدم
-        if Student.query.filter_by(username=username).first():
+        if Student.query.filter(func.lower(Student.username) == (username or '').strip().lower()).first():
             flash('اسم المستخدم موجود مسبقاً', 'danger')
             return render_template('students/add.html')
         
@@ -397,7 +398,7 @@ def api_student_login():
         # البحث عن الطالب بالـ username أو email
         student = Student.query.filter(
             db.or_(
-                Student.username == username,
+                func.lower(Student.username) == (username or '').strip().lower(),
                 Student.email == username
             )
         ).first()
@@ -536,7 +537,7 @@ def api_teacher_login():
         # البحث عن المعلم بالـ username أو email
         teacher = Teacher.query.filter(
             db.or_(
-                Teacher.username == username,
+                func.lower(Teacher.username) == (username or '').strip().lower(),
                 Teacher.email == username
             )
         ).first()
@@ -1308,7 +1309,7 @@ def api_change_password():
             }), 400
         
         # البحث عن الطالب
-        student = Student.query.filter_by(username=username).first()
+        student = Student.query.filter(func.lower(Student.username) == (username or '').strip().lower()).first()
         
         if not student:
             return jsonify({
@@ -1361,7 +1362,7 @@ def api_save_fcm_token():
         if student_id:
             student = Student.query.get(student_id)
         elif username:
-            student = Student.query.filter_by(username=username).first()
+            student = Student.query.filter(func.lower(Student.username) == (username or '').strip().lower()).first()
         else:
             return jsonify({
                 'success': False,
@@ -2460,7 +2461,7 @@ def api_mobile_add_student():
     if len(password) < 8:
         return jsonify({'success': False, 'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'}), 400
 
-    if Student.query.filter_by(username=username).first():
+    if Student.query.filter(func.lower(Student.username) == (username or '').strip().lower()).first():
         return jsonify({'success': False, 'error': 'اسم المستخدم موجود مسبقاً'}), 409
 
     if email and Student.query.filter_by(email_hash=make_email_hash(email)).first():
