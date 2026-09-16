@@ -2098,12 +2098,14 @@ def assign_test():
             print(f"✅ تم اختيار {len(student_ids_list)} طالب محدد")
         
         # ✅ جديد: دعم الإضافة بدلاً من الاستبدال
+        newly_added_ids = None  # ✅ لو تعيين تراكمي، نحفظ مين الجديد فعلاً (لتضييق نطاق الإشعار لاحقاً)
         if append_students and test.assigned_students:
             # إضافة الطلاب الجدد للقائمة الحالية
             existing_ids = set(test.assigned_students)
             new_ids = set(student_ids_list)
+            newly_added_ids = new_ids - existing_ids
             student_ids_list = list(existing_ids.union(new_ids))
-            print(f"✅ تم إضافة طلاب جدد. الإجمالي: {len(student_ids_list)}")
+            print(f"✅ تم إضافة طلاب جدد. الإجمالي: {len(student_ids_list)} (جدد فعلاً: {len(newly_added_ids)})")
         else:
             # استبدال القائمة بالكامل
             print(f"✅ تم استبدال قائمة الطلاب. العدد: {len(student_ids_list)}")
@@ -2130,7 +2132,12 @@ def assign_test():
                     diagnostic_test_id=test.id, status='completed'
                 ).all() if r.student_id and str(r.student_id).isdigit()
             }
-            notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+            if newly_added_ids is not None:
+                # ✅ إعادة إرسال تراكمية بنفس المعيار (مثلاً نفس الصف/الشعبة): نُشعر الطلاب
+                # الجدد فعلاً بس، حتى لا نزعج من سبق واستُهدف بهذا الاختبار ولم يكمله بعد
+                notify_ids = [sid for sid in newly_added_ids if sid not in already_completed_ids]
+            else:
+                notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
 
         # إرسال إشعارات
         if send_notification and NotificationService:
@@ -2313,8 +2320,12 @@ def teacher_assign_test():
 
         # ✅ نضيف للقائمة الحالية بدل الاستبدال — منعاً لضياع طلاب أُرسل لهم الاختبار سابقاً
         # عند إعادة الإرسال لشعبة ثانية لاحقاً
+        newly_added_ids = None  # ✅ لو تعيين تراكمي، نحفظ مين الجديد فعلاً (لتضييق نطاق الإشعار لاحقاً)
         if not body.get('replace_students', False) and test.assigned_students:
-            student_ids_list = list(set(test.assigned_students) | set(student_ids_list))
+            existing_ids = set(test.assigned_students)
+            new_ids = set(student_ids_list)
+            newly_added_ids = new_ids - existing_ids
+            student_ids_list = list(existing_ids | new_ids)
 
         test.is_scheduled     = True
         test.assigned_students = student_ids_list
@@ -2338,7 +2349,11 @@ def teacher_assign_test():
                     diagnostic_test_id=test.id, status='completed'
                 ).all() if r.student_id and str(r.student_id).isdigit()
             }
-            notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
+            if newly_added_ids is not None:
+                # ✅ إعادة إرسال تراكمية: نُشعر الطلاب الجدد فعلاً بس
+                notify_ids = [sid for sid in newly_added_ids if sid not in already_completed_ids]
+            else:
+                notify_ids = [sid for sid in student_ids_list if sid not in already_completed_ids]
 
         # إشعارات FCM
         if send_notif:
