@@ -138,6 +138,27 @@ def convert_saudi_to_utc(dt_string):
         return datetime.fromisoformat(dt_string.replace('Z', ''))
 
 
+def _identify_caller():
+    """يحدّد هوية المتصل: (True, teacher_id) لو توكن معلم صالح، (False, None) لو جلسة أدمن
+    صالحة، أو None لو غير مصرح — يُستخدم بمسارات تقبل الطرفين (أدمن أو معلم)"""
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        import jwt as _jwt
+        try:
+            token_data = _jwt.decode(
+                auth.split(' ', 1)[1],
+                current_app.config['JWT_SECRET_KEY'],
+                algorithms=[current_app.config['JWT_ALGORITHM']]
+            )
+            if token_data.get('user_type') == 'teacher':
+                return True, token_data.get('teacher_id')
+        except Exception:
+            pass
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        return False, None
+    return None
+
+
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -1564,6 +1585,118 @@ def get_unsent_students(test_id):
         print(f"❌ Error getting unsent students: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _send_bulk_notification(target_ids, title, message, test_id, notification_type='reminder'):
+    """يرسل إشعار (DB + FCM) لمجموعة طلاب، يرجّع عدد اللي انحفظ لهم فعلياً"""
+    sent = 0
+    students = Student.query.filter(Student.id.in_(target_ids)).all()
+    for s in students:
+        if _save_notification_to_db(
+            student_id=s.id, title=title, message=message,
+            notification_type=notification_type,
+            data={'type': 'diagnostic_test', 'test_id': str(test_id)}
+        ):
+            sent += 1
+        if NotificationService and getattr(s, 'fcm_token', None):
+            try:
+                NotificationService.send_fcm_notification(
+                    s.fcm_token, title, message,
+                    {'type': 'diagnostic_test', 'test_id': str(test_id)}
+                )
+            except Exception:
+                pass
+    db.session.commit()
+    return sent
+
+
+def _resolve_notify_scope(scope, is_teacher_caller, teacher_id, candidate_ids):
+    """يقصر candidate_ids على نطاق المستخدم الحالي (كل الطلاب أو طلابه هو بس)"""
+    if scope == 'all' and not is_teacher_caller:
+        return candidate_ids
+    from src.models.teacher_student import TeacherStudent
+    owner_filter = {'teacher_id': teacher_id} if is_teacher_caller else {'admin_id': current_user.id}
+    my_ids = {lnk.student_id for lnk in TeacherStudent.query.filter_by(**owner_filter).all()}
+    return candidate_ids & my_ids
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/notify-pending', methods=['POST'])
+def notify_pending_students(test_id):
+    """إشعار تذكير لمن انرسل له الاختبار وما اختبره بعد (ضمن نطاق المستخدم الحالي)"""
+    try:
+        caller = _identify_caller()
+        if caller is None:
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 401
+        is_teacher_caller, teacher_id = caller
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        data = request.get_json(silent=True) or {}
+        scope = data.get('scope', 'my_students')
+
+        assigned_ids = set(test.assigned_students or [])
+        completed_ids = {
+            int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                diagnostic_test_id=test_id, status='completed'
+            ).all() if r.student_id and str(r.student_id).isdigit()
+        }
+        pending_ids = assigned_ids - completed_ids
+        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, pending_ids)
+
+        if not target_ids:
+            return jsonify({'success': True, 'sent_count': 0})
+
+        title = '⏰ تذكير باختبار لم تُكمله بعد'
+        message = f'لسه ما حليت اختبار "{test.title}" التشخيصي. لا تفوّت الفرصة — حله بأقرب وقت!'
+        sent = _send_bulk_notification(target_ids, title, message, test.id, notification_type='reminder')
+
+        return jsonify({'success': True, 'sent_count': sent})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error notifying pending students: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/notify-completed', methods=['POST'])
+def notify_completed_students(test_id):
+    """رسالة شكر لمن أكمل الاختبار (ضمن نطاق المستخدم الحالي)"""
+    try:
+        caller = _identify_caller()
+        if caller is None:
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 401
+        is_teacher_caller, teacher_id = caller
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        data = request.get_json(silent=True) or {}
+        scope = data.get('scope', 'my_students')
+
+        completed_ids = {
+            int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                diagnostic_test_id=test_id, status='completed'
+            ).all() if r.student_id and str(r.student_id).isdigit()
+        }
+        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, completed_ids)
+
+        if not target_ids:
+            return jsonify({'success': True, 'sent_count': 0})
+
+        title = '🌟 شكراً على أدائك!'
+        message = (
+            f'شكراً لك على حل اختبار "{test.title}" التشخيصي. '
+            'أداؤك يساعدنا نتعرف على نقاط قوتك وإيش تحتاج تراجعه أكثر — استمر بهذا المستوى 👏'
+        )
+        sent = _send_bulk_notification(target_ids, title, message, test.id, notification_type='general')
+
+        return jsonify({'success': True, 'sent_count': sent})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error notifying completed students: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
