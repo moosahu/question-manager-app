@@ -1621,6 +1621,25 @@ def _resolve_notify_scope(scope, is_teacher_caller, teacher_id, candidate_ids):
     return candidate_ids & my_ids
 
 
+def _resolve_notify_targets(data, is_teacher_caller, teacher_id, candidate_ids):
+    """يحدّد الطلاب المستهدفين فعلياً: طالب واحد محدد (للتجربة) لو تم تمريره، وإلا حسب scope
+    العادي (طلابي/الكل) — بكل الحالتين النتيجة مقصورة على candidate_ids (اللي فعلاً منطقيين
+    لهذا الإشعار، مثل لسه ما أكمل أو أكمل فعلاً) ونطاق صلاحية المستخدم"""
+    single_id = data.get('student_id')
+    if single_id:
+        try:
+            sid = int(single_id)
+        except (TypeError, ValueError):
+            return set()
+        if is_teacher_caller:
+            from src.models.teacher_student import TeacherStudent
+            allowed = TeacherStudent.query.filter_by(teacher_id=teacher_id, student_id=sid).first()
+            if not allowed:
+                return set()
+        return {sid} & candidate_ids
+    return _resolve_notify_scope(data.get('scope', 'my_students'), is_teacher_caller, teacher_id, candidate_ids)
+
+
 @diagnostic_bp.route('/tests/<int:test_id>/notify-pending', methods=['POST'])
 def notify_pending_students(test_id):
     """إشعار تذكير لمن انرسل له الاختبار وما اختبره بعد (ضمن نطاق المستخدم الحالي)"""
@@ -1635,7 +1654,6 @@ def notify_pending_students(test_id):
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
 
         data = request.get_json(silent=True) or {}
-        scope = data.get('scope', 'my_students')
 
         assigned_ids = set(test.assigned_students or [])
         completed_ids = {
@@ -1644,7 +1662,7 @@ def notify_pending_students(test_id):
             ).all() if r.student_id and str(r.student_id).isdigit()
         }
         pending_ids = assigned_ids - completed_ids
-        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, pending_ids)
+        target_ids = _resolve_notify_targets(data, is_teacher_caller, teacher_id, pending_ids)
 
         if not target_ids:
             return jsonify({'success': True, 'sent_count': 0})
@@ -1674,14 +1692,13 @@ def notify_completed_students(test_id):
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
 
         data = request.get_json(silent=True) or {}
-        scope = data.get('scope', 'my_students')
 
         results_by_sid = {}
         for r in DiagnosticResult.query.filter_by(diagnostic_test_id=test_id, status='completed').all():
             if r.student_id and str(r.student_id).isdigit():
                 results_by_sid[int(r.student_id)] = r
 
-        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, set(results_by_sid.keys()))
+        target_ids = _resolve_notify_targets(data, is_teacher_caller, teacher_id, set(results_by_sid.keys()))
 
         if not target_ids:
             return jsonify({'success': True, 'sent_count': 0})
@@ -1696,8 +1713,13 @@ def notify_completed_students(test_id):
                 continue
             pct = round(r.percentage or 0)
             weak = [t for t in (r.weak_topics or []) if t]
+            ai_text = (r.ai_analysis or '').strip()
 
-            if pct >= 90:
+            if ai_text:
+                # ✅ نفس التحليل اللي ولّده AI وقت التسليم (بدون أي تكلفة إضافية) — مخصص فعلياً
+                title = '🤖 تحليل أدائك بالذكاء الاصطناعي'
+                message = f'اختبار "{test.title}" — نتيجتك {pct}%\n\n{ai_text}'
+            elif pct >= 90:
                 title = '🌟 أداء ممتاز!'
                 message = f'أداء ممتاز! 🌟 حصلت {pct}% في اختبار "{test.title}". استمر بهذا التميز!'
             elif pct >= 70:
