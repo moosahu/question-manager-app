@@ -1017,20 +1017,21 @@ def start_test(test_id):
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
         
-        # التحقق من عدم وجود نتيجة سابقة مكتملة
+        # التحقق من عدم وجود نتيجة سابقة مكتملة أو مُتنازل عنها (أغلقه الطالب قبل التسليم)
         existing = DiagnosticResult.query.filter_by(
             diagnostic_test_id=test_id,
-            student_id=student_id,
-            status='completed'
-        ).first()
-        
+            student_id=student_id
+        ).filter(DiagnosticResult.status.in_(['completed', 'abandoned'])).first()
+
         if existing:
+            msg = 'لقد أكملت هذا الاختبار مسبقاً' if existing.status == 'completed' \
+                else 'أغلقت هذا الاختبار قبل التسليم ولا يمكن إعادة فتحه — تواصل مع معلمك لإعادة فتحه لك'
             return jsonify({
                 'success': False,
-                'error': 'لقد أكملت هذا الاختبار مسبقاً',
+                'error': msg,
                 'result': existing.to_dict()
             }), 400
-        
+
         # إنشاء أو تحديث نتيجة
         result = DiagnosticResult.query.filter_by(
             diagnostic_test_id=test_id,
@@ -1047,6 +1048,9 @@ def start_test(test_id):
                 'error': 'هذا الاختبار مفتوح حالياً من جهاز آخر بنفس حسابك'
             }), 409
 
+        # ✅ لو فيه محاولة "in_progress" سابقة على نفس الجهاز (مثلاً كراش أو تقفيل قسري
+        # بدون المرور بتأكيد الإغلاق)، نسمح باستئنافها بنفس المؤقت الأصلي بدون تصفيره —
+        # منعاً لإعطاء وقت إضافي مجاني عند كل إعادة فتح
         if not result:
             result = DiagnosticResult(
                 diagnostic_test_id=test_id,
@@ -1057,7 +1061,8 @@ def start_test(test_id):
 
         if device_id:
             result.device_id = device_id
-        result.started_at = datetime.utcnow()
+        if not result.started_at:
+            result.started_at = datetime.utcnow()  # ✅ ما نصفّر المؤقت عند استئناف محاولة قائمة
         result.status = 'in_progress'
         db.session.commit()
 
@@ -1065,16 +1070,44 @@ def start_test(test_id):
         # الترتيب مبني على result.id كـ seed ثابت، فيرجع نفسه بالضبط وقت التصحيح بدون تخزين أي شي إضافي
         questions = _get_shuffled_questions(test.questions_data or [], result.id)
 
+        # ✅ الوقت المتبقي الفعلي — يهم بس لو استأنف محاولة قائمة (كراش/إغلاق قسري)،
+        # حتى ما ياخذ وقت إضافي مجاني عند كل إعادة دخول
+        elapsed = max(0, int((datetime.utcnow() - result.started_at).total_seconds())) if result.started_at else 0
+        remaining_seconds = max(0, test.time_limit_minutes * 60 - elapsed)
+
         return jsonify({
             'success': True,
             'message': 'تم بدء الاختبار',
             'result_id': result.id,
             'questions': questions,
-            'time_limit_minutes': test.time_limit_minutes
+            'time_limit_minutes': test.time_limit_minutes,
+            'remaining_seconds': remaining_seconds
         })
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/results/<int:result_id>/forfeit', methods=['POST'])
+def forfeit_test(result_id):
+    """الطالب أغلق الاختبار قبل التسليم — نُثبّت هذا كتنازل نهائي (ما يقدر يفتحه مرة ثانية
+    إلا لو المعلم/الأدمن عمل 'إعادة فتح' له يدوياً). يكمّل تحذير الإغلاق اللي يشوفه الطالب فعلياً."""
+    try:
+        result = DiagnosticResult.query.get(result_id)
+        if not result:
+            return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
+
+        # لا نلمس نتيجة مكتملة أو متنازل عنها أصلاً
+        if result.status not in ('completed', 'abandoned'):
+            result.status = 'abandoned'
+            result.completed_at = datetime.utcnow()
+            db.session.commit()
+
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error forfeiting test: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1420,6 +1453,8 @@ def get_assignment_status(test_id):
             r = results_by_student.get(sid)
             if r and r.status == 'completed':
                 status = 'completed'
+            elif r and r.status == 'abandoned':
+                status = 'abandoned'  # ✅ أغلق الاختبار قبل التسليم — ما يقدر يفتحه إلا بإعادة فتح يدوية
             elif r:
                 status = 'in_progress'
             else:
@@ -1437,6 +1472,7 @@ def get_assignment_status(test_id):
         counts = {
             'not_started': sum(1 for d in data if d['status'] == 'not_started'),
             'in_progress': sum(1 for d in data if d['status'] == 'in_progress'),
+            'abandoned': sum(1 for d in data if d['status'] == 'abandoned'),
             'completed': sum(1 for d in data if d['status'] == 'completed'),
         }
 
