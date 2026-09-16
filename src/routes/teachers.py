@@ -792,6 +792,8 @@ def api_admin_assign_student(teacher_id):
     teacher = Teacher.query.get_or_404(teacher_id)
     data = request.get_json() or {}
     student_id = data.get('student_id')
+    # ✅ اختياري: تحديد الشعبة وقت الربط مباشرة بدل خطوة منفصلة بعدها
+    section = (data.get('section') or '').strip() or None
 
     if not student_id:
         return jsonify({'success': False, 'error': 'student_id مطلوب'}), 400
@@ -808,6 +810,8 @@ def api_admin_assign_student(teacher_id):
         # الأدمن يقدر يغيّر المعلم مباشرة
         existing.teacher_id = teacher_id
         existing.joined_at = datetime.utcnow()
+        if section is not None:
+            existing.section = section
         try:
             db.session.commit()
             return jsonify({
@@ -821,6 +825,7 @@ def api_admin_assign_student(teacher_id):
     link = TeacherStudent(
         teacher_id=teacher_id,
         student_id=student_id,
+        section=section,
         aruco_id=TeacherStudent.next_aruco_id(teacher_id, None),
     )
     try:
@@ -1029,6 +1034,8 @@ def api_link_student_to_admin():
 
     data       = request.get_json(silent=True) or {}
     student_id = data.get('student_id')
+    # ✅ اختياري: تحديد الشعبة وقت الربط مباشرة بدل خطوة منفصلة بعدها
+    section    = (data.get('section') or '').strip() or None
 
     if not student_id:
         return jsonify({'success': False, 'message': 'student_id مطلوب'}), 400
@@ -1053,6 +1060,7 @@ def api_link_student_to_admin():
     link = TeacherStudent(
         admin_id=current_user.id,
         student_id=student_id,
+        section=section,
         aruco_id=TeacherStudent.next_aruco_id(None, current_user.id),
     )
     db.session.add(link)
