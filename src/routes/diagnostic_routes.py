@@ -1453,6 +1453,84 @@ def get_assignment_status(test_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@diagnostic_bp.route('/tests/<int:test_id>/unsent-students', methods=['GET'])
+def get_unsent_students(test_id):
+    """الطلاب ضمن نطاق مُحدّد (الكل / طلابي [+شعبة]) واللي لسه ما انرسل لهم هذا الاختبار.
+    نفس منطق تحديد النطاق المستخدم في /assign و /teacher/assign، فقط هنا نرجّع الفرق
+    (النطاق - assigned_students) بدل ما نعيّن مباشرة — يُستخدم لعرض قائمة اختيار للمستخدم."""
+    try:
+        from src.models.teacher_student import TeacherStudent
+
+        scope = request.args.get('scope', 'my_students')  # 'all' أو 'my_students'
+        sections_param = request.args.get('sections', '')
+        sections = [s for s in sections_param.split(',') if s.strip()] if sections_param else None
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        # ✅ تحديد هوية المستخدم: توكن معلم (JWT) أولاً، وإلا جلسة أدمن عادية
+        is_teacher_caller = False
+        teacher_id = None
+        auth = request.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            import jwt as _jwt
+            try:
+                token_data = _jwt.decode(
+                    auth.split(' ', 1)[1],
+                    current_app.config['JWT_SECRET_KEY'],
+                    algorithms=[current_app.config['JWT_ALGORITHM']]
+                )
+                if token_data.get('user_type') == 'teacher':
+                    is_teacher_caller = True
+                    teacher_id = token_data.get('teacher_id')
+            except Exception:
+                pass
+
+        if not is_teacher_caller and not (current_user.is_authenticated and getattr(current_user, 'is_admin', False)):
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 401
+
+        if is_teacher_caller:
+            # المعلم ما يقدر يستهدف إلا طلابه هو
+            scope = 'my_students'
+
+        assigned_ids = set(test.assigned_students or [])
+
+        candidates = []  # [(student, section)]
+        if scope == 'all':
+            for s in Student.query.filter_by(is_active=True).all():
+                candidates.append((s, _get_student_section(s.id)))
+        else:
+            owner_filter = {'teacher_id': teacher_id} if is_teacher_caller else {'admin_id': current_user.id}
+            links = TeacherStudent.query.filter_by(**owner_filter).all()
+            if sections:
+                links = [lnk for lnk in links if (lnk.section or '') in sections]
+            for link in links:
+                s = link.student
+                if s and s.is_active:
+                    candidates.append((s, link.section or ''))
+
+        students = [
+            {'id': s.id, 'name': s.name, 'section': sec}
+            for s, sec in candidates if s.id not in assigned_ids
+        ]
+        # إزالة التكرار (لو نفس الطالب ظهر أكثر من مرة) مع الحفاظ على الترتيب
+        seen = set()
+        unique_students = []
+        for st in students:
+            if st['id'] in seen:
+                continue
+            seen.add(st['id'])
+            unique_students.append(st)
+
+        return jsonify({'success': True, 'students': unique_students})
+    except Exception as e:
+        print(f"❌ Error getting unsent students: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @diagnostic_bp.route('/tests/<int:test_id>/reopen/<int:student_id>', methods=['POST'])
 @login_required
 @admin_required
