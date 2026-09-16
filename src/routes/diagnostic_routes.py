@@ -1676,23 +1676,54 @@ def notify_completed_students(test_id):
         data = request.get_json(silent=True) or {}
         scope = data.get('scope', 'my_students')
 
-        completed_ids = {
-            int(r.student_id) for r in DiagnosticResult.query.filter_by(
-                diagnostic_test_id=test_id, status='completed'
-            ).all() if r.student_id and str(r.student_id).isdigit()
-        }
-        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, completed_ids)
+        results_by_sid = {}
+        for r in DiagnosticResult.query.filter_by(diagnostic_test_id=test_id, status='completed').all():
+            if r.student_id and str(r.student_id).isdigit():
+                results_by_sid[int(r.student_id)] = r
+
+        target_ids = _resolve_notify_scope(scope, is_teacher_caller, teacher_id, set(results_by_sid.keys()))
 
         if not target_ids:
             return jsonify({'success': True, 'sent_count': 0})
 
-        title = '🌟 شكراً على أدائك!'
-        message = (
-            f'شكراً لك على حل اختبار "{test.title}" التشخيصي. '
-            'أداؤك يساعدنا نتعرف على نقاط قوتك وإيش تحتاج تراجعه أكثر — استمر بهذا المستوى 👏'
-        )
-        sent = _send_bulk_notification(target_ids, title, message, test.id, notification_type='general')
+        # ✅ رسالة مخصصة حسب نسبة كل طالب فعلياً (مو نفس النص للكل)
+        students = {s.id: s for s in Student.query.filter(Student.id.in_(target_ids)).all()}
+        sent = 0
+        for sid in target_ids:
+            r = results_by_sid.get(sid)
+            s = students.get(sid)
+            if not r or not s:
+                continue
+            pct = round(r.percentage or 0)
+            weak = [t for t in (r.weak_topics or []) if t]
 
+            if pct >= 90:
+                title = '🌟 أداء ممتاز!'
+                message = f'أداء ممتاز! 🌟 حصلت {pct}% في اختبار "{test.title}". استمر بهذا التميز!'
+            elif pct >= 70:
+                title = '👏 أداء جيد'
+                message = f'أداء جيد 👏 حصلت {pct}% في اختبار "{test.title}".'
+                message += f' راجع "{weak[0]}" عشان تتقن أكثر.' if weak else ' استمر بهذا المستوى!'
+            else:
+                title = '💪 شكراً على محاولتك'
+                message = f'شكراً على محاولتك في اختبار "{test.title}" ({pct}%).'
+                message += f' ننصحك تراجع: {"، ".join(weak[:3])}. تقدر تتحسن!' if weak else ' تقدر تتحسن في المحاولة القادمة!'
+
+            if _save_notification_to_db(
+                student_id=sid, title=title, message=message, notification_type='general',
+                data={'type': 'diagnostic_test', 'test_id': str(test.id)}
+            ):
+                sent += 1
+            if NotificationService and getattr(s, 'fcm_token', None):
+                try:
+                    NotificationService.send_fcm_notification(
+                        s.fcm_token, title, message,
+                        {'type': 'diagnostic_test', 'test_id': str(test.id)}
+                    )
+                except Exception:
+                    pass
+
+        db.session.commit()
         return jsonify({'success': True, 'sent_count': sent})
     except Exception as e:
         db.session.rollback()
