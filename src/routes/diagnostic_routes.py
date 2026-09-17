@@ -1881,6 +1881,16 @@ def export_results_excel(test_id):
         results = DiagnosticResult.query.filter_by(diagnostic_test_id=test_id)\
             .order_by(DiagnosticResult.percentage.desc()).all()
 
+        # ✅ لو فيه اختبار مقابل (قبلي/بعدي) — نوضّح حالة كل طالب فيه، ونضيف
+        # صفوف لمن اختبر المقابل بس ولم يلمس هذا الاختبار إطلاقاً
+        paired_test = DiagnosticTest.query.get(test.paired_test_id) if test.paired_test_id else None
+        other_status_by_sid = {}
+        if paired_test:
+            for res in DiagnosticResult.query.filter_by(diagnostic_test_id=paired_test.id).all():
+                if res.student_id and str(res.student_id).isdigit():
+                    other_status_by_sid[int(res.student_id)] = res.status
+        other_label = f'حالة {"البعدي" if test.test_type == "pre_test" else "القبلي"}'
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'النتائج'
@@ -1891,6 +1901,8 @@ def export_results_excel(test_id):
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         headers = ['الطالب', 'الشعبة', 'الحالة', 'الدرجة', 'من', 'النسبة', 'الوقت المستغرق (د)', 'تاريخ الإكمال']
+        if paired_test:
+            headers.append(other_label)
         for col, h in enumerate(headers, 1):
             cell = ws.cell(1, col, value=h)
             cell.font = Font(bold=True, color='FFFFFF', size=11)
@@ -1899,9 +1911,20 @@ def export_results_excel(test_id):
             cell.border = border
         ws.row_dimensions[1].height = 26
 
-        status_ar = {'completed': 'مكتمل', 'in_progress': 'قيد التنفيذ'}
-        for r, res in enumerate(results, 2):
+        status_ar = {'completed': 'مكتمل', 'in_progress': 'قيد التنفيذ', 'abandoned': 'أغلق بدون تسليم'}
+
+        def _other_label(sid):
+            st = other_status_by_sid.get(sid)
+            return {'completed': '✅ أكمله', 'in_progress': '⏳ قيد التنفيذ',
+                    'abandoned': '🔴 أغلقه بدون تسليم'}.get(st, '❌ لم يختبره')
+
+        existing_sids = set()
+        r = 2
+        for res in results:
             student = Student.query.get(res.student_id) if res.student_id else None
+            sid = int(res.student_id) if res.student_id and str(res.student_id).isdigit() else None
+            if sid is not None:
+                existing_sids.add(sid)
             row = [
                 (student.name if student else f'طالب #{res.student_id}'),
                 _get_student_section(res.student_id) if res.student_id else '',
@@ -1912,16 +1935,39 @@ def export_results_excel(test_id):
                 round((res.time_spent_seconds or 0) / 60, 1),
                 res.completed_at.strftime('%Y-%m-%d %H:%M') if (res.completed_at and res.status == 'completed') else '',
             ]
+            if paired_test:
+                row.append(_other_label(sid) if sid is not None else '—')
             for col, val in enumerate(row, 1):
                 cell = ws.cell(r, col, value=val)
                 cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
                 cell.border = border
+            r += 1
+
+        # ✅ طلاب اختبروا المقابل بس ما بدأوا هذا الاختبار إطلاقاً — نضيفهم يدوياً
+        extra_sids = sorted(set(other_status_by_sid.keys()) - existing_sids)
+        if paired_test:
+            for sid in extra_sids:
+                student = Student.query.get(sid)
+                row = [
+                    (student.name if student else f'طالب #{sid}'),
+                    _get_student_section(sid),
+                    'لم يبدأ هذا الاختبار',
+                    0, 0, 0, 0, '',
+                    _other_label(sid),
+                ]
+                for col, val in enumerate(row, 1):
+                    cell = ws.cell(r, col, value=val)
+                    cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+                    cell.border = border
+                r += 1
+
+        total_rows = len(results) + len(extra_sids)
 
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
 
         # صف المصدر (نفس تذييل بقية تقارير التطبيق)
-        footer_row1 = len(results) + 3
+        footer_row1 = total_rows + 3
         ws.merge_cells(start_row=footer_row1, start_column=1, end_row=footer_row1, end_column=len(headers))
         fc1 = ws.cell(footer_row1, 1)
         fc1.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
