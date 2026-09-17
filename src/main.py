@@ -181,6 +181,15 @@ try:
 except ImportError as e:
     print(f"⚠️ Learning Style blueprint not available: {e}")
 
+# ✅ استيراد Survey Blueprint للاستبيانات العامة
+survey_available = False
+try:
+    from src.routes.survey_routes import survey_bp
+    survey_available = True
+    print("✅ Survey blueprint imported successfully")
+except ImportError as e:
+    print(f"⚠️ Survey blueprint not available: {e}")
+
 # ✅ استيراد Learning Content Blueprint لنظام خرائط المفاهيم والملخصات
 learning_available = False
 try:
@@ -1045,6 +1054,15 @@ def create_app():
             print("✅ Learning Style blueprint registered successfully")
         except Exception as e:
             print(f"❌ Error registering Learning Style blueprint: {e}")
+
+    # ✅ تسجيل Survey Blueprint للاستبيانات العامة
+    if survey_available:
+        try:
+            csrf.exempt(survey_bp)
+            app.register_blueprint(survey_bp)
+            print("✅ Survey blueprint registered successfully")
+        except Exception as e:
+            print(f"❌ Error registering Survey blueprint: {e}")
 
     # ✅ تسجيل Semester Grades Blueprint لدرجات الفترة الفصلية
     if semester_grades_available:
