@@ -386,7 +386,32 @@ async function showResults(id, title) {
 function closeResults() { document.getElementById('resultsOverlay').style.display = 'none'; }
 
 function renderResults(results) {
-  let html = `<p class="meta" style="color:#6b7280;font-size:13px;">إجمالي الردود: ${results.total_responses}</p>`;
+  let html = `<p class="meta" style="color:#6b7280;font-size:13px;">إجمالي الردود: ${results.total_responses}${results.audience_size != null ? ` من أصل ${results.audience_size}` : ''}</p>`;
+
+  if (results.respondents) {
+    html += `<div class="result-q"><h5>مين جاوب</h5>`;
+    if (!results.respondents.length) {
+      html += `<p style="color:#9ca3af;font-size:12px;">ما فيه ردود بعد</p>`;
+    } else {
+      results.respondents.forEach(r => {
+        const time = r.submitted_at ? new Date(r.submitted_at).toLocaleString('ar-SA') : '';
+        html += `<div class="text-answer"><b>${r.name}</b> <span style="color:#9ca3af;font-size:11px;">${time}</span></div>`;
+      });
+    }
+    html += `</div>`;
+    if (results.pending_respondents) {
+      html += `<div class="result-q"><h5>لسه ما جاوب (${results.pending_respondents.length})</h5>`;
+      if (!results.pending_respondents.length) {
+        html += `<p style="color:#9ca3af;font-size:12px;">الكل جاوب ✅</p>`;
+      } else {
+        results.pending_respondents.forEach(p => { html += `<div class="text-answer">${p.name}</div>`; });
+      }
+      html += `</div>`;
+    }
+  } else {
+    html += `<p class="meta" style="color:#9ca3af;font-size:12px;">الاستبيان مجهول — ما تقدر تشوف مين جاوب بالضبط.</p>`;
+  }
+
   results.questions.forEach(q => {
     html += `<div class="result-q"><h5>${q.question.text}</h5>`;
     if (q.question.type === 'choice' || q.question.type === 'yesno') {

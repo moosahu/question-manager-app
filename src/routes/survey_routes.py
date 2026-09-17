@@ -302,20 +302,53 @@ def admin_notify(survey_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _survey_audience(survey):
+    """يرجع (نوع المستجيب، قائمة (id, name) للجمهور المستهدَف) — None لو ما نقدر نحسب جمهور محدد (target_type='all')"""
+    if survey.target_type == 'teacher':
+        ids = survey.target_ids or []
+        rows = Teacher.query.filter(Teacher.id.in_(ids)).all() if ids else []
+        return 'teacher', [(t.id, t.name) for t in rows]
+    if survey.target_type == 'student':
+        ids = survey.target_ids or []
+        rows = Student.query.filter(Student.id.in_(ids)).all() if ids else []
+        return 'student', [(s.id, s.name) for s in rows]
+    if survey.target_type == 'my_students':
+        links = TeacherStudent.query.join(TeacherStudent.student).filter(
+            TeacherStudent.admin_id == survey.created_by
+        ).all()
+        return 'student', [(l.student_id, l.student.name) for l in links if l.student]
+    return None, []
+
+
 def _results_for_survey(survey):
     responses = SurveyResponse.query.filter_by(survey_id=survey.id).all()
     response_ids = [r.id for r in responses]
     answers = SurveyAnswer.query.filter(SurveyAnswer.response_id.in_(response_ids)).all() if response_ids else []
 
+    respondent_type = 'teacher' if survey.target_type == 'teacher' else 'student'
     respondent_names = {}
     if not survey.is_anonymous:
-        if survey.target_type == 'teacher':
-            ids = [r.respondent_id for r in responses]
-            rows = Teacher.query.filter(Teacher.id.in_(ids)).all() if ids else []
-        else:
-            ids = [r.respondent_id for r in responses]
-            rows = Student.query.filter(Student.id.in_(ids)).all() if ids else []
+        Model = Teacher if respondent_type == 'teacher' else Student
+        ids = [r.respondent_id for r in responses]
+        rows = Model.query.filter(Model.id.in_(ids)).all() if ids else []
         respondent_names = {r.id: r.name for r in rows}
+
+    respondents_out = None
+    pending_out = None
+    if not survey.is_anonymous:
+        respondents_out = sorted([
+            {
+                'id': r.respondent_id,
+                'name': respondent_names.get(r.respondent_id, f'#{r.respondent_id}'),
+                'submitted_at': (r.submitted_at.isoformat() + 'Z') if r.submitted_at else None,
+            }
+            for r in responses
+        ], key=lambda x: x['submitted_at'] or '')
+
+    _, audience = _survey_audience(survey)
+    if audience:
+        answered_ids = {r.respondent_id for r in responses}
+        pending_out = [{'id': aid, 'name': aname} for aid, aname in audience if aid not in answered_ids]
 
     by_response = {}
     for a in answers:
@@ -353,6 +386,9 @@ def _results_for_survey(survey):
         'survey': survey.to_dict(),
         'total_responses': len(responses),
         'questions': questions_out,
+        'respondents': respondents_out,  # None لو مجهول
+        'audience_size': len(audience) if audience else None,  # None لو target_type='all' (ما نقدر نحسب الجمهور)
+        'pending_respondents': pending_out,  # None لو مجهول أو ما نقدر نحسب الجمهور (target_type='all')
     }
 
 
