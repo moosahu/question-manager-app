@@ -1712,8 +1712,9 @@ def notify_completed_students(test_id):
             if not r or not s:
                 continue
             pct = round(r.percentage or 0)
-            weak = [t for t in (r.weak_topics or []) if t]
-            ai_text = (r.ai_analysis or '').strip()
+            # ✅ getattr احتياطاً لنتائج قديمة اتسلّمت قبل إضافة هذي الأعمدة (تكون None)
+            weak = [t for t in (getattr(r, 'weak_topics', None) or []) if t]
+            ai_text = (getattr(r, 'ai_analysis', None) or '').strip()
 
             if ai_text:
                 # ✅ نفس التحليل اللي ولّده AI وقت التسليم (بدون أي تكلفة إضافية) — مخصص فعلياً

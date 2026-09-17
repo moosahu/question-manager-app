@@ -197,10 +197,19 @@ class DiagnosticResult(db.Model):
     time_spent_seconds = db.Column(db.Integer, default=0)
     started_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
+    # ✅ كانت تُضبط بـ submit_test() كخصائص Python عادية بدون أعمدة DB فعلية —
+    # يعني تُفقد بالكامل بعد الـ commit ولا تُقرأ أبداً (وتسبب AttributeError
+    # عند أي محاولة قراءة على نتيجة جُلبت من استعلام جديد). أضيفت كأعمدة حقيقية.
+    score_percentage = db.Column(db.Float, nullable=True)
+    passed = db.Column(db.Boolean, nullable=True)
+    weak_topics = db.Column(db.JSON, default=[])
+    strong_topics = db.Column(db.JSON, default=[])
+    ai_analysis = db.Column(db.Text, nullable=True)
+
     # العلاقة
     test = db.relationship('DiagnosticTest', backref=db.backref('results', lazy='dynamic'))
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -211,6 +220,10 @@ class DiagnosticResult(db.Model):
             'total_questions': self.total_questions,
             'correct_answers': self.correct_answers,
             'percentage': self.percentage,
+            'passed': self.passed,
+            'weak_topics': self.weak_topics or [],
+            'strong_topics': self.strong_topics or [],
+            'ai_analysis': self.ai_analysis,
             'status': self.status,
             'time_spent_seconds': self.time_spent_seconds,
             'completed_at': (self.completed_at.isoformat() + 'Z') if self.completed_at else None
