@@ -2346,6 +2346,7 @@ def extend_test_deadline(test_id):
             return jsonify({'success': False, 'error': 'scheduled_end مطلوب'}), 400
 
         test.scheduled_end = convert_saudi_to_utc(new_end)
+        test.is_scheduled = True  # ✅ لو الاختبار ما كان مجدول أصلاً، هذا يفعّله (وإلا update_schedule_status يتجاهله)
         if hasattr(test, 'update_schedule_status'):
             test.update_schedule_status()
         db.session.commit()
