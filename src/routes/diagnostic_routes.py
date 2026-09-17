@@ -1885,10 +1885,14 @@ def export_results_excel(test_id):
         # صفوف لمن اختبر المقابل بس ولم يلمس هذا الاختبار إطلاقاً
         paired_test = DiagnosticTest.query.get(test.paired_test_id) if test.paired_test_id else None
         other_status_by_sid = {}
+        other_pct_by_sid = {}  # للمكتمل بس — تُستخدم لحساب فرق التحسّن/التراجع
         if paired_test:
             for res in DiagnosticResult.query.filter_by(diagnostic_test_id=paired_test.id).all():
                 if res.student_id and str(res.student_id).isdigit():
-                    other_status_by_sid[int(res.student_id)] = res.status
+                    sid = int(res.student_id)
+                    other_status_by_sid[sid] = res.status
+                    if res.status == 'completed':
+                        other_pct_by_sid[sid] = res.percentage or 0
         other_label = f'حالة {"البعدي" if test.test_type == "pre_test" else "القبلي"}'
 
         wb = openpyxl.Workbook()
@@ -1903,6 +1907,7 @@ def export_results_excel(test_id):
         headers = ['الطالب', 'الشعبة', 'الحالة', 'الدرجة', 'من', 'النسبة', 'الوقت المستغرق (د)', 'تاريخ الإكمال']
         if paired_test:
             headers.append(other_label)
+            headers.append('التغيّر (بعدي - قبلي)')
         for col, h in enumerate(headers, 1):
             cell = ws.cell(1, col, value=h)
             cell.font = Font(bold=True, color='FFFFFF', size=11)
@@ -1917,6 +1922,19 @@ def export_results_excel(test_id):
             st = other_status_by_sid.get(sid)
             return {'completed': '✅ أكمله', 'in_progress': '⏳ قيد التنفيذ',
                     'abandoned': '🔴 أغلقه بدون تسليم'}.get(st, '❌ لم يختبره')
+
+        def _change_label(sid, this_status, this_pct):
+            """فرق النسبة (بعدي - قبلي) — بس لو الطالب أكمل الاختبارين الاثنين"""
+            if this_status != 'completed' or sid is None or sid not in other_pct_by_sid:
+                return '-'
+            diff = (this_pct or 0) - other_pct_by_sid[sid] if test.test_type == 'post_test' \
+                else other_pct_by_sid[sid] - (this_pct or 0)
+            diff = round(diff, 1)
+            if diff > 0:
+                return f'📈 +{diff}%'
+            if diff < 0:
+                return f'📉 {diff}%'
+            return '➖ 0%'
 
         existing_sids = set()
         r = 2
@@ -1937,6 +1955,7 @@ def export_results_excel(test_id):
             ]
             if paired_test:
                 row.append(_other_label(sid) if sid is not None else '—')
+                row.append(_change_label(sid, res.status, res.percentage))
             for col, val in enumerate(row, 1):
                 cell = ws.cell(r, col, value=val)
                 cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
@@ -1954,6 +1973,7 @@ def export_results_excel(test_id):
                     'لم يبدأ هذا الاختبار',
                     0, 0, 0, 0, '',
                     _other_label(sid),
+                    '-',  # ما اختبر هذا الاختبار — ما فيه فرق يُحسب
                 ]
                 for col, val in enumerate(row, 1):
                     cell = ws.cell(r, col, value=val)
