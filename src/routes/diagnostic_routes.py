@@ -1923,18 +1923,24 @@ def export_results_excel(test_id):
             return {'completed': '✅ أكمله', 'in_progress': '⏳ قيد التنفيذ',
                     'abandoned': '🔴 أغلقه بدون تسليم'}.get(st, '❌ لم يختبره')
 
-        def _change_label(sid, this_status, this_pct):
-            """فرق النسبة (بعدي - قبلي) — بس لو الطالب أكمل الاختبارين الاثنين"""
+        def _raw_diff(sid, this_status, this_pct):
+            """فرق النسبة الفعلي (بعدي - قبلي) — None لو الطالب ما أكمل الاختبارين الاثنين"""
             if this_status != 'completed' or sid is None or sid not in other_pct_by_sid:
-                return '-'
+                return None
             diff = (this_pct or 0) - other_pct_by_sid[sid] if test.test_type == 'post_test' \
                 else other_pct_by_sid[sid] - (this_pct or 0)
-            diff = round(diff, 1)
+            return round(diff, 1)
+
+        def _change_label(diff):
+            if diff is None:
+                return '-'
             if diff > 0:
                 return f'📈 +{diff}%'
             if diff < 0:
                 return f'📉 {diff}%'
             return '➖ 0%'
+
+        all_diffs = []  # لحساب متوسط التغيّر لكل من أكمل الاختبارين
 
         existing_sids = set()
         r = 2
@@ -1955,7 +1961,10 @@ def export_results_excel(test_id):
             ]
             if paired_test:
                 row.append(_other_label(sid) if sid is not None else '—')
-                row.append(_change_label(sid, res.status, res.percentage))
+                diff = _raw_diff(sid, res.status, res.percentage)
+                if diff is not None:
+                    all_diffs.append(diff)
+                row.append(_change_label(diff))
             for col, val in enumerate(row, 1):
                 cell = ws.cell(r, col, value=val)
                 cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
@@ -1983,11 +1992,31 @@ def export_results_excel(test_id):
 
         total_rows = len(results) + len(extra_sids)
 
+        # ✅ متوسط التغيّر لكل من أكمل الاختبارين الاثنين (ارتفاع/انخفاض المستوى عموماً)
+        summary_row = None
+        if paired_test and all_diffs:
+            avg_diff = round(sum(all_diffs) / len(all_diffs), 1)
+            improved = sum(1 for d in all_diffs if d > 0)
+            declined = sum(1 for d in all_diffs if d < 0)
+            unchanged = sum(1 for d in all_diffs if d == 0)
+            summary_row = total_rows + 2
+            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=len(headers))
+            sc = ws.cell(summary_row, 1)
+            sc.value = (
+                f'📊 متوسط التغيّر لكل من أكمل الاختبارين ({len(all_diffs)} طالب): '
+                f'{"+" if avg_diff > 0 else ""}{avg_diff}%  —  '
+                f'📈 تحسّن: {improved}  |  📉 تراجع: {declined}  |  ➖ ثابت: {unchanged}'
+            )
+            sc.font = Font(bold=True, size=11, color='FFFFFF')
+            sc.fill = PatternFill('solid', fgColor='0D9488')
+            sc.alignment = Alignment(horizontal='center', vertical='center')
+            ws.row_dimensions[summary_row].height = 22
+
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
 
         # صف المصدر (نفس تذييل بقية تقارير التطبيق)
-        footer_row1 = total_rows + 3
+        footer_row1 = (summary_row + 2) if summary_row else total_rows + 3
         ws.merge_cells(start_row=footer_row1, start_column=1, end_row=footer_row1, end_column=len(headers))
         fc1 = ws.cell(footer_row1, 1)
         fc1.value = f'⚗️  تم استخراج هذا التقرير من تطبيق كيم تحصيلي  |  منصة تعليمية للكيمياء  |  جميع الحقوق محفوظة © {datetime.now().year}'
