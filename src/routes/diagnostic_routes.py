@@ -1941,6 +1941,7 @@ def export_results_excel(test_id):
             return '➖ 0%'
 
         all_diffs = []  # لحساب متوسط التغيّر لكل من أكمل الاختبارين
+        chart_rows = []  # (اسم الطالب, نسبة القبلي, نسبة البعدي) — لمن أكمل الاثنين، لرسم الأعمدة
 
         existing_sids = set()
         r = 2
@@ -1964,6 +1965,12 @@ def export_results_excel(test_id):
                 diff = _raw_diff(sid, res.status, res.percentage)
                 if diff is not None:
                     all_diffs.append(diff)
+                    name = student.name if student else f'طالب #{sid}'
+                    if test.test_type == 'post_test':
+                        pre_pct, post_pct = other_pct_by_sid[sid], res.percentage or 0
+                    else:
+                        pre_pct, post_pct = res.percentage or 0, other_pct_by_sid[sid]
+                    chart_rows.append((name, round(pre_pct, 1), round(post_pct, 1)))
                 row.append(_change_label(diff))
             for col, val in enumerate(row, 1):
                 cell = ws.cell(r, col, value=val)
@@ -2067,6 +2074,46 @@ def export_results_excel(test_id):
             fc2.fill = PatternFill('solid', fgColor='F1F5F9')
             ws2.row_dimensions[footer_row2].height = 18
             ws2.column_dimensions['E'].width = 30
+
+        # ✅ ورقة ثالثة: رسم أعمدة مقارنة (قبلي مقابل بعدي) لكل طالب أكمل الاختبارين
+        if paired_test and chart_rows:
+            from openpyxl.chart import BarChart, Reference
+
+            ws3 = wb.create_sheet('مقارنة قبلي وبعدي')
+            ws3.sheet_view.rightToLeft = True
+            headers3 = ['الطالب', 'القبلي %', 'البعدي %']
+            for col, h in enumerate(headers3, 1):
+                cell = ws3.cell(1, col, value=h)
+                cell.font = Font(bold=True, color='FFFFFF', size=11)
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+                cell.border = border
+            ws3.row_dimensions[1].height = 24
+
+            for i, (name, pre_pct, post_pct) in enumerate(chart_rows, 2):
+                for col, val in enumerate([name, pre_pct, post_pct], 1):
+                    cell = ws3.cell(i, col, value=val)
+                    cell.alignment = Alignment(horizontal='center', vertical='center', readingOrder=2)
+                    cell.border = border
+            ws3.column_dimensions['A'].width = 26
+            ws3.column_dimensions['B'].width = 14
+            ws3.column_dimensions['C'].width = 14
+
+            n = len(chart_rows)
+            chart = BarChart()
+            chart.type = 'col'
+            chart.title = 'مقارنة النسبة: القبلي مقابل البعدي لكل طالب'
+            chart.y_axis.title = 'النسبة %'
+            chart.x_axis.title = 'الطالب'
+            chart.style = 10
+            chart.height = 10
+            chart.width = max(20, n * 1.2)
+
+            data = Reference(ws3, min_col=2, max_col=3, min_row=1, max_row=n + 1)
+            cats = Reference(ws3, min_col=1, min_row=2, max_row=n + 1)
+            chart.add_data(data, titles_from_data=True)
+            chart.set_categories(cats)
+            ws3.add_chart(chart, f'E2')
 
         output = BytesIO()
         wb.save(output)
