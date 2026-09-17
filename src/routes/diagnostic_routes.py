@@ -2281,6 +2281,50 @@ def update_test(test_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@diagnostic_bp.route('/tests/<int:test_id>/extend-deadline', methods=['POST'])
+def extend_test_deadline(test_id):
+    """تمديد (أو تعديل) وقت تسليم الاختبار فقط — بدون المساس بالطلاب المعيّنين
+    أو مدة الاختبار أو أي إعداد ثاني. اختياري: إشعار الطلاب اللي لسه ما أكملوا"""
+    try:
+        caller = _identify_caller()
+        if caller is None:
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 401
+
+        test = DiagnosticTest.query.get(test_id)
+        if not test:
+            return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+
+        data = request.get_json(silent=True) or {}
+        new_end = data.get('scheduled_end')
+        if not new_end:
+            return jsonify({'success': False, 'error': 'scheduled_end مطلوب'}), 400
+
+        test.scheduled_end = convert_saudi_to_utc(new_end)
+        if hasattr(test, 'update_schedule_status'):
+            test.update_schedule_status()
+        db.session.commit()
+
+        sent = 0
+        if data.get('notify'):
+            assigned_ids = set(test.assigned_students or [])
+            completed_ids = {
+                int(r.student_id) for r in DiagnosticResult.query.filter_by(
+                    diagnostic_test_id=test_id, status='completed'
+                ).all() if r.student_id and str(r.student_id).isdigit()
+            }
+            pending_ids = assigned_ids - completed_ids
+            if pending_ids:
+                title = '⏳ تم تمديد وقت تسليم الاختبار'
+                message = f'تم تمديد الموعد النهائي لاختبار "{test.title}" التشخيصي — لسه عندك فرصة تحله!'
+                sent = _send_bulk_notification(pending_ids, title, message, test.id, notification_type='reminder')
+
+        return jsonify({'success': True, 'sent_count': sent, 'test': test.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error extending test deadline: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @diagnostic_bp.route('/tests/<int:test_id>', methods=['DELETE'])
 @login_required
 @admin_required
