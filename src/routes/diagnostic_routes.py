@@ -1719,8 +1719,8 @@ def notify_completed_students(test_id):
             if ai_text:
                 # ✅ نفس التحليل اللي ولّده AI وقت التسليم (بدون أي تكلفة إضافية) — مخصص فعلياً
                 # (بدون ذكر "الذكاء الاصطناعي" صراحة للطالب — يحس إنه تحليل شخصي)
-                title = '📊 تحليل أدائك'
-                message = f'اختبار "{test.title}" — نتيجتك {pct}%\n\n{ai_text}'
+                title = f'📊 تحليل أدائك في الاختبار التشخيصي "{test.title}"'
+                message = f'نتيجتك {pct}%\n\n{ai_text}'
             elif pct >= 90:
                 title = '🌟 أداء ممتاز!'
                 message = f'أداء ممتاز! 🌟 حصلت {pct}% في اختبار "{test.title}". استمر بهذا التميز!'
