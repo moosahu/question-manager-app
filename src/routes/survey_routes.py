@@ -344,12 +344,13 @@ def admin_candidates():
         ctype = request.args.get('type')
         q = (request.args.get('q') or '').strip()
         if ctype == 'student':
-            query = Student.query.filter_by(is_active=True)
+            # is_active != False (مو filter_by(is_active=True)) عشان يشمل صفوف قديمة قيمتها NULL بدل ما تُستبعد
+            query = Student.query.filter(Student.is_active != False)  # noqa: E712
             if q:
                 query = query.filter(Student.name.ilike(f'%{q}%'))
             items = query.order_by(Student.name).limit(30).all()
         elif ctype == 'teacher':
-            query = Teacher.query.filter_by(is_active=True)
+            query = Teacher.query.filter(Teacher.is_active != False)  # noqa: E712
             if q:
                 query = query.filter(Teacher.name.ilike(f'%{q}%'))
             items = query.order_by(Teacher.name).limit(30).all()
