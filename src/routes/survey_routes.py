@@ -242,8 +242,9 @@ def admin_candidates():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _notify_targets(survey):
-    """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'"""
+def _notify_targets(survey, restrict_ids=None):
+    """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'
+    restrict_ids: لو معبّى، يرسل بس لهالمعرّفات (تُستخدم من زر 'إرسال لمن لم يجاوب')"""
     sent = 0
     try:
         if survey.target_type in ('student', 'my_students'):
@@ -258,6 +259,8 @@ def _notify_targets(survey):
                 student_ids = list(survey.target_ids or [])
             else:
                 student_ids = [l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()]
+            if restrict_ids is not None:
+                student_ids = [sid for sid in student_ids if sid in restrict_ids]
 
             title = f'📋 استبيان: {survey.title}'
             message = survey.description or 'وصلك استبيان جديد — عبّئه من التطبيق.'
@@ -288,7 +291,10 @@ def _notify_targets(survey):
                 from models.teacher_notification import TeacherNotification
             title = f'📋 استبيان: {survey.title}'
             message = survey.description or 'وصلك استبيان جديد — عبّئه من التطبيق.'
-            for tid in (survey.target_ids or []):
+            teacher_ids = list(survey.target_ids or [])
+            if restrict_ids is not None:
+                teacher_ids = [tid for tid in teacher_ids if tid in restrict_ids]
+            for tid in teacher_ids:
                 TeacherNotification.create(teacher_id=tid, title=title, message=message, type='survey')
                 sent += 1
     except Exception:
@@ -306,6 +312,33 @@ def admin_notify(survey_id):
             return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
         sent = _notify_targets(survey)
         return jsonify({'success': True, 'sent': sent})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@survey_bp.route('/admin/<int:survey_id>/notify-pending', methods=['POST'])
+@login_required
+@admin_required
+def admin_notify_pending(survey_id):
+    """يرسل إشعار بس لمن لسه ما جاوب من الجمهور المستهدَف — نفس فكرة 'تذكير لمن لم يكمل' بالاختبار التشخيصي"""
+    try:
+        survey = _get_owned_survey(survey_id)
+        if not survey:
+            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
+        if survey.target_type == 'all':
+            return jsonify({'success': False, 'error': 'الاستهداف "الكل" ما له قائمة مستلمين محددة نقدر نحسب منها لمن لم يجاوب'}), 400
+
+        _, audience = _survey_audience(survey)
+        if not audience:
+            return jsonify({'success': True, 'sent': 0})
+
+        answered_ids = {r.respondent_id for r in SurveyResponse.query.filter_by(survey_id=survey.id).all()}
+        pending_ids = {aid for aid, _ in audience if aid not in answered_ids}
+        if not pending_ids:
+            return jsonify({'success': True, 'sent': 0, 'message': 'الكل جاوب بالفعل'})
+
+        sent = _notify_targets(survey, restrict_ids=pending_ids)
+        return jsonify({'success': True, 'sent': sent, 'pending_count': len(pending_ids)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

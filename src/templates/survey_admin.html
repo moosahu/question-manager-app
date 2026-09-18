@@ -179,7 +179,8 @@ function renderSurveyRow(s) {
       </div>
       <div class="actions">
         <button class="btn-outline btn btn-sm" data-act="results">📊 النتائج</button>
-        <button class="btn-outline btn btn-sm" data-act="notify">🔔 إرسال إشعار</button>
+        <button class="btn-outline btn btn-sm" data-act="notify">🔔 إرسال للكل</button>
+        ${s.target_type !== 'all' ? '<button class="btn-outline btn btn-sm" data-act="notify-pending">🔔 لمن لم يجاوب</button>' : ''}
         <button class="btn-outline btn btn-sm" data-act="excel">📥 Excel</button>
         <button class="btn-outline btn btn-sm" data-act="spss">📊 SPSS</button>
         <button class="btn-outline btn btn-sm" data-act="toggle">${s.status === 'active' ? '⏸ إغلاق' : '▶️ إعادة تفعيل'}</button>
@@ -190,6 +191,7 @@ function renderSurveyRow(s) {
   `);
   row.querySelector('[data-act="results"]').onclick = () => showResults(s.id, s.title);
   row.querySelector('[data-act="notify"]').onclick = () => notifySurvey(s.id, row);
+  row.querySelector('[data-act="notify-pending"]')?.addEventListener('click', () => notifyPending(s.id, row));
   row.querySelector('[data-act="excel"]').onclick = () => window.open(`${API}/admin/${s.id}/export-excel`, '_blank');
   row.querySelector('[data-act="spss"]').onclick = () => window.open(`${API}/admin/${s.id}/export-spss`, '_blank');
   row.querySelector('[data-act="toggle"]').onclick = () => toggleStatus(s.id, s.status);
@@ -205,6 +207,19 @@ async function notifySurvey(id, row) {
     const data = await res.json();
     if (data.success) { msgEl.className = 'msg ok'; msgEl.textContent = `تم إرسال ${data.sent} إشعار push`; }
     else { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; }
+  } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
+}
+
+async function notifyPending(id, row) {
+  const msgEl = row.querySelector('[data-role="rowmsg"]');
+  msgEl.className = 'msg'; msgEl.textContent = 'جارِ الإرسال...';
+  try {
+    const res = await fetch(`${API}/admin/${id}/notify-pending`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.className = 'msg ok';
+      msgEl.textContent = data.message || `تم إرسال تذكير لـ${data.pending_count ?? data.sent} ممن لم يجاوب بعد`;
+    } else { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; }
   } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
 }
 
