@@ -85,13 +85,20 @@ def _validate_questions(questions_data):
             if len(options) < 2:
                 return None, f'السؤال رقم {i + 1} (اختيار متعدد) يحتاج خيارين على الأقل'
         rating_max = None
+        rating_min_label = None
+        rating_max_label = None
         if qtype == 'rating':
             try:
                 rating_max = int(q.get('rating_max') or 5)
             except (TypeError, ValueError):
                 rating_max = 5
             rating_max = max(3, min(10, rating_max))
-        cleaned.append({'text': text, 'type': qtype, 'options': options, 'rating_max': rating_max})
+            rating_min_label = (q.get('rating_min_label') or '').strip()[:100] or None
+            rating_max_label = (q.get('rating_max_label') or '').strip()[:100] or None
+        cleaned.append({
+            'text': text, 'type': qtype, 'options': options, 'rating_max': rating_max,
+            'rating_min_label': rating_min_label, 'rating_max_label': rating_max_label,
+        })
     return cleaned, None
 
 
@@ -152,6 +159,7 @@ def admin_create():
             db.session.add(SurveyQuestion(
                 survey_id=survey.id, order=i, text=q['text'], type=q['type'],
                 options=q['options'], rating_max=q['rating_max'],
+                rating_min_label=q['rating_min_label'], rating_max_label=q['rating_max_label'],
             ))
         db.session.commit()
         return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True)})

@@ -303,23 +303,52 @@ function addQuestion() {
   renderQuestionExtra(card, 'choice');
 }
 
+const LIKERT_5 = ['موافق بشدة', 'موافق', 'محايد', 'غير موافق', 'غير موافق بشدة'];
+const LIKERT_3 = ['موافق', 'محايد', 'غير موافق'];
+
 function renderQuestionExtra(card, type) {
   const extra = card.querySelector('.q-extra');
   if (type === 'choice') {
     extra.innerHTML = '';
     for (let i = 0; i < 2; i++) addOptionRow(extra);
-    const addBtn = el('<button class="tiny-btn" style="margin-top:6px;">+ خيار</button>');
+    const addBtn = el('<button type="button" class="tiny-btn" style="margin-top:6px;">+ خيار</button>');
     addBtn.onclick = () => addOptionRow(extra, addBtn);
     extra.appendChild(addBtn);
+
+    const presetWrap = el('<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"></div>');
+    const btn5 = el('<button type="button" class="tiny-btn">📋 مقياس ليكرت خماسي</button>');
+    btn5.onclick = () => applyLikertPreset(card, extra, LIKERT_5);
+    const btn3 = el('<button type="button" class="tiny-btn">📋 مقياس ليكرت ثلاثي</button>');
+    btn3.onclick = () => applyLikertPreset(card, extra, LIKERT_3);
+    presetWrap.appendChild(btn5);
+    presetWrap.appendChild(btn3);
+    extra.appendChild(presetWrap);
   } else if (type === 'rating') {
-    extra.innerHTML = `<label style="margin-top:8px;">أعلى تقييم</label><select class="q-rating-max"><option value="5">5</option><option value="10">10</option></select>`;
+    extra.innerHTML = `
+      <label style="margin-top:8px;">أعلى تقييم</label>
+      <select class="q-rating-max"><option value="5">5</option><option value="10">10</option></select>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <div style="flex:1;"><label>تسمية أقل رقم (اختياري)</label><input type="text" class="q-rating-min-label" placeholder="مثال: غير موافق"></div>
+        <div style="flex:1;"><label>تسمية أعلى رقم (اختياري)</label><input type="text" class="q-rating-max-label" placeholder="مثال: موافق بشدة"></div>
+      </div>
+    `;
   } else {
     extra.innerHTML = '';
   }
 }
 
+function applyLikertPreset(card, extra, texts) {
+  extra.querySelectorAll('.q-opt-row').forEach(row => row.remove());
+  const addBtn = extra.querySelector('button.tiny-btn:not(.danger)');
+  texts.forEach(t => {
+    const row = el(`<div class="q-opt-row"><input type="text" class="q-option" placeholder="نص الخيار" value="${t}"><button type="button" class="tiny-btn danger">×</button></div>`);
+    row.querySelector('button').onclick = () => row.remove();
+    extra.insertBefore(row, addBtn);
+  });
+}
+
 function addOptionRow(extra, before) {
-  const row = el(`<div class="q-opt-row"><input type="text" class="q-option" placeholder="نص الخيار"><button class="tiny-btn danger">×</button></div>`);
+  const row = el(`<div class="q-opt-row"><input type="text" class="q-option" placeholder="نص الخيار"><button type="button" class="tiny-btn danger">×</button></div>`);
   row.querySelector('button').onclick = () => row.remove();
   if (before) extra.insertBefore(row, before); else extra.appendChild(row);
 }
@@ -335,6 +364,8 @@ function collectQuestions() {
       q.options = Array.from(card.querySelectorAll('.q-option')).map(i => i.value.trim()).filter(Boolean);
     } else if (type === 'rating') {
       q.rating_max = parseInt(card.querySelector('.q-rating-max').value, 10);
+      q.rating_min_label = card.querySelector('.q-rating-min-label').value.trim();
+      q.rating_max_label = card.querySelector('.q-rating-max-label').value.trim();
     }
     out.push(q);
   });
@@ -422,7 +453,10 @@ function renderResults(results) {
         html += `<div class="bar-row"><span class="label">${opt}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><span>${n}</span></div>`;
       });
     } else if (q.question.type === 'rating') {
-      html += `<p style="font-size:13px;">المتوسط: <b>${q.average}</b> من ${q.question.rating_max} (${q.count} رد)</p>`;
+      const scaleLabel = (q.question.rating_min_label || q.question.rating_max_label)
+        ? `<div class="meta" style="color:#9ca3af;font-size:11px;">1 = ${q.question.rating_min_label || '—'} &nbsp;•&nbsp; ${q.question.rating_max} = ${q.question.rating_max_label || '—'}</div>`
+        : '';
+      html += `<p style="font-size:13px;">المتوسط: <b>${q.average}</b> من ${q.question.rating_max} (${q.count} رد)</p>${scaleLabel}`;
     } else if (q.question.type === 'text') {
       if (!q.texts.length) html += `<p style="color:#9ca3af;font-size:12px;">ما فيه إجابات بعد</p>`;
       q.texts.forEach(t => {

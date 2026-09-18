@@ -64,6 +64,8 @@ class SurveyQuestion(db.Model):
     type = db.Column(db.String(20), nullable=False, default='choice')  # choice/text/rating/yesno
     options = db.Column(db.JSON, nullable=True)  # قائمة نصوص — لنوع choice فقط
     rating_max = db.Column(db.Integer, nullable=True, default=5)  # لنوع rating فقط
+    rating_min_label = db.Column(db.String(100), nullable=True)  # توضيح معنى أقل رقم (مثال: "غير موافق") — اختياري
+    rating_max_label = db.Column(db.String(100), nullable=True)  # توضيح معنى أعلى رقم (مثال: "موافق تماماً") — اختياري
 
     def to_dict(self):
         return {
@@ -73,6 +75,8 @@ class SurveyQuestion(db.Model):
             'type': self.type,
             'options': self.options or [],
             'rating_max': self.rating_max or 5,
+            'rating_min_label': self.rating_min_label or '',
+            'rating_max_label': self.rating_max_label or '',
         }
 
 
