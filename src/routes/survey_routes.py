@@ -6,6 +6,8 @@ from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime
 from io import BytesIO
+import json
+import re
 
 try:
     from src.extensions import db
@@ -165,6 +167,122 @@ def admin_create():
         return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True)})
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+_AI_SURVEY_PROMPT = """أنت خبير في تصميم الاستبيانات العلمية (منهجية البحث العلمي). صمّم استبياناً حول الموضوع التالي باللغة العربية الفصحى الواضحة.
+
+الموضوع: {topic}
+{audience_line}
+{extra_line}
+عدد الأسئلة المطلوب تقريباً: {count}
+
+التزم بأسس التصميم العلمي للاستبيانات:
+- صياغة كل سؤال بشكل محايد وواضح، بدون توجيه إجابة معينة (تجنّب الأسئلة الموحية/الموجِّهة).
+- تجنّب الأسئلة المزدوجة (اللي تسأل عن شيئين مختلفين بسؤال واحد).
+- رتّب الأسئلة من العام إلى الخاص بتسلسل منطقي.
+- استخدم مقياس ليكرت خماسي متوازن (نفس عدد درجات الموافقة والرفض) للأسئلة الاتجاهية/الرأي، بالضبط بهالترتيب: ["موافق بشدة","موافق","محايد","غير موافق","غير موافق بشدة"] — بنوع "choice".
+- استخدم نوع "rating" (تقييم رقمي 1-5 أو 1-10) بس لو الموضوع يحتاج تقييم كمّي لشدة/جودة/مستوى شيء معيّن، وحدد فيه دايماً rating_min_label وrating_max_label يوضّحون طرفي المقياس.
+- استخدم نوع "yesno" للأسئلة الثنائية الواضحة بس (نعم/لا فقط، بدون درجات وسط).
+- اختم الاستبيان بسؤال نص حر (type: "text") واحد بس لملاحظات إضافية اختيارية.
+- لا تكرر نفس الفكرة بسؤالين مختلفين، ولا تكتب أي مقدّمة أو خاتمة نصية خارج الأسئلة.
+
+أعد النتيجة **JSON فقط بدون أي نص إضافي قبله أو بعده ولا داخل ```**، بالضبط بهذا الشكل:
+{{
+  "title": "عنوان مقترح مختصر للاستبيان",
+  "description": "وصف مختصر (سطر واحد) يظهر للمستجيب قبل الأسئلة",
+  "questions": [
+    {{"text": "نص السؤال", "type": "choice", "options": ["خيار1", "خيار2"]}},
+    {{"text": "نص السؤال", "type": "rating", "rating_max": 5, "rating_min_label": "...", "rating_max_label": "..."}},
+    {{"text": "نص السؤال", "type": "yesno"}},
+    {{"text": "نص السؤال", "type": "text"}}
+  ]
+}}"""
+
+
+def _extract_json_object(text):
+    """يستخرج أول كائن JSON من نص رد الذكاء الاصطناعي — يتحمّل ```json fences``` أو نص زائد حوله"""
+    cleaned = (text or '').strip()
+    fence_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', cleaned, re.DOTALL)
+    if fence_match:
+        cleaned = fence_match.group(1)
+    else:
+        start = cleaned.find('{')
+        end = cleaned.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            cleaned = cleaned[start:end + 1]
+    return json.loads(cleaned)
+
+
+@survey_bp.route('/admin/generate-ai', methods=['POST'])
+@login_required
+@admin_required
+def admin_generate_ai():
+    """يولّد مسودة أسئلة استبيان بالذكاء الاصطناعي حسب موضوع يكتبه الأدمن — مسودة قابلة للتعديل، ما تُنشئ استبياناً مباشرة"""
+    try:
+        data = request.get_json() or {}
+        topic = (data.get('topic') or '').strip()
+        if not topic:
+            return jsonify({'success': False, 'error': 'الموضوع مطلوب'}), 400
+
+        audience = data.get('audience') or ''
+        audience_line = {
+            'student': 'الفئة المستهدفة: طلاب.',
+            'teacher': 'الفئة المستهدفة: معلمون.',
+        }.get(audience, '')
+        extra = (data.get('notes') or '').strip()
+        extra_line = f'ملاحظات إضافية من مُنشئ الاستبيان: {extra}' if extra else ''
+
+        try:
+            count = max(3, min(15, int(data.get('question_count') or 8)))
+        except (TypeError, ValueError):
+            count = 8
+
+        try:
+            from src.services.claude_client import claude_key_manager
+        except ImportError:  # pragma: no cover
+            from services.claude_client import claude_key_manager
+
+        client = claude_key_manager.get_client()
+        if not client:
+            return jsonify({'success': False, 'error': 'خدمة الذكاء الاصطناعي غير متاحة حالياً (مفتاح API غير مضبوط)'}), 503
+
+        prompt = _AI_SURVEY_PROMPT.format(
+            topic=topic, audience_line=audience_line, extra_line=extra_line, count=count,
+        )
+
+        def _call():
+            response = client.messages.create(
+                model='claude-sonnet-4-6', max_tokens=3000,
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            return response.content[0].text
+
+        try:
+            text = _call()
+        except Exception as e:
+            if claude_key_manager.is_quota_error(str(e)) and claude_key_manager.rotate_key():
+                client = claude_key_manager.get_client()
+                text = _call()
+            else:
+                raise
+
+        try:
+            parsed = _extract_json_object(text)
+        except (json.JSONDecodeError, ValueError):
+            return jsonify({'success': False, 'error': 'تعذّر قراءة رد الذكاء الاصطناعي — جرّب مرة ثانية'}), 500
+
+        cleaned_questions, err = _validate_questions(parsed.get('questions'))
+        if err:
+            return jsonify({'success': False, 'error': f'رد الذكاء الاصطناعي غير مكتمل: {err} — جرّب مرة ثانية'}), 500
+
+        return jsonify({
+            'success': True,
+            'title': (parsed.get('title') or topic).strip()[:200],
+            'description': (parsed.get('description') or '').strip()[:500],
+            'questions': cleaned_questions,
+        })
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

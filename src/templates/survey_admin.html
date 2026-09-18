@@ -92,6 +92,27 @@
 <div id="builderOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box" style="max-width:720px;">
     <h3>استبيان جديد</h3>
+
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px;margin-bottom:14px;">
+      <label style="margin-top:0;">🪄 توليد أسئلة بالذكاء الاصطناعي (اختياري)</label>
+      <input type="text" id="aiTopic" placeholder="اكتب الموضوع، مثال: رضا الطلاب عن طريقة شرح مادة الكيمياء">
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <select id="aiAudience" style="flex:1;">
+          <option value="">أي فئة</option>
+          <option value="student">طلاب</option>
+          <option value="teacher">معلمون</option>
+        </select>
+        <select id="aiCount" style="flex:1;">
+          <option value="5">5 أسئلة</option>
+          <option value="8" selected>8 أسئلة</option>
+          <option value="12">12 سؤال</option>
+        </select>
+      </div>
+      <input type="text" id="aiNotes" placeholder="ملاحظات إضافية (اختياري)" style="margin-top:8px;">
+      <button class="btn btn-sm" style="margin-top:8px;" onclick="generateWithAI()" id="aiGenerateBtn">🪄 توليد الأسئلة</button>
+      <div class="msg" id="aiMsg"></div>
+    </div>
+
     <label>العنوان</label>
     <input type="text" id="svTitle" placeholder="مثال: رضا الطلاب عن المذاكرة">
     <label>الوصف (اختياري)</label>
@@ -356,6 +377,11 @@ function openBuilder() {
   document.getElementById('svAnon').checked = false;
   document.getElementById('svTarget').value = 'all';
   document.getElementById('builderMsg').textContent = '';
+  document.getElementById('aiTopic').value = '';
+  document.getElementById('aiAudience').value = '';
+  document.getElementById('aiCount').value = '8';
+  document.getElementById('aiNotes').value = '';
+  document.getElementById('aiMsg').textContent = '';
   document.getElementById('questionsWrap').innerHTML = '';
   selectedCandidates = [];
   renderChips();
@@ -407,13 +433,14 @@ function renderChips() {
   });
 }
 
-function addQuestion() {
+function addQuestion(prefill) {
   qCounter += 1;
   const qid = qCounter;
+  const type = (prefill && prefill.type) || 'choice';
   const card = el(`
     <div class="q-card" data-qid="${qid}">
       <div class="q-top">
-        <input type="text" placeholder="نص السؤال" class="q-text" style="flex:1;">
+        <input type="text" placeholder="نص السؤال" class="q-text" style="flex:1;" value="${prefill ? (prefill.text || '').replace(/"/g, '&quot;') : ''}">
         <select class="q-type" style="width:150px;">
           <option value="choice">اختيار متعدد</option>
           <option value="text">نص حر</option>
@@ -425,9 +452,63 @@ function addQuestion() {
       <div class="q-extra"></div>
     </div>
   `);
+  card.querySelector('.q-type').value = type;
   card.querySelector('.q-type').onchange = (e) => renderQuestionExtra(card, e.target.value);
   document.getElementById('questionsWrap').appendChild(card);
-  renderQuestionExtra(card, 'choice');
+  renderQuestionExtra(card, type);
+
+  if (prefill && type === 'choice' && prefill.options && prefill.options.length) {
+    const extra = card.querySelector('.q-extra');
+    extra.querySelectorAll('.q-opt-row').forEach(r => r.remove());
+    const addBtn = extra.querySelector('button.tiny-btn:not(.danger)');
+    prefill.options.forEach(opt => {
+      const row = el(`<div class="q-opt-row"><input type="text" class="q-option" placeholder="نص الخيار" value="${(opt || '').replace(/"/g, '&quot;')}"><button type="button" class="tiny-btn danger">×</button></div>`);
+      row.querySelector('button').onclick = () => row.remove();
+      extra.insertBefore(row, addBtn);
+    });
+  } else if (prefill && type === 'rating') {
+    card.querySelector('.q-rating-max').value = String(prefill.rating_max || 5);
+    card.querySelector('.q-rating-min-label').value = prefill.rating_min_label || '';
+    card.querySelector('.q-rating-max-label').value = prefill.rating_max_label || '';
+  }
+}
+
+async function generateWithAI() {
+  const topic = document.getElementById('aiTopic').value.trim();
+  const msgEl = document.getElementById('aiMsg');
+  if (!topic) { msgEl.className = 'msg err'; msgEl.textContent = 'اكتب الموضوع أول'; return; }
+
+  const btn = document.getElementById('aiGenerateBtn');
+  btn.disabled = true;
+  msgEl.className = 'msg'; msgEl.textContent = 'جارِ التوليد... قد يأخذ لحظات';
+
+  try {
+    const res = await fetch(`${API}/admin/generate-ai`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        audience: document.getElementById('aiAudience').value,
+        question_count: parseInt(document.getElementById('aiCount').value, 10),
+        notes: document.getElementById('aiNotes').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; return; }
+
+    if (!document.getElementById('svTitle').value.trim()) document.getElementById('svTitle').value = data.title || '';
+    if (!document.getElementById('svDesc').value.trim()) document.getElementById('svDesc').value = data.description || '';
+
+    document.getElementById('questionsWrap').innerHTML = '';
+    qCounter = 0;
+    (data.questions || []).forEach(q => addQuestion(q));
+
+    msgEl.className = 'msg ok';
+    msgEl.textContent = `تم توليد ${(data.questions || []).length} سؤال — راجعها وعدّل قبل الإرسال`;
+  } catch (e) {
+    msgEl.className = 'msg err'; msgEl.textContent = e;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 const LIKERT_5 = ['موافق بشدة', 'موافق', 'محايد', 'غير موافق', 'غير موافق بشدة'];
