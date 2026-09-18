@@ -495,6 +495,96 @@ def admin_export_excel(survey_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _survey_dataframe(survey):
+    """يبني DataFrame + تسميات المتغيرات/القيم لتصدير SPSS — عمود لكل سؤال (Q1, Q2...)، ترميز رقمي لأسئلة الاختيار/نعم-لا"""
+    import pandas as pd
+
+    questions = survey.questions
+    responses = SurveyResponse.query.filter_by(survey_id=survey.id).order_by(SurveyResponse.submitted_at).all()
+
+    name_lookup = {}
+    if not survey.is_anonymous:
+        Model = Teacher if survey.target_type == 'teacher' else Student
+        ids = [r.respondent_id for r in responses]
+        rows = Model.query.filter(Model.id.in_(ids)).all() if ids else []
+        name_lookup = {r.id: r.name for r in rows}
+
+    id_col = 'respondent_name' if not survey.is_anonymous else 'respondent_no'
+    rows_data = []
+    for idx, resp in enumerate(responses, start=1):
+        row = {id_col: (name_lookup.get(resp.respondent_id, f'#{resp.respondent_id}') if not survey.is_anonymous else idx)}
+        answers_by_q = {a.question_id: a for a in resp.answers}
+        for qi, q in enumerate(questions, start=1):
+            varname = f'Q{qi}'
+            a = answers_by_q.get(q.id)
+            if q.type == 'text':
+                row[varname] = (a.answer_text if a else '') or ''
+            elif q.type == 'rating':
+                row[varname] = a.answer_rating if (a and a.answer_rating is not None) else None
+            else:
+                options = q.options if q.type == 'choice' else ['نعم', 'لا']
+                code = None
+                if a and a.answer_choice in (options or []):
+                    code = options.index(a.answer_choice) + 1
+                row[varname] = code
+        rows_data.append(row)
+
+    columns = [id_col] + [f'Q{i}' for i in range(1, len(questions) + 1)]
+    df = pd.DataFrame(rows_data, columns=columns)
+
+    variable_labels = {id_col: 'اسم المستجيب' if not survey.is_anonymous else 'رقم الرد'}
+    value_labels = {}
+    for qi, q in enumerate(questions, start=1):
+        varname = f'Q{qi}'
+        variable_labels[varname] = q.text[:255]
+        if q.type == 'choice':
+            value_labels[varname] = {i + 1: opt for i, opt in enumerate(q.options or [])}
+        elif q.type == 'yesno':
+            value_labels[varname] = {1: 'نعم', 2: 'لا'}
+
+    return df, variable_labels, value_labels
+
+
+@survey_bp.route('/admin/<int:survey_id>/export-spss', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_spss(survey_id):
+    """تصدير ملف .sav متوافق مع SPSS مباشرة — ترميز رقمي + تسميات متغيرات/قيم مضمّنة"""
+    try:
+        survey = _get_owned_survey(survey_id)
+        if not survey:
+            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
+
+        import os
+        import uuid
+        import tempfile
+        import pyreadstat
+
+        df, variable_labels, value_labels = _survey_dataframe(survey)
+
+        tmp_path = os.path.join(tempfile.gettempdir(), f'survey_spss_{uuid.uuid4().hex}.sav')
+        try:
+            pyreadstat.write_sav(
+                df, tmp_path,
+                column_labels=[variable_labels.get(c, c) for c in df.columns],
+                variable_value_labels=value_labels,
+            )
+            with open(tmp_path, 'rb') as f:
+                data = f.read()
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+        return send_file(
+            BytesIO(data), as_attachment=True, download_name=f'استبيان_{survey.id}.sav',
+            mimetype='application/octet-stream',
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ==================== الطالب ====================
 
 @survey_bp.route('/student/pending', methods=['GET'])

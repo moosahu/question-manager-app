@@ -181,6 +181,7 @@ function renderSurveyRow(s) {
         <button class="btn-outline btn btn-sm" data-act="results">📊 النتائج</button>
         <button class="btn-outline btn btn-sm" data-act="notify">🔔 إرسال إشعار</button>
         <button class="btn-outline btn btn-sm" data-act="excel">📥 Excel</button>
+        <button class="btn-outline btn btn-sm" data-act="spss">📊 SPSS</button>
         <button class="btn-outline btn btn-sm" data-act="toggle">${s.status === 'active' ? '⏸ إغلاق' : '▶️ إعادة تفعيل'}</button>
         <button class="btn-danger btn btn-sm" data-act="delete">🗑 حذف</button>
       </div>
@@ -190,6 +191,7 @@ function renderSurveyRow(s) {
   row.querySelector('[data-act="results"]').onclick = () => showResults(s.id, s.title);
   row.querySelector('[data-act="notify"]').onclick = () => notifySurvey(s.id, row);
   row.querySelector('[data-act="excel"]').onclick = () => window.open(`${API}/admin/${s.id}/export-excel`, '_blank');
+  row.querySelector('[data-act="spss"]').onclick = () => window.open(`${API}/admin/${s.id}/export-spss`, '_blank');
   row.querySelector('[data-act="toggle"]').onclick = () => toggleStatus(s.id, s.status);
   row.querySelector('[data-act="delete"]').onclick = () => deleteSurvey(s.id, row);
   return row;
