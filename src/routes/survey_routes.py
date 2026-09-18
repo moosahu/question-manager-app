@@ -242,12 +242,33 @@ def admin_candidates():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _notify_targets(survey, restrict_ids=None):
+def _notify_targets(survey, restrict_ids=None, restrict_type=None):
     """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'
-    restrict_ids: لو معبّى، يرسل بس لهالمعرّفات (تُستخدم من زر 'إرسال لمن لم يجاوب')"""
+    restrict_ids: لو معبّى، يرسل بس لهالمعرّفات (زر 'لمن لم يجاوب' أو 'شخص محدد').
+    restrict_type: 'student' أو 'teacher' — يلزم فقط لما target_type='all' مع restrict_ids (تحديد شخص بعينه
+    من قائمة عامة، لأن استهداف 'all' نفسه ما له قائمة مستلمين ثابتة نعرف نوعها)."""
     sent = 0
     try:
-        if survey.target_type in ('student', 'my_students'):
+        if survey.target_type == 'teacher':
+            base_type, base_ids = 'teacher', list(survey.target_ids or [])
+        elif survey.target_type == 'student':
+            base_type, base_ids = 'student', list(survey.target_ids or [])
+        elif survey.target_type == 'my_students':
+            base_type = 'student'
+            base_ids = [l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()]
+        else:  # 'all' — ما له قائمة مستلمين ثابتة، لازم تحديد شخص بعينه (restrict_ids + restrict_type)
+            if not restrict_ids or not restrict_type:
+                return 0
+            base_type, base_ids = restrict_type, list(restrict_ids)
+
+        final_ids = [i for i in base_ids if (restrict_ids is None or i in restrict_ids)]
+        if not final_ids:
+            return 0
+
+        title = f'📋 استبيان: {survey.title}'
+        message = survey.description or 'وصلك استبيان جديد — عبّئه من التطبيق.'
+
+        if base_type == 'student':
             try:
                 from src.models.notification import Notification, StudentNotification
                 from src.services.notification_service import NotificationService
@@ -255,16 +276,7 @@ def _notify_targets(survey, restrict_ids=None):
                 from models.notification import Notification, StudentNotification
                 from services.notification_service import NotificationService
 
-            if survey.target_type == 'student':
-                student_ids = list(survey.target_ids or [])
-            else:
-                student_ids = [l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()]
-            if restrict_ids is not None:
-                student_ids = [sid for sid in student_ids if sid in restrict_ids]
-
-            title = f'📋 استبيان: {survey.title}'
-            message = survey.description or 'وصلك استبيان جديد — عبّئه من التطبيق.'
-            for sid in student_ids:
+            for sid in final_ids:
                 notification = Notification(
                     student_id=sid, title=title, message=message, body=message,
                     type='survey', notification_type='survey',
@@ -276,25 +288,19 @@ def _notify_targets(survey, restrict_ids=None):
                 db.session.add(StudentNotification(student_id=sid, notification_id=notification.id, is_read=False))
             db.session.commit()
 
-            students = Student.query.filter(Student.id.in_(student_ids), Student.fcm_token.isnot(None)).all() if student_ids else []
+            students = Student.query.filter(Student.id.in_(final_ids), Student.fcm_token.isnot(None)).all()
             for st in students:
                 try:
                     NotificationService.send_fcm_notification(st.fcm_token, title, message, {'type': 'survey', 'survey_id': survey.id})
                     sent += 1
                 except Exception:
                     pass
-
-        elif survey.target_type == 'teacher':
+        else:
             try:
                 from src.models.teacher_notification import TeacherNotification
             except ImportError:  # pragma: no cover
                 from models.teacher_notification import TeacherNotification
-            title = f'📋 استبيان: {survey.title}'
-            message = survey.description or 'وصلك استبيان جديد — عبّئه من التطبيق.'
-            teacher_ids = list(survey.target_ids or [])
-            if restrict_ids is not None:
-                teacher_ids = [tid for tid in teacher_ids if tid in restrict_ids]
-            for tid in teacher_ids:
+            for tid in final_ids:
                 TeacherNotification.create(teacher_id=tid, title=title, message=message, type='survey')
                 sent += 1
     except Exception:
@@ -306,12 +312,40 @@ def _notify_targets(survey, restrict_ids=None):
 @login_required
 @admin_required
 def admin_notify(survey_id):
+    """يرسل للجميع (بدون body) أو لشخص واحد بعينه — body اختياري: {respondent_id, respondent_type}
+    respondent_type يلزم بس لاستهداف 'all' (تحديد شخص من بحث عام، مو من قائمة مستلمين ثابتة)"""
     try:
         survey = _get_owned_survey(survey_id)
         if not survey:
             return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
-        sent = _notify_targets(survey)
+        data = request.get_json(silent=True) or {}
+        respondent_id = data.get('respondent_id')
+        respondent_type = data.get('respondent_type')
+        if respondent_id and survey.target_type == 'all' and respondent_type not in ('student', 'teacher'):
+            return jsonify({'success': False, 'error': 'respondent_type مطلوب لاستهداف الكل'}), 400
+        restrict_ids = {int(respondent_id)} if respondent_id else None
+        sent = _notify_targets(survey, restrict_ids=restrict_ids, restrict_type=respondent_type)
         return jsonify({'success': True, 'sent': sent})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@survey_bp.route('/admin/<int:survey_id>/audience', methods=['GET'])
+@login_required
+@admin_required
+def admin_audience(survey_id):
+    """جمهور الاستبيان المستهدَف (مع مين جاوب) — لاختيار شخص محدد يُعاد إرساله له. فاضي لاستهداف 'all' (استخدم /admin/candidates بدلاً)"""
+    try:
+        survey = _get_owned_survey(survey_id)
+        if not survey:
+            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
+        if survey.target_type == 'all':
+            return jsonify({'success': True, 'target_type': 'all', 'items': []})
+
+        respondent_type, audience = _survey_audience(survey)
+        answered_ids = {r.respondent_id for r in SurveyResponse.query.filter_by(survey_id=survey.id).all()}
+        items = [{'id': aid, 'name': name, 'answered': aid in answered_ids} for aid, name in audience]
+        return jsonify({'success': True, 'target_type': survey.target_type, 'respondent_type': respondent_type, 'items': items})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

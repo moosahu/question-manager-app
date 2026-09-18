@@ -140,6 +140,27 @@
   </div>
 </div>
 
+<!-- ============ نافذة إرسال لشخص محدد ============ -->
+<div id="personPickerOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:480px;">
+    <h3>إرسال لشخص محدد</h3>
+    <div id="personPickerTypeWrap" style="display:none;">
+      <label>النوع</label>
+      <select id="personPickerType" onchange="onPersonPickerSearchInput()">
+        <option value="student">طالب</option>
+        <option value="teacher">معلم</option>
+      </select>
+    </div>
+    <label>ابحث بالاسم</label>
+    <input type="text" id="personPickerSearch" placeholder="اكتب اسم..." oninput="onPersonPickerSearchInput()">
+    <div id="personPickerResults" class="candidates-box" style="display:block;margin-top:8px;max-height:220px;"></div>
+    <div class="msg" id="personPickerMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-outline btn" onclick="closePersonPicker()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '/api/survey';
 let selectedCandidates = []; // [{id, name}]
@@ -181,6 +202,7 @@ function renderSurveyRow(s) {
         <button class="btn-outline btn btn-sm" data-act="results">📊 النتائج</button>
         <button class="btn-outline btn btn-sm" data-act="notify">🔔 إرسال للكل</button>
         ${s.target_type !== 'all' ? '<button class="btn-outline btn btn-sm" data-act="notify-pending">🔔 لمن لم يجاوب</button>' : ''}
+        <button class="btn-outline btn btn-sm" data-act="notify-person">👤 شخص محدد</button>
         <button class="btn-outline btn btn-sm" data-act="excel">📥 Excel</button>
         <button class="btn-outline btn btn-sm" data-act="spss">📊 SPSS</button>
         <button class="btn-outline btn btn-sm" data-act="toggle">${s.status === 'active' ? '⏸ إغلاق' : '▶️ إعادة تفعيل'}</button>
@@ -192,6 +214,7 @@ function renderSurveyRow(s) {
   row.querySelector('[data-act="results"]').onclick = () => showResults(s.id, s.title);
   row.querySelector('[data-act="notify"]').onclick = () => notifySurvey(s.id, row);
   row.querySelector('[data-act="notify-pending"]')?.addEventListener('click', () => notifyPending(s.id, row));
+  row.querySelector('[data-act="notify-person"]').onclick = () => openPersonPicker(s.id, s.target_type, row);
   row.querySelector('[data-act="excel"]').onclick = () => window.open(`${API}/admin/${s.id}/export-excel`, '_blank');
   row.querySelector('[data-act="spss"]').onclick = () => window.open(`${API}/admin/${s.id}/export-spss`, '_blank');
   row.querySelector('[data-act="toggle"]').onclick = () => toggleStatus(s.id, s.status);
@@ -219,6 +242,93 @@ async function notifyPending(id, row) {
     if (data.success) {
       msgEl.className = 'msg ok';
       msgEl.textContent = data.message || `تم إرسال تذكير لـ${data.pending_count ?? data.sent} ممن لم يجاوب بعد`;
+    } else { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; }
+  } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
+}
+
+// ============ إرسال لشخص محدد ============
+
+let personPickerCtx = null; // {id, targetType}
+let personPickerAudience = []; // مخزّنة محلياً لاستهداف غير 'all' (فلترة بدون طلبات شبكة إضافية)
+let personPickerSearchTimer = null;
+
+function openPersonPicker(id, targetType, row) {
+  personPickerCtx = { id, targetType };
+  personPickerAudience = [];
+  document.getElementById('personPickerMsg').textContent = '';
+  document.getElementById('personPickerSearch').value = '';
+  document.getElementById('personPickerResults').innerHTML = '';
+  document.getElementById('personPickerTypeWrap').style.display = targetType === 'all' ? 'block' : 'none';
+  document.getElementById('personPickerOverlay').style.display = 'flex';
+  if (targetType === 'all') {
+    document.getElementById('personPickerResults').innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:8px;">ابحث بالاسم لاختيار شخص</p>';
+  } else {
+    loadPersonPickerAudience(id);
+  }
+}
+
+function closePersonPicker() {
+  document.getElementById('personPickerOverlay').style.display = 'none';
+}
+
+function renderPersonPickerItems(items, onPick) {
+  const box = document.getElementById('personPickerResults');
+  box.innerHTML = '';
+  if (!items.length) {
+    box.innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:8px;">ما فيه نتائج</p>';
+    return;
+  }
+  items.forEach(it => {
+    const answeredBadge = it.answered ? ' <span style="color:#059669;">✅ جاوب</span>' : '';
+    const row = el(`<div class="candidate-item"><span>${it.name}${answeredBadge}</span><button class="tiny-btn">إرسال</button></div>`);
+    row.querySelector('button').onclick = () => onPick(it);
+    box.appendChild(row);
+  });
+}
+
+async function loadPersonPickerAudience(id) {
+  document.getElementById('personPickerResults').innerHTML = 'جارِ التحميل...';
+  try {
+    const res = await fetch(`${API}/admin/${id}/audience`);
+    const data = await res.json();
+    if (!data.success) { document.getElementById('personPickerResults').innerHTML = `<p class="msg err">${data.error}</p>`; return; }
+    personPickerAudience = data.items || [];
+    renderPersonPickerItems(personPickerAudience, (it) => sendToPerson(id, it.id, null));
+  } catch (e) {
+    document.getElementById('personPickerResults').innerHTML = `<p class="msg err">${e}</p>`;
+  }
+}
+
+function onPersonPickerSearchInput() {
+  const q = document.getElementById('personPickerSearch').value.trim();
+  if (!personPickerCtx) return;
+  if (personPickerCtx.targetType !== 'all') {
+    const filtered = q ? personPickerAudience.filter(it => it.name.includes(q)) : personPickerAudience;
+    renderPersonPickerItems(filtered, (it) => sendToPerson(personPickerCtx.id, it.id, null));
+    return;
+  }
+  clearTimeout(personPickerSearchTimer);
+  personPickerSearchTimer = setTimeout(async () => {
+    const type = document.getElementById('personPickerType').value;
+    const res = await fetch(`${API}/admin/candidates?type=${type}&q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    renderPersonPickerItems(data.success ? (data.items || []) : [], (it) => sendToPerson(personPickerCtx.id, it.id, type));
+  }, 250);
+}
+
+async function sendToPerson(id, respondentId, respondentType) {
+  const msgEl = document.getElementById('personPickerMsg');
+  msgEl.className = 'msg'; msgEl.textContent = 'جارِ الإرسال...';
+  try {
+    const body = { respondent_id: respondentId };
+    if (respondentType) body.respondent_type = respondentType;
+    const res = await fetch(`${API}/admin/${id}/notify`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.className = 'msg ok';
+      msgEl.textContent = data.sent > 0 ? 'تم الإرسال ✅' : 'تم تسجيل الإشعار (ما فيه توكن push مسجّل لهالشخص حالياً)';
     } else { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; }
   } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
 }
