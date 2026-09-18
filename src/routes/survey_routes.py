@@ -430,18 +430,27 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None):
 @login_required
 @admin_required
 def admin_notify(survey_id):
-    """يرسل للجميع (بدون body) أو لشخص واحد بعينه — body اختياري: {respondent_id, respondent_type}
-    respondent_type يلزم بس لاستهداف 'all' (تحديد شخص من بحث عام، مو من قائمة مستلمين ثابتة)"""
+    """يرسل للجميع (بدون body) أو لشخص/أشخاص محددين — body اختياري: {respondent_id أو respondent_ids, respondent_type}
+    respondent_type يلزم بس لاستهداف 'all' (تحديد أشخاص من بحث عام، مو من قائمة مستلمين ثابتة)"""
     try:
         survey = _get_owned_survey(survey_id)
         if not survey:
             return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
         data = request.get_json(silent=True) or {}
+        respondent_ids = data.get('respondent_ids')
         respondent_id = data.get('respondent_id')
         respondent_type = data.get('respondent_type')
-        if respondent_id and survey.target_type == 'all' and respondent_type not in ('student', 'teacher'):
+
+        ids = set()
+        if respondent_ids:
+            ids = {int(x) for x in respondent_ids}
+        elif respondent_id:
+            ids = {int(respondent_id)}
+
+        if ids and survey.target_type == 'all' and respondent_type not in ('student', 'teacher'):
             return jsonify({'success': False, 'error': 'respondent_type مطلوب لاستهداف الكل'}), 400
-        restrict_ids = {int(respondent_id)} if respondent_id else None
+
+        restrict_ids = ids if ids else None
         sent = _notify_targets(survey, restrict_ids=restrict_ids, restrict_type=respondent_type)
         return jsonify({'success': True, 'sent': sent})
     except Exception as e:

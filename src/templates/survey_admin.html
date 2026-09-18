@@ -54,6 +54,8 @@
   .tiny-btn.danger { background:#fee2e2; color:#b91c1c; }
 
   .candidates-box { max-height: 160px; overflow-y: auto; border: 1px solid #d1d5db; border-radius: 8px; margin-top: 6px; }
+  #aiGenerateBtn { width: 100%; background: #7c3aed !important; color: #ffffff !important; font-size: 14px; padding: 10px 16px; }
+  #aiGenerateBtn:disabled { background: #c4b5fd !important; color: #ffffff !important; cursor: not-allowed; }
   .candidate-item { display:flex; justify-content:space-between; align-items:center; padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
   .candidate-item:last-child { border-bottom: none; }
   .chip { display:inline-flex; align-items:center; gap:6px; background:#eef2ff; color:#4338ca; border-radius:999px; padding:4px 10px; font-size:12px; margin:3px 4px 0 0; }
@@ -94,7 +96,7 @@
     <h3>استبيان جديد</h3>
 
     <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px;margin-bottom:14px;">
-      <label style="margin-top:0;">🪄 توليد أسئلة بالذكاء الاصطناعي (اختياري)</label>
+      <label style="margin-top:0;">🪄 توليد الأسئلة تلقائياً (اختياري)</label>
       <input type="text" id="aiTopic" placeholder="اكتب الموضوع، مثال: رضا الطلاب عن طريقة شرح مادة الكيمياء">
       <div style="display:flex;gap:8px;margin-top:8px;">
         <select id="aiAudience" style="flex:1;">
@@ -109,7 +111,7 @@
         </select>
       </div>
       <input type="text" id="aiNotes" placeholder="ملاحظات إضافية (اختياري)" style="margin-top:8px;">
-      <button class="btn btn-sm" style="margin-top:8px;" onclick="generateWithAI()" id="aiGenerateBtn">🪄 توليد الأسئلة</button>
+      <button class="btn" style="margin-top:8px;" onclick="generateWithAI()" id="aiGenerateBtn">🪄 توليد الأسئلة</button>
       <div class="msg" id="aiMsg"></div>
     </div>
 
@@ -164,7 +166,7 @@
 <!-- ============ نافذة إرسال لشخص محدد ============ -->
 <div id="personPickerOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-box" style="max-width:480px;">
-    <h3>إرسال لشخص محدد</h3>
+    <h3>إرسال لطالب/طلاب أو معلم/معلمين محددين</h3>
     <div id="personPickerTypeWrap" style="display:none;">
       <label>النوع</label>
       <select id="personPickerType" onchange="onPersonPickerSearchInput()">
@@ -178,6 +180,7 @@
     <div class="msg" id="personPickerMsg"></div>
     <div class="modal-actions">
       <button class="btn-outline btn" onclick="closePersonPicker()">إغلاق</button>
+      <button class="btn" id="personPickerSendBtn" onclick="sendToSelectedPeople()" disabled>إرسال للمحدد (0)</button>
     </div>
   </div>
 </div>
@@ -267,22 +270,25 @@ async function notifyPending(id, row) {
   } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
 }
 
-// ============ إرسال لشخص محدد ============
+// ============ إرسال لطالب/طلاب أو معلم/معلمين محددين (اختيار متعدد) ============
 
 let personPickerCtx = null; // {id, targetType}
 let personPickerAudience = []; // مخزّنة محلياً لاستهداف غير 'all' (فلترة بدون طلبات شبكة إضافية)
 let personPickerSearchTimer = null;
+let personPickerSelected = new Map(); // id -> {name} — يبقى محفوظ عبر عمليات البحث المختلفة
 
 function openPersonPicker(id, targetType, row) {
   personPickerCtx = { id, targetType };
   personPickerAudience = [];
+  personPickerSelected = new Map();
   document.getElementById('personPickerMsg').textContent = '';
   document.getElementById('personPickerSearch').value = '';
   document.getElementById('personPickerResults').innerHTML = '';
   document.getElementById('personPickerTypeWrap').style.display = targetType === 'all' ? 'block' : 'none';
   document.getElementById('personPickerOverlay').style.display = 'flex';
+  updateSendSelectedButton();
   if (targetType === 'all') {
-    document.getElementById('personPickerResults').innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:8px;">ابحث بالاسم لاختيار شخص</p>';
+    document.getElementById('personPickerResults').innerHTML = '<p style="font-size:12px;color:#9ca3af;padding:8px;">ابحث بالاسم لاختيار شخص أو أكثر</p>';
   } else {
     loadPersonPickerAudience(id);
   }
@@ -292,7 +298,13 @@ function closePersonPicker() {
   document.getElementById('personPickerOverlay').style.display = 'none';
 }
 
-function renderPersonPickerItems(items, onPick) {
+function updateSendSelectedButton() {
+  const btn = document.getElementById('personPickerSendBtn');
+  btn.textContent = `إرسال للمحدد (${personPickerSelected.size})`;
+  btn.disabled = personPickerSelected.size === 0;
+}
+
+function renderPersonPickerItems(items) {
   const box = document.getElementById('personPickerResults');
   box.innerHTML = '';
   if (!items.length) {
@@ -301,8 +313,17 @@ function renderPersonPickerItems(items, onPick) {
   }
   items.forEach(it => {
     const answeredBadge = it.answered ? ' <span style="color:#059669;">✅ جاوب</span>' : '';
-    const row = el(`<div class="candidate-item"><span>${it.name}${answeredBadge}</span><button class="tiny-btn">إرسال</button></div>`);
-    row.querySelector('button').onclick = () => onPick(it);
+    const checked = personPickerSelected.has(it.id) ? 'checked' : '';
+    const row = el(`
+      <label class="candidate-item" style="cursor:pointer;">
+        <span><input type="checkbox" ${checked} style="margin-left:8px;vertical-align:middle;">${it.name}${answeredBadge}</span>
+      </label>
+    `);
+    row.querySelector('input').onchange = (e) => {
+      if (e.target.checked) personPickerSelected.set(it.id, { name: it.name });
+      else personPickerSelected.delete(it.id);
+      updateSendSelectedButton();
+    };
     box.appendChild(row);
   });
 }
@@ -314,7 +335,7 @@ async function loadPersonPickerAudience(id) {
     const data = await res.json();
     if (!data.success) { document.getElementById('personPickerResults').innerHTML = `<p class="msg err">${data.error}</p>`; return; }
     personPickerAudience = data.items || [];
-    renderPersonPickerItems(personPickerAudience, (it) => sendToPerson(id, it.id, null));
+    renderPersonPickerItems(personPickerAudience);
   } catch (e) {
     document.getElementById('personPickerResults').innerHTML = `<p class="msg err">${e}</p>`;
   }
@@ -325,7 +346,7 @@ function onPersonPickerSearchInput() {
   if (!personPickerCtx) return;
   if (personPickerCtx.targetType !== 'all') {
     const filtered = q ? personPickerAudience.filter(it => it.name.includes(q)) : personPickerAudience;
-    renderPersonPickerItems(filtered, (it) => sendToPerson(personPickerCtx.id, it.id, null));
+    renderPersonPickerItems(filtered);
     return;
   }
   clearTimeout(personPickerSearchTimer);
@@ -333,23 +354,27 @@ function onPersonPickerSearchInput() {
     const type = document.getElementById('personPickerType').value;
     const res = await fetch(`${API}/admin/candidates?type=${type}&q=${encodeURIComponent(q)}`);
     const data = await res.json();
-    renderPersonPickerItems(data.success ? (data.items || []) : [], (it) => sendToPerson(personPickerCtx.id, it.id, type));
+    renderPersonPickerItems(data.success ? (data.items || []) : []);
   }, 250);
 }
 
-async function sendToPerson(id, respondentId, respondentType) {
+async function sendToSelectedPeople() {
+  if (!personPickerCtx || !personPickerSelected.size) return;
   const msgEl = document.getElementById('personPickerMsg');
   msgEl.className = 'msg'; msgEl.textContent = 'جارِ الإرسال...';
   try {
-    const body = { respondent_id: respondentId };
-    if (respondentType) body.respondent_type = respondentType;
-    const res = await fetch(`${API}/admin/${id}/notify`, {
+    const body = { respondent_ids: Array.from(personPickerSelected.keys()) };
+    if (personPickerCtx.targetType === 'all') body.respondent_type = document.getElementById('personPickerType').value;
+    const res = await fetch(`${API}/admin/${personPickerCtx.id}/notify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.success) {
       msgEl.className = 'msg ok';
-      msgEl.textContent = data.sent > 0 ? 'تم الإرسال ✅' : 'تم تسجيل الإشعار (ما فيه توكن push مسجّل لهالشخص حالياً)';
+      msgEl.textContent = `تم الإرسال لـ${body.respondent_ids.length} شخص (${data.sent} إشعار push فعلي)`;
+      personPickerSelected = new Map();
+      updateSendSelectedButton();
+      onPersonPickerSearchInput();
     } else { msgEl.className = 'msg err'; msgEl.textContent = data.error || 'خطأ'; }
   } catch (e) { msgEl.className = 'msg err'; msgEl.textContent = e; }
 }
