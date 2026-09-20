@@ -3236,14 +3236,22 @@ print("🧪 Diagnostic Tests System with Scheduling - Loaded successfully!")
 
 @diagnostic_bp.route('/results', methods=['GET'])
 def get_all_results():
-    """جلب جميع النتائج"""
+    """جلب النتائج — بدون ?test_id: آخر 50 نتيجة (نظرة عامة، للتوافق القديم).
+    مع ?test_id=<id>: كل نتائج هذا الاختبار بالذات بدون أي حد أقصى (الحد الطبيعي = عدد الطلاب المستهدفين)."""
     try:
-        # جلب آخر 50 نتيجة
-        results = DiagnosticResult.query\
-            .order_by(DiagnosticResult.completed_at.desc())\
-            .limit(50)\
-            .all()
-        
+        test_id = request.args.get('test_id', type=int)
+        if test_id:
+            results = DiagnosticResult.query\
+                .filter_by(diagnostic_test_id=test_id)\
+                .order_by(DiagnosticResult.completed_at.desc())\
+                .all()
+        else:
+            # جلب آخر 50 نتيجة
+            results = DiagnosticResult.query\
+                .order_by(DiagnosticResult.completed_at.desc())\
+                .limit(50)\
+                .all()
+
         results_data = []
         for r in results:
             try:
@@ -3292,5 +3300,42 @@ def get_all_results():
         })
     except Exception as e:
         print(f"❌ Error getting results: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/results-summary', methods=['GET'])
+def get_results_summary():
+    """ملخص النتائج مجمّع حسب الاختبار (عنوان + عدد + متوسط) — لعرض قائمة اختبارات بدل كل النتائج الخام دفعة وحدة،
+    عشان تدعم زر 'ادخل على الاختبار وشوف كل نتائجه' بدون قيد الـ50 نتيجة العام"""
+    try:
+        from sqlalchemy import func
+        rows = db.session.query(
+            DiagnosticResult.diagnostic_test_id,
+            func.count(DiagnosticResult.id).label('cnt'),
+            func.avg(DiagnosticResult.percentage).label('avg_pct'),
+            func.max(DiagnosticResult.completed_at).label('last_at'),
+        ).filter(
+            DiagnosticResult.status == 'completed',
+            DiagnosticResult.diagnostic_test_id.isnot(None),
+        ).group_by(DiagnosticResult.diagnostic_test_id).all()
+
+        test_ids = [r[0] for r in rows]
+        tests_by_id = {t.id: t for t in DiagnosticTest.query.filter(DiagnosticTest.id.in_(test_ids)).all()} if test_ids else {}
+
+        summary = []
+        for test_id, cnt, avg_pct, last_at in rows:
+            test = tests_by_id.get(test_id)
+            summary.append({
+                'test_id': test_id,
+                'title': test.title if test else 'اختبار محذوف',
+                'test_type': test.test_type if test else None,
+                'results_count': cnt,
+                'avg_percentage': round(avg_pct, 1) if avg_pct is not None else None,
+                'last_completed_at': (last_at.isoformat() + 'Z') if last_at else None,
+            })
+        summary.sort(key=lambda x: x['last_completed_at'] or '', reverse=True)
+        return jsonify({'success': True, 'tests': summary})
+    except Exception as e:
+        print(f"❌ Error getting results summary: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
