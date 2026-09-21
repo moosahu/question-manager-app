@@ -3960,6 +3960,7 @@ def get_results_summary():
                 'test_id': test_id,
                 'title': test.title if test else 'اختبار محذوف',
                 'test_type': test.test_type if test else None,
+                'is_adaptive': bool(test and test.test_mode == 'adaptive'),
                 'results_count': cnt,
                 'avg_percentage': round(avg_pct, 1) if avg_pct is not None else None,
                 'last_completed_at': (last_at.isoformat() + 'Z') if last_at else None,
