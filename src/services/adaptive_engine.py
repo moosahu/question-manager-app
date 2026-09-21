@@ -3,13 +3,11 @@
 منطق الاختبار التشخيصي التكيفي (سلّم صعوبة من 3 مستويات):
 - يبدأ بمتوسط، الإجابة الصحيحة تنقل لمستوى أصعب والخاطئة لأسهل.
 - لو نفذت أسئلة المستوى المطلوب يرجع لمستوى مجاور، ولا يتكرر سؤال بنفس الجلسة.
-- يسحب فقط من أسئلة الدروس المعتمدة (human_verified=True) وغير المحجوبة.
+- يسحب فقط من أسئلة البنك المعتمدة (is_bank=True و human_verified=True)؛ الأسئلة العادية ما تدخل.
 """
 import math
 import random
 from typing import Dict, List, Optional
-
-from sqlalchemy import or_
 
 try:
     from src.extensions import db
@@ -49,9 +47,10 @@ def resolve_lesson_ids(lesson_id=None, unit_id=None, course_id=None) -> List[int
     return []
 
 
-# أسئلة بنك الـAI تنحفظ محجوبة (is_blocked=True) عشان ما تظهر للطالب/الاستخراج، فالحجب ما يُعتبر
-# بأسئلة البنك — والفلتر الفعلي لها هو human_verified (اعتماد المعلم)
-_NOT_EXCLUDED = or_(Question.is_blocked == False, Question.is_bank == True)  # noqa: E712
+# الاختبار التكيفي يسحب من أسئلة البنك فقط (is_bank=True = أسئلة الـAI المولّدة)، ولا تدخل الأسئلة
+# العادية حتى لو معتمدة. أسئلة البنك تنحفظ محجوبة (is_blocked=True) عشان ما تظهر للطالب، فالحجب
+# ما يُعتبر هنا والفلتر الفعلي لها هو human_verified (اعتماد المعلم).
+_BANK_ONLY = Question.is_bank == True  # noqa: E712
 
 
 def _pool_query(lesson_ids: List[int]):
@@ -59,7 +58,7 @@ def _pool_query(lesson_ids: List[int]):
         Question.lesson_id.in_(lesson_ids),
         Question.question_type == 'mcq',
         Question.human_verified == True,  # noqa: E712
-        _NOT_EXCLUDED,
+        _BANK_ONLY,
     )
 
 
@@ -71,7 +70,7 @@ def bank_readiness(lesson_ids: List[int], questions_count: int) -> Dict:
             Question.lesson_id.in_(lesson_ids),
             Question.question_type == 'mcq',
             Question.human_verified == True,  # noqa: E712
-            _NOT_EXCLUDED,
+            _BANK_ONLY,
         ).group_by(Question.difficulty).all()
         for difficulty, cnt in rows:
             if difficulty in counts:
