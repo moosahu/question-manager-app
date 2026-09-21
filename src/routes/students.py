@@ -1144,7 +1144,11 @@ def api_get_questions(lesson_id):
     """جلب الأسئلة للطالب"""
     try:
         from src.models.question import Question
-        questions = Question.query.filter_by(lesson_id=lesson_id).all()
+        from src.models.curriculum import Lesson
+        # أسئلة بنك الـAI (is_bank=True) ما تظهر للطالب بمنهج عادي — نفس منطق api.py
+        _lesson = Lesson.query.get(lesson_id)
+        _is_bank = bool(_lesson.unit.course.is_bank) if _lesson and _lesson.unit and _lesson.unit.course else False
+        questions = Question.query.filter_by(lesson_id=lesson_id, is_bank=_is_bank).all()
         
         result = []
         for q in questions:
@@ -1190,8 +1194,11 @@ def api_get_course_questions(course_id):
     """جلب جميع أسئلة المنهج للطالب"""
     try:
         from src.models.question import Question
-        from src.models.curriculum import Lesson, Unit
+        from src.models.curriculum import Lesson, Unit, Course
         
+        _course = Course.query.get(course_id)
+        _is_bank = bool(_course.is_bank) if _course else False
+
         # جلب جميع الوحدات في المنهج
         units = Unit.query.filter_by(course_id=course_id).all()
         unit_ids = [u.id for u in units]
@@ -1201,7 +1208,9 @@ def api_get_course_questions(course_id):
         lesson_ids = [l.id for l in lessons]
         
         # جلب جميع الأسئلة
-        questions = Question.query.filter(Question.lesson_id.in_(lesson_ids)).all()
+        questions = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids), Question.is_bank == _is_bank
+        ).all()
         
         result = []
         for q in questions:
@@ -1242,14 +1251,19 @@ def api_get_unit_questions(unit_id):
     """جلب جميع أسئلة الوحدة للطالب"""
     try:
         from src.models.question import Question
-        from src.models.curriculum import Lesson
+        from src.models.curriculum import Lesson, Unit
         
+        _unit = Unit.query.get(unit_id)
+        _is_bank = bool(_unit.course.is_bank) if _unit and _unit.course else False
+
         # جلب جميع الدروس في الوحدة
         lessons = Lesson.query.filter_by(unit_id=unit_id).all()
         lesson_ids = [l.id for l in lessons]
         
         # جلب جميع الأسئلة
-        questions = Question.query.filter(Question.lesson_id.in_(lesson_ids)).all()
+        questions = Question.query.filter(
+            Question.lesson_id.in_(lesson_ids), Question.is_bank == _is_bank
+        ).all()
         
         result = []
         for q in questions:
