@@ -737,6 +737,14 @@
                 
                 <form id="create-test-form">
                     <input type="hidden" name="test_type" id="test_type" value="pre_test">
+
+                    <div class="form-group">
+                        <label>نمط الاختبار</label>
+                        <select class="form-control" id="test_mode" onchange="onTestModeChange()">
+                            <option value="standard">عادي (أسئلة ثابتة لكل الطلاب)</option>
+                            <option value="adaptive">🎯 تكيفي (الصعوبة تتغيّر حسب إجابة الطالب)</option>
+                        </select>
+                    </div>
                     
                     <div class="form-group">
                         <label>المنهج</label>
@@ -764,7 +772,16 @@
                         <input type="number" class="form-control" id="questions_count" name="questions_count" value="5" min="3" max="20">
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" id="adaptive-box" style="display:none;">
+                        <label>الوقت الكلي (دقائق)</label>
+                        <input type="number" class="form-control" id="adaptive_time_limit" value="15" min="5" max="120">
+                        <div id="adaptive-readiness" style="margin-top:0.75rem; padding:0.75rem 1rem; border-radius:0.5rem; background:#f9fafb; border:1px solid #e5e7eb; font-size:0.9rem; color:#374151;">
+                            اختر الدرس/الوحدة/المنهج لعرض جاهزية البنك
+                        </div>
+                        <small style="color:#6b7280; display:block; margin-top:0.5rem;">الأسئلة تُسحب من البنك المعتمد فقط، ويبدأ الاختبار بمتوسط: الصح يرفع الصعوبة والغلط يخفضها. الطالب ما يشوف صح/غلط.</small>
+                    </div>
+
+                    <div class="form-group" id="diff-group">
                         <label>توزيع الصعوبة</label>
                         <div class="difficulty-inputs">
                             <div class="difficulty-input">
@@ -1046,6 +1063,52 @@
         if (targetBtn) targetBtn.classList.add('active');
         document.getElementById('test_type').value = type;
     };
+
+    // ===== نمط الاختبار (عادي / تكيفي) =====
+    function currentScopeParams() {
+        const lessonId = document.getElementById('diag_lesson_id').value;
+        const unitId = document.getElementById('diag_unit_id').value;
+        const courseId = document.getElementById('diag_course_id').value;
+        if (lessonId) return 'lesson_id=' + lessonId;
+        if (unitId) return 'unit_id=' + unitId;
+        if (courseId) return 'course_id=' + courseId;
+        return '';
+    }
+
+    window.refreshAdaptiveReadiness = async function() {
+        const box = document.getElementById('adaptive-readiness');
+        if (document.getElementById('test_mode').value !== 'adaptive') return;
+        const scope = currentScopeParams();
+        if (!scope) { box.textContent = 'اختر الدرس/الوحدة/المنهج لعرض جاهزية البنك'; return; }
+        const count = parseInt(document.getElementById('questions_count').value) || 10;
+        try {
+            const res = await fetch(`${API_BASE}/adaptive/readiness?${scope}&questions_count=${count}`);
+            const data = await res.json();
+            const r = data.readiness;
+            if (!r) { box.textContent = 'تعذّر جلب الجاهزية'; return; }
+            const c = r.counts;
+            box.innerHTML = `<strong>البنك المعتمد:</strong> سهل ${c.easy} | متوسط ${c.medium} | صعب ${c.hard} (المجموع ${r.total})<br>` +
+                (r.ready
+                    ? '<span style="color:#047857;">✅ جاهز لهذا العدد من الأسئلة</span>'
+                    : '<span style="color:#b91c1c;">⚠️ غير كافٍ: ' + r.problems.join(' — ') + '</span>');
+        } catch (e) { box.textContent = 'تعذّر جلب الجاهزية'; }
+    };
+
+    window.onTestModeChange = function() {
+        const adaptive = document.getElementById('test_mode').value === 'adaptive';
+        document.getElementById('adaptive-box').style.display = adaptive ? 'block' : 'none';
+        document.getElementById('diff-group').style.display = adaptive ? 'none' : 'block';
+        const countInput = document.getElementById('questions_count');
+        countInput.max = adaptive ? 50 : 20;
+        if (adaptive) { if (parseInt(countInput.value) < 10) countInput.value = 10; refreshAdaptiveReadiness(); }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        ['diag_course_id', 'diag_unit_id', 'diag_lesson_id', 'questions_count'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', refreshAdaptiveReadiness);
+        });
+    });
     
     // ===== Load Courses =====
     window.diagLoadCourses = async function() {
@@ -1213,6 +1276,11 @@
                 }
             };
 
+            if (document.getElementById('test_mode').value === 'adaptive') {
+                body.test_mode = 'adaptive';
+                body.time_limit_minutes = parseInt(document.getElementById('adaptive_time_limit').value) || 15;
+            }
+
             if (lessonId) body.lesson_id = parseInt(lessonId);
             else if (unitId) body.unit_id = parseInt(unitId);
             else if (courseId) body.course_id = parseInt(courseId);
@@ -1321,7 +1389,7 @@
                 tbody.innerHTML += `
                     <tr>
                         <td>${test.id}</td>
-                        <td><strong>${test.title}</strong></td>
+                        <td><strong>${test.title}</strong>${test.is_adaptive ? ' <span class="badge" style="background:#ede9fe;color:#5b21b6;">🎯 تكيفي</span>' : ''}</td>
                         <td><span class="badge ${typeClass}">${typeText}</span></td>
                         <td>${test.lesson_name || test.unit_name || '-'}</td>
                         <td>${test.questions_count}</td>
@@ -1331,12 +1399,12 @@
                                 <button class="btn btn-sm btn-info" onclick="viewTest(${test.id})" title="عرض">
                                     👁️
                                 </button>
-                                <button class="btn btn-sm btn-success" onclick="downloadPDF(${test.id}, false)" title="تحميل PDF">
+                                ${test.is_adaptive ? '' : `<button class="btn btn-sm btn-success" onclick="downloadPDF(${test.id}, false)" title="تحميل PDF">
                                     📄
                                 </button>
                                 <button class="btn btn-sm btn-warning" onclick="downloadPDF(${test.id}, true)" title="PDF مع الإجابات">
                                     📋
-                                </button>
+                                </button>`}
                                 <button class="btn btn-sm btn-outline" onclick="renameTest(${test.id}, '${test.title.replace(/'/g, "\\'")}')" title="تعديل الاسم">
                                     ✏️
                                 </button>
@@ -1459,6 +1527,15 @@
                 </p>
             `;
 
+            const diffAr = {easy: 'سهل', medium: 'متوسط', hard: 'صعب'};
+            if (data.stats.adaptive) {
+                const ad = data.stats.adaptive;
+                html += `<div style="background: #f5f3ff; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #ddd6fe;">
+                    <p style="margin: 0.25rem 0; color: #5b21b6;"><strong>🎯 المستوى المقدّر:</strong> ${ad.estimated_level_ar || '-'}</p>
+                    <p style="margin: 0.25rem 0; color: #4b5563;"><strong>مسار الصعوبة:</strong> ${(ad.path || []).map(p => (diffAr[p.difficulty] || '?') + (p.is_correct ? '✅' : '❌')).join(' ← ')}</p>
+                </div>`;
+            }
+
             if (data.stats.weak_topics.length || data.stats.strong_topics.length) {
                 html += `<div style="background: #f9fafb; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #e5e7eb;">`;
                 if (data.stats.weak_topics.length) {
@@ -1476,6 +1553,7 @@
                     <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid ${borderColor};">
                         <p style="font-weight: 600; margin-bottom: 0.75rem; color: #1f2937;">
                             س${i + 1}: ${q.question_text} ${q.is_correct ? '✅' : '❌'}
+                            ${q.difficulty ? `<span style="font-size:0.8rem;color:#6b7280;font-weight:400;">(${diffAr[q.difficulty] || q.difficulty})</span>` : ''}
                         </p>
                         <div style="padding-right: 1rem;">
                 `;
@@ -1808,6 +1886,9 @@
                 <h4 style="margin-bottom: 1rem; color: #333;">${test.title}</h4>
                 <p style="color: #6b7280; margin-bottom: 1.5rem;">${test.description || ''}</p>
             `;
+            if (test.is_adaptive) {
+                html += `<p style="background:#f5f3ff;padding:1rem;border-radius:0.5rem;color:#5b21b6;">🎯 اختبار تكيفي: ${test.questions_count} سؤال يُسحب لكل طالب من البنك المعتمد حسب إجاباته، فما له قائمة أسئلة ثابتة. شاهد أسئلة كل طالب من تفاصيل نتيجته.</p>`;
+            }
             
             questions.forEach((q, i) => {
                 html += `
