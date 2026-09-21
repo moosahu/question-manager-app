@@ -60,6 +60,9 @@ class DiagnosticTest(db.Model):
     scheduled_start = db.Column(db.DateTime, nullable=True)
     scheduled_end = db.Column(db.DateTime, nullable=True)
     
+    # نوع الاختبار: standard (عادي، أسئلة ثابتة) | adaptive (تكيفي، يسحب من بنك الأسئلة المعتمد سؤال بسؤال)
+    test_mode = db.Column(db.String(20), default='standard')
+
     # الطلاب المخصص لهم الاختبار
     assigned_students = db.Column(db.JSON, default=[])
     
@@ -103,6 +106,8 @@ class DiagnosticTest(db.Model):
             'passing_score': self.passing_score,
             'ai_generated': self.ai_generated,
             'paired_test_id': self.paired_test_id,
+            'test_mode': self.test_mode or 'standard',
+            'is_adaptive': (self.test_mode == 'adaptive'),
             
             # الجدولة
             'is_scheduled': self.is_scheduled,

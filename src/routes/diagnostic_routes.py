@@ -21,6 +21,8 @@ try:
     from src.models.curriculum import Lesson, Unit, Course
     from src.models.student import Student
     from src.utils.field_encryption import make_email_hash
+    from src.services import adaptive_engine
+    from src.models.question import Question
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.diagnostic_test import DiagnosticTest, DiagnosticResult, DiagnosticComparison
@@ -28,6 +30,8 @@ except ImportError:  # pragma: no cover
     from models.curriculum import Lesson, Unit, Course
     from models.student import Student
     from utils.field_encryption import make_email_hash
+    from services import adaptive_engine
+    from models.question import Question
 
 # ✅ استيراد موديل الإشعارات لحفظها في قاعدة البيانات
 try:
@@ -202,6 +206,10 @@ def generate_test():
         
         if not any([lesson_id, unit_id, course_id]):
             return jsonify({'success': False, 'error': 'يجب تحديد درس أو وحدة أو منهج'}), 400
+
+        # ✅ اختبار تكيفي: بدون أسئلة ثابتة، يسحب من بنك الأسئلة المعتمد وقت الحل
+        if data.get('test_mode') == 'adaptive':
+            return _create_adaptive_test(data)
         
         # توليد الاختبار
         result = diagnostic_service.generate_test(
@@ -439,6 +447,8 @@ def export_pdf(test_id):
         
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+        if test.test_mode == 'adaptive':
+            return jsonify({'success': False, 'error': 'الاختبار التكيفي ما له ورقة PDF (الأسئلة تختلف لكل طالب)'}), 400
         
         # قراءة المعاملات
         include_answers = request.args.get('include_answers', 'false').lower() == 'true'
@@ -1037,6 +1047,8 @@ def start_test(test_id):
         test = DiagnosticTest.query.filter_by(id=test_id, is_active=True).first()
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+        if test.test_mode == 'adaptive':
+            return jsonify({'success': False, 'error': 'هذا اختبار تكيفي — حدّث التطبيق لآخر إصدار'}), 400
         
         # التحقق من عدم وجود نتيجة سابقة مكتملة أو مُتنازل عنها (أغلقه الطالب قبل التسليم)
         existing = DiagnosticResult.query.filter_by(
@@ -1252,6 +1264,432 @@ def submit_test(result_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# =====================================================
+# ===== الاختبار التكيفي (سؤال بسؤال) =====
+# حالة الجلسة تُخزَّن داخل result.answers نفسها (بدون أعمدة DB):
+#   عنصر حالة: {'_meta': True, '_adaptive_state': True, 'level', 'served', 'lesson_counts', 'current', ...}
+#   ثم عناصر الإجابات (نفس شكل الاختبار العادي + حقول تكيفية)
+# السيرفر هو اللي يصحّح ويقرر السؤال التالي، والطالب ما يشوف الإجابة الصحيحة أبداً.
+# =====================================================
+
+ADAPTIVE_TIME_GRACE_SECONDS = 30
+
+
+def _create_adaptive_test(data):
+    """إنشاء اختبار تكيفي: يحفظ الإعدادات فقط، والأسئلة تُسحب من البنك المعتمد وقت الحل"""
+    lesson_id = data.get('lesson_id')
+    unit_id = data.get('unit_id')
+    course_id = data.get('course_id')
+    test_type = data.get('test_type', 'pre_test')
+    try:
+        questions_count = int(data.get('questions_count') or 10)
+    except (TypeError, ValueError):
+        questions_count = 10
+    if not 3 <= questions_count <= 50:
+        return jsonify({'success': False, 'error': 'عدد أسئلة الاختبار التكيفي لازم يكون بين 3 و50'}), 400
+    try:
+        time_limit = int(data.get('time_limit_minutes') or 15)
+    except (TypeError, ValueError):
+        time_limit = 15
+
+    lesson_ids = adaptive_engine.resolve_lesson_ids(lesson_id, unit_id, course_id)
+    readiness = adaptive_engine.bank_readiness(lesson_ids, questions_count)
+    if not readiness['ready']:
+        return jsonify({
+            'success': False,
+            'error': 'بنك الأسئلة المعتمد غير كافٍ: ' + ' — '.join(readiness['problems']),
+            'readiness': readiness,
+        }), 400
+
+    context = diagnostic_service._get_context(lesson_id, unit_id, course_id) or {}
+    name = context.get('name') or 'عام'
+    test = DiagnosticTest(
+        title=(data.get('title') or '').strip() or f'اختبار تكيفي - {name}',
+        description='اختبار تشخيصي تكيفي: تتغيّر صعوبة السؤال التالي حسب إجابة الطالب',
+        test_type=test_type,
+        lesson_id=lesson_id,
+        unit_id=unit_id,
+        course_id=course_id,
+        lesson_name=name if context.get('type') == 'lesson' else None,
+        unit_name=name if context.get('type') == 'unit' else context.get('unit_name'),
+        course_name=context.get('course_name') or (name if context.get('type') == 'course' else None),
+        questions_count=questions_count,
+        questions_data=[],
+        time_limit_minutes=time_limit,
+        ai_generated=False,
+        test_mode='adaptive',
+        created_by=current_user.id if hasattr(current_user, 'id') else None,
+    )
+    db.session.add(test)
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': 'تم إنشاء الاختبار التكيفي بنجاح',
+        'test': test.to_dict(),
+        'readiness': readiness,
+    })
+
+
+@diagnostic_bp.route('/adaptive/readiness', methods=['GET'])
+@login_required
+@admin_required
+def adaptive_readiness():
+    """جاهزية بنك الأسئلة المعتمد لنطاق معيّن (يستخدمها الويب والتطبيق قبل إنشاء اختبار تكيفي)"""
+    lesson_ids = adaptive_engine.resolve_lesson_ids(
+        request.args.get('lesson_id', type=int),
+        request.args.get('unit_id', type=int),
+        request.args.get('course_id', type=int),
+    )
+    count = request.args.get('questions_count', default=10, type=int)
+    return jsonify({'success': True, 'readiness': adaptive_engine.bank_readiness(lesson_ids, count)})
+
+
+def _resolve_student_id(data):
+    """نفس منطق start_test: session cookie ثم body ثم current_user"""
+    for cookie_name, cookie_value in request.cookies.items():
+        if cookie_name.startswith('student_session_'):
+            username = cookie_name.replace('student_session_', '')
+            student = Student.query.filter_by(username=username).first()
+            if student:
+                return student.id
+    student_id = data.get('student_id')
+    if not student_id and current_user.is_authenticated:
+        student_id = current_user.id
+    return student_id
+
+
+def _split_adaptive_answers(answers):
+    """يفصل عنصر الحالة عن عناصر الإجابات الفعلية"""
+    state, entries = None, []
+    for a in (answers or []):
+        if isinstance(a, dict) and a.get('_adaptive_state'):
+            state = a
+        elif isinstance(a, dict) and not a.get('_meta'):
+            entries.append(a)
+    if state is None:
+        state = {
+            '_meta': True, '_adaptive_state': True,
+            'level': 'medium', 'served': [], 'lesson_counts': {}, 'current': None,
+            'left_app_count': 0, 'screenshot_count': 0,
+        }
+    return state, entries
+
+
+def _save_adaptive_state(result, state, entries):
+    result.answers = [state] + entries  # قائمة جديدة عشان SQLAlchemy يلتقط تغيير JSON
+
+
+def _question_payload(q, option_ids, number, total):
+    """السؤال كما يُعرض للطالب — بدون أي إشارة للإجابة الصحيحة"""
+    by_id = {o.option_id: o for o in q.options}
+    return {
+        'id': q.question_id,
+        'text': q.question_text or '',
+        'image_url': q.image_url,
+        'options': [
+            {'id': oid, 'text': by_id[oid].option_text or '', 'image_url': by_id[oid].image_url}
+            for oid in option_ids if oid in by_id
+        ],
+        'number': number,
+        'total': total,
+    }
+
+
+def _serve_next_question(test, result, state, entries):
+    """يختار السؤال التالي ويسجّله كسؤال معلّق. يرجّع payload أو None لو نفذ البنك"""
+    import random
+    lesson_ids = adaptive_engine.resolve_lesson_ids(test.lesson_id, test.unit_id, test.course_id)
+    rng = random.Random(f'{result.id}-{len(entries)}')
+    recent_blooms = [e.get('bloom_level') for e in entries[-2:] if e.get('bloom_level')]
+    q = adaptive_engine.pick_question(
+        lesson_ids, state.get('level', 'medium'), state.get('served', []),
+        state.get('lesson_counts', {}), recent_blooms, rng
+    )
+    if not q:
+        return None
+    option_ids = [o.option_id for o in q.options]
+    rng.shuffle(option_ids)
+    state['current'] = {
+        'question_id': q.question_id,
+        'option_ids': option_ids,
+        'difficulty': q.difficulty,
+        'served_at': datetime.utcnow().isoformat(),
+    }
+    state['served'] = list(state.get('served', [])) + [q.question_id]
+    counts = dict(state.get('lesson_counts', {}))
+    counts[str(q.lesson_id)] = counts.get(str(q.lesson_id), 0) + 1
+    state['lesson_counts'] = counts
+    return _question_payload(q, option_ids, len(entries) + 1, test.questions_count)
+
+
+def _pending_payload(test, state, entries):
+    """السؤال المعلّق الحالي (للاستئناف بعد كراش أو إعادة إرسال)"""
+    current = state.get('current')
+    if not current:
+        return None
+    q = Question.query.get(current['question_id'])
+    if not q:
+        return None
+    return _question_payload(q, current['option_ids'], len(entries) + 1, test.questions_count)
+
+
+def _remaining_seconds(test, result):
+    elapsed = max(0, int((datetime.utcnow() - result.started_at).total_seconds())) if result.started_at else 0
+    return test.time_limit_minutes * 60 - elapsed
+
+
+def _finish_adaptive(test, result, state, entries):
+    """يحسب النتيجة النهائية + المستوى المقدّر + التحليل ويقفل الاختبار"""
+    correct_count = sum(1 for e in entries if e.get('is_correct'))
+    total = len(entries)
+
+    served_levels = [e.get('difficulty') for e in entries if e.get('difficulty')]
+    upcoming = state.get('level', 'medium')
+    estimated = adaptive_engine.estimate_level(served_levels, upcoming)
+
+    result.score = correct_count
+    result.total_questions = total
+    result.correct_answers = correct_count
+    result.percentage = (correct_count / total * 100) if total else 0
+    result.score_percentage = result.percentage
+    result.passed = result.score_percentage >= test.passing_score
+    result.completed_at = datetime.utcnow()
+    result.time_spent_seconds = sum(e.get('time_spent', 0) or 0 for e in entries)
+    result.status = 'completed'
+
+    meta = {
+        '_meta': True,
+        'adaptive': True,
+        'estimated_level': estimated,
+        'path': [{'difficulty': e.get('difficulty'), 'is_correct': bool(e.get('is_correct'))} for e in entries],
+        'left_app_count': int(state.get('left_app_count') or 0),
+        'screenshot_count': int(state.get('screenshot_count') or 0),
+    }
+    result.answers = list(entries) + [meta]
+
+    topic_stats = {}
+    for e in entries:
+        t = e.get('topic')
+        if t:
+            b = topic_stats.setdefault(t, {'correct': 0, 'total': 0})
+            b['total'] += 1
+            b['correct'] += 1 if e.get('is_correct') else 0
+    result.weak_topics = [t for t, b in topic_stats.items() if b['correct'] < b['total']]
+    result.strong_topics = [t for t, b in topic_stats.items() if b['correct'] == b['total']]
+
+    try:
+        analysis = diagnostic_service.analyze_result(
+            result, {'name': test.lesson_name or test.unit_name or test.course_name or 'عام'}, test.test_type
+        )
+        result.ai_analysis = analysis.get('analysis', '')
+    except Exception as e:  # التحليل اختياري — ما نفشّل التسليم بسببه
+        print(f"⚠️ Adaptive analysis failed: {e}")
+
+    db.session.commit()
+    return {
+        'result': result.to_dict(),
+        'adaptive': {
+            'estimated_level': estimated,
+            'estimated_level_ar': adaptive_engine.LEVEL_LABEL_AR.get(estimated, ''),
+            'path': meta['path'],
+        },
+    }
+
+
+@diagnostic_bp.route('/tests/<int:test_id>/start-adaptive', methods=['POST'])
+def start_adaptive_test(test_id):
+    """بدء (أو استئناف) اختبار تكيفي — يرجّع أول سؤال أو السؤال المعلّق"""
+    try:
+        data = request.get_json() or {}
+        student_id = _resolve_student_id(data)
+        if not student_id:
+            return jsonify({'success': False, 'error': 'يجب تحديد الطالب'}), 400
+
+        test = DiagnosticTest.query.filter_by(id=test_id, is_active=True).first()
+        if not test or test.test_mode != 'adaptive':
+            return jsonify({'success': False, 'error': 'الاختبار التكيفي غير موجود'}), 404
+
+        existing = DiagnosticResult.query.filter_by(
+            diagnostic_test_id=test_id, student_id=student_id
+        ).filter(DiagnosticResult.status.in_(['completed', 'abandoned'])).first()
+        if existing:
+            msg = 'لقد أكملت هذا الاختبار مسبقاً' if existing.status == 'completed' \
+                else 'أغلقت هذا الاختبار قبل التسليم ولا يمكن إعادة فتحه — تواصل مع معلمك لإعادة فتحه لك'
+            return jsonify({'success': False, 'error': msg, 'result': existing.to_dict()}), 400
+
+        result = DiagnosticResult.query.filter_by(diagnostic_test_id=test_id, student_id=student_id).first()
+        device_id = request.headers.get('X-Device-ID') or data.get('device_id')
+        if result and result.status == 'in_progress' and result.device_id and device_id \
+                and result.device_id != device_id:
+            return jsonify({'success': False, 'error': 'هذا الاختبار مفتوح حالياً من جهاز آخر بنفس حسابك'}), 409
+
+        if not result:
+            result = DiagnosticResult(
+                diagnostic_test_id=test_id, student_id=student_id, total_questions=test.questions_count
+            )
+            db.session.add(result)
+            db.session.flush()
+        if device_id:
+            result.device_id = device_id
+        if not result.started_at:
+            result.started_at = datetime.utcnow()
+        result.status = 'in_progress'
+
+        state, entries = _split_adaptive_answers(result.answers)
+        remaining = max(0, _remaining_seconds(test, result))
+
+        if len(entries) >= test.questions_count or remaining <= 0:
+            done = _finish_adaptive(test, result, state, entries)
+            return jsonify({'success': True, 'finished': True, 'result_id': result.id, **done})
+
+        question = _pending_payload(test, state, entries)
+        if question is None:
+            question = _serve_next_question(test, result, state, entries)
+        if question is None:
+            done = _finish_adaptive(test, result, state, entries)
+            return jsonify({'success': True, 'finished': True, 'result_id': result.id, **done})
+
+        _save_adaptive_state(result, state, entries)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'finished': False,
+            'result_id': result.id,
+            'question': question,
+            'answered': len(entries),
+            'total': test.questions_count,
+            'time_limit_minutes': test.time_limit_minutes,
+            'remaining_seconds': remaining,
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ start_adaptive error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/results/<int:result_id>/answer', methods=['POST'])
+def answer_adaptive_question(result_id):
+    """
+    تسجيل إجابة سؤال تكيفي ورجوع السؤال التالي.
+    Body: {"question_id": 12, "selected_option_id": 55 (أو null للتخطي), "time_spent": 30,
+           "left_app_count": 0, "screenshot_count": 0}
+    """
+    try:
+        data = request.get_json() or {}
+        result = DiagnosticResult.query.get(result_id)
+        if not result:
+            return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
+        if result.status != 'in_progress':
+            return jsonify({'success': False, 'error': 'الاختبار مغلق أو مُسلَّم مسبقاً'}), 400
+
+        test = result.test
+        if not test or test.test_mode != 'adaptive':
+            return jsonify({'success': False, 'error': 'هذا ليس اختباراً تكيفياً'}), 400
+
+        state, entries = _split_adaptive_answers(result.answers)
+        state['left_app_count'] = max(int(state.get('left_app_count') or 0), int(data.get('left_app_count') or 0))
+        state['screenshot_count'] = max(int(state.get('screenshot_count') or 0), int(data.get('screenshot_count') or 0))
+
+        # انتهى الوقت (مع سماحية بسيطة للشبكة): نقفل بدون تسجيل هذه الإجابة
+        if _remaining_seconds(test, result) < -ADAPTIVE_TIME_GRACE_SECONDS:
+            done = _finish_adaptive(test, result, state, entries)
+            return jsonify({'success': True, 'finished': True, 'time_expired': True, **done})
+
+        current = state.get('current')
+        question_id = data.get('question_id')
+        if not current or current.get('question_id') != question_id:
+            # إعادة إرسال إجابة سبق تسجيلها: نرجّع السؤال المعلّق بدل ما نسجّلها مرتين
+            if any(e.get('bank_question_id') == question_id for e in entries):
+                pending = _pending_payload(test, state, entries)
+                return jsonify({
+                    'success': True, 'finished': pending is None,
+                    'question': pending, 'answered': len(entries), 'total': test.questions_count,
+                })
+            return jsonify({'success': False, 'error': 'السؤال غير مطابق للسؤال الحالي'}), 400
+
+        selected_id = data.get('selected_option_id')
+        if selected_id is not None and selected_id not in current['option_ids']:
+            return jsonify({'success': False, 'error': 'خيار غير صالح لهذا السؤال'}), 400
+
+        q = Question.query.get(question_id)
+        by_id = {o.option_id: o for o in q.options}
+        shown_ids = [oid for oid in current['option_ids'] if oid in by_id]
+        correct_idx = next((i for i, oid in enumerate(shown_ids) if by_id[oid].is_correct), None)
+        selected_idx = shown_ids.index(selected_id) if selected_id in shown_ids else None
+        is_correct = selected_idx is not None and selected_idx == correct_idx
+
+        lesson = Lesson.query.get(q.lesson_id)
+        entries.append({
+            'question_id': len(entries),  # ترتيب السؤال بالجلسة (متوافق مع عرض التفاصيل الحالي)
+            'bank_question_id': q.question_id,
+            'question_text': q.question_text or '',
+            'selected_answer': selected_idx,
+            'correct_answer': correct_idx,
+            'is_correct': is_correct,
+            'time_spent': int(data.get('time_spent') or 0),
+            'topic': (lesson.name if lesson else '') or test.lesson_name or test.unit_name or test.course_name or '',
+            'difficulty': q.difficulty,
+            'bloom_level': q.bloom_level,
+            'options_shown': [by_id[oid].option_text or '' for oid in shown_ids],
+        })
+        state['level'] = adaptive_engine.next_level(current.get('difficulty') or q.difficulty, is_correct)
+        state['current'] = None
+
+        if len(entries) >= test.questions_count:
+            done = _finish_adaptive(test, result, state, entries)
+            return jsonify({'success': True, 'finished': True, **done})
+
+        question = _serve_next_question(test, result, state, entries)
+        if question is None:  # نفد بنك الأسئلة المتاح — ننهي بما تم
+            done = _finish_adaptive(test, result, state, entries)
+            return jsonify({'success': True, 'finished': True, 'bank_exhausted': True, **done})
+
+        _save_adaptive_state(result, state, entries)
+        db.session.commit()
+        # ما نرجّع أي إشارة لصحة الإجابة — الطالب ما يشوف صح/غلط
+        return jsonify({
+            'success': True,
+            'finished': False,
+            'question': question,
+            'answered': len(entries),
+            'total': test.questions_count,
+            'remaining_seconds': max(0, _remaining_seconds(test, result)),
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ answer_adaptive error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/results/<int:result_id>/finish-adaptive', methods=['POST'])
+def finish_adaptive_test(result_id):
+    """إنهاء الاختبار التكيفي بما تم (انتهاء الوقت من التطبيق). السؤال المعلّق غير المجاب لا يُحسب"""
+    try:
+        data = request.get_json() or {}
+        result = DiagnosticResult.query.get(result_id)
+        if not result:
+            return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
+        if result.status == 'completed':
+            return jsonify({'success': False, 'error': 'تم تسليم الاختبار مسبقاً'}), 400
+        test = result.test
+        if not test or test.test_mode != 'adaptive':
+            return jsonify({'success': False, 'error': 'هذا ليس اختباراً تكيفياً'}), 400
+
+        state, entries = _split_adaptive_answers(result.answers)
+        state['left_app_count'] = max(int(state.get('left_app_count') or 0), int(data.get('left_app_count') or 0))
+        state['screenshot_count'] = max(int(state.get('screenshot_count') or 0), int(data.get('screenshot_count') or 0))
+        done = _finish_adaptive(test, result, state, entries)
+        return jsonify({'success': True, 'finished': True, **done})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ finish_adaptive error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _topic_fallback(stored_topic, test):
     """اسم الموضوع/الدرس، وإذا كان فارغاً (نتائج قديمة) يرجع لاسم الاختبار نفسه بدل 'عام'"""
     if stored_topic:
@@ -1309,6 +1747,8 @@ def get_collusion_check(test_id):
         test = DiagnosticTest.query.get(test_id)
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+        if test.test_mode == 'adaptive':
+            return jsonify({'success': False, 'error': 'كشف التشابه غير متاح للاختبار التكيفي (أسئلة كل طالب مختلفة)'}), 400
 
         results = DiagnosticResult.query.filter_by(diagnostic_test_id=test_id, status='completed').all()
 
@@ -1377,11 +1817,18 @@ def get_result_detail(result_id):
         questions = []
         topic_breakdown = {}
         cheat_flags = {'left_app_count': 0, 'screenshot_count': 0}
+        adaptive_info = None
 
         for a in stored_answers:
             if a.get('_meta'):
                 cheat_flags['left_app_count'] = a.get('left_app_count', 0)
                 cheat_flags['screenshot_count'] = a.get('screenshot_count', 0)
+                if a.get('adaptive'):
+                    adaptive_info = {
+                        'estimated_level': a.get('estimated_level'),
+                        'estimated_level_ar': adaptive_engine.LEVEL_LABEL_AR.get(a.get('estimated_level'), ''),
+                        'path': a.get('path', []),
+                    }
                 continue
             idx = a.get('question_id')
             q = {}
@@ -1393,8 +1840,11 @@ def get_result_detail(result_id):
                 elif 0 <= idx < len(canonical_data):
                     q = canonical_data[idx]
             options = q.get('options', [])
+            shown = a.get('options_shown')  # الاختبار التكيفي يخزّن الخيارات كما ظهرت للطالب
 
             def _opt_text(opt_idx):
+                if shown is not None:
+                    return shown[opt_idx] if isinstance(opt_idx, int) and 0 <= opt_idx < len(shown) else None
                 if opt_idx is None or not (0 <= opt_idx < len(options)):
                     return None
                 return options[opt_idx].get('text', '')
@@ -1408,7 +1858,9 @@ def get_result_detail(result_id):
             questions.append({
                 'question_text': a.get('question_text', ''),
                 'topic': topic,
-                'options': [o.get('text', '') for o in options],
+                'options': list(shown) if shown is not None else [o.get('text', '') for o in options],
+                'difficulty': a.get('difficulty'),
+                'bloom_level': a.get('bloom_level'),
                 'selected_index': a.get('selected_answer'),
                 'selected_text': _opt_text(a.get('selected_answer')),
                 'correct_index': a.get('correct_answer'),
@@ -1438,6 +1890,7 @@ def get_result_detail(result_id):
                 'topic_breakdown': topic_breakdown,
                 'left_app_count': cheat_flags['left_app_count'],
                 'screenshot_count': cheat_flags['screenshot_count'],
+                'adaptive': adaptive_info,
             }
         })
     except Exception as e:
@@ -1853,6 +2306,8 @@ def get_item_analysis(test_id):
         test = DiagnosticTest.query.get(test_id)
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
+        if test.test_mode == 'adaptive':
+            return jsonify({'success': False, 'error': 'تحليل الأسئلة غير متاح للاختبار التكيفي (أسئلة كل طالب مختلفة)'}), 400
 
         items = _compute_item_analysis(test)
         return jsonify({'success': True, 'test_title': test.title, 'items': items})
