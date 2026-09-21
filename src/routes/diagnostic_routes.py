@@ -1304,8 +1304,9 @@ def _create_adaptive_test(data):
     context = diagnostic_service._get_context(lesson_id, unit_id, course_id) or {}
     name = context.get('name') or 'عام'
     test = DiagnosticTest(
-        title=(data.get('title') or '').strip() or f'اختبار تكيفي - {name}',
-        description='اختبار تشخيصي تكيفي: تتغيّر صعوبة السؤال التالي حسب إجابة الطالب',
+        # عنوان ووصف محايدين: الطالب ما يحتاج يعرف إن الصعوبة تتغيّر (يظهرون بقائمة اختباراته)
+        title=(data.get('title') or '').strip() or f'اختبار تشخيصي - {name}',
+        description=None,
         test_type=test_type,
         lesson_id=lesson_id,
         unit_id=unit_id,
