@@ -3645,6 +3645,13 @@ def get_student_assigned_tests():
                         d['estimated_level_ar'] = adaptive_engine.LEVEL_LABEL_AR.get(a.get('estimated_level'), '')
             tests_out.append(d)
 
+        # الترتيب: غير المكتمل (المطلوب حلّه) أول، ثم المغلق، ثم المكتمل — والأحدث أول داخل كل مجموعة
+        def _rank(d):
+            if d.get('already_completed'):
+                return 2
+            return 1 if d.get('attempt_status') == 'abandoned' else 0
+        tests_out.sort(key=lambda d: (_rank(d), -(d.get('id') or 0)))
+
         return jsonify({
             'success': True,
             'assigned_tests': tests_out
