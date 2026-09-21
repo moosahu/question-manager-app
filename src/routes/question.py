@@ -5324,8 +5324,9 @@ def remark_students_html():
 @login_required
 def generate_lesson_question_bank(lesson_id):
     """
-    توليد بنك أسئلة دائم بالذكاء الاصطناعي لدرس معيّن (بنك تكيفي).
-    يُحفظ كل سؤال كصف Question حقيقي بـ human_verified=False (بانتظار مراجعة المعلم).
+    توليد دفعة (حتى 20 سؤال) لبنك أسئلة دائم لدرس معيّن بالذكاء الاصطناعي.
+    الواجهة تستدعيه عدة مرات (دفعات) للوصول للعدد الكلي، فكل طلب قصير ولا ينقطع على Render.
+    كل سؤال يُحفظ كصف Question حقيقي بـ human_verified=False (بانتظار مراجعة المعلم).
     """
     try:
         from src.services.diagnostic_service import diagnostic_service
@@ -5334,13 +5335,29 @@ def generate_lesson_question_bank(lesson_id):
 
     lesson = Lesson.query.get(lesson_id)
     if not lesson:
-        flash("الدرس غير موجود.", "danger")
-        return redirect(url_for("question.list_questions"))
+        return jsonify({'success': False, 'error': 'الدرس غير موجود.'}), 404
 
-    result = diagnostic_service.generate_lesson_question_bank(lesson_id)
+    data = request.get_json(silent=True) or {}
+    dist = {}
+    for key in ('easy', 'medium', 'hard'):
+        try:
+            dist[key] = max(0, int(data.get(key, 0)))
+        except (TypeError, ValueError):
+            dist[key] = 0
+    if sum(dist.values()) < 1 or sum(dist.values()) > 20:
+        return jsonify({'success': False, 'error': 'حجم الدفعة لازم يكون بين 1 و20 سؤال.'}), 400
+
+    # أسئلة الدرس الموجودة — تُمرَّر للـAI لتجنب تكرار الأفكار
+    existing_texts = [
+        row[0] for row in db.session.query(Question.question_text)
+        .filter(Question.lesson_id == lesson_id)
+        .order_by(Question.question_id.asc()).all()
+        if row[0]
+    ]
+
+    result = diagnostic_service.generate_lesson_question_bank(lesson_id, dist, existing_texts)
     if not result.get('success'):
-        flash(f"فشل توليد بنك الأسئلة: {result.get('error', 'خطأ غير معروف')}", "danger")
-        return redirect(url_for("question.list_questions", lesson_id=lesson_id))
+        return jsonify({'success': False, 'error': result.get('error', 'خطأ غير معروف')}), 500
 
     auto_is_bank = bool(lesson.unit.course.is_bank) if lesson.unit and lesson.unit.course else False
 
@@ -5396,16 +5413,29 @@ def generate_lesson_question_bank(lesson_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception("Error saving generated question bank.")
-        flash(f"حدث خطأ أثناء حفظ الأسئلة المولّدة: {e}", "danger")
-        return redirect(url_for("question.list_questions", lesson_id=lesson_id))
+        return jsonify({'success': False, 'error': f'حدث خطأ أثناء حفظ الأسئلة المولّدة: {e}'}), 500
 
-    if created_count:
-        flash(f"تم توليد {created_count} سؤال جديد بانتظار مراجعتك"
-              + (f" ({skipped_count} مكرر تم تجاهله)" if skipped_count else "") + ".", "success")
-    else:
-        flash("كل الأسئلة المولّدة كانت مكررة، لم يُضَف شيء.", "warning")
+    return jsonify({'success': True, 'created': created_count, 'skipped': skipped_count})
 
-    return redirect(url_for("question.review_classifications", lesson_id=lesson_id))
+
+@question_bp.route('/lessons/<int:lesson_id>/bank-stats')
+@login_required
+def lesson_bank_stats(lesson_id):
+    """مؤشر تغطية بنك الأسئلة لدرس: المعتمد وغير المعتمد موزّعاً حسب الصعوبة (أسئلة اختيار من متعدد)."""
+    rows = db.session.query(
+        Question.difficulty, Question.human_verified, func.count(Question.question_id)
+    ).filter(
+        Question.lesson_id == lesson_id,
+        or_(Question.question_type == 'mcq', Question.question_type.is_(None))
+    ).group_by(Question.difficulty, Question.human_verified).all()
+
+    stats = {'verified': {'easy': 0, 'medium': 0, 'hard': 0, 'unclassified': 0},
+             'pending': {'easy': 0, 'medium': 0, 'hard': 0, 'unclassified': 0}}
+    for difficulty, verified, cnt in rows:
+        bucket = 'verified' if verified else 'pending'
+        key = difficulty if difficulty in ('easy', 'medium', 'hard') else 'unclassified'
+        stats[bucket][key] += cnt
+    return jsonify(stats)
 
 
 @question_bp.route('/classify')

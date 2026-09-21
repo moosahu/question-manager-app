@@ -416,17 +416,17 @@ class DiagnosticService:
     def generate_lesson_question_bank(
         self,
         lesson_id: int,
-        difficulty_dist: Optional[Dict] = None
+        difficulty_dist: Optional[Dict] = None,
+        existing_questions: Optional[List[str]] = None
     ) -> Dict:
         """
-        توليد بنك أسئلة دائم بالذكاء الاصطناعي لدرس معيّن (يُحفظ كأسئلة حقيقية،
+        توليد دفعة أسئلة لبنك دائم بالذكاء الاصطناعي لدرس معيّن (يُحفظ كأسئلة حقيقية،
         بعكس أسئلة الاختبار التشخيصي المؤقتة). يطلب توزيعاً صريحاً حسب الصعوبة
         ونوع بلوم المعرفي (تركيز على تحليل/ربط لا حفظ فقط).
         """
         try:
             if not difficulty_dist:
-                difficulty_dist = {'easy': 5, 'medium': 5, 'hard': 5}
-            count = sum(difficulty_dist.values())
+                difficulty_dist = {'easy': 5, 'medium': 6, 'hard': 4}
 
             context = self._get_context(lesson_id, None, None)
             if not context:
@@ -435,7 +435,7 @@ class DiagnosticService:
             if not self._configure_ai():
                 return {'success': False, 'error': 'الذكاء الاصطناعي غير متوفر. تحقق من إعداد مفتاح Gemini API'}
 
-            questions = self._generate_bank_questions(context, difficulty_dist)
+            questions = self._generate_bank_questions(context, difficulty_dist, existing_questions)
             if not questions:
                 return {'success': False, 'error': 'لم يتم توليد أي أسئلة'}
 
@@ -454,7 +454,8 @@ class DiagnosticService:
     def _generate_bank_questions(
         self,
         context: Dict,
-        difficulty_dist: Dict
+        difficulty_dist: Dict,
+        existing_questions: Optional[List[str]] = None
     ) -> List[Dict]:
         """توليد أسئلة بنك دائم لدرس، بتوزيع صريح صعوبة × مستوى بلوم"""
         if not self.client:
@@ -463,11 +464,20 @@ class DiagnosticService:
         try:
             diff_text = f"""
 توزيع مستويات الصعوبة المطلوب (التزم به بالضبط):
-- سهل (easy): {difficulty_dist.get('easy', 5)} أسئلة — bloom_level: remember أو understand فقط
-- متوسط (medium): {difficulty_dist.get('medium', 5)} أسئلة — bloom_level: understand أو apply فقط
-- صعب (hard): {difficulty_dist.get('hard', 5)} أسئلة — bloom_level: apply أو analyze فقط"""
+- سهل (easy): {difficulty_dist.get('easy', 0)} أسئلة — bloom_level: remember أو understand فقط
+- متوسط (medium): {difficulty_dist.get('medium', 0)} أسئلة — bloom_level: understand أو apply فقط
+- صعب (hard): {difficulty_dist.get('hard', 0)} أسئلة — bloom_level: apply أو analyze فقط"""
 
             total = sum(difficulty_dist.values())
+
+            existing_text = ""
+            if existing_questions:
+                sample = existing_questions[-80:]
+                lines = "\n".join(f"- {q[:140]}" for q in sample)
+                existing_text = f"""
+
+🚫 أسئلة موجودة مسبقاً بهذا الدرس ({len(sample)} منها) — **ممنوع تكرارها أو إعادة صياغتها أو أخذ نفس الفكرة**. غطِّ مواضيع فرعية وأفكار مختلفة عنها:
+{lines}"""
 
             prompt = f"""أنت خبير في منهج الكيمياء السعودي (نظام المسارات - الثانوي) وخبير بناء بنوك أسئلة.
 
@@ -480,9 +490,10 @@ class DiagnosticService:
 
 ⚠️ الأولوية القصوى: **التحليل والربط بين المفاهيم، لا الحفظ**. تجنب الأسئلة اللي إجابتها مجرد استرجاع تعريف أو رقم من الكتاب — حتى بمستوى "سهل" اجعل السؤال يطلب فهم بسيط للمفهوم لا تذكّره حرفياً. بمستويي "متوسط" و"صعب" لازم السؤال يربط بين فكرتين أو يطبّق مفهوم على موقف/حساب جديد لم يُذكر حرفياً بالكتاب.
 
-{diff_text}
+{diff_text}{existing_text}
 
 ⚠️ مهم جداً:
+0. وزّع الأسئلة على **كل المواضيع الفرعية** للدرس، لا تركّز على موضوع واحد
 1. الأسئلة من **محتوى منهج الكيمياء السعودي الرسمي** (وزارة التعليم - أحدث طبعة) فقط
 2. لكل سؤال 4 خيارات، خيار واحد صحيح، والخيارات الخاطئة تمثل أخطاء شائعة منطقية
 3. الصياغة بالعربية الفصحى الواضحة
