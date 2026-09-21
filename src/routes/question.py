@@ -5359,8 +5359,6 @@ def generate_lesson_question_bank(lesson_id):
     if not result.get('success'):
         return jsonify({'success': False, 'error': result.get('error', 'خطأ غير معروف')}), 500
 
-    auto_is_bank = bool(lesson.unit.course.is_bank) if lesson.unit and lesson.unit.course else False
-
     created_count = 0
     skipped_count = 0
     try:
@@ -5391,7 +5389,9 @@ def generate_lesson_question_bank(lesson_id):
                 question_text=question_text,
                 lesson_id=lesson_id,
                 explanation=q_data.get('feedback') or None,
-                is_bank=auto_is_bank,
+                # دائماً is_bank=True: أسئلة البنك المولّدة بالـAI ما تظهر للطالب بالتفاعلي
+                # (فلاتر الطالب ما تفحص human_verified)، وتُستخدم فقط بالاختبار التكيفي بعد اعتمادها
+                is_bank=True,
                 question_type='mcq',
                 difficulty=difficulty,
                 bloom_level=bloom_level,
