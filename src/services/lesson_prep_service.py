@@ -1348,10 +1348,27 @@ class LessonPrepService:
 
             html_string = render_template('lesson_prep/lesson_plan.html', **context)
             base_url = os.path.join(os.getcwd(), 'src', 'static')
-            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
-            logger.info(f"تم توليد PDF بـ WeasyPrint ({len(pdf_bytes)} bytes)")
-            return pdf_bytes
+            # Playwright (Chromium) — يدعم BiDi CSS كاملاً بخلاف WeasyPrint
+            try:
+                from src.routes.exam_generator import _get_browser
+                browser = _get_browser()
+                ctx = browser.new_context(base_url=f"file://{base_url}/")
+                page = ctx.new_page()
+                page.set_content(html_string, wait_until='load')
+                pdf_bytes = page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
+                )
+                ctx.close()
+                logger.info(f"✅ تحضير الدرس: Playwright ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
+            except Exception as e:
+                logger.warning(f"⚠️ Playwright فشل، fallback لـ WeasyPrint: {e}")
+                pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+                logger.info(f"تم توليد PDF بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
 
         except Exception as e:
             logger.error(f"خطأ في توليد PDF: {e}")
@@ -1386,10 +1403,27 @@ class LessonPrepService:
 
             html_string = render_template('lesson_prep/unit_distribution.html', **context)
             base_url = os.path.join(os.getcwd(), 'src', 'static')
-            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
-            logger.info(f"تم توليد PDF الوحدة بـ WeasyPrint ({len(pdf_bytes)} bytes)")
-            return pdf_bytes
+            # Playwright (Chromium) — يدعم BiDi CSS كاملاً بخلاف WeasyPrint
+            try:
+                from src.routes.exam_generator import _get_browser
+                browser = _get_browser()
+                ctx = browser.new_context(base_url=f"file://{base_url}/")
+                page = ctx.new_page()
+                page.set_content(html_string, wait_until='load')
+                pdf_bytes = page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
+                )
+                ctx.close()
+                logger.info(f"✅ توزيع الوحدة: Playwright ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
+            except Exception as e:
+                logger.warning(f"⚠️ Playwright فشل، fallback لـ WeasyPrint: {e}")
+                pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+                logger.info(f"تم توليد PDF الوحدة بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
 
         except Exception as e:
             logger.error(f"خطأ في توليد PDF الوحدة: {e}")
@@ -1400,7 +1434,6 @@ class LessonPrepService:
     def _generate_reflection_pdf(self, sessions, course_name, font_family='cairo'):
         """توليد PDF مستقل لنموذج تأمل الطالب (قالب ثابت بدون AI - صفحة واحدة لكل جلسة/حصة)"""
         try:
-            from weasyprint import HTML
             from flask import render_template
 
             context = {
@@ -1411,10 +1444,28 @@ class LessonPrepService:
 
             html_string = render_template('lesson_prep/student_reflection.html', **context)
             base_url = os.path.join(os.getcwd(), 'src', 'static')
-            pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
-            logger.info(f"تم توليد PDF نموذج تأمل الطالب بـ WeasyPrint ({len(pdf_bytes)} bytes)")
-            return pdf_bytes
+            # Playwright (Chromium) — يدعم BiDi CSS كاملاً بخلاف WeasyPrint
+            try:
+                from src.routes.exam_generator import _get_browser
+                browser = _get_browser()
+                ctx = browser.new_context(base_url=f"file://{base_url}/")
+                page = ctx.new_page()
+                page.set_content(html_string, wait_until='load')
+                pdf_bytes = page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={'top': '10mm', 'right': '8mm', 'bottom': '15mm', 'left': '8mm'},
+                )
+                ctx.close()
+                logger.info(f"✅ نموذج تأمل الطالب: Playwright ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
+            except Exception as e:
+                logger.warning(f"⚠️ Playwright فشل، fallback لـ WeasyPrint: {e}")
+                from weasyprint import HTML
+                pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+                logger.info(f"تم توليد PDF نموذج تأمل الطالب بـ WeasyPrint ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
 
         except Exception as e:
             logger.error(f"خطأ في توليد PDF نموذج تأمل الطالب: {e}")
