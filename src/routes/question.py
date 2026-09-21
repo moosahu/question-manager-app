@@ -5389,9 +5389,11 @@ def generate_lesson_question_bank(lesson_id):
                 question_text=question_text,
                 lesson_id=lesson_id,
                 explanation=q_data.get('feedback') or None,
-                # دائماً is_bank=True: أسئلة البنك المولّدة بالـAI ما تظهر للطالب بالتفاعلي
-                # (فلاتر الطالب ما تفحص human_verified)، وتُستخدم فقط بالاختبار التكيفي بعد اعتمادها
+                # أسئلة البنك المولّدة بالـAI: is_bank=True + is_blocked=True عشان ما تظهر للطالب
+                # ولا تنحسب بعدّ/استخراج الأسئلة العادية، وتُستخدم فقط بالاختبار التكيفي بعد اعتمادها
+                # (الاختبار التكيفي يتجاهل الحجب لأسئلة البنك ويعتمد على human_verified)
                 is_bank=True,
+                is_blocked=True,
                 question_type='mcq',
                 difficulty=difficulty,
                 bloom_level=bloom_level,

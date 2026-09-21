@@ -9,6 +9,8 @@ import math
 import random
 from typing import Dict, List, Optional
 
+from sqlalchemy import or_
+
 try:
     from src.extensions import db
     from src.models.question import Question
@@ -47,12 +49,17 @@ def resolve_lesson_ids(lesson_id=None, unit_id=None, course_id=None) -> List[int
     return []
 
 
+# أسئلة بنك الـAI تنحفظ محجوبة (is_blocked=True) عشان ما تظهر للطالب/الاستخراج، فالحجب ما يُعتبر
+# بأسئلة البنك — والفلتر الفعلي لها هو human_verified (اعتماد المعلم)
+_NOT_EXCLUDED = or_(Question.is_blocked == False, Question.is_bank == True)  # noqa: E712
+
+
 def _pool_query(lesson_ids: List[int]):
     return Question.query.filter(
         Question.lesson_id.in_(lesson_ids),
         Question.question_type == 'mcq',
         Question.human_verified == True,  # noqa: E712
-        Question.is_blocked == False,     # noqa: E712
+        _NOT_EXCLUDED,
     )
 
 
@@ -64,7 +71,7 @@ def bank_readiness(lesson_ids: List[int], questions_count: int) -> Dict:
             Question.lesson_id.in_(lesson_ids),
             Question.question_type == 'mcq',
             Question.human_verified == True,  # noqa: E712
-            Question.is_blocked == False,     # noqa: E712
+            _NOT_EXCLUDED,
         ).group_by(Question.difficulty).all()
         for difficulty, cnt in rows:
             if difficulty in counts:
