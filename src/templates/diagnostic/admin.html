@@ -722,8 +722,8 @@
                 <h3>➕ إنشاء اختبار جديد</h3>
             </div>
             <div class="card-body">
-                <!-- Test Type Selector -->
-                <div class="test-type-selector">
+                <!-- Test Type Selector (قبلي/بعدي) — يختفي للاختبار التكيفي -->
+                <div class="test-type-selector" id="test-type-selector">
                     <div class="test-type-btn active" data-type="pre_test" onclick="selectTestType('pre_test')">
                         <div class="icon">📝</div>
                         <div class="title">اختبار قبلي</div>
@@ -1116,6 +1116,8 @@
         const adaptive = document.getElementById('test_mode').value === 'adaptive';
         document.getElementById('adaptive-box').style.display = adaptive ? 'block' : 'none';
         document.getElementById('diff-group').style.display = adaptive ? 'none' : 'block';
+        document.getElementById('test-type-selector').style.display = adaptive ? 'none' : '';
+        if (adaptive) selectTestType('pre_test'); // التكيفي ما له قبلي/بعدي (قيمة داخلية فقط)
         const countInput = document.getElementById('questions_count');
         countInput.max = adaptive ? 50 : 20;
         if (adaptive) { if (parseInt(countInput.value) < 10) countInput.value = 10; refreshAdaptiveReadiness(); }
@@ -1408,7 +1410,7 @@
                     <tr>
                         <td>${test.id}</td>
                         <td><strong>${test.title}</strong>${test.is_adaptive ? ' <span class="badge" style="background:#ede9fe;color:#5b21b6;">🎯 تكيفي</span>' : ''}</td>
-                        <td><span class="badge ${typeClass}">${typeText}</span></td>
+                        <td>${test.is_adaptive ? '<span class="badge" style="background:#ede9fe;color:#5b21b6;">🎯 تكيفي</span>' : `<span class="badge ${typeClass}">${typeText}</span>`}</td>
                         <td>${test.lesson_name || test.unit_name || '-'}</td>
                         <td>${test.questions_count}</td>
                         <td>${date}</td>
