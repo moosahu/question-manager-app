@@ -413,6 +413,118 @@ class DiagnosticService:
             traceback.print_exc()
             return []
     
+    def generate_lesson_question_bank(
+        self,
+        lesson_id: int,
+        difficulty_dist: Optional[Dict] = None
+    ) -> Dict:
+        """
+        توليد بنك أسئلة دائم بالذكاء الاصطناعي لدرس معيّن (يُحفظ كأسئلة حقيقية،
+        بعكس أسئلة الاختبار التشخيصي المؤقتة). يطلب توزيعاً صريحاً حسب الصعوبة
+        ونوع بلوم المعرفي (تركيز على تحليل/ربط لا حفظ فقط).
+        """
+        try:
+            if not difficulty_dist:
+                difficulty_dist = {'easy': 5, 'medium': 5, 'hard': 5}
+            count = sum(difficulty_dist.values())
+
+            context = self._get_context(lesson_id, None, None)
+            if not context:
+                return {'success': False, 'error': 'لم يتم العثور على الدرس'}
+
+            if not self._configure_ai():
+                return {'success': False, 'error': 'الذكاء الاصطناعي غير متوفر. تحقق من إعداد مفتاح Gemini API'}
+
+            questions = self._generate_bank_questions(context, difficulty_dist)
+            if not questions:
+                return {'success': False, 'error': 'لم يتم توليد أي أسئلة'}
+
+            return {
+                'success': True,
+                'context': context,
+                'questions': questions,
+                'questions_count': len(questions)
+            }
+        except Exception as e:
+            print(f"❌ Error generating lesson question bank: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'success': False, 'error': str(e)}
+
+    def _generate_bank_questions(
+        self,
+        context: Dict,
+        difficulty_dist: Dict
+    ) -> List[Dict]:
+        """توليد أسئلة بنك دائم لدرس، بتوزيع صريح صعوبة × مستوى بلوم"""
+        if not self.client:
+            return []
+
+        try:
+            diff_text = f"""
+توزيع مستويات الصعوبة المطلوب (التزم به بالضبط):
+- سهل (easy): {difficulty_dist.get('easy', 5)} أسئلة — bloom_level: remember أو understand فقط
+- متوسط (medium): {difficulty_dist.get('medium', 5)} أسئلة — bloom_level: understand أو apply فقط
+- صعب (hard): {difficulty_dist.get('hard', 5)} أسئلة — bloom_level: apply أو analyze فقط"""
+
+            total = sum(difficulty_dist.values())
+
+            prompt = f"""أنت خبير في منهج الكيمياء السعودي (نظام المسارات - الثانوي) وخبير بناء بنوك أسئلة.
+
+🎯 المطلوب: إنشاء بنك دائم من {total} سؤال اختيار من متعدد لدرس واحد، يُستخدم لاحقاً باختبارات تكيفية تقيس مستوى الطالب.
+
+📚 معلومات الدرس من المنهج السعودي:
+- المنهج: {context.get('course_name', 'كيمياء')}
+- الوحدة/الفصل: {context.get('unit_name', context.get('name', ''))}
+- الدرس: {context.get('name', '')}
+
+⚠️ الأولوية القصوى: **التحليل والربط بين المفاهيم، لا الحفظ**. تجنب الأسئلة اللي إجابتها مجرد استرجاع تعريف أو رقم من الكتاب — حتى بمستوى "سهل" اجعل السؤال يطلب فهم بسيط للمفهوم لا تذكّره حرفياً. بمستويي "متوسط" و"صعب" لازم السؤال يربط بين فكرتين أو يطبّق مفهوم على موقف/حساب جديد لم يُذكر حرفياً بالكتاب.
+
+{diff_text}
+
+⚠️ مهم جداً:
+1. الأسئلة من **محتوى منهج الكيمياء السعودي الرسمي** (وزارة التعليم - أحدث طبعة) فقط
+2. لكل سؤال 4 خيارات، خيار واحد صحيح، والخيارات الخاطئة تمثل أخطاء شائعة منطقية
+3. الصياغة بالعربية الفصحى الواضحة
+4. تجنب "كل ما سبق" أو "لا شيء مما سبق" أو خيارات واضح خطؤها
+
+📤 أرجع JSON فقط بهذا التنسيق (بالضبط {total} عنصر):
+[
+  {{
+    "text": "نص السؤال",
+    "difficulty": "easy/medium/hard",
+    "bloom_level": "remember/understand/apply/analyze",
+    "options": [
+      {{"text": "نص الخيار أ", "is_correct": false}},
+      {{"text": "نص الخيار ب", "is_correct": true}},
+      {{"text": "نص الخيار ج", "is_correct": false}},
+      {{"text": "نص الخيار د", "is_correct": false}}
+    ],
+    "feedback": "الإجابة الصحيحة (ب) لأن..."
+  }}
+]
+"""
+            print(f"🤖 Generating question bank for lesson: {context.get('name', 'Unknown')}")
+            response = self._generate_with_rotation(prompt)
+
+            import re
+            import json
+
+            json_match = re.search(r'\[[\s\S]*\]', response.text)
+            if json_match:
+                questions = json.loads(json_match.group())
+                print(f"✅ Generated {len(questions)} bank questions from AI")
+                return questions
+
+            print("⚠️ No valid JSON in AI response")
+            return []
+
+        except Exception as e:
+            print(f"❌ AI Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
     def generate_pdf(
         self,
         test_data: Dict,

@@ -5320,6 +5320,94 @@ def remark_students_html():
 # ===== صفحة تصنيف الأسئلة بالذكاء الاصطناعي =====
 # =====================================================
 
+@question_bp.route('/lessons/<int:lesson_id>/generate-bank', methods=['POST'])
+@login_required
+def generate_lesson_question_bank(lesson_id):
+    """
+    توليد بنك أسئلة دائم بالذكاء الاصطناعي لدرس معيّن (بنك تكيفي).
+    يُحفظ كل سؤال كصف Question حقيقي بـ human_verified=False (بانتظار مراجعة المعلم).
+    """
+    try:
+        from src.services.diagnostic_service import diagnostic_service
+    except ImportError:
+        from services.diagnostic_service import diagnostic_service
+
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        flash("الدرس غير موجود.", "danger")
+        return redirect(url_for("question.list_questions"))
+
+    result = diagnostic_service.generate_lesson_question_bank(lesson_id)
+    if not result.get('success'):
+        flash(f"فشل توليد بنك الأسئلة: {result.get('error', 'خطأ غير معروف')}", "danger")
+        return redirect(url_for("question.list_questions", lesson_id=lesson_id))
+
+    auto_is_bank = bool(lesson.unit.course.is_bank) if lesson.unit and lesson.unit.course else False
+
+    created_count = 0
+    skipped_count = 0
+    try:
+        for q_data in result.get('questions', []):
+            question_text = (q_data.get('text') or '').strip()
+            options_raw = q_data.get('options') or []
+            if not question_text or len(options_raw) < 2:
+                skipped_count += 1
+                continue
+
+            # فحص تكرار بسيط (نفس منطق add_question): نص + درس + إجابة صحيحة
+            correct_text = next((o.get('text') for o in options_raw if o.get('is_correct')), None)
+            existing_qs = Question.query.filter_by(question_text=question_text, lesson_id=lesson_id).all()
+            is_duplicate = any(
+                Option.query.filter_by(question_id=q.question_id, is_correct=True, option_text=correct_text).first()
+                for q in existing_qs
+            )
+            if is_duplicate:
+                skipped_count += 1
+                continue
+
+            difficulty = q_data.get('difficulty') if q_data.get('difficulty') in ('easy', 'medium', 'hard') else 'medium'
+            bloom_level = q_data.get('bloom_level') if q_data.get('bloom_level') in (
+                'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'
+            ) else 'understand'
+
+            new_question = Question(
+                question_text=question_text,
+                lesson_id=lesson_id,
+                explanation=q_data.get('feedback') or None,
+                is_bank=auto_is_bank,
+                question_type='mcq',
+                difficulty=difficulty,
+                bloom_level=bloom_level,
+                human_verified=False,
+            )
+            db.session.add(new_question)
+            db.session.flush()
+
+            for opt in options_raw:
+                option_text = (opt.get('text') or '').strip() or None
+                db.session.add(Option(
+                    option_text=option_text,
+                    is_correct=bool(opt.get('is_correct')),
+                    question_id=new_question.question_id,
+                ))
+            created_count += 1
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Error saving generated question bank.")
+        flash(f"حدث خطأ أثناء حفظ الأسئلة المولّدة: {e}", "danger")
+        return redirect(url_for("question.list_questions", lesson_id=lesson_id))
+
+    if created_count:
+        flash(f"تم توليد {created_count} سؤال جديد بانتظار مراجعتك"
+              + (f" ({skipped_count} مكرر تم تجاهله)" if skipped_count else "") + ".", "success")
+    else:
+        flash("كل الأسئلة المولّدة كانت مكررة، لم يُضَف شيء.", "warning")
+
+    return redirect(url_for("question.review_classifications", lesson_id=lesson_id))
+
+
 @question_bp.route('/classify')
 @login_required
 def classify_questions():
