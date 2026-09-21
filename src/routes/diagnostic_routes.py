@@ -3891,6 +3891,11 @@ def get_all_results():
                 if r.test:
                     result_dict['test_title'] = r.test.title
                     result_dict['test_type'] = r.test.test_type
+                    result_dict['is_adaptive'] = (r.test.test_mode == 'adaptive')
+                    if result_dict['is_adaptive']:
+                        for _a in (r.answers or []):
+                            if isinstance(_a, dict) and _a.get('_meta') and _a.get('adaptive'):
+                                result_dict['estimated_level_ar'] = adaptive_engine.LEVEL_LABEL_AR.get(_a.get('estimated_level'), '')
                 
                 # جلب اسم الطالب + الشعبة
                 if r.student_id:
