@@ -3614,10 +3614,39 @@ def get_student_assigned_tests():
                     assigned_tests.append(test)
         
         print(f"✅ Returning {len(assigned_tests)} assigned tests")
-        
+
+        # ✅ حالة محاولة الطالب لكل اختبار (مكتمل/مغلق) عشان التطبيق يعطّل زر البدء ويعرض النتيجة
+        # (نقارن كنص لأن student_id بجدول النتائج نصي)
+        from sqlalchemy import cast, String
+        attempts = {}
+        if assigned_tests:
+            rows = DiagnosticResult.query.filter(
+                DiagnosticResult.diagnostic_test_id.in_([t.id for t in assigned_tests]),
+                cast(DiagnosticResult.student_id, String) == str(student_id),
+            ).all()
+            for r in rows:
+                prev = attempts.get(r.diagnostic_test_id)
+                if prev is None or r.status == 'completed':
+                    attempts[r.diagnostic_test_id] = r
+
+        tests_out = []
+        for t in assigned_tests:
+            d = t.to_dict()
+            r = attempts.get(t.id)
+            d['attempt_status'] = r.status if r else None
+            d['already_completed'] = bool(r and r.status == 'completed')
+            if r:
+                d['result_id'] = r.id
+            if r and r.status == 'completed':
+                d['score_percentage'] = r.percentage
+                for a in (r.answers or []):
+                    if isinstance(a, dict) and a.get('_meta') and a.get('adaptive'):
+                        d['estimated_level_ar'] = adaptive_engine.LEVEL_LABEL_AR.get(a.get('estimated_level'), '')
+            tests_out.append(d)
+
         return jsonify({
             'success': True,
-            'assigned_tests': [test.to_dict() for test in assigned_tests]
+            'assigned_tests': tests_out
         }), 200
         
     except Exception as e:
