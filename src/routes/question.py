@@ -5417,7 +5417,8 @@ def generate_lesson_question_bank(lesson_id):
         current_app.logger.exception("Error saving generated question bank.")
         return jsonify({'success': False, 'error': f'حدث خطأ أثناء حفظ الأسئلة المولّدة: {e}'}), 500
 
-    return jsonify({'success': True, 'created': created_count, 'skipped': skipped_count})
+    return jsonify({'success': True, 'created': created_count, 'skipped': skipped_count,
+                    'source': result.get('source')})
 
 
 @question_bp.route('/lessons/<int:lesson_id>/bank-stats')

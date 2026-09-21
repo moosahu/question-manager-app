@@ -435,7 +435,18 @@ class DiagnosticService:
             if not self._configure_ai():
                 return {'success': False, 'error': 'الذكاء الاصطناعي غير متوفر. تحقق من إعداد مفتاح Gemini API'}
 
-            questions = self._generate_bank_questions(context, difficulty_dist, existing_questions)
+            # نص الدرس من الكتاب المدرسي (لو الدرس مربوط بصفحات كتاب) — يخلي الأسئلة تُبنى من الكتاب نفسه
+            book = None
+            try:
+                try:
+                    from src.services.lesson_prep_service import lesson_prep_service
+                except ImportError:  # pragma: no cover
+                    from services.lesson_prep_service import lesson_prep_service
+                book = lesson_prep_service.extract_lesson_text(lesson_id)
+            except Exception as e:
+                print(f"⚠️ تعذّر جلب نص الكتاب للدرس {lesson_id}: {e}")
+
+            questions = self._generate_bank_questions(context, difficulty_dist, existing_questions, book)
             if not questions:
                 return {'success': False, 'error': 'لم يتم توليد أي أسئلة'}
 
@@ -443,7 +454,12 @@ class DiagnosticService:
                 'success': True,
                 'context': context,
                 'questions': questions,
-                'questions_count': len(questions)
+                'questions_count': len(questions),
+                'source': {
+                    'used_textbook': bool(book),
+                    'pages': book['pages'] if book else None,
+                    'truncated': bool(book and book.get('truncated')),
+                },
             }
         except Exception as e:
             print(f"❌ Error generating lesson question bank: {e}")
@@ -455,7 +471,8 @@ class DiagnosticService:
         self,
         context: Dict,
         difficulty_dist: Dict,
-        existing_questions: Optional[List[str]] = None
+        existing_questions: Optional[List[str]] = None,
+        book: Optional[Dict] = None
     ) -> List[Dict]:
         """توليد أسئلة بنك دائم لدرس، بتوزيع صريح صعوبة × مستوى بلوم"""
         if not self.client:
@@ -479,6 +496,18 @@ class DiagnosticService:
 🚫 أسئلة موجودة مسبقاً بهذا الدرس ({len(sample)} منها) — **ممنوع تكرارها أو إعادة صياغتها أو أخذ نفس الفكرة**. غطِّ مواضيع فرعية وأفكار مختلفة عنها:
 {lines}"""
 
+            book_text = ""
+            if book:
+                book_text = f"""
+
+📖 نص الدرس من الكتاب المدرسي (صفحات {book['pages']}) — **هو المصدر الوحيد للأسئلة**:
+<<<
+{book['text']}
+>>>
+- ابنِ كل سؤال على معلومة موجودة بهذا النص فقط، بمصطلحاتها وقيمها وأرقامها كما وردت.
+- وزّع الأسئلة على كل العناوين الفرعية الموجودة بالنص ولا تركّز على جزء واحد.
+- لا تسأل عن شيء غير مذكور بالنص."""
+
             prompt = f"""أنت خبير في منهج الكيمياء السعودي (نظام المسارات - الثانوي) وخبير بناء بنوك أسئلة.
 
 🎯 المطلوب: إنشاء بنك دائم من {total} سؤال اختيار من متعدد لدرس واحد، يُستخدم لاحقاً باختبارات تكيفية تقيس مستوى الطالب.
@@ -489,6 +518,8 @@ class DiagnosticService:
 - الدرس: {context.get('name', '')}
 
 ⚠️ الأولوية القصوى: **التحليل والربط بين المفاهيم، لا الحفظ**. تجنب الأسئلة اللي إجابتها مجرد استرجاع تعريف أو رقم من الكتاب — حتى بمستوى "سهل" اجعل السؤال يطلب فهم بسيط للمفهوم لا تذكّره حرفياً. بمستويي "متوسط" و"صعب" لازم السؤال يربط بين فكرتين أو يطبّق مفهوم على موقف/حساب جديد لم يُذكر حرفياً بالكتاب.
+
+{book_text}
 
 {diff_text}{existing_text}
 

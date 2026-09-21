@@ -106,13 +106,13 @@
                             btn.addEventListener('click', function () {
                                 var total = parseInt(document.getElementById('bankCount').value, 10);
                                 if (!confirm('توليد ' + total + ' سؤال جديد لهذا الدرس بالذكاء الاصطناعي؟ قد ياخذ عدة دقائق، لا تغلق الصفحة. وستحتاج تراجعها بعدين.')) return;
-                                var batches = buildBatches(total), created = 0, skipped = 0, failed = 0, i = 0;
+                                var batches = buildBatches(total), created = 0, skipped = 0, failed = 0, i = 0, sourceMsg = '';
                                 btn.disabled = true;
 
                                 function next() {
                                     if (i >= batches.length) {
                                         btn.disabled = false;
-                                        prog.textContent = 'انتهى: أُضيف ' + created + ' سؤال' + (skipped ? ' (' + skipped + ' مكرر تجاهلته)' : '') + (failed ? ' — فشلت ' + failed + ' دفعة' : '');
+                                        prog.textContent = 'انتهى: أُضيف ' + created + ' سؤال' + (skipped ? ' (' + skipped + ' مكرر تجاهلته)' : '') + (failed ? ' — فشلت ' + failed + ' دفعة' : '') + sourceMsg;
                                         loadStats();
                                         return;
                                     }
@@ -124,7 +124,14 @@
                                         body: JSON.stringify(batches[i])
                                     }).then(function (r) { return r.json(); })
                                       .then(function (d) {
-                                          if (d.success) { created += d.created; skipped += d.skipped; } else { failed++; }
+                                          if (d.success) {
+                                              created += d.created; skipped += d.skipped;
+                                              if (!sourceMsg && d.source) {
+                                                  sourceMsg = d.source.used_textbook
+                                                      ? ' — المصدر: نص الكتاب ص ' + d.source.pages + (d.source.truncated ? ' (النص طويل واقتُطع)' : '')
+                                                      : ' — ⚠️ الدرس غير مربوط بصفحات كتاب، اعتمد على اسم الدرس فقط';
+                                              }
+                                          } else { failed++; }
                                       })
                                       .catch(function () { failed++; })
                                       .then(function () { i++; next(); });

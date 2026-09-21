@@ -629,6 +629,55 @@ class LessonPrepService:
 
         return images, text_content
 
+    _lesson_text_cache = {}
+
+    def extract_lesson_text(self, lesson_id, max_chars=60000):
+        """
+        نص درس من الكتاب المدرسي (نص فقط بدون صور — أخف بكثير من _extract_pages_with_text).
+        يُرجع dict: {'text', 'pages', 'textbook_title', 'truncated'} أو None لو الدرس غير مربوط بصفحات كتاب
+        أو تعذّر تحميل الـPDF. كاش بالذاكرة عشان دفعات توليد البنك ما تعيد تحميل الـPDF كل مرة.
+        """
+        mapping = LessonPages.query.filter_by(lesson_id=lesson_id).first()
+        if not mapping or not mapping.textbook:
+            return None
+        pdf_url = mapping.textbook.pdf_url
+        key = (lesson_id, pdf_url, mapping.start_page, mapping.end_page, max_chars)
+        cached = self._lesson_text_cache.get(key)
+        if cached:
+            return cached
+
+        try:
+            import fitz
+            pdf_bytes = self._download_pdf(pdf_url)
+            if not pdf_bytes:
+                return None
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            del pdf_bytes
+            actual_end = min(mapping.end_page, len(doc))
+            parts = []
+            for page_num in range(mapping.start_page - 1, actual_end):
+                parts.append(f"\n--- صفحة {page_num + 1} ---\n" + doc[page_num].get_text())
+            doc.close()
+            gc.collect()
+        except Exception as e:
+            logger.error(f"خطأ في استخراج نص الدرس {lesson_id}: {e}")
+            return None
+
+        text = "".join(parts).strip()
+        if len(text) < 200:  # PDF صور ممسوحة بدون نص قابل للاستخراج
+            return None
+        truncated = len(text) > max_chars
+        result = {
+            'text': text[:max_chars],
+            'pages': f"{mapping.start_page}-{mapping.end_page}",
+            'textbook_title': mapping.textbook.title,
+            'truncated': truncated,
+        }
+        if len(self._lesson_text_cache) >= 20:
+            self._lesson_text_cache.clear()
+        self._lesson_text_cache[key] = result
+        return result
+
     def _extract_pages_as_images(self, pdf_url, start_page, end_page, scale=1.0):
         """استخراج صفحات PDF كصور فقط (wrapper للتوافق)"""
         images, _ = self._extract_pages_with_text(pdf_url, start_page, end_page, scale)
