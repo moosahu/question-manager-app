@@ -22,6 +22,8 @@
 
     <!-- فلاتر -->
     <form method="get" class="row g-2 mb-4">
+        {% if unit_id %}<input type="hidden" name="unit_id" value="{{ unit_id }}">{% endif %}
+        {% if lesson_id %}<input type="hidden" name="lesson_id" value="{{ lesson_id }}">{% endif %}
         <div class="col-auto">
             <select name="course_id" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">-- كل المناهج --</option>
@@ -48,6 +50,13 @@
                 <input class="form-check-input" type="checkbox" name="show_all" value="1"
                     id="showAll" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
                 <label class="form-check-label" for="showAll">عرض المراجَعة أيضاً</label>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="form-check form-switch mt-1">
+                <input class="form-check-input" type="checkbox" name="bank_only" value="1"
+                    id="bankOnly" {% if bank_only %}checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label" for="bankOnly">🤖 أسئلة الذكاء الاصطناعي (البنك) فقط</label>
             </div>
         </div>
     </form>
@@ -152,15 +161,21 @@
 </main>
 
 <script>
-const CSRF = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrf_token='))?.split('=')[1] || '';
+const CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+const VERIFY_URL = "{{ url_for('question.verify_classification') }}";
 
 async function postVerify(body) {
-    const res = await fetch('/question/verify-classification', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json', 'X-CSRFToken': CSRF},
-        body: JSON.stringify(body)
-    });
-    return res.json();
+    try {
+        const res = await fetch(VERIFY_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'Content-Type':'application/json', 'X-CSRFToken': CSRF},
+            body: JSON.stringify(body)
+        });
+        return await res.json();
+    } catch (e) {
+        return {success: false, error: 'تعذّر الحفظ (' + e.message + ') — حدّث الصفحة وحاول مرة ثانية'};
+    }
 }
 
 function hideCard(qid) {

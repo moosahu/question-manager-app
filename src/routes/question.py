@@ -5458,11 +5458,14 @@ def review_classifications():
     unit_id    = request.args.get('unit_id',    type=int)
     lesson_id  = request.args.get('lesson_id',  type=int)
     show_all   = request.args.get('show_all', '0') == '1'
+    bank_only  = request.args.get('bank_only', '0') == '1'   # أسئلة بنك الـAI المولّدة فقط
 
     query = Question.query.options(
         joinedload(Question.options),
         joinedload(Question.lesson).joinedload(Lesson.unit).joinedload(Unit.course)
     )
+    if bank_only:
+        query = query.filter(Question.is_bank == True)
 
     if not show_all:
         query = query.filter(Question.human_verified == False)
@@ -5491,6 +5494,7 @@ def review_classifications():
         total_verified=total_verified,
         total_all=total_all,
         show_all=show_all,
+        bank_only=bank_only,
         course_id=course_id,
         unit_id=unit_id,
         lesson_id=lesson_id,
