@@ -710,6 +710,7 @@
         <button class="tab" onclick="switchTab('tests')">📋 جميع الاختبارات</button>
         <button class="tab" onclick="switchTab('scheduled')">⏰ الاختبارات المجدولة</button>
         <button class="tab" onclick="switchTab('results')">📊 النتائج</button>
+        <button class="tab" onclick="switchTab('calibration')">🎯 معايرة الصعوبة</button>
     </div>
     
     <!-- Tab: Create Test -->
@@ -1011,6 +1012,23 @@
 </div>
 
     <!-- Tab: Results -->
+    <div id="tab-calibration" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h3>🎯 معايرة صعوبة أسئلة البنك</h3>
+                <button class="btn btn-sm btn-primary" onclick="loadCalibration()">🔄 تحديث</button>
+            </div>
+            <div class="card-body">
+                <p style="color:#6b7280; font-size:0.9rem; margin-bottom:1rem;">
+                    تُقارن نسبة نجاح الطلاب الفعلية بالاختبارات التكيفية بصعوبة كل سؤال. لا يتغير شي تلقائياً — أنت تعتمد أو تتجاهل.
+                    يظهر السؤال بعد <span id="calib-min">30</span> محاولة فأكثر. المدى واسع عمداً لأن السلّم يوجّه الأسئلة السهلة للأضعف والصعبة للأقوى.
+                </p>
+                <div id="calib-summary" style="margin-bottom:1rem; color:#374151;"></div>
+                <div id="calib-list"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="tab-results" class="tab-content">
         <div class="card">
             <div class="card-header">
@@ -2157,6 +2175,71 @@
         }
     };
     
+    // ===== معايرة الصعوبة =====
+    const CALIB_DIFF_AR = {easy: 'سهل', medium: 'متوسط', hard: 'صعب'};
+
+    function calibEscape(t) {
+        const d = document.createElement('div');
+        d.textContent = t || '';
+        return d.innerHTML;
+    }
+
+    window.loadCalibration = async function() {
+        const list = document.getElementById('calib-list');
+        list.innerHTML = '<p style="color:#6b7280;">جاري التحميل...</p>';
+        try {
+            const res = await fetch(`${API_BASE}/calibration`);
+            const data = await res.json();
+            if (!data.success) { list.innerHTML = `<p style="color:#b91c1c;">${calibEscape(data.error || 'خطأ')}</p>`; return; }
+            document.getElementById('calib-min').textContent = data.min_attempts;
+            document.getElementById('calib-summary').textContent =
+                `نتائج الاختبارات التكيفية: ${data.adaptive_results} — أسئلة عليها محاولات: ${data.questions_with_attempts} — اقتراحات: ${data.suggestions.length}`;
+            if (!data.suggestions.length) {
+                list.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>لا توجد اقتراحات حالياً</p></div>';
+                return;
+            }
+            list.innerHTML = `<table class="table"><thead><tr>
+                <th>السؤال</th><th>الدرس</th><th>الحالية</th><th>المحاولات</th><th>نسبة النجاح</th><th>المقترحة</th><th></th>
+            </tr></thead><tbody>` + data.suggestions.map(s => `
+                <tr id="calib-row-${s.question_id}">
+                    <td style="max-width:320px;">${calibEscape(s.question_text)}</td>
+                    <td>${calibEscape(s.lesson_name)}</td>
+                    <td>${CALIB_DIFF_AR[s.current_difficulty] || s.current_difficulty}</td>
+                    <td>${s.attempts}</td>
+                    <td><strong>${s.success_rate}%</strong></td>
+                    <td><strong>${CALIB_DIFF_AR[s.suggested_difficulty]}</strong></td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="calibApply(${s.question_id}, '${s.suggested_difficulty}')">اعتمد</button>
+                        <button class="btn btn-sm btn-outline" onclick="calibDismiss(${s.question_id})">تجاهل</button>
+                    </td>
+                </tr>`).join('') + '</tbody></table>';
+        } catch (e) {
+            list.innerHTML = `<p style="color:#b91c1c;">خطأ في الاتصال: ${calibEscape(e.message)}</p>`;
+        }
+    };
+
+    async function calibAction(qid, action, body) {
+        try {
+            const res = await fetch(`${API_BASE}/calibration/${qid}/${action}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body || {})
+            });
+            const data = await res.json();
+            if (data.success) {
+                const row = document.getElementById('calib-row-' + qid);
+                if (row) row.remove();
+                showAlert(action === 'apply' ? 'تم تغيير الصعوبة' : 'تم التجاهل', 'success');
+            } else {
+                showAlert(data.error || 'حدث خطأ', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ في الاتصال: ' + e.message, 'error');
+        }
+    }
+    window.calibApply = (qid, difficulty) => calibAction(qid, 'apply', {difficulty});
+    window.calibDismiss = (qid) => calibAction(qid, 'dismiss');
+
     window.switchTab = function(tabName) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2167,6 +2250,7 @@
         if (tabName === 'tests') diagLoadTests();
         else if (tabName === 'scheduled') loadScheduledTests();
         else if (tabName === 'results') loadAllResults();
+        else if (tabName === 'calibration') loadCalibration();
         else if (tabName === 'schedule') { 
             loadTestsForSchedule(); 
             loadStudents(); // ✅ تحميل الطلاب

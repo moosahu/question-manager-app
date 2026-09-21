@@ -1690,6 +1690,145 @@ def finish_adaptive_test(result_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# =====================================================
+# ===== معايرة صعوبة الأسئلة (مرحلة 3 من التكيفي) =====
+# تُحسب الاقتراحات لحظة الطلب من إجابات الاختبارات التكيفية — ولا يتغير شي تلقائياً،
+# الأدمن يعتمد التغيير أو يتجاهله. المدى المتوقع واسع عمداً لأن السلّم نفسه يحرف النسب
+# (الأسئلة السهلة يشوفها الأضعف والصعبة الأقوى).
+# =====================================================
+
+CALIBRATION_MIN_ATTEMPTS = 30
+
+
+def _calibration_suggestion(difficulty, rate):
+    """يرجّع الصعوبة المقترحة لو النسبة خارج المدى المتوقع، وإلا None"""
+    if difficulty == 'easy' and rate < 50:
+        return 'medium'
+    if difficulty == 'medium':
+        if rate < 25:
+            return 'hard'
+        if rate > 85:
+            return 'easy'
+    if difficulty == 'hard' and rate > 75:
+        return 'medium'
+    return None
+
+
+def _compute_calibration_suggestions():
+    results = DiagnosticResult.query.join(
+        DiagnosticTest, DiagnosticResult.diagnostic_test_id == DiagnosticTest.id
+    ).filter(
+        DiagnosticTest.test_mode == 'adaptive',
+        DiagnosticResult.status == 'completed',
+    ).all()
+
+    # (question_id) -> قائمة (completed_at, is_correct)
+    attempts = {}
+    for r in results:
+        for a in (r.answers or []):
+            if not isinstance(a, dict) or a.get('_meta'):
+                continue
+            qid = a.get('bank_question_id')
+            if qid is None:
+                continue
+            attempts.setdefault(qid, []).append((r.completed_at, bool(a.get('is_correct'))))
+
+    if not attempts:
+        return {'suggestions': [], 'adaptive_results': len(results), 'questions_with_attempts': 0}
+
+    questions = {
+        q.question_id: q for q in Question.query.filter(Question.question_id.in_(list(attempts.keys()))).all()
+    }
+    suggestions = []
+    for qid, rows in attempts.items():
+        q = questions.get(qid)
+        if not q:
+            continue
+        if q.difficulty_reviewed_at:
+            rows = [x for x in rows if x[0] and x[0] > q.difficulty_reviewed_at]
+        if len(rows) < CALIBRATION_MIN_ATTEMPTS:
+            continue
+        correct = sum(1 for x in rows if x[1])
+        rate = correct / len(rows) * 100
+        suggested = _calibration_suggestion(q.difficulty, rate)
+        if not suggested:
+            continue
+        lesson = Lesson.query.get(q.lesson_id)
+        suggestions.append({
+            'question_id': qid,
+            'question_text': q.question_text or '',
+            'lesson_name': lesson.name if lesson else '',
+            'current_difficulty': q.difficulty,
+            'suggested_difficulty': suggested,
+            'attempts': len(rows),
+            'correct': correct,
+            'success_rate': round(rate, 1),
+        })
+
+    # الأكبر انحرافاً أولاً: سهل بنسبة نجاح ضعيفة جداً / صعب بنسبة عالية جداً
+    def _gap(s):
+        return abs(s['success_rate'] - {'easy': 80, 'medium': 55, 'hard': 30}.get(s['current_difficulty'], 55))
+    suggestions.sort(key=_gap, reverse=True)
+    return {
+        'suggestions': suggestions,
+        'adaptive_results': len(results),
+        'questions_with_attempts': len(attempts),
+    }
+
+
+@diagnostic_bp.route('/calibration', methods=['GET'])
+@login_required
+@admin_required
+def get_calibration_suggestions():
+    """اقتراحات تغيير صعوبة أسئلة البنك بناءً على أداء الطلاب الفعلي بالاختبارات التكيفية"""
+    try:
+        data = _compute_calibration_suggestions()
+        return jsonify({'success': True, 'min_attempts': CALIBRATION_MIN_ATTEMPTS, **data})
+    except Exception as e:
+        print(f"❌ Error computing calibration: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/calibration/<int:question_id>/apply', methods=['POST'])
+@login_required
+@admin_required
+def apply_calibration(question_id):
+    """اعتماد تغيير صعوبة سؤال. Body: {"difficulty": "easy|medium|hard"}"""
+    try:
+        difficulty = (request.get_json() or {}).get('difficulty')
+        if difficulty not in ('easy', 'medium', 'hard'):
+            return jsonify({'success': False, 'error': 'صعوبة غير صالحة'}), 400
+        q = Question.query.get(question_id)
+        if not q:
+            return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+        q.difficulty = difficulty
+        q.difficulty_reviewed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@diagnostic_bp.route('/calibration/<int:question_id>/dismiss', methods=['POST'])
+@login_required
+@admin_required
+def dismiss_calibration(question_id):
+    """تجاهل اقتراح — يرجع السؤال للقائمة فقط بعد 30 محاولة جديدة"""
+    try:
+        q = Question.query.get(question_id)
+        if not q:
+            return jsonify({'success': False, 'error': 'السؤال غير موجود'}), 404
+        q.difficulty_reviewed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _topic_fallback(stored_topic, test):
     """اسم الموضوع/الدرس، وإذا كان فارغاً (نتائج قديمة) يرجع لاسم الاختبار نفسه بدل 'عام'"""
     if stored_topic:

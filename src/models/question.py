@@ -53,6 +53,9 @@ class Question(db.Model):
     # مراجعة التصنيف من قِبل المعلم: True = تأكّد المعلم، False = لم يُراجَع بعد
     human_verified = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
+    # آخر مراجعة لمعايرة الصعوبة (اعتماد تغيير أو تجاهل اقتراح) — الاقتراحات الجديدة تُحسب من المحاولات بعد هذا الوقت فقط
+    difficulty_reviewed_at = db.Column(db.DateTime, nullable=True)
+
     # القانون الكيميائي المرتبط بالسؤال — يُعبأ بالذكاء الاصطناعي أو يدوياً
     formula_key = db.Column(db.String(120), nullable=True, index=True)
     # =========================================================
