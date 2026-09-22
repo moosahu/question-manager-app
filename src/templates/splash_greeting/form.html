@@ -50,10 +50,10 @@
       </div>
 
       <div id="image-upload-box" style="{{ 'display:none;' if g and g.media_type == 'video' }}margin-bottom:8px;font-size:12px;color:#6b7280;background:#f9fafb;padding:8px;border-radius:6px">
-        💡 صورة ملء الشاشة — يفضّل نسبة عمودية قريبة من شاشة الجوال (مثلاً 1080×1920)
+        💡 الأبعاد الموصى بها: <strong>1080×1920</strong> (عمودي، نسبة 9:16 — يملأ شاشة الجوال) — الصيغة JPG أو PNG، والحجم أقل من <strong>2 ميجا</strong> عشان يتحمّل بسرعة عند كل فتح للتطبيق أول مرة
       </div>
       <div id="video-upload-box" style="{{ '' if g and g.media_type == 'video' else 'display:none;' }}margin-bottom:8px;font-size:12px;color:#6b7280;background:#f9fafb;padding:8px;border-radius:6px">
-        💡 فيديو قصير (10-15 ثانية) وحجم صغير — تجنّب الفيديوهات الطويلة أو عالية الدقة جداً (حد Cloudinary للرفع محدود)
+        💡 الأبعاد الموصى بها: <strong>1080×1920</strong> (عمودي) — المدة <strong>8 إلى 15 ثانية</strong>، الصيغة MP4، والحجم أقل من <strong>10-15 ميجا</strong>. الفيديو يتحمّل من الإنترنت في كل مرة يفتح فيها الطالب التطبيق (بعكس الصورة)، فكبره يبطّئ الفتح ويستهلك بيانات الطالب
       </div>
 
       <div style="display:flex;align-items:center;gap:10px">
