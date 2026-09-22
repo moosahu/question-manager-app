@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}إدارة شاشة المناسبات{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:30px auto;direction:rtl;padding:0 16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <h2 style="margin:0">🎉 شاشة المناسبات (تظهر قبل تسجيل الدخول)</h2>
+    <a href="{{ url_for('splash_greeting.admin_splash_greeting_create') }}"
+       style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">
+      + مناسبة جديدة
+    </a>
+  </div>
+
+  <div style="background:#eff6ff;padding:12px 14px;border-radius:8px;margin-bottom:20px;font-size:13px;color:#1e3a8a">
+    💡 المناسبة النشطة تظهر ملء الشاشة (صورة أو فيديو) فوق شاشة السبلاش لأي مستخدم يفتح التطبيق، قبل حتى ما يسجّل دخول.
+    مناسبة واحدة نشطة بأي وقت — تفعيل مناسبة يوقف البقية تلقائياً.
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="background:{{'#d1fae5' if cat=='success' else '#fee2e2'}};padding:12px;border-radius:8px;margin-bottom:16px">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <style>
+    .sg-table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .sg-table th { padding:12px 14px; background:#1e3a8a; color:#fff; font-weight:600; white-space:nowrap; }
+    .sg-table td { padding:12px 14px; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
+    .sg-table tr.active-row { background:#f0fdf4; }
+    .sg-btn { display:inline-block; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; border:none; white-space:nowrap; text-decoration:none; }
+    .sg-form { display:inline-block; margin:0; padding:0; }
+    .sg-form button { display:inline-block; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; border:none; white-space:nowrap; }
+  </style>
+
+  {% if greetings %}
+  <table class="sg-table">
+    <thead>
+      <tr>
+        <th style="text-align:center;width:40px">#</th>
+        <th style="text-align:right">العنوان</th>
+        <th style="text-align:center;width:80px">معاينة</th>
+        <th style="text-align:center;width:70px">النوع</th>
+        <th style="text-align:center;width:80px">الحالة</th>
+        <th style="text-align:center;width:100px">التاريخ</th>
+        <th style="text-align:center;width:220px">إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in greetings %}
+      <tr {% if g.is_active %}class="active-row"{% endif %}>
+        <td style="text-align:center;color:#6b7280">{{ g.id }}</td>
+        <td style="font-weight:bold;max-width:220px">{{ g.title }}</td>
+        <td style="text-align:center">
+          {% if g.media_type == 'video' %}
+            <video src="{{ g.media_url }}" style="width:60px;height:60px;object-fit:cover;border-radius:6px" muted></video>
+          {% else %}
+            <img src="{{ g.media_url }}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb">
+          {% endif %}
+        </td>
+        <td style="text-align:center">
+          <span style="background:{{'#7c3aed' if g.media_type=='video' else '#0d9488'}};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px">
+            {{ '🎬 فيديو' if g.media_type == 'video' else '🖼️ صورة' }}
+          </span>
+        </td>
+        <td style="text-align:center">
+          <span style="background:{{'#16a34a' if g.is_active else '#9ca3af'}};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;white-space:nowrap">
+            {{ 'نشطة ✓' if g.is_active else 'موقوفة' }}
+          </span>
+        </td>
+        <td style="text-align:center;font-size:12px;color:#6b7280">
+          {{ g._created_ast.strftime('%Y-%m-%d') if g._created_ast else '' }}
+        </td>
+        <td style="text-align:center;white-space:nowrap">
+          <form class="sg-form" method="POST" action="{{ url_for('splash_greeting.admin_splash_greeting_toggle', g_id=g.id) }}">
+            <button type="submit" class="sg-btn" style="background:{{'#f59e0b' if g.is_active else '#16a34a'}};color:#fff">
+              {{ 'إيقاف' if g.is_active else 'تفعيل' }}
+            </button>
+          </form>
+          <a href="{{ url_for('splash_greeting.admin_splash_greeting_edit', g_id=g.id) }}"
+             class="sg-btn" style="background:#2563eb;color:#fff">تعديل</a>
+          <form class="sg-form" method="POST" action="{{ url_for('splash_greeting.admin_splash_greeting_delete', g_id=g.id) }}"
+                onsubmit="return confirm('حذف هذي المناسبة نهائياً؟');">
+            <button type="submit" class="sg-btn" style="background:#dc2626;color:#fff">حذف</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:#9ca3af;background:#fff;border-radius:10px">
+    ما فيه أي مناسبة بعد. اضغط "مناسبة جديدة" للبدء.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

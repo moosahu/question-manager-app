@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل مناسبة' if g else 'مناسبة جديدة' }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px;margin:30px auto;direction:rtl">
+  <h2>{{ '✏️ تعديل مناسبة' if g else '🎉 مناسبة جديدة' }}</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="background:{{'#d1fae5' if cat=='success' else '#fee2e2'}};padding:12px;border-radius:8px;margin-bottom:16px">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" id="sg-form" style="background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:6px">العنوان (داخلي، ما يظهر للطالب) *</label>
+      <input name="title" type="text" value="{{ g.title if g else '' }}" required
+             placeholder="مثال: اليوم الوطني ٩٤"
+             style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:6px">نوع المحتوى *</label>
+      <div style="display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="media_type" value="image" id="type-image"
+                 {% if not g or g.media_type == 'image' %}checked{% endif %} onchange="onTypeChange()">
+          🖼️ صورة
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="media_type" value="video" id="type-video"
+                 {% if g and g.media_type == 'video' %}checked{% endif %} onchange="onTypeChange()">
+          🎬 فيديو
+        </label>
+      </div>
+    </div>
+
+    <input type="hidden" name="media_url" id="media_url" value="{{ g.media_url if g else '' }}">
+
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:bold;margin-bottom:8px">الملف *</label>
+
+      <div id="media-preview" style="margin-bottom:10px">
+        {% if g and g.media_url %}
+          {% if g.media_type == 'video' %}
+            <video src="{{ g.media_url }}" style="width:160px;height:160px;object-fit:cover;border-radius:8px" controls muted></video>
+          {% else %}
+            <img src="{{ g.media_url }}" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div id="image-upload-box" style="{{ 'display:none;' if g and g.media_type == 'video' }}margin-bottom:8px;font-size:12px;color:#6b7280;background:#f9fafb;padding:8px;border-radius:6px">
+        💡 صورة ملء الشاشة — يفضّل نسبة عمودية قريبة من شاشة الجوال (مثلاً 1080×1920)
+      </div>
+      <div id="video-upload-box" style="{{ '' if g and g.media_type == 'video' else 'display:none;' }}margin-bottom:8px;font-size:12px;color:#6b7280;background:#f9fafb;padding:8px;border-radius:6px">
+        💡 فيديو قصير (10-15 ثانية) وحجم صغير — تجنّب الفيديوهات الطويلة أو عالية الدقة جداً (حد Cloudinary للرفع محدود)
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="file" id="image-upload" accept="image/*"
+               style="{{ 'display:none;' if g and g.media_type == 'video' }}border:1px dashed #d1d5db;padding:8px;border-radius:8px;flex:1">
+        <input type="file" id="video-upload" accept="video/*"
+               style="{{ '' if g and g.media_type == 'video' else 'display:none;' }}border:1px dashed #d1d5db;padding:8px;border-radius:8px;flex:1">
+        <button type="button" onclick="uploadMedia()"
+                style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:bold">رفع</button>
+      </div>
+      <div id="upload-status" style="margin-top:6px;font-size:13px;color:#6b7280"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <a href="{{ url_for('splash_greeting.admin_splash_greeting_list') }}"
+         style="padding:10px 20px;border:1px solid #d1d5db;border-radius:8px;text-decoration:none;color:#374151">إلغاء</a>
+      <button type="submit" id="submit-btn"
+              style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-weight:bold;cursor:pointer;font-size:15px">
+        {{ 'حفظ التعديلات' if g else 'إنشاء المناسبة' }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+function onTypeChange() {
+  const isVideo = document.getElementById('type-video').checked;
+  document.getElementById('image-upload-box').style.display = isVideo ? 'none' : 'block';
+  document.getElementById('video-upload-box').style.display = isVideo ? 'block' : 'none';
+  document.getElementById('image-upload').style.display = isVideo ? 'none' : 'block';
+  document.getElementById('video-upload').style.display = isVideo ? 'block' : 'none';
+}
+
+async function uploadMedia() {
+  const isVideo = document.getElementById('type-video').checked;
+  const input = document.getElementById(isVideo ? 'video-upload' : 'image-upload');
+  const status = document.getElementById('upload-status');
+  if (!input.files.length) { status.textContent = 'اختر ملف أولاً'; return; }
+
+  status.textContent = 'جاري الرفع... (قد يأخذ وقت أطول للفيديو)';
+  document.getElementById('submit-btn').disabled = true;
+
+  const formData = new FormData();
+  formData.append(isVideo ? 'video' : 'image', input.files[0]);
+  const endpoint = isVideo
+    ? "{{ url_for('splash_greeting.admin_upload_splash_video') }}"
+    : "{{ url_for('splash_greeting.admin_upload_splash_image') }}";
+
+  try {
+    const resp = await fetch(endpoint, { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.success) {
+      document.getElementById('media_url').value = data.url;
+      const preview = document.getElementById('media-preview');
+      preview.innerHTML = isVideo
+        ? `<video src="${data.url}" style="width:160px;height:160px;object-fit:cover;border-radius:8px" controls muted></video>`
+        : `<img src="${data.url}" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">`;
+      status.textContent = '✅ تم الرفع';
+    } else {
+      status.textContent = '❌ ' + (data.error || 'فشل الرفع');
+    }
+  } catch (e) {
+    status.textContent = '❌ خطأ في الاتصال';
+  }
+  document.getElementById('submit-btn').disabled = false;
+}
+
+document.getElementById('sg-form').addEventListener('submit', function (e) {
+  if (!document.getElementById('media_url').value) {
+    e.preventDefault();
+    alert('لازم ترفع صورة أو فيديو أولاً');
+  }
+});
+</script>
+{% endblock %}

@@ -1243,6 +1243,21 @@ def create_app():
     except Exception as e:
         print(f"❌ Announcements blueprint error: {e}")
 
+    # ✅ تسجيل Splash Greeting Blueprint — شاشة مناسبات (صورة/فيديو) قبل تسجيل الدخول
+    try:
+        from src.models.splash_greeting import SplashGreeting  # noqa: F401
+        from src.routes.splash_greeting import splash_greeting_bp
+        csrf.exempt(splash_greeting_bp)
+        app.register_blueprint(splash_greeting_bp)
+        print("✅ Splash Greeting blueprint registered successfully")
+        print("🎉  Splash Greeting endpoints available at:")
+        print("   - GET  /api/splash-greeting/active")
+        print("   - GET  /admin/splash-greeting")
+    except ImportError as e:
+        print(f"⚠️ Splash Greeting blueprint not available: {e}")
+    except Exception as e:
+        print(f"❌ Splash Greeting blueprint error: {e}")
+
     # ✅ تسجيل Video Views Blueprint — تتبع مشاهدات فيديو الشرح
     try:
         from src.models.question_video_view import QuestionVideoView  # noqa: F401
