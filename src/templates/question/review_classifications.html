@@ -76,10 +76,15 @@
     <div class="card mb-3 shadow-sm review-card" id="card-{{ q.question_id }}" dir="rtl">
         <div class="card-body">
             <!-- رأس: الموقع في المنهج -->
-            <div class="text-muted small mb-2">
+            <div class="text-muted small mb-2 d-flex align-items-center gap-2">
+                <span>
                 {{ q.lesson.unit.course.name if q.lesson and q.lesson.unit and q.lesson.unit.course else '' }}
                 {% if q.lesson and q.lesson.unit %} ← {{ q.lesson.unit.name }}{% endif %}
                 {% if q.lesson %} ← {{ q.lesson.name }}{% endif %}
+                </span>
+                {% if q.is_bank %}
+                    <span class="badge" style="background-color:#7c3aed;color:#fff;" title="سؤال بنك مولّد بالذكاء الاصطناعي — لا يظهر للطالب بالتفاعلي إلا بالاختبار التكيفي بعد اعتماده">🤖 بنك AI</span>
+                {% endif %}
             </div>
 
             <!-- نص السؤال -->

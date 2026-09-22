@@ -6560,6 +6560,7 @@ def get_review_questions():
     unit_id   = request.args.get('unit_id',   type=int)
     lesson_id = request.args.get('lesson_id', type=int)
     show_all  = request.args.get('show_all', '0') == '1'
+    bank_only = request.args.get('bank_only', '0') == '1'   # أسئلة بنك الـAI المولّدة فقط
 
     query = Question.query.options(
         joinedload(Question.options),
@@ -6568,6 +6569,8 @@ def get_review_questions():
 
     if not show_all:
         query = query.filter(Question.human_verified == False)
+    if bank_only:
+        query = query.filter(Question.is_bank == True)
 
     if lesson_id:
         query = query.filter(Question.lesson_id == lesson_id)
@@ -6591,6 +6594,7 @@ def get_review_questions():
             'difficulty':     q.difficulty,
             'bloom_level':    q.bloom_level,
             'human_verified': q.human_verified,
+            'is_bank':        bool(q.is_bank),
             'course':  q.lesson.unit.course.name if q.lesson and q.lesson.unit and q.lesson.unit.course else '',
             'unit':    q.lesson.unit.name  if q.lesson and q.lesson.unit  else '',
             'lesson':  q.lesson.name       if q.lesson                     else '',
