@@ -127,6 +127,7 @@
             <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-success btn-sm" onclick="approve({{ q.question_id }})">✅ موافق</button>
                 <button class="btn btn-warning btn-sm text-dark" onclick="toggleCorrect({{ q.question_id }})">✏️ تصحيح</button>
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('question.edit_question', question_id=q.question_id) }}" target="_blank">🖼️ تعديل كامل (نص/صورة)</a>
                 <button class="btn btn-outline-secondary btn-sm" onclick="skipCard({{ q.question_id }})">⏭️ تخطي</button>
             </div>
 
