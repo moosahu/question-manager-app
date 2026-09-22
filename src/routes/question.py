@@ -5480,11 +5480,20 @@ def review_classifications():
 
     query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
 
+    # ⚠️ سؤال يذكر "شكل/رسم/جدول/صورة" بنصه بدون صورة مرفقة — الأغلب مولّد بالـAI ومرجعه
+    # شكل بالكتاب ما انربط بصورة فعلية، يحتاج مراجعة يدوية قبل الاعتماد
+    figure_keywords = ('الشكل', 'الرسم', 'الجدول', 'الصورة')
+
+    def _needs_image(q):
+        return bool(q.question_text) and not q.image_url and any(k in q.question_text for k in figure_keywords)
+
     total_pending   = Question.query.filter(Question.human_verified == False).count()
     total_verified  = Question.query.filter(Question.human_verified == True).count()
     total_all       = Question.query.count()
 
     questions = query.all()
+    for q in questions:
+        q._needs_image = _needs_image(q)
     courses   = Course.query.order_by(Course.name).all()
 
     return render_template(

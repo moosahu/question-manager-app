@@ -85,6 +85,9 @@
                 {% if q.is_bank %}
                     <span class="badge" style="background-color:#7c3aed;color:#fff;" title="سؤال بنك مولّد بالذكاء الاصطناعي — لا يظهر للطالب بالتفاعلي إلا بالاختبار التكيفي بعد اعتماده">🤖 بنك AI</span>
                 {% endif %}
+                {% if q._needs_image %}
+                    <span class="badge" style="background-color:#dc2626;color:#fff;" title="النص يذكر شكل/رسم/جدول/صورة لكن ما فيه صورة مرفقة — راجع وأضف صورة قبل الاعتماد">⚠️ يحتاج صورة</span>
+                {% endif %}
             </div>
 
             <!-- نص السؤال -->

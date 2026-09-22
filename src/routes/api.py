@@ -6582,6 +6582,13 @@ def get_review_questions():
     query = query.order_by(Question.lesson_id.asc(), Question.question_id.asc())
     pag   = query.paginate(page=page, per_page=per_page, error_out=False)
 
+    # ⚠️ سؤال يذكر "شكل/رسم/جدول/صورة" بنصه بدون صورة مرفقة — غالباً مولّد بالـAI ومرجعه شكل
+    # بالكتاب ما انربط بصورة فعلية، يحتاج مراجعة يدوية قبل الاعتماد
+    _figure_keywords = ('الشكل', 'الرسم', 'الجدول', 'الصورة')
+
+    def _needs_image(q):
+        return bool(q.question_text) and not q.image_url and any(k in q.question_text for k in _figure_keywords)
+
     total_pending  = Question.query.filter(Question.human_verified == False).count()
     total_verified = Question.query.filter(Question.human_verified == True).count()
     total_all_q    = Question.query.count()
@@ -6595,6 +6602,7 @@ def get_review_questions():
             'bloom_level':    q.bloom_level,
             'human_verified': q.human_verified,
             'is_bank':        bool(q.is_bank),
+            'needs_image':    _needs_image(q),
             'course':  q.lesson.unit.course.name if q.lesson and q.lesson.unit and q.lesson.unit.course else '',
             'unit':    q.lesson.unit.name  if q.lesson and q.lesson.unit  else '',
             'lesson':  q.lesson.name       if q.lesson                     else '',
