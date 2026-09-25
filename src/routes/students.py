@@ -2715,6 +2715,77 @@ def admin_backfill_phone_hash():
     return jsonify({'success': True, 'checked': len(students), 'updated': updated})
 
 
+# ==================== كل نتائج الاختبار التفاعلي (كل الطلاب) ====================
+@students_bp.route('/admin/api/quiz-results', methods=['GET'])
+@login_required
+@admin_required
+def admin_all_quiz_results():
+    """
+    قائمة كل محاولات الاختبار التفاعلي من كل الطلاب — مع فلاتر اختيارية.
+    ?course_id=&unit_id=&lesson_id=&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&page=1&per_page=30
+    """
+    from src.models.student_result import StudentResult
+    from src.models.curriculum import Lesson, Unit, Course
+    from datetime import datetime as _dt, timedelta as _td
+
+    course_id = request.args.get('course_id', type=int)
+    unit_id = request.args.get('unit_id', type=int)
+    lesson_id = request.args.get('lesson_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 30, type=int), 100)
+
+    query = StudentResult.query.join(Student, StudentResult.student_id == Student.id)
+
+    if lesson_id:
+        query = query.filter(StudentResult.lesson_id == lesson_id)
+    elif unit_id:
+        query = query.filter(StudentResult.unit_id == unit_id)
+    elif course_id:
+        query = query.filter(StudentResult.course_id == course_id)
+
+    if date_from:
+        try:
+            query = query.filter(StudentResult.created_at >= _dt.strptime(date_from, '%Y-%m-%d'))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            query = query.filter(StudentResult.created_at < _dt.strptime(date_to, '%Y-%m-%d') + _td(days=1))
+        except ValueError:
+            pass
+
+    query = query.order_by(StudentResult.created_at.desc())
+    total = query.count()
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    # أسماء الدروس/الوحدات/المناهج — نجيبها دفعة وحدة بدل استعلام لكل صف
+    lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
+    unit_ids = {r.unit_id for r in rows if r.unit_id}
+    course_ids = {r.course_id for r in rows if r.course_id}
+    lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
+    units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
+    courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+
+    results = []
+    for r in rows:
+        d = r.to_dict()
+        d['student_name'] = r.student.name if r.student else None
+        d['lesson_name'] = lessons.get(r.lesson_id)
+        d['unit_name'] = units.get(r.unit_id)
+        d['course_name'] = courses.get(r.course_id)
+        results.append(d)
+
+    return jsonify({
+        'success': True,
+        'results': results,
+        'total': total,
+        'page': page,
+        'pages': (total + per_page - 1) // per_page if per_page else 1,
+    })
+
+
 # ==================== Teacher-Student Link (Student side) ====================
 
 @students_bp.route('/api/join-class', methods=['POST'])
