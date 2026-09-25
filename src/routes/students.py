@@ -11,7 +11,7 @@ from src.extensions import db
 from src.models.student import Student
 from functools import wraps
 from src.middleware.auth_middleware import create_student_token
-from src.utils.field_encryption import make_email_hash
+from src.utils.field_encryption import make_email_hash, make_phone_hash
 from datetime import datetime
 import secrets
 import pytz  # ✅ إضافة لنظام التوقيت الذكي
@@ -302,12 +302,20 @@ def delete_student(student_id):
 def toggle_student(student_id):
     """تفعيل/تعطيل حساب طالب"""
     student = Student.query.get_or_404(student_id)
+    was_inactive = not student.is_active
     student.is_active = not student.is_active
-    
+
     try:
         db.session.commit()
         status = "مفعل" if student.is_active else "معطل"
         flash(f'تم تغيير حالة الطالب "{student.name}" إلى {status}', 'success')
+        # إرسال إيميل التفعيل فقط عند التفعيل (من معطل → مفعّل)
+        if student.is_active and was_inactive and student.email:
+            try:
+                from src.services.email_service import email_service
+                email_service.send_student_activation(student.email, student.name)
+            except Exception:
+                pass
     except Exception as e:
         db.session.rollback()
         flash(f'خطأ في تغيير الحالة: {str(e)}', 'danger')
@@ -2668,10 +2676,18 @@ def api_mobile_delete_student(student_id):
 def api_mobile_toggle_student(student_id):
     """تفعيل/تعطيل حساب طالب"""
     student = Student.query.get_or_404(student_id)
+    was_inactive = not student.is_active
     student.is_active = not student.is_active
     try:
         db.session.commit()
         status = 'مفعل' if student.is_active else 'معطل'
+        # إرسال إيميل التفعيل فقط عند التفعيل (من معطل → مفعّل)
+        if student.is_active and was_inactive and student.email:
+            try:
+                from src.services.email_service import email_service
+                email_service.send_student_activation(student.email, student.name)
+            except Exception:
+                pass
         return jsonify({
             'success': True,
             'message': f'تم تغيير حالة الطالب إلى {status}',
@@ -2680,6 +2696,23 @@ def api_mobile_toggle_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== تعبئة phone_hash لمرة واحدة (طلاب قدامى قبل ميزة منع تكرار الجوال) ====================
+@students_bp.route('/admin/backfill-phone-hash', methods=['POST'])
+@login_required
+@admin_required
+def admin_backfill_phone_hash():
+    """يُشغَّل مرة واحدة بعد إضافة عمود phone_hash — يحسب الهاش لكل الطلاب اللي عندهم جوال مسجّل مسبقاً"""
+    students = Student.query.filter(Student.phone.isnot(None)).all()
+    updated = 0
+    for s in students:
+        h = make_phone_hash(s.phone)
+        if h and s.phone_hash != h:
+            s.phone_hash = h
+            updated += 1
+    db.session.commit()
+    return jsonify({'success': True, 'checked': len(students), 'updated': updated})
 
 
 # ==================== Teacher-Student Link (Student side) ====================

@@ -1,7 +1,7 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from src.extensions import db
-from src.utils.field_encryption import EncryptedString, make_email_hash
+from src.utils.field_encryption import EncryptedString, make_email_hash, make_phone_hash
 from datetime import datetime
 
 
@@ -17,6 +17,7 @@ class Student(db.Model, UserMixin):
     email = db.Column(EncryptedString(500), nullable=True)
     email_hash = db.Column(db.String(100), nullable=True, index=True)
     phone = db.Column(EncryptedString(500), nullable=True)
+    phone_hash = db.Column(db.String(100), nullable=True, index=True)  # للتحقق من عدم تكرار الجوال بحساب آخر
     password_hash = db.Column(db.String(256), nullable=False)
     
     # معلومات إضافية
@@ -51,6 +52,11 @@ class Student(db.Model, UserMixin):
         """يحفظ الإيميل مشفراً ويحدّث الـ hash للبحث"""
         self.email = email
         self.email_hash = make_email_hash(email)
+
+    def set_phone(self, phone):
+        """يحفظ الجوال مشفراً ويحدّث الـ hash للتحقق من التفرد"""
+        self.phone = phone
+        self.phone_hash = make_phone_hash(phone)
 
     def set_password(self, password):
         """تشفير كلمة المرور"""

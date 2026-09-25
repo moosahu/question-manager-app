@@ -11,7 +11,7 @@ from src.models.teacher import Teacher  # ✅ جديد
 from src.models.email_verification import EmailVerification, RegistrationSettings
 from src.services.email_service import email_service
 from src.middleware.auth_middleware import create_student_token, create_teacher_token
-from src.utils.field_encryption import make_email_hash
+from src.utils.field_encryption import make_email_hash, make_phone_hash
 
 registration_bp = Blueprint('registration', __name__, url_prefix='/api/registration')
 
@@ -314,6 +314,13 @@ def register_student():
                 'success': False,
                 'error': 'الإيميل مسجل مسبقاً'
             }), 400
+
+        # التحقق من عدم تكرار رقم الجوال بحساب آخر
+        if phone and Student.query.filter_by(phone_hash=make_phone_hash(phone)).first():
+            return jsonify({
+                'success': False,
+                'error': 'هذا الرقم مسجل بحساب آخر'
+            }), 400
         
         # تشفير كلمة المرور
         password_hash = generate_password_hash(password)
@@ -605,6 +612,8 @@ def verify_code():
                     return jsonify({'success': False, 'error': 'اسم المستخدم أصبح محجوزاً'}), 400
                 if Student.query.filter_by(email_hash=make_email_hash(verification.email)).first():
                     return jsonify({'success': False, 'error': 'الإيميل أصبح مسجلاً'}), 400
+                if verification.phone and Student.query.filter_by(phone_hash=make_phone_hash(verification.phone)).first():
+                    return jsonify({'success': False, 'error': 'هذا الرقم مسجل بحساب آخر'}), 400
                 
                 student = Student(
                     name=verification.name,
@@ -613,6 +622,7 @@ def verify_code():
                     email_hash=make_email_hash(verification.email),
                     password_hash=verification.password_hash,
                     phone=verification.phone,
+                    phone_hash=make_phone_hash(verification.phone),
                     school=verification.school,
                     grade=verification.grade,
                     is_active=False  # ❌ غير مفعّل حتى يتحقق من الجوال
@@ -716,15 +726,20 @@ def verify_code():
                     'success': False,
                     'error': 'الإيميل أصبح مسجلاً. يرجى إعادة التسجيل'
                 }), 400
-            
+            if verification.phone and Student.query.filter_by(phone_hash=make_phone_hash(verification.phone)).first():
+                return jsonify({
+                    'success': False,
+                    'error': 'هذا الرقم مسجل بحساب آخر'
+                }), 400
+
             # ✅ إذا أدخل رقم جوال → لا يُفعّل إلا بعد التحقق من الجوال
             has_phone = bool(verification.phone)
             should_activate = settings.auto_activate
             if has_phone:
                 should_activate = False  # ينتظر التحقق من الجوال
-            
+
             print(f"🐞 Student verify: phone='{verification.phone}', has_phone={has_phone}, should_activate={should_activate}")
-            
+
             student = Student(
                 name=verification.name,
                 username=verification.username,
@@ -732,6 +747,7 @@ def verify_code():
                 email_hash=make_email_hash(verification.email),
                 password_hash=verification.password_hash,
                 phone=verification.phone,
+                phone_hash=make_phone_hash(verification.phone),
                 school=verification.school,
                 grade=verification.grade,
                 is_active=should_activate

@@ -73,6 +73,17 @@ def make_email_hash(email):
                     hashlib.sha256).hexdigest()
 
 
+def make_phone_hash(phone):
+    """HMAC-SHA256 لرقم الجوال (أرقام فقط بعد إزالة أي رموز تنسيق) — للتحقق من التفرد بدون فك التشفير"""
+    if not phone:
+        return None
+    digits_only = ''.join(ch for ch in phone if ch.isdigit())
+    if not digits_only:
+        return None
+    key1 = os.getenv('KEY_1', '').encode('utf-8')
+    return hmac.new(key1, digits_only.encode('utf-8'), hashlib.sha256).hexdigest()
+
+
 # ── SQLAlchemy TypeDecorator — تشفير شفاف تلقائي ──────────────
 class EncryptedString(types.TypeDecorator):
     """
