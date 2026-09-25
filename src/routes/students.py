@@ -2715,17 +2715,19 @@ def admin_backfill_phone_hash():
     return jsonify({'success': True, 'checked': len(students), 'updated': updated})
 
 
-# ==================== كل نتائج الاختبار التفاعلي (كل الطلاب) ====================
-@students_bp.route('/admin/api/quiz-results', methods=['GET'])
-@login_required
-@admin_required
-def admin_all_quiz_results():
-    """
-    قائمة كل محاولات الاختبار التفاعلي من كل الطلاب — مع فلاتر اختيارية.
-    ?course_id=&unit_id=&lesson_id=&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&page=1&per_page=30
-    """
+def _admin_own_student_ids():
+    """طلاب الأدمن الحالي المرتبطين به فقط (TeacherStudent.admin_id) — نطاق 'طلابي'"""
+    from src.models.teacher_student import TeacherStudent
+    return [
+        row[0] for row in
+        db.session.query(TeacherStudent.student_id).filter(TeacherStudent.admin_id == current_user.id).all()
+    ]
+
+
+def _build_quiz_results_query(scope='all'):
+    """استعلام نتائج الاختبار التفاعلي مع فلاتر الدرس/الوحدة/المنهج والتاريخ والنطاق (all/mine) —
+    مشترك بين شاشة العرض وتصدير PDF"""
     from src.models.student_result import StudentResult
-    from src.models.curriculum import Lesson, Unit, Course
     from datetime import datetime as _dt, timedelta as _td
 
     course_id = request.args.get('course_id', type=int)
@@ -2733,10 +2735,11 @@ def admin_all_quiz_results():
     lesson_id = request.args.get('lesson_id', type=int)
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 30, type=int), 100)
 
     query = StudentResult.query.join(Student, StudentResult.student_id == Student.id)
+
+    if scope == 'mine':
+        query = query.filter(StudentResult.student_id.in_(_admin_own_student_ids()))
 
     if lesson_id:
         query = query.filter(StudentResult.lesson_id == lesson_id)
@@ -2756,7 +2759,25 @@ def admin_all_quiz_results():
         except ValueError:
             pass
 
-    query = query.order_by(StudentResult.created_at.desc())
+    return query.order_by(StudentResult.created_at.desc())
+
+
+# ==================== كل نتائج الاختبار التفاعلي (كل الطلاب) ====================
+@students_bp.route('/admin/api/quiz-results', methods=['GET'])
+@login_required
+@admin_required
+def admin_all_quiz_results():
+    """
+    قائمة كل محاولات الاختبار التفاعلي — مع فلاتر اختيارية.
+    ?scope=all|mine&course_id=&unit_id=&lesson_id=&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&page=1&per_page=30
+    """
+    from src.models.curriculum import Lesson, Unit, Course
+
+    scope = request.args.get('scope', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 30, type=int), 100)
+
+    query = _build_quiz_results_query(scope)
     total = query.count()
     rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
@@ -2784,6 +2805,78 @@ def admin_all_quiz_results():
         'page': page,
         'pages': (total + per_page - 1) // per_page if per_page else 1,
     })
+
+
+@students_bp.route('/admin/export-quiz-results-pdf', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_quiz_results_pdf():
+    """
+    تصدير PDF لكل نتائج الاختبار التفاعلي — نفس شكل تقرير أنماط التعلم (مع/بدون كليشة الوزارة).
+    ?scope=all|mine&course_id=&unit_id=&lesson_id=&date_from=&date_to=&with_letterhead=1&school_name=
+    """
+    from flask import send_file
+    from io import BytesIO
+    from datetime import datetime
+    from src.models.curriculum import Lesson, Unit, Course
+    try:
+        from src.routes.learning_style_routes import _html_to_pdf, _learning_style_header_base64
+        from src.routes.exam_generator import _get_font_data, _get_font_data_bold
+    except ImportError:  # pragma: no cover
+        from routes.learning_style_routes import _html_to_pdf, _learning_style_header_base64
+        from routes.exam_generator import _get_font_data, _get_font_data_bold
+
+    try:
+        scope = request.args.get('scope', 'all')
+        with_letterhead = str(request.args.get('with_letterhead', '')).lower() in ('1', 'true', 'yes')
+        school_name = request.args.get('school_name') or ''
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+
+        rows = _build_quiz_results_query(scope).limit(2000).all()
+
+        lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
+        unit_ids = {r.unit_id for r in rows if r.unit_id}
+        course_ids = {r.course_id for r in rows if r.course_id}
+        lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
+        units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
+        courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+
+        results = []
+        for r in rows:
+            results.append({
+                'student_name': r.student.name if r.student else '',
+                'lesson_name': lessons.get(r.lesson_id),
+                'unit_name': units.get(r.unit_id),
+                'course_name': courses.get(r.course_id),
+                'quiz_name': r.quiz_name,
+                'score_percentage': r.score_percentage or 0,
+                'date_label': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
+            })
+
+        period_label = f'{date_from or "البداية"} إلى {date_to or "اليوم"}' if (date_from or date_to) else 'كل الفترات'
+        scope_label = 'طلابي' if scope == 'mine' else 'كل الطلاب'
+
+        context = {
+            'results': results,
+            'scope_label': scope_label,
+            'period_label': period_label,
+            'with_letterhead': with_letterhead,
+            'school_name': school_name,
+            'header_image_base64': _learning_style_header_base64() if with_letterhead else '',
+            'font_regular': _get_font_data('cairo'),
+            'font_bold': _get_font_data_bold('cairo'),
+            'year_now': datetime.now().year,
+        }
+        html_content = render_template('quiz_results_report_pdf.html', **context)
+        pdf_bytes = _html_to_pdf(html_content)
+
+        return send_file(
+            BytesIO(pdf_bytes), as_attachment=True,
+            download_name='نتائج_الاختبار_التفاعلي.pdf', mimetype='application/pdf',
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==================== Teacher-Student Link (Student side) ====================

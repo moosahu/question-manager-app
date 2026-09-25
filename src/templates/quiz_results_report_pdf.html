@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تقرير نتائج الاختبار التفاعلي</title>
+<style>
+  @font-face {
+    font-family: 'ReportFont';
+    src: url('{{ font_regular }}') format('truetype');
+    font-weight: normal;
+  }
+  {% if font_bold %}
+  @font-face {
+    font-family: 'ReportFont';
+    src: url('{{ font_bold }}') format('truetype');
+    font-weight: bold;
+  }
+  {% endif %}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'ReportFont', 'Tahoma', sans-serif;
+    direction: rtl;
+    color: #1e293b;
+    font-size: 13px;
+  }
+
+  {% if with_letterhead %}
+  {% set c1 = '#0B3945' %}{% set c2 = '#46BA7B' %}
+  {% else %}
+  {% set c1 = '#4ECDC4' %}{% set c2 = '#2563EB' %}
+  {% endif %}
+
+  /* ── هيدر ── */
+  .header { position: relative; }
+  {% if with_letterhead %}
+  .header img { width: 100%; display: block; }
+  .header-tab { position: absolute; right: 26.5%; left: 26.5%; top: 73%; bottom: 3%;
+                display: flex; align-items: center; justify-content: center;
+                color: #eafff2; font-size: 12.5px; font-weight: 600; text-align: center; overflow: hidden; padding: 0 6px; }
+  {% else %}
+  .header { position: relative; height: 108px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
+            border-radius: 0 0 34px 0; display: flex; align-items: center; padding: 0 26px; }
+  .app-brand-card { display: flex; align-items: center; gap: 10px; }
+  .app-brand-card .emoji { font-size: 34px; }
+  .app-brand-card .ministry { font-size: 18px; font-weight: bold; color: #fff; }
+  .app-brand-card .school { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 3px; }
+  {% endif %}
+
+  .title-box { width: 58%; margin-right: auto; margin-left: 0; background: #f8fafc; border: 1px solid #cbd5e1;
+               border-radius: 10px; text-align: center; padding: 9px; font-size: 15.5px; font-weight: bold; color: #0f172a; margin-top: 16px; }
+
+  .info-table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+  .info-table th, .info-table td { border: 1px solid #cbd5e1; padding: 7px 6px; text-align: center; font-size: 12.5px; }
+  .info-table th { background: linear-gradient(90deg, {{ c1 }}, {{ c2 }}); color: #fff; }
+
+  table.main { width: 100%; border-collapse: collapse; }
+  table.main thead { display: table-header-group; }
+  table.main th { background: {{ c1 }}; color: #fff; padding: 8px 6px; font-size: 12.5px; border: 1px solid #94a3b8; }
+  table.main td { border: 1px solid #cbd5e1; padding: 6px; font-size: 12px; vertical-align: middle; }
+  table.main tr { page-break-inside: avoid; }
+
+  td.num { width: 32px; text-align: center; font-weight: bold; color: #475569; }
+  td.name { text-align: right; padding-right: 10px; font-weight: bold; }
+  td.score { text-align: center; font-weight: bold; }
+  .score-good { color: #16a34a; }
+  .score-mid { color: #d97706; }
+  .score-low { color: #dc2626; }
+
+  .empty-row { text-align: center; color: #94a3b8; font-style: italic; padding: 20px; }
+
+  .app-footer { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; padding: 8px; }
+
+  .bottom-bar { height: 26px; margin-top: 18px; background: linear-gradient(90deg, {{ c1 }}, {{ c2 }}); border-radius: 30px 0 0 0; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    {% if with_letterhead and header_image_base64 %}
+    <img src="{{ header_image_base64 }}">
+    <div class="header-tab">{{ school_name or '' }}</div>
+    {% elif not with_letterhead %}
+    <div class="app-brand-card">
+      <div class="emoji">📊</div>
+      <div>
+        <div class="ministry">كيم تحصيلي</div>
+        <div class="school">منصة تعليمية للكيمياء</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="title-box">تقرير نتائج الاختبار التفاعلي</div>
+
+  <table class="info-table">
+    <tr>
+      <th>النطاق</th><th>الفترة</th><th>عدد النتائج</th>
+    </tr>
+    <tr>
+      <td>{{ scope_label }}</td>
+      <td>{{ period_label }}</td>
+      <td>{{ results|length }}</td>
+    </tr>
+  </table>
+
+  <table class="main">
+    <thead>
+      <tr>
+        <th style="width:32px;">م</th>
+        <th>اسم الطالب/ة</th>
+        <th>الدرس</th>
+        <th style="width:70px;">الدرجة</th>
+        <th style="width:90px;">التاريخ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="name">{{ r.student_name or '' }}</td>
+        <td>{{ r.lesson_name or r.unit_name or r.course_name or r.quiz_name or '' }}</td>
+        <td class="score {{ 'score-good' if r.score_percentage >= 80 else 'score-mid' if r.score_percentage >= 60 else 'score-low' }}">
+          {{ '%.0f'|format(r.score_percentage) }}%
+        </td>
+        <td>{{ r.date_label or '' }}</td>
+      </tr>
+      {% endfor %}
+      {% if not results %}
+      <tr><td colspan="5" class="empty-row">ما فيه نتائج بهذي الفترة/النطاق</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div class="app-footer">📊 مستخرج كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}</div>
+
+  <div class="bottom-bar"></div>
+
+</body>
+</html>
