@@ -2699,7 +2699,7 @@ def api_mobile_toggle_student(student_id):
 
 
 # ==================== تعبئة phone_hash لمرة واحدة (طلاب قدامى قبل ميزة منع تكرار الجوال) ====================
-@students_bp.route('/admin/backfill-phone-hash', methods=['POST'])
+@students_bp.route('/admin/backfill-phone-hash', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def admin_backfill_phone_hash():
