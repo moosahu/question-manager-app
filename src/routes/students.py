@@ -2715,17 +2715,25 @@ def admin_backfill_phone_hash():
     return jsonify({'success': True, 'checked': len(students), 'updated': updated})
 
 
+def _admin_own_links():
+    """روابط TeacherStudent لطلاب الأدمن الحالي المرتبطين به (admin_id) — تشمل الشعبة"""
+    from src.models.teacher_student import TeacherStudent
+    return TeacherStudent.query.filter(TeacherStudent.admin_id == current_user.id).all()
+
+
 def _admin_own_student_ids():
     """طلاب الأدمن الحالي المرتبطين به فقط (TeacherStudent.admin_id) — نطاق 'طلابي'"""
-    from src.models.teacher_student import TeacherStudent
-    return [
-        row[0] for row in
-        db.session.query(TeacherStudent.student_id).filter(TeacherStudent.admin_id == current_user.id).all()
-    ]
+    return [l.student_id for l in _admin_own_links()]
+
+
+def _admin_student_ids_in_section(section):
+    """طلاب الأدمن الحالي بشعبة معيّنة (TeacherStudent.section)"""
+    section = (section or '').strip()
+    return [l.student_id for l in _admin_own_links() if (l.section or '').strip() == section]
 
 
 def _build_quiz_results_query(scope='all'):
-    """استعلام نتائج الاختبار التفاعلي مع فلاتر الدرس/الوحدة/المنهج والتاريخ والنطاق (all/mine) —
+    """استعلام نتائج الاختبار التفاعلي مع فلاتر الدرس/الوحدة/المنهج والتاريخ والشعبة والنطاق (all/mine) —
     مشترك بين شاشة العرض وتصدير PDF"""
     from src.models.student_result import StudentResult
     from datetime import datetime as _dt, timedelta as _td
@@ -2735,11 +2743,16 @@ def _build_quiz_results_query(scope='all'):
     lesson_id = request.args.get('lesson_id', type=int)
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    section = request.args.get('section')
 
     query = StudentResult.query.join(Student, StudentResult.student_id == Student.id)
 
     if scope == 'mine':
         query = query.filter(StudentResult.student_id.in_(_admin_own_student_ids()))
+
+    # الشعبة مبنية على روابط الأدمن (TeacherStudent.section) — نفس نطاق 'طلابي' حتى لو scope=all
+    if section:
+        query = query.filter(StudentResult.student_id.in_(_admin_student_ids_in_section(section)))
 
     if lesson_id:
         query = query.filter(StudentResult.lesson_id == lesson_id)
@@ -2760,6 +2773,18 @@ def _build_quiz_results_query(scope='all'):
             pass
 
     return query.order_by(StudentResult.created_at.desc())
+
+
+@students_bp.route('/admin/quiz-results-sections', methods=['GET'])
+@login_required
+@admin_required
+def admin_quiz_results_sections():
+    """قائمة الشعب الفعلية لطلاب الأدمن المرتبطين (من TeacherStudent.section) — لفلترة نتائج الاختبار التفاعلي"""
+    try:
+        sections = sorted({(l.section or '').strip() for l in _admin_own_links() if (l.section or '').strip()})
+        return jsonify({'success': True, 'sections': sections})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ==================== كل نتائج الاختبار التفاعلي (كل الطلاب) ====================
@@ -2855,7 +2880,10 @@ def admin_export_quiz_results_pdf():
             })
 
         period_label = f'{date_from or "البداية"} إلى {date_to or "اليوم"}' if (date_from or date_to) else 'كل الفترات'
+        section = (request.args.get('section') or '').strip()
         scope_label = 'طلابي' if scope == 'mine' else 'كل الطلاب'
+        if section:
+            scope_label += f' — شعبة {section}'
 
         context = {
             'results': results,
