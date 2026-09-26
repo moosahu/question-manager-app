@@ -2832,6 +2832,23 @@ def admin_all_quiz_results():
     })
 
 
+@students_bp.route('/admin/api/quiz-results/<int:result_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def admin_delete_quiz_result(result_id):
+    """
+    حذف محاولة اختبار تفاعلي وحدة — عشان الأدمن يقدر يستبعد بيانات مو منطقية
+    (مثلاً طالب اختبر كامل المنهج دفعة وحدة) من كل التقارير والمعدلات بعدها.
+    """
+    from src.models.student_result import StudentResult
+    result = StudentResult.query.get(result_id)
+    if not result:
+        return jsonify({'success': False, 'error': 'النتيجة غير موجودة'}), 404
+    db.session.delete(result)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 # ── تحليل اتجاه الأداء (مؤشر تقريبي — عيّنة صغيرة بطبيعة اختبارات المدرسة) ──
 _TREND_MIN_ATTEMPTS = 6     # أقل عدد محاولات عشان نحسب اتجاه أصلاً
 _TREND_WINDOW = 3           # نقارن آخر 3 بأول 3 (نافذة ثابتة، أدق من تقسيم نسبي)
