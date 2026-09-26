@@ -181,10 +181,15 @@ class DiagnosticResult(db.Model):
     diagnostic_test_id = db.Column(db.Integer, db.ForeignKey('diagnostic_tests.id'), nullable=False)
     
     # الطالب
-    student_id = db.Column(db.String(100), nullable=True)
+    # ⚠️ student_id: العمود الفعلي بقاعدة البيانات integer (يشير دائماً لـ Student.id) —
+    # كان معرّفاً هنا كـ String(100) بالغلط، ما يطابق العمود الحقيقي، وهذا كان يسبب فشل
+    # إدراج نتيجة الاختبار التكيفي بخطأ "column student_id is of type integer but
+    # expression is of type character varying" (الاختبار العادي ما كان يظهر له نفس الخطأ
+    # لاختلاف مسار الإدراج، لكن المشكلة الجذرية نفس العمود بكلا المسارين)
+    student_id = db.Column(db.Integer, nullable=True)
     student_name = db.Column(db.String(255), nullable=True)
     device_id = db.Column(db.String(255), nullable=True)
-    
+
     # النتيجة
     score = db.Column(db.Float, default=0)
     total_questions = db.Column(db.Integer, default=0)

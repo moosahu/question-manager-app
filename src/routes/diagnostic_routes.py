@@ -1036,14 +1036,21 @@ def start_test(test_id):
         # 2. جرّب من body
         if not student_id:
             student_id = data.get('student_id')
-        
+
         # 3. جرّب من current_user
         if not student_id and current_user.is_authenticated:
             student_id = current_user.id
-        
+
         if not student_id:
             return jsonify({'success': False, 'error': 'يجب تحديد الطالب'}), 400
-        
+
+        # ⚠️ العمود student_id بقاعدة البيانات integer — لو وصل كنص من الـ body لازم نحوّله رقم صريح
+        if not isinstance(student_id, int):
+            try:
+                student_id = int(student_id)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'معرّف الطالب غير صالح'}), 400
+
         test = DiagnosticTest.query.filter_by(id=test_id, is_active=True).first()
         if not test:
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
@@ -1356,6 +1363,13 @@ def _resolve_student_id(data):
     student_id = data.get('student_id')
     if not student_id and current_user.is_authenticated:
         student_id = current_user.id
+    # ⚠️ العمود student_id بقاعدة البيانات integer — لو وصل كنص من الـ body (JSON) لازم نحوّله
+    # رقم صريح، وإلا يفشل الإدراج بخطأ type mismatch عند psycopg3
+    if student_id is not None and not isinstance(student_id, int):
+        try:
+            student_id = int(student_id)
+        except (TypeError, ValueError):
+            return None
     return student_id
 
 
