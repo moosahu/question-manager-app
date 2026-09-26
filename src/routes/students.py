@@ -2732,6 +2732,21 @@ def _admin_student_ids_in_section(section):
     return [l.student_id for l in _admin_own_links() if (l.section or '').strip() == section]
 
 
+def _admin_student_ids_in_sections(sections):
+    """طلاب الأدمن الحالي بأي شعبة من عدة شعب (TeacherStudent.section)"""
+    normalized = {(s or '').strip() for s in sections if (s or '').strip()}
+    return [l.student_id for l in _admin_own_links() if (l.section or '').strip() in normalized]
+
+
+def _parse_sections_param():
+    """يقرأ فلتر الشعبة من الطلب — يدعم 'sections' (عدة شعب مفصولة بفاصلة) و'section' القديم (شعبة وحدة)"""
+    sections_param = request.args.get('sections')
+    if sections_param:
+        return [s.strip() for s in sections_param.split(',') if s.strip()]
+    section = request.args.get('section')
+    return [section.strip()] if section and section.strip() else []
+
+
 def _build_quiz_results_query(scope='all'):
     """استعلام نتائج الاختبار التفاعلي مع فلاتر الدرس/الوحدة/المنهج والتاريخ والشعبة والنطاق (all/mine) —
     مشترك بين شاشة العرض وتصدير PDF"""
@@ -2743,7 +2758,7 @@ def _build_quiz_results_query(scope='all'):
     lesson_id = request.args.get('lesson_id', type=int)
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
-    section = request.args.get('section')
+    sections = _parse_sections_param()
     exclude_course_wide = request.args.get('exclude_course_wide') in ('1', 'true', 'True')
 
     query = StudentResult.query.join(Student, StudentResult.student_id == Student.id)
@@ -2756,8 +2771,9 @@ def _build_quiz_results_query(scope='all'):
         query = query.filter(StudentResult.student_id.in_(_admin_own_student_ids()))
 
     # الشعبة مبنية على روابط الأدمن (TeacherStudent.section) — نفس نطاق 'طلابي' حتى لو scope=all
-    if section:
-        query = query.filter(StudentResult.student_id.in_(_admin_student_ids_in_section(section)))
+    # تدعم شعبة وحدة أو عدة شعب مع بعض (فلتر "أو": أي طالب بأي من الشعب المحددة)
+    if sections:
+        query = query.filter(StudentResult.student_id.in_(_admin_student_ids_in_sections(sections)))
 
     if lesson_id:
         query = query.filter(StudentResult.lesson_id == lesson_id)
@@ -2954,7 +2970,7 @@ def admin_export_quiz_results_pdf():
         education_department = request.args.get('education_department') or ''
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
-        section = (request.args.get('section') or '').strip()
+        sections = _parse_sections_param()
 
         rows = _build_quiz_results_query(scope).limit(2000).all()
 
@@ -2972,8 +2988,8 @@ def admin_export_quiz_results_pdf():
 
         period_label = f'{date_from or "البداية"} إلى {date_to or "اليوم"}' if (date_from or date_to) else 'كل الفترات'
         scope_label = 'طلابي' if scope == 'mine' else 'كل الطلاب'
-        if section:
-            scope_label += f' — شعبة {section}'
+        if sections:
+            scope_label += (' — شعبة ' if len(sections) == 1 else ' — شعب ') + '، '.join(sections)
 
         base_context = {
             'scope_label': scope_label,
