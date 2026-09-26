@@ -746,6 +746,23 @@
 </div>
 {% endif %}
 
+<!-- ═══ تحضير المعلم الذاتي (أسلوب فاينمان) ═══ -->
+{% set t_feynman = plan_data.get('teacher_feynman_prep', {}) %}
+{% if t_feynman and t_feynman is mapping and t_feynman.get('simple_explanation') %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-prep">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> تحضير المعلم الذاتي (أسلوب فاينمان) 👨‍🏫</div></div>
+  <div class="section-body">
+    <div class="answer-box" style="border-color:#0891b2; background:#ecfeff !important;">
+      <span style="font-weight:900; color:#0e7490;">اشرح المفهوم لنفسك ببساطة: </span>{{ t_feynman.simple_explanation|chem }}
+    </div>
+    {% if t_feynman.get('potential_gap') %}
+    <p style="margin-top:6px; font-size:9pt; color:#475569;"><span style="font-weight:900;">نقطة تحتاج انتباه: </span>{{ t_feynman.potential_gap|chem }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ═══ عرض الدرس ═══ -->
 {% set presentation = plan_data.get('presentation', {}) %}
 {% if presentation %}

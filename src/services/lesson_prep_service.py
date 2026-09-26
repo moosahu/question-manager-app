@@ -763,6 +763,10 @@ class LessonPrepService:
     "introduction_activity": "وصف تنفيذي واضح ومحدد للنشاط: وش يسوي المعلم بالضبط ووش يسوي الطلاب خطوة بخطوة - ليس عبارة عامة مثل 'نشاط تفاعلي'",
     "connection_to_previous": "ربط بالدرس السابق"
   }},
+  "teacher_feynman_prep": {{
+    "simple_explanation": "شرح المفهوم الرئيسي لهذه الحصة بأبسط كلمات ممكنة بدون أي مصطلح علمي معقد بدون توضيحه فوراً - كأنك تشرحه لشخص عادي ما يدرس كيمياء أبداً - يكتبه المعلم لنفسه قبل الحصة للتأكد إنه فاهم الفكرة بعمق كافٍ يقدر يوصّلها ببساطة، وليس مجرد حفظ تعريف الكتاب",
+    "potential_gap": "أين المعلم غالباً يتعثر أو يحتاج مراجعة إضافية في هذا المفهوم تحديداً قبل شرحه (نقطة دقيقة، مصطلح ملتبس، أو خطأ شائع بين المعلمين أنفسهم) - نصيحة عملية محددة"
+  }},
   "values_connection": {{
     "religious": "ربط ديني حقيقي ومحدد بآية قرآنية أو حديث نبوي مرتبط فعلياً بمضمون هذا الدرس تحديداً — لا تتركه فارغاً أبداً",
     "national": "ربط وطني حقيقي بإنجاز سعودي أو رؤية 2030 مرتبط فعلياً بمضمون هذا الدرس تحديداً — لا تتركه فارغاً أبداً",
@@ -897,7 +901,8 @@ class LessonPrepService:
 
 ## تنبيهات مهمة
 - ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
-- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, presentation, teaching_strategies, evaluation, exit_ticket, individual_differences, student_reflection, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
+- ⚠️ يجب أن يحتوي الرد على كل الأقسام المذكورة أعلاه بدون استثناء (lesson_info, vocabulary, diagnostic_questions, objectives, preparation, teacher_feynman_prep, presentation, teaching_strategies, evaluation, exit_ticket, individual_differences, student_reflection, homework, time_distribution, resources, safety_notes, reflection, values_connection, comparison_tables)
+- ⚠️ teacher_feynman_prep إلزامي دائماً بكامل حقوله (simple_explanation, potential_gap) - هذا تمرين للمعلم نفسه قبل الحصة (مختلف عن student_reflection اللي هو للطالب، ومختلف عن reflection اللي هو تقييم بعدي للحصة)
 - ⚠️ individual_differences.weak_support و gifted_activities: كل عنصر كائن {{strategy, application}} وليس نصاً مباشراً - application يجب يكون شرحاً عميقاً (3-4 جمل على الأقل) لكيفية التطبيق الفعلي، وليس سطراً أو سطرين مختصرين. individual_differences.learning_styles إلزامي بحقوله الثلاثة (visual, auditory, kinesthetic) مرتبطة تحديداً بمفهوم هذه الحصة
 - ⚠️ student_reflection إلزامي دائماً بكامل حقوله الثلاثة (feynman_prompt, gap_check, self_rating_options) - هذا نشاط تأمل ذاتي للطالب نفسه (مختلف عن reflection اللي هو تأمل المعلم)
 - ⚠️ evaluation.summative و evaluation.formative يجب أن تتضمنا معاً على الأقل سؤال واحد تطبيق حقيقي (بلوم: تطبيق) وسؤال واحد تحليل/مقارنة (بلوم: تحليل) - ممنوع تكون كل الأسئلة تذكر أو فهم فقط
@@ -1627,6 +1632,10 @@ class LessonPrepService:
     "introduction_activity": "وصف تنفيذي واضح ومحدد للنشاط: وش يسوي المعلم بالضبط ووش يسوي الطلاب خطوة بخطوة - ليس عبارة عامة مثل 'نشاط تفاعلي'",
     "connection_to_previous": "ربط بالحصة السابقة"
   }},
+  "teacher_feynman_prep": {{
+    "simple_explanation": "شرح المفهوم الرئيسي لهذه الحصة بأبسط كلمات ممكنة بدون أي مصطلح علمي معقد بدون توضيحه فوراً - كأنك تشرحه لشخص عادي ما يدرس كيمياء أبداً - يكتبه المعلم لنفسه قبل الحصة للتأكد إنه فاهم الفكرة بعمق كافٍ يقدر يوصّلها ببساطة، وليس مجرد حفظ تعريف الكتاب",
+    "potential_gap": "أين المعلم غالباً يتعثر أو يحتاج مراجعة إضافية في هذا المفهوم تحديداً قبل شرحه (نقطة دقيقة، مصطلح ملتبس، أو خطأ شائع بين المعلمين أنفسهم) - نصيحة عملية محددة"
+  }},
   "main_concepts": [
     {{
       "concept": "المفهوم الرئيسي",
@@ -1752,8 +1761,9 @@ class LessonPrepService:
 ## تنبيهات
 - ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
 - ⚠️ الرد يجب أن يكون JSON لحصة واحدة فقط (ليس قائمة)
+- ⚠️ teacher_feynman_prep إلزامي دائماً بكامل حقوله (simple_explanation, potential_gap) - هذا تمرين للمعلم نفسه قبل الحصة (مختلف عن student_reflection اللي هو للطالب، ومختلف عن reflection اللي هو تقييم بعدي للحصة)
 - ⚠️ individual_differences.weak_support و gifted_activities: كل عنصر كائن {{strategy, application}} وليس نصاً مباشراً - application يجب يكون شرحاً عميقاً (3-4 جمل على الأقل) لكيفية التطبيق الفعلي، وليس سطراً أو سطرين مختصرين. individual_differences.learning_styles إلزامي بحقوله الثلاثة (visual, auditory, kinesthetic) مرتبطة تحديداً بمفهوم هذه الحصة
-- ⚠️ student_reflection إلزامي دائماً بكامل حقوله الثلاثة (feynman_prompt, gap_check, self_rating_options) - هذا نشاط تأمل ذاتي للطالب نفسه (مختلف عن reflection اللي هو تأمل المعلم)
+- ⚠️ student_reflection إلزامي دائماً بكامل حقوله الثلاثة (feynman_prompt, gap_check, self_rating_options) - هذا نشاط تأمل ذاتي للطالب نفسه (مختلف عن reflection اللي هو تأمل المعلم بعد الحصة، ومختلف عن teacher_feynman_prep اللي هو تمرين المعلم قبل الحصة)
 - ⚠️ evaluation.summative و evaluation.formative يجب أن تتضمنا معاً على الأقل سؤال واحد تطبيق حقيقي (بلوم: تطبيق) وسؤال واحد تحليل/مقارنة (بلوم: تحليل) - ممنوع تكون كل الأسئلة تذكر أو فهم فقط
 - ⚠️ time_distribution يجب يكون واقعياً فعلياً لتنفيذ حصة 45 دقيقة في فصل حقيقي: احسب وقت انتقال/تنظيم الطلاب ضمن الأنشطة نفسها (لا تخصص وقتاً منفصلاً لذلك)، ولا تعطِ نشاطاً واحداً أكثر من 15 دقيقة إلا إذا كان فعلاً يستحق (تجربة عملية معقدة مثلاً)
 - ⚠️ الأمثلة في main_concepts يجب أن تكون كائنات بها (problem, steps, answer) وليس نصوصاً مجردة
