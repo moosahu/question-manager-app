@@ -66,6 +66,14 @@
   .score-mid { color: #d97706; }
   .score-low { color: #dc2626; }
 
+  tr.student-header td { background: #f1f5f9; padding: 7px 8px; border: 1px solid #94a3b8; font-size: 11.5px; }
+  .student-header-name { font-weight: bold; font-size: 13px; color: #0f172a; }
+  .trend-up { color: #16a34a; font-weight: bold; }
+  .trend-down { color: #dc2626; font-weight: bold; }
+  .trend-flat { color: #64748b; }
+  .weak-note { color: #b91c1c; }
+  .strong-note { color: #047857; }
+
   .empty-row { text-align: center; color: #94a3b8; font-style: italic; padding: 20px; }
 
   .app-footer { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; padding: 8px; }
@@ -92,14 +100,18 @@
 
   <div class="title-box">تقرير نتائج الاختبار التفاعلي</div>
 
+  {% set total_attempts = [] %}
+  {% for g in groups %}{% for a in g.attempts %}{% set _ = total_attempts.append(1) %}{% endfor %}{% endfor %}
+
   <table class="info-table">
     <tr>
-      <th>النطاق</th><th>الفترة</th><th>عدد النتائج</th>
+      <th>النطاق</th><th>الفترة</th><th>عدد الطلاب</th><th>عدد النتائج</th>
     </tr>
     <tr>
       <td>{{ scope_label }}</td>
       <td>{{ period_label }}</td>
-      <td>{{ results|length }}</td>
+      <td>{{ groups|length }}</td>
+      <td>{{ total_attempts|length }}</td>
     </tr>
   </table>
 
@@ -107,31 +119,39 @@
     <thead>
       <tr>
         <th style="width:32px;">م</th>
-        <th>اسم الطالب/ة</th>
         <th>الدرس</th>
         <th style="width:70px;">الدرجة</th>
         <th style="width:90px;">التاريخ</th>
       </tr>
     </thead>
     <tbody>
-      {% for r in results %}
+      {% for g in groups %}
+      <tr class="student-header">
+        <td colspan="4">
+          <span class="student-header-name">👤 {{ g.student_name or '' }}</span>
+          <span class="trend-{{ 'up' if 'تحسّن' in g.trend_label else 'down' if 'تراجع' in g.trend_label else 'flat' }}"> — الاتجاه: {{ g.trend_label }}</span>
+          {% if g.weak_topics %}<span class="weak-note"> — يحتاج تحسين: {{ g.weak_topics|join('، ') }}</span>{% endif %}
+          {% if g.strong_topics %}<span class="strong-note"> — نقاط قوة: {{ g.strong_topics|join('، ') }}</span>{% endif %}
+        </td>
+      </tr>
+      {% for a in g.attempts %}
       <tr>
         <td class="num">{{ loop.index }}</td>
-        <td class="name">{{ r.student_name or '' }}</td>
-        <td>{{ r.lesson_name or r.unit_name or r.course_name or r.quiz_name or '' }}</td>
-        <td class="score {{ 'score-good' if r.score_percentage >= 80 else 'score-mid' if r.score_percentage >= 60 else 'score-low' }}">
-          {{ '%.0f'|format(r.score_percentage) }}%
+        <td>{{ a.topic_name or '' }}</td>
+        <td class="score {{ 'score-good' if a.score_percentage >= 80 else 'score-mid' if a.score_percentage >= 60 else 'score-low' }}">
+          {{ '%.0f'|format(a.score_percentage) }}%
         </td>
-        <td>{{ r.date_label or '' }}</td>
+        <td>{{ a.date_label or '' }}</td>
       </tr>
       {% endfor %}
-      {% if not results %}
-      <tr><td colspan="5" class="empty-row">ما فيه نتائج بهذي الفترة/النطاق</td></tr>
+      {% endfor %}
+      {% if not groups %}
+      <tr><td colspan="4" class="empty-row">ما فيه نتائج بهذي الفترة/النطاق</td></tr>
       {% endif %}
     </tbody>
   </table>
 
-  <div class="app-footer">📊 مستخرج كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}</div>
+  <div class="app-footer">📊 مستخرج كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}<br>الاتجاه مؤشر تقريبي (يحتاج 6 محاولات فأكثر) — ما هو حكم قطعي على مستوى الطالب</div>
 
   <div class="bottom-bar"></div>
 

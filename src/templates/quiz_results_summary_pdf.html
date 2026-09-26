@@ -66,6 +66,10 @@
   .score-mid { color: #d97706; }
   .score-low { color: #dc2626; }
 
+  .trend-up { color: #16a34a; font-weight: bold; }
+  .trend-down { color: #dc2626; font-weight: bold; }
+  .trend-flat { color: #64748b; }
+
   .empty-row { text-align: center; color: #94a3b8; font-style: italic; padding: 20px; }
 
   .app-footer { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; padding: 8px; }
@@ -108,8 +112,10 @@
       <tr>
         <th style="width:32px;">م</th>
         <th>اسم الطالب/ة</th>
-        <th style="width:90px;">عدد الاختبارات</th>
-        <th style="width:90px;">المعدل العام</th>
+        <th style="width:80px;">عدد الاختبارات</th>
+        <th style="width:80px;">المعدل العام</th>
+        <th style="width:100px;">الاتجاه</th>
+        <th>يحتاج تحسين بـ</th>
       </tr>
     </thead>
     <tbody>
@@ -121,15 +127,19 @@
         <td class="score {{ 'score-good' if s.avg_score >= 80 else 'score-mid' if s.avg_score >= 60 else 'score-low' }}">
           {{ '%.0f'|format(s.avg_score) }}%
         </td>
+        <td class="center trend-{{ 'up' if 'تحسّن' in s.trend_label else 'down' if 'تراجع' in s.trend_label else 'flat' }}">
+          {{ s.trend_label }}
+        </td>
+        <td class="center">{{ s.weak_topics|join('، ') if s.weak_topics else '—' }}</td>
       </tr>
       {% endfor %}
       {% if not students %}
-      <tr><td colspan="4" class="empty-row">ما فيه نتائج بهذي الفترة/النطاق</td></tr>
+      <tr><td colspan="6" class="empty-row">ما فيه نتائج بهذي الفترة/النطاق</td></tr>
       {% endif %}
     </tbody>
   </table>
 
-  <div class="app-footer">📊 مستخرج كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}</div>
+  <div class="app-footer">📊 مستخرج كيم تحصيلي | منصة تعليمية للكيمياء | جميع الحقوق محفوظة © {{ year_now }}<br>الاتجاه مؤشر تقريبي (يحتاج 6 محاولات فأكثر) — ما هو حكم قطعي على مستوى الطالب</div>
 
   <div class="bottom-bar"></div>
 

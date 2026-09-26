@@ -2832,6 +2832,74 @@ def admin_all_quiz_results():
     })
 
 
+# ── تحليل اتجاه الأداء (مؤشر تقريبي — عيّنة صغيرة بطبيعة اختبارات المدرسة) ──
+_TREND_MIN_ATTEMPTS = 6     # أقل عدد محاولات عشان نحسب اتجاه أصلاً
+_TREND_WINDOW = 3           # نقارن آخر 3 بأول 3 (نافذة ثابتة، أدق من تقسيم نسبي)
+_TREND_DELTA = 10           # فرق نقطة مئوية عشان نعتبره تحسّن/تراجع حقيقي مو ضجيج
+_TOPIC_MIN_ATTEMPTS = 2     # أقل محاولات على نفس الدرس عشان نحكم عليه ضعيف/قوي
+_TOPIC_WEAK = 60
+_TOPIC_STRONG = 80
+
+
+def _topic_key_and_name(r, lessons, units, courses):
+    if r.lesson_id and r.lesson_id in lessons:
+        return ('lesson', r.lesson_id), lessons[r.lesson_id]
+    if r.unit_id and r.unit_id in units:
+        return ('unit', r.unit_id), units[r.unit_id]
+    if r.course_id and r.course_id in courses:
+        return ('course', r.course_id), courses[r.course_id]
+    return ('name', r.quiz_name), r.quiz_name or ''
+
+
+def _analyze_student_performance(student_rows, lessons, units, courses):
+    """يرجّع {trend_label, weak_topics: [str], strong_topics: [str]} لطالب وحد — مؤشر تقريبي فقط"""
+    rows_sorted = sorted(student_rows, key=lambda r: r.created_at or datetime.min)
+
+    # الاتجاه: آخر 3 مقابل أول 3، وبس لو فيه 6 محاولات فأكثر
+    if len(rows_sorted) >= _TREND_MIN_ATTEMPTS:
+        first = rows_sorted[:_TREND_WINDOW]
+        last = rows_sorted[-_TREND_WINDOW:]
+        avg_first = sum(r.score_percentage or 0 for r in first) / len(first)
+        avg_last = sum(r.score_percentage or 0 for r in last) / len(last)
+        diff = avg_last - avg_first
+        if diff > _TREND_DELTA:
+            trend_label = 'تحسّن ↑ (مؤشر تقريبي)'
+        elif diff < -_TREND_DELTA:
+            trend_label = 'تراجع ↓ (مؤشر تقريبي)'
+        else:
+            trend_label = 'ثابت →'
+    else:
+        trend_label = 'بيانات غير كافية'
+
+    # نقاط الضعف/القوة حسب الدرس — بشرط محاولتين فأكثر بنفس الدرس
+    by_topic = {}
+    for r in rows_sorted:
+        key, name = _topic_key_and_name(r, lessons, units, courses)
+        if key not in by_topic:
+            by_topic[key] = {'name': name, 'count': 0, 'sum': 0.0}
+        by_topic[key]['count'] += 1
+        by_topic[key]['sum'] += (r.score_percentage or 0)
+
+    weak, strong = [], []
+    for t in by_topic.values():
+        if t['count'] < _TOPIC_MIN_ATTEMPTS or not t['name']:
+            continue
+        avg = t['sum'] / t['count']
+        if avg < _TOPIC_WEAK:
+            weak.append((avg, t['name']))
+        elif avg >= _TOPIC_STRONG:
+            strong.append((avg, t['name']))
+
+    weak.sort(key=lambda x: x[0])          # الأضعف أول
+    strong.sort(key=lambda x: -x[0])       # الأقوى أول
+
+    return {
+        'trend_label': trend_label,
+        'weak_topics': [name for _, name in weak[:2]],
+        'strong_topics': [name for _, name in strong[:2]],
+    }
+
+
 @students_bp.route('/admin/export-quiz-results-pdf', methods=['GET'])
 @login_required
 @admin_required
@@ -2841,8 +2909,9 @@ def admin_export_quiz_results_pdf():
     ?report_type=detailed|summary (افتراضي detailed)
     &scope=all|mine&course_id=&unit_id=&lesson_id=&date_from=&date_to=&section=&with_letterhead=1&school_name=
 
-    detailed: سطر لكل محاولة اختبار (طالب/درس/درجة/تاريخ)
-    summary : سطر لكل طالب (عدد الاختبارات + المعدل العام)
+    detailed: مجمّع حسب الطالب — سطر ملخّص (اتجاه/ضعف/قوة) ثم محاولاته
+    summary : سطر لكل طالب (عدد الاختبارات + المعدل العام + الاتجاه + أضعف درس)
+    كلاهما يعتمد على _analyze_student_performance — مؤشر تقريبي، مو حكم قطعي (عيّنة صغيرة بطبيعتها)
     """
     from flask import send_file
     from io import BytesIO
@@ -2866,6 +2935,18 @@ def admin_export_quiz_results_pdf():
 
         rows = _build_quiz_results_query(scope).limit(2000).all()
 
+        lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
+        unit_ids = {r.unit_id for r in rows if r.unit_id}
+        course_ids = {r.course_id for r in rows if r.course_id}
+        lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
+        units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
+        courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+
+        # تجميع صفوف كل طالب — مطلوب للتحليل (اتجاه/ضعف/قوة) بالنوعين
+        rows_by_student = {}
+        for r in rows:
+            rows_by_student.setdefault(r.student_id, []).append(r)
+
         period_label = f'{date_from or "البداية"} إلى {date_to or "اليوم"}' if (date_from or date_to) else 'كل الفترات'
         scope_label = 'طلابي' if scope == 'mine' else 'كل الطلاب'
         if section:
@@ -2883,45 +2964,45 @@ def admin_export_quiz_results_pdf():
         }
 
         if report_type == 'summary':
-            # تجميع لكل طالب: عدد الاختبارات + المعدل العام — مرتّب بالاسم
-            by_student = {}
-            for r in rows:
-                name = r.student.name if r.student else ''
-                key = r.student_id
-                if key not in by_student:
-                    by_student[key] = {'student_name': name, 'quiz_count': 0, '_sum': 0.0}
-                by_student[key]['quiz_count'] += 1
-                by_student[key]['_sum'] += (r.score_percentage or 0)
             students = []
-            for s in by_student.values():
-                s['avg_score'] = (s['_sum'] / s['quiz_count']) if s['quiz_count'] else 0
-                del s['_sum']
-                students.append(s)
+            for student_id, student_rows in rows_by_student.items():
+                name = student_rows[0].student.name if student_rows[0].student else ''
+                analysis = _analyze_student_performance(student_rows, lessons, units, courses)
+                total = sum(r.score_percentage or 0 for r in student_rows)
+                students.append({
+                    'student_name': name,
+                    'quiz_count': len(student_rows),
+                    'avg_score': total / len(student_rows) if student_rows else 0,
+                    'trend_label': analysis['trend_label'],
+                    'weak_topics': analysis['weak_topics'],
+                })
             students.sort(key=lambda x: x['student_name'] or '')
 
             html_content = render_template('quiz_results_summary_pdf.html', students=students, **base_context)
             download_name = 'ملخص_نتائج_الاختبار_التفاعلي.pdf'
         else:
-            lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
-            unit_ids = {r.unit_id for r in rows if r.unit_id}
-            course_ids = {r.course_id for r in rows if r.course_id}
-            lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
-            units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
-            courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
-
-            results = []
-            for r in rows:
-                results.append({
-                    'student_name': r.student.name if r.student else '',
-                    'lesson_name': lessons.get(r.lesson_id),
-                    'unit_name': units.get(r.unit_id),
-                    'course_name': courses.get(r.course_id),
-                    'quiz_name': r.quiz_name,
-                    'score_percentage': r.score_percentage or 0,
-                    'date_label': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
+            groups = []
+            for student_id, student_rows in rows_by_student.items():
+                name = student_rows[0].student.name if student_rows[0].student else ''
+                analysis = _analyze_student_performance(student_rows, lessons, units, courses)
+                attempts = []
+                for r in sorted(student_rows, key=lambda r: r.created_at or datetime.min, reverse=True):
+                    _, topic_name = _topic_key_and_name(r, lessons, units, courses)
+                    attempts.append({
+                        'topic_name': topic_name,
+                        'score_percentage': r.score_percentage or 0,
+                        'date_label': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
+                    })
+                groups.append({
+                    'student_name': name,
+                    'trend_label': analysis['trend_label'],
+                    'weak_topics': analysis['weak_topics'],
+                    'strong_topics': analysis['strong_topics'],
+                    'attempts': attempts,
                 })
+            groups.sort(key=lambda x: x['student_name'] or '')
 
-            html_content = render_template('quiz_results_report_pdf.html', results=results, **base_context)
+            html_content = render_template('quiz_results_report_pdf.html', groups=groups, **base_context)
             download_name = 'نتائج_الاختبار_التفاعلي.pdf'
 
         pdf_bytes = _html_to_pdf(html_content)
