@@ -2837,8 +2837,12 @@ def admin_all_quiz_results():
 @admin_required
 def admin_export_quiz_results_pdf():
     """
-    تصدير PDF لكل نتائج الاختبار التفاعلي — نفس شكل تقرير أنماط التعلم (مع/بدون كليشة الوزارة).
-    ?scope=all|mine&course_id=&unit_id=&lesson_id=&date_from=&date_to=&with_letterhead=1&school_name=
+    تصدير PDF لنتائج الاختبار التفاعلي — نفس شكل تقرير أنماط التعلم (مع/بدون كليشة الوزارة).
+    ?report_type=detailed|summary (افتراضي detailed)
+    &scope=all|mine&course_id=&unit_id=&lesson_id=&date_from=&date_to=&section=&with_letterhead=1&school_name=
+
+    detailed: سطر لكل محاولة اختبار (طالب/درس/درجة/تاريخ)
+    summary : سطر لكل طالب (عدد الاختبارات + المعدل العام)
     """
     from flask import send_file
     from io import BytesIO
@@ -2852,41 +2856,22 @@ def admin_export_quiz_results_pdf():
         from routes.exam_generator import _get_font_data, _get_font_data_bold
 
     try:
+        report_type = request.args.get('report_type', 'detailed')
         scope = request.args.get('scope', 'all')
         with_letterhead = str(request.args.get('with_letterhead', '')).lower() in ('1', 'true', 'yes')
         school_name = request.args.get('school_name') or ''
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
+        section = (request.args.get('section') or '').strip()
 
         rows = _build_quiz_results_query(scope).limit(2000).all()
 
-        lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
-        unit_ids = {r.unit_id for r in rows if r.unit_id}
-        course_ids = {r.course_id for r in rows if r.course_id}
-        lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
-        units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
-        courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
-
-        results = []
-        for r in rows:
-            results.append({
-                'student_name': r.student.name if r.student else '',
-                'lesson_name': lessons.get(r.lesson_id),
-                'unit_name': units.get(r.unit_id),
-                'course_name': courses.get(r.course_id),
-                'quiz_name': r.quiz_name,
-                'score_percentage': r.score_percentage or 0,
-                'date_label': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
-            })
-
         period_label = f'{date_from or "البداية"} إلى {date_to or "اليوم"}' if (date_from or date_to) else 'كل الفترات'
-        section = (request.args.get('section') or '').strip()
         scope_label = 'طلابي' if scope == 'mine' else 'كل الطلاب'
         if section:
             scope_label += f' — شعبة {section}'
 
-        context = {
-            'results': results,
+        base_context = {
             'scope_label': scope_label,
             'period_label': period_label,
             'with_letterhead': with_letterhead,
@@ -2896,12 +2881,53 @@ def admin_export_quiz_results_pdf():
             'font_bold': _get_font_data_bold('cairo'),
             'year_now': datetime.now().year,
         }
-        html_content = render_template('quiz_results_report_pdf.html', **context)
-        pdf_bytes = _html_to_pdf(html_content)
 
+        if report_type == 'summary':
+            # تجميع لكل طالب: عدد الاختبارات + المعدل العام — مرتّب بالاسم
+            by_student = {}
+            for r in rows:
+                name = r.student.name if r.student else ''
+                key = r.student_id
+                if key not in by_student:
+                    by_student[key] = {'student_name': name, 'quiz_count': 0, '_sum': 0.0}
+                by_student[key]['quiz_count'] += 1
+                by_student[key]['_sum'] += (r.score_percentage or 0)
+            students = []
+            for s in by_student.values():
+                s['avg_score'] = (s['_sum'] / s['quiz_count']) if s['quiz_count'] else 0
+                del s['_sum']
+                students.append(s)
+            students.sort(key=lambda x: x['student_name'] or '')
+
+            html_content = render_template('quiz_results_summary_pdf.html', students=students, **base_context)
+            download_name = 'ملخص_نتائج_الاختبار_التفاعلي.pdf'
+        else:
+            lesson_ids = {r.lesson_id for r in rows if r.lesson_id}
+            unit_ids = {r.unit_id for r in rows if r.unit_id}
+            course_ids = {r.course_id for r in rows if r.course_id}
+            lessons = {l.id: l.name for l in Lesson.query.filter(Lesson.id.in_(lesson_ids)).all()} if lesson_ids else {}
+            units = {u.id: u.name for u in Unit.query.filter(Unit.id.in_(unit_ids)).all()} if unit_ids else {}
+            courses = {c.id: c.name for c in Course.query.filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+
+            results = []
+            for r in rows:
+                results.append({
+                    'student_name': r.student.name if r.student else '',
+                    'lesson_name': lessons.get(r.lesson_id),
+                    'unit_name': units.get(r.unit_id),
+                    'course_name': courses.get(r.course_id),
+                    'quiz_name': r.quiz_name,
+                    'score_percentage': r.score_percentage or 0,
+                    'date_label': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
+                })
+
+            html_content = render_template('quiz_results_report_pdf.html', results=results, **base_context)
+            download_name = 'نتائج_الاختبار_التفاعلي.pdf'
+
+        pdf_bytes = _html_to_pdf(html_content)
         return send_file(
             BytesIO(pdf_bytes), as_attachment=True,
-            download_name='نتائج_الاختبار_التفاعلي.pdf', mimetype='application/pdf',
+            download_name=download_name, mimetype='application/pdf',
         )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
