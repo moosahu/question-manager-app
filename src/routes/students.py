@@ -2951,6 +2951,7 @@ def admin_export_quiz_results_pdf():
         scope = request.args.get('scope', 'all')
         with_letterhead = str(request.args.get('with_letterhead', '')).lower() in ('1', 'true', 'yes')
         school_name = request.args.get('school_name') or ''
+        education_department = request.args.get('education_department') or ''
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         section = (request.args.get('section') or '').strip()
@@ -2979,6 +2980,7 @@ def admin_export_quiz_results_pdf():
             'period_label': period_label,
             'with_letterhead': with_letterhead,
             'school_name': school_name,
+            'education_department': education_department,
             'header_image_base64': _learning_style_header_base64() if with_letterhead else '',
             'font_regular': _get_font_data('cairo'),
             'font_bold': _get_font_data_bold('cairo'),

@@ -37,6 +37,9 @@
   .header-tab { position: absolute; right: 26.5%; left: 26.5%; top: 73%; bottom: 3%;
                 display: flex; align-items: center; justify-content: center;
                 color: #eafff2; font-size: 12.5px; font-weight: 600; text-align: center; overflow: hidden; padding: 0 6px; }
+  .dept-tab { position: absolute; left: 33%; width: 24%; top: 22%; height: 40%;
+              display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+              color: #eafff2; font-size: 10px; font-weight: 600; text-align: right; line-height: 1.4; overflow: hidden; }
   {% else %}
   .header { position: relative; height: 108px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
             border-radius: 0 0 34px 0; display: flex; align-items: center; padding: 0 26px; }
@@ -86,6 +89,9 @@
   <div class="header">
     {% if with_letterhead and header_image_base64 %}
     <img src="{{ header_image_base64 }}">
+    {% if education_department %}
+    <div class="dept-tab">{{ education_department }}</div>
+    {% endif %}
     <div class="header-tab">{{ school_name or '' }}</div>
     {% elif not with_letterhead %}
     <div class="app-brand-card">
