@@ -587,6 +587,23 @@
 <body>
 {% set ns = namespace(n=0) %}
 
+{# نشاط تنفيذي بشكل {overview, materials, steps} - يدعم أيضاً النص القديم (تحاضير مولّدة قبل هذا التحديث) #}
+{% macro render_activity(activity) %}
+  {% if activity is mapping %}
+    {% if activity.get('overview') %}<p style="margin-bottom:4px;">{{ activity.overview|chem }}</p>{% endif %}
+    {% if activity.get('materials') %}
+    <p style="font-size:9pt; color:#78350f; margin-bottom:4px;"><strong>المواد:</strong> {{ activity.materials|join('، ') }}</p>
+    {% endif %}
+    {% if activity.get('steps') %}
+    <ol style="margin-right:16px; margin-top:2px;">
+      {% for step in activity.steps %}<li>{{ step|chem }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+  {% else %}
+    <p>{{ activity|chem }}</p>
+  {% endif %}
+{% endmacro %}
+
 <!-- ═══ العنوان الرئيسي ═══ -->
 <div class="main-header">
   <div style="display:flex; align-items:center; justify-content:space-between;">
@@ -707,7 +724,8 @@
     {% endif %}
     {% if preparation.get('introduction_activity') %}
     <div class="answer-box" style="border-color: #fdba74; background: #fff7ed !important; margin-top:6px;">
-      <span style="font-weight:900; color: #9a3412;">النشاط: </span>{{ preparation.introduction_activity }}
+      <span style="font-weight:900; color: #9a3412;">النشاط: </span>
+      {{ render_activity(preparation.introduction_activity) }}
     </div>
     {% endif %}
     {% if preparation.get('connection_to_previous') %}
@@ -784,17 +802,20 @@
         {% endif %}
         {% if concept.get('teaching_method') %}
         <div class="cf-box cf-strategy">
-          <div class="cf-label">🎯 الاستراتيجية</div>
+          <div class="cf-label">
+            🎯 الاستراتيجية
+            {% if concept.get('difficulty') %}<span style="font-size:8pt; font-weight:normal; color:#78350f;"> (صعوبة المفهوم: {{ concept.difficulty }})</span>{% endif %}
+          </div>
           <div class="cf-text">{{ concept.teaching_method }}</div>
           {% if concept.get('strategy_application') %}
-          <div class="cf-text" style="margin-top:4px;"><strong>كيف تُطبَّق:</strong> {{ concept.strategy_application|chem }}</div>
+          <div class="cf-text" style="margin-top:4px;"><strong>كيف تُطبَّق:</strong> {{ render_activity(concept.strategy_application) }}</div>
           {% endif %}
         </div>
         {% endif %}
         {% if concept.get('student_activity') %}
         <div class="cf-box cf-activity">
           <div class="cf-label">✋ نشاط الطلاب</div>
-          <div class="cf-text">{{ concept.student_activity }}</div>
+          <div class="cf-text">{{ render_activity(concept.student_activity) }}</div>
         </div>
         {% endif %}
         {% if concept.get('examples') %}
