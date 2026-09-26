@@ -2744,8 +2744,13 @@ def _build_quiz_results_query(scope='all'):
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     section = request.args.get('section')
+    exclude_course_wide = request.args.get('exclude_course_wide') in ('1', 'true', 'True')
 
     query = StudentResult.query.join(Student, StudentResult.student_id == Student.id)
+
+    # استبعاد اختبارات "المنهج كامل" (quiz_type='course') — بيانات مو منطقية تشوّه تحليل الدروس الضعيفة/القوية
+    if exclude_course_wide:
+        query = query.filter(StudentResult.quiz_type != 'course')
 
     if scope == 'mine':
         query = query.filter(StudentResult.student_id.in_(_admin_own_student_ids()))
