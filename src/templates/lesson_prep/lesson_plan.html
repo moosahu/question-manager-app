@@ -960,7 +960,11 @@
         <div class="col-body">
           <ul class="items">
             {% for item in ind_diff.get('weak_support', []) %}
+            {% if item is mapping %}
+            <li><strong>{{ item.get('strategy', '') }}:</strong> {{ item.get('application', '') }}</li>
+            {% else %}
             <li>{{ item }}</li>
+            {% endif %}
             {% endfor %}
           </ul>
         </div>
@@ -970,7 +974,11 @@
         <div class="col-body">
           <ul class="items">
             {% for item in ind_diff.get('gifted_activities', []) %}
+            {% if item is mapping %}
+            <li><strong>{{ item.get('strategy', '') }}:</strong> {{ item.get('application', '') }}</li>
+            {% else %}
             <li>{{ item }}</li>
+            {% endif %}
             {% endfor %}
           </ul>
         </div>
@@ -985,6 +993,40 @@
         {% endfor %}
       </ul>
     </div>
+    {% endif %}
+    {% set styles = ind_diff.get('learning_styles', {}) %}
+    {% if styles and styles is mapping %}
+    <div style="margin-top:8px;">
+      <div class="sub-title" style="background: #ede9fe !important; color: #5b21b6;">أنماط التعلم</div>
+      <ul class="items">
+        {% if styles.get('visual') %}<li>👁️ بصري: {{ styles.visual }}</li>{% endif %}
+        {% if styles.get('auditory') %}<li>👂 سمعي: {{ styles.auditory }}</li>{% endif %}
+        {% if styles.get('kinesthetic') %}<li>✋ حركي/حسي: {{ styles.kinesthetic }}</li>{% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ تأمل الطالب (أسلوب فاينمان) ═══ -->
+{% set s_reflect = plan_data.get('student_reflection', {}) %}
+{% if s_reflect and s_reflect is mapping and s_reflect.get('feynman_prompt') %}
+{% set ns.n = ns.n + 1 %}
+<div class="section sec-diff">
+  <div class="sh-wrap"><div class="section-header"><span class="num">{{ ns.n }}</span> تأمل الطالب (أسلوب فاينمان)</div></div>
+  <div class="section-body">
+    <div class="exit-ticket-q" style="margin-bottom:6px;">{{ s_reflect.feynman_prompt|chem }}</div>
+    {% if s_reflect.get('gap_check') %}
+    <div style="font-size:9pt; color:#475569; margin-bottom:6px;"><strong>ثم يسأل نفسه:</strong> {{ s_reflect.gap_check|chem }}</div>
+    {% endif %}
+    {% if s_reflect.get('self_rating_options') %}
+    <div style="font-size:9pt; color:#475569;"><strong>تقييم ذاتي:</strong></div>
+    <ul class="items">
+      {% for opt in s_reflect.self_rating_options %}
+      <li>☐ {{ opt }}</li>
+      {% endfor %}
+    </ul>
     {% endif %}
   </div>
 </div>
