@@ -789,7 +789,7 @@ def student_pending():
         student_id = request.student_id
         admin_id = _admin_of_student(student_id)
         answered = _answered_survey_ids('student', student_id)
-        surveys = Survey.query.filter_by(status='active').all()
+        surveys = Survey.query.filter_by(status='active').order_by(Survey.created_at.desc()).all()
         pending = [
             s.to_dict() for s in surveys
             if s.id not in answered and _visible_to_student(s, student_id, admin_id)
@@ -882,7 +882,7 @@ def teacher_pending():
     try:
         teacher_id = request.teacher_id
         answered = _answered_survey_ids('teacher', teacher_id)
-        surveys = Survey.query.filter_by(status='active').all()
+        surveys = Survey.query.filter_by(status='active').order_by(Survey.created_at.desc()).all()
         pending = [
             s.to_dict() for s in surveys
             if s.id not in answered and _visible_to_teacher(s, teacher_id)
