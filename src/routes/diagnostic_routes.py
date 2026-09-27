@@ -2374,7 +2374,7 @@ def reopen_test_for_student(test_id, student_id):
             return jsonify({'success': False, 'error': 'الاختبار غير موجود'}), 404
 
         result = DiagnosticResult.query.filter_by(
-            diagnostic_test_id=test_id, student_id=str(student_id)
+            diagnostic_test_id=test_id, student_id=student_id
         ).first()
         if not result:
             return jsonify({'success': False, 'error': 'ما فيه محاولة سابقة لهذا الطالب'}), 404
