@@ -8,7 +8,7 @@ except ImportError:  # pragma: no cover
     from extensions import db
 
 QUESTION_TYPES = ('choice', 'text', 'rating', 'yesno')
-TARGET_TYPES = ('student', 'teacher', 'all', 'my_students')
+TARGET_TYPES = ('student', 'teacher', 'all', 'my_students', 'section')
 
 
 class Survey(db.Model):
@@ -22,8 +22,9 @@ class Survey(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # الأدمن المُنشئ
     is_anonymous = db.Column(db.Boolean, nullable=False, default=False)
 
-    target_type = db.Column(db.String(20), nullable=False, default='all')  # student/teacher/all/my_students
+    target_type = db.Column(db.String(20), nullable=False, default='all')  # student/teacher/all/my_students/section
     target_ids = db.Column(db.JSON, nullable=True)  # قائمة معرّفات — لـ target_type: student أو teacher
+    target_section = db.Column(db.String(100), nullable=True)  # اسم الشعبة — لـ target_type: section فقط
 
     status = db.Column(db.String(20), nullable=False, default='active')  # active/closed
 
@@ -44,6 +45,7 @@ class Survey(db.Model):
             'is_anonymous': self.is_anonymous,
             'target_type': self.target_type,
             'target_ids': self.target_ids or [],
+            'target_section': self.target_section or '',
             'status': self.status,
             'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'responses_count': len(self.responses) if self.responses is not None else 0,

@@ -138,8 +138,16 @@ def admin_create():
         if target_type not in TARGET_TYPES:
             return jsonify({'success': False, 'error': 'نوع الاستهداف غير صحيح'}), 400
         target_ids = data.get('target_ids') or []
-        if target_type in ('student', 'teacher') and not target_ids:
-            return jsonify({'success': False, 'error': 'اختر مستلم واحد على الأقل'}), 400
+        if target_type in ('student', 'teacher'):
+            if not target_ids:
+                return jsonify({'success': False, 'error': 'اختر مستلم واحد على الأقل'}), 400
+            try:
+                target_ids = [int(x) for x in target_ids]
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'معرّفات المستلمين غير صحيحة'}), 400
+        target_section = (data.get('target_section') or '').strip()
+        if target_type == 'section' and not target_section:
+            return jsonify({'success': False, 'error': 'اختر شعبة'}), 400
 
         questions, err = _validate_questions(data.get('questions'))
         if err:
@@ -152,6 +160,7 @@ def admin_create():
             is_anonymous=bool(data.get('is_anonymous')),
             target_type=target_type,
             target_ids=target_ids if target_type in ('student', 'teacher') else None,
+            target_section=target_section if target_type == 'section' else None,
             status='active',
         )
         db.session.add(survey)
@@ -375,6 +384,14 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None):
         elif survey.target_type == 'my_students':
             base_type = 'student'
             base_ids = [l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()]
+        elif survey.target_type == 'section':
+            base_type = 'student'
+            section = (survey.target_section or '').strip()
+            base_ids = [
+                l.student_id for l in TeacherStudent.query.filter_by(
+                    admin_id=survey.created_by, section=section,
+                ).all()
+            ] if section else []
         else:  # 'all' — ما له قائمة مستلمين ثابتة، لازم تحديد شخص بعينه (restrict_ids + restrict_type)
             if not restrict_ids or not restrict_type:
                 return 0
@@ -519,6 +536,13 @@ def _survey_audience(survey):
         links = TeacherStudent.query.join(TeacherStudent.student).filter(
             TeacherStudent.admin_id == survey.created_by
         ).all()
+        return 'student', [(l.student_id, l.student.name) for l in links if l.student]
+    if survey.target_type == 'section':
+        section = (survey.target_section or '').strip()
+        links = TeacherStudent.query.join(TeacherStudent.student).filter(
+            TeacherStudent.admin_id == survey.created_by,
+            TeacherStudent.section == section,
+        ).all() if section else []
         return 'student', [(l.student_id, l.student.name) for l in links if l.student]
     return None, []
 
