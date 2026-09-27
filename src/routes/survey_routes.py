@@ -370,6 +370,26 @@ def admin_candidates():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@survey_bp.route('/admin/students-by-section', methods=['GET'])
+@login_required
+@admin_required
+def admin_students_by_section():
+    """طلاب الأدمن الحالي المرتبطين بشعبة معيّنة — لاختيار شعبة كاملة دفعة وحدة بدل البحث فرد فرد
+    (?section=اسم الشعبة)"""
+    try:
+        section = (request.args.get('section') or '').strip()
+        if not section:
+            return jsonify({'success': False, 'error': 'section مطلوب'}), 400
+        links = TeacherStudent.query.join(TeacherStudent.student).filter(
+            TeacherStudent.admin_id == current_user.id,
+            TeacherStudent.section == section,
+        ).all()
+        items = [{'id': l.student_id, 'name': l.student.name} for l in links if l.student]
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _notify_targets(survey, restrict_ids=None, restrict_type=None):
     """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'
     restrict_ids: لو معبّى، يرسل بس لهالمعرّفات (زر 'لمن لم يجاوب' أو 'شخص محدد').
