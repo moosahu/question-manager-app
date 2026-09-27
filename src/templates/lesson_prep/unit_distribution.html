@@ -577,6 +577,23 @@
   </div>
 </div>
 
+{# نشاط تنفيذي بشكل {overview, materials, steps} - يدعم أيضاً النص القديم (تحاضير مولّدة قبل هذا التحديث) #}
+{% macro render_activity(activity) %}
+  {% if activity is mapping %}
+    {% if activity.get('overview') %}<p style="margin-bottom:4px;">{{ activity.overview|chem }}</p>{% endif %}
+    {% if activity.get('materials') %}
+    <p style="font-size:9pt; color:#78350f; margin-bottom:4px;"><strong>المواد:</strong> {{ activity.materials|join('، ') }}</p>
+    {% endif %}
+    {% if activity.get('steps') %}
+    <ol style="margin-right:16px; margin-top:2px;">
+      {% for step in activity.steps %}<li>{{ step|chem }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+  {% else %}
+    <p>{{ activity|chem }}</p>
+  {% endif %}
+{% endmacro %}
+
 {% set periods = plan_data.get('periods', []) %}
 {% for p in periods %}
 {% if p is mapping %}
@@ -674,9 +691,31 @@
         <strong style="color:#166534;">الإجابة المتوقعة: </strong>{{ prep.introduction_answer }}
       </div>
       {% endif %}
+      {% if prep.get('introduction_activity') %}
+      <div style="background:#fff7ed !important; border:1px solid #fdba74; border-radius:6px; padding:6px 10px; margin-bottom:6px; font-size:9.5pt;">
+        <strong style="color:#9a3412;">النشاط: </strong>{{ render_activity(prep.introduction_activity) }}
+      </div>
+      {% endif %}
       {% if prep.get('connection_to_previous') %}
       <p style="font-size:9pt; color:#475569;"><strong>ربط بالسابق:</strong> {{ prep.connection_to_previous }}</p>
       {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- تحضير المعلم الذاتي (أسلوب فاينمان) -->
+    {% set t_feynman = p.get('teacher_feynman_prep', {}) %}
+    {% if t_feynman and t_feynman is mapping and t_feynman.get('simple_explanation') %}
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-prep">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> تحضير المعلم الذاتي (أسلوب فاينمان) 👨‍🏫</div></div>
+      <div class="section-body">
+        <div style="background:#ecfeff !important; border:1px solid #67e8f9; border-radius:6px; padding:6px 10px;">
+          <span style="font-weight:900; color:#0e7490;">اشرح المفهوم لنفسك ببساطة: </span>{{ t_feynman.simple_explanation|chem }}
+        </div>
+        {% if t_feynman.get('potential_gap') %}
+        <p style="margin-top:6px; font-size:9pt; color:#475569;"><span style="font-weight:900;">نقطة تحتاج انتباه: </span>{{ t_feynman.potential_gap|chem }}</p>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -701,10 +740,13 @@
           {% endif %}
           {% if c.get('teaching_method') %}
           <div class="cf-box cf-strategy">
-            <div class="cf-label">🎯 الاستراتيجية</div>
+            <div class="cf-label">
+              🎯 الاستراتيجية
+              {% if c.get('difficulty') %}<span style="font-size:8pt; font-weight:normal; color:#78350f;"> (صعوبة المفهوم: {{ c.difficulty }})</span>{% endif %}
+            </div>
             <div class="cf-text">{{ c.teaching_method }}</div>
             {% if c.get('strategy_application') %}
-            <div class="cf-text" style="margin-top:3px;"><strong>كيف تُطبَّق:</strong> {{ c.strategy_application|chem }}</div>
+            <div class="cf-text" style="margin-top:3px;"><strong>كيف تُطبَّق:</strong> {{ render_activity(c.strategy_application) }}</div>
             {% endif %}
           </div>
           {% endif %}
@@ -736,7 +778,7 @@
           {% if c.get('student_activity') %}
           <div class="cf-box cf-activity">
             <div class="cf-label">✋ نشاط الطلاب</div>
-            <div class="cf-text">{{ c.student_activity }}</div>
+            <div class="cf-text">{{ render_activity(c.student_activity) }}</div>
           </div>
           {% endif %}
           {% if c.get('diagram') and c.diagram.get('svg') %}
@@ -855,6 +897,28 @@
     </div>
     {% endif %}
 
+    <!-- تأمل الطالب (أسلوب فاينمان) -->
+    {% set s_reflect = p.get('student_reflection', {}) %}
+    {% if s_reflect and s_reflect is mapping and s_reflect.get('feynman_prompt') %}
+    {% set pn.n = pn.n + 1 %}
+    <div class="section sec-exit">
+      <div class="sh-wrap"><div class="section-header"><span class="num">{{ pn.n }}</span> تأمل الطالب (أسلوب فاينمان)</div></div>
+      <div class="section-body">
+        <div class="exit-ticket-card">
+          <div class="exit-ticket-q">{{ s_reflect.feynman_prompt|chem }}</div>
+        </div>
+        {% if s_reflect.get('gap_check') %}
+        <p style="font-size:9pt; color:#475569; margin-top:5px;"><strong>ثم يسأل نفسه:</strong> {{ s_reflect.gap_check|chem }}</p>
+        {% endif %}
+        {% if s_reflect.get('self_rating_options') %}
+        <p style="font-size:9pt; color:#475569; margin-top:5px;"><strong>تقييم ذاتي:</strong></p>
+        <ul class="items">
+          {% for opt in s_reflect.self_rating_options %}<li>☐ {{ opt }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <!-- الفروق الفردية -->
     {% set ind_diff = p.get('individual_differences', {}) %}
@@ -868,7 +932,12 @@
         <div class="diff-col">
           <div class="diff-col-title" style="background: #ecfdf5 !important; color: #065f46;">للمتفوقين</div>
           <div class="diff-col-body">
-            <ul class="items">{% for a in ind_diff.gifted_activities %}<li>{{ a }}</li>{% endfor %}</ul>
+            <ul class="items">
+              {% for a in ind_diff.gifted_activities %}
+              {% if a is mapping %}<li><strong>{{ a.get('strategy', '') }}:</strong> {{ a.get('application', '') }}</li>
+              {% else %}<li>{{ a }}</li>{% endif %}
+              {% endfor %}
+            </ul>
           </div>
         </div>
         {% endif %}
@@ -876,11 +945,27 @@
         <div class="diff-col">
           <div class="diff-col-title" style="background: #fef2f2 !important; color: #991b1b;">للضعاف</div>
           <div class="diff-col-body">
-            <ul class="items">{% for a in ind_diff.weak_support %}<li>{{ a }}</li>{% endfor %}</ul>
+            <ul class="items">
+              {% for a in ind_diff.weak_support %}
+              {% if a is mapping %}<li><strong>{{ a.get('strategy', '') }}:</strong> {{ a.get('application', '') }}</li>
+              {% else %}<li>{{ a }}</li>{% endif %}
+              {% endfor %}
+            </ul>
           </div>
         </div>
         {% endif %}
       </div>
+      {% set styles = ind_diff.get('learning_styles', {}) %}
+      {% if styles and styles is mapping %}
+      <div style="margin-top:8px;">
+        <div class="diff-col-title" style="background: #ede9fe !important; color: #5b21b6;">أنماط التعلم</div>
+        <ul class="items">
+          {% if styles.get('visual') %}<li>👁️ بصري: {{ styles.visual }}</li>{% endif %}
+          {% if styles.get('auditory') %}<li>👂 سمعي: {{ styles.auditory }}</li>{% endif %}
+          {% if styles.get('kinesthetic') %}<li>✋ حركي/حسي: {{ styles.kinesthetic }}</li>{% endif %}
+        </ul>
+      </div>
+      {% endif %}
       </div>
     </div>
     {% endif %}

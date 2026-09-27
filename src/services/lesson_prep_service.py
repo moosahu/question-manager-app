@@ -1097,6 +1097,58 @@ class LessonPrepService:
         return data
 
     @staticmethod
+    def _recover_stringified_dict(value):
+        """أحياناً الـAI يرجّع كائن {overview/steps/...} أو {strategy/application} كنص Python-repr
+        (بـquotes مفردة) بدل JSON متداخل فعلي، فيفشل عرضه بالقالب. نحاول نسترجعه لكائن حقيقي هنا
+        بدل ما يظهر للمعلم كنص خام مشوّه بالـPDF."""
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith('{') and stripped.endswith('}'):
+                try:
+                    import ast
+                    parsed = ast.literal_eval(stripped)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except (ValueError, SyntaxError):
+                    pass
+        return value
+
+    @staticmethod
+    def _normalize_activity_fields(period_data):
+        """يطبّق _recover_stringified_dict على كل الحقول اللي المفروض تكون كائن منظّم
+        (introduction_activity, strategy_application, student_activity, weak_support/gifted_activities) —
+        يشتغل على تحضير حصة وحدة (single lesson) أو حصة وحدة ضمن periods[] (متعدد الحصص/توزيع وحدة)"""
+        if not isinstance(period_data, dict):
+            return period_data
+        recover = LessonPrepService._recover_stringified_dict
+
+        prep = period_data.get('preparation')
+        if isinstance(prep, dict) and 'introduction_activity' in prep:
+            prep['introduction_activity'] = recover(prep['introduction_activity'])
+
+        presentation = period_data.get('presentation')
+        if isinstance(presentation, dict):
+            concepts = presentation.get('main_concepts')
+        else:
+            concepts = period_data.get('main_concepts')
+        if isinstance(concepts, list):
+            for c in concepts:
+                if isinstance(c, dict):
+                    if 'strategy_application' in c:
+                        c['strategy_application'] = recover(c['strategy_application'])
+                    if 'student_activity' in c:
+                        c['student_activity'] = recover(c['student_activity'])
+
+        ind_diff = period_data.get('individual_differences')
+        if isinstance(ind_diff, dict):
+            for key in ('weak_support', 'gifted_activities'):
+                items = ind_diff.get(key)
+                if isinstance(items, list):
+                    ind_diff[key] = [recover(it) for it in items]
+
+        return period_data
+
+    @staticmethod
     def _chem_html(text):
         """تحويل النص الكيميائي إلى HTML مع superscript/subscript وإصلاح BiDi"""
         import re
@@ -1426,6 +1478,8 @@ class LessonPrepService:
                 return result
             app.jinja_env.filters['chem'] = chem_filter
 
+            # استرجاع أي حقل كائن رجع كنص Python-repr بالغلط، قبل تطبيق chem
+            plan_data = LessonPrepService._normalize_activity_fields(plan_data)
             # تطبيق _chem_html على جميع النصوص في بيانات التحضير قبل الرندر
             plan_data = LessonPrepService._deep_apply_chem(plan_data)
             lesson_info = plan_data.get('lesson_info', {})
@@ -1485,6 +1539,10 @@ class LessonPrepService:
                     return Markup(result)
                 return result
             app.jinja_env.filters['chem'] = chem_filter
+
+            # استرجاع أي حقل كائن رجع كنص Python-repr بالغلط، لكل حصة على حدة
+            for _p in (plan_data.get('periods') or []):
+                LessonPrepService._normalize_activity_fields(_p)
 
             context = {
                 'plan_data': plan_data,
