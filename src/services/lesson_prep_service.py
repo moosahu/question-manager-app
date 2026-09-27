@@ -404,6 +404,7 @@ class LessonPrepService:
             if isinstance(plan_data, dict) and 'raw_text' not in plan_data:
                 plan_data = LessonPrepService._inject_diagrams(plan_data)
                 plan_data = LessonPrepService._reconcile_teaching_strategies(plan_data)
+                plan_data = LessonPrepService._normalize_activity_fields(plan_data)
 
             pdf_url = None
             try:
@@ -2108,6 +2109,8 @@ class LessonPrepService:
             # حقن الرسوم البيانية SVG
             plan_data = LessonPrepService._inject_diagrams(plan_data)
             plan_data = LessonPrepService._reconcile_teaching_strategies(plan_data)
+            for _p in plan_data.get('periods', []):
+                LessonPrepService._normalize_activity_fields(_p)
 
             # توليد PDF للوحدة
             pdf_url = None
