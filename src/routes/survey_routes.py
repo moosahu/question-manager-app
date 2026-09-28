@@ -392,12 +392,15 @@ def admin_students_by_section():
 
 def _notify_targets(survey, restrict_ids=None, restrict_type=None):
     """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'
-    restrict_ids: لو معبّى، يرسل بس لهالمعرّفات (زر 'لمن لم يجاوب' أو 'شخص محدد').
-    restrict_type: 'student' أو 'teacher' — يلزم فقط لما target_type='all' مع restrict_ids (تحديد شخص بعينه
-    من قائمة عامة، لأن استهداف 'all' نفسه ما له قائمة مستلمين ثابتة نعرف نوعها)."""
+    restrict_ids + restrict_type معاً: استهداف صريح يتجاوز نطاق target_type الأصلي للاستبيان تماماً —
+    يسمح بإعادة الإرسال لأي مجموعة (شعبة/أشخاص محددين) حتى لو مختلفة عن الاستهداف وقت الإنشاء، ولو
+    كان الاستبيان مُرسلاً من قبل ('زر شخص محدد' مع اختيار شعبة، أو 'لمن لم يجاوب' لاستهداف 'all').
+    restrict_ids بدون restrict_type: تضييق داخل الجمهور الأصلي فقط (خلف التوافق مع الاستخدام القديم)."""
     sent = 0
     try:
-        if survey.target_type == 'teacher':
+        if restrict_ids and restrict_type:
+            base_type, base_ids = restrict_type, list(restrict_ids)
+        elif survey.target_type == 'teacher':
             base_type, base_ids = 'teacher', list(survey.target_ids or [])
         elif survey.target_type == 'student':
             base_type, base_ids = 'student', list(survey.target_ids or [])
@@ -412,10 +415,8 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None):
                     admin_id=survey.created_by, section=section,
                 ).all()
             ] if section else []
-        else:  # 'all' — ما له قائمة مستلمين ثابتة، لازم تحديد شخص بعينه (restrict_ids + restrict_type)
-            if not restrict_ids or not restrict_type:
-                return 0
-            base_type, base_ids = restrict_type, list(restrict_ids)
+        else:  # 'all' بدون تحديد صريح — ما له قائمة مستلمين ثابتة، ما نقدر نحسب جمهور
+            return 0
 
         final_ids = [i for i in base_ids if (restrict_ids is None or i in restrict_ids)]
         if not final_ids:
