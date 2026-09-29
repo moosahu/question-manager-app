@@ -243,6 +243,31 @@
     display: inline-block;
   }
 
+  /* ─── جداول المقارنة (نفس أنماط تحضير الدرس الواحد) ─── */
+  table.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  table.styled-table th {
+    padding: 7px 10px;
+    font-size: 9.5pt;
+    font-weight: 900;
+    color: #ffffff !important;
+    text-align: right;
+  }
+  table.styled-table td {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 9.5pt;
+  }
+  table.styled-table tr:nth-child(even) td {
+    background: rgba(0,0,0,0.02) !important;
+  }
+  .comparison-section {
+    margin-top: 10px;
+  }
+
   ul.items {
     list-style: none;
     padding: 0;
@@ -1063,6 +1088,40 @@
       <div class="values-box"><span class="values-label">حياتي: </span>{{ values.life }}</div>
       {% endif %}
       </div>
+    </div>
+    {% endif %}
+
+    <!-- جداول المقارنة (إن وجدت) -->
+    {% set comparison_tables = p.get('comparison_tables', []) %}
+    {% if comparison_tables %}
+    <div class="comparison-section">
+      {% for ct in comparison_tables %}
+      {% if ct is mapping %}
+      <div class="section sec-eval" style="margin-top:10px;">
+        <div class="sh-wrap"><div class="section-header" style="background: #10b981 !important;"><span class="num">+</span> {{ ct.get('title', 'جدول مقارنة') }}</div>
+        <div class="section-body" style="border-color: #6ee7b7; background: #ecfdf5 !important;">
+          <table class="styled-table">
+            <thead>
+              <tr style="background: #10b981 !important;">
+                {% for h in ct.get('headers', []) %}
+                <th>{{ h }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in ct.get('rows', []) %}
+              <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
     </div>
     {% endif %}
 

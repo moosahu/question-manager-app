@@ -1846,7 +1846,14 @@ class LessonPrepService:
     "strengths": "نقاط القوة المتوقعة",
     "improvements": "نقاط التحسين",
     "notes": "ملاحظات إضافية"
-  }}
+  }},
+  "comparison_tables": [
+    {{
+      "title": "عنوان جدول المقارنة",
+      "headers": ["العنصر 1", "العنصر 2"],
+      "rows": [["بيانات", "بيانات"]]
+    }}
+  ]
 }}
 ```
 
@@ -1854,6 +1861,7 @@ class LessonPrepService:
 - ⚠️ مدة الحصة 45 دقيقة فقط - يجب أن يكون مجموع time_distribution يساوي 45 دقيقة بالضبط
 - ⚠️ الرد يجب أن يكون JSON لحصة واحدة فقط (ليس قائمة)
 - ⚠️ teacher_feynman_prep إلزامي دائماً بكامل حقوله (simple_explanation, potential_gap) - هذا تمرين للمعلم نفسه قبل الحصة (مختلف عن student_reflection اللي هو للطالب، ومختلف عن reflection اللي هو تقييم بعدي للحصة)
+- ⚠️ comparison_tables: لو محتوى هذه الحصة فيه مقارنة طبيعية بين مفهومين أو أكثر (خصائص، أنواع، حالات، إلخ)، أضف جدول مقارنة واحد على الأقل - وإلا اتركها مصفوفة فاضية []
 - ⚠️ individual_differences.weak_support و gifted_activities: كل عنصر كائن {{strategy, application}} وليس نصاً مباشراً - application يجب يكون شرحاً عميقاً (3-4 جمل على الأقل) لكيفية التطبيق الفعلي، وليس سطراً أو سطرين مختصرين. individual_differences.learning_styles إلزامي بحقوله الثلاثة (visual, auditory, kinesthetic) مرتبطة تحديداً بمفهوم هذه الحصة
 - ⚠️ student_reflection إلزامي دائماً بكامل حقوله الثلاثة (feynman_prompt, gap_check, self_rating_options) - هذا نشاط تأمل ذاتي للطالب نفسه (مختلف عن reflection اللي هو تأمل المعلم بعد الحصة، ومختلف عن teacher_feynman_prep اللي هو تمرين المعلم قبل الحصة)
 - ⚠️ evaluation.summative و evaluation.formative يجب أن تتضمنا معاً على الأقل سؤال واحد تطبيق حقيقي (بلوم: تطبيق) وسؤال واحد تحليل/مقارنة (بلوم: تحليل) - ممنوع تكون كل الأسئلة تذكر أو فهم فقط
