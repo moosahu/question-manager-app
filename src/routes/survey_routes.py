@@ -40,6 +40,15 @@ def admin_required(f):
 
 # ==================== أدوات مساعدة ====================
 
+_ARABIC_INDIC_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
+
+
+def _normalize_section(section):
+    """توحيد اسم الشعبة قبل المقارنة: إزالة المسافات الزائدة وتحويل الأرقام العربية (١٠٥) لأرقام
+    إنجليزية (105) — بدونها شعبة بنفس الاسم بالضبط تفشل بالمطابقة لو كُتبت بترقيم مختلف بمكانين"""
+    return (section or '').strip().translate(_ARABIC_INDIC_DIGITS)
+
+
 def _admin_of_student(student_id):
     """يرجع admin_id المرتبط بهذا الطالب (أو None)"""
     link = TeacherStudent.query.filter_by(student_id=student_id).first()
@@ -56,11 +65,11 @@ def _visible_to_student(survey, student_id, admin_id):
     if survey.target_type == 'section':
         if admin_id is None or survey.created_by != admin_id:
             return False
-        section = (survey.target_section or '').strip()
+        section = _normalize_section(survey.target_section)
         if not section:
             return False
         link = TeacherStudent.query.filter_by(admin_id=admin_id, student_id=student_id).first()
-        return link is not None and (link.section or '').strip() == section
+        return link is not None and _normalize_section(link.section) == section
     return False
 
 
@@ -385,14 +394,16 @@ def admin_students_by_section():
     """طلاب الأدمن الحالي المرتبطين بشعبة معيّنة — لاختيار شعبة كاملة دفعة وحدة بدل البحث فرد فرد
     (?section=اسم الشعبة)"""
     try:
-        section = (request.args.get('section') or '').strip()
+        section = _normalize_section(request.args.get('section'))
         if not section:
             return jsonify({'success': False, 'error': 'section مطلوب'}), 400
         links = TeacherStudent.query.join(TeacherStudent.student).filter(
             TeacherStudent.admin_id == current_user.id,
-            TeacherStudent.section == section,
         ).all()
-        items = [{'id': l.student_id, 'name': l.student.name} for l in links if l.student]
+        items = [
+            {'id': l.student_id, 'name': l.student.name} for l in links
+            if l.student and _normalize_section(l.section) == section
+        ]
         return jsonify({'success': True, 'items': items})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -417,11 +428,10 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None):
             base_ids = [l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()]
         elif survey.target_type == 'section':
             base_type = 'student'
-            section = (survey.target_section or '').strip()
+            section = _normalize_section(survey.target_section)
             base_ids = [
-                l.student_id for l in TeacherStudent.query.filter_by(
-                    admin_id=survey.created_by, section=section,
-                ).all()
+                l.student_id for l in TeacherStudent.query.filter_by(admin_id=survey.created_by).all()
+                if _normalize_section(l.section) == section
             ] if section else []
         else:  # 'all' بدون تحديد صريح — ما له قائمة مستلمين ثابتة، ما نقدر نحسب جمهور
             return 0
@@ -567,12 +577,14 @@ def _survey_audience(survey):
         ).all()
         return 'student', [(l.student_id, l.student.name) for l in links if l.student]
     if survey.target_type == 'section':
-        section = (survey.target_section or '').strip()
+        section = _normalize_section(survey.target_section)
         links = TeacherStudent.query.join(TeacherStudent.student).filter(
             TeacherStudent.admin_id == survey.created_by,
-            TeacherStudent.section == section,
         ).all() if section else []
-        return 'student', [(l.student_id, l.student.name) for l in links if l.student]
+        return 'student', [
+            (l.student_id, l.student.name) for l in links
+            if l.student and _normalize_section(l.section) == section
+        ]
     return None, []
 
 
