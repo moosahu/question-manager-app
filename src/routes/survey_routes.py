@@ -53,6 +53,14 @@ def _visible_to_student(survey, student_id, admin_id):
         return student_id in (survey.target_ids or [])
     if survey.target_type == 'my_students':
         return admin_id is not None and survey.created_by == admin_id
+    if survey.target_type == 'section':
+        if admin_id is None or survey.created_by != admin_id:
+            return False
+        section = (survey.target_section or '').strip()
+        if not section:
+            return False
+        link = TeacherStudent.query.filter_by(admin_id=admin_id, student_id=student_id).first()
+        return link is not None and (link.section or '').strip() == section
     return False
 
 
