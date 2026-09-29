@@ -237,6 +237,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
             focus_area = data.get('focus_area', 'شامل')
             examples_count = data.get('examples_count', 5)
             materials_count = data.get('materials_count')
+            real_life_examples = bool(data.get('real_life_examples', False))
 
             cached = LessonPlan.query.filter_by(
                 lesson_id=lesson_id,
@@ -249,6 +250,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
                 examples_count=examples_count,
                 materials_count=materials_count,
                 include_support_plan=bool(data.get('include_support_plan', False)),
+                real_life_examples=real_life_examples,
                 status='completed',
             ).filter(
                 LessonPlan.plan_data.isnot(None),
@@ -269,6 +271,8 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
                     focus_area=focus_area,
                     examples_count=examples_count,
                     materials_count=materials_count,
+                    include_support_plan=bool(data.get('include_support_plan', False)),
+                    real_life_examples=real_life_examples,
                     status='completed',
                 )
                 db.session.add(new_plan)
@@ -297,6 +301,7 @@ def generate_lesson_plan(teacher=None, user_id=None, is_admin=False):
             examples_count=data.get('examples_count', 5),
             materials_count=data.get('materials_count'),
             include_support_plan=bool(data.get('include_support_plan', False)),
+            real_life_examples=bool(data.get('real_life_examples', False)),
             status='pending',
         )
         db.session.add(plan)
@@ -346,6 +351,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
         total_periods = data.get('total_periods', 12)
         include_support_plan = data.get('include_support_plan', False)
         materials_count = data.get('materials_count')
+        real_life_examples = bool(data.get('real_life_examples', False))
         single_lesson_mode = bool(data.get('single_lesson_mode', False))
         student_level = data.get('student_level', 'متفاوت')
         student_count = data.get('student_count', 30)
@@ -396,6 +402,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                     LessonPlan.total_periods == total_periods,
                     LessonPlan.include_support_plan == bool(include_support_plan),
                     LessonPlan.materials_count == materials_count,
+                    LessonPlan.real_life_examples == real_life_examples,
                     LessonPlan.status == 'completed',
                     LessonPlan.plan_data.isnot(None),
                 ).first()
@@ -417,6 +424,8 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
                         focus_area=focus_area,
                         examples_count=examples_count,
                         materials_count=materials_count,
+                        include_support_plan=bool(include_support_plan),
+                        real_life_examples=real_life_examples,
                         status='completed',
                     )
                     db.session.add(new_plan)
@@ -447,6 +456,7 @@ def generate_unit_distribution(teacher=None, user_id=None, is_admin=False):
             examples_count=examples_count,
             materials_count=materials_count,
             include_support_plan=include_support_plan,
+            real_life_examples=real_life_examples,
         )
         db.session.add(plan)
         db.session.commit()

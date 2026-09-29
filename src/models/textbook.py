@@ -95,6 +95,7 @@ class LessonPlan(db.Model):
     progress_message = db.Column(db.Text, nullable=True)
     needs_review = db.Column(db.Boolean, default=False)
     include_support_plan = db.Column(db.Boolean, default=False)
+    real_life_examples = db.Column(db.Boolean, default=False)  # الأمثلة والأنشطة تُبنى من واقع حياة الطالب اليومية بدل الأمثلة العامة
     is_taught = db.Column(db.Boolean, default=False)
     taught_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -129,6 +130,7 @@ class LessonPlan(db.Model):
             'error_message': self.error_message,
             'progress_message': self.progress_message,
             'needs_review': self.needs_review,
+            'real_life_examples': self.real_life_examples,
             'is_taught': self.is_taught,
             'taught_at': self.taught_at.isoformat() if self.taught_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

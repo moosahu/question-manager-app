@@ -366,6 +366,7 @@ class LessonPrepService:
                     'focus_area': plan.focus_area or 'شامل',
                     'examples_count': plan.examples_count or 5,
                     'materials_count': plan.materials_count or LessonPrepService._default_materials_count(plan.student_count or 30),
+                    'real_life_examples': bool(getattr(plan, 'real_life_examples', False)),
                 },
                 textbook_text=textbook_text,
             )
@@ -693,6 +694,7 @@ class LessonPrepService:
         focus = teacher_options.get('focus_area', 'شامل')
         examples = teacher_options.get('examples_count', 5)
         materials_count = teacher_options.get('materials_count') or LessonPrepService._default_materials_count(student_count)
+        real_life_section = LessonPrepService._real_life_examples_section(teacher_options.get('real_life_examples', False))
 
         # حقن النص المستخرج مباشرة من PDF
         textbook_section = ""
@@ -710,7 +712,7 @@ class LessonPrepService:
 
         prompt = f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في المملكة العربية السعودية.
 
-{textbook_section}## المطلوب
+{textbook_section}{real_life_section}## المطلوب
 حضّر درساً احترافياً كاملاً بناءً على محتوى الكتاب أعلاه والصور المرفقة.
 
 ## معلومات الدرس
@@ -1113,6 +1115,21 @@ class LessonPrepService:
                 except (ValueError, SyntaxError):
                     pass
         return value
+
+    @staticmethod
+    def _real_life_examples_section(enabled):
+        """كتلة تعليمات إضافية تُحقن بالبرومبت لما المعلم يفعّل خيار 'أمثلة من واقع الطالب' -
+        تطلب من الـAI يبني الأمثلة والسيناريوهات من حياة الطالب السعودي اليومية بدل الأمثلة
+        العامة/المجردة المتكررة بين كل تحضير وثاني."""
+        if not enabled:
+            return ""
+        return """## ⚠️ تعليمات إضافية: أمثلة من واقع الطالب (مفعّلة لهذا التحضير)
+- في حقل "examples" (الأمثلة المحلولة) وأي سيناريو بـ"activity_materials" أو أوصاف الأنشطة: ابنِ المواقف من حياة طالب ثانوي سعودي يومياً فعلياً (الجوال، الألعاب، المطبخ والطبخ، السيارة والمحرك، الرياضة، التسوق والمول، الطقس والصيف الحار، القهوة/الشاي، مكيف الهواء، إلخ) - بدل الأمثلة العامة المجردة (كوب ماء، مادة X، مادة Y) اللي تتكرر بأي تحضير بغض النظر عن الطالب.
+- لا تلتزم بنفس المثال التقليدي إذا فيه بديل واقعي أقرب لتجربة الطالب - نوّع الأمثلة بينك وبين نفسك من توليد لآخر بدل تكرار نفس السيناريو المعتاد.
+- حقل "values_connection.life" يجب يصف موقفاً واقعياً محدداً جداً من يوميات الطالب (لا جملة عامة نظرية).
+- المصطلحات والحقائق العلمية نفسها تبقى كما هي بدقة من الكتاب - هذا التوجيه يخص فقط الأمثلة والسيناريوهات التوضيحية المحيطة بها، مو الشرح العلمي الأساسي.
+
+"""
 
     @staticmethod
     def _normalize_activity_fields(period_data):
@@ -1629,12 +1646,14 @@ class LessonPrepService:
                                      course_name, unit_name, all_lessons_text, textbook_text="",
                                      materials_count=None, continuous_lesson=False,
                                      content_scope="", all_periods_scope=None,
-                                     student_count=None, weak_count=None, excellent_count=None):
+                                     student_count=None, weak_count=None, excellent_count=None,
+                                     real_life_examples=False):
         """بناء برومت لحصة واحدة فقط"""
         materials_count = materials_count or 8
         student_count = student_count or 30
         weak_count = weak_count or 5
         excellent_count = excellent_count or 5
+        real_life_section = LessonPrepService._real_life_examples_section(real_life_examples)
         continuity_note = ""
         if continuous_lesson and total_periods > 1:
             other_periods_lines = ""
@@ -1669,7 +1688,7 @@ class LessonPrepService:
 
         return f"""أنت خبير تربوي متخصص في تحضير دروس الكيمياء للمرحلة الثانوية في السعودية.
 
-{textbook_section}## المقرر: {course_name}
+{textbook_section}{real_life_section}## المقرر: {course_name}
 ## الوحدة: {unit_name}
 ## دروس الوحدة: {all_lessons_text}
 ## الحصة رقم: {period_num} من {total_periods}
@@ -2048,6 +2067,7 @@ class LessonPrepService:
                     student_count=plan.student_count,
                     weak_count=plan.weak_students_count,
                     excellent_count=plan.excellent_students_count,
+                    real_life_examples=bool(getattr(plan, 'real_life_examples', False)),
                 )
 
                 # محاولة توليد الحصة مع retry عند 503/rate limit
