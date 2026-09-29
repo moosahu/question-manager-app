@@ -1430,6 +1430,30 @@ class LessonPrepService:
         return max(2, min(12, math.ceil(student_count / 4)))
 
     @staticmethod
+    def _activity_object_to_text(activity):
+        """يحوّل كائن نشاط {overview, materials, steps} (أو نص Python-repr مشوّه لنفس الشكل)
+        لنص مقروء بالسطر - نفس منطق _activityToText بواجهة فلاتر بالضبط. لازم نمرّ عليه هنا
+        (مو نعتمد على _normalize_activity_fields لاحقاً) لأن _build_strategies_from_concepts
+        يُستدعى قبل التطبيع، وبدونه يتسرب كائن/نص خام لحقل teaching_strategies[].application
+        فيكسر شاشة العرض بفلاتر (Text() يتوقع String) ويطبع كـ Python dict repr بالـPDF."""
+        activity = LessonPrepService._recover_stringified_dict(activity)
+        if not activity:
+            return ''
+        if isinstance(activity, dict):
+            parts = []
+            if activity.get('overview'):
+                parts.append(str(activity['overview']))
+            materials = activity.get('materials')
+            if isinstance(materials, list) and materials:
+                parts.append('المواد: ' + '، '.join(str(m) for m in materials))
+            steps = activity.get('steps')
+            if isinstance(steps, list):
+                for i, step in enumerate(steps, 1):
+                    parts.append(f'{i}. {step}')
+            return '\n'.join(parts)
+        return str(activity)
+
+    @staticmethod
     def _build_strategies_from_concepts(concepts, original_strategies):
         """يبني قائمة استراتيجيات التدريس من نفس الاستراتيجيات المكتوبة داخل main_concepts
         (اسم + تطبيقها + نشاط الطلاب) بدل الاعتماد على تلخيص منفصل من الذكاء الاصطناعي عرضة
@@ -1451,8 +1475,8 @@ class LessonPrepService:
             seen.add(name)
             result.append({
                 'strategy': name,
-                'application': c.get('strategy_application') or '',
-                'activity': c.get('student_activity') or '',
+                'application': LessonPrepService._activity_object_to_text(c.get('strategy_application')),
+                'activity': LessonPrepService._activity_object_to_text(c.get('student_activity')),
                 'duration_minutes': duration_by_name.get(name),
             })
         # لو ما لقينا أي استراتيجية داخل المفاهيم (رد قديم أو ناقص)، نرجع للقائمة الأصلية كـ fallback
