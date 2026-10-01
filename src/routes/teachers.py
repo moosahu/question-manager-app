@@ -894,6 +894,9 @@ def api_get_admin_students():
             'joined_at': link.joined_at.isoformat() if link.joined_at else '',
             'avg_score': round(avg, 1) if avg is not None else None,
             'quiz_count': count,
+            'device_id': s.device_id,
+            'device_name': s.device_name,
+            'last_device_login': s.last_device_login.isoformat() if s.last_device_login else None,
         })
 
     return jsonify({
