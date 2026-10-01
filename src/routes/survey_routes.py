@@ -130,60 +130,6 @@ def admin_page():
     return render_template('survey_admin.html')
 
 
-@survey_bp.route('/admin/debug-visibility', methods=['GET'])
-@login_required
-@admin_required
-def admin_debug_visibility():
-    """🔍 تصحيح مؤقت — يحاكي بالضبط نفس المنطق اللي يستخدمه /student/pending لطالب واستبيان
-    محددين، ويرجّع كل خطوة بالتفصيل، بدون أي حاجة لتسجيل دخول الطالب نفسه (محمي بحساب الأدمن
-    فقط). يُحذف بعد ما تُحل مشكلة ظهور الاستبيانات."""
-    try:
-        survey_id = request.args.get('survey_id', type=int)
-        student_id = request.args.get('student_id', type=int)
-        if not survey_id or not student_id:
-            return jsonify({'success': False, 'error': 'survey_id و student_id مطلوبين'}), 400
-
-        survey = Survey.query.get(survey_id)
-        if not survey:
-            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
-
-        student = Student.query.get(student_id)
-        link = TeacherStudent.query.filter_by(student_id=student_id).first()
-        admin_id = link.admin_id if link else None
-
-        visible = _visible_to_student(survey, student_id, admin_id)
-        answered = student_id in _answered_survey_ids('student', student_id)
-
-        return jsonify({
-            'success': True,
-            'debug': {
-                'survey': {
-                    'id': survey.id, 'title': survey.title, 'status': survey.status,
-                    'target_type': survey.target_type, 'created_by': survey.created_by,
-                    'target_ids': survey.target_ids, 'target_section': survey.target_section,
-                },
-                'student': {
-                    'id': student.id if student else None,
-                    'name': student.name if student else None,
-                    'is_active': student.is_active if student else None,
-                    'found': student is not None,
-                },
-                'teacher_student_link': {
-                    'found': link is not None,
-                    'admin_id': link.admin_id if link else None,
-                    'teacher_id': link.teacher_id if link else None,
-                    'section': link.section if link else None,
-                },
-                'computed_admin_id': admin_id,
-                'visible_to_student': visible,
-                'already_answered': answered,
-                'would_appear_in_pending': visible and not answered and survey.status == 'active',
-            }
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
 @survey_bp.route('/admin/list', methods=['GET'])
 @login_required
 @admin_required
