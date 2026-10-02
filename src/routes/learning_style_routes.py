@@ -336,6 +336,18 @@ def notify_students():
             return jsonify({'success': False, 'error': 'ما فيه طلاب لإرسال الاستبيان لهم'}), 400
 
         sent_push = _notify_students(targets)
+        try:
+            from src.models.audit_log import AuditLog
+            from src.models.teacher import Teacher
+            t = Teacher.query.get(teacher_id)
+            AuditLog.log(
+                action='send_notification',
+                description=f'إرسال استبيان أنماط التعلم إلى {len(targets)} طالب',
+                admin_name=(t.name or t.username) if t else 'معلم',
+                target_type='learning_style',
+            )
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error (learning_style notify): {log_err}')
         return jsonify({'success': True, 'sent_count': len(targets), 'push_sent': sent_push})
     except Exception as e:
         db.session.rollback()
@@ -417,6 +429,17 @@ def admin_notify_students():
             return jsonify({'success': False, 'error': 'ما فيه طلاب لإرسال الاستبيان لهم'}), 400
 
         sent_push = _notify_students(targets)
+        try:
+            from src.models.audit_log import AuditLog
+            from flask_login import current_user as _cu
+            AuditLog.log(
+                action='send_notification',
+                description=f'إرسال استبيان أنماط التعلم إلى {len(targets)} طالب',
+                admin_name=getattr(_cu, 'username', 'الادمن'),
+                target_type='learning_style',
+            )
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error (learning_style notify): {log_err}')
         return jsonify({'success': True, 'sent_count': len(targets), 'push_sent': sent_push})
     except Exception as e:
         db.session.rollback()

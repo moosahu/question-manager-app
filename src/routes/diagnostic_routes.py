@@ -174,6 +174,34 @@ def admin_required(f):
     return decorated
 
 
+def _log_notify_audit(description, is_teacher_caller=False, teacher_id=None, target_id=None):
+    """تسجيل إرسال إشعار بسجل نشاط الأدمن - كان ناقص لكل إشعارات الاختبار التشخيصي
+    (موجود أصلاً لإشعارات الطلاب العامة والاستبيانات، لكن مو لهذا الملف). يحدد اسم
+    المُرسِل حسب هوية المتصل (أدمن بجلسة، أو معلم بتوكن)."""
+    try:
+        from src.models.audit_log import AuditLog
+        admin_name = 'الادمن'
+        if is_teacher_caller and teacher_id:
+            try:
+                from src.models.teacher import Teacher
+                t = Teacher.query.get(teacher_id)
+                if t:
+                    admin_name = t.name or t.username or 'معلم'
+            except Exception:
+                admin_name = 'معلم'
+        elif current_user.is_authenticated:
+            admin_name = getattr(current_user, 'username', 'الادمن')
+        AuditLog.log(
+            action='send_notification',
+            description=description,
+            admin_name=admin_name,
+            target_type='diagnostic_test',
+            target_id=target_id,
+        )
+    except Exception as log_err:
+        print(f'⚠️ AuditLog error (diagnostic notify): {log_err}')
+
+
 # ==========================================
 # توليد الاختبارات
 # ==========================================
@@ -2277,6 +2305,10 @@ def notify_pending_students(test_id):
         title = '⏰ تذكير باختبار لم تُكمله بعد'
         message = f'لسه ما حليت اختبار "{test.title}" التشخيصي. لا تفوّت الفرصة — حله بأقرب وقت!'
         sent = _send_bulk_notification(target_ids, title, message, test.id, notification_type='reminder')
+        _log_notify_audit(
+            f'إرسال تذكير "{test.title}" التشخيصي إلى {sent} طالب (لم يكملوه)',
+            is_teacher_caller, teacher_id, target_id=test.id,
+        )
 
         return jsonify({'success': True, 'sent_count': sent})
     except Exception as e:
@@ -2355,6 +2387,10 @@ def notify_completed_students(test_id):
                     pass
 
         db.session.commit()
+        _log_notify_audit(
+            f'إرسال نتيجة/تحليل اختبار "{test.title}" التشخيصي إلى {sent} طالب',
+            is_teacher_caller, teacher_id, target_id=test.id,
+        )
         return jsonify({'success': True, 'sent_count': sent})
     except Exception as e:
         db.session.rollback()
@@ -3040,6 +3076,7 @@ def extend_test_deadline(test_id):
         caller = _identify_caller()
         if caller is None:
             return jsonify({'success': False, 'error': 'غير مصرح'}), 401
+        is_teacher_caller, teacher_id = caller
 
         test = DiagnosticTest.query.get(test_id)
         if not test:
@@ -3069,6 +3106,11 @@ def extend_test_deadline(test_id):
                 title = '⏳ تم تمديد وقت تسليم الاختبار'
                 message = f'تم تمديد الموعد النهائي لاختبار "{test.title}" التشخيصي — لسه عندك فرصة تحله!'
                 sent = _send_bulk_notification(pending_ids, title, message, test.id, notification_type='reminder')
+                if sent:
+                    _log_notify_audit(
+                        f'تمديد موعد اختبار "{test.title}" التشخيصي + إشعار {sent} طالب',
+                        is_teacher_caller, teacher_id, target_id=test.id,
+                    )
 
         return jsonify({'success': True, 'sent_count': sent, 'test': test.to_dict()})
     except Exception as e:
@@ -3351,16 +3393,20 @@ def assign_test():
                     test.notification_sent = True
                     test.notification_sent_at = datetime.utcnow()
                     db.session.commit()
-                
+                    _log_notify_audit(
+                        f'إسناد اختبار "{test.title}" التشخيصي + إشعار {success_count} طالب',
+                        False, None, target_id=test.id,
+                    )
+
             except Exception as e:
                 print(f"⚠️ Error sending notifications: {e}")
-        
+
         return jsonify({
             'success': True,
             'message': 'Test assigned successfully',
             'test': test.to_dict()
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error assigning test: {e}")
@@ -3456,6 +3502,7 @@ def teacher_assign_test():
         # إشعارات FCM
         if send_notif:
             try:
+                teacher_sent_count = 0
                 students = Student.query.filter(Student.id.in_(notify_ids), Student.is_active == True).all()
                 for s in students:
                     if getattr(s, 'fcm_token', None):
@@ -3467,8 +3514,14 @@ def teacher_assign_test():
                                 body=f'تم تعيين اختبار: {test.title}',
                                 data={'type': 'diagnostic_test', 'test_id': str(test.id)},
                             )
+                            teacher_sent_count += 1
                         except Exception:
                             pass
+                if teacher_sent_count:
+                    _log_notify_audit(
+                        f'إسناد اختبار "{test.title}" التشخيصي + إشعار {teacher_sent_count} طالب',
+                        True, teacher_id, target_id=test.id,
+                    )
             except Exception as e:
                 print(f"⚠️ FCM error: {e}")
 
@@ -3757,7 +3810,12 @@ def resend_notification(test_id):
             test.notification_sent_at = datetime.utcnow()
             db.session.commit()
             print(f"✅ تم حفظ {db_save_count} إشعار في قاعدة البيانات (إعادة إرسال)")
-            
+            if success_count:
+                _log_notify_audit(
+                    f'إعادة إرسال إشعار اختبار "{test.title}" التشخيصي إلى {success_count} طالب',
+                    False, None, target_id=test.id,
+                )
+
             return jsonify({
                 'message': f'Notifications sent to {success_count} students',
                 'success_count': success_count

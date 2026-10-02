@@ -73,6 +73,26 @@ def _sync_to_old_system(student_id, category_id, teacher_id=None, admin_id=None)
         print(f"⚠️ _sync_to_old_system error: {e}")
 
 
+def _log_grade_notify_audit(description, teacher_id=None, admin_name=None, target_id=None):
+    """تسجيل إرسال إشعار درجات بسجل نشاط الأدمن - كان ناقص بهذا الملف بالكامل"""
+    try:
+        from src.models.audit_log import AuditLog
+        name = admin_name
+        if not name and teacher_id:
+            try:
+                from src.models.teacher import Teacher
+                t = Teacher.query.get(teacher_id)
+                name = (t.name or t.username) if t else 'معلم'
+            except Exception:
+                name = 'معلم'
+        AuditLog.log(
+            action='send_notification', description=description,
+            admin_name=name or 'الادمن', target_type='grades', target_id=target_id,
+        )
+    except Exception as log_err:
+        print(f'⚠️ AuditLog error (grades notify): {log_err}')
+
+
 def _send_grade_notification(student, period, release_type, custom_message=''):
     """يرسل FCM ويحفظ الإشعار في DB"""
     try:
@@ -524,6 +544,10 @@ def api_send_grades():
     period  = GradePeriod.query.get(period_id)
     _send_grade_notification(student, period, release_type, custom_message)
     db.session.commit()
+    _log_grade_notify_audit(
+        f'إرسال درجات "{period.period_name if period else ""}" للطالب {student.name if student else student_id}',
+        teacher_id=teacher_id, target_id=period_id,
+    )
 
     return jsonify({'success': True, 'release': rel.to_dict()})
 
@@ -574,6 +598,11 @@ def api_bulk_send_grades():
         _send_grade_notification(student, period, release_type, custom_message)
 
     db.session.commit()
+    if saved:
+        _log_grade_notify_audit(
+            f'إرسال جماعي لدرجات "{period.period_name if period else ""}" إلى {saved} طالب',
+            teacher_id=teacher_id, target_id=period_id,
+        )
     return jsonify({'success': True, 'sent': saved, 'failed': failed})
 
 
@@ -615,6 +644,11 @@ def api_admin_bulk_send_grades():
         _send_grade_notification(student, period, release_type, custom_message)
 
     db.session.commit()
+    if saved:
+        _log_grade_notify_audit(
+            f'إرسال جماعي لدرجات "{period.period_name if period else ""}" إلى {saved} طالب',
+            admin_name=getattr(current_user, 'username', 'الادمن'), target_id=period_id,
+        )
     return jsonify({'success': True, 'sent': saved, 'failed': failed})
 
 
@@ -911,6 +945,10 @@ def api_admin_send_grades():
     period  = GradePeriod.query.get(period_id)
     _send_grade_notification(student, period, release_type, custom_message)
     db.session.commit()
+    _log_grade_notify_audit(
+        f'إرسال درجات "{period.period_name if period else ""}" للطالب {student.name if student else student_id}',
+        admin_name=getattr(current_user, 'username', 'الادمن'), target_id=period_id,
+    )
 
     return jsonify({'success': True, 'release': rel.to_dict()})
 
