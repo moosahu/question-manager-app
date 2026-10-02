@@ -7,8 +7,10 @@ try:
 except ImportError:  # pragma: no cover
     from extensions import db
 
-QUESTION_TYPES = ('choice', 'text', 'rating', 'yesno')
+QUESTION_TYPES = ('choice', 'text', 'rating', 'yesno', 'likert5', 'yes_no', 'single_choice', 'multi_choice')
 TARGET_TYPES = ('student', 'teacher', 'all', 'my_students', 'section')
+SURVEY_TYPES = ('استطلاعي', 'كشفي', 'تقويمي', 'رضا')
+GRADE_LEVELS = ('ابتدائي', 'متوسط', 'ثانوي')
 
 
 class Survey(db.Model):
@@ -28,6 +30,15 @@ class Survey(db.Model):
 
     status = db.Column(db.String(20), nullable=False, default='active')  # active/closed
 
+    # ═══ حقول القياس النفسي/التربوي (مولّد الذكاء الاصطناعي المحسّن) ═══
+    # كلها nullable — استبيانات قديمة اتبنت يدوياً قبل هذا التحديث تبقى تشتغل بدونها
+    survey_type = db.Column(db.String(20), nullable=True)  # استطلاعي/كشفي/تقويمي/رضا
+    purpose = db.Column(db.Text, nullable=True)  # الهدف أو القرار المبني على النتائج
+    grade_level = db.Column(db.String(20), nullable=True)  # ابتدائي/متوسط/ثانوي
+    axes = db.Column(db.JSON, nullable=True)  # [{code, name, construct, high_score_means}]
+    compare_by = db.Column(db.JSON, nullable=True)  # متغيرات ديموغرافية للمقارنة (مثل: الشعبة)
+    is_pilot = db.Column(db.Boolean, nullable=False, default=False)  # تجريبي = لا تُدمج ردوده بالتحليل مع النهائي
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -37,7 +48,7 @@ class Survey(db.Model):
     )
     responses = db.relationship('SurveyResponse', backref='survey', cascade='all, delete-orphan')
 
-    def to_dict(self, with_questions=False):
+    def to_dict(self, with_questions=False, show_answers=True):
         data = {
             'id': self.id,
             'title': self.title,
@@ -47,11 +58,17 @@ class Survey(db.Model):
             'target_ids': self.target_ids or [],
             'target_section': self.target_section or '',
             'status': self.status,
+            'survey_type': self.survey_type or '',
+            'purpose': self.purpose or '',
+            'grade_level': self.grade_level or '',
+            'axes': self.axes or [],
+            'compare_by': self.compare_by or [],
+            'is_pilot': self.is_pilot,
             'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'responses_count': len(self.responses) if self.responses is not None else 0,
         }
         if with_questions:
-            data['questions'] = [q.to_dict() for q in self.questions]
+            data['questions'] = [q.to_dict(show_answers=show_answers) for q in self.questions]
         return data
 
 
@@ -69,8 +86,16 @@ class SurveyQuestion(db.Model):
     rating_min_label = db.Column(db.String(100), nullable=True)  # توضيح معنى أقل رقم (مثال: "غير موافق") — اختياري
     rating_max_label = db.Column(db.String(100), nullable=True)  # توضيح معنى أعلى رقم (مثال: "موافق تماماً") — اختياري
 
-    def to_dict(self):
-        return {
+    # ═══ حقول القياس النفسي/التربوي (مولّد الذكاء الاصطناعي المحسّن) ═══
+    axis_code = db.Column(db.String(5), nullable=True)  # رمز المحور اللي تنتمي له الفقرة (A/B/C...) — null للأسئلة خارج المحاور
+    item_code = db.Column(db.String(10), nullable=True)  # رمز ثابت للفقرة (A1، KN1، DM1...) يُستخدم عمود بالتصدير
+    reverse = db.Column(db.Boolean, nullable=False, default=False)  # فقرة عكسية — تُقلب درجتها عند التحليل، لا يُعرض للمستجيب إطلاقاً
+    scored = db.Column(db.Boolean, nullable=False, default=True)  # تدخل بدرجة المحور وحساب الثبات (False لأسئلة ديموغرافية/معرفية)
+    correct_option = db.Column(db.String(200), nullable=True)  # الإجابة الصحيحة — للأسئلة المعرفية الموضوعية فقط
+    skip_to = db.Column(db.String(10), nullable=True)  # item_code للسؤال التالي لو كان فلترة (تفرّع) ينطبق
+
+    def to_dict(self, show_answers=True):
+        data = {
             'id': self.id,
             'order': self.order,
             'text': self.text,
@@ -79,7 +104,16 @@ class SurveyQuestion(db.Model):
             'rating_max': self.rating_max or 5,
             'rating_min_label': self.rating_min_label or '',
             'rating_max_label': self.rating_max_label or '',
+            'axis_code': self.axis_code or '',
+            'item_code': self.item_code or '',
+            'reverse': self.reverse,
+            'scored': self.scored,
+            'skip_to': self.skip_to or '',
         }
+        # ⚠️ correct_option مفتاح إجابة — يظهر للمعلم فقط (شاشة المراجعة/التحليل)، أبداً للمستجيب
+        if show_answers:
+            data['correct_option'] = self.correct_option or ''
+        return data
 
 
 class SurveyResponse(db.Model):

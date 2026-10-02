@@ -958,7 +958,8 @@ def student_detail(survey_id):
         already = SurveyResponse.query.filter_by(
             survey_id=survey.id, respondent_type='student', respondent_id=student_id,
         ).first() is not None
-        return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True), 'already_answered': already})
+        # ⚠️ show_answers=False: الطالب مستجيب لا يرى مفتاح الإجابات الصحيحة للأسئلة المعرفية
+        return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True, show_answers=False), 'already_answered': already})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1050,7 +1051,8 @@ def teacher_detail(survey_id):
         already = SurveyResponse.query.filter_by(
             survey_id=survey.id, respondent_type='teacher', respondent_id=teacher_id,
         ).first() is not None
-        return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True), 'already_answered': already})
+        # ⚠️ show_answers=False: المعلم هنا مستجيب (مو مُنشئ الاستبيان) - لا يرى مفتاح الإجابات
+        return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True, show_answers=False), 'already_answered': already})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
