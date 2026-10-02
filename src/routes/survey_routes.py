@@ -16,6 +16,7 @@ try:
     from src.models.teacher import Teacher
     from src.models.teacher_student import TeacherStudent
     from src.middleware.auth_middleware import verify_student_token, verify_teacher_token
+    from src.services import survey_ai_validator as sav
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.survey import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, QUESTION_TYPES, TARGET_TYPES
@@ -23,6 +24,7 @@ except ImportError:  # pragma: no cover
     from models.teacher import Teacher
     from models.teacher_student import TeacherStudent
     from middleware.auth_middleware import verify_student_token, verify_teacher_token
+    from services import survey_ai_validator as sav
 
 survey_bp = Blueprint('survey', __name__, url_prefix='/api/survey')
 
@@ -87,10 +89,13 @@ def _answered_survey_ids(respondent_type, respondent_id):
 
 
 def _validate_questions(questions_data):
-    """يتحقق من صحة بيانات الأسئلة، يرجع (أسئلة نظيفة, رسالة خطأ أو None)"""
+    """يتحقق من صحة بيانات الأسئلة، يرجع (أسئلة نظيفة, رسالة خطأ أو None)
+    يدعم الأنواع القديمة (choice/yesno) والجديدة (likert5/yes_no/single_choice/multi_choice)
+    بجانب حقول القياس النفسي/التربوي الاختيارية (axis_code/item_code/reverse/scored/correct_option/skip_to)"""
     if not questions_data or not isinstance(questions_data, list):
         return None, 'الاستبيان يحتاج سؤال واحد على الأقل'
     cleaned = []
+    options_types = ('choice', 'likert5', 'single_choice', 'multi_choice')
     for i, q in enumerate(questions_data):
         text = (q.get('text') or '').strip()
         qtype = q.get('type') or 'choice'
@@ -99,24 +104,36 @@ def _validate_questions(questions_data):
         if qtype not in QUESTION_TYPES:
             return None, f'نوع السؤال رقم {i + 1} غير صحيح'
         options = None
-        if qtype == 'choice':
-            options = [o.strip() for o in (q.get('options') or []) if o and o.strip()]
+        if qtype in options_types:
+            if qtype == 'likert5':
+                options = list(sav.LIKERT5_OPTIONS)
+            else:
+                options = [o.strip() for o in (q.get('options') or []) if o and o.strip()]
             if len(options) < 2:
-                return None, f'السؤال رقم {i + 1} (اختيار متعدد) يحتاج خيارين على الأقل'
+                return None, f'السؤال رقم {i + 1} ({qtype}) يحتاج خيارين على الأقل'
         rating_max = None
         rating_min_label = None
         rating_max_label = None
         if qtype == 'rating':
             try:
-                rating_max = int(q.get('rating_max') or 5)
+                rating_max = int(q.get('rating_max') or q.get('scale_max') or 5)
             except (TypeError, ValueError):
                 rating_max = 5
             rating_max = max(3, min(10, rating_max))
-            rating_min_label = (q.get('rating_min_label') or '').strip()[:100] or None
-            rating_max_label = (q.get('rating_max_label') or '').strip()[:100] or None
+            scale_labels = q.get('scale_labels') or []
+            rating_min_label = (q.get('rating_min_label') or (scale_labels[0] if len(scale_labels) > 0 else '')).strip()[:100] or None
+            rating_max_label = (q.get('rating_max_label') or (scale_labels[1] if len(scale_labels) > 1 else '')).strip()[:100] or None
+
         cleaned.append({
             'text': text, 'type': qtype, 'options': options, 'rating_max': rating_max,
             'rating_min_label': rating_min_label, 'rating_max_label': rating_max_label,
+            # حقول القياس النفسي/التربوي — كلها اختيارية، فاضية للاستبيانات اليدوية القديمة
+            'axis_code': (q.get('axis') or q.get('axis_code') or '').strip()[:5] or None,
+            'item_code': (q.get('code') or q.get('item_code') or '').strip()[:10] or None,
+            'reverse': bool(q.get('reverse', False)),
+            'scored': bool(q.get('scored', True)),
+            'correct_option': (q.get('correct_option') or '').strip()[:200] or None,
+            'skip_to': (q.get('skip_to') or '').strip()[:10] or None,
         })
     return cleaned, None
 
@@ -223,6 +240,13 @@ def admin_create():
         if err:
             return jsonify({'success': False, 'error': err}), 400
 
+        survey_type = data.get('survey_type')
+        if survey_type and survey_type not in ('استطلاعي', 'كشفي', 'تقويمي', 'رضا'):
+            return jsonify({'success': False, 'error': 'نوع الاستبيان غير صحيح'}), 400
+        grade_level = data.get('grade_level')
+        if grade_level and grade_level not in ('ابتدائي', 'متوسط', 'ثانوي'):
+            return jsonify({'success': False, 'error': 'المرحلة الدراسية غير صحيحة'}), 400
+
         survey = Survey(
             title=title,
             description=(data.get('description') or '').strip(),
@@ -232,6 +256,13 @@ def admin_create():
             target_ids=target_ids if target_type in ('student', 'teacher') else None,
             target_section=target_section if target_type == 'section' else None,
             status='active',
+            # ═══ حقول القياس النفسي/التربوي — فاضية تلقائياً لو الاستبيان بُني يدوياً بدون AI ═══
+            survey_type=survey_type or None,
+            purpose=(data.get('purpose') or '').strip() or None,
+            grade_level=grade_level or None,
+            axes=data.get('axes') or None,
+            compare_by=data.get('compare_by') or None,
+            is_pilot=bool(data.get('is_pilot', False)),
         )
         db.session.add(survey)
         db.session.flush()
@@ -241,42 +272,14 @@ def admin_create():
                 survey_id=survey.id, order=i, text=q['text'], type=q['type'],
                 options=q['options'], rating_max=q['rating_max'],
                 rating_min_label=q['rating_min_label'], rating_max_label=q['rating_max_label'],
+                axis_code=q['axis_code'], item_code=q['item_code'], reverse=q['reverse'],
+                scored=q['scored'], correct_option=q['correct_option'], skip_to=q['skip_to'],
             ))
         db.session.commit()
         return jsonify({'success': True, 'survey': survey.to_dict(with_questions=True)})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
-_AI_SURVEY_PROMPT = """أنت خبير في تصميم الاستبيانات العلمية (منهجية البحث العلمي). صمّم استبياناً حول الموضوع التالي باللغة العربية الفصحى الواضحة.
-
-الموضوع: {topic}
-{audience_line}
-{extra_line}
-عدد الأسئلة المطلوب تقريباً: {count}
-
-التزم بأسس التصميم العلمي للاستبيانات:
-- صياغة كل سؤال بشكل محايد وواضح، بدون توجيه إجابة معينة (تجنّب الأسئلة الموحية/الموجِّهة).
-- تجنّب الأسئلة المزدوجة (اللي تسأل عن شيئين مختلفين بسؤال واحد).
-- رتّب الأسئلة من العام إلى الخاص بتسلسل منطقي.
-- استخدم مقياس ليكرت خماسي متوازن (نفس عدد درجات الموافقة والرفض) للأسئلة الاتجاهية/الرأي، بالضبط بهالترتيب: ["موافق بشدة","موافق","محايد","غير موافق","غير موافق بشدة"] — بنوع "choice".
-- استخدم نوع "rating" (تقييم رقمي 1-5 أو 1-10) بس لو الموضوع يحتاج تقييم كمّي لشدة/جودة/مستوى شيء معيّن، وحدد فيه دايماً rating_min_label وrating_max_label يوضّحون طرفي المقياس.
-- استخدم نوع "yesno" للأسئلة الثنائية الواضحة بس (نعم/لا فقط، بدون درجات وسط).
-- اختم الاستبيان بسؤال نص حر (type: "text") واحد بس لملاحظات إضافية اختيارية.
-- لا تكرر نفس الفكرة بسؤالين مختلفين، ولا تكتب أي مقدّمة أو خاتمة نصية خارج الأسئلة.
-
-أعد النتيجة **JSON فقط بدون أي نص إضافي قبله أو بعده ولا داخل ```**، بالضبط بهذا الشكل:
-{{
-  "title": "عنوان مقترح مختصر للاستبيان",
-  "description": "وصف مختصر (سطر واحد) يظهر للمستجيب قبل الأسئلة",
-  "questions": [
-    {{"text": "نص السؤال", "type": "choice", "options": ["خيار1", "خيار2"]}},
-    {{"text": "نص السؤال", "type": "rating", "rating_max": 5, "rating_min_label": "...", "rating_max_label": "..."}},
-    {{"text": "نص السؤال", "type": "yesno"}},
-    {{"text": "نص السؤال", "type": "text"}}
-  ]
-}}"""
 
 
 def _extract_json_object(text):
@@ -297,25 +300,57 @@ def _extract_json_object(text):
 @login_required
 @admin_required
 def admin_generate_ai():
-    """يولّد مسودة أسئلة استبيان بالذكاء الاصطناعي حسب موضوع يكتبه الأدمن — مسودة قابلة للتعديل، ما تُنشئ استبياناً مباشرة"""
+    """يولّد مسودة استبيان بالذكاء الاصطناعي (محاور + فقرات مصحّحة + عكسية + تفرّع...) —
+    مسودة قابلة للتعديل الكامل بشاشة المراجعة، ما تُنشئ استبياناً مباشرة.
+    يتحقق من رد النموذج آلياً (21 قاعدة) ويعيد التوليد تلقائياً عند أخطاء بنيوية (حتى محاولتين إضافيتين)
+    قبل ما يعرضه للمستخدم مع سبب الفشل."""
     try:
         data = request.get_json() or {}
         topic = (data.get('topic') or '').strip()
-        if not topic:
-            return jsonify({'success': False, 'error': 'الموضوع مطلوب'}), 400
+        if len(topic) < 10:
+            return jsonify({'success': False, 'error': 'الموضوع مطلوب (10 أحرف على الأقل)'}), 400
 
-        audience = data.get('audience') or ''
-        audience_line = {
-            'student': 'الفئة المستهدفة: طلاب.',
-            'teacher': 'الفئة المستهدفة: معلمون.',
-        }.get(audience, '')
-        extra = (data.get('notes') or '').strip()
-        extra_line = f'ملاحظات إضافية من مُنشئ الاستبيان: {extra}' if extra else ''
+        purpose = (data.get('purpose') or '').strip()
+        if len(purpose) < 10:
+            return jsonify({'success': False, 'error': 'الهدف أو القرار المبني على النتائج مطلوب (10 أحرف على الأقل)'}), 400
 
+        audience = data.get('audience') or ['طلاب']
+        if isinstance(audience, str):
+            audience = [audience] if audience else ['طلاب']
+        if not audience:
+            return jsonify({'success': False, 'error': 'الفئة المستهدفة مطلوبة'}), 400
+
+        survey_type = data.get('survey_type') or 'كشفي'
+        if survey_type not in ('استطلاعي', 'كشفي', 'تقويمي', 'رضا'):
+            return jsonify({'success': False, 'error': 'نوع الاستبيان غير صحيح'}), 400
+
+        grade_level = data.get('grade_level') or 'ثانوي'
+        if 'طلاب' in audience and grade_level not in ('ابتدائي', 'متوسط', 'ثانوي'):
+            return jsonify({'success': False, 'error': 'المرحلة الدراسية مطلوبة للفئة طلاب'}), 400
+
+        axes_input = data.get('axes') or []
         try:
-            count = max(3, min(15, int(data.get('question_count') or 8)))
+            axes_count = max(1, min(6, int(data.get('axes_count') or (len(axes_input) or 3))))
         except (TypeError, ValueError):
-            count = 8
+            axes_count = 3
+        try:
+            items_per_axis = max(4, min(8, int(data.get('items_per_axis') or 5)))
+        except (TypeError, ValueError):
+            items_per_axis = 5
+
+        compare_by = (data.get('compare_by') or [])[:4]
+
+        params = {
+            'topic': topic, 'purpose': purpose, 'audience': audience,
+            'survey_type': survey_type, 'grade_level': grade_level,
+            'axes': axes_input, 'axes_count': axes_count, 'items_per_axis': items_per_axis,
+            'compare_by': compare_by,
+            'include_reverse': bool(data.get('include_reverse', False)),
+            'include_knowledge_check': bool(data.get('include_knowledge_check', False)),
+            'include_intro': bool(data.get('include_intro', False)),
+            'include_open_question': bool(data.get('include_open_question', True)),
+            'notes': (data.get('notes') or '').strip(),
+        }
 
         try:
             from src.services.claude_client import claude_key_manager
@@ -326,40 +361,68 @@ def admin_generate_ai():
         if not client:
             return jsonify({'success': False, 'error': 'خدمة الذكاء الاصطناعي غير متاحة حالياً (مفتاح API غير مضبوط)'}), 503
 
-        prompt = _AI_SURVEY_PROMPT.format(
-            topic=topic, audience_line=audience_line, extra_line=extra_line, count=count,
-        )
+        prompt = sav.build_prompt(params)
 
-        def _call():
+        def _call(messages):
             response = client.messages.create(
-                model='claude-sonnet-4-6', max_tokens=3000,
-                messages=[{'role': 'user', 'content': prompt}],
+                model='claude-sonnet-4-6', max_tokens=4000, messages=messages,
             )
             return response.content[0].text
 
-        try:
-            text = _call()
-        except Exception as e:
-            if claude_key_manager.is_quota_error(str(e)) and claude_key_manager.rotate_key():
-                client = claude_key_manager.get_client()
-                text = _call()
-            else:
-                raise
+        messages = [{'role': 'user', 'content': prompt}]
+        parsed, hard_errors, warnings = None, [], []
+        last_parse_error = None
 
-        try:
-            parsed = _extract_json_object(text)
-        except (json.JSONDecodeError, ValueError):
-            return jsonify({'success': False, 'error': 'تعذّر قراءة رد الذكاء الاصطناعي — جرّب مرة ثانية'}), 500
+        # محاولة أولى + حتى محاولتين إضافيتين لتصحيح أخطاء بنيوية (قاعدة الإعادة التلقائية بالمواصفات)
+        for attempt in range(3):
+            try:
+                text = _call(messages)
+            except Exception as e:
+                if claude_key_manager.is_quota_error(str(e)) and claude_key_manager.rotate_key():
+                    client = claude_key_manager.get_client()
+                    text = _call(messages)
+                else:
+                    raise
 
-        cleaned_questions, err = _validate_questions(parsed.get('questions'))
-        if err:
-            return jsonify({'success': False, 'error': f'رد الذكاء الاصطناعي غير مكتمل: {err} — جرّب مرة ثانية'}), 500
+            try:
+                parsed = _extract_json_object(text)
+            except (json.JSONDecodeError, ValueError) as e:
+                last_parse_error = str(e)
+                parsed = None
+                messages.append({'role': 'assistant', 'content': text})
+                messages.append({'role': 'user', 'content': 'ردك ما كان JSON صالحاً. أعد الرد JSON فقط بدون أي نص خارجه.'})
+                continue
+
+            parsed = sav.auto_fix(parsed)
+            hard_errors, warnings = sav.validate_survey_json(parsed, params)
+            if not hard_errors:
+                break
+            if attempt < 2:
+                messages.append({'role': 'assistant', 'content': text})
+                messages.append({'role': 'user', 'content': sav.build_correction_message(hard_errors)})
+
+        if parsed is None:
+            return jsonify({'success': False, 'error': f'تعذّر قراءة رد الذكاء الاصطناعي بعد عدة محاولات — جرّب مرة ثانية ({last_parse_error})'}), 500
+
+        if hard_errors:
+            return jsonify({
+                'success': False,
+                'error': 'تعذّر توليد استبيان يطابق القواعد العلمية بعد 3 محاولات',
+                'validation_errors': hard_errors,
+            }), 500
 
         return jsonify({
             'success': True,
             'title': (parsed.get('title') or topic).strip()[:200],
-            'description': (parsed.get('description') or '').strip()[:500],
-            'questions': cleaned_questions,
+            'intro': (parsed.get('intro') or '').strip()[:1000],
+            'estimated_minutes': parsed.get('estimated_minutes'),
+            'survey_type': survey_type,
+            'purpose': purpose,
+            'grade_level': grade_level,
+            'compare_by': compare_by,
+            'axes': parsed.get('axes') or [],
+            'questions': parsed.get('questions') or [],
+            'warnings': warnings,
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
