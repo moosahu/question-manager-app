@@ -5271,6 +5271,7 @@ def get_admin_profile_api():
                 'full_name': getattr(current_user, 'full_name', '') or current_user.username,
                 'email': current_user.email,
                 'is_admin': current_user.is_admin,
+                'require_manual_link_approval': getattr(current_user, 'require_manual_link_approval', False),
             }
         }), 200
     except Exception as e:
