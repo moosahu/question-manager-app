@@ -43,7 +43,8 @@ def get_admin_profile():
             'username': current_user.username,
             'full_name': getattr(current_user, 'full_name', '') or current_user.username,
             'email': current_user.email,
-            'is_admin': current_user.is_admin
+            'is_admin': current_user.is_admin,
+            'require_manual_link_approval': getattr(current_user, 'require_manual_link_approval', False),
         }
         
         return jsonify({
@@ -216,3 +217,22 @@ def send_notification():
             'error': 'حدث خطأ في إرسال الإشعارات',
             'details': str(e)
         }), 500
+
+
+@admin_profile_bp.route('/link-approval-setting', methods=['POST'])
+@login_required
+def set_link_approval_setting():
+    """تشغيل/إيقاف الربط اليدوي لكود الأدمن (دخول كود المعلمين يبقى تلقائي دايماً)
+    Body: { require_manual_link_approval: bool }"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'ليس لديك صلاحية'}), 403
+
+    try:
+        from src.extensions import db
+        data = request.get_json() or {}
+        value = bool(data.get('require_manual_link_approval', False))
+        current_user.require_manual_link_approval = value
+        db.session.commit()
+        return jsonify({'success': True, 'require_manual_link_approval': value})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

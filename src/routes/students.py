@@ -979,6 +979,80 @@ def api_admin_reset_student_device(student_id):
 
 
 # ==================== ✅ جديد: صفحة إزالة ربط الجهاز (للأدمن) ====================
+# ==================== ✅ طلبات الربط المعلّقة (ربط يدوي بكود الأدمن) ====================
+
+@students_bp.route('/api/admin/pending-links', methods=['GET'])
+@login_required
+@admin_required
+def api_admin_list_pending_links():
+    """قائمة طلبات الربط المعلّقة بانتظار موافقة الأدمن الحالي"""
+    try:
+        from src.models.pending_link_request import PendingLinkRequest
+        requests = PendingLinkRequest.query.filter_by(
+            admin_id=current_user.id, status='pending',
+        ).order_by(PendingLinkRequest.requested_at.desc()).all()
+        return jsonify({'success': True, 'requests': [r.to_dict() for r in requests]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/admin/pending-links/<int:request_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_approve_pending_link(request_id):
+    """موافقة على طلب ربط معلّق — ينشئ الربط الفعلي (TeacherStudent) زي الربط التلقائي بالضبط"""
+    try:
+        from src.models.pending_link_request import PendingLinkRequest
+        req = PendingLinkRequest.query.filter_by(id=request_id, admin_id=current_user.id).first()
+        if not req:
+            return jsonify({'success': False, 'error': 'الطلب غير موجود'}), 404
+        if req.status != 'pending':
+            return jsonify({'success': False, 'error': 'تم البت بهذا الطلب مسبقاً'}), 409
+
+        existing = TeacherStudent.query.filter_by(student_id=req.student_id).first()
+        if existing:
+            req.status = 'rejected'  # صار مرتبط بمكان ثاني بالفترة اللي انتظر فيها
+            req.resolved_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify({'success': False, 'error': 'الطالب صار مرتبط بقائمة أخرى بالفعل'}), 409
+
+        link = TeacherStudent(
+            admin_id=req.admin_id,
+            student_id=req.student_id,
+            aruco_id=TeacherStudent.next_aruco_id(None, req.admin_id),
+        )
+        req.status = 'approved'
+        req.resolved_at = datetime.utcnow()
+        db.session.add(link)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم قبول الطلب وربط الطالب'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@students_bp.route('/api/admin/pending-links/<int:request_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_reject_pending_link(request_id):
+    """رفض طلب ربط معلّق"""
+    try:
+        from src.models.pending_link_request import PendingLinkRequest
+        req = PendingLinkRequest.query.filter_by(id=request_id, admin_id=current_user.id).first()
+        if not req:
+            return jsonify({'success': False, 'error': 'الطلب غير موجود'}), 404
+        if req.status != 'pending':
+            return jsonify({'success': False, 'error': 'تم البت بهذا الطلب مسبقاً'}), 409
+
+        req.status = 'rejected'
+        req.resolved_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم رفض الطلب'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @students_bp.route('/reset-device/<int:student_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -3104,6 +3178,41 @@ def api_student_join_class():
         if same:
             return jsonify({'success': False, 'error': 'أنت مرتبط بهذا الكود بالفعل'}), 409
         return jsonify({'success': False, 'error': 'أنت مرتبط بقائمة أخرى بالفعل. اطلب الإزالة أولاً'}), 409
+
+    # ⚠️ كود الأدمن تحديداً (مو كود معلم) + وضع "ربط يدوي" مفعّل عنده: نسوي طلب معلّق
+    # بدل ربط فوري - أكواد المعلمين تبقى تلقائية دايماً بغض النظر عن هذا الإعداد
+    if admin_owner and getattr(admin_owner, 'require_manual_link_approval', False):
+        from src.models.pending_link_request import PendingLinkRequest
+        existing_pending = PendingLinkRequest.query.filter_by(
+            student_id=student_id, admin_id=admin_owner.id, status='pending',
+        ).first()
+        if existing_pending:
+            return jsonify({'success': False, 'error': 'عندك طلب ربط معلّق لنفس الحساب بالفعل، بانتظار الموافقة'}), 409
+
+        req = PendingLinkRequest(student_id=student_id, admin_id=admin_owner.id)
+        try:
+            db.session.add(req)
+            db.session.commit()
+            # إشعار الأدمن بطلب جديد ينتظر موافقته
+            if admin_owner.fcm_token:
+                try:
+                    from src.services.notification_service import NotificationService
+                    NotificationService.send_fcm_notification(
+                        admin_owner.fcm_token,
+                        '🔔 طلب ربط جديد',
+                        f'الطالب "{student.name}" يطلب الانضمام — بانتظار موافقتك.',
+                        {'type': 'pending_link_request'},
+                    )
+                except Exception:
+                    pass
+            return jsonify({
+                'success': True,
+                'pending': True,
+                'message': 'تم إرسال طلب الانضمام، بانتظار موافقة الأدمن.',
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     _tid = teacher.id if teacher else None
     _aid = admin_owner.id if admin_owner else None

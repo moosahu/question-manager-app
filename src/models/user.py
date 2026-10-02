@@ -39,6 +39,9 @@ class User(db.Model, UserMixin):
 
     # كود ربط الطلاب بالأدمن — نفس منطق المعلمين
     class_code = db.Column(db.String(10), unique=True, nullable=True)
+    # لو True: دخول كود الأدمن ينشئ طلب ربط معلّق يحتاج موافقة يدوية بدل ربط فوري تلقائي
+    # (ينطبق على كود الأدمن فقط - أكواد المعلمين تبقى تلقائية دايماً مهما كانت هذي القيمة)
+    require_manual_link_approval = db.Column(db.Boolean, default=False, nullable=False)
 
     @staticmethod
     def generate_class_code():
