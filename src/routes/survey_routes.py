@@ -462,7 +462,7 @@ def admin_students_by_section():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _notify_targets(survey, restrict_ids=None, restrict_type=None):
+def _notify_targets(survey, restrict_ids=None, restrict_type=None, is_reminder=False):
     """إشعار داخل التطبيق + push لمستلمي استبيان مستهدَف بطالب/معلم/طلابي — يُستدعى من زر 'إرسال إشعار'
     restrict_ids + restrict_type معاً: استهداف صريح يتجاوز نطاق target_type الأصلي للاستبيان تماماً —
     يسمح بإعادة الإرسال لأي مجموعة (شعبة/أشخاص محددين) حتى لو مختلفة عن الاستهداف وقت الإنشاء، ولو
@@ -498,7 +498,10 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None):
         # التطبيق القديمة دائماً) يوديك لتبويب الإشعارات العام مو لشاشة الاستبيان مباشرة،
         # فنص مثل "اضغط هنا" يضلّل الطالب. ما نستخدم survey.description هنا إطلاقاً (كان
         # يطلع كامل داخل الإشعار ويخلي الطالب يحس إنه "قرأ الاستبيان" وخلص بدون ما يفتحه فعلياً)
-        message = 'وصلك استبيان جديد — افتح التطبيق وروح لقسم "الاستبيانات" من القائمة الرئيسية لتعبئته.'
+        if is_reminder:
+            message = f'🔔 تذكير: لسه ما جاوبت على استبيان «{survey.title}» — افتح التطبيق وكمّله.'
+        else:
+            message = 'وصلك استبيان جديد — افتح التطبيق وروح لقسم "الاستبيانات" من القائمة الرئيسية لتعبئته.'
 
         if base_type == 'student':
             try:
@@ -612,7 +615,7 @@ def admin_notify_pending(survey_id):
         if not pending_ids:
             return jsonify({'success': True, 'sent': 0, 'message': 'الكل جاوب بالفعل'})
 
-        sent = _notify_targets(survey, restrict_ids=pending_ids)
+        sent = _notify_targets(survey, restrict_ids=pending_ids, is_reminder=True)
         return jsonify({'success': True, 'sent': sent, 'pending_count': len(pending_ids)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
