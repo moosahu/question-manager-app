@@ -1988,6 +1988,23 @@ def api_create_audit_log():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@admin_ai_bp.route('/audit-log/<int:log_id>', methods=['DELETE'])
+@admin_required
+def api_delete_audit_log(log_id):
+    """حذف سجل نشاط واحد — DELETE /api/admin/ai/audit-log/<id>"""
+    try:
+        from src.models.audit_log import AuditLog
+        entry = AuditLog.query.get(log_id)
+        if not entry:
+            return jsonify({'success': False, 'error': 'السجل غير موجود'}), 404
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================
 # توليد الشرح بالذكاء الاصطناعي
 # ============================================
