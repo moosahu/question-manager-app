@@ -528,8 +528,12 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None, is_reminder=F
                 try:
                     NotificationService.send_fcm_notification(st.fcm_token, title, message, {'type': 'survey', 'survey_id': survey.id})
                     sent += 1
-                except Exception:
-                    pass
+                except Exception as fcm_err:
+                    # توكن FCM منتهي/غير صالح (الطالب حذف التطبيق أو تغيّر جهازه) - نمسحه
+                    # عشان ما نحاول نرسل له مرة ثانية لاحقاً بدون فايدة (نفس نمط notification_admin_routes.py)
+                    if 'NotRegistered' in str(fcm_err) or 'Unregistered' in type(fcm_err).__name__:
+                        st.fcm_token = None
+            db.session.commit()
         else:
             try:
                 from src.models.teacher_notification import TeacherNotification
@@ -538,6 +542,22 @@ def _notify_targets(survey, restrict_ids=None, restrict_type=None, is_reminder=F
             for tid in final_ids:
                 TeacherNotification.create(teacher_id=tid, title=title, message=message, type='survey')
                 sent += 1
+
+        # ✅ تسجيل النشاط في سجل الأدمن - كان ناقص لإشعارات الاستبيانات تحديداً
+        # (موجود أصلاً لإشعارات الطلاب العامة والمعلمين، لكن مو لهذا المسار)
+        try:
+            from src.models.audit_log import AuditLog
+            AuditLog.log(
+                action='send_notification',
+                description=f'إرسال إشعار استبيان "{survey.title}" إلى {sent} {"طالب" if base_type == "student" else "معلم"}'
+                            + (' (تذكير)' if is_reminder else ''),
+                admin_name=getattr(current_user, 'username', 'الادمن'),
+                target_type='survey',
+                target_id=survey.id,
+            )
+            db.session.commit()
+        except Exception as log_err:
+            print(f'⚠️ AuditLog error (survey notify): {log_err}')
     except Exception:
         db.session.rollback()
     return sent
