@@ -92,7 +92,8 @@ class SurveyQuestion(db.Model):
     reverse = db.Column(db.Boolean, nullable=False, default=False)  # فقرة عكسية — تُقلب درجتها عند التحليل، لا يُعرض للمستجيب إطلاقاً
     scored = db.Column(db.Boolean, nullable=False, default=True)  # تدخل بدرجة المحور وحساب الثبات (False لأسئلة ديموغرافية/معرفية)
     correct_option = db.Column(db.String(200), nullable=True)  # الإجابة الصحيحة — للأسئلة المعرفية الموضوعية فقط
-    skip_to = db.Column(db.String(10), nullable=True)  # item_code للسؤال التالي لو كان فلترة (تفرّع) ينطبق
+    # تفرّع شرطي: {"نص الخيار": "رمز السؤال التالي"} — كل خيار ممكن يوديك لسؤال مختلف، مو قفزة ثابتة
+    skip_to = db.Column(db.JSON, nullable=True)
 
     def to_dict(self, show_answers=True):
         data = {
@@ -108,7 +109,7 @@ class SurveyQuestion(db.Model):
             'item_code': self.item_code or '',
             'reverse': self.reverse,
             'scored': self.scored,
-            'skip_to': self.skip_to or '',
+            'skip_to': self.skip_to or {},
         }
         # ⚠️ correct_option مفتاح إجابة — يظهر للمعلم فقط (شاشة المراجعة/التحليل)، أبداً للمستجيب
         if show_answers:

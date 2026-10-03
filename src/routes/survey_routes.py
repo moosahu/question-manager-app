@@ -133,7 +133,8 @@ def _validate_questions(questions_data):
             'reverse': bool(q.get('reverse', False)),
             'scored': bool(q.get('scored', True)),
             'correct_option': (q.get('correct_option') or '').strip()[:200] or None,
-            'skip_to': (q.get('skip_to') or '').strip()[:10] or None,
+            # skip_to: {"نص الخيار": "رمز السؤال التالي"} — تفرّع شرطي حسب الإجابة، نحفظه كما هو لو كائن صالح
+            'skip_to': q.get('skip_to') if isinstance(q.get('skip_to'), dict) and q.get('skip_to') else None,
         })
     return cleaned, None
 

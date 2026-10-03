@@ -71,7 +71,9 @@ _PROMPT_TEMPLATE = """أنت خبير في القياس والتقويم وبن�
 
 ## الترتيب
 23. المقدمة، ثم الديموغرافية، ثم المحاور من العام إلى الخاص، ثم الحساس، ثم المفتوح.
-24. فاضبط skip_to لرمز أول سؤال في فلترة إذا كان سؤال فلترة يجعل محوراً لا ينطبق، فاضبط skip_to للمحور التالي المنطقي.
+24. إذا كان سؤال فلترة (يحدد إجابته لو محور لاحق ينطبق أو لا)، حط skip_to ككائن مفتاحه نص الخيار بالضبط
+    (لازم يطابق أحد options حرفياً) وقيمته رمز أول سؤال بالمحور المنطقي التالي، مثال:
+    {{"نعم": "B1", "لا": "C1"}} — فقط للأسئلة اللي فعلاً تحتاج تفرّع، أغلب الأسئلة بدون skip_to إطلاقاً.
 
 ## الترميز
 25. رمز الفقرة = رمز المحور + رقم (A1, A2...). وأسئلة الديموغرافية والمعرفية والمفتوح DM1, DM2... KN1, KN2... Q1 — اختيار رموز حروف A إلى F لا تتعارض مع رموز المحاور غير المصحّحة (X1, X2...).
@@ -98,7 +100,7 @@ OUTPUT_SCHEMA_TEXT = """{
       "max_select": 2,
       "correct_option": "الإجابة الصحيحة (معرفية فقط)",
       "reverse": false, "scored": true, "required": true,
-      "skip_to": "رمز السؤال التالي (تفرّع فقط)"
+      "skip_to": {"نص الخيار بالضبط": "رمز السؤال التالي"}
     }
   ]
 }"""
@@ -250,15 +252,24 @@ def validate_survey_json(parsed: dict, params: dict):
             if len(reverse_idx) > max(1, len(axis_qs) // 3):
                 warn(8, 'reverse_ratio', f'المحور {code}: نسبة العكسية أكثر من ثلث المحور')
 
-    # 19) التفرّع
+    # 19) التفرّع — skip_to كائن: {"نص الخيار": "رمز السؤال التالي"}
     code_order = {q.get('code'): i for i, q in enumerate(questions)}
     for q in questions:
         skip_to = q.get('skip_to')
-        if skip_to:
-            if skip_to not in code_order:
-                err(19, 'skip_to_invalid', f'السؤال {q.get("code")}: skip_to="{skip_to}" غير موجود')
-            elif code_order[skip_to] <= code_order.get(q.get('code'), -1):
-                err(19, 'skip_to_backward', f'السؤال {q.get("code")}: skip_to يشير لسؤال سابق')
+        if not skip_to:
+            continue
+        code = q.get('code')
+        if not isinstance(skip_to, dict):
+            err(19, 'skip_to_not_object', f'السؤال {code}: skip_to لازم يكون كائن (خيار → رمز السؤال)')
+            continue
+        opts = q.get('options') or []
+        for option_text, target_code in skip_to.items():
+            if opts and option_text not in opts:
+                err(19, 'skip_to_option_mismatch', f'السؤال {code}: مفتاح skip_to "{option_text}" غير موجود ضمن options')
+            if target_code not in code_order:
+                err(19, 'skip_to_invalid', f'السؤال {code}: skip_to["{option_text}"]="{target_code}" غير موجود')
+            elif code_order[target_code] <= code_order.get(code, -1):
+                err(19, 'skip_to_backward', f'السؤال {code}: skip_to["{option_text}"] يشير لسؤال سابق')
 
     # 20) تكرار دلالي بسيط (مقارنة تشابه نصي بين فقرات نفس المحور)
     for axis in axes:
