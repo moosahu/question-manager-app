@@ -136,7 +136,7 @@ def _validate_questions(questions_data):
             'item_code': (q.get('code') or q.get('item_code') or '').strip()[:10] or None,
             'reverse': bool(q.get('reverse', False)),
             'scored': bool(q.get('scored', True)),
-            'correct_option': (q.get('correct_option') or '').strip()[:200] or None,
+            'correct_option': (q.get('correct_option') or '').strip() or None,  # نص حر بلا حد — راجع ملاحظة db.Text بالموديل
             # skip_to: {"نص الخيار": "رمز السؤال التالي"} — تفرّع شرطي حسب الإجابة، نحفظه كما هو لو كائن صالح
             'skip_to': q.get('skip_to') if isinstance(q.get('skip_to'), dict) and q.get('skip_to') else None,
         })

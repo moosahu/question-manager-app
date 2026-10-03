@@ -93,7 +93,7 @@ class SurveyQuestion(db.Model):
     item_code = db.Column(db.String(10), nullable=True)  # رمز ثابت للفقرة (A1، KN1، DM1...) يُستخدم عمود بالتصدير
     reverse = db.Column(db.Boolean, nullable=False, default=False)  # فقرة عكسية — تُقلب درجتها عند التحليل، لا يُعرض للمستجيب إطلاقاً
     scored = db.Column(db.Boolean, nullable=False, default=True)  # تدخل بدرجة المحور وحساب الثبات (False لأسئلة ديموغرافية/معرفية)
-    correct_option = db.Column(db.String(200), nullable=True)  # الإجابة الصحيحة — للأسئلة المعرفية الموضوعية فقط
+    correct_option = db.Column(db.Text, nullable=True)  # الإجابة الصحيحة — للأسئلة المعرفية الموضوعية فقط — نص حر بلا حد أقصى (نفس طول الخيارات نفسها)
     # تفرّع شرطي: {"نص الخيار": "رمز السؤال التالي"} — كل خيار ممكن يوديك لسؤال مختلف، مو قفزة ثابتة
     skip_to = db.Column(db.JSON, nullable=True)
 
