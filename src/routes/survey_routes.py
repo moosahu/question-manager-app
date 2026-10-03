@@ -17,6 +17,7 @@ try:
     from src.models.teacher_student import TeacherStudent
     from src.middleware.auth_middleware import verify_student_token, verify_teacher_token
     from src.services import survey_ai_validator as sav
+    from src.services import survey_analysis as sanalysis
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.survey import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, QUESTION_TYPES, TARGET_TYPES
@@ -25,6 +26,7 @@ except ImportError:  # pragma: no cover
     from models.teacher_student import TeacherStudent
     from middleware.auth_middleware import verify_student_token, verify_teacher_token
     from services import survey_ai_validator as sav
+    from services import survey_analysis as sanalysis
 
 survey_bp = Blueprint('survey', __name__, url_prefix='/api/survey')
 
@@ -813,6 +815,30 @@ def admin_results(survey_id):
         if not survey:
             return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
         return jsonify({'success': True, 'results': _results_for_survey(survey)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@survey_bp.route('/admin/<int:survey_id>/analysis', methods=['GET'])
+@login_required
+@admin_required
+def admin_analysis(survey_id):
+    """التحليل الإحصائي (المرحلة 4): ثبات ألفا كرونباخ + تجزئة نصفية + ارتباط الفقرات + تفسير المتوسطات
+    + جودة الردود + مقارنات الفئات + فجوة الأسئلة المعرفية — متاح فقط للاستبيانات المبنية بمحاور"""
+    try:
+        survey = _get_owned_survey(survey_id)
+        if not survey:
+            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
+        if not survey.axes:
+            return jsonify({
+                'success': False,
+                'error': 'هذا الاستبيان ما فيه محاور لتحليلها — التحليل الإحصائي متاح فقط للاستبيانات المبنية بمحاور (كشفي/تقويمي)',
+            }), 400
+        responses = SurveyResponse.query.filter_by(survey_id=survey.id).all()
+        response_ids = [r.id for r in responses]
+        answers = SurveyAnswer.query.filter(SurveyAnswer.response_id.in_(response_ids)).all() if response_ids else []
+        result = sanalysis.analyze_survey(survey, responses, answers)
+        return jsonify({'success': True, 'analysis': result})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
