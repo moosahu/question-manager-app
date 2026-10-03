@@ -9,89 +9,88 @@
     @page {
         size: A4;
         margin: 10mm 10mm 14mm 10mm;
-        border: 2px solid #333;
-        padding: 5mm;
         @bottom-center {
             content: "صفحة " counter(page) " من " counter(pages);
             font-family: 'SelectedFont', 'Tahoma', Arial, sans-serif;
             font-size: 10px;
-            color: #555;
+            color: #94a3b8;
         }
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
         font-family: 'SelectedFont', 'Tahoma', Arial, sans-serif;
         direction: rtl;
         font-size: 13px;
-        color: #1a1a1a;
-        margin: 0;
+        color: #1e293b;
         line-height: 1.6;
     }
 
-    /* ── هيدر: كليشة الوزارة الرسمية لو مطلوبة، وإلا هيدر العلامة التجارية بتدرّج لوني ── */
-    .header { position: relative; margin-bottom: 14px; }
+    {% if show_logo %}
+    {% set c1 = '#0B3945' %}{% set c2 = '#46BA7B' %}
+    {% else %}
+    {% set c1 = '#6366F1' %}{% set c2 = '#8B5CF6' %}
+    {% endif %}
+
+    /* ── هيدر: كليشة الوزارة الرسمية لو مطلوبة، وإلا هيدر العلامة التجارية بتدرّج لوني (نفس هوية باقي تقارير التطبيق) ── */
+    .header { position: relative; }
     {% if show_logo %}
     .header img { width: 100%; display: block; }
     .header-tab { position: absolute; right: 26.5%; left: 26.5%; top: 73%; bottom: 3%;
                   display: flex; align-items: center; justify-content: center;
                   color: #eafff2; font-size: 12.5px; font-weight: 600; text-align: center; overflow: hidden; padding: 0 6px; }
     {% else %}
-    .header { height: 90px; background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
-              border-radius: 0 0 28px 0; display: flex; align-items: center; padding: 0 22px; }
+    .header { height: 108px; background: linear-gradient(135deg, {{ c1 }} 0%, {{ c2 }} 100%);
+              border-radius: 0 0 34px 0; display: flex; align-items: center; padding: 0 26px; }
     .app-brand-card { display: flex; align-items: center; gap: 10px; }
-    .app-brand-card .emoji { font-size: 30px; }
-    .app-brand-card .title { font-size: 17px; font-weight: bold; color: #fff; }
-    .app-brand-card .sub { font-size: 11px; color: rgba(255,255,255,.9); margin-top: 2px; }
+    .app-brand-card .emoji { font-size: 34px; }
+    .app-brand-card .title { font-size: 18px; font-weight: bold; color: #fff; }
+    .app-brand-card .sub { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 3px; }
     {% endif %}
 
-    .title-box {
-        text-align: center;
-        border-top: 1.5px solid #333;
-        border-bottom: 1.5px solid #333;
-        padding: 8px 4px;
-        margin-bottom: 12px;
-    }
-    .title-box .survey-title { font-size: 17px; font-weight: bold; }
-    .title-box .survey-sub { font-size: 11px; color: #666; margin-top: 2px; }
+    .title-box { width: 70%; margin: 16px auto 0; background: #f8fafc; border: 1px solid #cbd5e1;
+                 border-radius: 10px; text-align: center; padding: 9px; }
+    .title-box .survey-title { font-size: 15.5px; font-weight: bold; color: #0f172a; }
+    .title-box .survey-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    .info-table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+    .info-table th, .info-table td { border: 1px solid #cbd5e1; padding: 7px 6px; text-align: center; font-size: 12px; }
+    .info-table th { background: linear-gradient(90deg, {{ c1 }}, {{ c2 }}); color: #fff; }
 
     .intro-box {
-        background: #f4f4f8;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        padding: 8px 10px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 9px 11px;
         margin-bottom: 14px;
         font-size: 12px;
+        color: #475569;
     }
-
-    .respondent-fields { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 12px; }
-    .respondent-fields .field { flex: 1; margin-left: 14px; }
-    .respondent-fields .field:last-child { margin-left: 0; }
-    .field-label { display: inline-block; margin-left: 4px; }
-    .field-blank { display: inline-block; border-bottom: 1px solid #333; min-width: 90px; }
 
     .section-block, .question-block { margin-bottom: 14px; page-break-inside: avoid; }
-    .q-num { font-weight: bold; margin-left: 4px; }
+    .q-num { font-weight: bold; margin-left: 4px; color: {{ c1 }}; }
     .q-text { font-weight: bold; font-size: 13px; margin-bottom: 6px; }
 
-    /* شبكة ليكرت لمجموعة فقرات نفس المحور */
+    /* شبكة ليكرت لمجموعة فقرات نفس المحور — نفس نمط جداول التقارير الأخرى بالتطبيق */
     table.likert-grid { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4px; }
     table.likert-grid th, table.likert-grid td {
-        border: 1px solid #ccc; padding: 5px 4px; text-align: center;
+        border: 1px solid #cbd5e1; padding: 6px 5px; text-align: center;
     }
-    table.likert-grid th { background: #f0f0f5; font-weight: bold; font-size: 10.5px; }
+    table.likert-grid th { background: {{ c1 }}; color: #fff; font-weight: bold; font-size: 10.5px; }
     table.likert-grid td.item-text { text-align: right; font-weight: normal; width: 34%; }
-    table.likert-grid td.cell { width: 13%; font-size: 15px; }
+    table.likert-grid td.cell { width: 13%; font-size: 15px; color: #475569; }
 
     .options-row { display: flex; flex-wrap: wrap; gap: 14px; }
     .options-row .opt { white-space: nowrap; font-size: 12.5px; }
     .options-col .opt-line { margin-bottom: 4px; font-size: 12.5px; }
 
-    .scale-labels { display: flex; justify-content: space-between; font-size: 10.5px; color: #666; margin-top: 2px; }
+    .scale-labels { display: flex; justify-content: space-between; font-size: 10.5px; color: #94a3b8; margin-top: 2px; }
 
-    .text-lines .line { border-bottom: 1px solid #999; height: 20px; }
+    .text-lines .line { border-bottom: 1px solid #cbd5e1; height: 20px; }
 
-    .footer-note { margin-top: 20px; text-align: center; font-size: 10px; color: #888; }
+    .app-footer { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic; padding: 8px; }
+
+    .bottom-bar { height: 26px; margin-top: 18px; background: linear-gradient(90deg, {{ c1 }}, {{ c2 }}); border-radius: 30px 0 0 0; }
 </style>
 </head>
 <body>
@@ -120,13 +119,18 @@
     <div class="intro-box">{{ survey.description }}</div>
     {% endif %}
 
-    <div class="respondent-fields">
-        {% if not survey.is_anonymous %}
-        <div class="field"><span class="field-label">الاسم:</span><span class="field-blank">&nbsp;</span></div>
-        {% endif %}
-        <div class="field"><span class="field-label">الصف/الشعبة:</span><span class="field-blank">&nbsp;</span></div>
-        <div class="field"><span class="field-label">التاريخ:</span><span class="field-blank">&nbsp;</span></div>
-    </div>
+    <table class="info-table">
+        <tr>
+            {% if not survey.is_anonymous %}<th>الاسم</th>{% endif %}
+            <th>الصف/الشعبة</th>
+            <th>التاريخ</th>
+        </tr>
+        <tr>
+            {% if not survey.is_anonymous %}<td>&nbsp;</td>{% endif %}
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+    </table>
 
     {% set ns = namespace(num=0) %}
     {% for section in sections %}
@@ -198,7 +202,9 @@
         {% endif %}
     {% endfor %}
 
-    <div class="footer-note">شكراً لمشاركتك</div>
+    <div class="app-footer">📋 مستخرج من تطبيق كيم تحصيلي | منصة تعليمية للكيمياء | شكراً لمشاركتك</div>
+
+    <div class="bottom-bar"></div>
 
 </body>
 </html>
