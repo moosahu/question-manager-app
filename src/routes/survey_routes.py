@@ -18,6 +18,7 @@ try:
     from src.middleware.auth_middleware import verify_student_token, verify_teacher_token
     from src.services import survey_ai_validator as sav
     from src.services import survey_analysis as sanalysis
+    from src.services import survey_pdf as sanalysis_pdf
 except ImportError:  # pragma: no cover
     from extensions import db
     from models.survey import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, QUESTION_TYPES, TARGET_TYPES
@@ -27,6 +28,7 @@ except ImportError:  # pragma: no cover
     from middleware.auth_middleware import verify_student_token, verify_teacher_token
     from services import survey_ai_validator as sav
     from services import survey_analysis as sanalysis
+    from services import survey_pdf as sanalysis_pdf
 
 survey_bp = Blueprint('survey', __name__, url_prefix='/api/survey')
 
@@ -840,6 +842,27 @@ def admin_analysis(survey_id):
         answers = SurveyAnswer.query.filter(SurveyAnswer.response_id.in_(response_ids)).all() if response_ids else []
         result = sanalysis.analyze_survey(survey, responses, answers)
         return jsonify({'success': True, 'analysis': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@survey_bp.route('/admin/<int:survey_id>/export-pdf', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_pdf(survey_id):
+    """نموذج PDF فاضي قابل للطباعة للاستبيان — بدون رموز/محاور، شعار الوزارة اختياري (?show_logo=0 لإخفائه)"""
+    try:
+        survey = _get_owned_survey(survey_id)
+        if not survey:
+            return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
+        show_logo = request.args.get('show_logo', '1') not in ('0', 'false', 'False')
+        # ⚠️ show_answers=False: النموذج المطبوع للتوزيع على المستجيبين، ما يظهر فيه مفتاح الإجابات المعرفية
+        survey_dict = survey.to_dict(with_questions=True, show_answers=False)
+        pdf_bytes = sanalysis_pdf.generate_survey_pdf(survey_dict, show_logo=show_logo)
+        return send_file(
+            BytesIO(pdf_bytes), as_attachment=True,
+            download_name=f"استبيان_{survey.id}.pdf", mimetype='application/pdf',
+        )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
