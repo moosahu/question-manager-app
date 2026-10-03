@@ -1,12 +1,13 @@
 # src/services/survey_analysis.py
 """التحليل الإحصائي داخل التطبيق للاستبيانات القائمة على محاور (كشفي/تقويمي) — المرحلة 4
 ثبات ألفا كرونباخ + تجزئة نصفية + ارتباط الفقرة ببقية المحور + تفسير المتوسطات + جودة الردود
-+ مقارنات بين الفئات (Mann-Whitney/Kruskal-Wallis/ANOVA) + فجوة الأسئلة المعرفية.
+(إجابة مسطّحة/تناقض العكسية/سرعة غير منطقية/رد مكرر من نفس الجهاز) + مقارنات بين الفئات
+(Mann-Whitney/Kruskal-Wallis/ANOVA) + فجوة الأسئلة المعرفية.
 بدون طلبات شبكة — يُستدعى من survey_routes.py فقط بعد جلب الردود والإجابات من القاعدة.
 
-⚠️ ملاحظة بنيوية: "سرعة الإكمال غير المنطقية" و"الرد المكرر من نفس الجهاز" من قائمة جودة الردود
-بالمواصفات غير مطبّقتين هنا — يحتاجان عمودين جديدين (وقت بداية الاستبيان، معرّف جهاز) لكل رد،
-غير موجودين حالياً بجدول survey_responses، ويحتاجان تعديل Flutter لإرسالهما عند التسليم.
+ملاحظة: فحص السرعة يحتاج SurveyResponse.started_at وSurvey.estimated_minutes، وفحص التكرار
+يحتاج SurveyResponse.device_id — كلها تُملأ فقط للردود المُرسلة من نسخة التطبيق بعد هذا التحديث؛
+الردود الأقدم تبقى بدونها فتُستثنى تلقائياً من هذين الفحصين تحديداً (بقية التحليل يشملها عادي).
 """
 import numpy as np
 from scipy import stats as sstats
@@ -148,17 +149,38 @@ def analyze_survey(survey, responses, answers):
     return {
         'total_responses': len(responses),
         'axes': axes_out,
-        'response_quality': _response_quality(questions, responses, by_response, axes_meta),
+        'response_quality': _response_quality(survey, questions, responses, by_response, axes_meta),
         'comparisons': _group_comparisons(survey, questions, responses, by_response, axes_meta),
         'knowledge_questions': _knowledge_analysis(questions, responses, by_response, axes_out),
     }
 
 
-def _response_quality(questions, responses, by_response, axes_meta):
+def _speed_and_duplicate_flags(survey, responses):
+    """سرعة غير منطقية: مدة الإكمال أقل من ثلث الزمن المتوقع (estimated_minutes).
+    رد مكرر: نفس device_id استُخدم بأكثر من رد لنفس الاستبيان (يهم خصوصاً بالاستبيانات المجهولة)."""
+    fast_ids, device_counts = set(), {}
+    expected = survey.estimated_minutes
+    for r in responses:
+        if r.started_at and r.submitted_at and expected:
+            duration_min = (r.submitted_at - r.started_at).total_seconds() / 60
+            if duration_min >= 0 and duration_min < (expected / 3):
+                fast_ids.add(r.id)
+        if r.device_id:
+            device_counts.setdefault(r.device_id, []).append(r.id)
+    duplicate_ids = set()
+    for ids in device_counts.values():
+        if len(ids) > 1:
+            duplicate_ids.update(ids)
+    return fast_ids, duplicate_ids
+
+
+def _response_quality(survey, questions, responses, by_response, axes_meta):
     """إجابة مسطّحة (نفس الدرجة بكل فقرات المحور قبل القلب) + تناقض العكسية (عادية وعكسية كلاهما مرتفع
-    أو كلاهما منخفض قبل القلب) — لكل محور ولكل رد. سرعة الإكمال والتكرار غير متتبَّعين (راجع تنبيه الملف)."""
+    أو كلاهما منخفض قبل القلب) — لكل محور ولكل رد. + سرعة غير منطقية ورد مكرر من نفس الجهاز (على مستوى الرد كامل)."""
     flat_count, contradiction_count = 0, 0
     flagged_response_ids = set()
+    fast_ids, duplicate_ids = _speed_and_duplicate_flags(survey, responses)
+    flagged_response_ids |= fast_ids | duplicate_ids
     for axis in axes_meta:
         code = axis.get('code')
         items = [q for q in questions if q.axis_code == code and q.type == 'likert5' and q.scored]
@@ -190,12 +212,16 @@ def _response_quality(questions, responses, by_response, axes_meta):
                     if (reg_avg >= 4 and rev_avg >= 4) or (reg_avg <= 2 and rev_avg <= 2):
                         contradiction_count += 1
                         flagged_response_ids.add(r.id)
-    return {
+    result = {
         'flat_answer_count': flat_count,
         'reverse_contradiction_count': contradiction_count,
+        'fast_completion_count': len(fast_ids),
+        'duplicate_device_count': len(duplicate_ids),
         'flagged_responses_count': len(flagged_response_ids),
-        'note': 'سرعة الإكمال وتكرار الجهاز غير مُتتبَّعين حالياً — تحتاج حفظ وقت بداية ومعرّف جهاز لكل رد (تعديل بنية لم يُنفَّذ بعد)',
     }
+    if not survey.estimated_minutes:
+        result['speed_check_note'] = 'فحص السرعة معطّل — هذا الاستبيان ما عنده زمن متوقع محفوظ (estimated_minutes)'
+    return result
 
 
 def _group_comparisons(survey, questions, responses, by_response, axes_meta):

@@ -266,6 +266,7 @@ def admin_create():
             axes=data.get('axes') or None,
             compare_by=data.get('compare_by') or None,
             is_pilot=bool(data.get('is_pilot', False)),
+            estimated_minutes=data.get('estimated_minutes') if isinstance(data.get('estimated_minutes'), int) else None,
         )
         db.session.add(survey)
         db.session.flush()
@@ -1054,7 +1055,17 @@ def student_detail(survey_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _submit_answers(survey, respondent_type, respondent_id, answers_data):
+def _parse_started_at(value):
+    """يحوّل started_at المُرسل من التطبيق (ISO 8601) لـdatetime — None لو غير موجود أو غير صالح"""
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace('Z', '+00:00')).replace(tzinfo=None)
+    except ValueError:
+        return None
+
+
+def _submit_answers(survey, respondent_type, respondent_id, answers_data, started_at=None, device_id=None):
     if survey.status != 'active':
         return {'success': False, 'error': 'هذا الاستبيان مغلق حالياً'}, 400
     existing = SurveyResponse.query.filter_by(
@@ -1064,10 +1075,14 @@ def _submit_answers(survey, respondent_type, respondent_id, answers_data):
         return {'success': False, 'error': 'already_answered', 'message': 'جاوبت على هذا الاستبيان من قبل'}, 400
 
     questions_by_id = {q.id: q for q in survey.questions}
-    if len(answers_data or []) < len(questions_by_id):
-        return {'success': False, 'error': 'لازم تجاوب على كل الأسئلة'}, 400
+    # ⚠️ ما نطلب إجابة كل الأسئلة — التفرّع الشرطي (skip_to) يجعل بعض الأسئلة غير مزارة شرعياً لبعض المستجيبين
+    if not answers_data:
+        return {'success': False, 'error': 'لازم تجاوب على الأسئلة'}, 400
 
-    response = SurveyResponse(survey_id=survey.id, respondent_type=respondent_type, respondent_id=respondent_id)
+    response = SurveyResponse(
+        survey_id=survey.id, respondent_type=respondent_type, respondent_id=respondent_id,
+        started_at=started_at, device_id=device_id,
+    )
     db.session.add(response)
     db.session.flush()
 
@@ -1103,7 +1118,10 @@ def student_submit(survey_id):
         if not _visible_to_student(survey, student_id, admin_id):
             return jsonify({'success': False, 'error': 'هذا الاستبيان مو متاح لك'}), 403
         data = request.get_json() or {}
-        result, code = _submit_answers(survey, 'student', student_id, data.get('answers'))
+        result, code = _submit_answers(
+            survey, 'student', student_id, data.get('answers'),
+            started_at=_parse_started_at(data.get('started_at')), device_id=(data.get('device_id') or None),
+        )
         return jsonify(result), code
     except Exception as e:
         db.session.rollback()
@@ -1158,7 +1176,10 @@ def teacher_submit(survey_id):
         if not _visible_to_teacher(survey, teacher_id):
             return jsonify({'success': False, 'error': 'هذا الاستبيان مو متاح لك'}), 403
         data = request.get_json() or {}
-        result, code = _submit_answers(survey, 'teacher', teacher_id, data.get('answers'))
+        result, code = _submit_answers(
+            survey, 'teacher', teacher_id, data.get('answers'),
+            started_at=_parse_started_at(data.get('started_at')), device_id=(data.get('device_id') or None),
+        )
         return jsonify(result), code
     except Exception as e:
         db.session.rollback()

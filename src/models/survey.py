@@ -35,6 +35,7 @@ class Survey(db.Model):
     survey_type = db.Column(db.String(20), nullable=True)  # استطلاعي/كشفي/تقويمي/رضا
     purpose = db.Column(db.Text, nullable=True)  # الهدف أو القرار المبني على النتائج
     grade_level = db.Column(db.String(20), nullable=True)  # ابتدائي/متوسط/ثانوي
+    estimated_minutes = db.Column(db.Integer, nullable=True)  # الزمن المتوقع للتعبئة — من توليد الذكاء الاصطناعي، يُستخدم بفحص سرعة الإكمال
     axes = db.Column(db.JSON, nullable=True)  # [{code, name, construct, high_score_means}]
     compare_by = db.Column(db.JSON, nullable=True)  # متغيرات ديموغرافية للمقارنة (مثل: الشعبة)
     is_pilot = db.Column(db.Boolean, nullable=False, default=False)  # تجريبي = لا تُدمج ردوده بالتحليل مع النهائي
@@ -61,6 +62,7 @@ class Survey(db.Model):
             'survey_type': self.survey_type or '',
             'purpose': self.purpose or '',
             'grade_level': self.grade_level or '',
+            'estimated_minutes': self.estimated_minutes,
             'axes': self.axes or [],
             'compare_by': self.compare_by or [],
             'is_pilot': self.is_pilot,
@@ -129,6 +131,9 @@ class SurveyResponse(db.Model):
     respondent_type = db.Column(db.String(10), nullable=False)  # student/teacher
     respondent_id = db.Column(db.Integer, nullable=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # ═══ لجودة الردود بالتحليل الإحصائي (المرحلة 4) — nullable، فاضية للردود القديمة قبل هذا التحديث ═══
+    started_at = db.Column(db.DateTime, nullable=True)  # وقت فتح المستجيب لشاشة الأسئلة (يُرسل من التطبيق)
+    device_id = db.Column(db.String(100), nullable=True)  # معرّف الجهاز الثابت (نفس ApiService.getDeviceId بالتطبيق)
 
     answers = db.relationship('SurveyAnswer', backref='response', cascade='all, delete-orphan')
 
