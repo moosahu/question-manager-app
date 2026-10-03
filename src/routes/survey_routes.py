@@ -856,9 +856,13 @@ def admin_export_pdf(survey_id):
         if not survey:
             return jsonify({'success': False, 'error': 'الاستبيان غير موجود'}), 404
         show_logo = request.args.get('show_logo', '1') not in ('0', 'false', 'False')
+        school_name = request.args.get('school_name') or ''
+        education_department = request.args.get('education_department') or ''
         # ⚠️ show_answers=False: النموذج المطبوع للتوزيع على المستجيبين، ما يظهر فيه مفتاح الإجابات المعرفية
         survey_dict = survey.to_dict(with_questions=True, show_answers=False)
-        pdf_bytes = sanalysis_pdf.generate_survey_pdf(survey_dict, show_logo=show_logo)
+        pdf_bytes = sanalysis_pdf.generate_survey_pdf(
+            survey_dict, show_logo=show_logo, school_name=school_name, education_department=education_department,
+        )
         return send_file(
             BytesIO(pdf_bytes), as_attachment=True,
             download_name=f"استبيان_{survey.id}.pdf", mimetype='application/pdf',

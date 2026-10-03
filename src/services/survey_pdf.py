@@ -76,8 +76,9 @@ def _html_to_pdf(html_content, src_dir):
     return pdf
 
 
-def generate_survey_pdf(survey_dict, show_logo=True):
-    """survey_dict: نتيجة survey.to_dict(with_questions=True, show_answers=False) — بدون مفتاح إجابات معرفية إطلاقاً"""
+def generate_survey_pdf(survey_dict, show_logo=True, school_name='', education_department=''):
+    """survey_dict: نتيجة survey.to_dict(with_questions=True, show_answers=False) — بدون مفتاح إجابات معرفية إطلاقاً
+    school_name/education_department: تُعرض بصندوق/شريط كليشة الوزارة فقط (show_logo=True) — نفس حقول تصدير نتائج الاختبار التفاعلي"""
     header_b64 = _letterhead_header_base64() if show_logo else ''
     sections = _build_sections(survey_dict.get('questions') or [])
     html_content = render_template(
@@ -87,6 +88,8 @@ def generate_survey_pdf(survey_dict, show_logo=True):
         likert_labels=LIKERT5_LABELS,
         show_logo=bool(show_logo and header_b64),
         header_image_base64=header_b64,
+        school_name=school_name,
+        education_department=education_department,
         font_regular=_get_font_data('cairo'),
     )
     src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
