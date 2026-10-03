@@ -2296,6 +2296,9 @@ def get_app_settings():
         # ✅ حد أدنى لنسخة ميزة الاختبار التشخيصي فقط (لا يحجب باقي التطبيق) - يُتحكم به
         # من لوحة الأدمن بدون الحاجة لرفع نسخة جديدة للمتجر
         'diagnostic_test_min_version': AISetting.get_setting('diagnostic_test_min_version', ''),
+        # ✅ حد أدنى لنسخة ميزة الاستبيانات فقط — يمنع نسخة قديمة من فتح استبيان بالصيغة
+        # الجديدة (محاور/ليكرت/تفرّع شرطي) اللي ما تعرف تعرضها صح
+        'survey_min_version': AISetting.get_setting('survey_min_version', ''),
     })
 
 
@@ -2311,6 +2314,7 @@ def force_update_config():
             'ios_store_url': AISetting.get_setting('ios_store_url', ''),
             'android_store_url': AISetting.get_setting('android_store_url', ''),
             'diagnostic_test_min_version': AISetting.get_setting('diagnostic_test_min_version', ''),
+            'survey_min_version': AISetting.get_setting('survey_min_version', ''),
         })
 
     data = request.get_json() or {}
@@ -2329,6 +2333,9 @@ def force_update_config():
     if 'diagnostic_test_min_version' in data:
         AISetting.set_setting('diagnostic_test_min_version', data.get('diagnostic_test_min_version') or '',
                               'string', description='أقل نسخة تطبيق لفتح ميزة الاختبار التشخيصي فقط')
+    if 'survey_min_version' in data:
+        AISetting.set_setting('survey_min_version', data.get('survey_min_version') or '',
+                              'string', description='أقل نسخة تطبيق لفتح استبيان بالصيغة الجديدة (محاور/ليكرت/تفرّع)')
     return jsonify({'success': True})
 
 
