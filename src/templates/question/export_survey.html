@@ -29,13 +29,21 @@
         line-height: 1.6;
     }
 
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    .header-table td { vertical-align: middle; padding: 2px 6px; }
-    .header-right, .header-left { width: 32%; font-size: 12px; }
-    .header-center { width: 36%; text-align: center; }
-    .header-center img { max-height: 55px; max-width: 100%; }
-    .header-line { margin-bottom: 2px; }
-    .header-line.bold { font-weight: bold; }
+    /* ── هيدر: كليشة الوزارة الرسمية لو مطلوبة، وإلا هيدر العلامة التجارية بتدرّج لوني ── */
+    .header { position: relative; margin-bottom: 14px; }
+    {% if show_logo %}
+    .header img { width: 100%; display: block; }
+    .header-tab { position: absolute; right: 26.5%; left: 26.5%; top: 73%; bottom: 3%;
+                  display: flex; align-items: center; justify-content: center;
+                  color: #eafff2; font-size: 12.5px; font-weight: 600; text-align: center; overflow: hidden; padding: 0 6px; }
+    {% else %}
+    .header { height: 90px; background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+              border-radius: 0 0 28px 0; display: flex; align-items: center; padding: 0 22px; }
+    .app-brand-card { display: flex; align-items: center; gap: 10px; }
+    .app-brand-card .emoji { font-size: 30px; }
+    .app-brand-card .title { font-size: 17px; font-weight: bold; color: #fff; }
+    .app-brand-card .sub { font-size: 11px; color: rgba(255,255,255,.9); margin-top: 2px; }
+    {% endif %}
 
     .title-box {
         text-align: center;
@@ -88,23 +96,20 @@
 </head>
 <body>
 
-    <table class="header-table">
-        <tr>
-            <td class="header-right">
-                <div class="header-line bold">المملكة العربية السعودية</div>
-                <div class="header-line">وزارة التعليم</div>
-            </td>
-            <td class="header-center">
-                {% if show_logo and logo_base64 %}
-                <img src="{{ logo_base64 }}" alt="شعار الوزارة">
-                {% endif %}
-            </td>
-            <td class="header-left" style="text-align: left;">
-                <div class="header-line bold">استبيان</div>
-                {% if survey.is_pilot %}<div class="header-line">(نسخة تجريبية)</div>{% endif %}
-            </td>
-        </tr>
-    </table>
+    <div class="header">
+        {% if show_logo and header_image_base64 %}
+        <img src="{{ header_image_base64 }}" alt="كليشة وزارة التعليم">
+        <div class="header-tab">استبيان{% if survey.is_pilot %} (نسخة تجريبية){% endif %}</div>
+        {% else %}
+        <div class="app-brand-card">
+            <div class="emoji">📋</div>
+            <div>
+                <div class="title">كيم تحصيلي</div>
+                <div class="sub">استبيان{% if survey.is_pilot %} — نسخة تجريبية{% endif %}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
 
     <div class="title-box">
         <div class="survey-title">{{ survey.title }}</div>

@@ -5,16 +5,34 @@
 بتصدير الاختبار (قبلها كل PDF كان يتولّد بـWeasyPrint المعطوب بدون ما ينتبه له أحد).
 """
 import os
+import base64
 import uuid
 from flask import render_template, current_app
 from weasyprint import HTML
 
 try:
-    from src.routes.exam_generator import _get_browser, _default_logo_base64, _get_font_data
+    from src.routes.exam_generator import _get_browser, _get_font_data
 except ImportError:  # pragma: no cover
-    from routes.exam_generator import _get_browser, _default_logo_base64, _get_font_data
+    from routes.exam_generator import _get_browser, _get_font_data
 
 LIKERT5_LABELS = ['موافق بشدة', 'موافق', 'محايد', 'غير موافق', 'غير موافق بشدة']
+
+_header_img_cache = None
+
+
+def _letterhead_header_base64():
+    """كليشة وزارة التعليم الرسمية — نفس الصورة المستخدمة بتقرير أنماط التعلم (src/static/images/learning_style_header.png)"""
+    global _header_img_cache
+    if _header_img_cache is not None:
+        return _header_img_cache
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'learning_style_header.png'))
+    try:
+        with open(path, 'rb') as f:
+            data = base64.b64encode(f.read()).decode()
+            _header_img_cache = f'data:image/png;base64,{data}'
+    except Exception:
+        _header_img_cache = ''
+    return _header_img_cache
 
 
 def _build_sections(questions):
@@ -60,15 +78,15 @@ def _html_to_pdf(html_content, src_dir):
 
 def generate_survey_pdf(survey_dict, show_logo=True):
     """survey_dict: نتيجة survey.to_dict(with_questions=True, show_answers=False) — بدون مفتاح إجابات معرفية إطلاقاً"""
-    logo_b64 = _default_logo_base64() if show_logo else ''
+    header_b64 = _letterhead_header_base64() if show_logo else ''
     sections = _build_sections(survey_dict.get('questions') or [])
     html_content = render_template(
         'question/export_survey.html',
         survey=survey_dict,
         sections=sections,
         likert_labels=LIKERT5_LABELS,
-        show_logo=bool(show_logo and logo_b64),
-        logo_base64=logo_b64,
+        show_logo=bool(show_logo and header_b64),
+        header_image_base64=header_b64,
         font_regular=_get_font_data('cairo'),
     )
     src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
